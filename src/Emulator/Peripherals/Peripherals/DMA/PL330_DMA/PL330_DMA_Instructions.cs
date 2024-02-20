@@ -28,8 +28,6 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
 
             decoderRoot.AddOpcode(0b00000000, 8, () => new DMAEND(this));
-            // FLUSHP is part of Peripheral Request Interface. Leaving unimplemented for now
-            decoderRoot.AddOpcode(0b00110101, 8, () => new DMAFLUSHP(this));
 
             decoderRoot.AddOpcode(0b10100000, 8, () => new DMAGO(this, nonSecure: false));
             decoderRoot.AddOpcode(0b10100010, 8, () => new DMAGO(this, nonSecure: true));
@@ -64,6 +62,17 @@ namespace Antmicro.Renode.Peripherals.DMA
             decoderRoot.AddOpcode(0b00111011, 8, () => new DMALPEND(this, isConditional: true, transactionType: Channel.ChannelRequestType.Burst));
             decoderRoot.AddOpcode(0b00111111, 8, () => new DMALPEND(this, isConditional: true, transactionType: Channel.ChannelRequestType.Burst, loopCounterIndex: 1));
             decoderRoot.AddOpcode(0b00101111, 8, () => new DMALPEND(this, isConditional: true, transactionType: Channel.ChannelRequestType.Burst, loopCounterIndex: 1 , isForever: true));
+
+            decoderRoot.AddOpcode(0b00110101, 8, () => new DMAFLUSHP(this));
+            decoderRoot.AddOpcode(0b00110001, 8, () => new DMAWFP(this, isPeripheralDriven: true));
+            decoderRoot.AddOpcode(0b00110000, 8, () => new DMAWFP(this, isPeripheralDriven: false, transactionType: Channel.ChannelRequestType.Single));
+            decoderRoot.AddOpcode(0b00110010, 8, () => new DMAWFP(this, isPeripheralDriven: false, transactionType: Channel.ChannelRequestType.Burst));
+
+            decoderRoot.AddOpcode(0b00100101, 8, () => new DMALDP(this, transactionType: Channel.ChannelRequestType.Single));
+            decoderRoot.AddOpcode(0b00100111, 8, () => new DMALDP(this, transactionType: Channel.ChannelRequestType.Burst));
+
+            decoderRoot.AddOpcode(0b00101001, 8, () => new DMASTP(this, transactionType: Channel.ChannelRequestType.Single));
+            decoderRoot.AddOpcode(0b00101011, 8, () => new DMASTP(this, transactionType: Channel.ChannelRequestType.Burst));
         }
 
         private SimpleInstructionDecoder<Instruction> decoderRoot = new SimpleInstructionDecoder<Instruction>();
@@ -262,23 +271,13 @@ namespace Antmicro.Renode.Peripherals.DMA
                 }
                 else
                 {
-                    Parent.channels[channelIndex.Value].Status = Channel.ChannelStatus.Stopped;
-                    Parent.channels[channelIndex.Value].localMFIFO.Clear();
+                    var selectedChannel = Parent.channels[channelIndex.Value];
+                    selectedChannel.Status = Channel.ChannelStatus.Stopped;
+                    selectedChannel.localMFIFO.Clear();
+                    selectedChannel.Peripheral = null;
                 }
                 return Length;
             }
-        }
-
-        private class DMAFLUSHP : Instruction
-        {
-            public DMAFLUSHP(PL330_DMA parent) : base(parent) {}
-            
-            protected override void ParseCompleteAction()
-            {
-                peripheral = (byte)(instructionBytes[1] >> 3);
-            }
-
-            private byte peripheral;
         }
 
         private class DMAGO : Instruction
@@ -341,6 +340,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     var selectedChannel = Parent.channels[channelIndex.Value];
                     selectedChannel.localMFIFO.Clear();
                     selectedChannel.Status = Channel.ChannelStatus.Stopped;
+                    selectedChannel.Peripheral = null;
                 }
                 return Length;
             }
@@ -348,7 +348,8 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         private abstract class DMA_LD_ST_base : Instruction
         {
-            public DMA_LD_ST_base(PL330_DMA parent, bool IsConditional, Channel.ChannelRequestType TransactionType) : base(parent)
+            public DMA_LD_ST_base(PL330_DMA parent, bool IsConditional, Channel.ChannelRequestType TransactionType, uint length = 1)
+                : base(parent, length)
             {
                 this.isConditional = IsConditional;
                 this.transactionType = TransactionType;
@@ -371,6 +372,27 @@ namespace Antmicro.Renode.Peripherals.DMA
 
                 // Treat as NOP
                 return Length;
+            }
+
+            protected void DoEndianSwap(Channel selectedChannel, int dataLengthToSwap)
+            {
+                byte[] bytesToSwap = selectedChannel.localMFIFO.DequeueRange(dataLengthToSwap);
+                byte[] bytesRemaining = selectedChannel.localMFIFO.DequeueAll();
+
+                if(bytesToSwap.Length % selectedChannel.EndianSwapSize != 0)
+                {
+                    // Not sure what happens here - the docs recommend to avoid this state
+                    // but there is no mention if DMA should abort now
+                    Parent.Log(LogLevel.Error, "Number of bytes requested for transfer: {0} is not a multiple of EndianSwapSize: {1}", bytesToSwap.Length, selectedChannel.EndianSwapSize);
+                }
+
+                for(int i = 0; i < bytesToSwap.Length; i += selectedChannel.EndianSwapSize)
+                {
+                    Array.Reverse(bytesToSwap, i, Math.Min(selectedChannel.EndianSwapSize, bytesToSwap.Length - i));
+                }
+                // Restore contents of the thread's buffer
+                selectedChannel.localMFIFO.EnqueueRange(bytesToSwap);
+                selectedChannel.localMFIFO.EnqueueRange(bytesRemaining);
             }
 
             protected abstract void DoTransfer(int channelIndex, bool ignoreBurst);
@@ -435,27 +457,6 @@ namespace Antmicro.Renode.Peripherals.DMA
                         selectedChannel.DestinationAddress += (uint)writeLength;
                     }
                 }
-            }
-
-            private void DoEndianSwap(Channel selectedChannel, int dataLengthToSwap)
-            {
-                byte[] bytesToSwap = selectedChannel.localMFIFO.DequeueRange(dataLengthToSwap);
-                byte[] bytesRemaining = selectedChannel.localMFIFO.DequeueAll();
-
-                if(bytesToSwap.Length % selectedChannel.EndianSwapSize != 0)
-                {
-                    // Not sure what happens here - the docs recommend to avoid this state
-                    // but there is no mention if DMA should abort now
-                    Parent.Log(LogLevel.Error, "Number of bytes requested for transfer: {0} is not a multiple of EndianSwapSize: {1}", bytesToSwap.Length, selectedChannel.EndianSwapSize);
-                }
-
-                for(int i = 0; i < bytesToSwap.Length; i += selectedChannel.EndianSwapSize)
-                {
-                    Array.Reverse(bytesToSwap, i, Math.Min(selectedChannel.EndianSwapSize, bytesToSwap.Length - i));
-                }
-                // Restore contents of the thread's buffer
-                selectedChannel.localMFIFO.EnqueueRange(bytesToSwap);
-                selectedChannel.localMFIFO.EnqueueRange(bytesRemaining);
             }
         }
 
@@ -577,8 +578,9 @@ namespace Antmicro.Renode.Peripherals.DMA
                     else
                     {
                         // If the event is not active, then let's wait
-                        selectedChannel.WaitingEventNumber = eventNumber;
+                        selectedChannel.WaitingEventOrPeripheralNumber = eventNumber;
                         selectedChannel.Status = Channel.ChannelStatus.WaitingForEvent;
+                        Parent.Log(LogLevel.Noisy, "DMAWFE: Channel {0} is waiting for event: {1}", selectedChannel.Id, eventNumber);
                     }
                 }
                 return Length;
@@ -713,5 +715,191 @@ namespace Antmicro.Renode.Peripherals.DMA
             private readonly int loopCounterIndex;
             private readonly Channel.ChannelRequestType transactionType;
         }
+
+        private class DMAFLUSHP : Instruction
+        {
+            // We don't model FLUSHP requests to the peripheral
+            // but let's use it to bind a peripheral to a channel
+            // this information will be cleared on END or KILL
+            public DMAFLUSHP(PL330_DMA parent) : base(parent, length: 2) {}
+
+            protected override void ParseCompleteAction()
+            {
+                peripheral = (byte)(instructionBytes[1] >> 3);
+            }
+
+            protected override ulong ExecuteInner(DMAThreadType threadType, int? channelIndex = null)
+            {
+                var selectedChannel = Parent.channels[channelIndex.Value];
+
+                if(!Parent.IsPeripheralInterfaceValid(peripheral))
+                {
+                    selectedChannel.SignalChannelAbort(Channel.ChannelFaultReason.InvalidOperand);
+                    return Length;
+                }
+                selectedChannel.Peripheral = peripheral;
+
+                return Length;
+            }
+
+            private byte peripheral;
+        }
+
+        private class DMAWFP : Instruction
+        {
+            public DMAWFP(PL330_DMA parent, bool isPeripheralDriven = false, Channel.ChannelRequestType transactionType = Channel.ChannelRequestType.Single) : base(parent, length: 2)
+            {
+                this.isPeripheralDriven = isPeripheralDriven;
+                this.transactionType = transactionType;
+            }
+
+            protected override void ParseCompleteAction()
+            {
+                peripheral = (byte)(instructionBytes[1] >> 3);
+            }
+
+            protected override ulong ExecuteInner(DMAThreadType threadType, int? channelIndex = null)
+            {
+                var selectedChannel = Parent.channels[channelIndex.Value];
+
+                if(!Parent.IsPeripheralInterfaceValid(peripheral))
+                {
+                    selectedChannel.SignalChannelAbort(Channel.ChannelFaultReason.InvalidOperand);
+                    return Length;
+                }
+                selectedChannel.Peripheral = peripheral;
+
+                if(isPeripheralDriven)
+                {
+                    // This feature is not yet implemented in this model
+                    // treat it as invalid operand case, so a driver can kill the DMA thread and potentially recover
+                    Parent.Log(LogLevel.Error, "DMAWFP: Channel {0}, waiting for peripheral: {1}, cannot be peripheral driven (periph bit set) - this is not yet supported. Aborting thread.", selectedChannel.Id, peripheral);
+                    selectedChannel.SignalChannelAbort(Channel.ChannelFaultReason.InvalidOperand);
+                    return Length;
+                }
+
+                // Wait for peripheral here
+                selectedChannel.WaitingEventOrPeripheralNumber = peripheral;
+                selectedChannel.Status = Channel.ChannelStatus.WaitingForPeripheral;
+
+                // Since we don't support `periph` we operate under the simplified assumption
+                // that we will be woken up by the correct transfer type from the peripheral
+                // this might not always be correct
+                selectedChannel.RequestType = transactionType;
+                selectedChannel.RequestLast = false;
+
+                Parent.Log(LogLevel.Noisy, "DMAWFP: Channel {0} is waiting for peripheral: {1}", selectedChannel.Id, peripheral);
+                return Length;
+            }
+
+            private byte peripheral;
+
+            private readonly bool isPeripheralDriven;
+            private readonly Channel.ChannelRequestType transactionType;
+        }
+
+        private class DMALDP : DMA_LD_ST_base
+        {
+            public DMALDP(PL330_DMA parent, Channel.ChannelRequestType transactionType = Channel.ChannelRequestType.Single)
+                : base(parent, true, transactionType, length: 2)
+            {
+                this.transactionType = transactionType;
+            }
+
+            protected override void ParseCompleteAction()
+            {
+                peripheral = (byte)(instructionBytes[1] >> 3);
+            }
+
+            protected override void DoTransfer(int channelIndex, bool ignoreBurst)
+            {
+                var selectedChannel = Parent.channels[channelIndex];
+                if(!Parent.IsPeripheralInterfaceValid(peripheral))
+                {
+                    selectedChannel.SignalChannelAbort(Channel.ChannelFaultReason.InvalidOperand);
+                    return;
+                }
+                selectedChannel.Peripheral = peripheral;
+
+                var dmaEngine = new DmaEngine(Parent.machine.GetSystemBus(Parent));
+                var readLengthInBytes = selectedChannel.SourceBurstLength * selectedChannel.SourceReadSize;
+
+                var bufferPlace = new Place(new byte[readLengthInBytes], 0);
+
+                var request = new Request(
+                    selectedChannel.SourceAddress,
+                    bufferPlace,
+                    readLengthInBytes,
+                    (TransferType)selectedChannel.SourceReadSize,
+                    (TransferType)selectedChannel.DestinationWriteSize,
+                    selectedChannel.SourceIncrementingAddress,
+                    selectedChannel.DestinationIncrementingAddress
+                );
+                var response = dmaEngine.IssueCopy(request, Parent.GetCurrentCPUOrNull());
+
+                // Update address, if it was incrementing
+                selectedChannel.SourceAddress = (uint)response.ReadAddress.Value;
+                selectedChannel.localMFIFO.EnqueueRange(bufferPlace.Array);
+            }
+
+            private byte peripheral;
+
+            private readonly Channel.ChannelRequestType transactionType;
+        }
+
+        private class DMASTP : DMA_LD_ST_base
+        {
+            public DMASTP(PL330_DMA parent, Channel.ChannelRequestType transactionType = Channel.ChannelRequestType.Single)
+                : base(parent, true, transactionType, length: 2)
+            {
+                this.transactionType = transactionType;
+            }
+
+            protected override void ParseCompleteAction()
+            {
+                peripheral = (byte)(instructionBytes[1] >> 3);
+            }
+
+            protected override void DoTransfer(int channelIndex, bool ignoreBurst)
+            {
+                var selectedChannel = Parent.channels[channelIndex];
+                if(!Parent.IsPeripheralInterfaceValid(peripheral))
+                {
+                    selectedChannel.SignalChannelAbort(Channel.ChannelFaultReason.InvalidOperand);
+                    return;
+                }
+                selectedChannel.Peripheral = peripheral;
+
+                var dmaEngine = new DmaEngine(Parent.machine.GetSystemBus(Parent));
+                var writeLengthInBytes = selectedChannel.DestinationBurstLength * selectedChannel.DestinationWriteSize;
+
+                // If requested, swap endianness of data in buffer, just before the transmission
+                if(selectedChannel.EndianSwapSize > 1)
+                {
+                    DoEndianSwap(selectedChannel, writeLengthInBytes);
+                }
+
+                var bufferPlace = new Place(selectedChannel.localMFIFO.DequeueRange(writeLengthInBytes), 0);
+
+                var request = new Request(
+                    bufferPlace,
+                    selectedChannel.DestinationAddress,
+                    writeLengthInBytes,
+                    (TransferType)selectedChannel.SourceReadSize,
+                    (TransferType)selectedChannel.DestinationWriteSize,
+                    selectedChannel.SourceIncrementingAddress,
+                    selectedChannel.DestinationIncrementingAddress
+                );
+                var response = dmaEngine.IssueCopy(request, Parent.GetCurrentCPUOrNull());
+
+                // Update address, if it was incrementing
+                selectedChannel.DestinationAddress = (uint)response.WriteAddress.Value;
+            }
+
+            private byte peripheral;
+
+            private readonly Channel.ChannelRequestType transactionType;
+        }
+
     }
 }

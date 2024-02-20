@@ -17,12 +17,12 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.DMA
 {
-    public partial class PL330_DMA : BasicDoubleWordPeripheral, IKnownSize, IDMA, INumberedGPIOOutput
+    public partial class PL330_DMA : BasicDoubleWordPeripheral, IKnownSize, IDMA, INumberedGPIOOutput, IGPIOReceiver
     {
         // This model doesn't take into account differences in AXI bus width, 
         // which could have impact on unaligned transfers in real HW
         // this is a know limitation at this moment
-        public PL330_DMA(IMachine machine, uint numberOfSupportedEventsAndInterrupts = 32, byte revision = 0x3) : base(machine)
+        public PL330_DMA(IMachine machine, uint numberOfSupportedEventsAndInterrupts = MaximumSupportedEventsOrInterrupts, uint numberOfSupportedPeripheralRequestInterfaces = MaximumSupportedPeripheralRequestInterfaces, byte revision = 0x3) : base(machine)
         {
             this.Revision = revision;
             if(numberOfSupportedEventsAndInterrupts > MaximumSupportedEventsOrInterrupts)
@@ -30,6 +30,11 @@ namespace Antmicro.Renode.Peripherals.DMA
                 throw new ConstructionException($"No more than {MaximumSupportedEventsOrInterrupts} Events or Interrupts are supported by this peripheral");
             }
             this.NumberOfSupportedEventsAndInterrupts = (int)numberOfSupportedEventsAndInterrupts;
+            if(numberOfSupportedPeripheralRequestInterfaces > MaximumSupportedPeripheralRequestInterfaces)
+            {
+                throw new ConstructionException($"No more than {MaximumSupportedPeripheralRequestInterfaces} Peripheral Request Interfaces are supported by this peripheral");
+            }
+            this.NumberOfSupportedPeripheralRequestInterfaces = (int)numberOfSupportedPeripheralRequestInterfaces;
 
             channels = new Channel[NumberOfChannels];
             for(int i = 0; i < channels.Length; ++i)
@@ -72,6 +77,38 @@ namespace Antmicro.Renode.Peripherals.DMA
             AbortIRQ.Unset();
         }
 
+        public void OnGPIO(int number, bool value)
+        {
+            if(!IsPeripheralInterfaceValid((uint)number))
+            {
+                return;
+            }
+            if(!value)
+            {
+                // To simulate requestLast, hold IRQ line high during the entire transmission sequence,
+                // and bring it down, when all data is sent
+                // If this feature is not used at all in DMA microcode (program) this doesn't matter
+                foreach(var channel in channels.Where(c => c?.Peripheral == number))
+                {
+                    channel.RequestLast = true;
+                }
+                return;
+            }
+
+            bool anyChangedState = false;
+            foreach(var channel in channels.Where(c => c.Status == Channel.ChannelStatus.WaitingForPeripheral).Where(c => c.WaitingEventOrPeripheralNumber == number))
+            {
+                // A peripheral has signaled that it's ready for DMA operations to start
+                channel.Status = Channel.ChannelStatus.Executing;
+                anyChangedState = true;
+            }
+            if(anyChangedState)
+            {
+                // Rerun ExecuteLoop if any channel woke up from sleep
+                ExecuteLoop();
+            }
+        }
+
         public void RequestTransfer(int channel)
         {
             throw new RecoverableException("This DMA requires an in-memory program to transfer data");
@@ -102,7 +139,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         public byte Revision { get; }
         public int NumberOfSupportedEventsAndInterrupts { get; }
-        public int NumberOfSupportedPeripheralRequestInterfaces { get; set; } = 32;
+        public int NumberOfSupportedPeripheralRequestInterfaces { get; }
 
         // The values below are only used in Configuration and DmaConfiguration registers - they have no impact on the model's operation
         public int InstructionCacheLineLength { get; set; } = 16;
@@ -280,6 +317,17 @@ namespace Antmicro.Renode.Peripherals.DMA
             return true;
         }
 
+        private bool IsPeripheralInterfaceValid(uint peripheral)
+        {
+            if(peripheral >= NumberOfSupportedPeripheralRequestInterfaces)
+            {
+                this.Log(LogLevel.Error, "Peripheral Request Interface {0} is not supported. {1} Request Interfaces are enabled.",
+                    peripheral, NumberOfSupportedPeripheralRequestInterfaces);
+                return false;
+            }
+            return true;
+        }
+
         private bool SignalEventOrInterrupt(uint eventNumber)
         {
             if(!IsEventOrInterruptValid(eventNumber))
@@ -300,7 +348,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 // Raise an event
                 eventActive[eventNumber] = true;
                 bool anyResumed = false;
-                foreach(var channel in channels.Where(c => c.Status == Channel.ChannelStatus.WaitingForEvent).Where(c => c.WaitingEventNumber == eventNumber))
+                foreach(var channel in channels.Where(c => c.Status == Channel.ChannelStatus.WaitingForEvent).Where(c => c.WaitingEventOrPeripheralNumber == eventNumber))
                 {
                     anyResumed = true;
                     // The channel will execute in next iteration of `ExecuteLoop`
@@ -381,7 +429,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                         var insn = sysbus.ReadByte(address, context: GetCurrentCPUOrNull());
                         if(!decoderRoot.TryParseOpcode(insn, out var instruction))
                         {
-                            this.Log(LogLevel.Error, "Invalid instruction at address: 0x{0:X}. Aborting thread {1}.", address, channelThread.Id);
+                            this.Log(LogLevel.Error, "Invalid instruction with opcode 0x{0:X} at address: 0x{1:X}. Aborting thread {2}.", insn, address, channelThread.Id);
                             channelThread.SignalChannelAbort(Channel.ChannelFaultReason.UndefinedInstruction);
                             continue;
                         }
@@ -428,6 +476,7 @@ namespace Antmicro.Renode.Peripherals.DMA
         private readonly Channel[] channels;
 
         private const int MaximumSupportedEventsOrInterrupts = 32;
+        private const int MaximumSupportedPeripheralRequestInterfaces = 32;
 
         private class Channel
         {
@@ -451,7 +500,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                 faultReason = ChannelFaultReason.NoFault;
                 RequestType = ChannelRequestType.Single;
                 RequestLast = false;
-                WaitingEventNumber = 0;
+                WaitingEventOrPeripheralNumber = 0;
+                Peripheral = null;
 
                 LoopCounter[0] = 0;
                 LoopCounter[1] = 0;
@@ -465,10 +515,10 @@ namespace Antmicro.Renode.Peripherals.DMA
 
                 (Registers.Channel0Status + Id * 8).Define(Parent)
                     .WithValueField(0, 4, FieldMode.Read, valueProviderCallback: _ => (ulong)Status, name: $"Channel {Id} Status")
-                    .WithValueField(4, 5, FieldMode.Read, valueProviderCallback: _ => WaitingEventNumber, name: $"Channel {Id} Wakeup Number")
+                    .WithValueField(4, 5, FieldMode.Read, valueProviderCallback: _ => WaitingEventOrPeripheralNumber, name: $"Channel {Id} Wakeup Number")
                     .WithReservedBits(9, 5)
-                    .WithTaggedFlag("DMAWFP single/burst", 14)
-                    .WithTaggedFlag("DMAWFP is periph set", 15)
+                    .WithFlag(14, FieldMode.Read, valueProviderCallback: _ => RequestType == ChannelRequestType.Burst, name: "DMAWFP is burst set") // dmawfp_b_ns
+                    .WithTaggedFlag("DMAWFP is periph bit set", 15) // It the transfer type is driven by the peripheral
                     .WithReservedBits(16, 5)
                     .WithTaggedFlag("Channel Non Secure", 21)
                     .WithReservedBits(22, 10);
@@ -517,6 +567,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             public void SignalChannelAbort(Channel.ChannelFaultReason reason)
             {
+                Parent.Log(LogLevel.Error, "Channel {0} is aborting because of {1}", Id, reason.ToString());
                 // Changing status will automatically set Abort IRQ
                 this.Status = Channel.ChannelStatus.Faulting;
                 this.faultReason = reason;
@@ -558,7 +609,9 @@ namespace Antmicro.Renode.Peripherals.DMA
             
             // What event is the channel waiting for (after calling DMAWFE)
             // We don't care about clearing this, since it only has meaning when the channel is in WaitingForEvent state
-            public uint WaitingEventNumber { get; set; }
+            public uint WaitingEventOrPeripheralNumber { get; set; }
+            // Peripheral bound to the channel
+            public int? Peripheral { get; set; }
 
             public readonly int Id;
             public readonly byte[] LoopCounter = new byte[2];
@@ -577,6 +630,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 Stopped = 0b0000,
                 Executing = 0b0001,
                 WaitingForEvent = 0b0100,
+                WaitingForPeripheral = 0b0111,
                 Faulting = 0b1111,
             }
 
