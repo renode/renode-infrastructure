@@ -1562,7 +1562,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                 if(anyEnabled)
                 {
-                    parent.TlibRequestTranslationBlockInterrupt();
+                    parent.TlibRequestTranslationBlockInterrupt(1);
 
                     // tell sysbus to cancel the current transaction and return immediately
                     return false;
@@ -1609,7 +1609,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     {
                         parent.TlibRestoreContext();
                     }
-                    parent.TlibRequestTranslationBlockInterrupt();
+                    parent.TlibRequestTranslationBlockInterrupt(0);
                     return;
                 }
                 guard.Value = null;
@@ -1753,7 +1753,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private FuncInt32Int32 TlibExecute;
 
         [Import]
-        protected Action TlibRequestTranslationBlockInterrupt;
+        protected ActionInt32 TlibRequestTranslationBlockInterrupt;
 
         [Import]
         protected Action TlibSetReturnRequest;

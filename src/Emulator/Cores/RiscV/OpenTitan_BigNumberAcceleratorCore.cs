@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -278,7 +278,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             LastError = error;
             if(stopExecution)
             {
-                this.TlibRequestTranslationBlockInterrupt();
+                this.TlibRequestTranslationBlockInterrupt(0);
             }
         }
 
