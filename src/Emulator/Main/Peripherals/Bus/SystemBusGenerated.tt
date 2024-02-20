@@ -1,6 +1,6 @@
 ﻿<#
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -47,10 +47,6 @@ namespace Antmicro.Renode.Peripherals.Bus
     {
         var type = entry.Key;
         var name = entry.Value;
-
-        // Read/Write methods come in two flavors - one with an explicit ICPU context and the second one without it.
-        // Their logic is mostly duplicated, the only difference is a call to `TryGetCurrentCPU`.
-        // For performance reasons we want to avoid calling it if not necessary, and that's why we don't implement one of them as a wrapper for the second one.
 #>
         public <#= type #> Read<#= name #>(ulong address, ICPU context = null)
         {
