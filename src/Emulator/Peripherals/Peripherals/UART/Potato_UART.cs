@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -12,21 +12,17 @@ using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
-    [AllowedTranslations(AllowedTranslation.QuadWordToDoubleWord)]
-    public class Potato_UART : UARTBase, IDoubleWordPeripheral, IKnownSize
+    public class Potato_UART : UARTBase, IQuadWordPeripheral, IKnownSize
     {
         public Potato_UART(IMachine machine) : base(machine)
         {
-            var registersMap = new Dictionary<long, DoubleWordRegister>
+            var registersMap = new Dictionary<long, QuadWordRegister>
             {
-                {(long)Registers.TransmitRxLo, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, writeCallback: (_, value) => this.TransmitCharacter((byte)value), name: "TransmitRxLo")
+                {(long)Registers.TransmitRx, new QuadWordRegister(this)
+                    .WithValueField(0, 64, writeCallback: (_, value) => this.TransmitCharacter((byte)value), name: "TransmitRx")
                 },
-                {(long)Registers.TransmitRxHi, new DoubleWordRegister(this)
-                    .WithReservedBits(0, 32) // simulating 64bit register, just here to silence the warning
-                },
-                {(long)Registers.ReceiveRxLo, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ =>
+                {(long)Registers.ReceiveRx, new QuadWordRegister(this)
+                    .WithValueField(0, 64, FieldMode.Read, valueProviderCallback: _ =>
                     {
                         if(!TryGetCharacter(out var character))
                         {
@@ -34,45 +30,33 @@ namespace Antmicro.Renode.Peripherals.UART
                             return 0x0;
                         }
                         return character;
-                    }, name: "ReceiveRxLo")
+                    }, name: "ReceiveRx")
                 },
-                {(long)Registers.ReceiveRxHi, new DoubleWordRegister(this)
-                    .WithReservedBits(0, 32) // simulating 64bit register, just here to silence the warning
-                },
-                {(long)Registers.StatusRxLo, new DoubleWordRegister(this)
+                {(long)Registers.StatusRx, new QuadWordRegister(this)
                     .WithFlag(0, valueProviderCallback: _ => Count == 0, name: "ReceiveRxEmpty")
                     .WithFlag(1, valueProviderCallback: _ => Count == 0, name: "TransmitRxEmpty")
                     .WithFlag(2, valueProviderCallback: _ => false, name: "ReceiveRxFull")
                     .WithFlag(3, valueProviderCallback: _ => false, name: "TransmitRxFull")
-                    .WithReservedBits(4, 28)
+                    .WithReservedBits(4, 60)
                  },
-                {(long)Registers.StatusRxHi, new DoubleWordRegister(this)
-                    .WithReservedBits(0, 32)
-                 },
-                {(long)Registers.ClockDividerLo, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, name: "ClkDivLo")
+                {(long)Registers.ClockDivider, new QuadWordRegister(this)
+                    .WithValueField(0, 64, name: "ClkDiv")
                 },
-                {(long)Registers.ClockDividerHi, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, name: "ClkDivHi")
-                },
-                {(long)Registers.InterruptEnableRxLo, new DoubleWordRegister(this)
+                {(long)Registers.InterruptEnableRx, new QuadWordRegister(this)
                     .WithFlag(0, valueProviderCallback: _ => false, name: "Interrupt_Receive")
                     .WithFlag(1, valueProviderCallback: _ => false, name: "Interrupt_Transmit")
-                    .WithReservedBits(2, 30)
-                 },
-                {(long)Registers.InterruptEnableRxHi, new DoubleWordRegister(this)
-                    .WithReservedBits(0, 32)
+                    .WithReservedBits(2, 62)
                  },
              };
-            registers = new DoubleWordRegisterCollection(this, registersMap);
+            registers = new QuadWordRegisterCollection(this, registersMap);
         }
 
-        public uint ReadDoubleWord(long offset)
+        public ulong ReadQuadWord(long offset)
         {
             return registers.Read(offset);
         }
 
-        public void WriteDoubleWord(long offset, uint value)
+        public void WriteQuadWord(long offset, ulong value)
         {
             registers.Write(offset, value);
         }
@@ -101,20 +85,15 @@ namespace Antmicro.Renode.Peripherals.UART
             // intentionally left blank
         }
 
-        private readonly DoubleWordRegisterCollection registers;
+        private readonly QuadWordRegisterCollection registers;
 
         private enum Registers : long
         {
-            TransmitRxLo = 0x0,
-            TransmitRxHi = 0x4,
-            ReceiveRxLo = 0x08,
-            ReceiveRxHi = 0xC,
-            StatusRxLo = 0x10,
-            StatusRxHi = 0x14,
-            ClockDividerLo = 0x18,
-            ClockDividerHi = 0x1C,
-            InterruptEnableRxLo = 0x20,
-            InterruptEnableRxHi = 0x24,
+            TransmitRx = 0x0,
+            ReceiveRx = 0x08,
+            StatusRx = 0x10,
+            ClockDivider = 0x18,
+            InterruptEnableRx = 0x20,
         }
     }
 }
