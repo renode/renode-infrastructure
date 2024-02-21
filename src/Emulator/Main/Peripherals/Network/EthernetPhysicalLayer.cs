@@ -1,10 +1,11 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.UserInterface;
 
@@ -15,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.Network
     {
         public EthernetPhysicalLayer()
         {
-            BasicStatus = (ushort)(1 << 5 | 1 << 2); // link up, auto-negotiation complete
+            BasicStatus = (ushort)(BasicStatusBit.LinkStatus | BasicStatusBit.AutoNegotiationComplete);
         }
 
         public ushort Read(ushort addr)
@@ -168,6 +169,26 @@ namespace Antmicro.Renode.Peripherals.Network
             VendorSpecific13 = 29,
             VendorSpecific14 = 30,
             VendorSpecific15 = 31
+        }
+
+        [Flags]
+        private enum BasicStatusBit
+        {
+            ExtendedCapabilities = 1 << 0,
+            JabberDetect = 1 << 1,
+            LinkStatus = 1 << 2,
+            AutoNegotiationAbility = 1 << 3,
+            RemoteFaultDetected = 1 << 4,
+            AutoNegotiationComplete = 1 << 5,
+            AcceptManagementFrameWithPreambleSuppressed = 1 << 6,
+            ExtendedStatus = 1 << 8,
+            Supports100BaseT2Half = 1 << 9,
+            Supports100BaseT2Full = 1 << 10,
+            Supports10Half = 1 << 11,
+            Supports10Full = 1 << 12,
+            Supports100BaseXHalf = 1 << 13,
+            Supports100BaseXFull = 1 << 14,
+            Supports100BaseT4 = 1 << 15,
         }
     }
 }
