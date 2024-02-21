@@ -1,16 +1,16 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Peripherals.CPU;
+using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using Antmicro.Renode.Exceptions;
-using System.Globalization;
-using System.Collections.Generic;
+using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Core.Extensions
