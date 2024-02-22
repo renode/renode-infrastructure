@@ -1,9 +1,10 @@
 ﻿//
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
 using System.Linq;
 using System.Collections.Generic;
 using Antmicro.Renode.Logging;
@@ -22,10 +23,12 @@ namespace Antmicro.Renode.Peripherals.Mocks
         public void Write(byte[] data)
         {
             this.Log(LogLevel.Debug, "Received {0} bytes: {1}", data.Length, Misc.PrettyPrintCollectionHex(data));
+            DataReceived?.Invoke(data);
         }
 
         public byte[] Read(int count = 1)
         {
+            ReadRequested?.Invoke(count);
             var dataToReturn = buffer.DequeueRange(count);
             if(dataToReturn.Length < count)
             {
@@ -37,7 +40,8 @@ namespace Antmicro.Renode.Peripherals.Mocks
 
         public void FinishTransmission()
         {
-            // Intentionally left blank.
+            this.Log(LogLevel.Noisy, "Transmission finished");
+            TransmissionFinished?.Invoke();
         }
 
         public void Reset()
@@ -49,6 +53,15 @@ namespace Antmicro.Renode.Peripherals.Mocks
         {
             buffer.Enqueue(b);
         }
+
+        public void EnqueueResponseBytes(IEnumerable<byte> bs)
+        {
+            buffer.EnqueueRange(bs);
+        }
+
+        public event Action<byte[]> DataReceived;
+        public event Action<int> ReadRequested;
+        public event Action TransmissionFinished;
 
         private readonly Queue<byte> buffer;
     }
