@@ -371,9 +371,8 @@ namespace Antmicro.Renode.Time
         /// (2) check if there are any blocked slaves; if so DO NOT grant a time interval
         /// (2.1) if there are no blocked slaves grant a new time interval to every slave
         /// (3) wait for all slaves that are relevant in this execution (it can be either all slaves or just blocked ones) until they report back
-        /// (4) (optional) sleep if the virtual time passed faster than a real one; this step is executed if <see cref="AdvanceImmediately"> is not set and <see cref="Performance"> is low enough
-        /// (5) update elapsed virtual time
-        /// (6) execute sync hook and delayed actions if any
+        /// (4) update elapsed virtual time
+        /// (5) execute sync hook and delayed actions if any
         /// </remarks>
         /// <param name="virtualTimeElapsed">Contains the amount of virtual time that passed during execution of this method. It is the minimal value reported by a slave (i.e, some slaves can report higher/lower values).</param>
         /// <param name="timeLimit">Maximum amount of virtual time that can pass during the execution of this method. If not set, current <see cref="Quantum"> is used.</param>
