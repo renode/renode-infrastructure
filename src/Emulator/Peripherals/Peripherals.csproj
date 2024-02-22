@@ -122,7 +122,6 @@
     <Compile Include="Peripherals\Timers\TegraTimer.cs" />
     <Compile Include="Peripherals\Timers\OMAP_GPTimer.cs" />
     <Compile Include="Peripherals\Timers\STM32_Timer.cs" />
-    <Compile Include="Peripherals\Timers\SP804.cs" />
     <Compile Include="Peripherals\Timers\ARM_SP804_Timer.cs" />
     <Compile Include="Peripherals\Timers\EOSS3_SimplePeriodicTimer.cs" />
     <Compile Include="Peripherals\Timers\Cadence_TTC.cs" />
