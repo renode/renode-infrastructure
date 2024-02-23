@@ -1160,6 +1160,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         private void FillAccessMethodsWithTaggedMethods(IBusPeripheral peripheral, string tag, ref PeripheralAccessMethods methods)
         {
             methods.Peripheral = peripheral;
+            methods.Tag = tag;
 
             var customAccessMethods = new Dictionary<Tuple<BusAccess.Method, BusAccess.Operation>, MethodInfo>();
             foreach(var method in peripheral.GetType().GetMethods())
