@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -160,7 +160,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 {
                     blocks = blocks.Select(block =>
                     {
-                        if(block.Peripheral.Peripheral != peripheral)
+                        if(peripheral != null && block.Peripheral.Peripheral != peripheral)
                         {
                             return block;
                         }
@@ -169,7 +169,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     }).ToArray();
                     shortBlocks = shortBlocks.Select(dEntry =>
                     {
-                        if(dEntry.Value.Peripheral.Peripheral != peripheral)
+                        if(peripheral != null && dEntry.Value.Peripheral.Peripheral != peripheral)
                         {
                             return dEntry;
                         }
