@@ -204,6 +204,11 @@ namespace Antmicro.Renode.Peripherals.Bus
                     hasCpuWithMismatchedEndianness = true;
                     UpdateAccessMethods();
                 }
+
+                if(GetCPUs().Select(x => x.Endianness).Distinct().Count() > 1)
+                {
+                    throw new RegistrationException("Currently there can't be CPUs with different endiannesses on the same bus.");
+                }
             }
         }
 
