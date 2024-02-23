@@ -1442,8 +1442,6 @@ namespace Antmicro.Renode.Peripherals.Bus
                 methods.ReadQuadWord = (BusAccess.QuadWordReadMethod)qwordWrapper.ReadQuadWordBigEndian;
                 methods.WriteQuadWord = (BusAccess.QuadWordWriteMethod)qwordWrapper.WriteQuadWordBigEndian;
             }
-
-            peripheralRegistered = true;
         }
 
         private void RegisterInner(IBusPeripheral peripheral, PeripheralAccessMethods methods, BusRangeRegistration registrationPoint, ICPU context)
@@ -1489,6 +1487,8 @@ namespace Antmicro.Renode.Peripherals.Bus
                 Machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
                 Machine.RegisterBusController(peripheral, this);
             }
+
+            peripheralRegistered = true;
         }
 
         private IEnumerable<PeripheralLookupResult> FindTargets(ulong address, ulong count, ICPU context = null)
