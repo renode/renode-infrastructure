@@ -183,7 +183,10 @@ namespace Antmicro.Renode.Peripherals.Timers
                     writeCallback: (_, value) =>
                     {
                         timer.Limit = value;
-                        timer.ResetValue();
+                        if(timer.Direction == Direction.Descending)
+                        {
+                            timer.ResetValue();
+                        }
                     })
                 .WithValueField(24, 5, name: "TIM_PRESCALER",
                     valueProviderCallback: _ => (ulong)timer.Divider - 1,
