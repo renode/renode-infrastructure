@@ -202,11 +202,16 @@ namespace Antmicro.Renode.Time
         /// <remarks>
         /// If the <see cref="when"> time stamp comes from other time domain it will be executed in the nearest synced state.
         /// </remarks>
-        public void ExecuteInSyncedState(Action<TimeStamp> what, TimeStamp when)
+        /// <returns>
+        /// The ID of the action, which can be used to cancel it with <see cref="CancelActionToExecuteInSyncedState">.
+        /// </returns>
+        public ulong ExecuteInSyncedState(Action<TimeStamp> what, TimeStamp when)
         {
             lock(delayedActions)
             {
-                delayedActions.Add(new DelayedTask(what, when.Domain != Domain ? new TimeStamp() : when, ++delayedTaskId));
+                var id = ++delayedTaskId;
+                delayedActions.Add(new DelayedTask(what, when.Domain != Domain ? new TimeStamp() : when, id));
+                return id;
             }
         }
 
