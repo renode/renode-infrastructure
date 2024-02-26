@@ -215,6 +215,21 @@ namespace Antmicro.Renode.Time
             }
         }
 
+        /// <summary>
+        /// Removes a queued action to execute in the synced state by ID.
+        /// </summary>
+        /// <param name="actionId">The ID of the action to remove.</param>
+        /// <returns>
+        /// True if the action was successfully removed, otherwise false.
+        /// </returns>
+        public bool CancelActionToExecuteInSyncedState(ulong actionId)
+        {
+            lock(delayedActions)
+            {
+                return delayedActions.RemoveWhere(action => action.Id == actionId) == 1;
+            }
+        }
+
         /// <see cref="ITimeSource.RegisterSink">
         public void RegisterSink(ITimeSink sink)
         {
@@ -848,13 +863,13 @@ namespace Antmicro.Renode.Time
             {
                 What = what;
                 When = when;
-                this.id = id;
+                Id = id;
             }
 
             public int CompareTo(DelayedTask other)
             {
                 var result = When.TimeElapsed.CompareTo(other.When.TimeElapsed);
-                return result != 0 ? result : id.CompareTo(other.id);
+                return result != 0 ? result : Id.CompareTo(other.Id);
             }
 
             public Action<TimeStamp> What { get; private set; }
@@ -863,7 +878,7 @@ namespace Antmicro.Renode.Time
 
             public static DelayedTask Zero { get; private set; }
 
-            private readonly ulong id;
+            public ulong Id { get; }
         }
 
         /// <summary>
