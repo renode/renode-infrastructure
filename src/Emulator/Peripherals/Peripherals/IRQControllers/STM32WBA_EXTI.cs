@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -14,7 +14,7 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.IRQControllers
 {
-    public class STM32WBA_EXTI : BasicDoubleWordPeripheral, IKnownSize, IIRQController, INumberedGPIOOutput
+    public class STM32WBA_EXTI : BasicDoubleWordPeripheral, IKnownSize, ILocalGPIOReceiver, INumberedGPIOOutput
     {
         public STM32WBA_EXTI(IMachine machine, int numberOfOutputLines): base(machine)
         {
@@ -26,21 +26,33 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 innerConnections[i] = new GPIO();
             }
             Connections = new ReadOnlyDictionary<int, IGPIO>(innerConnections);
+            internalReceiversCache = new Dictionary<int, InternalReceiver>();
             DefineRegisters();
         }
 
-        public void OnGPIO(int number, bool value)
+        public IGPIOReceiver GetLocalReceiver(int index)
         {
-            if(number >= numberOfLines)
+            if(!internalReceiversCache.TryGetValue(index, out var receiver))
             {
-                this.Log(LogLevel.Error, "GPIO number {0} is out of range [0])", number);
-                return;
+                receiver = new InternalReceiver(this, index);
+                internalReceiversCache.Add(index, receiver);
             }
+            return receiver;
+        }
 
-            if(core.CanSetInterruptValue((byte)number, value, out var _))
+        public override void Reset()
+        {
+            base.Reset();
+            foreach(var connection in Connections.Values)
             {
-                core.UpdatePendingValue((byte)number, true);
-                Connections[number].Set(true);
+                connection.Unset();
+            }
+            foreach(var receiver in internalReceiversCache.Values)
+            {
+                for(int pin = 0; pin < GpioPins; ++pin)
+                {
+                    receiver.UpdateGPIO(pin);
+                }
             }
         }
 
@@ -79,17 +91,21 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             RegistersCollection.DefineRegister((long)Registers.PrivilegeConfiguration);
 
-            // For now there is no way we can tell where did the signal came from - no way to implement this
-            // However, we define the fields as value fields to handle software that expects to be able to
-            // read back the last written value.
             for(var registerIndex = 0; registerIndex < InterruptSelectionRegistersCount; registerIndex++)
             {
-                var firstOffset = registerIndex * 4;
-                RegistersCollection.DefineRegister((long)Registers.ExternalInterruptSelection1 + firstOffset)
-                    .WithValueField(0, 8, name: $"EXTI{firstOffset + 0}")
-                    .WithValueField(8, 8, name: $"EXTI{firstOffset + 1}")
-                    .WithValueField(16, 8, name: $"EXTI{firstOffset + 2}")
-                    .WithValueField(24, 8, name: $"EXTI{firstOffset + 3}");
+                var reg = new DoubleWordRegister(this, 0);
+                for(var fieldNumber = 0; fieldNumber < NumberOfPortsPerInterruptSelectionRegister; ++fieldNumber)
+                {
+                    var pinNumber = registerIndex * 4 + fieldNumber;
+                    extiMappings[pinNumber] = reg.DefineValueField(8 * fieldNumber, 8, name: $"EXTI{pinNumber}",
+                        changeCallback: (_, portNumber) =>
+                        {
+                            Connections[pinNumber].Unset();
+                            ((InternalReceiver)GetLocalReceiver((int)portNumber)).UpdateGPIO(pinNumber);
+                        }
+                    );
+                }
+                RegistersCollection.AddRegister((long)Registers.ExternalInterruptSelection1 + 4 * registerIndex, reg);
             }
 
             RegistersCollection.DefineRegister((long)Registers.Lock);
@@ -101,8 +117,63 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private readonly STM32_EXTICore core;
         private readonly int numberOfLines;
+        private readonly Dictionary<int, InternalReceiver> internalReceiversCache;
+        private readonly IValueRegisterField[] extiMappings = new IValueRegisterField[GpioPins];
 
         private const uint InterruptSelectionRegistersCount = 4;
+        private const int GpioPins = 16;
+        private const int NumberOfPortsPerInterruptSelectionRegister = GpioPins / (int)InterruptSelectionRegistersCount;
+
+        private class InternalReceiver : IGPIOReceiver
+        {
+            public InternalReceiver(STM32WBA_EXTI parent, int portNumber)
+            {
+                this.parent = parent;
+                this.portNumber = portNumber;
+                this.state = new bool[GpioPins];
+            }
+
+            public void OnGPIO(int pinNumber, bool value)
+            {
+                if(pinNumber >= GpioPins)
+                {
+                    parent.Log(LogLevel.Error, "GPIO port {0}, pin {1}, is not supported. Up to {2} pins are supported", portNumber, pinNumber, GpioPins);
+                    return;
+                }
+                parent.Log(LogLevel.Noisy, "GPIO port {0}, pin {1}, raised IRQ: {2}", portNumber, pinNumber, value);
+                state[pinNumber] = value;
+
+                UpdateGPIO(pinNumber);
+            }
+
+            public void UpdateGPIO(int pinNumber)
+            {
+                if((int)parent.extiMappings[pinNumber].Value == portNumber)
+                {
+                    var value = state[pinNumber];
+                    if(parent.core.CanSetInterruptValue((byte)pinNumber, value, out var _))
+                    {
+                        parent.core.UpdatePendingValue((byte)pinNumber, true);
+                        parent.Connections[pinNumber].Set(true);
+                    }
+                }
+            }
+
+            public void Reset()
+            {
+                // IRQs are cleared on Parent reset
+                // Don't clear `state` array here - as it represents the state of input signals, and is not a property of this peripheral
+                // The state can only be cleared when the input signal is reset - but it's not controlled by us, but by the peripheral connected to OnGPIO (IRQ/GPIO line)
+                // and since peripherals with connected GPIOs will naturally unset them in their Reset, the state array won't contain stale data
+            }
+
+            // The state is recorded, so it's possible to update the GPIO state when changing source peripheral
+            // since this peripheral is effectively a mux - when changing input source, it's needed to get the other source's value
+            private readonly bool[] state;
+            private readonly STM32WBA_EXTI parent;
+            private readonly int portNumber;
+        }
+
 
         private enum Registers
         {
