@@ -218,6 +218,7 @@
     <Compile Include="Peripherals\SPI\STM32WBA_SPI.cs" />
     <Compile Include="Peripherals\Timers\CC2538Watchdog.cs" />
     <Compile Include="Peripherals\USBDeprecated\USBDeviceSpeed.cs" />
+    <Compile Include="Peripherals\GPIOPort\ARM_AHB_GPIO.cs" />
     <Compile Include="Peripherals\GPIOPort\EFMGPIOPort.cs" />
     <Compile Include="Peripherals\GPIOPort\STM32F4GPIOPort_old.cs" />
     <Compile Include="Peripherals\GPIOPort\STM32_GPIOPort.cs" />
