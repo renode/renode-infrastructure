@@ -93,6 +93,7 @@ namespace Antmicro.Renode.Core
         DateTime RealTimeClockDateTime { get; }
         RealTimeClockMode RealTimeClockMode { get; set; }
         DateTime RealTimeClockStart { get; }
+        bool IsResetting { get; }
 
         event Action<IMachine> MachineReset;
         event Action<IMachine, PeripheralsChangedEventArgs> PeripheralsChanged;

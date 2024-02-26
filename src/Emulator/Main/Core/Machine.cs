@@ -511,24 +511,30 @@ namespace Antmicro.Renode.Core
         {
             lock(pausingSync)
             {
-                using(ObtainPausedState())
+                using(DisposableWrapper.New(() => IsResetting = false))
                 {
-                    foreach(var resetable in registeredPeripherals.Distinct())
+                    IsResetting = true;
+                    using(ObtainPausedState())
                     {
-                        if(resetable == this)
+                        foreach(var resetable in registeredPeripherals.Distinct())
                         {
-                            continue;
+                            if(resetable == this)
+                            {
+                                continue;
+                            }
+                            resetable.Reset();
                         }
-                        resetable.Reset();
-                    }
-                    var machineReset = MachineReset;
-                    if(machineReset != null)
-                    {
-                        machineReset(this);
+                        var machineReset = MachineReset;
+                        if(machineReset != null)
+                        {
+                            machineReset(this);
+                        }
                     }
                 }
             }
         }
+
+        public bool IsResetting { get; private set; }
 
         public void RequestResetInSafeState(Action postReset = null, ICollection<IPeripheral> unresetable = null)
         {
