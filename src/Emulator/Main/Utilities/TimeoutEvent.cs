@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -27,20 +27,22 @@ namespace Antmicro.Renode.Utilities
         public static TimeoutEvent EnqueueTimeoutEvent(this TimeSourceBase timeSource, ulong virtualMilliseconds,
             Action callback = null)
         {
-            var timeoutEvent = new TimeoutEvent();
+            TimeoutEvent timeoutEvent = null;
 
             if(virtualMilliseconds == 0)
             {
+                timeoutEvent = new TimeoutEvent(timeSource);
                 timeoutEvent.Trigger();
             }
             else
             {
                 var when = timeSource.ElapsedVirtualTime + TimeInterval.FromMilliseconds(virtualMilliseconds);
-                timeSource.ExecuteInSyncedState(_ =>
+                var actionId = timeSource.ExecuteInSyncedState(_ =>
                 {
                     callback?.Invoke();
                     timeoutEvent.Trigger();
                 }, new TimeStamp(when, timeSource.Domain));
+                timeoutEvent = new TimeoutEvent(timeSource, actionId);
             }
 
             return timeoutEvent;
@@ -49,15 +51,26 @@ namespace Antmicro.Renode.Utilities
     
     public class TimeoutEvent
     {
-        public TimeoutEvent()
+        public TimeoutEvent(TimeSourceBase timeSource, ulong? actionId = null)
         {
             waitHandle = new AutoResetEvent(false);
+            this.timeSource = timeSource;
+            this.actionId = actionId;
         }
         
         public void Trigger()
         {
             IsTriggered = true;
             waitHandle.Set();
+        }
+
+        public void Cancel()
+        {
+            if(actionId == null)
+            {
+                return;
+            }
+            timeSource.CancelActionToExecuteInSyncedState(actionId.Value);
         }
 
         public WaitHandle WaitHandle => waitHandle;
@@ -78,6 +91,13 @@ namespace Antmicro.Renode.Utilities
 
         [Constructor(false)]
         private AutoResetEvent waitHandle;
+        // We cannot serialize the timeSource but since we trigger the event after deserialization
+        // anyway, it doesn't matter since it can't be canceled at that point.
+        [Transient]
+        private readonly TimeSourceBase timeSource;
+        // We also clear out actionId to make Cancel a no-op after deserialization.
+        [Transient]
+        private readonly ulong? actionId;
     }
 }
 
