@@ -111,8 +111,16 @@ namespace Antmicro.Renode.Utilities.GDB
                         break;
                     }
                     return;
-                case HaltReason.Step:
                 case HaltReason.Pause:
+                    if(commandsManager.Machine.IsResetting)
+                    {
+                        // Don't set Trap signal when the pause is connected with resetting the machine as execution will
+                        // be resumed after the reset is completed. This will cause GDB to stop and the emulation to continue
+                        // resulting in a desync (eg. breakpoints will not be triggered)
+                        return;
+                    }
+                    goto case HaltReason.Step;
+                case HaltReason.Step:
                     if(commandsManager.Machine.SystemBus.IsMultiCore)
                     {
                         commandsManager.SelectCpuForDebugging(cpuId);
