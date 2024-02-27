@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
+using System;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -13,8 +14,9 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 {
     public class RenesasRA_GPIOMisc : BasicBytePeripheral, IKnownSize
     {
-        public RenesasRA_GPIOMisc(IMachine machine) : base(machine)
+        public RenesasRA_GPIOMisc(IMachine machine, Version version = Version.Default) : base(machine)
         {
+            this.version = version;
             DefineRegisters();
         }
 
@@ -26,9 +28,38 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         public bool PFSWriteEnabled { get; private set; }
 
-        public long Size => 0x10;
+        public long Size
+        {
+            get
+            {
+                switch(version)
+                {
+                    case Version.Default:
+                        return 0x10;
+                    case Version.RA8:
+                        return 0x20;
+                    default:
+                        throw new Exception("unreachable");
+                }
+            }
+        }
 
         protected override void DefineRegisters()
+        {
+            switch(version)
+            {
+                case Version.Default:
+                    DefineRegistersDefault();
+                    break;
+                case Version.RA8:
+                    DefineRegistersRA8();
+                    break;
+                default:
+                    throw new Exception("unreachable");
+            }
+        }
+
+        private void DefineRegistersDefault()
         {
             Registers.EthernetControl.Define(this)
                 .WithReservedBits(0, 4)
@@ -36,7 +67,24 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 .WithReservedBits(5, 3)
             ;
 
-            Registers.WriteProtect.Define(this, 0x80)
+            DefineWriteProtectRegister(Registers.WriteProtect);
+        }
+
+        private void DefineRegistersRA8()
+        {
+            RegistersRA8.EthernetControl.Define(this)
+                .WithReservedBits(0, 4)
+                .WithTaggedFlag("PHYMODE0", 4)
+                .WithReservedBits(5, 3)
+            ;
+
+            DefineWriteProtectRegister(RegistersRA8.WriteProtectSecure);
+        }
+
+        private void DefineWriteProtectRegister<T>(T register)
+            where T : IConvertible
+        {
+            RegistersCollection.DefineRegister(Convert.ToInt64(register), 0x80)
                 .WithReservedBits(0, 6)
                 .WithFlag(6, name: "PFSWE",
                     valueProviderCallback: _ => PFSWriteEnabled,
@@ -59,11 +107,26 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         private IFlagRegisterField pfsWriteEnableDisabled;
 
+        private readonly Version version;
+
+        public enum Version
+        {
+            Default,
+            RA8,
+        }
+
         private enum Registers
         {
             EthernetControl = 0x00,
             WriteProtect = 0x03,
             WriteProtectForSecure = 0x05,
+        }
+
+        private enum RegistersRA8
+        {
+            EthernetControl     = 0x00,
+            WriteProtect        = 0x0C,
+            WriteProtectSecure  = 0x14,
         }
     }
 }
