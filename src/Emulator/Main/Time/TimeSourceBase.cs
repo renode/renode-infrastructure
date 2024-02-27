@@ -27,7 +27,7 @@ namespace Antmicro.Renode.Time
         public TimeSourceBase()
         {
             virtualTimeSyncLock = new object();
-            isInSyncPhaseLock = new object();
+            isOnSyncPhaseThreadLock = new object();
 
             blockingEvent = new ManualResetEvent(true);
             delayedActions = new SortedSet<DelayedTask>();
@@ -185,7 +185,7 @@ namespace Antmicro.Renode.Time
         /// <param name="executeImmediately">Flag indicating if the action should be executed immediately when executed in already synced context or should it wait for the next synced state.</param>
         public void ExecuteInNearestSyncedState(Action<TimeStamp> what, bool executeImmediately = false)
         {
-            if(IsInSyncPhase && executeImmediately)
+            if(IsOnSyncPhaseThread && executeImmediately)
             {
                 what(new TimeStamp(ElapsedVirtualTime, Domain));
                 return;
@@ -374,6 +374,28 @@ namespace Antmicro.Renode.Time
         /// Gets the number of synchronizations points reached so far.
         /// </summary>
         public long NumberOfSyncPoints { get; private set; }
+
+        /// <summary>
+        /// Gets or sets the flag indicating if the current thread is a safe thread executing sync phase.
+        /// </summary>
+        public bool IsOnSyncPhaseThread
+        {
+            get
+            {
+                lock(isOnSyncPhaseThreadLock)
+                {
+                    return executeThreadId == Thread.CurrentThread.ManagedThreadId;
+                }
+            }
+
+            private set
+            {
+                lock(isOnSyncPhaseThreadLock)
+                {
+                    executeThreadId = value ? Thread.CurrentThread.ManagedThreadId : (int?)null;
+                }
+            }
+        }
 
         /// <summary>
         /// Forces the execution phase of time sinks to be done in serial.
@@ -678,7 +700,7 @@ namespace Antmicro.Renode.Time
             TimeStamp timeNow;
             lock(delayedActions)
             {
-                IsInSyncPhase = true;
+                IsOnSyncPhaseThread = true;
                 SyncHook?.Invoke(ElapsedVirtualTime);
 
                 State = TimeSourceState.ExecutingDelayedActions;
@@ -695,27 +717,8 @@ namespace Antmicro.Renode.Time
             {
                 task.What(timeNow);
             }
-            IsInSyncPhase = false;
+            IsOnSyncPhaseThread = false;
             NumberOfSyncPoints++;
-        }
-
-        private bool IsInSyncPhase
-        {
-            get
-            {
-                lock(isInSyncPhaseLock)
-                {
-                    return executeThreadId == Thread.CurrentThread.ManagedThreadId;
-                }
-            }
-
-            set
-            {
-                lock(isInSyncPhaseLock)
-                {
-                    executeThreadId = value ? Thread.CurrentThread.ManagedThreadId : (int?)null;
-                }
-            }
         }
 
         protected volatile bool isStarted;
@@ -747,7 +750,7 @@ namespace Antmicro.Renode.Time
         private readonly TimeVariantValue hostTicksElapsed;
         private readonly SortedSet<DelayedTask> delayedActions;
         private readonly object virtualTimeSyncLock;
-        private readonly object isInSyncPhaseLock;
+        private readonly object isOnSyncPhaseThreadLock;
 
         private static readonly TimeInterval DefaultQuantum = TimeInterval.FromTicks(100);
 
