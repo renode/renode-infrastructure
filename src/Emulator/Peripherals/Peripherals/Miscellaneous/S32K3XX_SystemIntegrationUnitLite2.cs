@@ -7,23 +7,36 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Logging;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Core.Extensions;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Peripherals;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.GPIOPort;
+using Antmicro.Renode.Utilities;
+
+using Endianness = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
-    public class S32K3XX_SystemIntegrationUnitLite2 : IDoubleWordPeripheral, IWordPeripheral, IBytePeripheral, IKnownSize,
+    public class S32K3XX_SystemIntegrationUnitLite2 : BaseGPIOPort, IDoubleWordPeripheral, IWordPeripheral, IBytePeripheral, IKnownSize,
         IProvidesRegisterCollection<DoubleWordRegisterCollection>, IProvidesRegisterCollection<ByteRegisterCollection>
     {
-        public S32K3XX_SystemIntegrationUnitLite2()
+        public S32K3XX_SystemIntegrationUnitLite2(IMachine machine) : base(machine, MaximumValidPadIndex + 1)
         {
+            IRQ1 = new GPIO();
+            IRQ2 = new GPIO();
+            IRQ3 = new GPIO();
+            IRQ4 = new GPIO();
+
+            interruptType = new InterruptType[ExternalInterruptCount];
+            interruptPending = new IFlagRegisterField[ExternalInterruptCount];
+            interruptEnabled = new IFlagRegisterField[ExternalInterruptCount];
+
             doubleWordRegisterCollection = new DoubleWordRegisterCollection(this);
             byteRegisterCollection = new ByteRegisterCollection(this);
+
             DefineRegisters();
         }
 
@@ -64,17 +77,100 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             byteRegisterCollection.Write(offset, value);
         }
 
-        public void Reset()
+        public override void Reset()
         {
+            base.Reset();
             doubleWordRegisterCollection.Reset();
             byteRegisterCollection.Reset();
         }
 
+        public override void OnGPIO(int number, bool value)
+        {
+            if(!validPadIndexes.Contains(number))
+            {
+                this.Log(LogLevel.Warning, "Tried to set {0} to pad#{1} is not an valid pad index", value, number);
+                return;
+            }
+
+            var previousState = State[number];
+            base.OnGPIO(number, value);
+
+            if(previousState == value)
+            {
+                return;
+            }
+
+            var mapping = eirqToPadMapping
+                .Select((Pads, Index) => new { Pads, Index })
+                .Where(item => item.Pads.Contains(number))
+                .FirstOrDefault();
+
+            if(mapping == null)
+            {
+                return;
+            }
+
+            var externalIRQ = mapping.Index;
+            if(interruptType[externalIRQ].HasFlag(InterruptType.RisingEdge) && !previousState)
+            {
+                interruptPending[externalIRQ].Value = true;
+            }
+            if(interruptType[externalIRQ].HasFlag(InterruptType.FallingEdge) && previousState)
+            {
+                interruptPending[externalIRQ].Value = true;
+            }
+
+            UpdateInterrupts();
+        }
+
+        public int TranslatePinName(string pinName)
+        {
+            var normalizedPinName = pinName.ToUpper();
+
+            // Pin name is in format PTxy, where x is between A and H, and y can be between 0 and 31
+            if(normalizedPinName.Length < 4 || !normalizedPinName.StartsWith("PT"))
+            {
+                throw new RecoverableException($"{pinName} is invalid pin name. Correct pin names are in format PTxyy");
+            }
+
+            var portIndexChar = normalizedPinName[2];
+            if(portIndexChar > 'H' || portIndexChar < 'A')
+            {
+                throw new RecoverableException("Pin name should be in range PTAxx to PTHxx");
+            }
+            var portIndex = portIndexChar - 'A';
+
+            var pinIndexString = normalizedPinName.Substring(3);
+            if(!Int32.TryParse(pinIndexString, out var pinIndex) || pinIndex < 0 || pinIndex > 31)
+            {
+                throw new RecoverableException("Pin name should be in range PTx00 to PTx31");
+            }
+
+            var padIndex = portIndex * 32 + pinIndex;
+            if(!validPadIndexes.Contains(padIndex))
+            {
+                throw new RecoverableException("This pin is unavailable for GPIO");
+            }
+
+            return padIndex;
+        }
+
         public long Size => 0x4000;
-        public GPIO IRQ { get; } = new GPIO();
+        public GPIO IRQ1 { get; }
+        public GPIO IRQ2 { get; }
+        public GPIO IRQ3 { get; }
+        public GPIO IRQ4 { get; }
 
         DoubleWordRegisterCollection IProvidesRegisterCollection<DoubleWordRegisterCollection>.RegistersCollection => doubleWordRegisterCollection;
         ByteRegisterCollection IProvidesRegisterCollection<ByteRegisterCollection>.RegistersCollection => byteRegisterCollection;
+
+        private void UpdateInterrupts()
+        {
+            IRQ1.Set(Enumerable.Range(0, 8).Any(irq => interruptEnabled[irq].Value && interruptPending[irq].Value));
+            IRQ2.Set(Enumerable.Range(8, 8).Any(irq => interruptEnabled[irq].Value && interruptPending[irq].Value));
+            IRQ3.Set(Enumerable.Range(16, 8).Any(irq => interruptEnabled[irq].Value && interruptPending[irq].Value));
+            IRQ4.Set(Enumerable.Range(24, 8).Any(irq => interruptEnabled[irq].Value && interruptPending[irq].Value));
+        }
 
         private void DefineRegisters()
         {
@@ -106,20 +202,36 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             var interruptFallingEdgeEventEnable = Registers.InterruptFallingEdgeEventEnable0.Define(asDoubleWordCollection);
             var interruptFilterEnable = Registers.InterruptFilterEnable0.Define(asDoubleWordCollection);
 
-            foreach(var irq in Enumerable.Range(0, (int)ExternalInterruptCount))
+            for(var i = 0; i < ExternalInterruptCount; ++i)
             {
-                interruptStatusFlag.WithTaggedFlag($"ExternalInterruptStatusFlag{irq}", irq);
-                interruptRequestEnable.WithTaggedFlag($"ExternalRequestEnable{irq}", irq);
+                var irq = i;
+
+                interruptStatusFlag.WithFlag(irq, out interruptPending[irq], FieldMode.Read | FieldMode.WriteOneToClear, name: $"ExternalInterruptStatusFlag{irq}");
+                interruptRequestEnable.WithFlag(irq, out interruptEnabled[irq], name: $"ExternalRequestEnable{irq}");
                 interruptRequestSelect.WithTaggedFlag($"RequestSelect{irq}", irq);
-                interruptRisingEdgeEventEnable.WithTaggedFlag($"EnableRisingEdgeEventsToSetDISR0[{irq}]", irq);
-                interruptFallingEdgeEventEnable.WithTaggedFlag($"EnableFallingEdgeEventsToSetDISR0[{irq}]", irq);
+                interruptRisingEdgeEventEnable.WithFlag(irq, name: $"EnableRisingEdgeEventsToSetDISR0[{irq}]",
+                    valueProviderCallback: _ => interruptType[irq].HasFlag(InterruptType.RisingEdge),
+                    changeCallback: (_, value) => interruptType[irq] = value ? (interruptType[irq] | InterruptType.RisingEdge) : (interruptType[irq] & ~InterruptType.RisingEdge)
+                );
+                interruptFallingEdgeEventEnable.WithFlag(irq, name: $"EnableFallingEdgeEventsToSetDISR0[{irq}]",
+                    valueProviderCallback: _ => interruptType[irq].HasFlag(InterruptType.FallingEdge),
+                    changeCallback: (_, value) => interruptType[irq] = value ? (interruptType[irq] | InterruptType.FallingEdge) : (interruptType[irq] & ~InterruptType.FallingEdge)
+                );
                 interruptFilterEnable.WithTaggedFlag($"EnableFilterOnInterruptPad{irq}", irq);
             }
 
-            Registers.InterruptFilterMaximumCounter0.DefineMany(asDoubleWordCollection, ExternalInterruptCount, (reg, index) => reg
-                .WithTag("MaximumInterruptFilterCounter", 0, 4)
-                .WithReservedBits(4, 28)
-            );
+            interruptStatusFlag.WithChangeCallback((_, __) => UpdateInterrupts());
+            interruptRequestEnable.WithChangeCallback((_, __) => UpdateInterrupts());
+            interruptRisingEdgeEventEnable.WithChangeCallback((_, __) => UpdateInterrupts());
+            interruptFallingEdgeEventEnable.WithChangeCallback((_, __) => UpdateInterrupts());
+
+            Registers.InterruptFilterMaximumCounter0.DefineMany(asDoubleWordCollection, ExternalInterruptCount, (register, registerIndex) =>
+            {
+                register
+                    .WithTag("MaximumInterruptFilterCounter", 0, 4)
+                    .WithReservedBits(4, 28)
+                ;
+            });
 
             Registers.InterruptFilterClockPrescaler.Define(asDoubleWordCollection)
                 .WithTag("InterruptFilterClockPrescaler", 0, 4)
@@ -239,85 +351,173 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
 
             IProvidesRegisterCollection<ByteRegisterCollection> asByteCollection = this;
-            var padDataIndexes = Enumerable.Empty<int>()
-                .ConcatRangeFromTo(0, 37)
-                .ConcatRangeFromTo(40, 140)
-                .ConcatRangeFromTo(142, 236);
-            foreach(var index in padDataIndexes)
+
+            foreach(var i in validPadIndexes.OrderBy(item => item))
             {
+                var index = i;
                 var registerOffset = index + 3 - 2 * (index % 4);
                 var outputOffset = Registers.GPIOPadDataOutput3 + registerOffset;
                 outputOffset.Define(asByteCollection, name: $"GPDO{index}")
-                    .WithTaggedFlag($"PadDataOut{index}", 0)
+                    .WithFlag(0, name: $"PadDataOut{index}",
+                        valueProviderCallback: _ => Connections[index].IsSet,
+                        changeCallback: (_, value) => Connections[index].Set(value))
                     .WithReservedBits(1, 7)
                 ;
 
                 var inputOffset = Registers.GPIOPadDataInput3 + registerOffset;
                 inputOffset.Define(asByteCollection, name: $"GPDI{index}")
-                    .WithTaggedFlag($"PadDataInput{index}", 0)
+                    .WithFlag(0, FieldMode.Read, name: $"PadDataInput{index}",
+                        valueProviderCallback: _ => State[index])
                     .WithReservedBits(1, 7)
                 ;
             }
 
+            // NOTE: As we are managing address translation manually in this peripheral,
+            // we have to carefully calculate bit-offsets for 16-bit registers...
+            var peripheralEndianness = this.GetEndianness(machine.SystemBus.Endianess);
+            Func<int, int, int> getStartPadIndex = (int registerIndex, int byteIndex) =>
+            {
+                // Registers are 16-bit wide
+                var startPadIndex = registerIndex * 16;
+                // Bits are in reversed order
+                switch(peripheralEndianness)
+                {
+                    case Endianness.LittleEndian:
+                        startPadIndex += (1 - byteIndex) * 8;
+                        break;
+                    case Endianness.BigEndian:
+                        startPadIndex += byteIndex * 8;
+                        break;
+                }
+
+                return startPadIndex;
+            };
+
+            // While the register addresses are one after another...
+            for(var registerOffset = 0; registerOffset < PadDataCount; ++registerOffset)
+            {
+                // ...the register indexes are in reversed order pair-wise, so 1, 0, 3, 2, 5, 4, etc.
+                var registerIndex = registerOffset ^ 1;
+                var outputOffset = Registers.ParallelGPIOPadDataOut0 + registerOffset * 2;
+                var inputOffset = Registers.ParallelGPIOPadDataIn0 + registerOffset * 2;
+
+                for(var byteIndex = 0; byteIndex < 2; ++byteIndex)
+                {
+                    var startPadIndex = getStartPadIndex(registerIndex, byteIndex);
+                    var padRange = Enumerable.Range(startPadIndex, 8).Reverse();
+
+                    (outputOffset + byteIndex).Define(asByteCollection)
+                        .WithValueField(0, 8, name: $"ParallelPadDataOutput{registerIndex}.{byteIndex}",
+                            valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(padRange.Select(pinIndex => Connections[pinIndex].IsSet)),
+                            changeCallback: (previousValue, currentValue) =>
+                            {
+                                var difference = previousValue ^ currentValue;
+                                foreach(var padIndex in BitHelper.GetSetBits(difference).Select(index => 7 - index))
+                                {
+                                    if(validPadIndexes.Contains(startPadIndex + padIndex))
+                                    {
+                                        Connections[startPadIndex + padIndex].Toggle();
+                                    }
+                                }
+                            })
+                    ;
+
+                    (inputOffset + byteIndex).Define(asByteCollection)
+                        .WithValueField(0, 8, FieldMode.Read, name: $"ParallelPadDataInput{registerIndex}.{byteIndex}",
+                            valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(padRange.Select(pinIndex => State[pinIndex])))
+                    ;
+                }
+            }
+
             // Parallel GPIO Pad Data is implemented as two byte registers, instead of a single word register, to simplify implementation.
-            // Those registers are accessible using all widths same as Pad Data registers (non-parallel). 
+            // Those registers are accessible using all widths same as Pad Data registers (non-parallel).
             var parallelPadDataReservedFlags = new Dictionary<int, int[]>
             {
                 {2, new int [] {8, 9}},
                 {8, new int [] {2}},
                 {14, new int [] {0, 1, 2}}
             };
-            foreach(var registerIndex in Enumerable.Range(0, PadDataCount))
-            {
-                var registerOffset = 2 * registerIndex + 2 - 4 * (registerIndex % 2);
-                var outputOffset = Registers.ParallelGPIOPadDataOut0 + registerOffset;
-                var inputOffset = Registers.ParallelGPIOPadDataIn0 + registerOffset;
-                foreach(var byteIndex in Enumerable.Range(0, 2))
-                {
-                    var outputRegister = (outputOffset + byteIndex).Define(asByteCollection);
-                    var inputRegister = (inputOffset + byteIndex).Define(asByteCollection);
-                    foreach(var bitIndex in Enumerable.Range(0, 8))
-                    {
-                        var flagIndex = 8 * byteIndex + bitIndex;
-                        if(parallelPadDataReservedFlags.TryGetValue(registerIndex, out var reservedFlagIndexes)
-                            && reservedFlagIndexes.Contains(flagIndex))
-                        {
-                            outputRegister.WithReservedBits(bitIndex, 1);
-                            inputRegister.WithReservedBits(bitIndex, 1);
-                            continue;
-                        }
-                        outputRegister.WithTaggedFlag($"ParallelPadDataOutput{flagIndex}", bitIndex);
-                        inputRegister.WithTaggedFlag($"ParallelPadDataInput{flagIndex}", bitIndex);
-                    }
-                }
-            }
 
             Registers.MaskedParallelGPIOPadDataOut0.DefineMany(asDoubleWordCollection, PadDataCount, (register, registerIndex) =>
+            {
+                for(var flagIndex = 0; flagIndex < 16; ++flagIndex)
                 {
-                    foreach(var flagIndex in Enumerable.Range(0, 16))
+                    var maskFlagIndex = 16 + flagIndex;
+                    if(parallelPadDataReservedFlags.TryGetValue(registerIndex, out var reservedFlagIndexes)
+                        && reservedFlagIndexes.Contains(flagIndex))
                     {
-                        var maskFlagIndex = 16 + flagIndex;
-                        if(parallelPadDataReservedFlags.TryGetValue(registerIndex, out var reservedFlagIndexes)
-                            && reservedFlagIndexes.Contains(flagIndex))
-                        {
-                            register.WithReservedBits(maskFlagIndex, 1);
-                            register.WithReservedBits(flagIndex, 1);
-                            continue;
-                        }
-                        register.WithTaggedFlag($"MaskField{flagIndex}", maskFlagIndex);
-                        register.WithTaggedFlag($"MaskedParallelPadDataOut{flagIndex}", flagIndex);
+                        register.WithReservedBits(maskFlagIndex, 1);
+                        register.WithReservedBits(flagIndex, 1);
+                        continue;
                     }
+                    register.WithTaggedFlag($"MaskField{flagIndex}", maskFlagIndex);
+                    register.WithTaggedFlag($"MaskedParallelPadDataOut{flagIndex}", flagIndex);
                 }
-            );
+            });
         }
+
+        private readonly HashSet<int> validPadIndexes =
+            new HashSet<int>(Enumerable.Empty<int>()
+                .ConcatRangeFromTo(0, 37)
+                .ConcatRangeFromTo(40, 140)
+                .ConcatRangeFromTo(142, 236));
+
+        private readonly List<int[]> eirqToPadMapping = new List<int[]> {
+            /* EIRQ00 */ new[] { 0, 18, 64, 128, 160 },
+            /* EIRQ01 */ new[] { 1, 19, 65, 129, 161 },
+            /* EIRQ02 */ new[] { 2, 20, 66, 130, 162 },
+            /* EIRQ03 */ new[] { 3, 21, 67, 131, 163 },
+            /* EIRQ04 */ new[] { 4, 16, 68, 132, 164 },
+            /* EIRQ05 */ new[] { 5, 69, 133, 165 },
+            /* EIRQ06 */ new[] { 6, 28, 70, 134, 166 },
+            /* EIRQ07 */ new[] { 7, 30, 71, 136, 167 },
+            /* EIRQ08 */ new[] { 32, 53, 96, 137, 192 },
+            /* EIRQ09 */ new[] { 33, 54, 97, 138, 193 },
+            /* EIRQ10 */ new[] { 34, 55, 98, 139, 194 },
+            /* EIRQ11 */ new[] { 35, 56, 99, 140, 195 },
+            /* EIRQ12 */ new[] { 36, 57, 100, 196 },
+            /* EIRQ13 */ new[] { 37, 58, 101, 142, 197 },
+            /* EIRQ14 */ new[] { 40, 60, 102, 143, 198 },
+            /* EIRQ15 */ new[] { 41, 63, 103, 144, 199 },
+            /* EIRQ16 */ new[] { 8, 72, 84, 168, 224 },
+            /* EIRQ17 */ new[] { 9, 73, 85, 169, 225 },
+            /* EIRQ18 */ new[] { 10, 74, 87, 170, 226 },
+            /* EIRQ19 */ new[] { 11, 75, 88, 171, 227 },
+            /* EIRQ20 */ new[] { 12, 76, 89, 172, 228 },
+            /* EIRQ21 */ new[] { 13, 77, 90, 173, 229 },
+            /* EIRQ22 */ new[] { 14, 78, 91, 174, 230 },
+            /* EIRQ23 */ new[] { 15, 79, 93, 175, 231 },
+            /* EIRQ24 */ new[] { 42, 104, 113, 200, 232 },
+            /* EIRQ25 */ new[] { 43, 105, 116, 201, 233 },
+            /* EIRQ26 */ new[] { 44, 106, 117, 202, 234 },
+            /* EIRQ27 */ new[] { 45, 107, 118, 203, 235 },
+            /* EIRQ28 */ new[] { 46, 108, 119, 204, 236 },
+            /* EIRQ29 */ new[] { 47, 109, 120, 205, 221 },
+            /* EIRQ30 */ new[] { 48, 110, 123, 206, 222 },
+            /* EIRQ31 */ new[] { 49, 111, 124, 207, 223 },
+        };
 
         private readonly DoubleWordRegisterCollection doubleWordRegisterCollection;
         private readonly ByteRegisterCollection byteRegisterCollection;
+        private readonly IFlagRegisterField[] interruptPending;
+        private readonly IFlagRegisterField[] interruptEnabled;
+
+        private const int MaximumValidPadIndex = 236;
         private const uint ExternalInterruptCount = 32;
         private const uint MuxCount = 3;
         private const int PadDataCount = 15;
 
-        public enum Registers
+        private readonly InterruptType[] interruptType;
+
+        [Flags]
+        private enum InterruptType
+        {
+            Disabled,
+            RisingEdge,
+            FallingEdge,
+        }
+
+        private enum Registers
         {
             MCUIDRegister1 = 0x4, // MIDR1
             MCUIDRegister2 = 0x8, // MIDR2
