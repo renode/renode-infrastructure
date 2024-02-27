@@ -13,6 +13,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
+using Antmicro.Migrant;
 
 namespace Antmicro.Renode.Time
 {
@@ -721,6 +722,10 @@ namespace Antmicro.Renode.Time
             NumberOfSyncPoints++;
         }
 
+        // This value is dropped because it should always be false after deserialization in order to start the emulation properly,
+        // otherwise starting stopwatch is omitted in TimeSourceBase.Start() method.
+        // If it wasn't marked as transient it could be true when the emulation wasn't paused before serialization because it was already in a safe state.
+        [Transient]
         protected volatile bool isStarted;
         protected bool isPaused;
 
