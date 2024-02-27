@@ -79,21 +79,25 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private void DefineRegisters()
         {
             IProvidesRegisterCollection<DoubleWordRegisterCollection> asDoubleWordCollection = this;
+
             Registers.MCUIDRegister1.Define(asDoubleWordCollection)
-                .WithTag("ProductLineLetter", 26, 6)
-                .WithTag("MCUPartNumber", 16, 10)
-                .WithReservedBits(8, 8)
+                .WithTag("MinorMaskRevision", 0, 4)
                 .WithTag("MajorMaskRevision", 4, 4)
-                .WithTag("MinorMaskRevision", 0, 4);
+                .WithReservedBits(8, 8)
+                .WithTag("MCUPartNumber", 16, 10)
+                .WithTag("ProductLineLetter", 26, 6)
+            ;
+
             Registers.MCUIDRegister2.Define(asDoubleWordCollection)
-                .WithTag("Technology0", 29, 3)
-                .WithTag("Temperature0", 26, 3)
-                .WithTag("Package0", 20, 6)
-                .WithTag("Frequency0", 16, 4)
-                .WithTag("FlashCode0", 14, 2)
-                .WithTag("FlashData0", 12, 2)
+                .WithTag("FlashSizeCode0", 0, 7)
                 .WithTag("FlashSizeData0", 8, 4)
-                .WithTag("FlashSizeCode0", 0, 7);
+                .WithTag("FlashData0", 12, 2)
+                .WithTag("FlashCode0", 14, 2)
+                .WithTag("Frequency0", 16, 4)
+                .WithTag("Package0", 20, 6)
+                .WithTag("Temperature0", 26, 3)
+                .WithTag("Technology0", 29, 3)
+            ;
 
             var interruptStatusFlag = Registers.DMAInterruptStatusFlag0.Define(asDoubleWordCollection);
             var interruptRequestEnable = Registers.DMAInterruptRequestEnable0.Define(asDoubleWordCollection);
@@ -101,6 +105,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             var interruptRisingEdgeEventEnable = Registers.InterruptRisingEdgeEventEnable0.Define(asDoubleWordCollection);
             var interruptFallingEdgeEventEnable = Registers.InterruptFallingEdgeEventEnable0.Define(asDoubleWordCollection);
             var interruptFilterEnable = Registers.InterruptFilterEnable0.Define(asDoubleWordCollection);
+
             foreach(var irq in Enumerable.Range(0, (int)ExternalInterruptCount))
             {
                 interruptStatusFlag.WithTaggedFlag($"ExternalInterruptStatusFlag{irq}", irq);
@@ -110,45 +115,51 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 interruptFallingEdgeEventEnable.WithTaggedFlag($"EnableFallingEdgeEventsToSetDISR0[{irq}]", irq);
                 interruptFilterEnable.WithTaggedFlag($"EnableFilterOnInterruptPad{irq}", irq);
             }
-            Registers.InterruptFilterMaximumCounter0.DefineMany(asDoubleWordCollection, ExternalInterruptCount, (reg, index) => reg
-                .WithReservedBits(4, 28)
-                .WithTag("MaximumInterruptFilterCounter", 0, 4)
-            );
-            Registers.InterruptFilterClockPrescaler.Define(asDoubleWordCollection)
-                .WithReservedBits(4, 28)
-                .WithTag("InterruptFilterClockPrescaler", 0, 4);
 
-            Registers.MUX0EMIOSEnable1.DefineMany(asDoubleWordCollection, MuxCount, stepInBytes: Registers.MUX1EMIOSEnable - Registers.MUX0EMIOSEnable1,
-                setup: (reg, index) =>
-                {
-                    var upperFlags = Enumerable.Range(16, 16).ToDictionary(x => x, x => x - 16);
-                    var lowerFlags = Enumerable.Range(0, 8).ToDictionary(x => x, x => x + 16);
-                    foreach(var flag in upperFlags.Concat(lowerFlags))
-                    {
-                        reg.WithTaggedFlag($"EMIOS0OutputFlag{flag.Value}MonitorEnable", flag.Key);
-                    }
-                    reg.WithReservedBits(8, 8);
-                }
+            Registers.InterruptFilterMaximumCounter0.DefineMany(asDoubleWordCollection, ExternalInterruptCount, (reg, index) => reg
+                .WithTag("MaximumInterruptFilterCounter", 0, 4)
+                .WithReservedBits(4, 28)
             );
+
+            Registers.InterruptFilterClockPrescaler.Define(asDoubleWordCollection)
+                .WithTag("InterruptFilterClockPrescaler", 0, 4)
+                .WithReservedBits(4, 28)
+            ;
+
+            Registers.MUX0EMIOSEnable1.DefineMany(asDoubleWordCollection, MuxCount, (register, registerIndex) =>
+            {
+                var lowerFlags = Enumerable.Range(0, 8).ToDictionary(x => x, x => x + 16);
+                var upperFlags = Enumerable.Range(16, 16).ToDictionary(x => x, x => x - 16);
+
+                foreach(var flag in upperFlags.Concat(lowerFlags))
+                {
+                    register.WithTaggedFlag($"EMIOS0OutputFlag{flag.Value}MonitorEnable", flag.Key);
+                }
+                register.WithReservedBits(8, 8);
+            }, stepInBytes: Registers.MUX1EMIOSEnable - Registers.MUX0EMIOSEnable1);
 
             Registers.MCUIDRegister3.Define(asDoubleWordCollection)
-                .WithTag("ProductFamilyLetter", 26, 6)
-                .WithTag("ProductFamilyNumber", 16, 10)
-                .WithTag("PartNumberSuffix", 10, 6)
+                .WithTag("SystemRAMSize", 0, 6)
                 .WithReservedBits(6, 4)
-                .WithTag("SystemRAMSize", 0, 6);
+                .WithTag("PartNumberSuffix", 10, 6)
+                .WithTag("ProductFamilyNumber", 16, 10)
+                .WithTag("ProductFamilyLetter", 26, 6)
+            ;
+
             Registers.MCUIDRegister4.Define(asDoubleWordCollection)
-                .WithReservedBits(16, 16)
-                .WithTag("CorePlatformOptionsFeature", 14, 2)
-                .WithReservedBits(7, 7)
-                .WithTag("SecurityFeature", 5, 2)
+                .WithTag("CorePlatformOptionsFeature", 0, 3)
                 .WithTag("EthernetFeature", 3, 2)
-                .WithTag("CorePlatformOptionsFeature", 0, 3);
+                .WithTag("SecurityFeature", 5, 2)
+                .WithReservedBits(7, 7)
+                .WithTag("CorePlatformOptionsFeature", 14, 2)
+                .WithReservedBits(16, 16)
+            ;
 
             var multiplexedSignalConfigurationIndexes = Enumerable.Empty<int>()
                 .ConcatRangeFromTo(0, 37)
                 .ConcatRangeFromTo(40, 140)
                 .ConcatRangeFromTo(142, 236);
+
             var multiplexedSignalConfigurationResets = new Dictionary<int, uint>
             {
                 {4, 0x82827},
@@ -168,6 +179,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 {108, 0x4000},
                 {136, 0x4000},
             };
+
             foreach(var index in multiplexedSignalConfigurationIndexes)
             {
                 var offset = Registers.MultiplexedSignalConfiguration0 + index * 4;
@@ -177,25 +189,26 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 }
 
                 offset.Define(asDoubleWordCollection, resetValue, name: $"MSCR{index}")
-                    .WithReservedBits(22, 10)
-                    .WithTaggedFlag("GPIOOutputBufferEnable", 21)
-                    .WithReservedBits(20, 1)
-                    .WithTaggedFlag("InputBufferEnable", 19)
-                    .WithReservedBits(18, 1)
-                    .WithTaggedFlag("Invert", 17)
-                    .WithTaggedFlag("PadKeepingEnable", 16)
-                    .WithReservedBits(15, 1)
-                    .WithTaggedFlag("SlewRateControl", 14)
-                    .WithTaggedFlag("PullEnable", 13)
-                    .WithReservedBits(12, 1)
-                    .WithTaggedFlag("PullSelect", 11)
-                    .WithReservedBits(9, 2)
-                    .WithTaggedFlag("DriveStrengthEnable", 8)
-                    .WithReservedBits(7, 1)
-                    .WithTaggedFlag("InputFilterEnable", 6)
-                    .WithTaggedFlag("SafeModeControl", 5)
+                    .WithTag("SourceSignalSelect", 0, 4)
                     .WithReservedBits(4, 1)
-                    .WithTag("SourceSignalSelect", 0, 4);
+                    .WithTaggedFlag("SafeModeControl", 5)
+                    .WithTaggedFlag("InputFilterEnable", 6)
+                    .WithReservedBits(7, 1)
+                    .WithTaggedFlag("DriveStrengthEnable", 8)
+                    .WithReservedBits(9, 2)
+                    .WithTaggedFlag("PullSelect", 11)
+                    .WithReservedBits(12, 1)
+                    .WithTaggedFlag("PullEnable", 13)
+                    .WithTaggedFlag("SlewRateControl", 14)
+                    .WithReservedBits(15, 1)
+                    .WithTaggedFlag("PadKeepingEnable", 16)
+                    .WithTaggedFlag("Invert", 17)
+                    .WithReservedBits(18, 1)
+                    .WithTaggedFlag("InputBufferEnable", 19)
+                    .WithReservedBits(20, 1)
+                    .WithTaggedFlag("GPIOOutputBufferEnable", 21)
+                    .WithReservedBits(22, 10)
+                ;
             }
 
             var inputMultiplexedSignalConfigurationRanges = Enumerable.Empty<int>()
@@ -215,12 +228,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .ConcatRangeFromTo(409, 418)
                 .ConcatRangeFromTo(440, 440)
                 .ConcatRangeFromTo(448, 469);
+
             foreach(var index in inputMultiplexedSignalConfigurationRanges)
             {
                 var offset = Registers.InputMultiplexedSignalConfiguration0 + index * 4;
                 offset.Define(asDoubleWordCollection, name: $"IMCR{index}")
+                    .WithTag($"SourceSignalSelect{index}", 0, 4)
                     .WithReservedBits(4, 28)
-                    .WithTag($"SourceSignalSelect{index}", 0, 4);
+                ;
             }
 
             IProvidesRegisterCollection<ByteRegisterCollection> asByteCollection = this;
@@ -233,13 +248,15 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 var registerOffset = index + 3 - 2 * (index % 4);
                 var outputOffset = Registers.GPIOPadDataOutput3 + registerOffset;
                 outputOffset.Define(asByteCollection, name: $"GPDO{index}")
+                    .WithTaggedFlag($"PadDataOut{index}", 0)
                     .WithReservedBits(1, 7)
-                    .WithTaggedFlag($"PadDataOut{index}", 0);
+                ;
 
                 var inputOffset = Registers.GPIOPadDataInput3 + registerOffset;
                 inputOffset.Define(asByteCollection, name: $"GPDI{index}")
+                    .WithTaggedFlag($"PadDataInput{index}", 0)
                     .WithReservedBits(1, 7)
-                    .WithTaggedFlag($"PadDataInput{index}", 0);
+                ;
             }
 
             // Parallel GPIO Pad Data is implemented as two byte registers, instead of a single word register, to simplify implementation.
@@ -275,7 +292,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 }
             }
 
-            Registers.MaskedParallelGPIOPadDataOut0.DefineMany(asDoubleWordCollection, PadDataCount, (reg, registerIndex) =>
+            Registers.MaskedParallelGPIOPadDataOut0.DefineMany(asDoubleWordCollection, PadDataCount, (register, registerIndex) =>
                 {
                     foreach(var flagIndex in Enumerable.Range(0, 16))
                     {
@@ -283,12 +300,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         if(parallelPadDataReservedFlags.TryGetValue(registerIndex, out var reservedFlagIndexes)
                             && reservedFlagIndexes.Contains(flagIndex))
                         {
-                            reg.WithReservedBits(maskFlagIndex, 1);
-                            reg.WithReservedBits(flagIndex, 1);
+                            register.WithReservedBits(maskFlagIndex, 1);
+                            register.WithReservedBits(flagIndex, 1);
                             continue;
                         }
-                        reg.WithTaggedFlag($"MaskField{flagIndex}", maskFlagIndex);
-                        reg.WithTaggedFlag($"MaskedParallelPadDataOut{flagIndex}", flagIndex);
+                        register.WithTaggedFlag($"MaskField{flagIndex}", maskFlagIndex);
+                        register.WithTaggedFlag($"MaskedParallelPadDataOut{flagIndex}", flagIndex);
                     }
                 }
             );
