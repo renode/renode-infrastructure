@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -72,12 +72,15 @@ namespace Antmicro.Renode.Core
 
         public IEnumerator<KeyValuePair<int, IGPIO>> GetEnumerator()
         {
-            throw new NotImplementedException();
+            for(int i = 0; i < Count; i++)
+            {
+                yield return new KeyValuePair<int, IGPIO>(i, new GPIOWrapper(i, connector, disconnector));
+            }
         }
 
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
         {
-            throw new NotImplementedException();
+            return GetEnumerator();
         }
 
         public int Count { get; private set; }
@@ -92,6 +95,7 @@ namespace Antmicro.Renode.Core
                 this.id = id;
                 this.connector = connector;
                 this.disconnector = disconnector;
+                targets = new List<GPIOEndpoint>();
             }
 
             public void Set(bool value)
@@ -107,6 +111,7 @@ namespace Antmicro.Renode.Core
             public void Connect(IGPIOReceiver destination, int destinationNumber)
             {
                 connector(id, destination, destinationNumber);
+                targets.Add(new GPIOEndpoint(destination, destinationNumber));
             }
 
             public void Disconnect()
@@ -145,13 +150,14 @@ namespace Antmicro.Renode.Core
             {
                 get
                 {
-                    throw new NotImplementedException();
+                    return targets;
                 }
             }
 
             private readonly int id;
             private readonly Action<int, IGPIOReceiver, int> connector;
             private readonly Action<int> disconnector;
+            private readonly IList<GPIOEndpoint> targets;
         }
     }
 }
