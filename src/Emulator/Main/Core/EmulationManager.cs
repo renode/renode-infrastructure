@@ -125,7 +125,7 @@ namespace Antmicro.Renode.Core
             {
                 using(var stream = new FileStream(path, FileMode.Create))
                 {
-                    using(CurrentEmulation.ObtainPausedState())
+                    using(CurrentEmulation.ObtainSafeState())
                     {
                         try
                         {

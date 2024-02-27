@@ -331,6 +331,17 @@ namespace Antmicro.Renode.Core
             return new PausedState(this);
         }
 
+        public IDisposable ObtainSafeState()
+        {
+            // check if we are on a safe thread that executes sync phase
+            if(MasterTimeSource.IsOnSyncPhaseThread)
+            {
+                return null;
+            }
+
+            return ObtainPausedState();
+        }
+
         public AutoResetEvent GetStartedStateChangedEvent(bool requiredStartedState, bool waitForTransition = true)
         {
             var evt = new AutoResetEvent(false);
