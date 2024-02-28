@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 // Copyright (c) 2020-2021 Microsoft
 //
@@ -10,6 +10,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU;
@@ -42,6 +43,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     SetPendingIRQ(15);
                 }
             };
+            RegisterCollection = new DoubleWordRegisterCollection(this);
+            DefineRegisters();
             Reset();
         }
 
@@ -174,9 +177,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             case Registers.SystemHandlerPriority2:
             case Registers.SystemHandlerPriority3:
                 return HandlePriorityRead(offset - 0xD14, false);
-            case Registers.SystemHandlerControlAndState:
-                this.DebugLog("Read from SHCS register. This is not yet implemented. Returning 0");
-                return 0;
             case Registers.ApplicationInterruptAndReset:
                 return HandleApplicationInterruptAndResetRead();
             case Registers.ConfigurableFaultStatus:
@@ -186,8 +186,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             case Registers.MemoryFaultAddress:
                 return cpu.MemoryFaultAddress;
             default:
-                this.LogUnhandledRead(offset);
-                return 0;
+                return RegisterCollection.Read(offset);
             }
         }
 
@@ -325,9 +324,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 priorities[15] = (byte)(value >> 24);
                 this.DebugLog("Priority of IRQs 14, 15 set to 0x{0:X}, 0x{1:X} respectively.", (byte)(value >> 16), (byte)(value >> 24));
                 break;
-            case Registers.SystemHandlerControlAndState:
-                this.DebugLog("Write to SHCS register. This is not yet implemented. Value written was 0x{0:X}.", value);
-                break;
             case Registers.CoprocessorAccessControl:
                 // for ARM v8 and CP10 values:
                 //      0b11 Full access to the FP Extension and MVE
@@ -390,13 +386,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 ccr = value;
                 break;
             default:
-                this.LogUnhandledWrite(offset, value);
+                RegisterCollection.Write(offset, value);
                 break;
             }
         }
 
         public void Reset()
         {
+            RegisterCollection.Reset();
             InitInterrupts();
             for(var i = 0; i < priorities.Length; i++)
             {
@@ -524,6 +521,36 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 cpu.SetSevOnPending(value);
             }
+        }
+
+        public DoubleWordRegisterCollection RegisterCollection { get; }
+
+        private void DefineRegisters()
+        {
+            Registers.SystemHandlerControlAndState.Define(RegisterCollection)
+                .WithTaggedFlag("MEMFAULTACT (Memory Manage Active)", 0)
+                .WithTaggedFlag("BUSFAULTACT (Bus Fault Active)", 1)
+                .WithReservedBits(2, 1)
+                .WithTaggedFlag("USGFAULTACT (Usage Fault Active)", 3)
+                .WithReservedBits(4, 3)
+                .WithTaggedFlag("SVCALLACT (SV Call Active)", 7)
+                .WithTaggedFlag("MONITORACT (Monitor Active)", 8)
+                .WithReservedBits(9, 1)
+                .WithTaggedFlag("PENDSVACT (Pend SV Active)", 10)
+                .WithTaggedFlag("SYSTICKACT (Sys Tick Active)", 11)
+                .WithTaggedFlag("USGFAULTPENDED (Usage Fault Pending)", 12)
+                .WithTaggedFlag("MEMFAULTPENDED (Mem Manage Pending)", 13)
+                .WithTaggedFlag("BUSFAULTPENDED (Bus Fault Pending)", 14)
+                .WithTaggedFlag("SVCALLPENDED (SV Call Pending)", 15)
+                // The enable flags only store written data.
+                // Changing them doesn't change a behavior of the model.
+                .WithFlag(16, name: "MEMFAULTENA (Memory Manage Fault Enable)") 
+                .WithFlag(17, name: "BUSFAULTENA (Bus Fault Enable)") 
+                .WithFlag(18, name: "USGFAULTENA (Usage Fault Enable)") 
+                .WithReservedBits(19, 13)
+                .WithChangeCallback((_, val) =>
+                    this.Log(LogLevel.Warning, "Changing value of the SHCSR register to 0x{0:X}, the register isn't supported by Renode", val)
+                );
         }
 
         private void InitInterrupts()
