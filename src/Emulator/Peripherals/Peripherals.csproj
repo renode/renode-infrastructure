@@ -646,6 +646,7 @@
     <Compile Include="Peripherals\Miscellaneous\S32K3XX_MiscellaneousSystemControlModule.cs" />
     <Compile Include="Peripherals\Miscellaneous\S32K3XX_SystemIntegrationUnitLite2.cs" />
     <Compile Include="Peripherals\Miscellaneous\S32K3XX_FlexIO.cs" />
+    <Compile Include="Peripherals\Miscellaneous\S32K3XX_ModeEntryModule.cs" />
     <Compile Include="Peripherals\DMA\RenesasDA14_DMA.cs" />
     <Compile Include="Peripherals\I2C\RenesasDA14_I2C.cs" />
   </ItemGroup>
