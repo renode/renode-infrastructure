@@ -645,6 +645,7 @@
     <Compile Include="Peripherals\Timers\S32K3XX_RealTimeClock.cs" />
     <Compile Include="Peripherals\Miscellaneous\S32K3XX_MiscellaneousSystemControlModule.cs" />
     <Compile Include="Peripherals\Miscellaneous\S32K3XX_SystemIntegrationUnitLite2.cs" />
+    <Compile Include="Peripherals\Miscellaneous\S32K3XX_FlexIO.cs" />
     <Compile Include="Peripherals\DMA\RenesasDA14_DMA.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
