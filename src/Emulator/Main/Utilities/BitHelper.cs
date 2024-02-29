@@ -398,6 +398,16 @@ namespace Antmicro.Renode.Utilities
             return beginnings.Select((x, i) => endings[i] == x ? x.ToString() : string.Format("{0}-{1}", x, endings[i])).Stringify(", ");
         }
 
+        public static void ForeachBit(ulong reg, Action<byte, bool> action, byte? bitCount = null)
+        {
+            // Iterate bitCount times or all bits in ulong
+            byte iterations = bitCount ?? sizeof(ulong) * 8;
+            for(byte i = 0; i < iterations; i++)
+            {
+                action(i, IsBitSet(reg, i));
+            }
+        }
+
         public static void ForeachActiveBit(ulong reg, Action<byte> action)
         {
             byte pos = 0;
