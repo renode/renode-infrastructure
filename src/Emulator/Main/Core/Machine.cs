@@ -407,9 +407,23 @@ namespace Antmicro.Renode.Core
             }
         }
 
-        public IDisposable ObtainPausedState()
+        /// <summary>
+        /// Pauses the machine and returns an <see cref="IDisposable">, disposing which will resume the machine.
+        /// Can be nested, in this case the machine will only be resumed once the last paused state is disposed.
+        /// </summary>
+        /// <param name="internalPause">Specifies whether this pause is due to internal reasons and should not be visible to
+        /// external software, such as GDB. For example, the pause to register a new peripheral is internal; the pause triggered
+        /// by a CPU breakpoint is not.</param>
+        public IDisposable ObtainPausedState(bool internalPause = false)
         {
-            return pausedState.Enter();
+            IsResetting = internalPause;
+            pausedState.Enter();
+            return DisposableWrapper.New(() =>
+            {
+                pausedState.Dispose();
+                // Does not handle nesting, but only the outermost pause could possibly invoke halt callbacks
+                IsResetting = false;
+            });
         }
 
         public void Start()
@@ -511,24 +525,20 @@ namespace Antmicro.Renode.Core
         {
             lock(pausingSync)
             {
-                using(DisposableWrapper.New(() => IsResetting = false))
+                using(ObtainPausedState(true))
                 {
-                    IsResetting = true;
-                    using(ObtainPausedState())
+                    foreach(var resetable in registeredPeripherals.Distinct())
                     {
-                        foreach(var resetable in registeredPeripherals.Distinct())
+                        if(resetable == this)
                         {
-                            if(resetable == this)
-                            {
-                                continue;
-                            }
-                            resetable.Reset();
+                            continue;
                         }
-                        var machineReset = MachineReset;
-                        if(machineReset != null)
-                        {
-                            machineReset(this);
-                        }
+                        resetable.Reset();
+                    }
+                    var machineReset = MachineReset;
+                    if(machineReset != null)
+                    {
+                        machineReset(this);
                     }
                 }
             }
