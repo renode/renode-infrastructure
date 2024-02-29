@@ -314,6 +314,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
             var numberOfSampleInBlock = 0ul;
             var samplesInBlock = 0ul;
             var repeatCounter = 0ul;
+            var prevSampleRate = 0u;
+            var afterSampleRateChange = false;
             var previousRESDStreamStatus = RESDStreamStatus.BeforeStream;
 
             Action<ulong> resetCurrentBlockStats = (samplesCnt) =>
@@ -329,6 +331,19 @@ namespace Antmicro.Renode.Peripherals.Sensors
             Action<uint> findAndActivate = null;
             findAndActivate = (sampleRate) =>
             {
+                if(sampleRate != prevSampleRate)
+                {
+                    afterSampleRateChange = true;
+                }
+                else if(afterSampleRateChange)
+                {
+                    if(fifoModeSelection.Value == FIFOModeSelection.FIFOMode)
+                    {
+                        // FIFO mode entered after changing sample rate. Repeat the previous block to synchronize with FIFO operation.
+                        blockNumber = previousBlockNumber;
+                    }
+                    afterSampleRateChange = false;
+                }
                 previousBlockNumber = blockNumber;
                 var currentEntry = mapping
                     .Select((item, i) => new { Item = item, Index = i })
@@ -435,6 +450,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 }, startTime: init ? startTime : 0, shouldStop: false);
 
                 init = false;
+                prevSampleRate = sampleRate;
             };
 
             findAndActivate(SampleRate);
