@@ -194,7 +194,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void ClearTranslationCache()
         {
-            using(machine?.ObtainPausedState())
+            using(machine?.ObtainPausedState(true))
             {
                 TlibInvalidateTranslationCache();
             }
@@ -220,7 +220,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     return;
                 }
                 currentTimer = null;
-                using(machine?.ObtainPausedState())
+                using(machine?.ObtainPausedState(true))
                 {
                     PrepareState();
                     DisposeInner(true);
@@ -388,7 +388,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 throw new RecoverableException("Could not map memory segment: starting offset or size are too high");
             }
 
-            using(machine?.ObtainPausedState())
+            using(machine?.ObtainPausedState(true))
             {
                 currentMappings.Add(new SegmentMapping(segment));
                 RegisterMemoryChecked(segment.StartingOffset, segment.Size);
@@ -401,7 +401,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void UnmapMemory(Range range)
         {
-            using(machine?.ObtainPausedState())
+            using(machine?.ObtainPausedState(true))
             {
                 var startAddress = range.StartAddress;
                 var endAddress = range.EndAddress - 1;
@@ -491,7 +491,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void SetHookAtBlockBegin(Action<ulong, uint> hook)
         {
-            using(machine?.ObtainPausedState())
+            using(machine?.ObtainPausedState(true))
             {
                 if((hook == null) ^ (blockBeginUserHook == null))
                 {
@@ -504,7 +504,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void SetHookAtBlockEnd(Action<ulong, uint> hook)
         {
-            using(machine?.ObtainPausedState())
+            using(machine?.ObtainPausedState(true))
             {
                 if((hook == null) ^ (blockFinishedHook == null))
                 {
@@ -734,7 +734,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private void SetInternalHookAtBlockBegin(Action<ulong, uint> hook)
         {
-            using(machine?.ObtainPausedState())
+            using(machine?.ObtainPausedState(true))
             {
                 if((hook == null) ^ (blockBeginInternalHook == null))
                 {

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -64,7 +64,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             uint res = 0;
             // We are manipulating internal PMU state, we need to pause emulation
-            using(parentCPU.GetMachine().ObtainPausedState())
+            using(parentCPU.GetMachine().ObtainPausedState(true))
             {
                 var selectedCounter = (uint)parentCPU.GetSystemRegisterValue(SelectedCounterRegister);
                 parentCPU.SetSystemRegisterValue(SelectedCounterRegister, counter);
@@ -80,7 +80,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             ValidateCounter(counter);
             // We are manipulating internal PMU state, we need to pause emulation
-            using(parentCPU.GetMachine().ObtainPausedState())
+            using(parentCPU.GetMachine().ObtainPausedState(true))
             {
                 var selectedCounter = (uint)parentCPU.GetSystemRegisterValue(SelectedCounterRegister);
                 parentCPU.SetSystemRegisterValue(SelectedCounterRegister, counter);
@@ -95,7 +95,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             ValidateCounter(counter);
             // We are manipulating internal PMU state, we need to pause emulation
-            using(parentCPU.GetMachine().ObtainPausedState())
+            using(parentCPU.GetMachine().ObtainPausedState(true))
             {
                 var selectedCounter = (uint)parentCPU.GetSystemRegisterValue(SelectedCounterRegister);
                 parentCPU.SetSystemRegisterValue(SelectedCounterRegister, counter);
@@ -117,7 +117,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             uint res = 0;
             // We are manipulating internal PMU state, we need to pause emulation
-            using(parentCPU.GetMachine().ObtainPausedState())
+            using(parentCPU.GetMachine().ObtainPausedState(true))
             {
                 var selectedCounter = (uint)parentCPU.GetSystemRegisterValue(SelectedCounterRegister);
                 parentCPU.SetSystemRegisterValue(SelectedCounterRegister, counter);

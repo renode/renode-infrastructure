@@ -65,7 +65,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public void Unregister(IBusPeripheral peripheral)
         {
-            using(Machine.ObtainPausedState())
+            using(Machine.ObtainPausedState(true))
             {
                 Machine.UnregisterAsAChildOf(this, peripheral);
                 UnregisterInner(peripheral);
@@ -74,7 +74,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public void Unregister(IBusRegistered<IBusPeripheral> busRegisteredPeripheral)
         {
-            using(Machine.ObtainPausedState())
+            using(Machine.ObtainPausedState(true))
             {
                 Machine.UnregisterAsAChildOf(this, busRegisteredPeripheral.RegistrationPoint);
                 UnregisterInner(busRegisteredPeripheral);
@@ -83,7 +83,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public void Unregister(IPeripheral peripheral)
         {
-            using(Machine.ObtainPausedState())
+            using(Machine.ObtainPausedState(true))
             {
                 Machine.UnregisterAsAChildOf(this, peripheral);
             }
@@ -91,7 +91,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public void Register(IPeripheral peripheral, NullRegistrationPoint registrationPoint)
         {
-            using(Machine.ObtainPausedState())
+            using(Machine.ObtainPausedState(true))
             {
                 // NullRegistrationPoint peripherals are not mapped on the bus and
                 // are not directly accessible from the emulated software.
@@ -214,7 +214,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public void Unregister(ICPU cpu)
         {
-            using(Machine.ObtainPausedState())
+            using(Machine.ObtainPausedState(true))
             {
                 Machine.UnregisterAsAChildOf(this, cpu);
                 lock(cpuSync)
@@ -229,7 +229,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public void SetPCOnAllCores(ulong pc)
         {
-            using(Machine.ObtainPausedState())
+            using(Machine.ObtainPausedState(true))
             {
                 lock(cpuSync)
                 {
@@ -1495,7 +1495,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         {
             PeripheralCollection peripherals = null;
 
-            using(Machine.ObtainPausedState())
+            using(Machine.ObtainPausedState(true))
             {
                 // Register only for the selected core
                 if(context != null)
@@ -1678,7 +1678,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         private void AddMappings(IEnumerable<MappedSegmentWrapper> newMappings, IBusPeripheral owner)
         {
-            using(Machine.ObtainPausedState())
+            using(Machine.ObtainPausedState(true))
             {
                 lock(cpuSync)
                 {

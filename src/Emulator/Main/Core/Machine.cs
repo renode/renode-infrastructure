@@ -364,7 +364,7 @@ namespace Antmicro.Renode.Core
 
         public IBusController RegisterBusController(IBusPeripheral peripheral, IBusController controller)
         {
-            using(ObtainPausedState())
+            using(ObtainPausedState(true))
             {
                 if(!peripheralsBusControllers.TryGetValue(peripheral, out var wrapper))
                 {
@@ -552,7 +552,7 @@ namespace Antmicro.Renode.Core
             softwareRequestedReset = () =>
             {
                 LocalTimeSource.SinksReportedHook -= softwareRequestedReset;
-                using(ObtainPausedState())
+                using(ObtainPausedState(true))
                 {
                     foreach(var peripheral in registeredPeripherals.Distinct().Where(p => p != this && !(unresetable?.Contains(p) ?? false)))
                     {
@@ -1255,7 +1255,7 @@ namespace Antmicro.Renode.Core
 
         private void InnerUnregisterFromParent(IPeripheral peripheral)
         {
-            using(ObtainPausedState())
+            using(ObtainPausedState(true))
             {
                 lock(collectionSync)
                 {
@@ -1298,7 +1298,7 @@ namespace Antmicro.Renode.Core
 
         private void Register(IPeripheral peripheral, IRegistrationPoint registrationPoint, IPeripheral parent)
         {
-            using(ObtainPausedState())
+            using(ObtainPausedState(true))
             {
                 Action executeAfterLock = null;
                 lock(collectionSync)
@@ -1867,7 +1867,7 @@ namespace Antmicro.Renode.Core
                 public void Unregister()
                 {
                     IsActive = false;
-                    using(Machine.ObtainPausedState())
+                    using(Machine.ObtainPausedState(true))
                     {
                         foreach(var p in Peripherals.ToList())
                         {
