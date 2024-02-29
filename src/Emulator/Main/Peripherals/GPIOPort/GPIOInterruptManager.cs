@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -15,9 +15,9 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 {
     public class GPIOInterruptManager
     {
-        public GPIOInterruptManager(GPIO irq, bool[] state)
+        public GPIOInterruptManager(GPIO irq, ArraySegment<bool> state)
         {
-            this.numberOfGpios = (uint)state.Length;
+            this.numberOfGpios = (uint)state.Count;
             this.underlyingIrq = irq;
             this.underlyingState = state;
 
@@ -28,6 +28,11 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
             previousState = new bool[numberOfGpios];
             activeInterrupts = new bool[numberOfGpios];
+        }
+
+        public GPIOInterruptManager(GPIO irq, bool[] state)
+            : this(irq, new ArraySegment<bool>(state))
+        {
         }
 
         public void Reset()
@@ -63,40 +68,45 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 {
                     continue;
                 }
-                var isEdge = underlyingState[i] != previousState[i];
+
+                // Using underlyingState[i] should be possible, but it won't compile on mono
+                // Using the underlying array of the the segment can be used as as alternative
+                var currentState = underlyingState.Array[underlyingState.Offset + i];
+
+                var isEdge = currentState != previousState[i];
                 switch(InterruptType[i])
                 {
                     case InterruptTrigger.ActiveHigh:
                         if(DeassertActiveInterruptTrigger)
                         {
-                            activeInterrupts[i] = underlyingState[i];
+                            activeInterrupts[i] = currentState;
                         }
                         else
                         {
-                            activeInterrupts[i] |= underlyingState[i];
+                            activeInterrupts[i] |= currentState;
                         }
                         irqState |= activeInterrupts[i] && !InterruptMask[i];
                         break;
                     case InterruptTrigger.ActiveLow:
                         if(DeassertActiveInterruptTrigger)
                         {
-                            activeInterrupts[i] = !underlyingState[i];
+                            activeInterrupts[i] = !currentState;
                         }
                         else
                         {
-                            activeInterrupts[i] |= !underlyingState[i];
+                            activeInterrupts[i] |= !currentState;
                         }
                         irqState |= activeInterrupts[i] && !InterruptMask[i];
                         break;
                     case InterruptTrigger.RisingEdge:
-                        if(isEdge && underlyingState[i])
+                        if(isEdge && currentState)
                         {
                             irqState |= !InterruptMask[i];
                             activeInterrupts[i] = true;
                         }
                         break;
                     case InterruptTrigger.FallingEdge:
-                        if(isEdge && !underlyingState[i])
+                        if(isEdge && !currentState)
                         {
                             irqState |= !InterruptMask[i];
                             activeInterrupts[i] = true;
@@ -111,7 +121,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                         break;
                 }
             }
-            Array.Copy(underlyingState, previousState, underlyingState.Length);
+            Array.ConstrainedCopy(underlyingState.Array, underlyingState.Offset, previousState, 0, underlyingState.Count);
             if(irqState)
             {
                 underlyingIrq.Set();
@@ -137,7 +147,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         public IReadOnlyCollection<bool> ActiveInterrupts { get { return activeInterrupts; } }
 
         private readonly uint numberOfGpios;
-        private readonly bool[] underlyingState;
+        private readonly ArraySegment<bool> underlyingState;
         private readonly bool[] previousState;
         private readonly bool[] activeInterrupts;
         private readonly GPIO underlyingIrq;
