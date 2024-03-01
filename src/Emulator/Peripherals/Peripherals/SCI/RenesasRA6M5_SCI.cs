@@ -26,7 +26,7 @@ namespace Antmicro.Renode.Peripherals.SCI
     public class RenesasRA6M5_SCI : NullRegistrationPointPeripheralContainer<ISPIPeripheral>, IUART, IWordPeripheral, IBytePeripheral, IProvidesRegisterCollection<WordRegisterCollection>, IKnownSize,
         IPeripheralContainer<IUART, NullRegistrationPoint>, IPeripheralContainer<II2CPeripheral, NumberRegistrationPoint<int>>
     {
-        public RenesasRA6M5_SCI(IMachine machine, ulong frequency, bool enableManchesterMode, bool enableFIFO) : base(machine)
+        public RenesasRA6M5_SCI(IMachine machine, ulong frequency, bool enableManchesterMode, bool enableFIFO, bool fullModel = true) : base(machine)
         {
             this.machine = machine;
             this.frequency = frequency;
@@ -38,7 +38,8 @@ namespace Antmicro.Renode.Peripherals.SCI
             iicTransmitQueue = new Queue<byte>();
             RegistersCollection = new WordRegisterCollection(this);
 
-            DefineRegisters(enableManchesterMode, enableFIFO);
+            DefineRegisters(enableManchesterMode, enableFIFO, fullModel);
+            Size = fullModel ? 0x100 : 0x20;
             Reset();
         }
 
@@ -146,7 +147,7 @@ namespace Antmicro.Renode.Peripherals.SCI
 
         public Parity ParityBit => parityEnabled.Value ? parityBit : Parity.None;
 
-        public long Size => 0x20;
+        public long Size { get; }
 
         IEnumerable<IRegistered<IUART, NullRegistrationPoint>> IPeripheralContainer<IUART, NullRegistrationPoint>.Children
         {
@@ -253,7 +254,7 @@ namespace Antmicro.Renode.Peripherals.SCI
             peripheralMode = PeripheralMode.UART;
         }
 
-        private void DefineRegisters(bool enableManchesterMode, bool enableFIFO)
+        private void DefineRegisters(bool enableManchesterMode, bool enableFIFO, bool fullModel)
         {
             // Non-Smart Card Mode
             Registers.SerialModeNonSmartCard.DefineConditional(this, () => !smartCardMode.Value)
@@ -649,6 +650,11 @@ namespace Antmicro.Renode.Peripherals.SCI
                 .WithTag("ATT", 4, 3)
                 .WithTaggedFlag("AET", 7)
                 .WithReservedBits(8, 8);
+
+            if(!fullModel)
+            {
+                return;
+            }
 
             if(enableManchesterMode)
             {
