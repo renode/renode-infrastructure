@@ -80,7 +80,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers.PLIC
                 this.Log(LogLevel.Noisy, "Setting GPIO number #{0} to value {1}", number, value);
                 var irq = irqSources[number];
                 irq.State = value;
-                irq.IsPending |= value;
+
+                if(value) {
+                    foreach(var irqContext in irqContexts) {
+                        irqContext.MarkSourceAsPending(irq);
+                    }
+                }
+
                 RefreshInterrupts();
             }
         }

@@ -21,14 +21,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers.PLIC
 
         public override string ToString()
         {
-            return $"IrqSource id: {Id}, priority: {Priority}, state: {State}, pending: {IsPending}";
+            return $"IrqSource id: {Id}, priority: {Priority}, state: {State}";
         }
 
         public void Reset()
         {
             Priority = DefaultPriority;
             State = false;
-            IsPending = false;
         }
 
         public uint Id { get; private set; }
@@ -62,24 +61,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers.PLIC
                 parent.Log(LogLevel.Noisy, "Setting state to {0} for source #{1}", value, Id);
             }
         }
-        public bool IsPending
-        {
-            get { return isPending; }
-            set
-            {
-                if(value == isPending)
-                {
-                    return;
-                }
-
-                isPending = value;
-                parent.Log(LogLevel.Noisy, "Setting pending status to {0} for source #{1}", value, Id);
-            }
-        }
 
         private uint priority;
         private bool state;
-        private bool isPending;
 
         private readonly IPlatformLevelInterruptController parent;
 
