@@ -4,20 +4,26 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
     public sealed class RenesasDA14_Watchdog : BasicDoubleWordPeripheral, IKnownSize
     {
-        public RenesasDA14_Watchdog(IMachine machine, long frequency) : base(machine)
+        public RenesasDA14_Watchdog(IMachine machine, long frequency, IDoubleWordPeripheral nvic) : base(machine)
         {
             IRQ = new GPIO();
+            // Type comparison like this is required due to NVIC model being in another project
+            if(nvic.GetType().FullName != "Antmicro.Renode.Peripherals.IRQControllers.NVIC")
+            {
+                throw new ConstructionException($"{nvic.GetType()} is invalid type for NVIC");
+            }
+            this.nvic = nvic;
 
             ticker = new LimitTimer(machine.ClockSource, frequency, this, "watchdog", TickerDefaultValue, Direction.Descending, enabled: true, eventEnabled: true);
 
@@ -113,6 +119,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                 IRQ.Set();
                 ticker.Limit = 0x0;
                 ticker.Value = TickerShift;
+                // Send NMI to NVIC
+                ((dynamic)nvic).SetPendingIRQ(2);
             }
             else
             {
@@ -124,6 +132,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
 
         private readonly LimitTimer ticker;
+        private readonly IDoubleWordPeripheral nvic;
 
         private IValueRegisterField writeLockFilter;
         private IFlagRegisterField nonMaskableInterruptReset;
