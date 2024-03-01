@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -106,6 +106,43 @@ namespace Antmicro.Renode.Core.Structure
             this.machine = machine;
         }
 
+        protected readonly IMachine machine;
+    }
+
+    public class SimpleContainerHelper<T> : SimpleContainerBase<T>
+        where T : IPeripheral
+    {
+        public SimpleContainerHelper(IMachine machine, IPeripheral parent) : base()
+        {
+            this.machine = machine;
+            this.parent = parent;
+        }
+
+        public new T GetByAddress(int address)
+        {
+            return base.GetByAddress(address);
+        }
+
+        public new bool TryGetByAddress(int address, out T peripheral)
+        {
+            return base.TryGetByAddress(address, out peripheral);
+        }
+
+        public override void Register(T peripheral, NumberRegistrationPoint<int> registrationPoint)
+        {
+            base.Register(peripheral, registrationPoint);
+            machine.RegisterAsAChildOf(parent, peripheral, registrationPoint);
+        }
+
+        public override void Unregister(T peripheral)
+        {
+            base.Unregister(peripheral);
+            machine.UnregisterAsAChildOf(parent, peripheral);
+        }
+
+        public new Dictionary<int, T> ChildCollection => base.ChildCollection;
+
+        protected readonly IPeripheral parent;
         protected readonly IMachine machine;
     }
 }
