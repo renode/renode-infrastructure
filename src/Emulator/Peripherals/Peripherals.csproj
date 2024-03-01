@@ -653,6 +653,7 @@
     <Compile Include="Peripherals\MemoryControllers\Gaisler_FaultTolerantMemoryController.cs" />
     <Compile Include="Peripherals\MTD\AMDCFIFlash.cs" />
     <Compile Include="Peripherals\Timers\PulseGenerator.cs" />
+    <Compile Include="Peripherals\I2C\S32K3XX_LowPowerInterIntegratedCircuit.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
