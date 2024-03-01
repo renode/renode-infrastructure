@@ -1668,6 +1668,22 @@ namespace Antmicro.Renode.Utilities
             throw new ArgumentException($"Can't cast {number.GetType()} to ulong", "number");
         }
 
+        public static IEnumerable<T> Prefix<T>(IEnumerable<T> enumerable, Func<T, T, T> function)
+        {
+            var enumerator = enumerable.GetEnumerator();
+            // Using `out var` here causes a compiler crash in Mono 6.8.0.105+dfsg-3.3 from Debian
+            if(!enumerator.TryGetNext(out T prefix))
+            {
+                yield break;
+            }
+            while(enumerator.MoveNext())
+            {
+                yield return prefix;
+                prefix = function(prefix, enumerator.Current);
+            }
+            yield return prefix;
+        }
+
         public static DateTime UnixEpoch = new DateTime(1970, 1, 1);
     }
 
