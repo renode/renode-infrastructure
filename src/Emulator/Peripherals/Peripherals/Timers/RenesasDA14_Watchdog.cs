@@ -26,6 +26,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             this.nvic = nvic;
 
             ticker = new LimitTimer(machine.ClockSource, frequency, this, "watchdog", TickerDefaultValue, Direction.Descending, enabled: true, eventEnabled: true);
+            ticker.Divider = 320;
 
             ticker.LimitReached += LimitReachedAction;
 
