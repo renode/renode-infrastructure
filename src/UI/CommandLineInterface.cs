@@ -34,7 +34,7 @@ namespace Antmicro.Renode.UI
 
             if(options.Version)
             {
-                Console.Out.WriteLine(EmulationManager.Instance.VersionString);
+                Console.Out.WriteLine(EmulationManager.Instance.LongVersionString);
                 return;
             }
 

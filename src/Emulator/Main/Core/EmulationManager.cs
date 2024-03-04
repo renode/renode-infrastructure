@@ -226,6 +226,43 @@ namespace Antmicro.Renode.Core
 
             }
         }
+        public string LongVersionString
+        {
+            get
+            {
+                var entryAssembly = Assembly.GetEntryAssembly();
+                if(entryAssembly == null)
+                {
+                    // When running from NUnit in MonoDevelop entryAssembly is null, but we don't care
+                    return string.Empty;
+                }
+
+                try
+                {
+
+#if NET
+                    var runtime = ".NET";
+#elif PLATFORM_WINDOWS
+                    var runtime = ".NET Framework";
+#else
+                    var runtime = "Mono";
+#endif
+                    return string.Format("{0} v{1}\n  build: {2}\n  build type: {3}\n  runtime: {4} {5}",
+                        entryAssembly.GetName().Name,
+                        entryAssembly.GetName().Version,
+                        ((AssemblyInformationalVersionAttribute)entryAssembly.GetCustomAttributes(typeof(AssemblyInformationalVersionAttribute), false)[0]).InformationalVersion,
+                        ((AssemblyConfigurationAttribute)entryAssembly.GetCustomAttributes(typeof(AssemblyConfigurationAttribute), false)[0]).Configuration,
+                        runtime,
+                        Environment.Version
+                    );
+                }
+                catch(System.Exception)
+                {
+                    return string.Empty;
+                }
+
+            }
+        }
         
         public SimpleFileCache CompiledFilesCache { get; } = new SimpleFileCache("compiler-cache", !Emulator.InCIMode && ConfigurationManager.Instance.Get("general", "compiler-cache-enabled", false));
 
