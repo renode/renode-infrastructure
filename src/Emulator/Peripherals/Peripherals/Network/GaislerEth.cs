@@ -383,9 +383,6 @@ namespace Antmicro.Renode.Peripherals.Network
                 word0 = sbus.ReadDoubleWord(ramAddress);
                 word1 = sbus.ReadDoubleWord(ramAddress + 4);
 
-                word0 = (uint)System.Net.IPAddress.HostToNetworkOrder((int)word0);
-                word1 = (uint)System.Net.IPAddress.HostToNetworkOrder((int)word1);
-
                 AttemptLimitError = (word0 & (1u << 15)) != 0;
                 UnderrunError = (word0 & (1u << 14)) != 0;
                 InterruptEnable = (word0 & (1u << 13)) != 0;
@@ -402,9 +399,6 @@ namespace Antmicro.Renode.Peripherals.Network
                 word0 |= (Wrap ? 1u << 12 : 0) | (Enable ? 1u << 11 : 0) | (Length & 0x7ffu);
 
                 word1 = PacketAddress & ~(0x03u);
-
-                word0 = (uint)System.Net.IPAddress.HostToNetworkOrder((int)word0);
-                word1 = (uint)System.Net.IPAddress.HostToNetworkOrder((int)word1);
 
                 sbus.WriteDoubleWord(ramAddress, word0);
                 sbus.WriteDoubleWord(ramAddress + 4, word1);
@@ -442,9 +436,6 @@ namespace Antmicro.Renode.Peripherals.Network
                 word0 = sbus.ReadDoubleWord(ramAddress);
                 word1 = sbus.ReadDoubleWord(ramAddress + 4);
 
-                word0 = (uint)System.Net.IPAddress.HostToNetworkOrder((int)word0);
-                word1 = (uint)System.Net.IPAddress.HostToNetworkOrder((int)word1);
-
                 MulticastAddress = (word0 & (1u << 26)) != 0;
                 LengthError = (word0 & (1u << 18)) != 0;
                 OverrunError = (word0 & (1u << 17)) != 0;
@@ -466,9 +457,6 @@ namespace Antmicro.Renode.Peripherals.Network
                 word0 |= (InterruptEnable ? 1u << 13 : 0) | (Wrap ? 1u << 12 : 0) | (Enable ? 1u << 18 : 0) | (Length & (0x7ffu));
 
                 word1 = PacketAddress & ~(0x03u);
-
-                word0 = (uint)System.Net.IPAddress.HostToNetworkOrder((int)word0);
-                word1 = (uint)System.Net.IPAddress.HostToNetworkOrder((int)word1);
 
                 sbus.WriteDoubleWord(ramAddress, word0);
                 sbus.WriteDoubleWord(ramAddress + 4, word1);
