@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -112,7 +112,18 @@ namespace Antmicro.Renode.Peripherals.SPI
                             TryTransmitData();
                         }
                     })
-                .WithTaggedFlag("CSUSP", 10)
+                .WithFlag(10, FieldMode.Set, name: "CSUSP", writeCallback: (_, value) =>
+                    {
+                        if(value)
+                        {
+                            if(!endOfTransfer.Value)
+                            {
+                                EndTransfer();
+                            }
+                            suspensionStatus.Value = true;
+                            UpdateInterrupts();
+                        }
+                    })
                 .WithTaggedFlag("HDDIR", 11)
                 .WithTaggedFlag("SSI", 12)
                 .WithTaggedFlag("CRC33_17", 13)
@@ -227,7 +238,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .If(IsWba)
                     .Then(r => r.WithReservedBits(10, 1))
                     .Else(r => r.WithTaggedFlag("TSERF", 10))
-                .WithTaggedFlag("SUSP", 11)
+                .WithFlag(11, out suspensionStatus, FieldMode.Read, name: "SUSP")
                 .WithFlag(12, FieldMode.Read, name: "TXC",
                     valueProviderCallback: _ => transmissionSize.Value == 0 ? transmitFifo.Count == 0 : endOfTransfer.Value)
                 .WithTag("RXPLVL", 13, 2)
@@ -252,7 +263,13 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .If(IsWba)
                     .Then(r => r.WithReservedBits(10, 1))
                     .Else(r => r.WithTaggedFlag("TSERFC", 10))
-                .WithTaggedFlag("SUSPC", 11)
+                .WithFlag(11, name: "SUSPC", writeCallback: (_, value) =>
+                    {
+                        if(value)
+                        {
+                            suspensionStatus.Value = false;
+                        }
+                    })
                 .WithReservedBits(12, 20);
 
             Registers.TransmitData.Define(registers)
@@ -355,22 +372,32 @@ namespace Antmicro.Renode.Peripherals.SPI
                 transmittedPackets++;
             }
 
-            // In case the transmission size is not specified transmission ends
-            // if there are no more packets in the queue
-            if(transmittedPackets == transmissionSize.Value || transmissionSize.Value == 0)
+            if(transmissionSize.Value == 0)
             {
-                RegisteredPeripheral?.FinishTransmission();
-                endOfTransfer.Value = true;
-                startTransmission.Value = false;
+                // [Transaction handling, p. 1621](https://www.st.com/resource/en/reference_manual/rm0493-multiprotocol-wireless-bluetooth-lowenergy-and-ieee802154-stm32wba5xxx-armbased-32bit-mcus-stmicroelectronics.pdf)
+                // SPI operates in endless transaction mode, which means that the SPI peripheral is not able to detect when a transaction completes.
+                // CSTART flag is not reset automatically and we don't call FinishTransmission().
+                // To reset CSTART and de-assert CS pin, CSUSP (master suspend request) flag should be set.
+            }
+            else if(transmittedPackets == transmissionSize.Value)
+            {
+                EndTransfer();
             }
 
             UpdateInterrupts();
         }
 
+        private void EndTransfer()
+        {
+            RegisteredPeripheral?.FinishTransmission();
+            endOfTransfer.Value = true;
+            startTransmission.Value = false;
+        }
+
         private void UpdateInterrupts()
         {
             var rxp = receiveFifo.Count > 0 && receiveFifoThresholdInterruptEnable.Value;
-            var eot = endOfTransfer.Value && endOfTransferInterruptEnable.Value;
+            var eot = (endOfTransfer.Value || suspensionStatus.Value) && endOfTransferInterruptEnable.Value;
 
             var irqValue = transmitFifoThresholdInterruptEnable.Value || rxp || eot;
             this.Log(LogLevel.Debug, "Setting IRQ to {0}", irqValue);
@@ -401,6 +428,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private IValueRegisterField transmissionSize;
         private IValueRegisterField packetSizeBits;
+        private IFlagRegisterField suspensionStatus;
 
         private ulong transmittedPackets;
 
