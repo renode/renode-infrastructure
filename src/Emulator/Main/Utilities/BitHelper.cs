@@ -670,6 +670,12 @@ namespace Antmicro.Renode.Utilities
             return ((ulong)ReverseBytes((uint)v) << 32) | ReverseBytes((uint)(v >> 32));
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint ReverseWords(uint v)
+        {
+            return (v << 16) | (v >> 16);
+        }
+
         public static int CalculateBytesCount(int bitsCount)
         {
             DebugHelper.Assert(bitsCount >= 0);

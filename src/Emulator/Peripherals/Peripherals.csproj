@@ -654,6 +654,7 @@
     <Compile Include="Peripherals\MTD\AMDCFIFlash.cs" />
     <Compile Include="Peripherals\Timers\PulseGenerator.cs" />
     <Compile Include="Peripherals\I2C\S32K3XX_LowPowerInterIntegratedCircuit.cs" />
+    <Compile Include="Peripherals\Miscellaneous\Crypto\STM32H7_CRYPTO.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
