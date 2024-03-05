@@ -208,10 +208,6 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithWriteCallback((_, __) =>
                 {
                     UpdateInterrupts();
-                    // We clear EOT here to be compatible with the Zephyr driver: it
-                    // waits for EOT to become *0* instead of 1 like the HAL does.
-                    // See https://github.com/zephyrproject-rtos/zephyr/blob/a8ed28ab6fc86/drivers/spi/spi_ll_stm32.h#L180
-                    endOfTransfer.Value = false;
                 });
 
             Registers.Status.Define(registers)
