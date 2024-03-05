@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -171,8 +171,9 @@ namespace Antmicro.Renode.Peripherals.SPI
                     }
                 }, name: "SpiEnable")
                 .WithFlag(7, name: "LSBFIRST") // Physical
-                .WithTaggedFlag("SSI", 8)
-                .WithTaggedFlag("SSM", 9)
+                // We keep these as flags to preserve written values. SSI flag is used by drivers to select/detect operation mode (Master or Slave)
+                .WithFlag(8, name: "SSI") // Internal slave select
+                .WithFlag(9, name: "SSM") // Software slave management
                 .WithTaggedFlag("RXONLY", 10)
                 .WithTaggedFlag("DFF", 11)
                 .WithTaggedFlag("CRCNEXT", 12)
