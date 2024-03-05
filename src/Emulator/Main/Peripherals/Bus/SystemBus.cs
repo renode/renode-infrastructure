@@ -143,7 +143,8 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 throw new RecoverableException("Moving mapped peripherals is not yet supported");
             }
-            var registrationPoints = cpuLocalPeripherals[context].Peripherals.Where(x => x.Peripheral == peripheral).ToList();
+            var container = context != null ? cpuLocalPeripherals[context] : globalPeripherals;
+            var registrationPoints = container.Peripherals.Where(x => x.Peripheral == peripheral).ToList();
             if(registrationPoints.Count == 0)
             {
                 throw new RecoverableException("Attempted to move a peripheral that isn't registered within current context");
@@ -165,7 +166,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 }
                 registrationPoint = registrationPoints[0];
             }
-            var newRegistrationPoint = cpuLocalPeripherals[context].Move(registrationPoint, newAddress);
+            var newRegistrationPoint = container.Move(registrationPoint, newAddress);
             Machine.ExchangeRegistrationPointForPeripheral(this, peripheral, registrationPoint.RegistrationPoint, newRegistrationPoint.RegistrationPoint);
         }
 
