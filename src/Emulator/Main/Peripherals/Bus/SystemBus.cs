@@ -139,10 +139,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 throw new RecoverableException("Moving a peripheral is supported only from context's CPU thread");
             }
-            if(mappingsForPeripheral.ContainsKey(peripheral))
-            {
-                throw new RecoverableException("Moving mapped peripherals is not yet supported");
-            }
+            var wasMapped = RemoveMappingsForPeripheral(peripheral);
             var container = context != null ? cpuLocalPeripherals[context] : globalPeripherals;
             var registrationPoints = container.Peripherals.Where(x => x.Peripheral == peripheral).ToList();
             if(registrationPoints.Count == 0)
@@ -168,6 +165,10 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
             var newRegistrationPoint = container.Move(registrationPoint, newAddress);
             Machine.ExchangeRegistrationPointForPeripheral(this, peripheral, registrationPoint.RegistrationPoint, newRegistrationPoint.RegistrationPoint);
+            if(wasMapped)
+            {
+                AddMappingsForPeripheral(peripheral, newRegistrationPoint.RegistrationPoint, context);
+            }
         }
 
         public void Register(ICPU cpu, CPURegistrationPoint registrationPoint)
