@@ -1106,14 +1106,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         private void UnregisterInner(IBusPeripheral peripheral)
         {
-            if(mappingsForPeripheral.ContainsKey(peripheral))
-            {
-                foreach(var mapping in mappingsForPeripheral[peripheral])
-                {
-                    UnmapMemory(new Range(mapping.StartingOffset, checked((ulong)mapping.Size)));
-                }
-                mappingsForPeripheral.Remove(peripheral);
-            }
+            RemoveMappingsForPeripheral(peripheral);
 
             // remove the peripheral from all cpu-local and the global mappings
             foreach(var context in cpuLocalPeripherals.Keys.ToArray())
@@ -1523,14 +1516,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 }
                 peripherals.Add(registrationPoint.Range.StartAddress, registrationPoint.Range.EndAddress + 1, registeredPeripheral, methods);
                 // let's add new mappings
-                var mappedPeripheral = peripheral as IMapped;
-                var cpuWithMappedMemory = context as ICPUWithMappedMemory;
-                if(mappedPeripheral != null)
-                {
-                    var segments = mappedPeripheral.MappedSegments;
-                    var mappings = segments.Select(x => FromRegistrationPointToSegmentWrapper(x, registrationPoint, cpuWithMappedMemory)).Where(x => x != null);
-                    AddMappings(mappings, peripheral);
-                }
+                AddMappingsForPeripheral(peripheral, registrationPoint, context);
                 Machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
                 Machine.RegisterBusController(peripheral, this);
             }
@@ -1708,6 +1694,33 @@ namespace Antmicro.Renode.Peripherals.Bus
                     }
                 }
             }
+        }
+
+        private void AddMappingsForPeripheral(IBusPeripheral peripheral, BusRangeRegistration registrationPoint, ICPU context)
+        {
+            var mappedPeripheral = peripheral as IMapped;
+            if(mappedPeripheral == null) // The context can be null to map it globally
+            {
+                return;
+            }
+            var cpuWithMappedMemory = context as ICPUWithMappedMemory;
+            var segments = mappedPeripheral.MappedSegments;
+            var mappings = segments.Select(x => FromRegistrationPointToSegmentWrapper(x, registrationPoint, cpuWithMappedMemory)).Where(x => x != null);
+            AddMappings(mappings, mappedPeripheral);
+        }
+
+        private bool RemoveMappingsForPeripheral(IBusPeripheral peripheral)
+        {
+            if(!mappingsForPeripheral.ContainsKey(peripheral))
+            {
+                return false;
+            }
+            foreach(var mapping in mappingsForPeripheral[peripheral])
+            {
+                UnmapMemory(new Range(mapping.StartingOffset, mapping.Size));
+            }
+            mappingsForPeripheral.Remove(peripheral);
+            return true;
         }
 
         private string TryGetTag(ulong address, out ulong defaultValue)
