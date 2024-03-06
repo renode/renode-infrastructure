@@ -527,7 +527,7 @@ namespace Antmicro.Renode.Core
             {
                 using(ObtainPausedState(true))
                 {
-                    foreach(var resetable in registeredPeripherals.Distinct())
+                    foreach(var resetable in registeredPeripherals.Distinct().ToList())
                     {
                         if(resetable == this)
                         {
