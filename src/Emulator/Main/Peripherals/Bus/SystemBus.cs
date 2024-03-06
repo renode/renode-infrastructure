@@ -1136,7 +1136,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 }
             }
             var perCoreRegistration = registrationPoint as IPerCoreRegistration;
-            if(perCoreRegistration.CPU != null)
+            if(perCoreRegistration?.CPU != null)
             {
                 cpuLocalPeripherals[perCoreRegistration.CPU].Remove(registrationPoint.RegistrationPoint.Range.StartAddress, registrationPoint.RegistrationPoint.Range.EndAddress);
             }
