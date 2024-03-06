@@ -585,7 +585,7 @@ namespace Antmicro.Renode.Core
             }
             gdbStubs.Clear();
 
-            // ordering below is due to the fact that the CPU can use other peripherals, e.g. Memory so it should be disposed last
+            // ordering below is due to the fact that the CPU can use other peripherals, e.g. Memory so it should be disposed first
             foreach(var peripheral in GetPeripheralsOfType<IDisposable>().OrderBy(x => x is ICPU ? 0 : 1))
             {
                 this.DebugLog("Disposing {0}.", GetAnyNameOrTypeName((IPeripheral)peripheral));
