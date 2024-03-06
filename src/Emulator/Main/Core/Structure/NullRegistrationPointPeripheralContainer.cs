@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2014 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -22,25 +22,59 @@ namespace Antmicro.Renode.Core.Structure
         protected NullRegistrationPointPeripheralContainer(IMachine machine)
         {
             Machine = machine;
+            container = new NullRegistrationPointContainerHelper<TPeripheral>(machine, this);
         }
 
         public virtual void Register(TPeripheral peripheral, NullRegistrationPoint registrationPoint)
+        {
+            container.Register(peripheral, registrationPoint);
+        }
+
+        public virtual void Unregister(TPeripheral peripheral)
+        {
+            container.Unregister(peripheral);
+        }
+
+        public IEnumerable<NullRegistrationPoint> GetRegistrationPoints(TPeripheral peripheral)
+        {
+            return container.GetRegistrationPoints(peripheral);
+        }
+
+        public IEnumerable<IRegistered<TPeripheral, NullRegistrationPoint>> Children => container.Children;
+
+        protected TPeripheral RegisteredPeripheral => container.RegisteredPeripheral;
+
+        protected readonly IMachine Machine;
+
+        private readonly NullRegistrationPointContainerHelper<TPeripheral> container;
+    }
+
+    public class NullRegistrationPointContainerHelper<TPeripheral> : IPeripheralContainer<TPeripheral, NullRegistrationPoint>
+        where TPeripheral : class, IPeripheral
+    {
+        public NullRegistrationPointContainerHelper(IMachine machine, IPeripheral owner)
+        {
+            this.machine = machine;
+            this.owner = owner;
+        }
+
+        public void Register(TPeripheral peripheral, NullRegistrationPoint registrationPoint)
         {
             if(RegisteredPeripheral != null)
             {
                 throw new RegistrationException("Cannot register more than one peripheral.");
             }
-            Machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
+            machine.RegisterAsAChildOf(owner, peripheral, registrationPoint);
             RegisteredPeripheral = peripheral;
         }
 
-        public virtual void Unregister(TPeripheral peripheral)
+        public void Unregister(TPeripheral peripheral)
         {
             if(RegisteredPeripheral == null || RegisteredPeripheral != peripheral)
             {
                 throw new RegistrationException("The specified peripheral was never registered.");
             }
-            Machine.UnregisterAsAChildOf(this, peripheral);
+            machine.UnregisterAsAChildOf(owner, peripheral);
             RegisteredPeripheral = null;
         }
 
@@ -61,7 +95,9 @@ namespace Antmicro.Renode.Core.Structure
             }
         }
 
-        protected readonly IMachine Machine;
-        protected TPeripheral RegisteredPeripheral;
+        public TPeripheral RegisteredPeripheral { get; private set; }
+
+        private readonly IMachine machine;
+        private readonly IPeripheral owner;
     }
 }
