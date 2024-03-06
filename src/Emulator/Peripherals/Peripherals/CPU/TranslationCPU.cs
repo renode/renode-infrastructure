@@ -418,6 +418,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 {
                     TranslationCacheSize -= range.Size / 4;
                 }
+                RebuildMemoryMappings();
             }
         }
 
