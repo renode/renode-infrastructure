@@ -611,6 +611,7 @@
     <Compile Include="Utilities\SnapshotTracker.cs" />
     <Compile Include="Core\Structure\IBusRegistration.cs" />
     <Compile Include="Peripherals\UART\ILIN.cs" />
+    <Compile Include="Peripherals\UART\LINHub.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
