@@ -672,6 +672,7 @@
     <Compile Include="Peripherals\UART\DummyLINPeripheral.cs" />
     <Compile Include="Peripherals\Miscellaneous\RenesasDA14_XTAL32MRegisters.cs" />
     <Compile Include="Peripherals\Miscellaneous\RenesasDA14_GeneralRegisters.cs" />
+    <Compile Include="Peripherals\CAN\UT32_CAN.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
