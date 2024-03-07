@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -17,21 +17,28 @@ namespace Antmicro.Renode.Peripherals.UART
 {
     public static class UARTHubExtensions
     {
-        public static void CreateUARTHub(this Emulation emulation, string name)
+        public static void CreateUARTHub(this Emulation emulation, string name, bool loopback = false)
         {
-            emulation.ExternalsManager.AddExternal(new UARTHub(), name);
+            emulation.ExternalsManager.AddExternal(new UARTHub(loopback), name);
         }
     }
 
-    public sealed class UARTHub : IExternal, IHasOwnLife, IConnectable<IUART>
+    public sealed class UARTHub : UARTHubBase<IUART>
     {
-        public UARTHub()
+        public UARTHub(bool loopback) : base(loopback) {}
+    }
+
+    public class UARTHubBase<I> : IExternal, IHasOwnLife, IConnectable<I>
+        where I: class, IUART
+    {
+        public UARTHubBase(bool loopback)
         {
-            uarts = new Dictionary<IUART, Action<byte>>();
+            uarts = new Dictionary<I, Action<byte>>();
             locker = new object();
+            shouldLoopback = loopback;
         }
 
-        public void AttachTo(IUART uart)
+        public virtual void AttachTo(I uart)
         {
             lock(locker)
             {
@@ -61,7 +68,7 @@ namespace Antmicro.Renode.Peripherals.UART
             started = true;
         }
 
-        public void DetachFrom(IUART uart)
+        public virtual void DetachFrom(I uart)
         {
             lock(locker)
             {
@@ -75,7 +82,7 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
-        private void HandleCharReceived(byte obj, IUART sender)
+        private void HandleCharReceived(byte obj, I sender)
         {
             if(!started)
             {
@@ -84,7 +91,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
             lock(locker)
             {
-                foreach(var item in uarts.Where(x => x.Key != sender).Select(x => x.Key))
+                foreach(var item in uarts.Where(x => shouldLoopback || x.Key != sender).Select(x => x.Key))
                 {
                     item.GetMachine().HandleTimeDomainEvent(item.WriteChar, obj, TimeDomainsManager.Instance.VirtualTimeStamp);
                 }
@@ -103,9 +110,10 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
-        private bool started;
-        private readonly Dictionary<IUART, Action<byte>> uarts;
-        private readonly object locker;
+        protected bool started;
+        protected readonly bool shouldLoopback;
+        protected readonly Dictionary<I, Action<byte>> uarts;
+        protected readonly object locker;
     }
 }
 
