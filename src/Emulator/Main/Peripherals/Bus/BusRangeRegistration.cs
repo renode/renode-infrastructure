@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -14,7 +14,7 @@ using Range = Antmicro.Renode.Core.Range;
 
 namespace Antmicro.Renode.Peripherals.Bus
 {
-    public class BusRangeRegistration : IPerCoreRegistration
+    public class BusRangeRegistration : IPerCoreRegistration, IBusRegistration
     {
         public BusRangeRegistration(Range range, ulong offset = 0, ICPU cpu = null)
         {

@@ -609,6 +609,7 @@
     <Compile Include="Peripherals\CPU\CPUState.cs" />
     <Compile Include="Peripherals\IEndiannessAware.cs" />
     <Compile Include="Utilities\SnapshotTracker.cs" />
+    <Compile Include="Core\Structure\IBusRegistration.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
