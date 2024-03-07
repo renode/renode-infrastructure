@@ -591,6 +591,7 @@
     <Compile Include="Peripherals\Network\Quectel_BC66.cs" />
     <Compile Include="Peripherals\Network\Quectel_BG96.cs" />
     <Compile Include="Peripherals\Network\DA16200.cs" />
+    <Compile Include="Peripherals\Network\S32K3XX_GMAC.cs" />
     <Compile Include="Peripherals\UART\SiLabs\EFR32_GenericUSART.cs" />
     <Compile Include="Peripherals\UART\EFR32xG22_USART.cs" />
     <Compile Include="Peripherals\SPI\SPIMultiplexer.cs" />
