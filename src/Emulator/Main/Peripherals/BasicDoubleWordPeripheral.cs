@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -89,6 +89,16 @@ namespace Antmicro.Renode.Peripherals
         public static DoubleWordRegister DefineConditional(this System.Enum o, IProvidesRegisterCollection<DoubleWordRegisterCollection> p, Func<bool> condition, ushort resetValue = 0, string name = "")
         {
             return p.RegistersCollection.DefineConditionalRegister(Convert.ToInt64(o), condition, resetValue);
+        }
+
+        public static void DefineManyConditional(this System.Enum o, IProvidesRegisterCollection<DoubleWordRegisterCollection> p, uint count, Func<bool> condition, Action<DoubleWordRegister, int> setup, uint stepInBytes = 1, uint resetValue = 0, string name = "")
+        {
+            var baseAddress = Convert.ToInt64(o);
+            for(var i = 0; i < count; i++)
+            {
+                var register = p.RegistersCollection.DefineConditionalRegister(baseAddress + i * stepInBytes, condition, resetValue);
+                setup(register, i);
+            }
         }
 
         public static DoubleWordRegister Bind(this System.Enum o, IProvidesRegisterCollection<DoubleWordRegisterCollection> p, DoubleWordRegister reg)
