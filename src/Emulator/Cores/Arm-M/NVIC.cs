@@ -158,7 +158,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 var currentCountFlag = countFlag ? 1u << 16 : 0;
                 countFlag = false;
                 return (currentCountFlag
-                        | 4u // core clock CLKSOURCE
+                        | ((isSystickSourceProcessorClk ? 1u: 0u) << 2)
                         | ((eventEnabled ? 1u : 0u) << 1)
                         | (systick.Enabled ? 1u : 0u));
             case Registers.SysTickReloadValue:
@@ -185,6 +185,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 return 0b0111;
             case Registers.MemoryFaultAddress:
                 return cpu.MemoryFaultAddress;
+            case Registers.DEMCR:
+                return demcrRegister;				
             default:
                 this.LogUnhandledRead(offset);
                 return 0;
@@ -228,6 +230,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             switch((Registers)offset)
             {
             case Registers.SysTickControl:
+                isSystickSourceProcessorClk = (value & 4) != 0;
+                this.NoisyLog("Systick Clock Source is {0}.", isSystickSourceProcessorClk ? "Processor Clock" : "External Reference Clock");
                 eventEnabled = ((value & 2) >> 1) != 0;
                 this.NoisyLog("Systick interrupt {0}.", eventEnabled ? "enabled" : "disabled");
                 systick.Enabled = (value & 1) != 0;
@@ -389,6 +393,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             case Registers.ConfigurationAndControl:
                 ccr = value;
                 break;
+            case Registers.DEMCR:
+                demcrRegister = value;
+                break;
             default:
                 this.LogUnhandledWrite(offset, value);
                 break;
@@ -405,11 +412,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             activeIRQs.Clear();
             systick.Reset();
             eventEnabled = false;
+            isSystickSourceProcessorClk = true;
             systick.AutoUpdate = true;
             IRQ.Unset();
             countFlag = false;
             currentSevOnPending = false;
             mpuControlRegister = 0;
+            demcrRegister = 0;
 
             // bit [16] DC / Cache enable. This is a global enable bit for data and unified caches.
             ccr = 0x10000;
@@ -1009,6 +1018,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             FPContextControl = 0xF34,
             FPContextAddress = 0xF38,
             FPDefaultStatusControl = 0xF3C,
+            DEMCR = 0xDFC,
         }
 
         private enum RegistersV7
@@ -1053,6 +1063,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private uint ccr = 0x10000;
 
         private bool eventEnabled;
+        private bool isSystickSourceProcessorClk;
         private readonly bool haltSystickOnDeepSleep;
         private bool countFlag;
         private byte priorityMask;
@@ -1062,6 +1073,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private int binaryPointPosition; // from the right
         private uint mpuControlRegister;
         private MPUVersion mpuVersion;
+		private uint demcrRegister;
 
         private bool maskedInterruptPresent;
 

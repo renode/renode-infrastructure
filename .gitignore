@@ -12,3 +12,5 @@ obj
 *.userprefs
 .vscode
 *.swp
+
+.DS_Store
