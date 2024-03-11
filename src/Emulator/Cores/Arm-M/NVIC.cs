@@ -51,6 +51,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public void AttachCPU(CortexM cpu)
         {
+            if(this.cpu != null)
+            {
+                throw new RecoverableException("The NVIC has already attached CPU.");
+            }
             this.cpu = cpu;
             this.cpuId = cpu.ID;
             mpuVersion = cpu.IsV8 ? MPUVersion.PMSAv8 : MPUVersion.PMSAv7;
