@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU;
@@ -53,6 +54,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             this.cpu = cpu;
             this.cpuId = cpu.ID;
             mpuVersion = cpu.IsV8 ? MPUVersion.PMSAv8 : MPUVersion.PMSAv7;
+
+            if(cpu.Model == "cortex-m7")
+            {
+                DefineTightlyCoupledMemoryControlRegisters();
+            }
         }
 
         public bool MaskedInterruptPresent { get { return maskedInterruptPresent; } }
@@ -551,6 +557,32 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 .WithChangeCallback((_, val) =>
                     this.Log(LogLevel.Warning, "Changing value of the SHCSR register to 0x{0:X}, the register isn't supported by Renode", val)
                 );
+
+            Registers.CacheSizeSelection.Define(RegisterCollection)
+                .WithTaggedFlag("InD (Instruction or Data Selection)", 0)
+                .WithTag("Level", 1, 3)
+                .WithReservedBits(4, 28);
+
+            Registers.CacheSizeID.Define(RegisterCollection)
+                .WithTag("LineSize", 0, 3)
+                .WithTag("Associativity", 3, 10)
+                .WithTag("NumSets", 13, 15)
+                .WithTaggedFlag("WA (Write Allocation Support)", 28)
+                .WithTaggedFlag("RA (Read Allocation Support)", 29)
+                .WithTaggedFlag("WB (Write Back Support)", 30)
+                .WithTaggedFlag("WT (Write Through Support)", 31);
+        }
+
+        private void DefineTightlyCoupledMemoryControlRegisters()
+        {
+            // The ITCMC and DTCMC registers have same fields.
+            Registers.InstructionTightlyCoupledMemoryControl.DefineMany(RegisterCollection, 2, setup: (reg, index) => reg
+                .WithTaggedFlag("EN (TCM Enable)", 0)
+                .WithTaggedFlag("RMW (Read Modify Write Enable)", 1)
+                .WithTaggedFlag("RETEN (Retry Phase Enable)", 2)
+                .WithTag("SZ (TCM Size)", 3, 4)
+                .WithReservedBits(7, 25)
+            );
         }
 
         private void InitInterrupts()
