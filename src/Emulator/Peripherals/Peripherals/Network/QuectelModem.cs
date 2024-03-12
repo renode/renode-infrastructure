@@ -174,6 +174,11 @@ namespace Antmicro.Renode.Peripherals.Network
         public decimal SleepDuration { get; set; } = 0m;
         public decimal RxTime { get; set; } = 0m;
         public decimal TxTime { get; set; } = 0m;
+        // These parameters should be set according to expectations of network behavior.
+        public ulong ClosePortInactivityDisconnectDelay { get; set; }
+        public ulong SendDataInactivityDisconnectDelay { get; set; }
+        public ulong SendDataActivityConnectDelay { get; set; } = 550;
+        public bool SendCSCONOnChangeOnly { get; set; } = true;
 
         public int SignalStrength => (int?)Misc.RemapNumber(Rssi, -113m, -51m, 0, 31) ?? 0;
         public int ActiveTimeSeconds => ConvertEncodedStringToSeconds(ActiveTime, ModemTimerType.ActiveTimeT3324);
@@ -666,10 +671,14 @@ namespace Antmicro.Renode.Peripherals.Network
             sockets[connectionId]?.Dispose();
             sockets[connectionId] = null;
             // If all sockets are closed the signaling connection goes inactive.
-            if(sockets.All(s => s == null))
+            // After the port is closed, modem disconnects after a period of inactivity.
+            ExecuteWithDelay(() =>
             {
-                SendSignalingConnectionStatus(false);
-            }
+                if(sockets.All(s => s == null))
+                {
+                    SendSignalingConnectionStatus(false);
+                }
+            }, ClosePortInactivityDisconnectDelay);
             return Ok.WithTrailer("CLOSE OK");
         }
 
@@ -759,6 +768,11 @@ namespace Antmicro.Renode.Peripherals.Network
                     connectionId, BitConverter.ToString(bytes));
 
                 SendSocketData(bytes, connectionId);
+                // After data is sent, modem disconnects after a period of inactivity.
+                ExecuteWithDelay(() =>
+                {
+                    SendSignalingConnectionStatus(false);
+                }, SendDataInactivityDisconnectDelay);
                 return null;
             }
             else // Send data (fixed or variable-length) in data mode
@@ -805,9 +819,8 @@ namespace Antmicro.Renode.Peripherals.Network
             // but we have to wait before SEND OK/SEND FAIL if the network is too fast
             ExecuteWithDelay(() => SendString(sendResponse), 50);
             // A successful send means the signaling connection became active, but this
-            // happens after the actual send notification hence the additional delay on
-            // top of CsconDelay.
-            ExecuteWithDelay(() => SendSignalingConnectionStatus(true), CsconDelay + 50);
+            // happens after the actual send notification hence the additional delay.
+            ExecuteWithDelay(() => SendSignalingConnectionStatus(true), SendDataActivityConnectDelay);
         }
 
         protected void EnterDeepsleep()
@@ -847,7 +860,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
         protected void SendSignalingConnectionStatus(bool active)
         {
-            if(signalingConnectionActive == active)
+            if(SendCSCONOnChangeOnly && signalingConnectionActive == active)
             {
                 return;
             }
