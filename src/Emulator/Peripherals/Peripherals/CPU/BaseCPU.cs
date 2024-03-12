@@ -659,6 +659,16 @@ restart:
                 }
             }
 
+            // If AdvanceImmediately is not enabled, and virtual time has surpassed host time,
+            // sleep to make up the difference.
+            if(!machine.LocalTimeSource.AdvanceImmediately && machine.LocalTimeSource.ElapsedVirtualTime > machine.LocalTimeSource.ElapsedHostTime)
+            {
+                var ahead = machine.LocalTimeSource.ElapsedVirtualTime - machine.LocalTimeSource.ElapsedHostTime;
+                // Ignore the return value, if the sleep is interrupted we'll make up any extra
+                // remaining difference next time
+                sleeper.Sleep(ahead.ToTimeSpan(), out var _);
+            }
+
             this.Trace("CPU thread body finished");
 
             if(isAborted)
