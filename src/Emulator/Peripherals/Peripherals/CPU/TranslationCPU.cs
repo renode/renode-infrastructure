@@ -1312,11 +1312,14 @@ namespace Antmicro.Renode.Peripherals.CPU
                 var hostBlocks = currentMappings.Where(x => x.Touched).Select(x => x.Segment)
                     .Select(x => new HostMemoryBlock { Start = x.StartingOffset, Size = x.Size, HostPointer = x.Pointer })
                     .OrderBy(x => x.HostPointer.ToInt64()).ToArray();
-                var blockBuffer = memoryManager.Allocate(new IntPtr(Marshal.SizeOf(typeof(HostMemoryBlock)) * hostBlocks.Length));
-                BlitArray(blockBuffer, hostBlocks.OrderBy(x => x.HostPointer.ToInt64()).Cast<dynamic>().ToArray());
-                RenodeSetHostBlocks(blockBuffer, hostBlocks.Length);
-                memoryManager.Free(blockBuffer);
-                this.NoisyLog("Memory mappings rebuilt, there are {0} host blocks now.", hostBlocks.Length);
+                if(hostBlocks.Length > 0)
+                {
+                    var blockBuffer = memoryManager.Allocate(new IntPtr(Marshal.SizeOf(typeof(HostMemoryBlock)) * hostBlocks.Length));
+                    BlitArray(blockBuffer, hostBlocks.OrderBy(x => x.HostPointer.ToInt64()).Cast<dynamic>().ToArray());
+                    RenodeSetHostBlocks(blockBuffer, hostBlocks.Length);
+                    memoryManager.Free(blockBuffer);
+                    this.NoisyLog("Memory mappings rebuilt, there are {0} host blocks now.", hostBlocks.Length);
+                }
             }
         }
 
