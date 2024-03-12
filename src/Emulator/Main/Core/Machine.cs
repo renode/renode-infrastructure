@@ -416,13 +416,13 @@ namespace Antmicro.Renode.Core
         /// by a CPU breakpoint is not.</param>
         public IDisposable ObtainPausedState(bool internalPause = false)
         {
-            IsResetting = internalPause;
+            InternalPause = internalPause;
             pausedState.Enter();
             return DisposableWrapper.New(() =>
             {
                 pausedState.Dispose();
                 // Does not handle nesting, but only the outermost pause could possibly invoke halt callbacks
-                IsResetting = false;
+                InternalPause = false;
             });
         }
 
@@ -544,7 +544,7 @@ namespace Antmicro.Renode.Core
             }
         }
 
-        public bool IsResetting { get; private set; }
+        public bool InternalPause { get; private set; }
 
         public void RequestResetInSafeState(Action postReset = null, ICollection<IPeripheral> unresetable = null)
         {
