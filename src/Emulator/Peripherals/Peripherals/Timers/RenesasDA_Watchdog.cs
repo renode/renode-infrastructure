@@ -13,9 +13,9 @@ using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
-    public sealed class RenesasDA14_Watchdog : BasicDoubleWordPeripheral, IKnownSize
+    public sealed class RenesasDA_Watchdog : BasicDoubleWordPeripheral, IKnownSize
     {
-        public RenesasDA14_Watchdog(IMachine machine, long frequency, IDoubleWordPeripheral nvic) : base(machine)
+        public RenesasDA_Watchdog(IMachine machine, long frequency, IDoubleWordPeripheral nvic) : base(machine)
         {
             IRQ = new GPIO();
             // Type comparison like this is required due to NVIC model being in another project
