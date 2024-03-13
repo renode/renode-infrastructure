@@ -16,9 +16,9 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.I2C
 {
-    public class RenesasDA14_I2C : SimpleContainer<II2CPeripheral>, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
+    public class RenesasDA_I2C : SimpleContainer<II2CPeripheral>, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
     {
-        public RenesasDA14_I2C(IMachine machine) : base(machine)
+        public RenesasDA_I2C(IMachine machine) : base(machine)
         {
             txFifo = new Queue<byte>();
             transmission = new Queue<byte>();
