@@ -628,15 +628,13 @@ restart:
                         this.Trace();
                         var instructionsToSkip = Math.Min(InstructionsToNearestLimit(), instructionsLeftThisRound);
 
-                        if(!machine.LocalTimeSource.AdvanceImmediately)
+                        if(!machine.LocalTimeSource.AdvanceImmediately && machine.LocalTimeSource.ElapsedVirtualTime > machine.LocalTimeSource.ElapsedHostTime)
                         {
-                            var intervalToSleep = TimeInterval.FromCPUCycles(instructionsToSkip, PerformanceInMips, out var unused).ToTimeSpan();
-                            var interrupted = sleeper.Sleep(intervalToSleep, out var intervalSlept);
-
-                            if(interrupted)
-                            {
-                                instructionsToSkip = TimeInterval.FromTimeSpan(intervalSlept).ToCPUCycles(PerformanceInMips, out var _);
-                            }
+                            var ahead = machine.LocalTimeSource.ElapsedVirtualTime - machine.LocalTimeSource.ElapsedHostTime;
+                            // Don't fall behind realtime by sleeping
+                            var intervalToSleep = TimeInterval.FromCPUCycles(instructionsToSkip, PerformanceInMips, out var cyclesResiduum).WithTicksMin(ahead.Ticks);
+                            sleeper.Sleep(intervalToSleep.ToTimeSpan(), out var intervalSlept);
+                            instructionsToSkip = TimeInterval.FromTimeSpan(intervalSlept).ToCPUCycles(PerformanceInMips, out var _) + cyclesResiduum;
                         }
 
                         ReportProgress(instructionsToSkip);
