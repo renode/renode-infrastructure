@@ -8,6 +8,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.SPI;
@@ -134,6 +135,8 @@ namespace Antmicro.Renode.Peripherals.SD
                 .DefineFragment(56, 4, 0, name: "SD Card - Spec. Version") // 0: Version 1.0-1.01
                 .DefineFragment(60, 4, 0, name: "SCR Structure") // 0: SCR version No 1.0
             ;
+
+            crcEngine = new CRCEngine(0x1021, 16, false, false, 0x00);
         }
 
         public void Reset()
@@ -365,7 +368,11 @@ namespace Antmicro.Renode.Peripherals.SD
 
         private BitStream GenerateR1Response(bool illegalCommand = false)
         {
+            // Zephyr software skips first 8 bytes (including 6 command bytes).
+            // Send 2 additional bytes before the actual response data.
             return new BitStream()
+                .Append((byte)0xff)
+                .Append((byte)0xff)
                 .AppendBit(state == SDCardState.Idle)
                 .AppendBit(false) // Erase Reset
                 .AppendBit(illegalCommand)
@@ -378,26 +385,30 @@ namespace Antmicro.Renode.Peripherals.SD
 
         private BitStream GenerateR2Response()
         {
-            return new BitStream()
-                .Append(GenerateR1Response().AsByte())
+            return GenerateR1Response()
                 .Append((byte)0); // TODO: fill with the actual data
         }
 
         private BitStream GenerateR3Response()
         {
-            return new BitStream()
-                .Append(GenerateR1Response().AsByte())
+            return GenerateR1Response()
                 .Append(OperatingConditions.AsByteArray());
         }
 
         private BitStream GenerateR7Response()
         {
-            return new BitStream()
-                .Append(GenerateR1Response().AsByte())
-                .Append((byte)0) // see: http://www.rjhcoding.com/avrc-sd-interface-2.php for reference
-                .Append((byte)0) // TODO: fill with the actual data
-                .Append((byte)0)
-                .Append((byte)0);
+            return GenerateR1Response()
+                .Append((byte)0xAA) // see: http://www.rjhcoding.com/avrc-sd-interface-2.php for reference
+                .Append((byte)0x01) // TODO: fill with the actual data
+                .Append((byte)0x01)
+                .Append((byte)0xAA);
+        }
+
+        private BitStream GenerateRegisterResponse(BitStream register)
+        {
+            var reg = register.AsByteArray().Reverse().ToArray();
+            ushort crc = (ushort)crcEngine.Calculate(reg);
+            return GenerateR1Response().Append(BlockBeginIndicator).Append(reg).Append(crc.HiByte()).Append(crc.LoByte());
         }
 
         private BitStream HandleStandardCommand(SdCardCommand command, uint arg)
@@ -486,7 +497,7 @@ namespace Antmicro.Renode.Peripherals.SD
 
                 case SdCardCommand.SendCardSpecificData_CMD9:
                     return spiMode
-                        ? GenerateR1Response()
+                        ? GenerateRegisterResponse(CardSpecificData)
                         : CardSpecificData;
 
                 case SdCardCommand.StopTransmission_CMD12:
@@ -615,7 +626,7 @@ namespace Antmicro.Renode.Peripherals.SD
                 case SdCardApplicationSpecificCommand.SendSDConfigurationRegister_ACMD51:
                     readContext.Data = SDConfiguration;
                     result = spiMode
-                        ? GenerateR1Response()
+                        ? GenerateRegisterResponse(SDConfiguration)
                         : CardStatus;
                     return true;
 
@@ -646,6 +657,7 @@ namespace Antmicro.Renode.Peripherals.SD
         private readonly bool spiMode;
         private readonly bool highCapacityMode;
         private readonly SpiContext spiContext;
+        private readonly CRCEngine crcEngine;
         private const byte DummyByte = 0xFF;
         private const byte BlockBeginIndicator = 0xFE;
         private const int HighCapacityBlockLength = 512;
