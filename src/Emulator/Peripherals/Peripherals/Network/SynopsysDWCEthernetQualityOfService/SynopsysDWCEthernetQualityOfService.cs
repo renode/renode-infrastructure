@@ -111,6 +111,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
         // Offset at which each channel should start. This also determinates the amount of DMA channels
         protected virtual long[] DMAChannelOffsets => new long[]{ 0x100 };
+        protected virtual BusWidth DMABusWidth => BusWidth.Bits32;
 
         private void SendFrame(EthernetFrame frame)
         {

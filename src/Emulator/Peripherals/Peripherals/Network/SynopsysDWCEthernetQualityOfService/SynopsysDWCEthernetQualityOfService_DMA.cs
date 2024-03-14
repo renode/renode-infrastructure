@@ -28,6 +28,13 @@ namespace Antmicro.Renode.Peripherals.Network
     {
         protected readonly DMAChannel[] dmaChannels;
 
+        protected enum BusWidth
+        {
+            Bits32  = 4,
+            Bits64  = 8,
+            Bits128 = 16,
+        }
+
         private enum DMAState
         {
             Stopped = 0,
@@ -322,7 +329,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
             private void IncreaseDescriptorPointer(IValueRegisterField current, IValueRegisterField start, IValueRegisterField length, string name)
             {
-                var size = descriptorSkipLength.Value * 4 + Descriptor.Size;
+                var size = descriptorSkipLength.Value * (ulong)parent.DMABusWidth + Descriptor.Size;
                 var offset = current.Value - start.Value;
                 offset += size;
                 // The docs state that: "If you want to have 10 descriptors, program it to a value of 0x9" - so it always should be +1 descriptor than obtained from the register
