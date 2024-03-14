@@ -17,12 +17,12 @@ namespace Antmicro.Renode.Peripherals.Network
 {
     public partial class SynopsysDWCEthernetQualityOfService : IDoubleWordPeripheral
     {
-        public uint ReadDoubleWord(long offset)
+        public virtual uint ReadDoubleWord(long offset)
         {
             return Read<RegistersMacAndMmc>(macAndMmcRegisters, "MAC and MMC", offset);
         }
 
-        public void WriteDoubleWord(long offset, uint value)
+        public virtual void WriteDoubleWord(long offset, uint value)
         {
             Write<RegistersMacAndMmc>(macAndMmcRegisters, "MAC and MMC", offset, value);
         }
