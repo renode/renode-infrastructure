@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // license text is available in 'licenses/MIT.txt'.
@@ -73,6 +73,41 @@ namespace Antmicro.Renode.Utilities
         {
             var crc = new CRCEngine(CRCPolynomial.CRC32, true, true, 0xFFFFFFFF, 0xFFFFFFFF);
             Assert.AreEqual(0xCBF43926, crc.Calculate(checkInputData));
+        }
+
+        [Test]
+        public void ShouldCalculateCRC32BZIP()
+        {
+            var crc = new CRCEngine(CRCPolynomial.CRC32, false, false, 0xFFFFFFFF, 0xFFFFFFFF);
+            Assert.AreEqual(0xFC891918, crc.Calculate(checkInputData));
+        }
+
+        [Test]
+        public void ShouldCalculateCRC32JAMCRC()
+        {
+            var crc = new CRCEngine(CRCPolynomial.CRC32, true, true, 0xFFFFFFFF, 0);
+            Assert.AreEqual(0x340BC6D9, crc.Calculate(checkInputData));
+        }
+
+        [Test]
+        public void ShouldCalculateCRC32MPEG2()
+        {
+            var crc = new CRCEngine(CRCPolynomial.CRC32, false, false, 0xFFFFFFFF, 0);
+            Assert.AreEqual(0x0376E6E7, crc.Calculate(checkInputData));
+        }
+
+        [Test]
+        public void ShouldCalculateCRC32POSIX()
+        {
+            var crc = new CRCEngine(CRCPolynomial.CRC32, false, false, 0, 0xFFFFFFFF);
+            Assert.AreEqual(0x765E7680, crc.Calculate(checkInputData));
+        }
+
+        [Test]
+        public void ShouldCalculateCRC32SATA()
+        {
+            var crc = new CRCEngine(CRCPolynomial.CRC32, false, false, 0x52325032, 0);
+            Assert.AreEqual(0xCF72AFE8, crc.Calculate(checkInputData));
         }
 
         [Test]
