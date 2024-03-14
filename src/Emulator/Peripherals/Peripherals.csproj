@@ -658,6 +658,7 @@
     <Compile Include="Peripherals\Miscellaneous\Crypto\STM32H7_CRYPTO.cs" />
     <Compile Include="Peripherals\UART\DummyLINPeripheral.cs" />
     <Compile Include="Peripherals\Miscellaneous\RenesasDA14_XTAL32MRegisters.cs" />
+    <Compile Include="Peripherals\Miscellaneous\RenesasDA14_GeneralRegisters.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
