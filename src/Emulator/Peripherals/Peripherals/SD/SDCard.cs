@@ -500,6 +500,11 @@ namespace Antmicro.Renode.Peripherals.SD
                         ? GenerateRegisterResponse(CardSpecificData)
                         : CardSpecificData;
 
+                case SdCardCommand.SendCardIdentification_CMD10:
+                    return spiMode
+                        ? GenerateRegisterResponse(CardIdentification)
+                        : CardIdentification;
+
                 case SdCardCommand.StopTransmission_CMD12:
                     readContext.Reset();
                     writeContext.Reset();
@@ -716,6 +721,7 @@ namespace Antmicro.Renode.Peripherals.SD
             // this command has been added in spec version 2.0 - we don't have to answer to it
             SendInterfaceConditionCommand_CMD8 = 8,
             SendCardSpecificData_CMD9 = 9,
+            SendCardIdentification_CMD10 = 10,
             StopTransmission_CMD12 = 12,
             SendStatus_CMD13 = 13,
             SetBlockLength_CMD16 = 16,
