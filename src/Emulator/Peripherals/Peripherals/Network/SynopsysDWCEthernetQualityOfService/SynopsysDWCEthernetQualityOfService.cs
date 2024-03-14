@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -89,6 +89,7 @@ namespace Antmicro.Renode.Peripherals.Network
         }
 
         public long Size => 0xC00;
+        [DefaultInterrupt]
         public GPIO IRQ { get; }
         public MACAddress MAC { get; set; }
 
