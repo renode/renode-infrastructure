@@ -88,7 +88,7 @@ namespace Antmicro.Renode.Peripherals.Network
             UpdateInterrupts();
         }
 
-        public long Size => 0xC00;
+        public virtual long Size => 0xC00;
         [DefaultInterrupt]
         public GPIO IRQ { get; }
         public MACAddress MAC { get; set; }
