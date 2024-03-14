@@ -106,7 +106,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithTaggedFlag("MACCR.DCRS (DCRS)", 9)
                     .WithTaggedFlag("MACCR.DO (DO)", 10)
                     .WithTaggedFlag("MACCR.ECRSFD (ECRSFD)", 11)
-                    .WithTaggedFlag("MACCR.LM (LM)", 12)
+                    .WithFlag(12, out loopbackEnabled, name: "MACCR.LM (LM)")
                     .WithTaggedFlag("MACCR.DM (DM)", 13)
                     .WithTaggedFlag("MACCR.FES (FES)", 14)
                     .WithReservedBits(15, 1)
@@ -1446,6 +1446,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
         private IFlagRegisterField rxEnable;
         private IFlagRegisterField txEnable;
+        private IFlagRegisterField loopbackEnabled;
         private IFlagRegisterField checksumOffloadEnable;
         private IFlagRegisterField crcCheckDisable;
         private IFlagRegisterField ptpMessageTypeInterrupt;

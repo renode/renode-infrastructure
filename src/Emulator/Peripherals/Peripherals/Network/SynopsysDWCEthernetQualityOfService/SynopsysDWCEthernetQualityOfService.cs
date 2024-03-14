@@ -346,7 +346,15 @@ namespace Antmicro.Renode.Peripherals.Network
 
         private void SendFrame(EthernetFrame frame)
         {
-            FrameReady?.Invoke(frame);
+            if(loopbackEnabled.Value)
+            {
+                ReceiveFrame(frame);
+            }
+            else
+            {
+                FrameReady?.Invoke(frame);
+            }
+
             IncrementPacketCounter(txGoodPacketCounter, txGoodPacketCounterInterrupt);
             IncrementPacketCounter(txPacketCounter, txPacketCounterInterrupt);
             // one added to account for Start of Frame Delimiter (SFD)
