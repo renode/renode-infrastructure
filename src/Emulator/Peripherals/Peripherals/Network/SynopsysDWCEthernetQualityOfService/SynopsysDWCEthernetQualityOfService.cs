@@ -31,7 +31,7 @@ namespace Antmicro.Renode.Peripherals.Network
             IRQ = new GPIO();
             MAC = EmulationManager.Instance.CurrentEmulation.MACRepository.GenerateUniqueMAC();
             Bus = machine.GetSystemBus(this);
-            this.cpuContext = cpuContext;
+            this.CpuContext = cpuContext;
 
             incomingFrames = new Queue<EthernetFrame>();
             rxIpcPacketCounterInterruptEnable = new IFlagRegisterField[NumberOfIpcCounters];
@@ -212,7 +212,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 }
 
                 var bytesWritten = Math.Min((ulong)bytes.Length - rxOffset, bufferSize);
-                Bus.WriteBytes(bytes, bufferAddress, (int)rxOffset, (long)bytesWritten, true, cpuContext);
+                Bus.WriteBytes(bytes, bufferAddress, (int)rxOffset, (long)bytesWritten, true, CpuContext);
                 this.Log(LogLevel.Noisy, "Receive: Writing frame[0x{0:X}, 0x{1:X}) at 0x{2:X}.", rxOffset, rxOffset + bytesWritten, bufferAddress);
                 rxOffset += bytesWritten;
 
@@ -426,7 +426,7 @@ namespace Antmicro.Renode.Peripherals.Network
                         this.Log(LogLevel.Warning, "Transmission: Building new frame without clearing last frame.");
                     }
 
-                    var buffer = structure.FetchBuffer1OrHeader(Bus, cpuContext);
+                    var buffer = structure.FetchBuffer1OrHeader(Bus, CpuContext);
                     txCurrentBuffer.Value = structure.buffer1OrHeaderAddress;
                     var tsoEnabled = structure.tcpSegmentationEnable && tcpSegmentationEnable.Value;
                     if(structure.firstDescriptor)
@@ -441,7 +441,7 @@ namespace Antmicro.Renode.Peripherals.Network
                                 checksumOffloadEnable.Value,
                                 SendFrame
                             );
-                            buffer = structure.FetchBuffer2OrBuffer1(Bus, cpuContext);
+                            buffer = structure.FetchBuffer2OrBuffer1(Bus, CpuContext);
                             txCurrentBuffer.Value = structure.buffer2orBuffer1Address;
                         }
                         else
@@ -461,7 +461,7 @@ namespace Antmicro.Renode.Peripherals.Network
                         // expects buffer2 to be valid even with TSO disabled. In this case,
                         // concatenate two buffers when assembling frame to be sent.
                         frameAssembler.PushPayload(buffer);
-                        buffer = structure.FetchBuffer2OrBuffer1(Bus, cpuContext);
+                        buffer = structure.FetchBuffer2OrBuffer1(Bus, CpuContext);
                         txCurrentBuffer.Value = structure.buffer2orBuffer1Address;
                     }
                     frameAssembler.PushPayload(buffer);
@@ -706,7 +706,7 @@ namespace Antmicro.Renode.Peripherals.Network
         }
 
         private IBusController Bus { get; }
-        private ICPU cpuContext { get; }
+        private ICPU CpuContext { get; }
 
         private bool DMAInterrupts =>
             txInterrupt.Value ||

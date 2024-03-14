@@ -18,14 +18,14 @@ namespace Antmicro.Renode.Peripherals.Network
     {
         private TxDescriptor GetTxDescriptor(ulong index = 0)
         {
-            var descriptor = new TxDescriptor(Bus, txDescriptorRingCurrent.Value, cpuContext);
+            var descriptor = new TxDescriptor(Bus, txDescriptorRingCurrent.Value, CpuContext);
             descriptor.Fetch();
             return descriptor;
         }
 
         private RxDescriptor GetRxDescriptor()
         {
-            var descriptor = new RxDescriptor(Bus, rxDescriptorRingCurrent.Value, cpuContext);
+            var descriptor = new RxDescriptor(Bus, rxDescriptorRingCurrent.Value, CpuContext);
             descriptor.Fetch();
             return descriptor;
         }
