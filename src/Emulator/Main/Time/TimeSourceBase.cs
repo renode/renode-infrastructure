@@ -345,6 +345,27 @@ namespace Antmicro.Renode.Time
         public TimeInterval ElapsedHostTime { get { return TimeInterval.FromTicks(hostTicksElapsed.CumulativeValue); } }
 
         /// <summary>
+        /// Gets the amount that the virtual time is ahead of the host time from the perspective of this time source,
+        /// or 0 if the virtual time is behind the host time.
+        /// </summary>
+        public TimeInterval ElapsedVirtualHostTimeDifference
+        {
+            get
+            {
+                lock(hostTicksElapsed)
+                {
+                    var hostTicks = hostTicksElapsed.CumulativeValue;
+                    var virtualTicks = virtualTicksElapsed.CumulativeValue;
+                    if(virtualTicks <= hostTicks)
+                    {
+                        return TimeInterval.Empty;
+                    }
+                    return TimeInterval.FromTicks(virtualTicks - hostTicks);
+                }
+            }
+        }
+
+        /// <summary>
         /// Gets the virtual time point of the nearest synchronization of all associated <see cref="ITimeHandle">.
         /// </summary>
         public TimeInterval NearestSyncPoint { get; private set; }

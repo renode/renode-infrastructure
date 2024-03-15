@@ -569,6 +569,7 @@ restart:
             var mmuFaultThrown = false;
             var initialExecutedResiduum = executedResiduum;
             var initialTotalElapsedTime = TimeHandle.TotalElapsedTime;
+            TimeInterval virtualTimeAhead;
 
             var instructionsToExecuteThisRound = interval.ToCPUCycles(PerformanceInMips, out ulong ticksResiduum);
             if(instructionsToExecuteThisRound <= executedResiduum)
@@ -628,11 +629,11 @@ restart:
                         this.Trace();
                         var instructionsToSkip = Math.Min(InstructionsToNearestLimit(), instructionsLeftThisRound);
 
-                        if(!machine.LocalTimeSource.AdvanceImmediately && machine.LocalTimeSource.ElapsedVirtualTime > machine.LocalTimeSource.ElapsedHostTime)
+                        virtualTimeAhead = machine.LocalTimeSource.ElapsedVirtualHostTimeDifference;
+                        if(!machine.LocalTimeSource.AdvanceImmediately && virtualTimeAhead.Ticks > 0)
                         {
-                            var ahead = machine.LocalTimeSource.ElapsedVirtualTime - machine.LocalTimeSource.ElapsedHostTime;
                             // Don't fall behind realtime by sleeping
-                            var intervalToSleep = TimeInterval.FromCPUCycles(instructionsToSkip, PerformanceInMips, out var cyclesResiduum).WithTicksMin(ahead.Ticks);
+                            var intervalToSleep = TimeInterval.FromCPUCycles(instructionsToSkip, PerformanceInMips, out var cyclesResiduum).WithTicksMin(virtualTimeAhead.Ticks);
                             sleeper.Sleep(intervalToSleep.ToTimeSpan(), out var intervalSlept);
                             instructionsToSkip = TimeInterval.FromTimeSpan(intervalSlept).ToCPUCycles(PerformanceInMips, out var _) + cyclesResiduum;
                         }
@@ -661,12 +662,12 @@ restart:
 
             // If AdvanceImmediately is not enabled, and virtual time has surpassed host time,
             // sleep to make up the difference.
-            if(!machine.LocalTimeSource.AdvanceImmediately && machine.LocalTimeSource.ElapsedVirtualTime > machine.LocalTimeSource.ElapsedHostTime)
+            virtualTimeAhead = machine.LocalTimeSource.ElapsedVirtualHostTimeDifference;
+            if(!machine.LocalTimeSource.AdvanceImmediately && virtualTimeAhead.Ticks > 0)
             {
-                var ahead = machine.LocalTimeSource.ElapsedVirtualTime - machine.LocalTimeSource.ElapsedHostTime;
                 // Ignore the return value, if the sleep is interrupted we'll make up any extra
                 // remaining difference next time
-                sleeper.Sleep(ahead.ToTimeSpan(), out var _);
+                sleeper.Sleep(virtualTimeAhead.ToTimeSpan(), out var _);
             }
 
             this.Trace("CPU thread body finished");
