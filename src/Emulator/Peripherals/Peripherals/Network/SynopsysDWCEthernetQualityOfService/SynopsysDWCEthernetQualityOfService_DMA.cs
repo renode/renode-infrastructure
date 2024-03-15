@@ -142,7 +142,7 @@ namespace Antmicro.Renode.Peripherals.Network
                         .WithValueField(0, 32, out txDescriptorRingTail, changeCallback: (previousValue, _) =>
                         {
                             var clearTxFinishedRing = txDescriptorRingTail.Value != txDescriptorRingCurrent.Value;
-                            if((txState & DMAState.Suspended) != 0 || (txFinishedRing && clearTxFinishedRing))
+                            if((txState & DMAState.Suspended) != 0 || clearTxFinishedRing)
                             {
                                 txFinishedRing &= !clearTxFinishedRing;
                                 StartTx();
@@ -153,7 +153,7 @@ namespace Antmicro.Renode.Peripherals.Network
                         .WithValueField(0, 32, out rxDescriptorRingTail, changeCallback: (previousValue, _) =>
                         {
                             var clearRxFinishedRing = rxDescriptorRingTail.Value != rxDescriptorRingCurrent.Value;
-                            if((rxState & DMAState.Suspended) != 0 || (rxFinishedRing && clearRxFinishedRing))
+                            if((rxState & DMAState.Suspended) != 0 || clearRxFinishedRing)
                             {
                                 rxFinishedRing &= !clearRxFinishedRing;
                                 StartRx();
