@@ -666,8 +666,10 @@ restart:
             if(!machine.LocalTimeSource.AdvanceImmediately && virtualTimeAhead.Ticks > 0)
             {
                 // Ignore the return value, if the sleep is interrupted we'll make up any extra
-                // remaining difference next time
-                sleeper.Sleep(virtualTimeAhead.ToTimeSpan(), out var _);
+                // remaining difference next time. Preserve the interrupt request so that if this
+                // extra sleep is interrupted due to a CPU pause, it will be picked up by the WFI
+                // handling above.
+                sleeper.Sleep(virtualTimeAhead.ToTimeSpan(), out var _, preserveInterruptRequest: true);
             }
 
             this.Trace("CPU thread body finished");

@@ -32,7 +32,7 @@ namespace Antmicro.Renode.Time
         /// The flag informing if sleeping was interrupted.
         /// See <see cref="timeElapsed"> for the actual time spent sleeping before interruption.
         /// </returns>
-        public bool Sleep(TimeSpan time, out TimeSpan timeElapsed)
+        public bool Sleep(TimeSpan time, out TimeSpan timeElapsed, bool preserveInterruptRequest = false)
         {
             stopwatch.Restart();
             var timeLeft = time;
@@ -47,7 +47,16 @@ namespace Antmicro.Renode.Time
             stopwatch.Stop();
             
             timeElapsed = stopwatch.Elapsed > time ? time : stopwatch.Elapsed;
-            return tokenSource.IsCancellationRequested;
+            lock(locker)
+            {
+                if(tokenSource.IsCancellationRequested && preserveInterruptRequest)
+                {
+                    // Cancel the new token so that the next Sleep will pick up the cancellation
+                    // that interrupted this one
+                    Disable();
+                }
+                return tokenSource.IsCancellationRequested;
+            }
         }
 
         /// <summary>
