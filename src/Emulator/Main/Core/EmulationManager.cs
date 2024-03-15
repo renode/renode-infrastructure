@@ -8,6 +8,8 @@
 using Antmicro.Migrant;
 using System.IO;
 using System;
+using System.Collections.Generic;
+using System.Text;
 using Antmicro.Renode.Exceptions;
 using IronPython.Runtime;
 using Antmicro.Renode.Peripherals.Python;
@@ -139,6 +141,25 @@ namespace Antmicro.Renode.Core
                             {
                                 message += "\nHint: Set 'serialization-mode = Reflection' in the Renode config file for detailed information.";
                             }
+                            else if(e is NonSerializableTypeException && e.Data.Contains("nonSerializableObject") && e.Data.Contains("parentsObjects"))
+                            {
+                                if(TryFindPath(e.Data["nonSerializableObject"], (Dictionary<object, IEnumerable<object>>)e.Data["parentsObjects"], typeof(Emulation), out List<object> parentsPath))
+                                {
+                                    var pathText = new StringBuilder();
+
+                                    parentsPath.Reverse();
+                                    foreach(var o in parentsPath)
+                                    {
+                                        pathText.Append(o.GetType().Name);
+                                        pathText.Append(" => ");
+                                    }
+                                    pathText.Remove(pathText.Length - 4, 4);
+                                    pathText.Append("\n");
+
+                                    message += "The class path that led to it was:\n" + pathText;
+                                }
+                            }
+
                             throw new RecoverableException(message);
                         }
                     }
@@ -269,6 +290,44 @@ namespace Antmicro.Renode.Core
         public event Action EmulationChanged;
 
         public static bool DisableEmulationFilesCleanup = false;
+
+        private static bool TryFindPath(object obj, Dictionary<object, IEnumerable<object>> parents, Type finalType, out List<object> resultPath)
+        {
+            return TryFindPathInnerRecursive(obj, parents, new List<object>(), finalType, out resultPath);
+        }
+
+        private static bool TryFindPathInnerRecursive(object obj, Dictionary<object, IEnumerable<object>> parents, List<object> currentPath, Type finalType, out List<object> resultPath)
+        {
+            currentPath.Add(obj);
+            if(obj.GetType() == finalType)
+            {
+                resultPath = currentPath;
+                return true;
+            }
+
+            if(parents.ContainsKey(obj))
+            {
+                foreach(var parent in parents[obj])
+                {
+                    if(!currentPath.Contains(parent))
+                    {
+                        if(TryFindPathInnerRecursive(parent, parents, currentPath, finalType, out resultPath))
+                        {
+                            return true;
+                        }
+                    }
+                }
+
+                currentPath.RemoveAt(currentPath.Count - 1);
+                resultPath = null;
+                return false;
+            }
+            else
+            {
+                resultPath = currentPath;
+                return false;
+            }
+        }
 
         private EmulationManager()
         {
