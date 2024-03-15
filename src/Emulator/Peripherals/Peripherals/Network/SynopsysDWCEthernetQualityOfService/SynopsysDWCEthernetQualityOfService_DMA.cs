@@ -740,6 +740,9 @@ namespace Antmicro.Renode.Peripherals.Network
                         }.Any(x => x);
                         writeBackStructure.txTimestampCaptured = false;
                         writeBackStructure.owner = DescriptorOwner.Application;
+                        writeBackStructure.firstDescriptor = structure.firstDescriptor;
+                        writeBackStructure.lastDescriptor = structure.lastDescriptor;
+
                         if(structure.transmitTimestampEnable && parent.enableTimestamp.Value)
                         {
                             this.Log(LogLevel.Error, "Transmission: Timestamping is not supported.");
