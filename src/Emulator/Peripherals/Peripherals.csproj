@@ -652,6 +652,7 @@
     <Compile Include="Peripherals\I2C\RenesasDA14_I2C.cs" />
     <Compile Include="Peripherals\MemoryControllers\Gaisler_FaultTolerantMemoryController.cs" />
     <Compile Include="Peripherals\MTD\AMDCFIFlash.cs" />
+    <Compile Include="Peripherals\Timers\PulseGenerator.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
