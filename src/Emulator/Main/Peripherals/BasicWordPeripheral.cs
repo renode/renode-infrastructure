@@ -50,34 +50,34 @@ namespace Antmicro.Renode.Peripherals
         {
         }
 
-        public static void Define16Many(this System.Enum o, IProvidesRegisterCollection<WordRegisterCollection> p, uint count, Action<WordRegister, int> setup, uint stepInBytes = 2, ushort resetValue = 0, string name = "")
+        public static void Define16Many(this System.Enum o, IProvidesRegisterCollection<WordRegisterCollection> p, uint count, Action<WordRegister, int> setup, uint stepInBytes = 2, ushort resetValue = 0, bool softResettable = true, string name = "")
         {
-            DefineMany(o, p, count, setup, stepInBytes, resetValue, name);
+            DefineMany(o, p, count, setup, stepInBytes, resetValue, softResettable, name);
         }
 
-        public static void DefineMany(this System.Enum o, IProvidesRegisterCollection<WordRegisterCollection> p, uint count, Action<WordRegister, int> setup, uint stepInBytes = 2, ushort resetValue = 0, string name = "")
+        public static void DefineMany(this System.Enum o, IProvidesRegisterCollection<WordRegisterCollection> p, uint count, Action<WordRegister, int> setup, uint stepInBytes = 2, ushort resetValue = 0, bool softResettable = true, string name = "")
         {
             var baseAddress = Convert.ToInt64(o);
             for(var i = 0; i < count; i++)
             {
-                var register = p.RegistersCollection.DefineRegister(baseAddress + i * stepInBytes, resetValue);
+                var register = p.RegistersCollection.DefineRegister(baseAddress + i * stepInBytes, resetValue, softResettable);
                 setup(register, i);
             }
         }
 
-        public static WordRegister Define16(this System.Enum o, IProvidesRegisterCollection<WordRegisterCollection> p, ushort resetValue = 0, string name = "")
+        public static WordRegister Define16(this System.Enum o, IProvidesRegisterCollection<WordRegisterCollection> p, ushort resetValue = 0, bool softResettable = true, string name = "")
         {
-            return Define(o, p, resetValue);
+            return Define(o, p, resetValue, softResettable);
         }
 
-        public static WordRegister Define(this System.Enum o, IProvidesRegisterCollection<WordRegisterCollection> p, ushort resetValue = 0, string name = "")
+        public static WordRegister Define(this System.Enum o, IProvidesRegisterCollection<WordRegisterCollection> p, ushort resetValue = 0, bool softResettable = true, string name = "")
         {
-            return p.RegistersCollection.DefineRegister(Convert.ToInt64(o), resetValue);
+            return p.RegistersCollection.DefineRegister(Convert.ToInt64(o), resetValue, softResettable);
         }
 
-        public static WordRegister DefineConditional(this System.Enum o, IProvidesRegisterCollection<WordRegisterCollection> p, Func<bool> condition, ushort resetValue = 0, string name = "")
+        public static WordRegister DefineConditional(this System.Enum o, IProvidesRegisterCollection<WordRegisterCollection> p, Func<bool> condition, ushort resetValue = 0, bool softResettable = true, string name = "")
         {
-            return p.RegistersCollection.DefineConditionalRegister(Convert.ToInt64(o), condition, resetValue);
+            return p.RegistersCollection.DefineConditionalRegister(Convert.ToInt64(o), condition, resetValue, softResettable);
         }
 
         public static void DefineManyConditional(this System.Enum o, IProvidesRegisterCollection<WordRegisterCollection> p, uint count, Func<bool> condition, Action<WordRegister, int> setup, uint stepInBytes = 1, ushort resetValue = 0, string name = "")

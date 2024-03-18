@@ -86,9 +86,9 @@ namespace Antmicro.Renode.Peripherals
             return Define(o, p.RegistersCollection, resetValue, softResettable, name);
         }
 
-        public static DoubleWordRegister DefineConditional(this System.Enum o, IProvidesRegisterCollection<DoubleWordRegisterCollection> p, Func<bool> condition, ushort resetValue = 0, string name = "")
+        public static DoubleWordRegister DefineConditional(this System.Enum o, IProvidesRegisterCollection<DoubleWordRegisterCollection> p, Func<bool> condition, ushort resetValue = 0, bool softResettable = true, string name = "")
         {
-            return p.RegistersCollection.DefineConditionalRegister(Convert.ToInt64(o), condition, resetValue);
+            return p.RegistersCollection.DefineConditionalRegister(Convert.ToInt64(o), condition, resetValue, softResettable);
         }
 
         public static void DefineManyConditional(this System.Enum o, IProvidesRegisterCollection<DoubleWordRegisterCollection> p, uint count, Func<bool> condition, Action<DoubleWordRegister, int> setup, uint stepInBytes = 1, uint resetValue = 0, string name = "")

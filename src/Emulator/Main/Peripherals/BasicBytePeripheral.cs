@@ -52,39 +52,39 @@ namespace Antmicro.Renode.Peripherals
         {
         }
 
-        public static void Define8Many(this System.Enum o, IProvidesRegisterCollection<ByteRegisterCollection> p, uint count, Action<ByteRegister, int> setup, uint stepInBytes = 1, byte resetValue = 0, string name = "")
+        public static void Define8Many(this System.Enum o, IProvidesRegisterCollection<ByteRegisterCollection> p, uint count, Action<ByteRegister, int> setup, uint stepInBytes = 1, byte resetValue = 0, bool softResettable = true, string name = "")
         {
-            DefineMany(o, p, count, setup, stepInBytes, resetValue, name);
+            DefineMany(o, p, count, setup, stepInBytes, resetValue, softResettable, name);
         }
 
-        public static void DefineMany(this System.Enum o, IProvidesRegisterCollection<ByteRegisterCollection> p, uint count, Action<ByteRegister, int> setup, uint stepInBytes = 1, byte resetValue = 0, string name = "")
+        public static void DefineMany(this System.Enum o, IProvidesRegisterCollection<ByteRegisterCollection> p, uint count, Action<ByteRegister, int> setup, uint stepInBytes = 1, byte resetValue = 0, bool softResettable = true, string name = "")
         {
             var baseAddress = Convert.ToInt64(o);
             for(var i = 0; i < count; i++)
             {
-                var register = p.RegistersCollection.DefineRegister(baseAddress + i * stepInBytes, resetValue);
+                var register = p.RegistersCollection.DefineRegister(baseAddress + i * stepInBytes, resetValue, softResettable);
                 setup(register, i);
             }
         }
 
-        public static ByteRegister Define8(this System.Enum o, IProvidesRegisterCollection<ByteRegisterCollection> p, byte resetValue = 0, string name = "")
+        public static ByteRegister Define8(this System.Enum o, IProvidesRegisterCollection<ByteRegisterCollection> p, byte resetValue = 0, bool softResettable = true, string name = "")
         {
-            return Define(o, p, resetValue);
+            return Define(o, p, resetValue, softResettable);
         }
 
-        public static ByteRegister Define(this System.Enum o, IProvidesRegisterCollection<ByteRegisterCollection> p, byte resetValue = 0, string name = "")
+        public static ByteRegister Define(this System.Enum o, IProvidesRegisterCollection<ByteRegisterCollection> p, byte resetValue = 0, bool softResettable = true, string name = "")
         {
-            return Define(o, p.RegistersCollection, resetValue, name);
+            return Define(o, p.RegistersCollection, resetValue, softResettable, name);
         }
 
-        public static ByteRegister Define(this System.Enum o, ByteRegisterCollection c, byte resetValue = 0, string name = "")
+        public static ByteRegister Define(this System.Enum o, ByteRegisterCollection c, byte resetValue = 0, bool softResettable = true, string name = "")
         {
-            return c.DefineRegister(Convert.ToInt64(o), resetValue);
+            return c.DefineRegister(Convert.ToInt64(o), resetValue, softResettable);
         }
 
-        public static ByteRegister DefineConditional(this System.Enum o, IProvidesRegisterCollection<ByteRegisterCollection> p, Func<bool> condition, byte resetValue = 0, string name = "")
+        public static ByteRegister DefineConditional(this System.Enum o, IProvidesRegisterCollection<ByteRegisterCollection> p, Func<bool> condition, byte resetValue = 0, bool softResettable = true, string name = "")
         {
-            return p.RegistersCollection.DefineConditionalRegister(Convert.ToInt64(o), condition, resetValue);
+            return p.RegistersCollection.DefineConditionalRegister(Convert.ToInt64(o), condition, resetValue, softResettable);
         }
 
         public static void DefineManyConditional(this System.Enum o, IProvidesRegisterCollection<ByteRegisterCollection> p, uint count, Func<bool> condition, Action<ByteRegister, int> setup, uint stepInBytes = 1, byte resetValue = 0, string name = "")
