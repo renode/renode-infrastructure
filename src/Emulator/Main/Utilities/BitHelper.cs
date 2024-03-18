@@ -457,6 +457,16 @@ namespace Antmicro.Renode.Utilities
             return GetBitsInner(reg, 32);
         }
 
+        public static bool[] GetBits(ushort reg)
+        {
+            return GetBitsInner(reg, 16);
+        }
+
+        public static bool[] GetBits(byte reg)
+        {
+            return GetBitsInner(reg, 8);
+        }
+
         public static byte[] GetNibbles(ulong reg)
         {
             var nibbles = new byte[16];
