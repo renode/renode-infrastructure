@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -33,15 +33,14 @@ namespace Antmicro.Renode.Peripherals.Network
 
         private class FrameAssembler
         {
-            public FrameAssembler(IEmulationElement parent, CRCPadOperation crcPadControl, ChecksumOperation checksumControl, bool enableChecksumOffload, Action<EthernetFrame> frameReady)
-                : this(parent, null, crcPadControl, checksumControl, 0, enableChecksumOffload, frameReady)
+            public FrameAssembler(IEmulationElement parent, CRCPadOperation crcPadControl, ChecksumOperation checksumControl, Action<EthernetFrame> frameReady)
+                : this(parent, null, crcPadControl, checksumControl, 0, frameReady)
             {
             }
 
             public FrameAssembler(IEmulationElement parent, byte[] header, uint defaultMaximumSegmentSize, TxDescriptor.ContextDescriptor? context, bool enableChecksumOffload, Action<EthernetFrame> frameReady)
-                : this(parent, header, CRCPadOperation.InsetCRCAndPad, ChecksumOperation.InsertHeaderPayloadAndPseudoHeaderChecksum,
-                    context.HasValue && context.Value.oneStepTimestampCorrectionInputOrMaximumSegmentSizeValid ? context.Value.maximumSegmentSize : defaultMaximumSegmentSize,
-                    enableChecksumOffload, frameReady)
+                : this(parent, header, CRCPadOperation.InsetCRCAndPad, enableChecksumOffload ? ChecksumOperation.InsertHeaderPayloadAndPseudoHeaderChecksum : ChecksumOperation.None,
+                    context.HasValue && context.Value.oneStepTimestampCorrectionInputOrMaximumSegmentSizeValid ? context.Value.maximumSegmentSize : defaultMaximumSegmentSize, frameReady)
             {
                 if(header.Length < EthernetFields.HeaderLength)
                 {
@@ -108,36 +107,29 @@ namespace Antmicro.Renode.Peripherals.Network
                 FinalizeSegment(payloadSegments.SelectMany(x => x), totalPayloadLength, true);
             }
 
-            private FrameAssembler(IEmulationElement parent, byte[] header, CRCPadOperation crcPadControl, ChecksumOperation checksumControl, uint maximumSegmentSize, bool enableChecksumOffload, Action<EthernetFrame> frameReady)
+            private FrameAssembler(IEmulationElement parent, byte[] header, CRCPadOperation crcPadControl, ChecksumOperation checksumControl, uint maximumSegmentSize, Action<EthernetFrame> frameReady)
             {
                 this.parent = parent;
                 tcpHeader = header;
 
                 padEthernetFrame = false;
-                if(enableChecksumOffload)
+
+                switch(crcPadControl)
                 {
-                    crcMode = CRCMode.NoOperation;
-                    switch(crcPadControl)
-                    {
-                        case CRCPadOperation.ReplaceCRC:
-                            crcMode = CRCMode.Replace;
-                            break;
-                        case CRCPadOperation.None:
-                            crcMode = CRCMode.Keep;
-                            break;
-                        case CRCPadOperation.InsetCRCAndPad:
-                            padEthernetFrame = true;
-                            goto case CRCPadOperation.InsertCRC;
-                        case CRCPadOperation.InsertCRC:
-                            crcMode = CRCMode.Add;
-                            break;
-                        default:
-                            throw new Exception("Unreachable");
-                    }
-                }
-                else
-                {
-                    crcMode = CRCMode.Keep;
+                    case CRCPadOperation.ReplaceCRC:
+                        crcMode = CRCMode.Replace;
+                        break;
+                    case CRCPadOperation.None:
+                        crcMode = CRCMode.Keep;
+                        break;
+                    case CRCPadOperation.InsetCRCAndPad:
+                        padEthernetFrame = true;
+                        goto case CRCPadOperation.InsertCRC;
+                    case CRCPadOperation.InsertCRC:
+                        crcMode = CRCMode.Add;
+                        break;
+                    default:
+                        throw new Exception("Unreachable");
                 }
 
                 switch(checksumControl)
@@ -150,7 +142,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     case ChecksumOperation.InsertHeaderAndPayloadChecksum:
                         parent.Log(LogLevel.Warning, "Checksum Insertion Control: Calculating checksum with precalculated pseudo-header (0b10) is not supported. Falling back to calculating checksum with pseduo-header (0b11).");
                         checksumControl = ChecksumOperation.InsertHeaderAndPayloadChecksum;
-                        goto case ChecksumOperation.InsertHeaderAndPayloadChecksum;
+                        goto case ChecksumOperation.InsertHeaderPayloadAndPseudoHeaderChecksum;
                     case ChecksumOperation.InsertHeaderPayloadAndPseudoHeaderChecksum:
                         checksumTypes = checksumOffloadEnginePseudoHeaderTypes;
                         break;

@@ -671,8 +671,7 @@ namespace Antmicro.Renode.Peripherals.Network
                                 frameAssembler = new FrameAssembler(
                                     parent,
                                     structure.crcPadControl,
-                                    structure.checksumControl,
-                                    parent.checksumOffloadEnable.Value,
+                                    parent.checksumOffloadEnable.Value ? structure.checksumControl : ChecksumOperation.None,
                                     parent.SendFrame
                                 );
                             }
