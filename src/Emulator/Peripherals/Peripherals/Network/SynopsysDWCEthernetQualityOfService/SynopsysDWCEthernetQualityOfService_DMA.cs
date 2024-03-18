@@ -245,7 +245,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
             public void ReceiveFrame(EthernetFrame frame)
             {
-                if(rxQueueLength + frame.Length > RxQueueSize)
+                if(rxQueueLength + frame.Length > parent.RxQueueSize)
                 {
                     parent.IncrementPacketCounter(parent.rxFifoPacketCounter, parent.rxFifoPacketCounterInterrupt);
                     this.Log(LogLevel.Debug, "Receive: Dropping overflow frame {0}", frame);

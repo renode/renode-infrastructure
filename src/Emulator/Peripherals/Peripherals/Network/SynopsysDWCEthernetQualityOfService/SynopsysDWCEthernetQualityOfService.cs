@@ -112,6 +112,7 @@ namespace Antmicro.Renode.Peripherals.Network
         // Offset at which each channel should start. This also determinates the amount of DMA channels
         protected virtual long[] DMAChannelOffsets => new long[]{ 0x100 };
         protected virtual BusWidth DMABusWidth => BusWidth.Bits32;
+        protected virtual int RxQueueSize => 8192;
 
         private void SendFrame(EthernetFrame frame)
         {
@@ -302,7 +303,6 @@ namespace Antmicro.Renode.Peripherals.Network
         private const ulong CounterMaxValue = UInt32.MaxValue;
         private const int RxWatchdogDivider = 256;
         private const uint EtherTypeMinimalValue = 0x600;
-        private const int RxQueueSize = 8192;
 
         // This value may be increased if required, but some changes in register creation may be required
         private const int MaxDMAChannels = 3;
