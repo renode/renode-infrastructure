@@ -612,6 +612,7 @@
     <Compile Include="Core\Structure\IBusRegistration.cs" />
     <Compile Include="Peripherals\UART\ILIN.cs" />
     <Compile Include="Peripherals\UART\LINHub.cs" />
+    <Compile Include="Utilities\LINDecoder.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
