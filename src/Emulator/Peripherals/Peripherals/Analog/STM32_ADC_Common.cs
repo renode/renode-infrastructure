@@ -1,5 +1,6 @@
 //
 // Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2023 OS Systems
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -26,6 +27,7 @@ namespace Antmicro.Renode.Peripherals.Analog
     //    *hasCalibration ----- Specifies whether the calibration factor and voltage regulator are available to the software.
     //                          ADCs without this feature will still have the ADCAL flag available to trigger the calibration procedure,
     //                          but not the CALFACT register nor the ADVREGEN field.
+    //     hasHighCalAddress -- Specifies that ADC_CALFACT is at low address or high address.
     //     channelCount ------- Specifies the amount of available channels.
     //                          Includes both internal sources (like the temperature sensor) as well as external.
     //    *hasPrescaler ------- Specifies whether the ADC contains a prescaler for the external clock input.
@@ -46,10 +48,10 @@ namespace Antmicro.Renode.Peripherals.Analog
     public abstract class STM32_ADC_Common : IKnownSize, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IDoubleWordPeripheral
     {
         public STM32_ADC_Common(IMachine machine, double referenceVoltage, uint externalEventFrequency, int dmaChannel = 0, IDMA dmaPeripheral = null,
-            int? watchdogCount = null, bool? hasCalibration = null, int? channelCount = null, bool? hasPrescaler = null,
+            int? watchdogCount = null, bool? hasCalibration = null, bool? hasHighCalAddress = null, int? channelCount = null, bool? hasPrescaler = null,
             bool? hasVbatPin = null, bool? hasChannelSequence = null, bool? hasPowerRegister = null)
         {
-            if(!watchdogCount.HasValue || !hasCalibration.HasValue || !channelCount.HasValue || !hasPrescaler.HasValue ||
+            if(!watchdogCount.HasValue || !hasCalibration.HasValue || !hasHighCalAddress.HasValue || !channelCount.HasValue || !hasPrescaler.HasValue ||
                 !hasVbatPin.HasValue || !hasChannelSequence.HasValue || !hasPowerRegister.HasValue)
             {
                 throw new ConstructionException("Missing configuration options");
@@ -73,12 +75,13 @@ namespace Antmicro.Renode.Peripherals.Analog
             this.machine = machine;
 
             bool calibration = hasCalibration.Value;
+            bool calibrationHighAddress = hasHighCalAddress.Value;
             bool prescaler = hasPrescaler.Value;
             bool vbatPin = hasVbatPin.Value;
-            bool channelSequence = hasChannelSequence.Value;
             bool powerRegister = hasPowerRegister.Value;
             ChannelCount = channelCount.Value;
             WatchdogCount = watchdogCount.Value;
+            this.hasChannelSequence = hasChannelSequence.Value;
 
             if(WatchdogCount < 1 || WatchdogCount > 3)
             {
@@ -97,7 +100,7 @@ namespace Antmicro.Renode.Peripherals.Analog
                 analogWatchdog3SelectedChannels = new IFlagRegisterField[ChannelCount];
             }
 
-            registers = new DoubleWordRegisterCollection(this, BuildRegistersMap(calibration, prescaler, vbatPin, channelSequence, powerRegister));
+            registers = new DoubleWordRegisterCollection(this, BuildRegistersMap(calibration, calibrationHighAddress, prescaler, vbatPin, powerRegister));
 
             IRQ = new GPIO();
             this.dmaChannel = dmaChannel;
@@ -182,18 +185,33 @@ namespace Antmicro.Renode.Peripherals.Analog
             }
         }
 
+        private void UpdateChannelConfig()
+        {
+            if(this.hasChannelSequence)
+            {
+                endOfChannelConfigFlag.Value = true;
+                UpdateInterrupts();
+            }
+        }
+
         private void UpdateInterrupts()
         {
             var adcReady = adcReadyFlag.Value && adcReadyInterruptEnable.Value;
             var analogWatchdog = analogWatchdogsInterruptEnable.Zip(analogWatchdogFlags, (enable, flag) =>
             {
-                return enable.Value && flag.Value;  
+                return enable.Value && flag.Value;
             }).Any(flag => flag);
             var endOfSampling = endOfSamplingFlag.Value && endOfSamplingInterruptEnable.Value;
             var endOfConversion = endOfConversionFlag.Value && endOfConversionInterruptEnable.Value;
             var endOfSequence = endOfSequenceFlag.Value && endOfSequenceInterruptEnable.Value;
+            var endOfCalibration = endOfCalibrationFlag.Value && endOfCalibrationInterruptEnable.Value;
+            var endOfChannelConfig = false;
+            if(this.hasChannelSequence)
+            {
+                endOfChannelConfig = endOfChannelConfigFlag.Value && endOfChannelConfigInterruptEnable.Value;
+            }
 
-            IRQ.Set(adcReady || analogWatchdog || endOfSampling || endOfConversion || endOfSequence);
+            IRQ.Set(adcReady || analogWatchdog || endOfSampling || endOfConversion || endOfSequence || endOfCalibration || endOfChannelConfig);
         }
 
         private void StartSampling()
@@ -331,7 +349,7 @@ namespace Antmicro.Renode.Peripherals.Analog
                 default:
                     throw new Exception("This should never have happend!");
             }
-                
+
             uint referencedValue = (uint)Math.Round((sampleInMilivolts / (referenceVoltage * 1000)) * ((1 << resolutionInBits) - 1));
             if(align.Value == Align.Left)
             {
@@ -340,7 +358,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             return referencedValue;
         }
 
-        private Dictionary<long, DoubleWordRegister> BuildRegistersMap(bool hasCalibration, bool hasPrescaler, bool hasVbatPin, bool hasChannelSequence, bool hasPowerRegister)
+        private Dictionary<long, DoubleWordRegister> BuildRegistersMap(bool hasCalibration, bool hasHighCalAddress, bool hasPrescaler, bool hasVbatPin, bool hasPowerRegister)
         {
             var isrRegister = new DoubleWordRegister(this)
                 .WithFlag(0, out adcReadyFlag, FieldMode.Read | FieldMode.WriteOneToClear, name: "ADRDY")
@@ -354,12 +372,12 @@ namespace Antmicro.Renode.Peripherals.Analog
                             machine.LocalTimeSource.ExecuteInNearestSyncedState((___) => SampleNextChannel());
                         }
                     }, name: "EOC")
-                .WithFlag(3, out endOfSequenceFlag, FieldMode.Read | FieldMode.WriteOneToClear, name: "EOSEQ")
+                .WithFlag(3, out endOfSequenceFlag, FieldMode.Read | FieldMode.WriteOneToClear, name: "EOS")
                 .WithFlag(4, out adcOverrunFlag, FieldMode.Read | FieldMode.WriteOneToClear, name: "OVR")
                 .WithReservedBits(5, 2)
                 .WithFlags(7, WatchdogCount, out analogWatchdogFlags, FieldMode.Read | FieldMode.WriteOneToClear, name: "AWD")
                 .WithReservedBits(7 + WatchdogCount, 4 - WatchdogCount)
-                .WithReservedBits(13, 19);
+                .WithReservedBits(14, 18);
 
             var interruptEnableRegister = new DoubleWordRegister(this)
                 .WithFlag(0, out adcReadyInterruptEnable, name: "ADRDYIE")
@@ -370,16 +388,16 @@ namespace Antmicro.Renode.Peripherals.Analog
                 .WithReservedBits(5, 2)
                 .WithFlags(7, WatchdogCount, out analogWatchdogsInterruptEnable, name: "AWDIE")
                 .WithReservedBits(7 + WatchdogCount, 4 - WatchdogCount)
-                .WithReservedBits(13, 19)
+                .WithReservedBits(14, 18)
                 .WithWriteCallback((_, __) => UpdateInterrupts());
 
             if(hasCalibration)
             {
                 isrRegister
-                    .WithTaggedFlag("EOCAL", 11)
+                    .WithFlag(11, out endOfCalibrationFlag, FieldMode.Read | FieldMode.WriteOneToClear, name: "EOCAL")
                     .WithTaggedFlag("LDORDY", 12);
                 interruptEnableRegister
-                    .WithTaggedFlag("EOCALIE", 11)
+                    .WithFlag(11, out endOfCalibrationInterruptEnable, name: "EOCALIE")
                     .WithTaggedFlag("LDORDYIE", 12);
             }
             else
@@ -390,20 +408,38 @@ namespace Antmicro.Renode.Peripherals.Analog
                     .WithReservedBits(11, 2);
             }
 
+            if(this.hasChannelSequence)
+            {
+                isrRegister
+                    .WithFlag(13, out endOfChannelConfigFlag, FieldMode.Read | FieldMode.WriteOneToClear, name: "CCRDY");
+                interruptEnableRegister
+                    .WithFlag(13, out endOfChannelConfigInterruptEnable, name: "CCRDYIE");
+            }
+            else
+            {
+                isrRegister
+                    .WithReservedBits(13, 1);
+                interruptEnableRegister
+                    .WithReservedBits(13, 1);
+            }
+
             var configurationRegister1 = new DoubleWordRegister(this)
                 .WithFlag(0, out dmaEnabled, name: "DMAEN")
                 .WithTaggedFlag("DMACFG", 1)
                 // When fully configurable channel sequencer is available, the SCANDIR and RES fields are swapped
-                .WithEnumField<DoubleWordRegister, ScanDirection>(hasChannelSequence ? 4 : 2, 1, out scanDirection, name: "SCANDIR")
-                .WithEnumField<DoubleWordRegister, Resolution>(hasChannelSequence ? 2 : 3, 2, out resolution, name: "RES")
+                .WithEnumField<DoubleWordRegister, ScanDirection>(this.hasChannelSequence ? 4 : 2, 1, out scanDirection, writeCallback: (_, __) =>
+                    {
+                        UpdateChannelConfig();
+                    }, name: "SCANDIR")
+                .WithEnumField<DoubleWordRegister, Resolution>(this.hasChannelSequence ? 2 : 3, 2, out resolution, name: "RES")
                 .WithEnumField<DoubleWordRegister, Align>(5, 1, out align, name: "ALIGN")
-                .WithTag("EXTSEL", 6, 2)
+                .WithTag("EXTSEL", 6, 3)
                 .WithReservedBits(9, 1)
-                .WithValueField(10, 2, writeCallback: (_, val) => 
-                    { 
+                .WithValueField(10, 2, writeCallback: (_, val) =>
+                    {
                         // On hardware it is possible to configure on which edge should the trigger fire
                         // This Peripheral mocks external trigger using `externalEventFrequency`, so we only distinguish between manual/external trigger
-                        externalTrigger = (val > 0); 
+                        externalTrigger = (val > 0);
                     }, name: "EXTEN")
                 .WithTaggedFlag("OVRMOD", 12)
                 .WithTaggedFlag("CONT", 13)
@@ -427,10 +463,13 @@ namespace Antmicro.Renode.Peripherals.Analog
                     .WithReservedBits(15, 1);
             }
 
-            if(hasChannelSequence)
+            if(this.hasChannelSequence)
             {
                 configurationRegister1
-                    .WithTaggedFlag("CHSELRMOD", 21);
+                    .WithFlag(21, valueProviderCallback: _ => false,  writeCallback: (_, __) =>
+                        {
+                            UpdateChannelConfig();
+                        }, name: "CHSELRMOD");
             }
             else
             {
@@ -439,14 +478,20 @@ namespace Antmicro.Renode.Peripherals.Analog
             }
 
             var configurationRegister2 = new DoubleWordRegister(this)
-                .WithReservedBits(0, 30)
+                .WithFlag(0, name: "OVSE")
+                .WithReservedBits(1, 1)
+                .WithFlags(2, 3, name: "OVSR")
+                .WithFlags(5, 4, name: "OVSS")
+                .WithTag("TOVS", 9, 1)
+                .WithReservedBits(10, 20)
                 .WithTag("CKMODE", 30, 2);
 
             var commonConfigurationRegister = new DoubleWordRegister(this)
                 .WithReservedBits(0, 18)
                 .WithTaggedFlag("VREFEN", 22)
                 .WithTaggedFlag("TSEN", 23)
-                .WithReservedBits(25, 7);
+                .WithTaggedFlag("LFMEN", 25)
+                .WithReservedBits(26, 6);
 
             if(hasPrescaler)
             {
@@ -481,7 +526,7 @@ namespace Antmicro.Renode.Peripherals.Analog
                             {
                                 enabled = true;
                                 adcReadyFlag.Value = true;
-                                UpdateInterrupts(); 
+                                UpdateInterrupts();
                             }
                         }, name: "ADEN")
                     // Reading one from below field would mean that command is in progress. This is never the case in this model
@@ -511,8 +556,13 @@ namespace Antmicro.Renode.Peripherals.Analog
                                 sequenceInProgress = false;
                             }
                         }, name: "ADSTP")
-                    .WithReservedBits(5, 25)
-                    .WithTaggedFlag("ADCAL", 31)
+                    .WithReservedBits(5, 22)
+                    .WithTag("ADVREGEN", 28, 1)
+                    .WithReservedBits(29, 2)
+                    .WithFlag(31, valueProviderCallback: _ => false, writeCallback: (_, __) =>
+                        {
+                            UpdateInterrupts();
+                        }, name: "ADCAL")
                 },
                 {(long)Registers.Configuration1, configurationRegister1},
                 {(long)Registers.Configuration2, configurationRegister2},
@@ -525,6 +575,7 @@ namespace Antmicro.Renode.Peripherals.Analog
                            valueProviderCallback: (id, __) => channelSelected[id],
                            writeCallback: (id, _, val) => { this.Log(LogLevel.Debug, "Channel {0} enable set as {1}", id, val); channelSelected[id] = val; })
                     .WithReservedBits(ChannelCount, 32 - ChannelCount)
+                    .WithWriteCallback((_, __) => UpdateChannelConfig())
                 },
                 {(long)Registers.DataRegister, new DoubleWordRegister(this)
                     .WithValueField(0, 16, out data, FieldMode.Read, readCallback: (_, __) =>
@@ -575,7 +626,8 @@ namespace Antmicro.Renode.Peripherals.Analog
 
             if(hasCalibration)
             {
-                registers.Add((long)Registers.CalibrationFactor, new DoubleWordRegister(this)
+                long regAddr = hasHighCalAddress ? (long)Registers.CalibrationFactorHigh : (long)Registers.CalibrationFactorLow;
+                registers.Add(regAddr, new DoubleWordRegister(this)
                     .WithValueField(0, 7, name: "CALFACT")
                     .WithReservedBits(7, 25));
             }
@@ -587,7 +639,7 @@ namespace Antmicro.Renode.Peripherals.Analog
                     .WithTaggedFlag("DPD", 1) // Deep-power-down mode
                     .WithReservedBits(2, 30));
             }
-            
+
             return registers;
         }
 
@@ -596,12 +648,13 @@ namespace Antmicro.Renode.Peripherals.Analog
         private bool externalTrigger;
         private bool sequenceInProgress;
         private bool awaitingConversion;
+        private bool hasChannelSequence;
         private bool[] channelSelected;
-        
+
         private IEnumRegisterField<Align> align;
         private IEnumRegisterField<Resolution> resolution;
         private IEnumRegisterField<ScanDirection> scanDirection;
-        
+
         private IFlagRegisterField dmaEnabled;
         private IFlagRegisterField analogWatchdogEnable;
         private IFlagRegisterField startFlag;
@@ -613,14 +666,18 @@ namespace Antmicro.Renode.Peripherals.Analog
         private IFlagRegisterField endOfConversionFlag;
         private IFlagRegisterField endOfSamplingFlag;
         private IFlagRegisterField endOfSequenceFlag;
+        private IFlagRegisterField endOfCalibrationFlag;
+        private IFlagRegisterField endOfChannelConfigFlag;
         private IFlagRegisterField adcOverrunInterruptEnable;
         private IFlagRegisterField adcReadyInterruptEnable;
         private IFlagRegisterField[] analogWatchdogsInterruptEnable;
         private IFlagRegisterField endOfConversionInterruptEnable;
         private IFlagRegisterField endOfSamplingInterruptEnable;
         private IFlagRegisterField endOfSequenceInterruptEnable;
+        private IFlagRegisterField endOfCalibrationInterruptEnable;
+        private IFlagRegisterField endOfChannelConfigInterruptEnable;
         private IFlagRegisterField analogWatchdogSingleChannel;
-        
+
         private IValueRegisterField data;
         // Watchdog 1 either watches all channels or a single channel
         private IValueRegisterField analogWatchdogChannel;
@@ -683,7 +740,8 @@ namespace Antmicro.Renode.Peripherals.Analog
             Watchdog2Configuration = 0xA0, // ADC_AWD2CR
             Watchdog3Configuration = 0xA4, // ADC_AWD3CR
             // Gap intended
-            CalibrationFactor      = 0xC4, // ADC_CALFACT
+            CalibrationFactorLow   = 0xB4, // ADC_CALFACT (C0/L0/G0)
+            CalibrationFactorHigh  = 0xC4, // ADC_CALFACT (WBA)
             // Gap intended
             CommonConfiguration    = 0x308, // ADC_CCR
         }
