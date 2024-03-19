@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -63,6 +63,16 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     .WithTag("MCO1", 22, 3)
                     .WithTag("MCO2PRE", 25, 4)
                     .WithTag("MCO2", 29, 3)
+                },
+                {(long)Registers.PLLClockSourceSelect, new DoubleWordRegister(this, 0x02020200)
+                    .WithValueField(0, 2, name: "PLLSRC")
+                    .WithReservedBits(2, 2)
+                    .WithValueField(4, 6, name: "DIVM1")
+                    .WithReservedBits(10, 2)
+                    .WithValueField(12, 6, name: "DIVM2")
+                    .WithReservedBits(18, 2)
+                    .WithValueField(20, 6, name: "DIVM3")
+                    .WithReservedBits(26, 6)
                 },
                 {(long)Registers.PLLConfigurationRegister, new DoubleWordRegister(this, 0x01FF0000)
                 },
@@ -134,6 +144,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             ClockControl = 0x0,
             InternalClockSourceCalibration = 0x4,
             ClockConfiguration = 0x10,
+            PLLClockSourceSelect = 0x28,
             PLLConfigurationRegister = 0x2c,
             // ...
             BackupDomainControl = 0x70,
