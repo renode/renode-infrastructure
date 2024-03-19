@@ -647,6 +647,16 @@
     <Compile Include="Peripherals\Miscellaneous\S32K3XX_MiscellaneousSystemControlModule.cs" />
     <Compile Include="Peripherals\Miscellaneous\S32K3XX_SystemIntegrationUnitLite2.cs" />
     <Compile Include="Peripherals\Miscellaneous\S32K3XX_FlexIO\S32K3XX_FlexIO.cs" />
+    <Compile Include="Peripherals\Miscellaneous\S32K3XX_FlexIO\IEndpoint.cs" />
+    <Compile Include="Peripherals\Miscellaneous\S32K3XX_FlexIO\Interrupt.cs" />
+    <Compile Include="Peripherals\Miscellaneous\S32K3XX_FlexIO\ResourceBlock.cs" />
+    <Compile Include="Peripherals\Miscellaneous\S32K3XX_FlexIO\ResourceBlockManager.cs" />
+    <Compile Include="Peripherals\Miscellaneous\S32K3XX_FlexIO\S32K3XX_FlexIO_UART.cs" />
+    <Compile Include="Peripherals\Miscellaneous\S32K3XX_FlexIO\Shifter.cs" />
+    <Compile Include="Peripherals\Miscellaneous\S32K3XX_FlexIO\Timer.cs" />
+    <Compile Include="Peripherals\Miscellaneous\S32K3XX_FlexIO\UARTDirectionBase.cs" />
+    <Compile Include="Peripherals\Miscellaneous\S32K3XX_FlexIO\UARTReceiver.cs" />
+    <Compile Include="Peripherals\Miscellaneous\S32K3XX_FlexIO\UARTTransmitter.cs" />
     <Compile Include="Peripherals\Miscellaneous\S32K3XX_ModeEntryModule.cs" />
     <Compile Include="Peripherals\DMA\RenesasDA14_DMA.cs" />
     <Compile Include="Peripherals\DMA\RenesasDA_DMABase.cs" />

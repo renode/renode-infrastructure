@@ -4,200 +4,193 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
+using System.Linq;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals;
-using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
-    public class S32K3XX_FlexIO : BasicDoubleWordPeripheral, IKnownSize
+    public class S32K3XX_FlexIO : BasicDoubleWordPeripheral, IPeripheralContainer<IEndpoint, NullRegistrationPoint>, IKnownSize,
+        IResourceBlockOwner
     {
         public S32K3XX_FlexIO(IMachine machine) : base(machine)
         {
+            timers = Timer.BuildRegisters(this, TimerCount);
+            TimersManager = new ResourceBlocksManager<Timer>(this, "timer", timers);
+            foreach(var timer in timers)
+            {
+                timer.AnyInterruptChanged += UpdateInterrupt;
+            }
+
+            shifters = Shifter.BuildRegisters(this, ShifterCount, TimersManager);
+            ShiftersManager = new ResourceBlocksManager<Shifter>(this, "shifter", shifters);
+            foreach(var shifter in shifters)
+            {
+                shifter.AnyInterruptChanged += UpdateInterrupt;
+            }
+
             DefineRegisters();
         }
 
+        public override void Reset()
+        {
+            inReset.Value = false;
+            enabled.Value = false;
+            InternalReset();
+        }
+
+        public IEnumerable<NullRegistrationPoint> GetRegistrationPoints(IEndpoint peripheral)
+        {
+            return endpoints.Select(_ => NullRegistrationPoint.Instance);
+        }
+
+        public void Register(IEndpoint peripheral, NullRegistrationPoint registrationPoint)
+        {
+            if(endpoints.Contains(peripheral))
+            {
+                throw new RegistrationException("The specified endpoint is already registered.");
+            }
+            endpoints.Add(peripheral);
+            machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
+        }
+
+        public void Unregister(IEndpoint peripheral)
+        {
+            if(!endpoints.Contains(peripheral))
+            {
+                throw new RegistrationException("The specified endpoint was never registered.");
+            }
+            endpoints.Remove(peripheral);
+            machine.UnregisterAsAChildOf(this, peripheral);
+        }
+
+        public IEnumerable<IRegistered<IEndpoint, NullRegistrationPoint>> Children => endpoints.Select(x => Registered.Create(x, NullRegistrationPoint.Instance));
+        public uint Frequency { get; set; }
+        public GPIO IRQ { get; } = new GPIO();
         public long Size => 0x4000;
+
+        public ResourceBlocksManager<Shifter> ShiftersManager { get; }
+        public ResourceBlocksManager<Timer> TimersManager { get; }
 
         private void DefineRegisters()
         {
             Registers.VersionID.Define(this, 0x02010003)
-                .WithTag("MajorVersionNumber", 24, 8)
-                .WithTag("MinorVersionNumber", 16, 8)
-                .WithTag("FeatureSpecificationNumber", 0, 16);
+                .WithValueField(24, 8, FieldMode.Read, name: "MAJOR (Major Version)")
+                .WithValueField(16, 8, FieldMode.Read, name: "MINOR (Minor Version)")
+                .WithValueField(0, 16, FieldMode.Read, name: "FEATURE (Feature Specification)");
 
-            Registers.Parameter.Define(this, 0x04200808)
-                .WithTag("TriggerNumber", 24, 8)
-                .WithTag("PinNumber", 16, 8)
-                .WithTag("TimerNumber", 8, 8)
-                .WithTag("ShifterNumber", 0, 8);
+            Registers.Parameter.Define(this, 0x04000000)
+                .WithTag("TRIGGER (Trigger Number)", 24, 8)
+                .WithValueField(16, 8, FieldMode.Read, name: "PIN (Pin Number)",
+                    valueProviderCallback: _ => PinCount
+                )
+                .WithValueField(8, 8, FieldMode.Read, name: "TIMER (Timer Number)",
+                    valueProviderCallback: _ => (ulong)timers.Count
+                )
+                .WithValueField(0, 8, FieldMode.Read, name: "SHIFTER (Shifter Number)",
+                    valueProviderCallback: _ => (ulong)shifters.Count
+                );
 
-            Registers.Control.Define(this)
+            Registers.Control.Define(this, softResettable: false)
                 .WithReservedBits(31, 1)
-                .WithTaggedFlag("DebugEnable", 30)
+                .WithTaggedFlag("DBGE (Debug Enable)", 30)
                 .WithReservedBits(2, 28)
-                .WithTaggedFlag("SoftwareReset", 1)
-                .WithTaggedFlag("Enable", 0);
+                .WithFlag(1, out inReset, name: "SWRSRT (Software Reset)",
+                    changeCallback: (_, val) => { if(val) InternalReset(); }
+                )
+                .WithFlag(0, out enabled, name: "FLEXEN (Enable)");
 
             Registers.PinState.Define(this)
-                .WithTag("PinDataInput", 0, 32);
-
-            Registers.ShifterStatus.Define(this)
-                .WithReservedBits(8, 24)
-                .WithTag("ShifterStatusFlags", 0, 8);
-
-            Registers.ShifterError.Define(this)
-                .WithReservedBits(8, 24)
-                .WithTag("ShifterErrorFlags", 0, 8);
-
-            Registers.TimerStatus.Define(this)
-                .WithReservedBits(8, 24)
-                .WithTag("TimerStatusFlags", 0, 8);
-
-            Registers.ShifterStatusInterruptEnable.Define(this)
-                .WithReservedBits(8, 24)
-                .WithTag("ShifterStatusInterruptEnable", 0, 8);
-
-            Registers.ShifterErrorInterruptEnable.Define(this)
-                .WithReservedBits(8, 24)
-                .WithTag("ShifterErrorInterruptEnable", 0, 8);
-
-            Registers.TimerInterruptEnable.Define(this)
-                .WithReservedBits(8, 24)
-                .WithTag("TimerStatusInterruptEnable", 0, 8);
+                .WithTag("PDI (Pin Data Input)", 0, 32);
 
             Registers.ShifterStatusDMAEnable.Define(this)
                 .WithReservedBits(8, 24)
-                .WithTag("ShifterStatusDMAEnable", 0, 8);
+                .WithTag("SSDE (Shifter Status DMA Enable)", 0, 8);
 
             Registers.TimerStatusDMAEnable.Define(this)
                 .WithReservedBits(8, 24)
-                .WithTag("TimerStatusDMAEnable", 0, 8);
+                .WithTag("TSDE (Timer Status DMA Enable)", 0, 8);
 
             Registers.ShifterState.Define(this)
                 .WithReservedBits(3, 29)
-                .WithTag("CurrentStatePointer", 0, 3);
+                .WithTag("STATE (Current State Pointer)", 0, 3);
 
             Registers.TriggerStatus.Define(this)
                 .WithReservedBits(4, 28)
-                .WithTag("ExternalTriggerStatusFlag", 0, 4);
+                .WithTag("ETSF (External Trigger Status Flag)", 0, 4);
 
             Registers.ExternalTriggerInterruptEnable.Define(this)
                 .WithReservedBits(4, 28)
-                .WithTag("ExternalTriggerInterruptEnable", 0, 4);
+                .WithTag("TRIE (External Trigger Interrupt Enable)", 0, 4);
 
             Registers.PinStatus.Define(this)
-                .WithTag("PinStatusFlag", 0, 32);
+                .WithTag("PSF (Pin Status Flag)", 0, PinCount);
 
             Registers.PinInterruptEnable.Define(this)
-                .WithTag("PinStatusInterruptEnable", 0, 32);
+                .WithTag("PSIE (Pin Status Interrupt Enable)", 0, PinCount);
 
             Registers.PinRisingEdgeEnable.Define(this)
-                .WithTag("PinRisingEdge", 0, 32);
+                .WithTag("PRE (Pin Rising Edge)", 0, PinCount);
 
             Registers.PinFallingEdgeEnable.Define(this)
-                .WithTag("PinFallingEdge", 0, 32);
+                .WithTag("PFE (Pin Falling Edge)", 0, PinCount);
 
             Registers.PinOutputData.Define(this)
-                .WithTag("OutputData", 0, 32);
+                .WithTag("OUTD (Output Data)", 0, PinCount);
 
             Registers.PinOutputEnable.Define(this)
-                .WithTag("OutputEnable", 0, 32);
+                .WithTag("OUTE (Output Enable)", 0, PinCount);
 
             Registers.PinOutputDisable.Define(this)
-                .WithTag("OutputDisable", 0, 32);
+                .WithTag("OUTDIS (Output Disable)", 0, PinCount);
 
             Registers.PinOutputClear.Define(this)
-                .WithTag("OutputClear", 0, 32);
+                .WithTag("OUTCLR (Output Clear)", 0, PinCount);
 
             Registers.PinOutputSet.Define(this)
-                .WithTag("OutputSet", 0, 32);
+                .WithTag("OUTSET (Output Set)", 0, PinCount);
 
             Registers.PinOutputToggle.Define(this)
-                .WithTag("OutputToggle", 0, 32);
-
-            Registers.ShifterControl0.DefineMany(this, BlockCount, (reg, index) => reg
-                .WithReservedBits(27, 5)
-                .WithTag("TimerSelect", 24, 3)
-                .WithTaggedFlag("TimerPolarity", 23)
-                .WithReservedBits(18, 5)
-                .WithTag("ShifterPinConfiguration", 16, 2)
-                .WithReservedBits(13, 3)
-                .WithTag("ShifterPinSelect", 8, 5)
-                .WithTaggedFlag("ShifterPinPolarity", 7)
-                .WithReservedBits(3, 4)
-                .WithTag("ShifterMode", 0, 3)
-            );
-
-            Registers.ShifterConfiguration0.DefineMany(this, BlockCount, (reg, index) => reg
-                .WithReservedBits(21, 11)
-                .WithTag("ParallelWidth", 16, 5)
-                .WithReservedBits(13, 3)
-                .WithTaggedFlag("ShifterSize", 12)
-                .WithReservedBits(10, 2)
-                .WithTaggedFlag("LateStore", 9)
-                .WithTaggedFlag("InputSource", 8)
-                .WithReservedBits(6, 2)
-                .WithTag("ShifterStopBit", 4, 2)
-                .WithReservedBits(2, 2)
-                .WithTag("ShifterStartBit", 0, 2)
-            );
-
-            // The ShifterBuffer and 3 ShifterBuffer*Swapped registers have same layout.
-            Registers.ShifterBuffer0.DefineMany(this, BlockCount * 4, (reg, index) => reg
-                .WithTag("ShiftBuffer", 0, 32)
-            );
-
-            Registers.TimerControl0.DefineMany(this, BlockCount, (reg, index) => reg
-                .WithReservedBits(30, 2)
-                .WithTag("TriggerSelect", 24, 6)
-                .WithTaggedFlag("TriggerPolarity", 23)
-                .WithTaggedFlag("TriggerSource", 22)
-                .WithReservedBits(18, 4)
-                .WithTag("TimerPinConfiguration", 16, 2)
-                .WithReservedBits(13, 3)
-                .WithTag("TimerPinSelect", 8, 5)
-                .WithTaggedFlag("TimerPinPolarity", 7)
-                .WithTaggedFlag("TimerPinInputSelect", 6)
-                .WithTaggedFlag("TimerOneTimeOperation", 5)
-                .WithReservedBits(3, 2)
-                .WithTag("TimerMode", 0, 3)
-            );
-
-            Registers.TimerConfiguration0.DefineMany(this, BlockCount, (reg, index) => reg
-                .WithReservedBits(26, 6)
-                .WithTag("TimerOutput", 24, 2)
-                .WithReservedBits(23, 1)
-                .WithTag("TimerDecrement", 20, 3)
-                .WithReservedBits(19, 1)
-                .WithTag("TimerReset", 16, 3)
-                .WithReservedBits(15, 1)
-                .WithTag("TimerDisable", 12, 3)
-                .WithReservedBits(11, 1)
-                .WithTag("TimerEnable", 8, 3)
-                .WithReservedBits(6, 2)
-                .WithTag("TimerStopBit", 4, 2)
-                .WithReservedBits(2, 2)
-                .WithTaggedFlag("TimerStartBit", 1)
-                .WithReservedBits(0, 1)
-            );
-
-            Registers.TimerCompare0.DefineMany(this, BlockCount, (reg, index) => reg
-                .WithReservedBits(16, 16)
-                .WithTag("TimerCompareValue", 0, 16)
-            );
-
-            // The ShifterBuffer*Swapped registers have same layout.
-            Registers.ShifterBuffer0NibbleByteSwapped.DefineMany(this, BlockCount * 6, (reg, index) => reg
-                .WithTag("ShiftBuffer", 0, 32)
-            );
+                .WithTag("OUTTOG (Output Toggle)", 0, PinCount);
         }
 
-        private const uint BlockCount = 8;
+        private void InternalReset()
+        {
+            base.Reset();
+            foreach(var shifter in shifters)
+            {
+                shifter.Reset();
+            }
+            UpdateInterrupt();
+        }
+
+        private void UpdateInterrupt(bool forceInterrupt = false)
+        {
+            var newValue = forceInterrupt || ResourceBlocks.SelectMany(x => x.Interrupts).Any(x => x.MaskedFlag);
+            if(newValue != IRQ.IsSet)
+            {
+                this.Log(LogLevel.Debug, "Setting the IRQ interrupt to {0}", newValue);
+                IRQ.Set(newValue);
+            }
+        }
+
+        private IEnumerable<ResourceBlock> ResourceBlocks => shifters.Concat<ResourceBlock>(timers);
+
+        private IFlagRegisterField enabled;
+        private IFlagRegisterField inReset;
+
+        private readonly ISet<IEndpoint> endpoints = new HashSet<IEndpoint>();
+        private readonly IReadOnlyList<Shifter> shifters;
+        private readonly IReadOnlyList<Timer> timers;
+
+        private const int PinCount = 32;
+        private const int ShifterCount = 8;
+        private const int TimerCount = 8;
 
         public enum Registers
         {
