@@ -511,8 +511,8 @@ namespace Antmicro.Renode.Peripherals.UART
             var state = BufferState;
             if(latestBufferState != state)
             {
-                BufferStateChanged?.Invoke(state);
                 latestBufferState = state;
+                BufferStateChanged?.Invoke(state);
             }
         }
 
