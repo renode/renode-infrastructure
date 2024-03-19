@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -13,6 +13,8 @@ using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.CPU;
+using Antmicro.Migrant;
+using Antmicro.Migrant.Hooks;
 
 namespace Antmicro.Renode.Utilities.GDB
 {
@@ -21,6 +23,7 @@ namespace Antmicro.Renode.Utilities.GDB
         public CommandsManager(IMachine machine, IEnumerable<ICpuSupportingGdb> cpus, bool blockOnStep)
         {
             availableCommands = new HashSet<CommandDescriptor>();
+            typesWithCommands = new HashSet<string>();
             activeCommands = new HashSet<Command>();
             mnemonicList = new List<string>();
             Machine = machine;
@@ -79,18 +82,8 @@ namespace Antmicro.Renode.Utilities.GDB
                 return;
             }
 
-            var interestingMethods = Command.GetExecutingMethods(t);
-            if(interestingMethods.Length == 0)
-            {
-                Logger.Log(LogLevel.Error, string.Format("No proper constructor or executing methods found in type {0}", t.Name));
-                return;
-            }
-
-            foreach(var interestingMethod in interestingMethods)
-            {
-                availableCommands.Add(new CommandDescriptor(interestingMethod));
-                mnemonicList.Add(interestingMethod.GetCustomAttribute<ExecuteAttribute>().Mnemonic);
-            }
+            typesWithCommands.Add(t.AssemblyQualifiedName);
+            AddCommandsFromType(t);
         }
 
         public bool TryGetCommand(Packet packet, out Command command)
@@ -275,13 +268,42 @@ namespace Antmicro.Renode.Utilities.GDB
             return result;
         }
 
+        [PostDeserialization]
+        private void ExtractCommandsFromTypeNames()
+        {
+            foreach(var typeName in typesWithCommands)
+            {
+                var t = Type.GetType(typeName);
+                AddCommandsFromType(t);
+            }
+        }
+
+        private void AddCommandsFromType(Type t)
+        {
+            var interestingMethods = Command.GetExecutingMethods(t);
+            if(interestingMethods.Length == 0)
+            {
+                Logger.Log(LogLevel.Error, string.Format("No proper constructor or executing methods found in type {0}", t.Name));
+                return;
+            }
+
+            foreach(var interestingMethod in interestingMethods)
+            {
+                availableCommands.Add(new CommandDescriptor(interestingMethod));
+                mnemonicList.Add(interestingMethod.GetCustomAttribute<ExecuteAttribute>().Mnemonic);
+            }
+        }
+
+        [Constructor]
         private readonly HashSet<CommandDescriptor> availableCommands;
+        private readonly HashSet<string> typesWithCommands;
         private readonly HashSet<Command> activeCommands;
         private readonly List<GDBFeatureDescriptor> unifiedFeatures = new List<GDBFeatureDescriptor>();
         private readonly Dictionary<int, GDBRegisterDescriptor[]> unifiedRegisters = new Dictionary<int, GDBRegisterDescriptor[]>();
 
         private readonly Dictionary<string,Command> commandsCache;
         private uint selectedCpuNumber;
+        [Constructor]
         private readonly List<string> mnemonicList;
 
         private class CommandDescriptor
