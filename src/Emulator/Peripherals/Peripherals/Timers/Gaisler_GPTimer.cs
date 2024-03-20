@@ -41,7 +41,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             var connections = new Dictionary<int, IGPIO>();
             for(var i = 0; i < numberOfTimers; i++)
             {
-                timers[i] = new TimerUnit(machine.ClockSource, frequency, this, $"timer{i}");
+                timers[i] = new TimerUnit(machine.ClockSource, frequency, this, i);
                 connections[i] = new GPIO();
             }
             Connections = new ReadOnlyDictionary<int, IGPIO>(connections);
@@ -130,9 +130,9 @@ namespace Antmicro.Renode.Peripherals.Timers
                         }
                     })
                 .WithFlag(3, out timers[timerIndex].interruptEnable, name: "interruptEnable",
-                    changeCallback: (_, __) => UpdateInterrupts())
+                    changeCallback: (_, __) => UpdateInterrupt(timerIndex))
                 .WithFlag(4, out timers[timerIndex].interruptPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "interruptPending",
-                    changeCallback: (_, __) => UpdateInterrupts()) // Cleared by writing '1' as in the newer hardware revision
+                    changeCallback: (_, __) => UpdateInterrupt(timerIndex)) // Cleared by writing '1' as in the newer hardware revision
                 .WithTaggedFlag("chain", 5)
                 .WithTaggedFlag("debugHalt", 6)
                 .WithReservedBits(7, 25)
@@ -146,15 +146,12 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
-        private void UpdateInterrupts()
+        private void UpdateInterrupt(int index)
         {
             if(!separateInterrupts)
             {
-                var state = false;
-                foreach(var timer in timers)
-                {
-                    state |= timer.interruptEnable.Value && timer.interruptPending.Value;
-                }
+                var timer = timers[index];
+                var state = timer.interruptEnable.Value && timer.interruptPending.Value;
                 if(state)
                 {
                     this.NoisyLog("Signaling IRQ");
@@ -163,13 +160,10 @@ namespace Antmicro.Renode.Peripherals.Timers
                 return;
             }
 
-            for(var i = 0; i < numberOfTimers; ++i)
+            if(timers[index].interruptEnable.Value && timers[index].interruptPending.Value)
             {
-                if(timers[i].interruptEnable.Value && timers[i].interruptPending.Value)
-                {
-                    this.NoisyLog("Signaling IRQ {0}", i);
-                    Connections[i].Blink();
-                }
+                this.NoisyLog("Signaling IRQ {0}", index);
+                Connections[index].Blink();
             }
         }
 
@@ -205,16 +199,18 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private class TimerUnit : ITimer
         {
-            public TimerUnit(IClockSource clockSource, long frequency, Gaisler_GPTimer parent, string name)
+            public TimerUnit(IClockSource clockSource, long frequency, Gaisler_GPTimer parent, int index)
             {
                 this.parent = parent;
-                timer = new LimitTimer(clockSource, frequency, parent, name, limit: uint.MaxValue, eventEnabled: true);
+                this.index = index;
+                timer = new LimitTimer(clockSource, frequency, parent, $"timer{index}", limit: uint.MaxValue, eventEnabled: true);
                 timer.LimitReached += OnLimitReached;
             }
 
             public void Reset()
             {
                 timer.Reset();
+                parent.UpdateInterrupt(index);
             }
 
             public ulong Value
@@ -258,7 +254,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 if(interruptEnable.Value)
                 {
                     interruptPending.Value = true;
-                    parent.UpdateInterrupts();
+                    parent.UpdateInterrupt(index);
                 }
             }
 
@@ -267,6 +263,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             private readonly Gaisler_GPTimer parent;
             private readonly LimitTimer timer;
+            private readonly int index;
         }
 
         private enum Registers : uint
