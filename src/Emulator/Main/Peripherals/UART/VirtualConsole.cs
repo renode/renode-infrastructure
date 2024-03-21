@@ -68,6 +68,7 @@ namespace Antmicro.Renode.Peripherals.UART
             lock(locker)
             {
                 fifo.Enqueue(value);
+                CharWritten.?Invoke(value);
             }
             if(Echo)
             {
@@ -111,6 +112,9 @@ namespace Antmicro.Renode.Peripherals.UART
 
         [field: Transient]
         public event Action<byte> CharReceived;
+
+        [field: Transient]
+        public event Action<byte> CharWritten;
 
         private IEnumerable<byte> GetFifoIterator()
         {
