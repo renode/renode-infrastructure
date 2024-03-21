@@ -33,15 +33,17 @@ namespace Antmicro.Renode.Core
         /// Loads the symbols from ELF and puts the symbols into the SymbolLookup.
         /// </summary>
         /// <param name="elf">Elf.</param>
-        public void LoadELF(IELF elf, bool useVirtualAddress)
+        /// <param name="useVirtualAddress">Use the virtual address of the symbols, default is physical.</param>
+        /// <param name="textAddress">Override the starting address of the text section (actually the lowest-address loaded segment).</param>
+        public void LoadELF(IELF elf, bool useVirtualAddress = false, ulong? textAddress = null)
         {
             if(elf is ELF<uint> elf32)
             {
-                LoadELF(elf32, useVirtualAddress);
+                LoadELF(elf32, useVirtualAddress, textAddress);
             }
             else if(elf is ELF<ulong> elf64)
             {
-                LoadELF(elf64, useVirtualAddress);
+                LoadELF(elf64, useVirtualAddress, textAddress);
             }
             else
             {
@@ -174,7 +176,7 @@ namespace Antmicro.Renode.Core
         static private readonly string[] excludedSymbolNames = { "$a", "$d", "$t", "$x" };
         static private readonly SymbolType[] excludedSymbolTypes = { SymbolType.File };
 
-        private void LoadELF<T>(ELF<T> elf, bool useVirtualAddress) where T : struct
+        private void LoadELF<T>(ELF<T> elf, bool useVirtualAddress = false, ulong? textAddress = null) where T : struct
         {
             if(!elf.TryGetSection(".symtab", out var symtabSection))
             {
