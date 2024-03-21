@@ -191,6 +191,7 @@ namespace Antmicro.Renode.Core
                 maxLoadAddress = SymbolAddress.Max(maxLoadAddress, loadAddress + segment.GetSegmentSize());
             }
 
+            var offset = (T)Convert.ChangeType(textAddress != null ? textAddress.Value - minLoadAddress.RawValue : 0, typeof(T));
             var thumb = elf.Machine == ELFSharp.ELF.Machine.ARM;
             var symtab = (SymbolTable<T>)symtabSection;
 
@@ -198,7 +199,8 @@ namespace Antmicro.Renode.Core
             // To guard against it we also check if the type of this symbol is not specified
             var elfSymbols = symtab.Entries.Where(x => !(excludedSymbolNames.Contains(x.Name) && x.Type == SymbolType.NotSpecified))
                                 .Where(x => !excludedSymbolTypes.Contains(x.Type))
-                                .Where(x => x.PointedSectionIndex != (uint)SpecialSectionIndex.Undefined).Select(x => new Symbol(x, thumb));
+                                .Where(x => x.PointedSectionIndex != (uint)SpecialSectionIndex.Undefined)
+                                .Select(x => new Symbol(x.OffsetBy(offset), thumb));
             InsertSymbols(elfSymbols);
             EntryPoint = elf.GetEntryPoint();
             FirstNotNullSectionAddress  = elf.Sections

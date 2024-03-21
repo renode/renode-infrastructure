@@ -578,11 +578,14 @@ namespace Antmicro.Renode.Peripherals.Bus
             WriteBytes(zeroBlock, range.StartAddress + blocksNo * (ulong)zeroBlock.Length, (int)range.Size % zeroBlock.Length, context: context);
         }
 
-        public void LoadSymbolsFrom(ReadFilePath fileName, bool useVirtualAddress = false)
+        // Specifying `textAddress` will override the address of the program text - the symbols will be applied
+        // as if the first loaded segment started at the specified address. This is equivalent to the ADDR parameter
+        // to GDB's add-symbol-file.
+        public void LoadSymbolsFrom(ReadFilePath fileName, bool useVirtualAddress = false, ulong? textAddress = null)
         {
             using (var elf = GetELFFromFile(fileName))
             {
-                Lookup.LoadELF(elf, useVirtualAddress);
+                Lookup.LoadELF(elf, useVirtualAddress, textAddress);
             }
             pcCache.Invalidate();
         }
