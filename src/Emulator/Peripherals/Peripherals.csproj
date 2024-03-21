@@ -674,6 +674,7 @@
     <Compile Include="Peripherals\Miscellaneous\RenesasDA14_XTAL32MRegisters.cs" />
     <Compile Include="Peripherals\Miscellaneous\RenesasDA14_GeneralRegisters.cs" />
     <Compile Include="Peripherals\CAN\UT32_CAN.cs" />
+    <Compile Include="Peripherals\SPI\STM32H7_QuadSPI.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
