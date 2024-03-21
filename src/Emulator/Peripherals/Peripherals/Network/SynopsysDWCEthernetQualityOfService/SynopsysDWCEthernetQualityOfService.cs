@@ -39,7 +39,7 @@ namespace Antmicro.Renode.Peripherals.Network
             dmaChannels = new DMAChannel[DMAChannelOffsets.Length];
             for(var i = 0; i < dmaChannels.Length; i++)
             {
-                dmaChannels[i] = new DMAChannel(this, i, systemClockFrequency);
+                dmaChannels[i] = new DMAChannel(this, i, systemClockFrequency, SeparateDMAInterrupts);
             }
 
             rxIpcPacketCounterInterruptEnable = new IFlagRegisterField[NumberOfIpcCounters];
@@ -113,6 +113,7 @@ namespace Antmicro.Renode.Peripherals.Network
         protected virtual long[] DMAChannelOffsets => new long[]{ 0x100 };
         protected virtual BusWidth DMABusWidth => BusWidth.Bits32;
         protected virtual int RxQueueSize => 8192;
+        protected virtual bool SeparateDMAInterrupts => false;
 
         private void SendFrame(EthernetFrame frame)
         {

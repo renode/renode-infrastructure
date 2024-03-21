@@ -35,6 +35,14 @@ namespace Antmicro.Renode.Peripherals.Network
             Bits128 = 16,
         }
 
+        protected enum DMAChannelInterruptMode
+        {
+            Pulse            = 0b00,
+            Level            = 0b01,
+            LevelAndReassert = 0b10,
+            Reserved         = 0b11,
+        }
+
         private enum DMAState
         {
             Stopped = 0,
@@ -46,10 +54,17 @@ namespace Antmicro.Renode.Peripherals.Network
 
         protected class DMAChannel
         {
-            public DMAChannel(SynopsysDWCEthernetQualityOfService parent, int channelNumber, long systemClockFrequency)
+            public DMAChannel(SynopsysDWCEthernetQualityOfService parent, int channelNumber, long systemClockFrequency, bool hasInterrupts)
             {
                 this.parent = parent;
                 this.channelNumber = channelNumber;
+                this.hasInterrupts = hasInterrupts;
+
+                if(hasInterrupts)
+                {
+                    TxIRQ = new GPIO();
+                    RxIRQ = new GPIO();
+                }
 
                 incomingFrames = new Queue<EthernetFrame>();
                 rxWatchdog = new LimitTimer(parent.machine.ClockSource, systemClockFrequency, parent, $"DMA Channel {channelNumber}: rx-watchdog", enabled: false, workMode: WorkMode.OneShot, eventEnabled: true, autoUpdate: true, divider: RxWatchdogDivider);
@@ -261,12 +276,59 @@ namespace Antmicro.Renode.Peripherals.Network
 
             public bool UpdateInterrupts()
             {
-                normalInterruptSummary.Value |= NormalInterruptSummary;
-                abnormalInterruptSummary.Value |= AbnormalInterruptSummary;
+                // Depending on the DMA interrupt mode transmit/receive completed condition may not
+                // contribute to the common interrupt. Those masks are used to block those conditions from
+                // influencing the common interrupt state.
+                var txMask = true;
+                var rxMask = true;
+
+                if(hasInterrupts)
+                {
+                    switch(parent.dmaInterruptMode.Value)
+                    {
+                        case DMAChannelInterruptMode.Pulse:
+                            if(txInterrupt.Value)
+                            {
+                                TxIRQ.Blink();
+                                this.Log(LogLevel.Debug, "Blinking TxIRQ");
+                            }
+                            if(rxInterrupt.Value)
+                            {
+                                RxIRQ.Blink();
+                                this.Log(LogLevel.Debug, "Blinking RxIRQ");
+                            }
+                            break;
+                        case DMAChannelInterruptMode.Level:
+                        case DMAChannelInterruptMode.LevelAndReassert:
+                        {
+                            var txState = txInterrupt.Value && txInterruptEnable.Value && normalInterruptSummaryEnable.Value;
+                            var rxState = rxInterrupt.Value && rxInterruptEnable.Value && normalInterruptSummaryEnable.Value;
+                            TxIRQ.Set(txState);
+                            RxIRQ.Set(rxState);
+                            this.Log(LogLevel.Debug, "TxIRQ: {0}, RxIRQ: {1}", txState ? "setting" : "unsetting", rxState ? "setting" : "unsetting");
+                            // In both Level and LevelAndReassert transmit/receive completed conditions are only used for channel specific interrupts
+                            // and don't contribute to the common interrupt. Mask their influence
+                            txMask = false;
+                            rxMask = false;
+                            break;
+                        }
+                        default:
+                            this.Log(LogLevel.Warning, "Invalid interrupt mode value {0}", parent.dmaInterruptMode.Value);
+                            break;
+                    }
+                }
+
+                normalInterruptSummary.Value |= GetNormalInterruptSummary();
+                abnormalInterruptSummary.Value |= (txProcessStopped.Value && txProcessStoppedEnable.Value) ||
+                                                  (rxBufferUnavailable.Value && rxBufferUnavailableEnable.Value) ||
+                                                  (rxProcessStopped.Value && rxProcessStoppedEnable.Value) ||
+                                                  (earlyTxInterrupt.Value && earlyTxInterruptEnable.Value) ||
+                                                  (fatalBusError.Value && fatalBusErrorEnable.Value) ||
+                                                  (contextDescriptorError.Value && contextDescriptorErrorEnable.Value);
 
                 return (rxWatchdogTimeout.Value && rxWatchdogTimeoutEnable.Value)               ||
                        (abnormalInterruptSummary.Value && abnormalInterruptSummaryEnable.Value) ||
-                       (normalInterruptSummary.Value && normalInterruptSummaryEnable.Value);
+                       (GetNormalInterruptSummary(txMask, rxMask) && normalInterruptSummaryEnable.Value);
             }
 
             public DMATxProcessState DmaTxState => (txState == DMAState.Stopped) ? DMATxProcessState.Stopped : DMATxProcessState.Suspended;
@@ -287,19 +349,8 @@ namespace Antmicro.Renode.Peripherals.Network
                 abnormalInterruptSummary.Value ||
                 normalInterruptSummary.Value;
 
-            public bool NormalInterruptSummary =>
-                (txInterrupt.Value && txInterruptEnable.Value) ||
-                (txBufferUnavailable.Value && txBufferUnavailableEnable.Value) ||
-                (rxInterrupt.Value && rxInterruptEnable.Value) ||
-                (earlyRxInterrupt.Value && earlyRxInterruptEnable.Value);
-
-            public bool AbnormalInterruptSummary =>
-                (txProcessStopped.Value && txProcessStoppedEnable.Value) ||
-                (rxBufferUnavailable.Value && rxBufferUnavailableEnable.Value) ||
-                (rxProcessStopped.Value && rxProcessStoppedEnable.Value) ||
-                (earlyTxInterrupt.Value && earlyTxInterruptEnable.Value) ||
-                (fatalBusError.Value && fatalBusErrorEnable.Value) ||
-                (contextDescriptorError.Value && contextDescriptorErrorEnable.Value);
+            public GPIO TxIRQ { get; }
+            public GPIO RxIRQ { get; }
 
             private TxDescriptor GetTxDescriptor(ulong index = 0)
             {
@@ -801,6 +852,14 @@ namespace Antmicro.Renode.Peripherals.Network
                 parent.Log(level, $"DMA Channel {channelNumber}: {format}", args);
             }
 
+            private bool GetNormalInterruptSummary(bool txMask = true, bool rxMask = true)
+            {
+                return (txMask && txInterrupt.Value && txInterruptEnable.Value) ||
+                       (txBufferUnavailable.Value && txBufferUnavailableEnable.Value) ||
+                       (rxMask && rxInterrupt.Value && rxInterruptEnable.Value) ||
+                       (earlyRxInterrupt.Value && earlyRxInterruptEnable.Value);
+            }
+
             private ulong RxBuffer1Size => alternateRxBufferSize.Value == 0 ? rxBufferSize.Value : alternateRxBufferSize.Value;
             private ulong RxBuffer2Size => rxBufferSize.Value;
 
@@ -875,6 +934,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
             private readonly SynopsysDWCEthernetQualityOfService parent;
             private readonly int channelNumber;
+            private readonly bool hasInterrupts;
         }
     }
 }

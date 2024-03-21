@@ -84,6 +84,8 @@ namespace Antmicro.Renode.Peripherals.Network
         // but supports regions. Setting this to `null` disables logging.
         public LogLevel PeripheralAccessLogLevel { get; set; } = null;
 
+        protected IEnumRegisterField<DMAChannelInterruptMode> dmaInterruptMode;
+
         private void ResetRegisters()
         {
             macAndMmcRegisters.Reset();
@@ -1147,7 +1149,18 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithTaggedFlag("DMAMR.TXPR (Transmit priority)", 11)
                     .WithTag("DMAMR.PR (Priority ratio)", 12, 3)
                     .WithReservedBits(15, 1)
-                    .WithTag("DMAMR.INTM (Interrupt Mode)", 16, 2)
+                    .WithEnumField(16, 2, out dmaInterruptMode, name: "DMAMR.INTM (Interrupt Mode)",
+                        changeCallback: (previous, current) =>
+                        {
+                            if(current == DMAChannelInterruptMode.Reserved)
+                            {
+                                this.Log(LogLevel.Warning, "Attempted to set DMA interrupt mode to a reserved value. Reverting back to the previous value {0}", previous);
+                                dmaInterruptMode.Value = previous;
+                                return;
+                            }
+
+                            UpdateInterrupts();
+                        })
                     .WithReservedBits(18, 14)
                 },
                 {(long)RegistersDMA.SystemBusMode, new DoubleWordRegister(this)
