@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -181,6 +181,14 @@ namespace Antmicro.Renode.Core
                 return;
             }
 
+            var segments = elf.Segments.Where(x => x.Type == ELFSharp.ELF.Segments.SegmentType.Load).OfType<ELFSharp.ELF.Segments.Segment<T>>();
+            foreach(var segment in segments)
+            {
+                var loadAddress = useVirtualAddress ? segment.GetSegmentAddress() : segment.GetSegmentPhysicalAddress();
+                minLoadAddress = SymbolAddress.Min(minLoadAddress, loadAddress);
+                maxLoadAddress = SymbolAddress.Max(maxLoadAddress, loadAddress + segment.GetSegmentSize());
+            }
+
             var thumb = elf.Machine == ELFSharp.ELF.Machine.ARM;
             var symtab = (SymbolTable<T>)symtabSection;
 
@@ -196,12 +204,6 @@ namespace Antmicro.Renode.Core
                                     .Select(x => x.GetSectionPhysicalAddress())
                                     .Cast<ulong?>()
                                     .Min();
-            var segments = elf.Segments.Where(x => x.Type == ELFSharp.ELF.Segments.SegmentType.Load).OfType<ELFSharp.ELF.Segments.Segment<T>>();
-            foreach(var segment in segments)
-            {
-                var loadAddress = useVirtualAddress ? segment.GetSegmentAddress() : segment.GetSegmentPhysicalAddress();
-                maxLoadAddress = SymbolAddress.Max(maxLoadAddress, loadAddress + segment.GetSegmentSize());
-            }
         }
 
         private bool TryGetSymbol(Symbol symbol, out Symbol outSymbol)
@@ -276,6 +278,7 @@ namespace Antmicro.Renode.Core
         /// </summary>
         private MultiValueDictionary<string, Symbol> symbolsByName;
 
+        private SymbolAddress minLoadAddress = SymbolAddress.MaxValue;
         private SymbolAddress maxLoadAddress;
 
         private class SortedIntervals : IEnumerable
