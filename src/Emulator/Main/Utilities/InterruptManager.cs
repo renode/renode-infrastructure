@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -157,6 +157,18 @@ namespace Antmicro.Renode.Utilities
                 var local = interruptType;
                 result.DefineFlagField((int)(object)interruptType, FieldMode.Read, name: interruptType.ToString(),
                                        valueProviderCallback: _ => IsSet(local)  && IsEnabled(local));
+            }
+            return result;
+        }
+
+        public TRegister GetRawInterruptFlagRegister<TRegister>() where TRegister : PeripheralRegister
+        {
+            var result = CreateRegister<TRegister>();
+            foreach(TInterrupt interruptType in Enum.GetValues(typeof(TInterrupt)))
+            {
+                var local = interruptType;
+                result.DefineFlagField((int)(object)interruptType, FieldMode.Read, name: interruptType.ToString(),
+                                       valueProviderCallback: _ => IsSet(local));
             }
             return result;
         }
