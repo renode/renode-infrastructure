@@ -678,6 +678,9 @@
     <Compile Include="Peripherals\Miscellaneous\RenesasDA14_GeneralRegisters.cs" />
     <Compile Include="Peripherals\CAN\UT32_CAN.cs" />
     <Compile Include="Peripherals\SPI\STM32H7_QuadSPI.cs" />
+    <Compile Include="Peripherals\Sensors\AK0991x.cs" />
+    <Compile Include="Peripherals\Sensors\AK09916.cs" />
+    <Compile Include="Peripherals\Sensors\AK09918.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
