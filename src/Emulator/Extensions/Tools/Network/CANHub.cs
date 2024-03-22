@@ -11,6 +11,7 @@ using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.CAN;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.CAN;
 using Antmicro.Renode.Time;
@@ -19,20 +20,21 @@ namespace Antmicro.Renode.Tools.Network
 {
     public static class CANHubExtensions
     {
-        public static void CreateCANHub(this Emulation emulation, string name, bool loopback = false)
+        public static void CreateCANHub(this Emulation emulation, string name, bool loopback = false, bool useNetworkByteOrderForLogging = true)
         {
-            emulation.ExternalsManager.AddExternal(new CANHub(loopback), name);
+            emulation.ExternalsManager.AddExternal(new CANHub(loopback, useNetworkByteOrderForLogging), name);
         }
     }
 
-    public sealed class CANHub : IExternal, IHasOwnLife, IConnectable<ICAN>
+    public sealed class CANHub : IExternal, IHasOwnLife, IConnectable<ICAN>, INetworkLog<ICAN>
     {
-        public CANHub(bool loopback = false)
+        public CANHub(bool loopback = false, bool useNetworkByteOrderForLogging = true)
         {
             sync = new object();
             attached = new List<ICAN>();
             handlers = new Dictionary<ICAN, Action<CANMessageFrame>>();
             this.loopback = loopback;
+            UseNetworkByteOrderForLogging = useNetworkByteOrderForLogging;
         }
 
         public void AttachTo(ICAN iface)
@@ -81,10 +83,33 @@ namespace Antmicro.Renode.Tools.Network
             }
         }
 
+        public event Action<IExternal, ICAN, ICAN, byte[]> FrameTransmitted;
+        public event Action<IExternal, ICAN, byte[]> FrameProcessed;
+        public event Action<IExternal, ICAN, CANMessageFrame> FrameReceived;
+
+        public bool UseNetworkByteOrderForLogging { get; set; }
+
         private void Transmit(ICAN sender, CANMessageFrame message)
         {
             lock(sync)
             {
+                this.Log(LogLevel.Debug, "Received from {0}: {1}", sender.GetName(), message);
+                FrameReceived?.Invoke(this, sender, message);
+
+                byte[] frame = null;
+                try
+                {
+                    frame = message.ToSocketCAN(UseNetworkByteOrderForLogging);
+                }
+                catch(RecoverableException e)
+                {
+                    this.Log(LogLevel.Warning, "Failed to create SocketCAN from {0}: {1}", message, e.Message);
+                }
+                if(frame != null)
+                {
+                    FrameProcessed?.Invoke(this, sender, frame);
+                }
+
                 if(!started)
                 {
                     return;
@@ -95,7 +120,8 @@ namespace Antmicro.Renode.Tools.Network
                 }
                 foreach(var iface in attached.Where(x => (x != sender || loopback)))
                 {
-                    iface.GetMachine().HandleTimeDomainEvent(iface.OnFrameReceived, message, vts);
+                    iface.GetMachine().HandleTimeDomainEvent(iface.OnFrameReceived, message, vts,
+                        frame != null ? () => FrameTransmitted?.Invoke(this, sender, iface, frame) : (Action)null);
                 }
             }
         }

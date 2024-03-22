@@ -7,12 +7,13 @@
 //
 using System;
 using Antmicro.Renode.Core.CAN;
+using Antmicro.Renode.Peripherals.Network;
 using Antmicro.Renode.UserInterface;
 
 namespace Antmicro.Renode.Peripherals.CAN
 {
     [Icon("can")]
-    public interface ICAN : IPeripheral
+    public interface ICAN : IPeripheral, INetworkInterface
     {
         event Action<CANMessageFrame> FrameSent;
         void OnFrameReceived(CANMessageFrame message);
