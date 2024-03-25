@@ -501,8 +501,8 @@ namespace Antmicro.Renode.Peripherals.SCI
                         }
                     }, name: "IICSTPREQ")
                 .WithFlag(3, out conditionCompletedFlag, FieldMode.WriteZeroToClear,name: "IICSTIF")
-                .WithTag("IICSDAS", 4, 2)
-                .WithTag("IICSCLS", 6, 2)
+                .WithValueField(4, 2, name: "IICSDAS")
+                .WithValueField(6, 2, name: "IICSCLS")
                 .WithReservedBits(8, 8)
                 .WithWriteCallback((_, val) =>
                     {
