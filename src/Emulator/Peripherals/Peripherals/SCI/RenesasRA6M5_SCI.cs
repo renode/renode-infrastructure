@@ -197,11 +197,20 @@ namespace Antmicro.Renode.Peripherals.SCI
             }
         }
 
-        private void EmulateIICStartStopCondition(bool isStop)
+        private void FlushIICTransmitQueue()
+        {
+            if(iicTransmitQueue.Count != 0)
+            {
+                selectedIICSlave.Write(iicTransmitQueue.ToArray());
+                iicTransmitQueue.Clear();
+            }
+        }
+
+        private void EmulateIICStartStopCondition(IICCondition condition)
         {
             conditionCompletedFlag.Value = true;
             transmitEnd.Value = true;
-            if(isStop)
+            if(condition == IICCondition.Stop)
             {
                 if(selectedIICSlave == null)
                 {
@@ -212,8 +221,7 @@ namespace Antmicro.Renode.Peripherals.SCI
                 switch(iicDirection)
                 {
                     case IICTransactionDirection.Write:
-                        selectedIICSlave.Write(iicTransmitQueue.ToArray());
-                        iicTransmitQueue.Clear();
+                        FlushIICTransmitQueue();
                         break;
                     case IICTransactionDirection.Read:
                         receiveQueue.Clear();
@@ -222,6 +230,11 @@ namespace Antmicro.Renode.Peripherals.SCI
                         throw new ArgumentException("Unknown IIC direction");
                 }
                 selectedIICSlave.FinishTransmission();
+            }
+            else if(condition == IICCondition.Restart)
+            {
+                //Flush the register address
+                FlushIICTransmitQueue();
             }
 
             iicState = IICState.Idle;
@@ -468,7 +481,7 @@ namespace Antmicro.Renode.Peripherals.SCI
                         if(val)
                         {
                             this.DebugLog("Start Condition Requested!");
-                            EmulateIICStartStopCondition(isStop:false);
+                            EmulateIICStartStopCondition(IICCondition.Start);
                         }
                     }, name: "IICSTAREQ")
                 .WithFlag(1, FieldMode.WriteOneToClear, writeCallback: (_, val) =>
@@ -476,7 +489,7 @@ namespace Antmicro.Renode.Peripherals.SCI
                         if(val)
                         {
                             this.DebugLog("Restart Condition Requested!");
-                            EmulateIICStartStopCondition(isStop:false);
+                            EmulateIICStartStopCondition(IICCondition.Restart);
                         }
                     }, name: "IICRSTAREQ")
                 .WithFlag(2, FieldMode.WriteOneToClear, writeCallback: (_, val) =>
@@ -484,7 +497,7 @@ namespace Antmicro.Renode.Peripherals.SCI
                         if(val)
                         {
                             this.DebugLog("Stop Condition Requested!");
-                            EmulateIICStartStopCondition(isStop:true);
+                            EmulateIICStartStopCondition(IICCondition.Stop);
                         }
                     }, name: "IICSTPREQ")
                 .WithFlag(3, out conditionCompletedFlag, FieldMode.WriteZeroToClear,name: "IICSTIF")
@@ -834,6 +847,11 @@ namespace Antmicro.Renode.Peripherals.SCI
         private ulong TryReadFromIICSlave()
         {
             ushort readByte;
+            if(selectedIICSlave == null)
+            {
+                this.WarningLog("No peripheral selected. Will not perform read");
+                return 0UL;
+            }
             if(!receiveQueue.TryDequeue(out readByte))
             {
                 // This will obviously try to read too much bytes, but this is necessary, as we have no way of guessing how many bytes the driver intends to read
@@ -941,6 +959,13 @@ namespace Antmicro.Renode.Peripherals.SCI
         private const int IICReadBufferCount = 24;
         // This byte is used to trigger reception on IIC bus. It should not be transmitted
         private const byte DummyTransmitByte = 0xFF;
+
+        private enum IICCondition
+        {
+            Start,
+            Stop,
+            Restart,
+        }
 
         private enum CommunicationMode
         {
