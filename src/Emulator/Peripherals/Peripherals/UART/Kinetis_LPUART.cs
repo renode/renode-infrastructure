@@ -15,7 +15,7 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
-    public class Kinetis_LPUART : UARTBase, IUARTWithBufferState, IBytePeripheral, IDoubleWordPeripheral, IKnownSize
+    public class Kinetis_LPUART : UARTBase, IUARTWithBufferState, ILINController, IBytePeripheral, IDoubleWordPeripheral, IKnownSize
     {
         public Kinetis_LPUART(IMachine machine, long frequency = 8000000, bool hasGlobalRegisters = true, bool hasFifoRegisters = true, uint fifoSize = DefaultFIFOSize) : base(machine)
         {
@@ -54,7 +54,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithValueField(0, 13, out baudRateModuloDivisor, name: "SBR / Baud Rate Modulo Divisor")
                 .WithFlag(13, out stopBitNumberSelect, name: "SBNS / Stop Bit Number Select")
                 .WithTaggedFlag("RXEDGIE / RX Input Active Edge Interrupt Enable", 14)
-                .WithTaggedFlag("LBKDIE / LIN Break Detect Interrupt Enable", 15)
+                .WithFlag(15, out linBreakDetectInterruptEnable, name: "LBKDIE / LIN Break Detect Interrupt Enable")
                 .WithTaggedFlag("RESYNCDIS / Resynchronization Disable", 16)
                 .WithFlag(17, out bothEdgeSampling, name: "BOTHEDGE / Both Edge Sampling")
                 .WithTag("MATCFG / Match Configuration", 18, 2)
@@ -96,13 +96,13 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithFlag(22, FieldMode.Read, valueProviderCallback: _ => txQueue.Count == 0, name: "TC / Transmission Complete Flag")
                 .WithFlag(23, out transmitDataRegisterEmpty, FieldMode.Read, name: "TDRE / Transmission Data Register Empty Flag")
                 .WithTaggedFlag("RAF / Receiver Active Flag", 24)
-                .WithTaggedFlag("LBKDE / LIN Break Detection Enable", 25)
+                .WithFlag(25, out linBreakDetection, name: "LBKDE / LIN Break Detection Enable")
                 .WithTaggedFlag("BRK13 / Break Character Generation Length", 26)
                 .WithTaggedFlag("RWUID / Receive Wake Up Idle Detect", 27)
                 .WithTaggedFlag("RXINV / Receive Data Inversion", 28)
                 .WithTaggedFlag("MSBF / MSB First", 29)
                 .WithTaggedFlag("RXEDGIF / RXD Pin Active Edge Interrupt Flag", 30)
-                .WithTaggedFlag("LBKDIF / LIN Break Detect Interrupt Flag", 31)
+                .WithFlag(31, out linBreakDetect, FieldMode.Read | FieldMode.WriteOneToClear, name: "LBKDIF / LIN Break Detect Interrupt Flag")
             );
 
             registersMap.Add(CommonRegistersOffset + (long)CommonRegs.Control, new DoubleWordRegister(this)
@@ -164,6 +164,14 @@ namespace Antmicro.Renode.Peripherals.UART
                     },
                     writeCallback: (_, val) =>
                     {
+                        var breakCharacter = transmitSpecialCharacter.Value && val == 0;
+                        if(breakCharacter && linBreakDetection.Value)
+                        {
+                            // We have to broadcast LIN break
+                            BroadcastLINBreak?.Invoke();
+                            return;
+                        }
+
                         if(transmitterEnabled.Value)
                         {
                             TransmitData((byte)val);
@@ -183,7 +191,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithReservedBits(10, 1)
                 .WithTaggedFlag("IDLINE / Idle Line", 11)
                 .WithFlag(12, FieldMode.Read, valueProviderCallback: _ => BufferState == BufferState.Empty, name: "RXEMPT / Receive Buffer Empty")
-                .WithTaggedFlag("FRETSC / Frame Error / Transmit Special Character", 13)
+                .WithFlag(13, out transmitSpecialCharacter, name: "FRETSC / Frame Error / Transmit Special Character")
                 .WithFlag(14, FieldMode.Read, valueProviderCallback: _ => false, name: "PARITYE / PARITYE")
                 .WithFlag(15, FieldMode.Read, valueProviderCallback: _ => false, name: "NOISY / NOISY")
                 .WithReservedBits(16, 16)
@@ -374,6 +382,13 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
+        public void ReceiveLINBreak()
+        {
+            linBreakDetect.Value |= linBreakDetection.Value;
+            UpdateGPIOOutputs();
+        }
+
+        public event Action BroadcastLINBreak;
         public event Action<BufferState> BufferStateChanged;
 
         public BufferState BufferState
@@ -460,10 +475,11 @@ namespace Antmicro.Renode.Peripherals.UART
             var tx = transmitterInterruptEnabled.Value && transmitDataRegisterEmpty.Value;
             var rx = receiverInterruptEnabled.Value && BufferState == BufferState.Full;
             var txComplete = transmissionCompleteInterruptEnabled.Value && (txQueue.Count == 0);
+            var linBreak = linBreakDetect.Value && linBreakDetectInterruptEnable.Value;
 
-            var irqState = rxUnderflow || txOverflow || tx || rx || txComplete;
+            var irqState = rxUnderflow || txOverflow || tx || rx || txComplete || linBreak;
             IRQ.Set(irqState);
-            this.Log(LogLevel.Noisy, "Setting IRQ to {0}, rxUnderflow {1}, txOverflow {2}, tx {3}, rx {4}, txComplete {5}", irqState, rxUnderflow, txOverflow, tx, rx, txComplete);
+            this.Log(LogLevel.Noisy, "Setting IRQ to {0}, rxUnderflow {1}, txOverflow {2}, tx {3}, rx {4}, txComplete {5}, linBreak {6}", irqState, rxUnderflow, txOverflow, tx, rx, txComplete, linBreak);
         }
 
         private void UpdateDMA()
@@ -543,6 +559,10 @@ namespace Antmicro.Renode.Peripherals.UART
         private readonly IFlagRegisterField transmitFifoOverflowEnabled;
         private readonly IFlagRegisterField receiveFifoUnderflowInterrupt;
         private readonly IFlagRegisterField transmitFifoOverflowInterrupt;
+        private readonly IFlagRegisterField linBreakDetectInterruptEnable;
+        private readonly IFlagRegisterField transmitSpecialCharacter;
+        private readonly IFlagRegisterField linBreakDetect;
+        private readonly IFlagRegisterField linBreakDetection;
         private readonly IValueRegisterField baudRateModuloDivisor;
         private readonly IValueRegisterField oversamplingRatio;
         private readonly IValueRegisterField transmitWatermark;
