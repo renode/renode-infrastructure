@@ -68,7 +68,7 @@ namespace Antmicro.Renode.Peripherals.UART
             lock(locker)
             {
                 fifo.Enqueue(value);
-                CharWritten.?Invoke(value);
+                CharWritten?.Invoke(value);
             }
             if(Echo)
             {
