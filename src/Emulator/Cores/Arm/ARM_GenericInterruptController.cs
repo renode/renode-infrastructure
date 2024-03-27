@@ -82,7 +82,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             LockExecuteAndUpdate(() =>
                 {
                     ackControl = false;
-                    enableFIQ = false;
+                    enableFIQ = ArchitectureVersionAtLeast3;
                     disabledSecurity = false;
                     affinityRoutingEnabledSecure = false;
                     affinityRoutingEnabledNonSecure = false;
@@ -457,6 +457,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         public bool ForceLowestIdCpuAsInterruptTarget { get; set; }
 
         public ARM_GenericInterruptControllerVersion ArchitectureVersion { get; }
+        public bool ArchitectureVersionAtLeast3 => ArchitectureVersion >= ARM_GenericInterruptControllerVersion.GICv3;
         public uint CPUInterfaceProductIdentifier { get; set; } = DefaultCPUInterfaceProductIdentifier;
         public uint DistributorProductIdentifier { get; set; } = DefaultDistributorProductIdentifier;
         public byte CPUInterfaceRevision { get; set; } = DefaultRevisionNumber;
@@ -488,7 +489,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             DebugHelper.Assert(irqsDecoder.IsSoftwareGenerated(irqId), $"Invalid interrupt identifier ({irqId}), it doesn't indicate an SGI.");
             this.Log(LogLevel.Noisy, "The {0} requests an SGI with id {1}.", requestingCPU.Name, irqId);
 
-            if(ArchitectureVersion > ARM_GenericInterruptControllerVersion.GICv2)
+            if(ArchitectureVersionAtLeast3)
             {
                 this.Log(LogLevel.Warning, "The GIC supports Software Generated Interrupts only for GICv2 or older.");
                 // GICv3 with disabled Affinity Routing uses the same mechanism of handling SGIs as GICv2.
@@ -1321,7 +1322,17 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     .WithFlag(5, FieldMode.Read, name: "FIQBypassGroup0", valueProviderCallback: _ => false)
                     .WithTaggedFlag("PreemptionControl", 4)
                     .WithFlag(3, name: "EnableFIQ",
-                        writeCallback: (_, val) => enableFIQ = val,
+                        writeCallback: (_, val) =>
+                        {
+                            if(!ArchitectureVersionAtLeast3)
+                            {
+                                enableFIQ = val;
+                            }
+                            else
+                            {
+                                this.Log(LogLevel.Warning, "Modifying EnableFIQ flag is not supported in this architecture version");
+                            }
+                        },
                         valueProviderCallback: _ => enableFIQ
                     )
                     .WithFlag(2, name: "AcknowledgementControl",
@@ -1766,7 +1777,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private long GetPeripheralIdentificationOffset()
         {
-            return (ArchitectureVersion <= ARM_GenericInterruptControllerVersion.GICv2) ?
+            return !ArchitectureVersionAtLeast3 ?
                 (long)RedistributorRegisters.PeripheralIdentification2_v1v2 : (long)RedistributorRegisters.PeripheralIdentification2_v3v4;
         }
 

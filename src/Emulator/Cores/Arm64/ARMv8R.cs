@@ -190,8 +190,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public bool FIQMaskOverride => (GetSystemRegisterValue("hcr") & 0b01000) != 0;
-        public bool IRQMaskOverride => (GetSystemRegisterValue("hcr") & 0b10000) != 0;
+        public bool TrapGeneralExceptions => (GetSystemRegisterValue("hcr") & (1 << 27)) != 0;
+        public bool FIQMaskOverride => (GetSystemRegisterValue("hcr") & 0b01000) != 0 || TrapGeneralExceptions;
+        public bool IRQMaskOverride => (GetSystemRegisterValue("hcr") & 0b10000) != 0 || TrapGeneralExceptions;
 
         public Affinity Affinity { get; }
 
