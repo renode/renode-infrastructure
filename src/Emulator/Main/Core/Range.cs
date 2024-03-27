@@ -54,6 +54,18 @@ namespace Antmicro.Renode.Core
             return address >= StartAddress && address <= EndAddress;
         }
 
+        public bool Contains(long address)
+        {
+            // Range operates on positive numbers
+            // so it cannot contain a negative number.
+            if(address < 0)
+            {
+                return false;
+            }
+
+            return Contains((ulong)address);
+        }
+
         public bool Contains(Range range)
         {
             // Every range contains the empty range.
