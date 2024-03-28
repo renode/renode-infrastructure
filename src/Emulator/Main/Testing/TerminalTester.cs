@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -545,7 +545,7 @@ namespace Antmicro.Renode.Testing
         private TerminalTesterResult testerResult;
         private bool pauseEmulation;
 
-        // Similarly how it is handled for FrameBufferTester is shouldn't matter if we unset the charEvent during deserialization 
+        // Similarly how it is handled for FrameBufferTester it shouldn't matter if we unset the charEvent during deserialization
         // as we check for char match on load in `WaitForMatch` either way
         // Additionally in `IsIdle` the timeout would long since expire so it doesn't matter there either.
         [Constructor(false)]
