@@ -48,6 +48,7 @@ namespace Antmicro.Renode.Core
         void InitAtomicMemoryState();
         bool IsRegistered(IPeripheral peripheral);
         IManagedThread ObtainManagedThread(Action action, uint frequency, string name = "managed thread", IEmulationElement owner = null, Func<bool> stopCondition = null);
+        IManagedThread ObtainManagedThread(Action action, TimeInterval period, string name = "managed thread", IEmulationElement owner = null, Func<bool> stopCondition = null);
         IDisposable ObtainPausedState(bool internalPause = false);
         void Pause();
         void PauseAndRequestEmulationPause(bool precise = false);

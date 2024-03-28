@@ -622,25 +622,23 @@ namespace Antmicro.Renode.Core
             return new ManagedThreadWrappingClockEntry(this, action, frequency, name, owner, stopCondition);
         }
 
+        public IManagedThread ObtainManagedThread(Action action, TimeInterval period, string name = "managed thread", IEmulationElement owner = null, Func<bool> stopCondition = null)
+        {
+            return new ManagedThreadWrappingClockEntry(this, action, period, name, owner, stopCondition);
+        }
+
         private class ManagedThreadWrappingClockEntry : IManagedThread
         {
             public ManagedThreadWrappingClockEntry(IMachine machine, Action action, uint frequency, string name, IEmulationElement owner, Func<bool> stopCondition = null)
+                : this(machine, action, stopCondition)
             {
-                this.action = () =>
-                {
-                    if(stopCondition != null && stopCondition())
-                    {
-                        Stop();
-                    }
-                    else
-                    {
-                        action();
-                    }
-                };
-                this.machine = machine;
-                machine.ClockSource.ExchangeClockEntryWith(
-                    action, entry => entry,
-                    factoryIfNonExistent: () => new ClockEntry(1, frequency, this.action, owner ?? machine, name, enabled: false));
+                machine.ClockSource.AddClockEntry(new ClockEntry(1, frequency, this.action, owner ?? machine, name, enabled: false));
+            }
+
+            public ManagedThreadWrappingClockEntry(IMachine machine, Action action, TimeInterval period, string name, IEmulationElement owner, Func<bool> stopCondition = null)
+                : this(machine, action, stopCondition)
+            {
+                machine.ClockSource.AddClockEntry(new ClockEntry(period.Ticks, (long)TimeInterval.TicksPerSecond, this.action, owner ?? machine, name, enabled: false));
             }
 
             public void Dispose()
@@ -676,6 +674,22 @@ namespace Antmicro.Renode.Core
             {
                 get => (uint)machine.ClockSource.GetClockEntry(action).Frequency;
                 set => machine.ClockSource.ExchangeClockEntryWith(action, entry => entry.With(frequency: value));
+            }
+
+            private ManagedThreadWrappingClockEntry(IMachine machine, Action action, Func<bool> stopCondition = null)
+            {
+                this.action = () =>
+                {
+                    if(stopCondition?.Invoke() ?? false)
+                    {
+                        Stop();
+                    }
+                    else
+                    {
+                        action();
+                    }
+                };
+                this.machine = machine;
             }
 
             private readonly Action action;
