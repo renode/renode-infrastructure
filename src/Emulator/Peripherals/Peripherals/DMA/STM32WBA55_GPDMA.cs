@@ -1,0 +1,493 @@
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
+
+namespace Antmicro.Renode.Peripherals.DMA
+{
+    public class STM32WBA55_GPDMA : IDoubleWordPeripheral, IKnownSize, IGPIOReceiver, INumberedGPIOOutput
+    {
+        public STM32WBA55_GPDMA(IMachine machine, int numberOfChannels)
+        {
+            this.machine = machine;
+            engine = new DmaEngine(machine.GetSystemBus(this));
+            this.numberOfChannels = numberOfChannels;
+            channels = new Channel[numberOfChannels];
+            var innerConnections = new Dictionary<int, IGPIO>();
+            for (var i = 0; i < numberOfChannels; ++i)
+            {
+                channels[i] = new Channel(this, i);
+                innerConnections[i] = new GPIO();
+            }
+
+            Connections = new ReadOnlyDictionary<int, IGPIO>(innerConnections);
+
+            var interruptStatus = new DoubleWordRegister(this);
+            var interruptFlagClear = new DoubleWordRegister(this)
+                    .WithWriteCallback((_, __) => Update());
+
+            for (var i = 0; i < numberOfChannels; ++i)
+            {
+                var j = i;
+                interruptStatus.DefineFlagField(j * 4 + 0, FieldMode.Read,
+                    valueProviderCallback: _ => channels[j].GlobalInterrupt,
+                    name: $"Global interrupt flag for channel {j} (GIF{j})");
+                interruptStatus.DefineFlagField(j * 4 + 1, FieldMode.Read,
+                    valueProviderCallback: _ => channels[j].TransferComplete,
+                    name: $"Transfer complete flag for channel {j} (TCIF{j})");
+                interruptStatus.DefineFlagField(j * 4 + 2, FieldMode.Read,
+                    valueProviderCallback: _ => channels[j].HalfTransfer,
+                    name: $"Half transfer flag for channel {j} (HTIF{j})");
+                interruptStatus.Tag($"Transfer error flag for channel {j} (TEIF{j})", j * 4 + 3, 1);
+
+                interruptFlagClear.DefineFlagField(j * 4 + 0, FieldMode.Write,
+                    writeCallback: (_, val) =>
+                    {
+                        if (!val)
+                        {
+                            return;
+                        }
+                        channels[j].GlobalInterrupt = false;
+                        channels[j].TransferComplete = false;
+                        channels[j].HalfTransfer = false;
+                    },
+                    name: $"Global interrupt flag clear for channel {j} (CGIF{j})");
+                interruptFlagClear.DefineFlagField(j * 4 + 1, FieldMode.Write,
+                    writeCallback: (_, val) =>
+                    {
+                        if (!val)
+                        {
+                            return;
+                        }
+                        channels[j].TransferComplete = false;
+                        channels[j].GlobalInterrupt = false;
+                    },
+                    name: $"Transfer complete flag clear for channel {j} (CTEIF{j})");
+                interruptFlagClear.DefineFlagField(j * 4 + 2, FieldMode.Write,
+                    writeCallback: (_, val) =>
+                    {
+                        if (!val)
+                        {
+                            return;
+                        }
+                        channels[j].HalfTransfer = false;
+                        channels[j].GlobalInterrupt = false;
+                    },
+                    name: $"Half transfer flag clear for channel {j} (CHTIF{j})");
+                interruptFlagClear.Tag($"Transfer error flag clear for channel {j} (CTEIF{j})", j * 4 + 3, 1);
+            }
+
+            var channelSelection = new DoubleWordRegister(this)
+                .WithTag("DMA channel 1 selection (C1S)", 0, 4)
+                .WithTag("DMA channel 2 selection (C2S)", 4, 4)
+                .WithTag("DMA channel 3 selection (C3S)", 8, 4)
+                .WithTag("DMA channel 4 selection (C4S)", 12, 4)
+                .WithTag("DMA channel 5 selection (C5S)", 16, 4)
+                .WithTag("DMA channel 6 selection (C6S)", 20, 4)
+                .WithTag("DMA channel 7 selection (C7S)", 24, 4)
+                .WithReservedBits(28, 4);
+
+            var registerMap = new Dictionary<long, DoubleWordRegister>
+            {
+                {(long)Registers.InterruptStatus, interruptStatus },
+                {(long)Registers.InterruptFlagClear, interruptFlagClear },
+                {(long)Registers.ChannelSelection, channelSelection },
+            };
+
+            registers = new DoubleWordRegisterCollection(this, registerMap);
+        }
+
+        public void Reset()
+        {
+            registers.Reset();
+        }
+
+        public uint ReadDoubleWord(long offset)
+        {
+            if (registers.TryRead(offset, out var result))
+            {
+                return result;
+            }
+            if (TryGetChannelNumberBasedOnOffset(offset, out var channelNo))
+            {
+                return channels[channelNo].ReadDoubleWord(offset);
+            }
+            this.Log(LogLevel.Error, "Could not read from offset 0x{0:X} nor read from channel {1}, the channel has to be in range 0-{2}", offset, channelNo, numberOfChannels);
+            return 0;
+        }
+
+        public void WriteDoubleWord(long offset, uint value)
+        {
+            if (registers.TryWrite(offset, value))
+            {
+                return;
+            }
+            if (TryGetChannelNumberBasedOnOffset(offset, out var channelNo))
+            {
+                channels[channelNo].WriteDoubleWord(offset, value);
+                return;
+            }
+            this.Log(LogLevel.Error, "Could not write to offset 0x{0:X} nor write to channel {1}, the channel has to be in range 0-{2}", offset, channelNo, numberOfChannels);
+        }
+
+        public void OnGPIO(int number, bool value)
+        {
+            if (number == 0 || number > channels.Length)
+            {
+                this.Log(LogLevel.Error, "Channel number {0} is out of range, must be in [1; {1}]", number, channels.Length);
+                return;
+            }
+
+            if (!value)
+            {
+                return;
+            }
+
+            this.Log(LogLevel.Debug, "DMA peripheral request on channel {0}", number);
+            if (!channels[number - 1].TryTriggerTransfer())
+            {
+                this.Log(LogLevel.Warning, "DMA peripheral request on channel {0} ignored - channel is disabled "
+                    + "or has data count set to 0", number);
+            }
+        }
+
+        public IReadOnlyDictionary<int, IGPIO> Connections { get; }
+
+        public long Size => 0x1000;
+
+        private bool TryGetChannelNumberBasedOnOffset(long offset, out int channel)
+        {
+            var shifted = offset - (long)Registers.Channel1Configuration;
+            channel = (int)(shifted / ShiftBetweenChannels);
+            if (channel < 0 || channel > numberOfChannels)
+            {
+                return false;
+            }
+            return true;
+        }
+
+        private void Update()
+        {
+            for (var i = 0; i < numberOfChannels; ++i)
+            {
+                Connections[i].Set((channels[i].TransferComplete && channels[i].TransferCompleteInterruptEnable)
+                        || (channels[i].HalfTransfer && channels[i].HalfTransferInterruptEnable));
+            }
+        }
+
+        private readonly IMachine machine;
+        private readonly DmaEngine engine;
+        private readonly DoubleWordRegisterCollection registers;
+        private readonly Channel[] channels;
+        private readonly int numberOfChannels;
+
+        private const int ShiftBetweenChannels = 0x80;
+
+        private class Channel
+        {
+            public Channel(STM32WBA55_GPDMA parent, int number)
+            {
+                this.parent = parent;
+                channelNumber = number;
+
+                var registersMap = new Dictionary<long, DoubleWordRegister>();
+                //TODO: implement registers & callbacks
+                registersMap.Add((long)ChannelRegisters.ChannelLinkedListBaseAddress + (number * ShiftBetweenChannels), new DoubleWordRegister(parent));
+                registersMap.Add((long)ChannelRegisters.ChannelFlagClear + (number * ShiftBetweenChannels), new DoubleWordRegister(parent));
+                registersMap.Add((long)ChannelRegisters.ChannelControl + (number * ShiftBetweenChannels), new DoubleWordRegister(parent));
+                registersMap.Add((long)ChannelRegisters.ChannelTransfer1 + (number * ShiftBetweenChannels), new DoubleWordRegister(parent));
+                registersMap.Add((long)ChannelRegisters.ChannelTransfer2 + (number * ShiftBetweenChannels), new DoubleWordRegister(parent));
+                registersMap.Add((long)ChannelRegisters.ChannelBlock1 + (number * ShiftBetweenChannels), new DoubleWordRegister(parent));
+                registersMap.Add((long)ChannelRegisters.ChannelSourceAddress + (number * ShiftBetweenChannels), new DoubleWordRegister(parent));
+                registersMap.Add((long)ChannelRegisters.ChannelDestinationAddress + (number * ShiftBetweenChannels), new DoubleWordRegister(parent));
+                registersMap.Add((long)ChannelRegisters.ChannelLinkedListAddress + (number * ShiftBetweenChannels), new DoubleWordRegister(parent));
+                registers = new DoubleWordRegisterCollection(parent, registersMap);
+            }
+
+            public uint ReadDoubleWord(long offset)
+            {
+                return registers.Read(offset);
+            }
+
+            public void WriteDoubleWord(long offset, uint value)
+            {
+                registers.Write(offset, value);
+            }
+
+            public void Reset()
+            {
+                registers.Reset();
+                TransferComplete = false;
+                HalfTransfer = false;
+            }
+
+            public bool TryTriggerTransfer()
+            {
+                if (!Enabled || dataCount.Value == 0)
+                {
+                    return false;
+                }
+
+                DoTransfer();
+                parent.Update();
+                return true;
+            }
+
+            public bool GlobalInterrupt
+            {
+                get
+                {
+                    return HalfTransfer || TransferComplete;
+                }
+                set
+                {
+                    if (value)
+                    {
+                        return;
+                    }
+                    HalfTransfer = false;
+                    TransferComplete = false;
+                }
+            }
+
+            public bool Enabled => channelEnable.Value;
+
+            public bool HalfTransfer { get; set; }
+
+            public bool TransferComplete { get; set; }
+
+            public bool HalfTransferInterruptEnable => halfTransferInterruptEnable.Value;
+
+            public bool TransferCompleteInterruptEnable => transferCompleteInterruptEnable.Value;
+
+            private void DoTransfer()
+            {
+                // This value is still valid in memory-to-memory mode, "peripheral" means
+                // "the address specified by the peripheralAddress field" and not necessarily
+                // a peripheral.
+                if (transferDirection.Value == TransferDirection.PeripheralToMemory)
+                {
+                    var toCopy = (uint)dataCount.Value;
+                    // In peripheral-to-memory mode, only copy one data unit. Otherwise, do the whole block.
+                    if (!memoryToMemory.Value)
+                    {
+                        toCopy = Math.Max((uint)SizeToType(memoryTransferType.Value),
+                            (uint)SizeToType(peripheralTransferType.Value));
+                        dataCount.Value -= 1;
+                    }
+                    else
+                    {
+                        dataCount.Value = 0;
+                    }
+                    var response = IssueCopy(currentPeripheralAddress, currentMemoryAddress, toCopy,
+                        peripheralIncrementMode.Value, memoryIncrementMode.Value, peripheralTransferType.Value,
+                        memoryTransferType.Value);
+                    currentPeripheralAddress = response.ReadAddress.Value;
+                    currentMemoryAddress = response.WriteAddress.Value;
+                    HalfTransfer = dataCount.Value <= originalDataCount / 2;
+                    TransferComplete = dataCount.Value == 0;
+                }
+                else // 1-bit field, so we handle both possible values
+                {
+                    IssueCopy(memoryAddress.Value, peripheralAddress.Value, (uint)dataCount.Value,
+                        memoryIncrementMode.Value, peripheralIncrementMode.Value, memoryTransferType.Value,
+                        peripheralTransferType.Value);
+                    dataCount.Value = 0;
+                    HalfTransfer = true;
+                    TransferComplete = true;
+                }
+
+                // Loop around if circular mode is enabled
+                if (circularMode.Value && !memoryToMemory.Value && dataCount.Value == 0)
+                {
+                    dataCount.Value = originalDataCount;
+                    currentPeripheralAddress = peripheralAddress.Value;
+                    currentMemoryAddress = memoryAddress.Value;
+                }
+                // No parent.Update - this is called by the register write and TryTriggerTransfer
+                // to avoid calling it twice in the former case
+            }
+
+            private Response IssueCopy(ulong sourceAddress, ulong destinationAddress, uint size,
+                bool incrementReadAddress, bool incrementWriteAddress, TransferSize sourceTransferType,
+                TransferSize destinationTransferType)
+            {
+                var request = new Request(
+                    sourceAddress,
+                    destinationAddress,
+                    (int)size,
+                    SizeToType(sourceTransferType),
+                    SizeToType(destinationTransferType),
+                    incrementReadAddress,
+                    incrementWriteAddress
+                );
+                return parent.engine.IssueCopy(request);
+            }
+
+            private TransferType SizeToType(TransferSize size)
+            {
+                switch (size)
+                {
+                    case TransferSize.Bits32:
+                        return TransferType.DoubleWord;
+                    case TransferSize.Bits16:
+                        return TransferType.Word;
+                    case TransferSize.Bits8:
+                    default:
+                        return TransferType.Byte;
+                }
+            }
+
+
+            private IEnumRegisterField<TransferDirection> transferDirection;
+            private IFlagRegisterField circularMode;
+            private IFlagRegisterField peripheralIncrementMode;
+            private IFlagRegisterField memoryIncrementMode;
+            private IFlagRegisterField memoryToMemory;
+            private IValueRegisterField dataCount;
+            private IValueRegisterField memoryAddress;
+            private IValueRegisterField peripheralAddress;
+            private IFlagRegisterField channelEnable;
+            private IFlagRegisterField transferCompleteInterruptEnable;
+            private IFlagRegisterField halfTransferInterruptEnable;
+            private IEnumRegisterField<TransferSize> memoryTransferType;
+            private IEnumRegisterField<TransferSize> peripheralTransferType;
+            private ulong currentPeripheralAddress;
+            private ulong currentMemoryAddress;
+            private ulong originalDataCount;
+
+            private readonly DoubleWordRegisterCollection registers;
+            private readonly STM32WBA55_GPDMA parent;
+            private readonly int channelNumber;
+
+            private enum TransferSize
+            {
+                Bits8 = 0,
+                Bits16 = 1,
+                Bits32 = 2,
+                Reserved = 3
+            }
+
+            private enum TransferDirection
+            {
+                PeripheralToMemory = 0,
+                MemoryToPeripheral = 1,
+            }
+
+            private enum ChannelRegisters
+            {
+                ChannelLinkedListBaseAddress = 0x50,
+                ChannelFlagClear = 0x5C,
+                ChannelStatus = 0x60,
+                ChannelControl = 0x64,
+                ChannelTransfer1 = 0x90,
+                ChannelTransfer2 = 0x94,
+                ChannelBlock1 = 0x98,
+                ChannelSourceAddress = 0x9C,
+                ChannelDestinationAddress = 0xA0,
+                ChannelLinkedListAddress = 0xCC,
+            }
+        }
+
+        private enum Registers : long
+        {
+            SecureConfiguration = 0x00,
+            PrivilegedConfiguration = 0x04,
+            ConfigurationLock = 0x08,
+            NonsecureMaskedInteruptStatus = 0x0C,
+            SecureMaskedInteruptStatus = 0x10,
+
+            Channel0LinkedListBaseAddress = 0x50,
+            Channel0FlagClear = 0x5C,
+            Channel0Status = 0x60,
+            Channel0Control = 0x64,
+            Channel0Transfer1 = 0x90,
+            Channel0Transfer2 = 0x94,
+            Channel0Block1 = 0x98,
+            Channel0SourceAddress = 0x9C,
+            Channel0DestinationAddress = 0xA0,
+            Channel0LinkedListAddress = 0xCC,
+
+            //TODO: update channel 1-7 address
+            Channel1LinkedListBaseAddress = 0xD0,
+            Channel1FlagClear = 0x5C,
+            Channel1Status = 0x60,
+            Channel1Control = 0x64,
+            Channel1Transfer1 = 0x90,
+            Channel1Transfer2 = 0x94,
+            Channel1Block1 = 0x98,
+            Channel1SourceAddress = 0x9C,
+            Channel1DestinationAddress = 0xA0,
+            Channel1LinkedListAddress = 0xCC,
+
+            Channel2LinkedListBaseAddress = 0x50,
+            Channel2FlagClear = 0x5C,
+            Channel2Status = 0x60,
+            Channel2Control = 0x64,
+            Channel2Transfer1 = 0x90,
+            Channel2Transfer2 = 0x94,
+            Channel2Block1 = 0x98,
+            Channel2SourceAddress = 0x9C,
+            Channel2DestinationAddress = 0xA0,
+            Channel2LinkedListAddress = 0xCC,
+
+            Channel3LinkedListBaseAddress = 0x50,
+            Channel3FlagClear = 0x5C,
+            Channel3Status = 0x60,
+            Channel3Control = 0x64,
+            Channel3Transfer1 = 0x90,
+            Channel3Transfer2 = 0x94,
+            Channel3Block1 = 0x98,
+            Channel3SourceAddress = 0x9C,
+            Channel3DestinationAddress = 0xA0,
+            Channel3LinkedListAddress = 0xCC,
+
+            Channel4LinkedListBaseAddress = 0x50,
+            Channel4FlagClear = 0x5C,
+            Channel4Status = 0x60,
+            Channel4Control = 0x64,
+            Channel4Transfer1 = 0x90,
+            Channel4Transfer2 = 0x94,
+            Channel4Block1 = 0x98,
+            Channel4SourceAddress = 0x9C,
+            Channel4DestinationAddress = 0xA0,
+            Channel4LinkedListAddress = 0xCC,
+
+            Channel5LinkedListBaseAddress = 0x50,
+            Channel5FlagClear = 0x5C,
+            Channel5Status = 0x60,
+            Channel5Control = 0x64,
+            Channel5Transfer1 = 0x90,
+            Channel5Transfer2 = 0x94,
+            Channel5Block1 = 0x98,
+            Channel5SourceAddress = 0x9C,
+            Channel5DestinationAddress = 0xA0,
+            Channel5LinkedListAddress = 0xCC,
+
+            Channel6LinkedListBaseAddress = 0x50,
+            Channel6FlagClear = 0x5C,
+            Channel6Status = 0x60,
+            Channel6Control = 0x64,
+            Channel6Transfer1 = 0x90,
+            Channel6Transfer2 = 0x94,
+            Channel6Block1 = 0x98,
+            Channel6SourceAddress = 0x9C,
+            Channel6DestinationAddress = 0xA0,
+            Channel6LinkedListAddress = 0xCC,
+
+            Channel7LinkedListBaseAddress = 0x50,
+            Channel7FlagClear = 0x5C,
+            Channel7Status = 0x60,
+            Channel7Control = 0x64,
+            Channel7Transfer1 = 0x90,
+            Channel7Transfer2 = 0x94,
+            Channel7Block1 = 0x98,
+            Channel7SourceAddress = 0x9C,
+            Channel7DestinationAddress = 0xA0,
+            Channel7LinkedListAddress = 0xCC,
+        }
+    }
+}
