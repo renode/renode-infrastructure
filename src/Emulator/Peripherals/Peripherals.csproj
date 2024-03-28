@@ -658,6 +658,7 @@
     <Compile Include="Peripherals\Miscellaneous\S32K3XX_FlexIO\ResourceBlock.cs" />
     <Compile Include="Peripherals\Miscellaneous\S32K3XX_FlexIO\ResourceBlockManager.cs" />
     <Compile Include="Peripherals\Miscellaneous\S32K3XX_FlexIO\S32K3XX_FlexIO_UART.cs" />
+    <Compile Include="Peripherals\Miscellaneous\S32K3XX_FlexIO\S32K3XX_FlexIO_SENT.cs" />
     <Compile Include="Peripherals\Miscellaneous\S32K3XX_FlexIO\Shifter.cs" />
     <Compile Include="Peripherals\Miscellaneous\S32K3XX_FlexIO\Timer.cs" />
     <Compile Include="Peripherals\Miscellaneous\S32K3XX_FlexIO\UARTDirectionBase.cs" />
