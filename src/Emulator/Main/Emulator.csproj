@@ -160,6 +160,7 @@
     <Compile Include="Peripherals\UART\IUART.cs" />
     <Compile Include="Peripherals\SENT\ISENTPeripheral.cs" />
     <Compile Include="Peripherals\SENT\Transmitter.cs" />
+    <Compile Include="Peripherals\SENT\SENTPeripheralBase.cs" />
     <Compile Include="Peripherals\SENT\Messages.cs" />
     <Compile Include="Peripherals\CFU\ICFU.cs" />
     <Compile Include="Utilities\SharedLibraries.cs" />

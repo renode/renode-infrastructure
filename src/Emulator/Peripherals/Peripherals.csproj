@@ -438,6 +438,7 @@
     <Compile Include="Peripherals\I2C\PULP_uDMA_I2C.cs" />
     <Compile Include="Peripherals\SPI\PULP_uDMA_SPI.cs" />
     <Compile Include="Peripherals\Mocks\DummySPISlave.cs" />
+    <Compile Include="Peripherals\Mocks\DummySENTTransmitter.cs" />
     <Compile Include="Peripherals\SD\PULP_uDMA_SDIO.cs" />
     <Compile Include="Peripherals\Sensors\PULP_uDMA_Camera.cs" />
     <Compile Include="Peripherals\Sensors\HM01B0.cs" />
