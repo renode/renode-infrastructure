@@ -4,6 +4,7 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -28,6 +29,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel
         {
             return shifter.Identifier * 4 + 1;
         }
+
+        public event Action ConfigurationChanged;
+        public event Action ControlChanged;
 
         public override IEnumerable<Interrupt> Interrupts => new[] { Status };
         public override string Name => $"Timer{Identifier}";
@@ -82,6 +86,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel
             var triggerSourceField = controlRegister.DefineEnumField<TimerTriggerSource>(22, 1, name: "TRGSRC (Trigger Source)");
             var oneTimeOperationField = controlRegister.DefineEnumField<TimerTriggerOneTimeOperation>(5, 1, name: "ONETIM (Timer One Time Operation)");
             var modeField = controlRegister.DefineEnumField<TimerMode>(0, 3, name: "TIMOD (Timer Mode)");
+            controlRegister.WithChangeCallback((_, __) => timer.ControlChanged?.Invoke());
 
             var configurationRegister = (Registers.TimerConfiguration0 + offset).Define(owner)
                 .WithReservedBits(26, 6)
@@ -100,6 +105,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel
             var enableField = configurationRegister.DefineEnumField<TimerEnable>(8, 3, name: "TIMENA (Timer Enable)");
             var stopBitField = configurationRegister.DefineEnumField<TimerStopBit>(4, 2, name: "TSTOP (Timer Stop Bit)");
             var startBitField = configurationRegister.DefineEnumField<TimerStartBit>(1, 1, name: "TSTART (Timer Start Bit)");
+            configurationRegister.WithChangeCallback((_, __) => timer.ConfigurationChanged?.Invoke());
 
             var compareField = (Registers.TimerCompare0 + offset).Define(owner)
                 .WithReservedBits(16, 16)
