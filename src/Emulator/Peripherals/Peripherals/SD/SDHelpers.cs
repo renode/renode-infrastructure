@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -102,9 +102,9 @@ namespace Antmicro.Renode.Peripherals.SD
                     .OrderByDescending(x => (int)x))
             {
                 var multiplierValue = 1 << ((int)multiplierEncoded + 2);
-                if(multiplierValue > capacity)
+                if(multiplierValue > numberOfBlocks)
                 {
-                    // we are looking for the highest possible multiplier that is lower-or-equal than capacity
+                    // we are looking for the highest possible multiplier that is lower-or-equal than numberOfBlocks
                     continue;
                 }
                 
