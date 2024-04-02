@@ -49,7 +49,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel
         public TimerEnable Enable => enable.Value;
         public TimerStopBit StopBit => stopBit.Value;
         public TimerStartBit StartBit => startBit.Value;
-        public uint Compare => (uint)compare.Value;
+        public uint Compare
+        {
+            get => (uint)compare.Value;
+            set => compare.Value = value;
+        }
         public uint Divider
         {
             get
