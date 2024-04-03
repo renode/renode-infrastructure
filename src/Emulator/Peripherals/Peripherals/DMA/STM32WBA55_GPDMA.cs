@@ -24,7 +24,15 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
 
             Connections = new ReadOnlyDictionary<int, IGPIO>(innerConnections);
+            
+            var secureConfiguration = new DoubleWordRegister(this);
+            var privilegedConfiguration = new DoubleWordRegister(this);
+            var configurationLock = new DoubleWordRegister(this);
+            var nonsecureMaskedInteruptStatus = new DoubleWordRegister(this);
+            var secureMaskedInteruptStatus = new DoubleWordRegister(this);
 
+
+            //TODO: rework/adapt to WBA55
             var interruptStatus = new DoubleWordRegister(this);
             var interruptFlagClear = new DoubleWordRegister(this)
                     .WithWriteCallback((_, __) => Update());
@@ -92,9 +100,11 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             var registerMap = new Dictionary<long, DoubleWordRegister>
             {
-                {(long)Registers.InterruptStatus, interruptStatus },
-                {(long)Registers.InterruptFlagClear, interruptFlagClear },
-                {(long)Registers.ChannelSelection, channelSelection },
+                {(long)Registers.SecureConfiguration, secureConfiguration },
+                {(long)Registers.PrivilegedConfiguration, privilegedConfiguration },
+                {(long)Registers.ConfigurationLock, configurationLock },
+                {(long)Registers.NonsecureMaskedInteruptStatus, nonsecureMaskedInteruptStatus },
+                {(long)Registers.SecureMaskedInteruptStatus, secureMaskedInteruptStatus },
             };
 
             registers = new DoubleWordRegisterCollection(this, registerMap);
@@ -160,7 +170,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         private bool TryGetChannelNumberBasedOnOffset(long offset, out int channel)
         {
-            var shifted = offset - (long)Registers.Channel1Configuration;
+            var shifted = offset - (long)Registers.Channel0LinkedListBaseAddress;
             channel = (int)(shifted / ShiftBetweenChannels);
             if (channel < 0 || channel > numberOfChannels)
             {
@@ -174,7 +184,12 @@ namespace Antmicro.Renode.Peripherals.DMA
             for (var i = 0; i < numberOfChannels; ++i)
             {
                 Connections[i].Set((channels[i].TransferComplete && channels[i].TransferCompleteInterruptEnable)
-                        || (channels[i].HalfTransfer && channels[i].HalfTransferInterruptEnable));
+                        || (channels[i].HalfTransfer && channels[i].HalfTransferInterruptEnable)
+                        || (channels[i].DataTransferError && channels[i].DataTransferErrorInterruptEnable)
+                        || (channels[i].UpdateLinkTransferError && channels[i].UpdateLinkTransferErrorInterruptEnable)
+                        || (channels[i].UserSettingError && channels[i].UserSettingErrorInterruptEnable)
+                        || (channels[i].CompletedSuspension && channels[i].CompletedSuspensionInterruptEnable)
+                        || (channels[i].TriggerOverrun && channels[i].TriggerOverrunInterruptEnable));
             }
         }
 
@@ -197,7 +212,58 @@ namespace Antmicro.Renode.Peripherals.DMA
                 //TODO: implement registers & callbacks
                 registersMap.Add((long)ChannelRegisters.ChannelLinkedListBaseAddress + (number * ShiftBetweenChannels), new DoubleWordRegister(parent));
                 registersMap.Add((long)ChannelRegisters.ChannelFlagClear + (number * ShiftBetweenChannels), new DoubleWordRegister(parent));
-                registersMap.Add((long)ChannelRegisters.ChannelControl + (number * ShiftBetweenChannels), new DoubleWordRegister(parent));
+                registersMap.Add((long)ChannelRegisters.ChannelStatus + (number * ShiftBetweenChannels), new DoubleWordRegister(parent));
+                registersMap.Add((long)ChannelRegisters.ChannelControl + (number * ShiftBetweenChannels), new DoubleWordRegister(parent)
+                    .WithFlag(0, out channelEnable,
+                        writeCallback: (_, val) =>
+                        {
+                            if(!val)
+                            {
+                                return;
+                            }
+                            if(memoryToMemory.Value || transferDirection.Value == TransferDirection.MemoryToPeripheral)
+                            {
+                                DoTransfer();
+                            }
+                        })
+                      .WithFlag(1, out channelReset, FieldMode.Write,
+                        writeCallback: (_, val) =>
+                        {
+                            if(val)
+                            {
+                                //TODO: check GPDMA_CxBR1,GPDMA_CxSAR, and GPDMA_CxDAR
+                                //registers; propably need to be updated 
+                               channelEnable.Value = false;
+                               channelSuspend.Value = false;
+                            }
+                        },
+                        valueProviderCallback: _ => false, name: "RESET (RESET)")   
+                      .WithFlag(2, out channelSuspend, FieldMode.Write,
+                        writeCallback: (_, val) =>
+                        {
+                            if(!val)
+                            {
+                                return;
+                            }
+                        }, name: "SUSPEND (SUSP)")  
+                    .WithReservedBits(3, 5)
+                    .WithFlag(8, out transferCompleteInterruptEnable, name: "Transfer complete interrupt enable (TCIE)")
+                    .WithFlag(9, out halfTransferInterruptEnable, name: "Half transfer interrupt enable (HTIE)")
+                    .WithFlag(10, out dataTransferErrorInterruptEnable, name: "Data transfer error interrupt enable (DTEIE)")
+                    .WithFlag(11, out updateLinkTransferErrorInterruptEnable, name: "Update link transfer error interrupt enable (ULEIE)")
+                    .WithFlag(12, out userSettingErrorInterruptEnable, name: "User setting error interrupt enable (USEIE)")
+                    .WithFlag(13, out completedSuspensionInterruptEnable, name: "Completed suspension interrupt enable (SUSPIE)")
+                    .WithFlag(14, out dataTransferErrorInterruptEnable, name: "Trigger overrun interrupt enable (TOIE)")
+                    .WithReservedBits(15,1)
+                    .WithTag("Link step mode (LSM)", 16, 1)
+                    .WithTag("Linked list allocated port (LAP)", 17, 1)
+                    .WithReservedBits(18, 4)
+                    .WithEnumField(22, 2, out priorityLevel, name: "Priority level (PRIO)")
+                    .WithReservedBits(24, 8)
+                    .WithWriteCallback(
+                            (_, __) => parent.Update()));
+
+
                 registersMap.Add((long)ChannelRegisters.ChannelTransfer1 + (number * ShiftBetweenChannels), new DoubleWordRegister(parent));
                 registersMap.Add((long)ChannelRegisters.ChannelTransfer2 + (number * ShiftBetweenChannels), new DoubleWordRegister(parent));
                 registersMap.Add((long)ChannelRegisters.ChannelBlock1 + (number * ShiftBetweenChannels), new DoubleWordRegister(parent));
@@ -259,9 +325,29 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             public bool TransferComplete { get; set; }
 
+            public bool DataTransferError { get; set; }
+
+            public bool UpdateLinkTransferError { get; set; }
+
+            public bool UserSettingError { get; set; }
+
+            public bool CompletedSuspension { get; set; }
+
+            public bool TriggerOverrun { get; set; }
+
             public bool HalfTransferInterruptEnable => halfTransferInterruptEnable.Value;
 
             public bool TransferCompleteInterruptEnable => transferCompleteInterruptEnable.Value;
+
+            public bool DataTransferErrorInterruptEnable => dataTransferErrorInterruptEnable.Value;
+
+            public bool UpdateLinkTransferErrorInterruptEnable => updateLinkTransferErrorInterruptEnable.Value;
+
+            public bool UserSettingErrorInterruptEnable =>userSettingErrorInterruptEnable.Value;
+
+            public bool CompletedSuspensionInterruptEnable =>completedSuspensionInterruptEnable.Value;
+
+            public bool TriggerOverrunInterruptEnable =>triggerOverrunInterruptEnable.Value;
 
             private void DoTransfer()
             {
@@ -350,9 +436,21 @@ namespace Antmicro.Renode.Peripherals.DMA
             private IValueRegisterField dataCount;
             private IValueRegisterField memoryAddress;
             private IValueRegisterField peripheralAddress;
+
+            //Channel Control CxCR
             private IFlagRegisterField channelEnable;
+            private IFlagRegisterField channelReset;
+            private IFlagRegisterField channelSuspend;
             private IFlagRegisterField transferCompleteInterruptEnable;
             private IFlagRegisterField halfTransferInterruptEnable;
+            private IFlagRegisterField dataTransferErrorInterruptEnable;
+            private IFlagRegisterField updateLinkTransferErrorInterruptEnable;
+            private IFlagRegisterField userSettingErrorInterruptEnable;
+            private IFlagRegisterField completedSuspensionInterruptEnable;
+            private IFlagRegisterField triggerOverrunInterruptEnable;
+            private IEnumRegisterField<Priotity> priorityLevel;
+
+
             private IEnumRegisterField<TransferSize> memoryTransferType;
             private IEnumRegisterField<TransferSize> peripheralTransferType;
             private ulong currentPeripheralAddress;
@@ -362,6 +460,14 @@ namespace Antmicro.Renode.Peripherals.DMA
             private readonly DoubleWordRegisterCollection registers;
             private readonly STM32WBA55_GPDMA parent;
             private readonly int channelNumber;
+
+            private enum Priotity
+            {
+                LowPrioLowWeight = 0,
+                LowPrioMidWeight = 1,
+                LowPrioHighWeigt = 2,
+                HighPrio = 3
+            }
 
             private enum TransferSize
             {
@@ -394,25 +500,26 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         private enum Registers : long
         {
-            SecureConfiguration = 0x00,
-            PrivilegedConfiguration = 0x04,
-            ConfigurationLock = 0x08,
-            NonsecureMaskedInteruptStatus = 0x0C,
-            SecureMaskedInteruptStatus = 0x10,
+           
+            SecureConfiguration = 0x00, //SECCFGR
+            PrivilegedConfiguration = 0x04, //PRIVCFGR
+            ConfigurationLock = 0x08, //RCFGLOCKR
+            NonsecureMaskedInteruptStatus = 0x0C, //MISR
+            SecureMaskedInteruptStatus = 0x10, //SMISR
 
-            Channel0LinkedListBaseAddress = 0x50,
-            Channel0FlagClear = 0x5C,
-            Channel0Status = 0x60,
-            Channel0Control = 0x64,
-            Channel0Transfer1 = 0x90,
-            Channel0Transfer2 = 0x94,
-            Channel0Block1 = 0x98,
-            Channel0SourceAddress = 0x9C,
-            Channel0DestinationAddress = 0xA0,
-            Channel0LinkedListAddress = 0xCC,
+            Channel0LinkedListBaseAddress = 0x50, //CxLBAR
+            Channel0FlagClear = 0x5C, //CxFCR
+            Channel0Status = 0x60, //CxSR
+            Channel0Control = 0x64, //CxCR
+            Channel0Transfer1 = 0x90, //CxTR1
+            Channel0Transfer2 = 0x94, //CxTR2
+            Channel0Block1 = 0x98, //CxBR1
+            Channel0SourceAddress = 0x9C, //CxSAR
+            Channel0DestinationAddress = 0xA0, //CxDAR
+            Channel0LinkedListAddress = 0xCC, //CxLLR
 
-            //TODO: update channel 1-7 address
-            Channel1LinkedListBaseAddress = 0xD0,
+            //probably not needed
+            /*Channel1LinkedListBaseAddress = 0xD0,
             Channel1FlagClear = 0x5C,
             Channel1Status = 0x60,
             Channel1Control = 0x64,
@@ -487,7 +594,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             Channel7Block1 = 0x98,
             Channel7SourceAddress = 0x9C,
             Channel7DestinationAddress = 0xA0,
-            Channel7LinkedListAddress = 0xCC,
+            Channel7LinkedListAddress = 0xCC,*/
         }
     }
 }
