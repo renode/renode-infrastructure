@@ -33,10 +33,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 return;
             }
             receiveFifo.Enqueue(value);
-            if(receiverInterruptEnable.Value)
-            {
-                IRQ.Blink();
-            }
+            UpdateInterrupt();
         }
 
         public override void Reset()
@@ -84,10 +81,7 @@ namespace Antmicro.Renode.Peripherals.UART
                         {
                             this.Log(LogLevel.Warning, "Trying to read data from empty receive fifo");
                         }
-                        if(receiveFifo.Count > 0 && receiverInterruptEnable.Value)
-                        {
-                            IRQ.Blink();
-                        }
+                        UpdateInterrupt();
                         return value;
                     }, writeCallback: (_, value) =>
                     {
@@ -97,10 +91,7 @@ namespace Antmicro.Renode.Peripherals.UART
                             return;
                         }
                         CharReceived?.Invoke((byte)value);
-                        if(transmitterInterruptEnable.Value)
-                        {
-                            IRQ.Blink();
-                        }
+                        UpdateInterrupt();
                     }, name: "DATA"
                 )
                 .WithReservedBits(8, 24)
@@ -158,6 +149,14 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTag("SOFT_RESET", 0, 8)
                 .WithReservedBits(8, 24)
             ;
+        }
+
+        private void UpdateInterrupt()
+        {
+            if(receiveFifo.Count > 0 && receiverInterruptEnable.Value || transmitterInterruptEnable.Value)
+            {
+                IRQ.Blink();
+            }
         }
 
         private IFlagRegisterField dataReady;
