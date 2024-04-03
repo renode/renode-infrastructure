@@ -138,6 +138,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithFlag(14, out transmitterShiftRegisterEmptyInterruptEnable, name: "SI", softResettable: false)
                 .WithReservedBits(15, 16)
                 .WithTaggedFlag("FA", 31)
+                .WithChangeCallback((_, __) => UpdateInterrupt())
             ;
 
             Registers.Scaler.Define(this, name: "SCALER")
@@ -156,6 +157,10 @@ namespace Antmicro.Renode.Peripherals.UART
             if(receiveFifo.Count > 0 && receiverInterruptEnable.Value || transmitterInterruptEnable.Value)
             {
                 IRQ.Blink();
+            }
+            else
+            {
+                IRQ.Set(transmitterFifoInterruptEnable.Value && transmitterEnable.Value);
             }
         }
 
