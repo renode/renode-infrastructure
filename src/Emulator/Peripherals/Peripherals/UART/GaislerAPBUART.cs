@@ -123,7 +123,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithValueField(26, 6, FieldMode.Read, valueProviderCallback: _ => (ulong) Math.Min(receiveFifo.Count, fifoDepth), name: "RCNT")
             ;
 
-            Registers.Control.Define(this, name: "CONTROL")
+            Registers.Control.Define(this, 0x80000000, name: "CONTROL")
                 .WithFlag(0, out receiverEnable, name: "RE")
                 .WithFlag(1, out transmitterEnable, name: "TE")
                 .WithFlag(2, out receiverInterruptEnable, name: "RI", softResettable: false)
