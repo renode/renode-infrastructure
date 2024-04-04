@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
 
             Connections = new ReadOnlyDictionary<int, IGPIO>(innerConnections);
-            
+
             var secureConfiguration = new DoubleWordRegister(this);
             var privilegedConfiguration = new DoubleWordRegister(this);
             var configurationLock = new DoubleWordRegister(this);
@@ -87,16 +87,6 @@ namespace Antmicro.Renode.Peripherals.DMA
                     name: $"Half transfer flag clear for channel {j} (CHTIF{j})");
                 interruptFlagClear.Tag($"Transfer error flag clear for channel {j} (CTEIF{j})", j * 4 + 3, 1);
             }
-
-            var channelSelection = new DoubleWordRegister(this)
-                .WithTag("DMA channel 1 selection (C1S)", 0, 4)
-                .WithTag("DMA channel 2 selection (C2S)", 4, 4)
-                .WithTag("DMA channel 3 selection (C3S)", 8, 4)
-                .WithTag("DMA channel 4 selection (C4S)", 12, 4)
-                .WithTag("DMA channel 5 selection (C5S)", 16, 4)
-                .WithTag("DMA channel 6 selection (C6S)", 20, 4)
-                .WithTag("DMA channel 7 selection (C7S)", 24, 4)
-                .WithReservedBits(28, 4);
 
             var registerMap = new Dictionary<long, DoubleWordRegister>
             {
@@ -209,19 +199,95 @@ namespace Antmicro.Renode.Peripherals.DMA
                 channelNumber = number;
 
                 var registersMap = new Dictionary<long, DoubleWordRegister>();
-                //TODO: implement registers & callbacks
-                registersMap.Add((long)ChannelRegisters.ChannelLinkedListBaseAddress + (number * ShiftBetweenChannels), new DoubleWordRegister(parent));
-                registersMap.Add((long)ChannelRegisters.ChannelFlagClear + (number * ShiftBetweenChannels), new DoubleWordRegister(parent));
-                registersMap.Add((long)ChannelRegisters.ChannelStatus + (number * ShiftBetweenChannels), new DoubleWordRegister(parent));
+                registersMap.Add((long)ChannelRegisters.ChannelLinkedListBaseAddress + (number * ShiftBetweenChannels), new DoubleWordRegister(parent)
+                    .WithReservedBits(0,16)
+                    .WithValueField(16, 16, out linkedListBaseAddress, name: "Linked list base address (LBA)"));
+                registersMap.Add((long)ChannelRegisters.ChannelFlagClear + (number * ShiftBetweenChannels), new DoubleWordRegister(parent)
+                    .WithReservedBits(0, 8)
+                    .WithFlag(8, FieldMode.Write, name: "Transfer complete flag clear (TCF)",
+                            writeCallback: (_, val) =>
+                            {
+                                if (val)
+                                {
+                                    TransferComplete = false;
+                                }
+                            })
+                    .WithFlag(9, FieldMode.Write, name: "Half transfer flag clear (TCF)",
+                            writeCallback: (_, val) =>
+                            {
+                                if (val)
+                                {
+                                    HalfTransfer = false;
+                                }
+                            })
+                    .WithFlag(10, FieldMode.Write, name: "Data transfer error flag clear (DTEF)",
+                            writeCallback: (_, val) =>
+                            {
+                                if (val) { DataTransferError = false; }
+                            })
+                    .WithFlag(11, FieldMode.Write, name: "Update link transfer error flag clear (ULEF)",
+                            writeCallback: (_, val) =>
+                            {
+                                if (val)
+                                {
+                                    UpdateLinkTransferError = false;
+                                }
+                            })
+                    .WithFlag(12, FieldMode.Write, name: "User setting error flag clear (USEF)",
+                            writeCallback: (_, val) =>
+                            {
+                                if (val)
+                                {
+                                    UserSettingError = false;
+                                }
+                            })
+                    .WithFlag(13, FieldMode.Write, name: "Completed suspension flag clear (SUSPF)",
+                            writeCallback: (_, val) =>
+                            {
+                                if (val)
+                                {
+                                    CompletedSuspension = false;
+                                }
+                            })
+                    .WithFlag(14, FieldMode.Write, name: "Trigger overrun flag clear (TOF)",
+                            writeCallback: (_, val) =>
+                            {
+                                if (val)
+                                {
+                                    TriggerOverrun = false;
+                                }
+                            })
+                    .WithReservedBits(15, 17)
+                );
+                registersMap.Add((long)ChannelRegisters.ChannelStatus + (number * ShiftBetweenChannels), new DoubleWordRegister(parent)
+                    .WithTag("Idle (IDLEF)", 0, 1)
+                    .WithReservedBits(1, 7)
+                    .WithFlag(8, FieldMode.Read, name: "Transfer complete flag (TCF)",
+                        valueProviderCallback: _ => TransferComplete)
+                    .WithFlag(9, FieldMode.Read, name: "Half transfer flag (HTF)",
+                        valueProviderCallback: _ => HalfTransfer)
+                    .WithFlag(10, FieldMode.Read, name: "Data transfer error flag (DTEF)",
+                        valueProviderCallback: _ => DataTransferError)
+                    .WithFlag(11, FieldMode.Read, name: "Update link transfer error flag (ULEF)",
+                        valueProviderCallback: _ => UpdateLinkTransferError)
+                    .WithFlag(12, FieldMode.Read, name: "User setting error flag (USEF)",
+                        valueProviderCallback: _ => UserSettingError)
+                    .WithFlag(13, FieldMode.Read, name: "Completed suspension flag (SUSPF)",
+                        valueProviderCallback: _ => CompletedSuspension)
+                    .WithFlag(14, FieldMode.Read, name: "Trigger overrun flag (TOF)",
+                        valueProviderCallback: _ => TriggerOverrun)
+                    .WithReservedBits(15, 1)
+                    .WithTag("Monitored FIFO level (FIFOL)", 16, 8)
+                    .WithReservedBits(24, 8));
                 registersMap.Add((long)ChannelRegisters.ChannelControl + (number * ShiftBetweenChannels), new DoubleWordRegister(parent)
                     .WithFlag(0, out channelEnable,
                         writeCallback: (_, val) =>
                         {
-                            if(!val)
+                            if (!val)
                             {
                                 return;
                             }
-                            if(memoryToMemory.Value || transferDirection.Value == TransferDirection.MemoryToPeripheral)
+                            if (memoryToMemory.Value || transferDirection.Value == TransferDirection.MemoryToPeripheral)
                             {
                                 DoTransfer();
                             }
@@ -229,23 +295,23 @@ namespace Antmicro.Renode.Peripherals.DMA
                       .WithFlag(1, out channelReset, FieldMode.Write,
                         writeCallback: (_, val) =>
                         {
-                            if(val)
+                            if (val)
                             {
                                 //TODO: check GPDMA_CxBR1,GPDMA_CxSAR, and GPDMA_CxDAR
                                 //registers; propably need to be updated 
-                               channelEnable.Value = false;
-                               channelSuspend.Value = false;
+                                channelEnable.Value = false;
+                                channelSuspend.Value = false;
                             }
                         },
-                        valueProviderCallback: _ => false, name: "RESET (RESET)")   
+                        valueProviderCallback: _ => false, name: "RESET (RESET)")
                       .WithFlag(2, out channelSuspend, FieldMode.Write,
                         writeCallback: (_, val) =>
                         {
-                            if(!val)
+                            if (!val)
                             {
                                 return;
                             }
-                        }, name: "SUSPEND (SUSP)")  
+                        }, name: "SUSPEND (SUSP)")
                     .WithReservedBits(3, 5)
                     .WithFlag(8, out transferCompleteInterruptEnable, name: "Transfer complete interrupt enable (TCIE)")
                     .WithFlag(9, out halfTransferInterruptEnable, name: "Half transfer interrupt enable (HTIE)")
@@ -254,7 +320,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     .WithFlag(12, out userSettingErrorInterruptEnable, name: "User setting error interrupt enable (USEIE)")
                     .WithFlag(13, out completedSuspensionInterruptEnable, name: "Completed suspension interrupt enable (SUSPIE)")
                     .WithFlag(14, out dataTransferErrorInterruptEnable, name: "Trigger overrun interrupt enable (TOIE)")
-                    .WithReservedBits(15,1)
+                    .WithReservedBits(15, 1)
                     .WithTag("Link step mode (LSM)", 16, 1)
                     .WithTag("Linked list allocated port (LAP)", 17, 1)
                     .WithReservedBits(18, 4)
@@ -263,7 +329,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     .WithWriteCallback(
                             (_, __) => parent.Update()));
 
-
+                //TODO: implement registers & callbacks
                 registersMap.Add((long)ChannelRegisters.ChannelTransfer1 + (number * ShiftBetweenChannels), new DoubleWordRegister(parent));
                 registersMap.Add((long)ChannelRegisters.ChannelTransfer2 + (number * ShiftBetweenChannels), new DoubleWordRegister(parent));
                 registersMap.Add((long)ChannelRegisters.ChannelBlock1 + (number * ShiftBetweenChannels), new DoubleWordRegister(parent));
@@ -343,11 +409,11 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             public bool UpdateLinkTransferErrorInterruptEnable => updateLinkTransferErrorInterruptEnable.Value;
 
-            public bool UserSettingErrorInterruptEnable =>userSettingErrorInterruptEnable.Value;
+            public bool UserSettingErrorInterruptEnable => userSettingErrorInterruptEnable.Value;
 
-            public bool CompletedSuspensionInterruptEnable =>completedSuspensionInterruptEnable.Value;
+            public bool CompletedSuspensionInterruptEnable => completedSuspensionInterruptEnable.Value;
 
-            public bool TriggerOverrunInterruptEnable =>triggerOverrunInterruptEnable.Value;
+            public bool TriggerOverrunInterruptEnable => triggerOverrunInterruptEnable.Value;
 
             private void DoTransfer()
             {
@@ -450,6 +516,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             private IFlagRegisterField triggerOverrunInterruptEnable;
             private IEnumRegisterField<Priotity> priorityLevel;
 
+            private IValueRegisterField linkedListBaseAddress;
 
             private IEnumRegisterField<TransferSize> memoryTransferType;
             private IEnumRegisterField<TransferSize> peripheralTransferType;
@@ -500,7 +567,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         private enum Registers : long
         {
-           
+
             SecureConfiguration = 0x00, //SECCFGR
             PrivilegedConfiguration = 0x04, //PRIVCFGR
             ConfigurationLock = 0x08, //RCFGLOCKR
