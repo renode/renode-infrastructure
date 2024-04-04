@@ -644,6 +644,7 @@
     <Compile Include="Peripherals\UART\RenesasDA14_UART.cs" />
     <Compile Include="Peripherals\Timers\RenesasDA_Watchdog.cs" />
     <Compile Include="Peripherals\GPIOPort\RenesasDA14_GPIO.cs" />
+    <Compile Include="Peripherals\SPI\RenesasDA_SPI.cs" />
     <Compile Include="Peripherals\Timers\S32K3XX_PeriodicInterruptTimer.cs" />
     <Compile Include="Peripherals\Timers\S32K3XX_SystemTimerModule.cs" />
     <Compile Include="Peripherals\Timers\S32K3XX_SoftwareWatchdogTimer.cs" />
