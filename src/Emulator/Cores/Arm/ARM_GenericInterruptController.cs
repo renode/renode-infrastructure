@@ -23,7 +23,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
     //       It can be accesses only through system registers.
     public class ARM_GenericInterruptController : IARMCPUsConnectionsProvider, IBusPeripheral, ILocalGPIOReceiver, INumberedGPIOOutput, IIRQController
     {
-        public ARM_GenericInterruptController(IMachine machine, bool supportsTwoSecurityStates = true, ARM_GenericInterruptControllerVersion architectureVersion = DefaultArchitectureVersion, uint sharedPeripheralCount = 960)
+        public ARM_GenericInterruptController(IMachine machine, bool supportsTwoSecurityStates = true, ARM_GenericInterruptControllerVersion architectureVersion = ARM_GenericInterruptControllerVersion.Default, uint sharedPeripheralCount = 960)
         {
             busController = machine.GetSystemBus(this);
 
@@ -39,7 +39,15 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             // Once security is disabled it's impossible to enable it
             // So it is impossible to enable security for the GIC that doesn't support two security states
             this.supportsTwoSecurityStates = supportsTwoSecurityStates;
-            this.ArchitectureVersion = architectureVersion;
+            if(architectureVersion == ARM_GenericInterruptControllerVersion.Default)
+            {
+                this.Log(LogLevel.Warning, "GIC architecture version not explicitly set. Defaulting to v3");
+                this.ArchitectureVersion = DefaultArchitectureVersion;
+            }
+            else
+            {
+                this.ArchitectureVersion = architectureVersion;
+            }
 
             this.irqsDecoder = new InterruptsDecoder(sharedPeripheralCount, identifierBits: 10);
 
@@ -3266,6 +3274,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
     public enum ARM_GenericInterruptControllerVersion : byte
     {
+        Default = 255,
         GICv1 = 1,
         GICv2 = 2,
         GICv3 = 3,
