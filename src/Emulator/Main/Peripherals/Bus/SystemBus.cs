@@ -996,13 +996,25 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public void SetAddressRangeLocked(Range range, bool locked)
         {
-            if(locked)
+            lock(lockedRangesCollection)
             {
-                lockedRangesCollection.Add(range);
-            }
-            else
-            {
-                lockedRangesCollection.Remove(range);
+                // Check if `range` needs to be locked or unlocked at all.
+                if(locked ? lockedRangesCollection.ContainsWholeRange(range) : !IsAddressRangeLocked(range))
+                {
+                    return;
+                }
+
+                using(Machine.ObtainPausedState(internalPause: true))
+                {
+                    if(locked)
+                    {
+                        lockedRangesCollection.Add(range);
+                    }
+                    else
+                    {
+                        lockedRangesCollection.Remove(range);
+                    }
+                }
             }
         }
 
