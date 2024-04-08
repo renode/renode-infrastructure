@@ -328,9 +328,26 @@ namespace Antmicro.Renode.Peripherals.DMA
                     .WithReservedBits(24, 8)
                     .WithWriteCallback(
                             (_, __) => parent.Update()));
-
+                registersMap.Add((long)ChannelRegisters.ChannelTransfer1 + (number * ShiftBetweenChannels), new DoubleWordRegister(parent)
+                    .WithEnumField(0, 2, out sourceDataWith, name: "Binary logarithm source data with (SDW_LOG2)")
+                    .WithReservedBits(2, 1)
+                    .WithFlag(3, out sourceIncrementingBurst, name: "Source incrementing burst (SINC)")
+                    .WithValueField(4, 5, out sourceBurstLength, name: "Source burst length (SBL_1)")                
+                    .WithReservedBits(10, 1)
+                    .WithTag("Padding alignment mode (PAM)", 11, 2)
+                    .WithTag("Source byte exchange (SBX)", 13, 1)
+                    .WithTag("Source allocated port (SAP)", 14, 1)
+                    .WithTag("Security attribute source (SSEC)", 15, 1)
+                    .WithEnumField(16, 2, out destinationDataWith, name: "Binary logarithm destination data with (DDW_LOG2)")              
+                    .WithReservedBits(18, 1)
+                    .WithFlag(19, out destinationIncrementingBurst, name: "Destination incrementing burst (DINC)")
+                    .WithValueField(20, 6, out destinationBurstLength, name: "Destination burst length (DBL_1)")  
+                    .WithTag("Destination byte exchange (DBX)", 26, 1)  
+                    .WithTag("Destination half-word exchange (DHX)", 27, 1)  
+                    .WithReservedBits(28, 2)
+                    .WithTag("Destination allocated port (DAP)", 30, 1) 
+                    .WithTag("Security attribute destination (DSEC)", 31, 1) );
                 //TODO: implement registers & callbacks
-                registersMap.Add((long)ChannelRegisters.ChannelTransfer1 + (number * ShiftBetweenChannels), new DoubleWordRegister(parent));
                 registersMap.Add((long)ChannelRegisters.ChannelTransfer2 + (number * ShiftBetweenChannels), new DoubleWordRegister(parent));
                 registersMap.Add((long)ChannelRegisters.ChannelBlock1 + (number * ShiftBetweenChannels), new DoubleWordRegister(parent));
                 registersMap.Add((long)ChannelRegisters.ChannelSourceAddress + (number * ShiftBetweenChannels), new DoubleWordRegister(parent));
@@ -516,7 +533,16 @@ namespace Antmicro.Renode.Peripherals.DMA
             private IFlagRegisterField triggerOverrunInterruptEnable;
             private IEnumRegisterField<Priotity> priorityLevel;
 
+            //Channel Linked List Base Address CxLBAR
             private IValueRegisterField linkedListBaseAddress;
+
+            //Transfer Register CxTR 1&2   
+            private IFlagRegisterField sourceIncrementingBurst;
+            private IFlagRegisterField destinationIncrementingBurst;
+            private IValueRegisterField sourceBurstLength;
+            private IValueRegisterField destinationBurstLength;
+            private IEnumRegisterField<TransferSize> sourceDataWith;
+            private IEnumRegisterField<TransferSize> destinationDataWith;
 
             private IEnumRegisterField<TransferSize> memoryTransferType;
             private IEnumRegisterField<TransferSize> peripheralTransferType;
@@ -538,10 +564,10 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             private enum TransferSize
             {
-                Bits8 = 0,
-                Bits16 = 1,
-                Bits32 = 2,
-                Reserved = 3
+                Bits8 = 0, //byte
+                Bits16 = 1, // half-word (2bytes)
+                Bits32 = 2, // word (4bytes)
+                UserSettingError = 3
             }
 
             private enum TransferDirection
