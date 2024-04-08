@@ -1,19 +1,19 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.CAN;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.CAN;
 using Antmicro.Renode.Time;
-using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Core.CAN;
 
 namespace Antmicro.Renode.Tools.Network
 {
