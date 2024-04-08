@@ -1503,6 +1503,17 @@ namespace Antmicro.Renode.Utilities
             }
         }
 
+        public static T[] CopyAndResize<T>(this T[] source, int length)
+        {
+            if(source.Length == length)
+            {
+                return source.ToArray();
+            }
+            var data = new T[length];
+            Array.Copy(source, data, Math.Min(source.Length, length));
+            return data;
+        }
+
         public static int CountTrailingZeroes(uint value)
         {
             int count = 0;
