@@ -989,14 +989,21 @@ namespace Antmicro.Renode.Utilities
             arr[id2] = tmp;
         }
 
-        public static bool EndiannessSwapInPlace(byte[] input, int width)
+        public static bool EndiannessSwapInPlace(byte[] input, int width, int offset = 0, int? length = null)
         {
-            if(input.Length % width != 0)
+            if(offset > input.Length)
             {
                 return false;
             }
 
-            for(var i = 0; i < input.Length; i += width)
+            var bytesFromOffset = input.Length - offset;
+            var len = length ?? bytesFromOffset;
+            if(len > bytesFromOffset || len % width != 0)
+            {
+                return false;
+            }
+
+            for(var i = offset; i < offset + len; i += width)
             {
                 for(var j = 0; j < width / 2; j++)
                 {
