@@ -220,7 +220,10 @@ namespace Antmicro.Renode.Peripherals.DMA
                     .WithFlag(10, FieldMode.Write, name: "Data transfer error flag clear (DTEF)",
                             writeCallback: (_, val) =>
                             {
-                                if (val) { DataTransferError = false; }
+                                if (val)
+                                {
+                                    DataTransferError = false;
+                                }
                             })
                     .WithFlag(11, FieldMode.Write, name: "Update link transfer error flag clear (ULEF)",
                             writeCallback: (_, val) =>
@@ -280,16 +283,12 @@ namespace Antmicro.Renode.Peripherals.DMA
                     .WithFlag(0, out channelEnable,
                         writeCallback: (_, val) =>
                         {
-                            if (!val)
-                            {
-                                return;
-                            }
-                            if (memoryToMemory.Value || transferDirection.Value == TransferDirection.MemoryToPeripheral)
+                            if (val)
                             {
                                 DoTransfer();
                             }
                         })
-                      .WithFlag(1, out channelReset, FieldMode.Write,
+                      .WithFlag(1, out channelReset,
                         writeCallback: (_, val) =>
                         {
                             if (val)
@@ -301,7 +300,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                             }
                         },
                         valueProviderCallback: _ => false, name: "RESET (RESET)")
-                      .WithFlag(2, out channelSuspend, FieldMode.Write,
+                      .WithFlag(2, out channelSuspend,
                         writeCallback: (_, val) =>
                         {
                             if (val)
@@ -356,13 +355,39 @@ namespace Antmicro.Renode.Peripherals.DMA
                     .WithReservedBits(21, 3)
                     .WithTag("Trigger event polarity (TRIGPOL)", 24, 2)
                     .WithReservedBits(26, 4)
-                    .WithValueField(30, 1, out transferCompleteEventMode, name: "Transfer complete event mode (TCEM)")   //TODO 
+                    .WithValueField(30, 2, out transferCompleteEventMode, name: "Transfer complete event mode (TCEM)")   //TODO 
                     );
                 //TODO: implement registers & callbacks
-                registersMap.Add((long)ChannelRegisters.ChannelBlock1 + (number * ShiftBetweenChannels), new DoubleWordRegister(parent));
-                registersMap.Add((long)ChannelRegisters.ChannelSourceAddress + (number * ShiftBetweenChannels), new DoubleWordRegister(parent));
-                registersMap.Add((long)ChannelRegisters.ChannelDestinationAddress + (number * ShiftBetweenChannels), new DoubleWordRegister(parent));
-                registersMap.Add((long)ChannelRegisters.ChannelLinkedListAddress + (number * ShiftBetweenChannels), new DoubleWordRegister(parent));
+                registersMap.Add((long)ChannelRegisters.ChannelBlock1 + (number * ShiftBetweenChannels), new DoubleWordRegister(parent)
+                /* TODO: Block size transferred from the source. When the channel is enabled, this field becomes
+                    read-only and is decremented, indicating the remaining number of data items in the current
+                    source block to be transferred. BNDT[15:0] is programmed in number of bytes, maximum
+                    source block size is 64 Kbytes -1. Once the last data transfer is completed (BNDT[15:0] = 0)*/
+                    .WithValueField(0, 16, out blockNumberDataBytesFromSource, name: "Block number data bytes from source (BNDT)")
+                    );
+                registersMap.Add((long)ChannelRegisters.ChannelSourceAddress + (number * ShiftBetweenChannels), new DoubleWordRegister(parent)
+                    .WithValueField(0, 32, out sourceAddress, name: "Source address (SA)")
+                    );
+                registersMap.Add((long)ChannelRegisters.ChannelDestinationAddress + (number * ShiftBetweenChannels), new DoubleWordRegister(parent)
+                    .WithValueField(0, 32, out destinationAddress, name: "Destination address (DA)"));
+                registersMap.Add((long)ChannelRegisters.ChannelLinkedListAddress + (number * ShiftBetweenChannels), new DoubleWordRegister(parent)
+                    .WithReservedBits(0, 2)
+                    /*TODO: If UT1 = UT2 = UB1 = USA = UDA = ULL = 0 and if LA[15:2] = 0, the current LLI is the last
+                    one. The channel transfer is completed without any update of the linked-list GPDMA register
+                    file. Else, this field is the pointer to the memory address offset from which the next linked-list data
+                    structure is automatically fetched from, once the data transfer is completed, in order to
+                    conditionally update the linked-list GPDMA internal register file (GPDMA_CxTR1,
+                    GPDMA_CxTR2, GPDMA_CxBR1, GPDMA_CxSAR, GPDMA_CxDAR, and
+                    GPDMA_CxLLR*/
+                    .WithValueField(2, 14, out lowSignificantAddress, name: "Low-significant address (LA)")
+                    .WithFlag(16, out updateLLRfromMemory, name: "Update CxLLR register from memory (ULL)")
+                    .WithReservedBits(17, 10)
+                    .WithFlag(27, out updateDARfromMemory, name: "Update CxDAR register from memory (UDA)")
+                    .WithFlag(28, out updateSARfromMemory, name: "Update CxSAR register from memory (USA)")
+                    .WithFlag(29, out updateBR1fromMemory, name: "Update CxBR1 register from memory (UB1)")
+                    .WithFlag(30, out updateTR2fromMemory, name: "Update CxTR2 register from memory (UT2)")
+                    .WithFlag(31, out updateTR1fromMemory, name: "Update CxTR1 register from memory (UT1)")
+                    );
                 registers = new DoubleWordRegisterCollection(parent, registersMap);
             }
 
@@ -444,47 +469,27 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             private void DoTransfer()
             {
-                // This value is still valid in memory-to-memory mode, "peripheral" means
-                // "the address specified by the peripheralAddress field" and not necessarily
-                // a peripheral.
-                if (transferDirection.Value == TransferDirection.PeripheralToMemory)
-                {
-                    var toCopy = (uint)dataCount.Value;
-                    // In peripheral-to-memory mode, only copy one data unit. Otherwise, do the whole block.
-                    if (!memoryToMemory.Value)
-                    {
-                        toCopy = Math.Max((uint)SizeToType(memoryTransferType.Value),
-                            (uint)SizeToType(peripheralTransferType.Value));
-                        dataCount.Value -= 1;
-                    }
-                    else
-                    {
-                        dataCount.Value = 0;
-                    }
-                    var response = IssueCopy(currentPeripheralAddress, currentMemoryAddress, toCopy,
-                        peripheralIncrementMode.Value, memoryIncrementMode.Value, peripheralTransferType.Value,
-                        memoryTransferType.Value);
-                    currentPeripheralAddress = response.ReadAddress.Value;
-                    currentMemoryAddress = response.WriteAddress.Value;
-                    HalfTransfer = dataCount.Value <= originalDataCount / 2;
-                    TransferComplete = dataCount.Value == 0;
-                }
-                else // 1-bit field, so we handle both possible values
-                {
-                    IssueCopy(memoryAddress.Value, peripheralAddress.Value, (uint)dataCount.Value,
-                        memoryIncrementMode.Value, peripheralIncrementMode.Value, memoryTransferType.Value,
-                        peripheralTransferType.Value);
-                    dataCount.Value = 0;
-                    HalfTransfer = true;
-                    TransferComplete = true;
-                }
+                //TODO: implement linked list mode / 
+                var toCopy = (uint)dataCount.Value;
+                toCopy = Math.Max((uint)SizeToType(memoryTransferType.Value),
+                   (uint)SizeToType(peripheralTransferType.Value));
+                dataCount.Value -= 1; //TODO update proper register
 
+                var response = IssueCopy(currentSourceAddress, currentDestinationAddress, toCopy,
+                    peripheralIncrementMode.Value, memoryIncrementMode.Value, peripheralTransferType.Value,
+                    memoryTransferType.Value);
+                currentSourceAddress = response.ReadAddress.Value;
+                currentDestinationAddress = response.WriteAddress.Value;
+                HalfTransfer = dataCount.Value <= originalDataCount / 2;
+                TransferComplete = dataCount.Value == 0;
+
+                // TODO: check if this still applies to WBA55
                 // Loop around if circular mode is enabled
-                if (circularMode.Value && !memoryToMemory.Value && dataCount.Value == 0)
+                if (circularMode.Value && dataCount.Value == 0) 
                 {
                     dataCount.Value = originalDataCount;
-                    currentPeripheralAddress = peripheralAddress.Value;
-                    currentMemoryAddress = memoryAddress.Value;
+                    currentSourceAddress = sourceAddress.Value;
+                    currentDestinationAddress = destinationAddress.Value;
                 }
                 // No parent.Update - this is called by the register write and TryTriggerTransfer
                 // to avoid calling it twice in the former case
@@ -520,15 +525,10 @@ namespace Antmicro.Renode.Peripherals.DMA
                 }
             }
 
-
-            private IEnumRegisterField<TransferDirection> transferDirection;
             private IFlagRegisterField circularMode;
             private IFlagRegisterField peripheralIncrementMode;
             private IFlagRegisterField memoryIncrementMode;
-            private IFlagRegisterField memoryToMemory;
             private IValueRegisterField dataCount;
-            private IValueRegisterField memoryAddress;
-            private IValueRegisterField peripheralAddress;
 
             //Channel Control CxCR
             private IFlagRegisterField channelEnable;
@@ -541,9 +541,8 @@ namespace Antmicro.Renode.Peripherals.DMA
             private IFlagRegisterField userSettingErrorInterruptEnable;
             private IFlagRegisterField completedSuspensionInterruptEnable;
             private IFlagRegisterField triggerOverrunInterruptEnable;
-            private IEnumRegisterField<Priotity> priorityLevel;
+            private IEnumRegisterField<Priority> priorityLevel;
 
-            //Channel Linked List Base Address CxLBAR
             private IValueRegisterField linkedListBaseAddress;
 
             //Transfer Register CxTR 1&2   
@@ -558,17 +557,30 @@ namespace Antmicro.Renode.Peripherals.DMA
             private IEnumRegisterField<TriggerEventInputSelection> triggerEventInputSelection;
             private IValueRegisterField transferCompleteEventMode;
 
+            private IValueRegisterField blockNumberDataBytesFromSource;
+            private IValueRegisterField sourceAddress;
+            private IValueRegisterField destinationAddress;
+
+            // Linked list address
+            private IValueRegisterField lowSignificantAddress;
+            private IFlagRegisterField updateLLRfromMemory;
+            private IFlagRegisterField updateDARfromMemory;
+            private IFlagRegisterField updateSARfromMemory;
+            private IFlagRegisterField updateBR1fromMemory;
+            private IFlagRegisterField updateTR2fromMemory;
+            private IFlagRegisterField updateTR1fromMemory;
+
             private IEnumRegisterField<TransferSize> memoryTransferType;
             private IEnumRegisterField<TransferSize> peripheralTransferType;
-            private ulong currentPeripheralAddress;
-            private ulong currentMemoryAddress;
+            private ulong currentSourceAddress;
+            private ulong currentDestinationAddress;
             private ulong originalDataCount;
 
             private readonly DoubleWordRegisterCollection registers;
             private readonly STM32WBA55_GPDMA parent;
             private readonly int channelNumber;
 
-            private enum Priotity
+            private enum Priority
             {
                 LowPrioLowWeight = 0,
                 LowPrioMidWeight = 1,
@@ -582,12 +594,6 @@ namespace Antmicro.Renode.Peripherals.DMA
                 Bits16 = 1, // half-word (2bytes)
                 Bits32 = 2, // word (4bytes)
                 UserSettingError = 3
-            }
-
-            private enum TransferDirection
-            {
-                PeripheralToMemory = 0,
-                MemoryToPeripheral = 1,
             }
 
             private enum HardwareRequestSelection
@@ -697,7 +703,6 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         private enum Registers : long
         {
-
             SecureConfiguration = 0x00, //SECCFGR
             PrivilegedConfiguration = 0x04, //PRIVCFGR
             ConfigurationLock = 0x08, //RCFGLOCKR
