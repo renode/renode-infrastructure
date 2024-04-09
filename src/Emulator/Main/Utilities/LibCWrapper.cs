@@ -1,11 +1,12 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.Runtime.InteropServices;
+using System.Text;
 #if PLATFORM_LINUX
 using Mono.Unix.Native;
 using Mono.Unix;
@@ -13,6 +14,28 @@ using Mono.Unix;
 
 namespace Antmicro.Renode.Utilities
 {
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    public struct InterfaceRequest
+    {
+        // This class represents ifreq structure
+        public InterfaceRequest(string name, int interfaceIndex = 0)
+        {
+            if(name.Length >= InterfaceNameSize)
+            {
+                throw new ArgumentException($"Interface name must be no longer than {InterfaceNameSize - 1} characters", nameof(name));
+            }
+            Name = Encoding.ASCII.GetBytes(name).CopyAndResize(InterfaceNameSize);
+            InterfaceIndex = interfaceIndex;
+        }
+
+        // NOTE: layout of this stucture is deliberate
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst=InterfaceNameSize)]
+        public byte[] Name;
+        public int InterfaceIndex;
+
+        public const int InterfaceNameSize = 16;
+    }
+
     public class LibCWrapper
     {
         public static int Open(string path, int mode)
@@ -121,6 +144,15 @@ namespace Antmicro.Renode.Utilities
 #endif
         }
 
+        public static int Ioctl(int fd, int request, ref InterfaceRequest ifreq)
+        {
+#if !PLATFORM_LINUX
+            throw new NotSupportedException("This API is available on Linux only!");
+#else
+            return ioctl(fd, request, ref ifreq);
+#endif
+        }
+
         public static IntPtr Strcpy(IntPtr dst, IntPtr src)
         {
 #if !PLATFORM_LINUX
@@ -161,6 +193,9 @@ namespace Antmicro.Renode.Utilities
 
         [DllImport("libc", EntryPoint = "ioctl", SetLastError = true)]
         private static extern int ioctl(int d, int request, int a);
+
+        [DllImport("libc", EntryPoint = "ioctl", SetLastError = true)]
+        public static extern int ioctl(int d, int request, ref InterfaceRequest ifreq);
 
         [DllImport("libc", EntryPoint = "socket", SetLastError = true)]
         private static extern int socket(int domain, int type, int protocol);
