@@ -179,6 +179,7 @@ namespace Antmicro.Renode.Peripherals.Network
         public ulong SendDataInactivityDisconnectDelay { get; set; }
         public ulong SendDataActivityConnectDelay { get; set; } = 550;
         public bool SendCSCONOnChangeOnly { get; set; } = true;
+		public bool ForceQeng0Failure { get; set; } = false;
 
         public int SignalStrength => (int?)Misc.RemapNumber(Rssi, -113m, -51m, 0, 31) ?? 0;
         public int ActiveTimeSeconds => ConvertEncodedStringToSeconds(ActiveTime, ModemTimerType.ActiveTimeT3324);
@@ -498,8 +499,15 @@ namespace Antmicro.Renode.Peripherals.Network
             switch(mode)
             {
                 case 0:
-                    return Ok.WithParameters($"+QENG: 0,{CellEarfcn},{CellEarfcnOffset},{CellPhysicalId},\"{CellId}\",{Rsrp},{(int)Rsrq},{Rssi},{Sinr},{Band},\"{TrackingAreaCode}\",{EnhancedCoverageLevel},{TransmitPower},2");
-                case 2:
+					if(ForceQeng0Failure)
+					{
+						return Error;
+					}
+					else
+					{
+						return Ok.WithParameters($"+QENG: 0,{CellEarfcn},{CellEarfcnOffset},{CellPhysicalId},\"{CellId}\",{Rsrp},{(int)Rsrq},{Rssi},{Sinr},{Band},\"{TrackingAreaCode}\",{EnhancedCoverageLevel},{TransmitPower},2");
+					}
+				case 2:
                     // The 3 here is not a typo, it matches real modem output and the AT command manual
                     return Ok.WithParameters($"+QENG: 3,{SleepDuration * 10:0},{RxTime * 10:0},{TxTime * 10:0}");
                 default:
