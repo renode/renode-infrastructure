@@ -54,35 +54,32 @@ namespace Antmicro.Renode.Peripherals.DMA
                 interruptFlagClear.DefineFlagField(j * 4 + 0, FieldMode.Write,
                     writeCallback: (_, val) =>
                     {
-                        if (!val)
+                        if (val)
                         {
-                            return;
+                            channels[j].GlobalInterrupt = false;
+                            channels[j].TransferComplete = false;
+                            channels[j].HalfTransfer = false;
                         }
-                        channels[j].GlobalInterrupt = false;
-                        channels[j].TransferComplete = false;
-                        channels[j].HalfTransfer = false;
                     },
                     name: $"Global interrupt flag clear for channel {j} (CGIF{j})");
                 interruptFlagClear.DefineFlagField(j * 4 + 1, FieldMode.Write,
                     writeCallback: (_, val) =>
                     {
-                        if (!val)
+                        if (val)
                         {
-                            return;
+                            channels[j].TransferComplete = false;
+                            channels[j].GlobalInterrupt = false;
                         }
-                        channels[j].TransferComplete = false;
-                        channels[j].GlobalInterrupt = false;
                     },
                     name: $"Transfer complete flag clear for channel {j} (CTEIF{j})");
                 interruptFlagClear.DefineFlagField(j * 4 + 2, FieldMode.Write,
                     writeCallback: (_, val) =>
                     {
-                        if (!val)
+                        if (val)
                         {
-                            return;
+                            channels[j].HalfTransfer = false;
+                            channels[j].GlobalInterrupt = false;
                         }
-                        channels[j].HalfTransfer = false;
-                        channels[j].GlobalInterrupt = false;
                     },
                     name: $"Half transfer flag clear for channel {j} (CHTIF{j})");
                 interruptFlagClear.Tag($"Transfer error flag clear for channel {j} (CTEIF{j})", j * 4 + 3, 1);
@@ -200,7 +197,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
                 var registersMap = new Dictionary<long, DoubleWordRegister>();
                 registersMap.Add((long)ChannelRegisters.ChannelLinkedListBaseAddress + (number * ShiftBetweenChannels), new DoubleWordRegister(parent)
-                    .WithReservedBits(0,16)
+                    .WithReservedBits(0, 16)
                     .WithValueField(16, 16, out linkedListBaseAddress, name: "Linked list base address (LBA)"));
                 registersMap.Add((long)ChannelRegisters.ChannelFlagClear + (number * ShiftBetweenChannels), new DoubleWordRegister(parent)
                     .WithReservedBits(0, 8)
@@ -307,9 +304,9 @@ namespace Antmicro.Renode.Peripherals.DMA
                       .WithFlag(2, out channelSuspend, FieldMode.Write,
                         writeCallback: (_, val) =>
                         {
-                            if (!val)
+                            if (val)
                             {
-                                return;
+                                // TODO
                             }
                         }, name: "SUSPEND (SUSP)")
                     .WithReservedBits(3, 5)
@@ -332,23 +329,36 @@ namespace Antmicro.Renode.Peripherals.DMA
                     .WithEnumField(0, 2, out sourceDataWith, name: "Binary logarithm source data with (SDW_LOG2)")
                     .WithReservedBits(2, 1)
                     .WithFlag(3, out sourceIncrementingBurst, name: "Source incrementing burst (SINC)")
-                    .WithValueField(4, 5, out sourceBurstLength, name: "Source burst length (SBL_1)")                
+                    .WithValueField(4, 5, out sourceBurstLength, name: "Source burst length (SBL_1)")  //TODO              
                     .WithReservedBits(10, 1)
                     .WithTag("Padding alignment mode (PAM)", 11, 2)
                     .WithTag("Source byte exchange (SBX)", 13, 1)
                     .WithTag("Source allocated port (SAP)", 14, 1)
                     .WithTag("Security attribute source (SSEC)", 15, 1)
-                    .WithEnumField(16, 2, out destinationDataWith, name: "Binary logarithm destination data with (DDW_LOG2)")              
+                    .WithEnumField(16, 2, out destinationDataWith, name: "Binary logarithm destination data with (DDW_LOG2)")
                     .WithReservedBits(18, 1)
                     .WithFlag(19, out destinationIncrementingBurst, name: "Destination incrementing burst (DINC)")
-                    .WithValueField(20, 6, out destinationBurstLength, name: "Destination burst length (DBL_1)")  
-                    .WithTag("Destination byte exchange (DBX)", 26, 1)  
-                    .WithTag("Destination half-word exchange (DHX)", 27, 1)  
+                    .WithValueField(20, 6, out destinationBurstLength, name: "Destination burst length (DBL_1)")   //TODO   
+                    .WithTag("Destination byte exchange (DBX)", 26, 1)
+                    .WithTag("Destination half-word exchange (DHX)", 27, 1)
                     .WithReservedBits(28, 2)
-                    .WithTag("Destination allocated port (DAP)", 30, 1) 
-                    .WithTag("Security attribute destination (DSEC)", 31, 1) );
+                    .WithTag("Destination allocated port (DAP)", 30, 1)
+                    .WithTag("Security attribute destination (DSEC)", 31, 1));
+                registersMap.Add((long)ChannelRegisters.ChannelTransfer2 + (number * ShiftBetweenChannels), new DoubleWordRegister(parent)
+                    .WithEnumField(0, 5, out hardwareRequestSelection, name: "Hardware request selection (REQSEL)")
+                    .WithReservedBits(6, 3)
+                    .WithFlag(9, out softwareRequest, name: "Software request (SWREQ)")
+                    .WithTag("Destination hardware request (DREQ)", 10, 1)
+                    .WithTag("Block hardware request (BREQ)", 11, 1)
+                    .WithReservedBits(12, 2)
+                    .WithTag("Trigger mode (TRIGM)", 14, 2)
+                    .WithEnumField(16, 5, out triggerEventInputSelection, name: "Trigger event input selection (TRIGSEL)")
+                    .WithReservedBits(21, 3)
+                    .WithTag("Trigger event polarity (TRIGPOL)", 24, 2)
+                    .WithReservedBits(26, 4)
+                    .WithValueField(30, 1, out transferCompleteEventMode, name: "Transfer complete event mode (TCEM)")   //TODO 
+                    );
                 //TODO: implement registers & callbacks
-                registersMap.Add((long)ChannelRegisters.ChannelTransfer2 + (number * ShiftBetweenChannels), new DoubleWordRegister(parent));
                 registersMap.Add((long)ChannelRegisters.ChannelBlock1 + (number * ShiftBetweenChannels), new DoubleWordRegister(parent));
                 registersMap.Add((long)ChannelRegisters.ChannelSourceAddress + (number * ShiftBetweenChannels), new DoubleWordRegister(parent));
                 registersMap.Add((long)ChannelRegisters.ChannelDestinationAddress + (number * ShiftBetweenChannels), new DoubleWordRegister(parent));
@@ -543,6 +553,10 @@ namespace Antmicro.Renode.Peripherals.DMA
             private IValueRegisterField destinationBurstLength;
             private IEnumRegisterField<TransferSize> sourceDataWith;
             private IEnumRegisterField<TransferSize> destinationDataWith;
+            private IEnumRegisterField<HardwareRequestSelection> hardwareRequestSelection;
+            private IFlagRegisterField softwareRequest;
+            private IEnumRegisterField<TriggerEventInputSelection> triggerEventInputSelection;
+            private IValueRegisterField transferCompleteEventMode;
 
             private IEnumRegisterField<TransferSize> memoryTransferType;
             private IEnumRegisterField<TransferSize> peripheralTransferType;
@@ -574,6 +588,96 @@ namespace Antmicro.Renode.Peripherals.DMA
             {
                 PeripheralToMemory = 0,
                 MemoryToPeripheral = 1,
+            }
+
+            private enum HardwareRequestSelection
+            {
+                Adc4_dma = 0,
+                Spi1_rx_dma = 1,
+                Spi1_tx_dma = 2,
+                Spi3_rx_dma = 3,
+                Spi3_tx_dma = 4,
+                I2c1_rx_dma = 5,
+                I2c1_tx_dma = 6,
+                I2c1_evc_dma = 7,
+                I2c3_rx_dma = 8,
+                I2c3_tx_dma = 9,
+                I2c3_evc_dma = 10,
+                Usart1_rx_dma = 11,
+                Usart1_tx_dma = 12,
+                Usart2_rx_dma = 13,
+                Usart2_tx_dma = 14,
+                Lpuart1_rx_dma = 15,
+                Lpuart1_tx_dma = 16,
+                Sai_a_dma = 17,
+                Sai_b_dma = 18,
+                Tim1_cc1_dma = 19,
+                Tim1_cc2_dma = 20,
+                Tim1_cc3_dma = 21,
+                Tim1_cc4_dma = 22,
+                Tim1_upd_dma = 23,
+                Tim1_trg_dma = 24,
+                Tim1_com_dma = 25,
+                Tim2_cc1_dma = 26,
+                Tim2_cc2_dma = 27,
+                Tim2_cc3_dma = 28,
+                Tim2_cc4_dma = 29,
+                Tim2_upd_dma = 30,
+                Tim3_cc1_dma = 31,
+                Tim3_cc2_dma = 32,
+                Tim3_cc3_dma = 33,
+                Tim3_cc4_dma = 34,
+                Tim3_upd_dma = 35,
+                Tim3_trg_dma = 36,
+                Tim16_cc1_dma = 37,
+                Tim16_upd_dma = 38,
+                Tim17_cc1_dma = 39,
+                Tim17_upd_dma = 40,
+                Aes_in_dma = 41,
+                Aes_out_dma = 42,
+                Hash_in_dma = 43,
+                Saes_in_dma = 44,
+                Saes_out_dma = 45,
+                Lptim1_ic1_dma = 46,
+                Lptim1_ic2_dma = 47,
+                Lptim1_ue_dma = 48,
+                Lptim2_ic1_dma = 49,
+                Lptim2_ic2_dma = 50,
+                Lptim2_ue_dma = 51,
+            }
+
+            private enum TriggerEventInputSelection
+            {
+                Exti0 = 0,
+                Exti1 = 1,
+                Exti2 = 2,
+                Exti3 = 3,
+                Exti4 = 4,
+                Exti5 = 5,
+                Exti6 = 6,
+                Exti7 = 7,
+                Tamp_trg1 = 8,
+                Tamp_trg2 = 9,
+                Tamp_trg3 = 10,
+                Lptim1_ch1 = 11,
+                Lptim1_ch2 = 12,
+                Lptim2_ch1 = 13,
+                Lptim2_ch2 = 14,
+                Comp1_out = 15,
+                Comp2_out = 16,
+                Rtc_alra_trg = 17,
+                Rtc_alrb_trg = 18,
+                Rtc_wut_trg = 19,
+                Gpdma1_ch0_tc = 20,
+                Gpdma1_ch1_tc = 21,
+                Gpdma1_ch2_tc = 22,
+                Gpdma1_ch3_tc = 23,
+                Gpdma1_ch4_tc = 24,
+                Gpdma1_ch5_tc = 25,
+                Gpdma1_ch6_tc = 26,
+                Gpdma1_ch7_tc = 27,
+                Tim2_trgo = 28,
+                Adc4_awd1 = 29,
             }
 
             private enum ChannelRegisters
