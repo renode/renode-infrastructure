@@ -36,6 +36,26 @@ namespace Antmicro.Renode.Utilities
         public const int InterfaceNameSize = 16;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    public struct SocketAddressCan
+    {
+        // This class represents sockaddr_can structure
+        public SocketAddressCan(int interfaceIndex)
+        {
+            CanFamily = AddressFamilyCan;
+            CanInterfaceIndex = interfaceIndex;
+        }
+
+        // NOTE: layout of this stucture is deliberate
+        // sockaddr_can.can_family
+        public readonly ushort CanFamily;
+        // sockaddr_can.can_ifindex
+        public int CanInterfaceIndex;
+
+        // AF_CAN
+        private const int AddressFamilyCan = 29;
+    }
+
     public class LibCWrapper
     {
         public static int Open(string path, int mode)
@@ -180,6 +200,15 @@ namespace Antmicro.Renode.Utilities
 #endif
         }
 
+        public static int Bind(int domain, SocketAddressCan addr, int addrSize)
+        {
+#if !PLATFORM_LINUX
+            throw new NotSupportedException("This API is available on Linux only!");
+#else
+            return bind(domain, ref addr, addrSize);
+#endif
+        }
+
         #region Externs
 
         [DllImport("libc", EntryPoint = "open", SetLastError = true)]
@@ -199,6 +228,9 @@ namespace Antmicro.Renode.Utilities
 
         [DllImport("libc", EntryPoint = "socket", SetLastError = true)]
         private static extern int socket(int domain, int type, int protocol);
+
+        [DllImport("libc", EntryPoint = "bind", SetLastError = true)]
+        public static extern int bind(int sockfd, ref SocketAddressCan addr, int addrSize);
 
         [DllImport("libc", EntryPoint = "close")]
         private static extern int close(int fd);
