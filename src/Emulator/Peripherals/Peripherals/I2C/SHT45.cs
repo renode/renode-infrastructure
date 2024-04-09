@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -11,10 +11,11 @@ using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Peripherals.Sensor;
 
 namespace Antmicro.Renode.Peripherals.I2C
 {
-    public class SHT45 : II2CPeripheral
+    public class SHT45 : II2CPeripheral, ITemperatureSensor
     {
         public SHT45()
         {
@@ -83,7 +84,7 @@ namespace Antmicro.Renode.Peripherals.I2C
         }
 
         public uint SerialNumber { get; set; }
-        public double Temperature { get; set; }
+        public decimal Temperature { get; set; }
         public double Humidity { get; set; }
 
         private void EncodeSerialNumberMessage()
@@ -110,9 +111,9 @@ namespace Antmicro.Renode.Peripherals.I2C
             message[5] = rhCrc;
         }
 
-        private byte[] EncodeTemperature(double temperature)
+        private byte[] EncodeTemperature(decimal temperature)
         {
-            double st = (temperature + 45) * 65535.0 / 175.0;
+            decimal st = (temperature + 45) * 65535.0m / 175.0m;
             ushort stU16 = (ushort)Math.Round(st);
             byte stLo = (byte)(stU16);
             byte stHi = (byte)((stU16 >> 8));
