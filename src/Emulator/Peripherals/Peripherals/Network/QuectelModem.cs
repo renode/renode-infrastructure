@@ -507,7 +507,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     {
                         return Ok.WithParameters($"+QENG: 0,{CellEarfcn},{CellEarfcnOffset},{CellPhysicalId},\"{CellId}\",{Rsrp},{(int)Rsrq},{Rssi},{Sinr},{Band},\"{TrackingAreaCode}\",{EnhancedCoverageLevel},{TransmitPower},2");
                     }
-				case 2:
+                case 2:
                     // The 3 here is not a typo, it matches real modem output and the AT command manual
                     return Ok.WithParameters($"+QENG: 3,{SleepDuration * 10:0},{RxTime * 10:0},{TxTime * 10:0}");
                 default:
