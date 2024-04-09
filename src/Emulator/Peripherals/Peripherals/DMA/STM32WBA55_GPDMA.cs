@@ -277,7 +277,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     .WithFlag(14, FieldMode.Read, name: "Trigger overrun flag (TOF)",
                         valueProviderCallback: _ => TriggerOverrun)
                     .WithReservedBits(15, 1)
-                    .WithTag("Monitored FIFO level (FIFOL)", 16, 8)
+                    .WithValueField(16, 8, out monitoredFIFOlevel, name: "Monitored FIFO level (FIFOL)")   //TODO 
                     .WithReservedBits(24, 8));
                 registersMap.Add((long)ChannelRegisters.ChannelControl + (number * ShiftBetweenChannels), new DoubleWordRegister(parent)
                     .WithFlag(0, out channelEnable,
@@ -410,7 +410,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             public bool TryTriggerTransfer()
             {
-                if (!Enabled || dataCount.Value == 0)
+                if (!Enabled || monitoredFIFOlevel.Value == 0)
                 {
                     return false;
                 }
@@ -470,24 +470,24 @@ namespace Antmicro.Renode.Peripherals.DMA
             private void DoTransfer()
             {
                 //TODO: implement linked list mode / 
-                var toCopy = (uint)dataCount.Value;
+                var toCopy = (uint)monitoredFIFOlevel.Value;
                 toCopy = Math.Max((uint)SizeToType(memoryTransferType.Value),
                    (uint)SizeToType(peripheralTransferType.Value));
-                dataCount.Value -= 1; //TODO update proper register
+                monitoredFIFOlevel.Value -= 1; //TODO update proper register
 
                 var response = IssueCopy(currentSourceAddress, currentDestinationAddress, toCopy,
                     peripheralIncrementMode.Value, memoryIncrementMode.Value, peripheralTransferType.Value,
                     memoryTransferType.Value);
                 currentSourceAddress = response.ReadAddress.Value;
                 currentDestinationAddress = response.WriteAddress.Value;
-                HalfTransfer = dataCount.Value <= originalDataCount / 2;
-                TransferComplete = dataCount.Value == 0;
+                HalfTransfer = monitoredFIFOlevel.Value <= originalMonitoredFIFOlevel / 2;
+                TransferComplete = monitoredFIFOlevel.Value == 0;
 
                 // TODO: check if this still applies to WBA55
                 // Loop around if circular mode is enabled
-                if (circularMode.Value && dataCount.Value == 0) 
+                if (circularMode.Value && monitoredFIFOlevel.Value == 0) 
                 {
-                    dataCount.Value = originalDataCount;
+                    monitoredFIFOlevel.Value = originalMonitoredFIFOlevel;
                     currentSourceAddress = sourceAddress.Value;
                     currentDestinationAddress = destinationAddress.Value;
                 }
@@ -528,7 +528,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             private IFlagRegisterField circularMode;
             private IFlagRegisterField peripheralIncrementMode;
             private IFlagRegisterField memoryIncrementMode;
-            private IValueRegisterField dataCount;
+            private IValueRegisterField monitoredFIFOlevel;
 
             //Channel Control CxCR
             private IFlagRegisterField channelEnable;
@@ -574,7 +574,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             private IEnumRegisterField<TransferSize> peripheralTransferType;
             private ulong currentSourceAddress;
             private ulong currentDestinationAddress;
-            private ulong originalDataCount;
+            private ulong originalMonitoredFIFOlevel;
 
             private readonly DoubleWordRegisterCollection registers;
             private readonly STM32WBA55_GPDMA parent;
