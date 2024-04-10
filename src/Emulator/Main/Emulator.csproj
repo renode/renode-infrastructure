@@ -158,6 +158,9 @@
     <Compile Include="Peripherals\IHasOwnLife.cs" />
     <Compile Include="Core\Range.cs" />
     <Compile Include="Peripherals\UART\IUART.cs" />
+    <Compile Include="Peripherals\SENT\ISENTPeripheral.cs" />
+    <Compile Include="Peripherals\SENT\Transmitter.cs" />
+    <Compile Include="Peripherals\SENT\Messages.cs" />
     <Compile Include="Peripherals\CFU\ICFU.cs" />
     <Compile Include="Utilities\SharedLibraries.cs" />
     <Compile Include="Peripherals\Network\INetworkInterface.cs" />
