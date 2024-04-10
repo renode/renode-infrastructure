@@ -20,6 +20,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             for (var i = 0; i < numberOfChannels; ++i)
             {
                 channels[i] = new Channel(this, i);
+                this.Log(LogLevel.Info, "Created channel " + i);
                 innerConnections[i] = new GPIO();
             }
 
@@ -124,6 +125,8 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
             if (TryGetChannelNumberBasedOnOffset(offset, out var channelNo))
             {
+                
+                this.Log(LogLevel.Info, "Write in Channel {0} with offset: {1} and value: {2}", channelNo, offset, value);
                 channels[channelNo].WriteDoubleWord(offset, value);
                 return;
             }
@@ -132,9 +135,9 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         public void OnGPIO(int number, bool value)
         {
-            if (number == 0 || number > channels.Length)
+            if (number > channels.Length)
             {
-                this.Log(LogLevel.Error, "Channel number {0} is out of range, must be in [1; {1}]", number, channels.Length);
+                this.Log(LogLevel.Error, "Channel number {0} is out of range, must be in [0; {1}]", number, channels.Length -1);
                 return;
             }
 
@@ -285,6 +288,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                         {
                             if (val)
                             {
+                                parent.Log(LogLevel.Info, "Start DoTransfer");
                                 DoTransfer();
                             }
                         })
@@ -393,11 +397,13 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             public uint ReadDoubleWord(long offset)
             {
+                parent.Log(LogLevel.Debug, "Read in register {0}", offset);
                 return registers.Read(offset);
             }
 
             public void WriteDoubleWord(long offset, uint value)
-            {
+            {   
+                parent.Log(LogLevel.Debug, "Write in register offset {0}" , offset);
                 registers.Write(offset, value);
             }
 
@@ -414,7 +420,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 {
                     return false;
                 }
-
+                parent.Log(LogLevel.Info, "Start DoTransfer");
                 DoTransfer();
                 parent.Update();
                 return true;
@@ -469,25 +475,26 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             private void DoTransfer()
             {
+                parent.Log(LogLevel.Info, "Start DoTransfer");
                 //TODO: implement linked list mode / 
-                var toCopy = (uint)monitoredFIFOlevel.Value;
-                toCopy = Math.Max((uint)SizeToType(memoryTransferType.Value),
-                   (uint)SizeToType(peripheralTransferType.Value));
-                monitoredFIFOlevel.Value -= 1; //TODO update proper register
+                var toCopy = (uint)blockNumberDataBytesFromSource.Value;
+                toCopy = Math.Max((uint)SizeToType(sourceDataWith.Value),
+                   (uint)SizeToType(destinationDataWith.Value));
+                blockNumberDataBytesFromSource.Value -= 1; //TODO update proper register
 
                 var response = IssueCopy(currentSourceAddress, currentDestinationAddress, toCopy,
-                    peripheralIncrementMode.Value, memoryIncrementMode.Value, peripheralTransferType.Value,
-                    memoryTransferType.Value);
+                    sourceIncrementingBurst.Value, destinationIncrementingBurst.Value, sourceDataWith.Value,
+                    destinationDataWith.Value);
                 currentSourceAddress = response.ReadAddress.Value;
                 currentDestinationAddress = response.WriteAddress.Value;
-                HalfTransfer = monitoredFIFOlevel.Value <= originalMonitoredFIFOlevel / 2;
-                TransferComplete = monitoredFIFOlevel.Value == 0;
+                HalfTransfer = blockNumberDataBytesFromSource.Value <= originalBlockNumberDataBytesFromSource / 2;
+                TransferComplete = blockNumberDataBytesFromSource.Value == 0;
 
                 // TODO: check if this still applies to WBA55
                 // Loop around if circular mode is enabled
-                if (circularMode.Value && monitoredFIFOlevel.Value == 0) 
+                if (circularMode.Value && blockNumberDataBytesFromSource.Value == 0)
                 {
-                    monitoredFIFOlevel.Value = originalMonitoredFIFOlevel;
+                    blockNumberDataBytesFromSource.Value = originalBlockNumberDataBytesFromSource;
                     currentSourceAddress = sourceAddress.Value;
                     currentDestinationAddress = destinationAddress.Value;
                 }
@@ -496,15 +503,15 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
 
             private Response IssueCopy(ulong sourceAddress, ulong destinationAddress, uint size,
-                bool incrementReadAddress, bool incrementWriteAddress, TransferSize sourceTransferType,
-                TransferSize destinationTransferType)
+                bool incrementReadAddress, bool incrementWriteAddress, TransferSize sourceDataWith,
+                TransferSize destinationDataWith)
             {
                 var request = new Request(
                     sourceAddress,
                     destinationAddress,
                     (int)size,
-                    SizeToType(sourceTransferType),
-                    SizeToType(destinationTransferType),
+                    SizeToType(sourceDataWith),
+                    SizeToType(destinationDataWith),
                     incrementReadAddress,
                     incrementWriteAddress
                 );
@@ -526,8 +533,6 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
 
             private IFlagRegisterField circularMode;
-            private IFlagRegisterField peripheralIncrementMode;
-            private IFlagRegisterField memoryIncrementMode;
             private IValueRegisterField monitoredFIFOlevel;
 
             //Channel Control CxCR
@@ -570,11 +575,9 @@ namespace Antmicro.Renode.Peripherals.DMA
             private IFlagRegisterField updateTR2fromMemory;
             private IFlagRegisterField updateTR1fromMemory;
 
-            private IEnumRegisterField<TransferSize> memoryTransferType;
-            private IEnumRegisterField<TransferSize> peripheralTransferType;
             private ulong currentSourceAddress;
             private ulong currentDestinationAddress;
-            private ulong originalMonitoredFIFOlevel;
+            private ulong originalBlockNumberDataBytesFromSource;
 
             private readonly DoubleWordRegisterCollection registers;
             private readonly STM32WBA55_GPDMA parent;
