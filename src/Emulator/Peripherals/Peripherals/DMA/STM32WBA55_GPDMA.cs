@@ -125,7 +125,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
             if (TryGetChannelNumberBasedOnOffset(offset, out var channelNo))
             {
-                
+
                 this.Log(LogLevel.Info, "Write in Channel {0} with offset: {1} and value: {2}", channelNo, offset, value);
                 channels[channelNo].WriteDoubleWord(offset, value);
                 return;
@@ -137,7 +137,7 @@ namespace Antmicro.Renode.Peripherals.DMA
         {
             if (number > channels.Length)
             {
-                this.Log(LogLevel.Error, "Channel number {0} is out of range, must be in [0; {1}]", number, channels.Length -1);
+                this.Log(LogLevel.Error, "Channel number {0} is out of range, must be in [0; {1}]", number, channels.Length - 1);
                 return;
             }
 
@@ -157,7 +157,7 @@ namespace Antmicro.Renode.Peripherals.DMA
         public IReadOnlyDictionary<int, IGPIO> Connections { get; }
 
         public long Size => 0x1000;
-
+        
         private bool TryGetChannelNumberBasedOnOffset(long offset, out int channel)
         {
             var shifted = offset - (long)Registers.Channel0LinkedListBaseAddress;
@@ -168,7 +168,6 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
             return true;
         }
-
         private void Update()
         {
             for (var i = 0; i < numberOfChannels; ++i)
@@ -288,7 +287,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                         {
                             if (val)
                             {
-                                parent.Log(LogLevel.Info, "Start DoTransfer");
+                                parent.Log(LogLevel.Info, "Before DoTransfer in Enable register");
                                 DoTransfer();
                             }
                         })
@@ -402,8 +401,8 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
 
             public void WriteDoubleWord(long offset, uint value)
-            {   
-                parent.Log(LogLevel.Debug, "Write in register offset {0}" , offset);
+            {
+                parent.Log(LogLevel.Debug, "Write in register offset {0}", offset);
                 registers.Write(offset, value);
             }
 
@@ -420,7 +419,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 {
                     return false;
                 }
-                parent.Log(LogLevel.Info, "Start DoTransfer");
+                parent.Log(LogLevel.Info, "Before DoTransfer from TryTriggerTransfer");
                 DoTransfer();
                 parent.Update();
                 return true;
@@ -478,26 +477,36 @@ namespace Antmicro.Renode.Peripherals.DMA
                 parent.Log(LogLevel.Info, "Start DoTransfer");
                 //TODO: implement linked list mode / 
                 var toCopy = (uint)blockNumberDataBytesFromSource.Value;
+                parent.Log(LogLevel.Info, "toCopy: {0}", toCopy);
                 toCopy = Math.Max((uint)SizeToType(sourceDataWith.Value),
                    (uint)SizeToType(destinationDataWith.Value));
+                parent.Log(LogLevel.Info, "toCopy: {0}", toCopy);
                 blockNumberDataBytesFromSource.Value -= 1; //TODO update proper register
+                parent.Log(LogLevel.Info, "blockNumberDataBytesFromSource: {0}", blockNumberDataBytesFromSource.Value);
 
+                parent.Log(LogLevel.Info, "IssueCopy - currentSourceAddress: {0}, currentDestinationAddress: {1}, " + 
+                        "sourceIncrementingBurst: {2}, destinationIncrementingBurst: {3}, " + 
+                        "sourceDataWith: {4}, destinationDataWith: {5} ",
+                            currentSourceAddress, currentDestinationAddress,
+                            sourceIncrementingBurst.Value, destinationIncrementingBurst.Value,
+                            sourceDataWith.Value,destinationDataWith.Value);
                 var response = IssueCopy(currentSourceAddress, currentDestinationAddress, toCopy,
                     sourceIncrementingBurst.Value, destinationIncrementingBurst.Value, sourceDataWith.Value,
                     destinationDataWith.Value);
+                parent.Log(LogLevel.Info, "response read/write addr: {0} / {1}", response.ReadAddress, response.WriteAddress);
                 currentSourceAddress = response.ReadAddress.Value;
                 currentDestinationAddress = response.WriteAddress.Value;
                 HalfTransfer = blockNumberDataBytesFromSource.Value <= originalBlockNumberDataBytesFromSource / 2;
                 TransferComplete = blockNumberDataBytesFromSource.Value == 0;
 
-                // TODO: check if this still applies to WBA55
+                // TODO: check if this still applies to WBA55. currently leads to NullRef
                 // Loop around if circular mode is enabled
-                if (circularMode.Value && blockNumberDataBytesFromSource.Value == 0)
+                /*if (circularMode.Value && blockNumberDataBytesFromSource.Value == 0)
                 {
                     blockNumberDataBytesFromSource.Value = originalBlockNumberDataBytesFromSource;
                     currentSourceAddress = sourceAddress.Value;
                     currentDestinationAddress = destinationAddress.Value;
-                }
+                }*/
                 // No parent.Update - this is called by the register write and TryTriggerTransfer
                 // to avoid calling it twice in the former case
             }
