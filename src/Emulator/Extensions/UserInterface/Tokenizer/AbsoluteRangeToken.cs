@@ -1,16 +1,13 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-﻿using System;
 using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
-
-using Range = Antmicro.Renode.Core.Range;
 
 namespace Antmicro.Renode.UserInterface.Tokenizer
 {
@@ -22,13 +19,15 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
             var split = trimmed.Split(',').Select(x => x.Trim()).ToArray();
             var resultValues = ParseNumbers(split);
 
-            Range temp;
-            // we need a size, so we add 1 to range.end - range.being result. Range <0x0, 0xFFF> has a size of 0x1000.
-            if(!Range.TryCreate(resultValues[0], resultValues[1] - resultValues[0] + 1, out temp))
+            if(resultValues[0] > resultValues[1])
             {
-                throw new RecoverableException("Could not create range. Size has to be non-negative.");
+                // split is used instead of resultValues to print numbers using the same format as input.
+                throw new RecoverableException(
+                    "Could not create range; the start address can't be higher than the end address.\n"
+                    + $"Use '<{split[0]} {split[1]}>' without a comma if the second argument is size."
+                );
             }
-            Value = temp;
+            Value = resultValues[0].To(resultValues[1]);
         }
     }
 }

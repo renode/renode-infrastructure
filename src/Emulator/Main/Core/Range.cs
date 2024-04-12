@@ -9,24 +9,21 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Core
 {
     public struct Range
     {
-        public static bool TryCreate(ulong startAddress, ulong size, out Range range)
+        public Range(ulong startAddress, ulong size)
         {
-            range = default(Range);
-            range.StartAddress = startAddress;
-            range.EndAddress = startAddress + size - 1;
-            return true;
-        }
+            StartAddress = startAddress;
+            EndAddress = startAddress + size - 1;
 
-        public Range(ulong startAddress, ulong size):this()
-        {
-            if(!TryCreate(startAddress, size, out this))
+            // Check if overflow occurred.
+            if(EndAddress < StartAddress)
             {
-                throw new ArgumentException("Size has to be positive or zero.", "size");
+                throw new RecoverableException($"Could not create range at 0x{startAddress:X}; size is too large: 0x{size:X}");
             }
         }
 
