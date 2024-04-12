@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -33,6 +33,7 @@ namespace Antmicro.Renode.HostInterfaces.Network
         public LinuxTapInterface(string name, bool persistent)
         {
             backupMAC = EmulationManager.Instance.CurrentEmulation.MACRepository.GenerateUniqueMAC();
+            mac = backupMAC;
             deviceName = name ?? "";
             this.persistent = persistent;
             Init();
@@ -118,12 +119,6 @@ namespace Antmicro.Renode.HostInterfaces.Network
         {
             get
             {
-                var ourInterface = NetworkInterface.GetAllNetworkInterfaces().FirstOrDefault(x => x.Name == InterfaceName);
-                if(ourInterface == null)
-                {
-                    return backupMAC;
-                }
-                var mac = (MACAddress)ourInterface.GetPhysicalAddress();
                 return mac;
             }
             set
@@ -211,6 +206,11 @@ namespace Antmicro.Renode.HostInterfaces.Network
                 Marshal.FreeHGlobal(devName);
             }
             active = true;
+            var ourInterface = NetworkInterface.GetAllNetworkInterfaces().FirstOrDefault(x => x.Name == InterfaceName);
+            if(ourInterface != null)
+            {
+                mac = (MACAddress)ourInterface.GetPhysicalAddress();
+            }
         }
 
         private void TransmitLoop(CancellationToken token)
@@ -256,6 +256,8 @@ namespace Antmicro.Renode.HostInterfaces.Network
 
         [Transient]
         private bool active;
+        [Transient]
+        private MACAddress mac;
         private MACAddress backupMAC;
         [Transient]
         private CancellationTokenSource cts;
