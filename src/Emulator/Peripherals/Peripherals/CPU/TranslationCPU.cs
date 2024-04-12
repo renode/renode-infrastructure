@@ -411,33 +411,32 @@ namespace Antmicro.Renode.Peripherals.CPU
             using(machine?.ObtainPausedState(true))
             {
                 currentMappings.Add(new SegmentMapping(segment));
-                RegisterMemoryChecked(segment.StartingOffset, segment.Size);
+                mappedMemory.Add(segment.GetRange());
+                SetAccessMethod(segment.GetRange(), true);
                 checked
                 {
                     TranslationCacheSize += segment.Size / 4;
                 }
             }
+            this.NoisyLog("Registered memory at 0x{0:X}, size 0x{1:X}.", segment.StartingOffset, segment.Size);
         }
 
         public void UnmapMemory(Range range)
         {
             using(machine?.ObtainPausedState(true))
             {
-                var startAddress = range.StartAddress;
-                var endAddress = range.EndAddress - 1;
-                ValidateMemoryRangeAndThrow(startAddress, range.Size);
-
-                // when unmapping memory, two things has to be done
+                // when unmapping memory, two things have to be done
                 // first is to flag address range as no-memory (that is, I/O)
-                TlibUnmapRange(startAddress, endAddress);
+                SetAccessMethod(range, asMemory: false);
 
-                // and second is to remove mappings that are not used anymore
+                // remove mappings that are not used anymore
                 currentMappings = currentMappings.
                     Where(x => TlibIsRangeMapped(x.Segment.StartingOffset, x.Segment.StartingOffset + x.Segment.Size) == 1).ToList();
                 checked
                 {
                     TranslationCacheSize -= range.Size / 4;
                 }
+                mappedMemory.Remove(range);
                 RebuildMemoryMappings();
             }
         }
@@ -899,24 +898,36 @@ namespace Antmicro.Renode.Peripherals.CPU
             return AssertMmuEnabledAndWindowInRange(index) ? TlibGetWindowPrivileges(index) : 0;
         }
 
-        private void RegisterMemoryChecked(ulong offset, ulong size)
+        private void SetAccessMethod(Range range, bool asMemory)
         {
-            checked
+            using(machine?.ObtainPausedState(true))
             {
-                ValidateMemoryRangeAndThrow(offset, size);
-                TlibMapRange(offset, size);
-                this.NoisyLog("Registered memory at 0x{0:X}, size 0x{1:X}.", offset, size);
+                ValidateMemoryRangeAndThrow(range);
+                if(asMemory)
+                {
+                    if(!mappedMemory.ContainsWholeRange(range))
+                    {
+                        throw new RecoverableException(
+                            $"Tried to set access as memory at {range} which isn't mapped memory in CPU: {this.GetName()}"
+                        );
+                    }
+                    TlibMapRange(range.StartAddress, range.Size);
+                }
+                else
+                {
+                    TlibUnmapRange(range.StartAddress, range.EndAddress);
+                }
             }
         }
 
-        private void ValidateMemoryRangeAndThrow(ulong startAddress, ulong size)
+        private void ValidateMemoryRangeAndThrow(Range range)
         {
             var pageSize = TlibGetPageSize();
-            if((startAddress % pageSize) != 0)
+            if((range.StartAddress % pageSize) != 0)
             {
                 throw new RecoverableException("Memory offset has to be aligned to guest page size.");
             }
-            if(size % pageSize != 0)
+            if(range.Size % pageSize != 0)
             {
                 throw new RecoverableException("Memory size has to be aligned to guest page size.");
             }
@@ -1088,10 +1099,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             foreach(var mapping in currentMappings)
             {
-                checked
-                {
-                    RegisterMemoryChecked(mapping.Segment.StartingOffset, mapping.Segment.Size);
-                }
+                SetAccessMethod(mapping.Segment.GetRange(), asMemory: true);
             }
         }
 
@@ -1424,6 +1432,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private List<SegmentMapping> currentMappings;
 
+        private readonly MinimalRangesCollection mappedMemory = new MinimalRangesCollection();
         private readonly CpuThreadPauseGuard pauseGuard;
 
         [Transient]
