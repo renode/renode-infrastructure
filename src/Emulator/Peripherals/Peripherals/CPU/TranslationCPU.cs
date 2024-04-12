@@ -131,15 +131,29 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public int CyclesPerInstruction
+        /// <summary>
+        /// The value is used to convert instructions count to cycles, e.g.:
+        /// * for RISC-V CYCLE and MCYCLE CSRs
+        /// * in ARM Performance Monitoring Unit
+        /// </summary>
+        public decimal CyclesPerInstruction
         {
             get
             {
-                return checked((int)TlibGetCyclesPerInstruction());
+                return checked(TlibGetMillicyclesPerInstruction() / 1000m);
             }
             set
             {
-                TlibSetCyclesPerInstruction(checked((uint)value));
+                if(value <= 0)
+                {
+                    throw new RecoverableException("Value must be a positive number.");
+                }
+                var millicycles = value * 1000m;
+                if(millicycles % 1m != 0)
+                {
+                    throw new RecoverableException("Value's precision can't be greater than 0.001");
+                }
+                TlibSetMillicyclesPerInstruction(checked((uint)millicycles));
             }
         }
 
@@ -1833,10 +1847,10 @@ namespace Antmicro.Renode.Peripherals.CPU
         private FuncUInt32 TlibGetMaximumBlockSize;
 
         [Import]
-        private ActionUInt32 TlibSetCyclesPerInstruction;
+        private ActionUInt32 TlibSetMillicyclesPerInstruction;
 
         [Import]
-        private FuncUInt32 TlibGetCyclesPerInstruction;
+        private FuncUInt32 TlibGetMillicyclesPerInstruction;
 
         [Import]
         private FuncInt32 TlibRestoreContext;
