@@ -343,6 +343,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         public override void Reset()
         {
             base.Reset();
+            disabledMemory.Clear();  // Must be before HandleRamSetup.
             isInterruptLoggingEnabled = false;
             HandleRamSetup();
             TlibReset();
@@ -419,6 +420,28 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
             }
             this.NoisyLog("Registered memory at 0x{0:X}, size 0x{1:X}.", segment.StartingOffset, segment.Size);
+        }
+
+        public void SetMappedMemoryEnabled(Range range, bool enabled)
+        {
+            using(machine?.ObtainPausedState(true))
+            {
+                // Check if anything needs to be changed.
+                if(enabled ? !disabledMemory.ContainsOverlappingRange(range) : disabledMemory.ContainsWholeRange(range))
+                {
+                    return;
+                }
+
+                if(enabled)
+                {
+                    disabledMemory.Remove(range);
+                }
+                else
+                {
+                    disabledMemory.Add(range);
+                }
+                SetAccessMethod(range, asMemory: enabled);
+            }
         }
 
         public void UnmapMemory(Range range)
@@ -970,6 +993,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        [Export]
+        private uint IsMemoryDisabled(ulong start, ulong size)
+        {
+            return disabledMemory.ContainsOverlappingRange(start.By(size)) ? 1u : 0u;
+        }
+
         /// <remarks>
         /// This method should be called from tlib only, and never from C#, since it uses `ObtainPauseGuardForHook`
         /// see: <see cref="ObtainPauseGuardForHook" /> for more information.
@@ -1099,7 +1128,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             foreach(var mapping in currentMappings)
             {
-                SetAccessMethod(mapping.Segment.GetRange(), asMemory: true);
+                var range = mapping.Segment.GetRange();
+                if(!disabledMemory.ContainsOverlappingRange(range))
+                {
+                    SetAccessMethod(range, asMemory: true);
+                }
             }
         }
 
@@ -1432,6 +1465,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private List<SegmentMapping> currentMappings;
 
+        private readonly MinimalRangesCollection disabledMemory = new MinimalRangesCollection();
         private readonly MinimalRangesCollection mappedMemory = new MinimalRangesCollection();
         private readonly CpuThreadPauseGuard pauseGuard;
 

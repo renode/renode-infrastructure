@@ -79,3 +79,4 @@ EXTERNAL_AS(action_uint64, OnContextChange, tlib_profiler_announce_context_chang
 EXTERNAL_AS(action_intptr_int32, OnMassBroadcastDirty, tlib_mass_broadcast_dirty)
 EXTERNAL_AS(func_intptr_intptr, GetDirty, tlib_get_dirty_addresses_list)
 EXTERNAL_AS(action_int32, OnWfiStateChange, tlib_on_wfi_state_change)
+EXTERNAL_AS(func_uint32_uint64_uint64, IsMemoryDisabled, tlib_is_memory_disabled)
