@@ -272,6 +272,12 @@ namespace Antmicro.Renode.Core
             return ranges.Any(existingRange => existingRange.Intersects(range));
         }
 
+        public bool ContainsWholeRange(Range range)
+        {
+            // Ranges are merged when added to the collection which means it's only possible if one of elements contains this whole range.
+            return ranges.Any(existingRange => existingRange.Contains(range));
+        }
+
         public IEnumerator GetEnumerator()
         {
             return ranges.GetEnumerator();
