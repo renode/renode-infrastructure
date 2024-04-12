@@ -1021,6 +1021,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
+        /// <returns>True if any part of the <c>range</c> is locked.</returns>
         public bool IsAddressRangeLocked(Range range)
         {
             return lockedRangesCollection.ContainsOverlappingRange(range);
