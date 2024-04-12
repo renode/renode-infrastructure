@@ -340,6 +340,17 @@ namespace Antmicro.Renode.Peripherals.Bus
             return id;
         }
 
+        private IEnumerable<ICPU> GetCPUsForContext(ICPU context)
+        {
+            return GetCPUs().Where(x => context == null || x == context);
+        }
+
+        private IEnumerable<T> GetCPUsForContext<T>(ICPU context)
+            where T : ICPU
+        {
+            return GetCPUsForContext(context).OfType<T>();
+        }
+
         private bool TryGetCurrentCPUId(out int cpuId)
         {
             if(threadLocalContext.InUse)
@@ -804,18 +815,13 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
-        public void UnmapMemory(ulong start, ulong size)
-        {
-            UnmapMemory(start.By(size));
-        }
-
-        public void UnmapMemory(Range range)
+        public void UnmapMemory(Range range, ICPU context = null)
         {
             lock(cpuSync)
             {
-                mappingsRemoved = true;
-                foreach(var cpu in idByCpu.Keys.OfType<ICPUWithMappedMemory>())
+                foreach(var cpu in GetCPUsForContext<ICPUWithMappedMemory>(context))
                 {
+                    mappingsRemoved = true;
                     cpu.UnmapMemory(range);
                 }
             }
@@ -1725,16 +1731,9 @@ namespace Antmicro.Renode.Peripherals.Bus
                     // Old mappings are given to the CPU in the moment of its registration.
                     foreach(var mapping in mappingsList)
                     {
-                        if(mapping.Context != null)
+                        foreach(var cpu in GetCPUsForContext<ICPUWithMappedMemory>(mapping.Context))
                         {
-                            mapping.Context.MapMemory(mapping);
-                        }
-                        else
-                        {
-                            foreach(var cpu in idByCpu.Keys.OfType<ICPUWithMappedMemory>())
-                            {
-                                cpu.MapMemory(mapping);
-                            }
+                            cpu.MapMemory(mapping);
                         }
                     }
                 }
