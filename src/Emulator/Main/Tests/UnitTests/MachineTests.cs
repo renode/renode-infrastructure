@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -27,8 +27,8 @@ namespace Antmicro.Renode.UnitTests
             var machine = new Machine();
             var peripheral1 = new Mock<IDoubleWordPeripheral>().Object;
             var peripheral2 = new Mock<IDoubleWordPeripheral>().Object;
-            machine.SystemBus.Register(peripheral1, 0.To(10));
-            machine.SystemBus.Register(peripheral2, 10.To(20));
+            machine.SystemBus.Register(peripheral1,  0.By(10));
+            machine.SystemBus.Register(peripheral2, 10.By(10));
             machine.SetLocalName(peripheral1, "name");
 
             Assert.Throws(typeof(RecoverableException), () => machine.SetLocalName(peripheral2, "name"));
@@ -39,7 +39,7 @@ namespace Antmicro.Renode.UnitTests
         {
             var machine = new Machine();
             var peripheral1 = new Mock<IDoubleWordPeripheral>().Object;
-            machine.SystemBus.Register(peripheral1, 0.To(10));
+            machine.SystemBus.Register(peripheral1, 0.By(10));
             machine.SetLocalName(peripheral1, "name");
 
             Assert.AreEqual(peripheral1, machine["sysbus.name"]);
@@ -51,8 +51,8 @@ namespace Antmicro.Renode.UnitTests
             var machine = new Machine();
             var peripheral1 = new Mock<IDoubleWordPeripheral>().Object;
             var peripheral2 = new Mock<IDoubleWordPeripheral>().Object;
-            machine.SystemBus.Register(peripheral1, 0.To(10));
-            machine.SystemBus.Register(peripheral2, 10.To(20));
+            machine.SystemBus.Register(peripheral1,  0.By(10));
+            machine.SystemBus.Register(peripheral2, 10.By(10));
             machine.SetLocalName(peripheral1, "first");
             machine.SetLocalName(peripheral2, "second");
 
@@ -65,7 +65,7 @@ namespace Antmicro.Renode.UnitTests
         {
             var machine = new Machine();
             var peripheral1 = new Mock<IDoubleWordPeripheral>().Object;
-            machine.SystemBus.Register(peripheral1, 0.To(10));
+            machine.SystemBus.Register(peripheral1, 0.By(10));
 
             Assert.Throws(typeof(RecoverableException), () => machine.SetLocalName(peripheral1, ""));
             Assert.Throws(typeof(RecoverableException), () => machine.SetLocalName(peripheral1, null));
