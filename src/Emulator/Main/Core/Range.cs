@@ -244,8 +244,19 @@ namespace Antmicro.Renode.Core
         public static Range Empty;
     }
 
-    public class MinimalRangesCollection : IEnumerable
+    public class MinimalRangesCollection : IEnumerable<Range>
     {
+        public MinimalRangesCollection(IEnumerable<Range> rangeEnumerable = null)
+        {
+            if(rangeEnumerable != null)
+            {
+                foreach(var range in rangeEnumerable)
+                {
+                    Add(range);
+                }
+            }
+        }
+
         /// <summary>
         /// Adds a <c>range</c> expanding any elements, if possible. Therefore ranges overlapping,
         /// and adjacent to the <c>range</c> are removed from the collection and re-added as a
@@ -286,6 +297,11 @@ namespace Antmicro.Renode.Core
         public bool Remove(Range range)
         {
             return ranges.SubtractAll(range);
+        }
+
+        IEnumerator<Range> IEnumerable<Range>.GetEnumerator()
+        {
+            return ((IEnumerable<Range>)ranges).GetEnumerator();
         }
 
         public int Count => ranges.Count;
