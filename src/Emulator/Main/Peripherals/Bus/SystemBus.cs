@@ -482,9 +482,9 @@ namespace Antmicro.Renode.Peripherals.Bus
                 .FirstOrDefault(x => x.RegistrationPoint.Range.Contains(address));
         }
 
-        public IEnumerable<IBusRegistered<IMapped>> GetMappedPeripherals(ICPU context = null)
+        public IEnumerable<IBusRegistered<IMapped>> GetMappedPeripherals()
         {
-            return GetPeripheralsForContext(context)
+            return allPeripherals.SelectMany(x => x.Peripherals)
                 .Where(x => x.Peripheral is IMapped)
                 .Convert<IBusPeripheral, IMapped>();
         }
@@ -1012,6 +1012,35 @@ namespace Antmicro.Renode.Peripherals.Bus
 
                 using(Machine.ObtainPausedState(internalPause: true))
                 {
+                    var cpusWithMappedMemory = idByCpu.Keys.OfType<ICPUWithMappedMemory>();
+                    if(cpusWithMappedMemory.Any())
+                    {
+                        var mappedInRange = GetMappedPeripherals().Where(x => x.RegistrationPoint.Range.Intersects(range));
+
+                        // Only allow including whole registration range of IMapped peripherals.
+                        var onlyPartiallyInRange = mappedInRange.Where(x => !range.Contains(x.RegistrationPoint.Range));
+                        if(onlyPartiallyInRange.Any())
+                        {
+                            throw new RecoverableException(
+                                $"Mapped peripherals registered at the given range {range} have to be fully included:\n"
+                                + $"* {string.Join("\n* ", onlyPartiallyInRange)}"
+                            );
+                        }
+
+                        foreach(var busRegistered in mappedInRange)
+                        {
+                            var registrationContext = busRegistered.RegistrationPoint.CPU;
+                            var registrationRange = busRegistered.RegistrationPoint.Range;
+                            foreach(var cpu in GetCPUsForContext<ICPUWithMappedMemory>(registrationContext))
+                            {
+                                // There's no need to remove mappings from `mappingsForPeripheral`.
+                                // They're only used when a new ICPUWithMappedMemory gets registered
+                                // which isn't possible after `mappingsRemoved` is set in `UnmapMemory`.
+                                cpu.SetMappedMemoryEnabled(registrationRange, enabled: !locked);
+                            }
+                        }
+                    }
+
                     if(locked)
                     {
                         lockedRangesCollection.Add(range);
