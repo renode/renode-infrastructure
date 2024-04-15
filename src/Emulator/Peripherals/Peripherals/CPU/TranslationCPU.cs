@@ -2141,6 +2141,16 @@ namespace Antmicro.Renode.Peripherals.CPU
                 DeactivateHooks(PC);
                 return true;
             }
+            else if(result == ExecutionResult.StoppedAtWatchpoint)
+            {
+                // If we stopped at a watchpoint we must've been in the process
+                // of executing an instruction which accesses memory.
+                // That means that if there have been any hooks added for the current PC,
+                // they were already executed, and the PC has been moved back by one instruction.
+                // We don't want to execute them again, so we disable them temporarily.
+                DeactivateHooks(PC);
+                return true;
+            }
             else if(result == ExecutionResult.WaitingForInterrupt)
             {
                 if(InDebugMode || neverWaitForInterrupt)
@@ -2235,6 +2245,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                     return ExecutionResult.StoppedAtBreakpoint;
 
                 case TlibExecutionResult.StoppedAtWatchpoint:
+                    return ExecutionResult.StoppedAtWatchpoint;
+
                 case TlibExecutionResult.ReturnRequested:
                     return ExecutionResult.Interrupted;
 
