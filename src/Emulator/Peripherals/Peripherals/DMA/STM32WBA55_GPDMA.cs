@@ -12,6 +12,7 @@ namespace Antmicro.Renode.Peripherals.DMA
     {
         public STM32WBA55_GPDMA(IMachine machine, int numberOfChannels)
         {
+            this.Log(LogLevel.Info, "INIT DMA with {0} CHANNELS", numberOfChannels);
             this.machine = machine;
             engine = new DmaEngine(machine.GetSystemBus(this));
             this.numberOfChannels = numberOfChannels;
@@ -20,8 +21,8 @@ namespace Antmicro.Renode.Peripherals.DMA
             for (var i = 0; i < numberOfChannels; ++i)
             {
                 channels[i] = new Channel(this, i);
-                this.Log(LogLevel.Info, "Created channel " + i);
                 innerConnections[i] = new GPIO();
+                this.Log(LogLevel.Info, "Created channel " + i);
             }
 
             Connections = new ReadOnlyDictionary<int, IGPIO>(innerConnections);
@@ -31,59 +32,12 @@ namespace Antmicro.Renode.Peripherals.DMA
             var configurationLock = new DoubleWordRegister(this);
             var nonsecureMaskedInteruptStatus = new DoubleWordRegister(this);
             var secureMaskedInteruptStatus = new DoubleWordRegister(this);
-
-
-            //TODO: rework/adapt to WBA55
-            var interruptStatus = new DoubleWordRegister(this);
-            var interruptFlagClear = new DoubleWordRegister(this)
-                    .WithWriteCallback((_, __) => Update());
+            
+            this.Log(LogLevel.Info, "Connections: {0}", Connections);
 
             for (var i = 0; i < numberOfChannels; ++i)
             {
-                var j = i;
-                interruptStatus.DefineFlagField(j * 4 + 0, FieldMode.Read,
-                    valueProviderCallback: _ => channels[j].GlobalInterrupt,
-                    name: $"Global interrupt flag for channel {j} (GIF{j})");
-                interruptStatus.DefineFlagField(j * 4 + 1, FieldMode.Read,
-                    valueProviderCallback: _ => channels[j].TransferComplete,
-                    name: $"Transfer complete flag for channel {j} (TCIF{j})");
-                interruptStatus.DefineFlagField(j * 4 + 2, FieldMode.Read,
-                    valueProviderCallback: _ => channels[j].HalfTransfer,
-                    name: $"Half transfer flag for channel {j} (HTIF{j})");
-                interruptStatus.Tag($"Transfer error flag for channel {j} (TEIF{j})", j * 4 + 3, 1);
-
-                interruptFlagClear.DefineFlagField(j * 4 + 0, FieldMode.Write,
-                    writeCallback: (_, val) =>
-                    {
-                        if (val)
-                        {
-                            channels[j].GlobalInterrupt = false;
-                            channels[j].TransferComplete = false;
-                            channels[j].HalfTransfer = false;
-                        }
-                    },
-                    name: $"Global interrupt flag clear for channel {j} (CGIF{j})");
-                interruptFlagClear.DefineFlagField(j * 4 + 1, FieldMode.Write,
-                    writeCallback: (_, val) =>
-                    {
-                        if (val)
-                        {
-                            channels[j].TransferComplete = false;
-                            channels[j].GlobalInterrupt = false;
-                        }
-                    },
-                    name: $"Transfer complete flag clear for channel {j} (CTEIF{j})");
-                interruptFlagClear.DefineFlagField(j * 4 + 2, FieldMode.Write,
-                    writeCallback: (_, val) =>
-                    {
-                        if (val)
-                        {
-                            channels[j].HalfTransfer = false;
-                            channels[j].GlobalInterrupt = false;
-                        }
-                    },
-                    name: $"Half transfer flag clear for channel {j} (CHTIF{j})");
-                interruptFlagClear.Tag($"Transfer error flag clear for channel {j} (CTEIF{j})", j * 4 + 3, 1);
+              //TODO: SECURITY REGISTERS
             }
 
             var registerMap = new Dictionary<long, DoubleWordRegister>
@@ -96,6 +50,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             };
 
             registers = new DoubleWordRegisterCollection(this, registerMap);
+            this.Log(LogLevel.Info, "Registers: {0}", registers.ToString());
         }
 
         public void Reset()
@@ -168,18 +123,16 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
             return true;
         }
-        private void Update()
+        private void Update(int channel)
         {
-            for (var i = 0; i < numberOfChannels; ++i)
-            {
-                Connections[i].Set((channels[i].TransferComplete && channels[i].TransferCompleteInterruptEnable)
-                        || (channels[i].HalfTransfer && channels[i].HalfTransferInterruptEnable)
-                        || (channels[i].DataTransferError && channels[i].DataTransferErrorInterruptEnable)
-                        || (channels[i].UpdateLinkTransferError && channels[i].UpdateLinkTransferErrorInterruptEnable)
-                        || (channels[i].UserSettingError && channels[i].UserSettingErrorInterruptEnable)
-                        || (channels[i].CompletedSuspension && channels[i].CompletedSuspensionInterruptEnable)
-                        || (channels[i].TriggerOverrun && channels[i].TriggerOverrunInterruptEnable));
-            }
+            this.Log(LogLevel.Debug, "Update of channel {0} triggered", channel);
+                Connections[channel].Set((channels[channel].TransferComplete && channels[channel].TransferCompleteInterruptEnable)
+                        || (channels[channel].HalfTransfer && channels[channel].HalfTransferInterruptEnable)
+                        || (channels[channel].DataTransferError && channels[channel].DataTransferErrorInterruptEnable)
+                        || (channels[channel].UpdateLinkTransferError && channels[channel].UpdateLinkTransferErrorInterruptEnable)
+                        || (channels[channel].UserSettingError && channels[channel].UserSettingErrorInterruptEnable)
+                        || (channels[channel].CompletedSuspension && channels[channel].CompletedSuspensionInterruptEnable)
+                        || (channels[channel].TriggerOverrun && channels[channel].TriggerOverrunInterruptEnable));
         }
 
         private readonly IMachine machine;
@@ -260,6 +213,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                                 }
                             })
                     .WithReservedBits(15, 17)
+                    .WithWriteCallback(
+                            (_, __) => parent.Update(number))
                 );
                 registersMap.Add((long)ChannelRegisters.ChannelStatus + (number * ShiftBetweenChannels), new DoubleWordRegister(parent)
                     .WithTag("Idle (IDLEF)", 0, 1)
@@ -280,7 +235,9 @@ namespace Antmicro.Renode.Peripherals.DMA
                         valueProviderCallback: _ => TriggerOverrun)
                     .WithReservedBits(15, 1)
                     .WithValueField(16, 8, out monitoredFIFOlevel, name: "Monitored FIFO level (FIFOL)")   //TODO 
-                    .WithReservedBits(24, 8));
+                    .WithReservedBits(24, 8)
+                    .WithWriteCallback(
+                            (_, __) => parent.Update(number)));
                 registersMap.Add((long)ChannelRegisters.ChannelControl + (number * ShiftBetweenChannels), new DoubleWordRegister(parent)
                     .WithFlag(0, out channelEnable,
                         writeCallback: (_, val) =>
@@ -324,9 +281,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     .WithTag("Linked list allocated port (LAP)", 17, 1)
                     .WithReservedBits(18, 4)
                     .WithEnumField(22, 2, out priorityLevel, name: "Priority level (PRIO)")
-                    .WithReservedBits(24, 8)
-                    .WithWriteCallback(
-                            (_, __) => parent.Update()));
+                    .WithReservedBits(24, 8));
                 registersMap.Add((long)ChannelRegisters.ChannelTransfer1 + (number * ShiftBetweenChannels), new DoubleWordRegister(parent)
                     .WithEnumField(0, 2, out sourceDataWith, name: "Binary logarithm source data with (SDW_LOG2)")
                     .WithReservedBits(2, 1)
@@ -396,13 +351,11 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             public uint ReadDoubleWord(long offset)
             {
-                parent.Log(LogLevel.Debug, "Read in register {0}", offset);
                 return registers.Read(offset);
             }
 
             public void WriteDoubleWord(long offset, uint value)
             {
-                parent.Log(LogLevel.Debug, "Write in register offset {0}", offset);
                 registers.Write(offset, value);
             }
 
@@ -421,7 +374,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 }
                 parent.Log(LogLevel.Info, "Before DoTransfer from TryTriggerTransfer");
                 DoTransfer();
-                parent.Update();
+                parent.Update(this.channelNumber);
                 return true;
             }
 
