@@ -540,14 +540,42 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 }
 
                 var interrupt = interrupts[irqId];
-                if(interrupt.Config.GroupType == request.TargetGroup)
+                this.Log(LogLevel.Noisy, "Trying to request interrupt for target {0}, interrupt group type (GICD_IGROUPRn) {1}, request group (NSATT) {2}, access in {3} state.",
+                    target.Name, interrupt.Config.GroupType, request.TargetGroup, requestingCPU.IsStateSecure ? "secure" : "non-secure");
+
+                if(ShouldAssertSGI(requestingCPU, request, interrupt))
                 {
                     this.Log(LogLevel.Noisy, "Setting signal of the interrupt with id {0} for {1}.", irqId, target.Name);
                     // SGIs are triggered by a register access so the method is already called inside a lock.
                     interrupt.State.AssertAsPending(true);
                 }
-                // According to the specification, interrupt with a group different than a target group is just ignored.
+                else
+                {
+                    this.Log(LogLevel.Noisy, "SGI not forwarded.");
+                }
             }
+        }
+
+        private bool ShouldAssertSGI(CPUEntry requestingCPU, SoftwareGeneratedInterruptRequest request, SoftwareGeneratedInterrupt interrupt)
+        {
+            // See: "SGI generation when the GIC implements the Security Extensions" for the truth table
+            // Without the Security Extension, this is irrelevant
+            if(DisabledSecurity)
+            {
+                return true;
+            }
+            // If GICD_SGIR write is done in non-secure mode, only Group1 is forwarded
+            else if(!requestingCPU.IsStateSecure)
+            {
+                return interrupt.Config.GroupType != GroupType.Group0;
+            }
+            // According to the specification, interrupt with a group different than a target group is just ignored, if GICD_SGIR write is done in secure mode.
+            else if(requestingCPU.IsStateSecure && interrupt.Config.GroupType == request.TargetGroup)
+            {
+                return true;
+            }
+
+            return false;
         }
 
         // The GIC uses the latest CPU state and the latest groups configuration to choose a correct interrupt signal to assert.
