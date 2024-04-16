@@ -13,6 +13,7 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Network;
 using Antmicro.Renode.Utilities;
+using MiscUtil.Conversion;
 
 namespace Antmicro.Renode.Peripherals.Network
 {
@@ -90,9 +91,13 @@ namespace Antmicro.Renode.Peripherals.Network
                 break;
             case Registers.MacAddressHi:
                 registers.MacAddresHi = value;
+                var macBytes = EndianBitConverter.Big.GetBytes(value);
+                MAC = MAC.WithNewOctets(a: macBytes[2], b: macBytes[3]);
                 break;
             case Registers.MacAddressLo:
                 registers.MacAddresLo = value;
+                macBytes = EndianBitConverter.Big.GetBytes(value);
+                MAC = MAC.WithNewOctets(c: macBytes[0], d: macBytes[1], e: macBytes[2], f: macBytes[3]);
                 break;
             case Registers.MDIOControlStatus:
 
