@@ -16,10 +16,15 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class S32K3XX_FlexIO_UART : IUART, IEndpoint
     {
-        public S32K3XX_FlexIO_UART(S32K3XX_FlexIO flexIO, uint? rxShifterId = null, uint? txShifterId = null)
+        public S32K3XX_FlexIO_UART(uint? rxShifterId = null, uint? txShifterId = null)
         {
-            this.flexIO = flexIO ?? throw new ConstructionException($"The {nameof(flexIO)} parameter is null.");
+            this.rxShifterId = rxShifterId;
+            this.txShifterId = txShifterId;
+        }
 
+        public void RegisterInFlexIO(S32K3XX_FlexIO flexIO)
+        {
+            this.flexIO = flexIO;
             if(!rxShifterId.HasValue && !txShifterId.HasValue)
             {
                 this.Log(LogLevel.Warning, "The endpoint doesn't have set any shifter identifier");
@@ -103,8 +108,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             return receiverProperty != null ? receiverProperty : transmitterProperty;
         }
 
-        private readonly S32K3XX_FlexIO flexIO;
-        private readonly UARTReceiver receiver;
-        private readonly UARTTransmitter transmitter;
+        private S32K3XX_FlexIO flexIO;
+        private UARTReceiver receiver;
+        private UARTTransmitter transmitter;
+
+        private readonly uint? rxShifterId;
+        private readonly uint? txShifterId;
     }
 }

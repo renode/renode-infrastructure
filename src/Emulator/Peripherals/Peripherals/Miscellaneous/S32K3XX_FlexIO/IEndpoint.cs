@@ -7,5 +7,8 @@
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel
 {
-    public interface IEndpoint : IPeripheral { }
+    public interface IEndpoint : IPeripheral
+    {
+        void RegisterInFlexIO(S32K3XX_FlexIO flexIO);
+    }
 }

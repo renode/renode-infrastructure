@@ -57,6 +57,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
             endpoints.Add(peripheral);
             machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
+            peripheral.RegisterInFlexIO(this);
         }
 
         public void Unregister(IEndpoint peripheral)
