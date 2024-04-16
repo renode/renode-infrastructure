@@ -2143,6 +2143,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             else if(result == ExecutionResult.StoppedAtWatchpoint)
             {
+                this.Trace();
                 // If we stopped at a watchpoint we must've been in the process
                 // of executing an instruction which accesses memory.
                 // That means that if there have been any hooks added for the current PC,
