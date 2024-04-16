@@ -20,11 +20,11 @@ namespace Antmicro.Renode.Peripherals.SPI
     {
         public IMXRT_LPSPI(IMachine machine, uint fifoSize = 4) : base(machine)
         {
-            if(fifoSize == 0 || (fifoSize & (fifoSize - 1)) != 0)
+            if(!Misc.IsPowerOfTwo(fifoSize))
             {
                 throw new ConstructionException($"Invalid fifoSize! It has to be a power of 2 but the fifoSize provided was: {fifoSize}");
             }
-            fifoSizeLog2 = (uint)Math.Log(fifoSize, 2);
+            this.fifoSize = fifoSize;
 
             IRQ = new GPIO();
             outputFifo = new Queue<byte>();
@@ -178,11 +178,11 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             Registers.Control.Define(this)
                 .WithFlag(0, out moduleEnable, name: "MEN - Module Enable")
-                .WithFlag(1, name: "RST - Software Reset", changeCallback: (_, value) =>
+                .WithFlag(1, name: "RST - Software Reset", changeCallback: (_, val) =>
                 {
-                    if(value)
+                    if(val)
                     {
-                        this.DebugLog("Software Reset requested by writing RST to the Control Register.");
+                        this.Log(LogLevel.Debug, "Software Reset requested by writing RST to the Control Register");
                         // TODO: The Control Register shouldn't be cleared. RST should remain set until cleared by software.
                         Reset();
                     }
@@ -211,17 +211,25 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithWriteCallback((_, __) => UpdateInterrupts());
 
             Registers.Parameter.Define(this)
-                .WithValueField(0, 8, FieldMode.Read, name: "TXFIFO - Transmit FIFO Size (in words; size = 2^TXFIFO)", valueProviderCallback: _ => fifoSizeLog2)
-                .WithValueField(8, 8, FieldMode.Read, name: "RXFIFO - Receive FIFO Size (in words; size = 2^RXFIFO)", valueProviderCallback: _ => fifoSizeLog2)
-                .WithReservedBits(16, 16);
+                .WithValueField(0, 8, FieldMode.Read, name: "TXFIFO - Transmit FIFO Size (in words; size = 2^TXFIFO)",
+                    valueProviderCallback: _ => (ulong)Misc.Logarithm2((int)fifoSize)
+                )
+                .WithValueField(8, 8, FieldMode.Read, name: "RXFIFO - Receive FIFO Size (in words; size = 2^RXFIFO)",
+                    valueProviderCallback: _ => (ulong)Misc.Logarithm2((int)fifoSize)
+                )
+                .WithValueField(16, 8, FieldMode.Read, name: "PCSNUM - PCS Number (Indicates the number of PCS pins supported)",
+                    valueProviderCallback: _ => (ulong)ChildCollection.Count
+                )
+                .WithReservedBits(24, 8);
+
 
             Registers.Configuration1.Define(this)
-                .WithFlag(0, out masterMode, name: "MASTER - Master Mode", changeCallback: (_, value) =>
+                .WithFlag(0, out masterMode, name: "MASTER - Master Mode", changeCallback: (_, val) =>
                 {
-                    this.DebugLog("Switching to the {0} Mode", value ? "Master" : "Slave");
+                    this.Log(LogLevel.Debug, "Switching to the {0} Mode", val ? "Master" : "Slave");
                     if(moduleEnable.Value)
                     {
-                        this.Log(LogLevel.Warning, "The LPSPI module should be disabled when changing the Configuration Mode!");
+                        this.Log(LogLevel.Warning, "The LPSPI module should be disabled when changing the Configuration Mode");
                     }
                 })
                 // Unused but don't warn when it's set.
@@ -235,8 +243,8 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithReservedBits(19, 5)
                 .WithTag("PINCFG - Pin Configuration", 24, 2)
                 .WithTaggedFlag("OUTCFG - Output Config", 26)
-                .WithTaggedFlag("PCSCFG - Peripheral Chip Select Configuration", 27)
-                .WithReservedBits(28, 4);
+                .WithTag("PCSCFG - Peripheral Chip Select Configuration", 27, 2)
+                .WithReservedBits(29, 3);
 
             // Unused but don't warn when it's read from or written to.
             Registers.ClockConfiguration.Define(this)
@@ -259,12 +267,12 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private uint GetFrameSize()
         {
-            // frameSize keeps value substructed by 1
+            // frameSize keeps value substracted by 1
             var sizeLeft = (uint)frameSize.Value + 1;
             if(sizeLeft % 8 != 0)
             {
-                sizeLeft += (8 - (sizeLeft % 8));
-                this.Log(LogLevel.Warning, "Only 8-bit-aligned transfers are currently supported, but frame size is set to {0}. Adjusting it to: {1}", frameSize.Value, sizeLeft);
+                sizeLeft += 8 - (sizeLeft % 8);
+                this.Log(LogLevel.Warning, "Only 8-bit-aligned transfers are currently supported, but frame size is set to {0}, adjusting it to: {1}", frameSize.Value, sizeLeft);
             }
 
             return sizeLeft;
@@ -281,7 +289,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             if(!masterMode.Value)
             {
-                this.Log(LogLevel.Error, "The Slave Mode is not supported!");
+                this.Log(LogLevel.Error, "The Slave Mode is not supported");
                 return false;
             }
 
@@ -391,7 +399,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private IFlagRegisterField transferCompleteInterruptEnable;
 
         private bool continuousTransferInProgress;
-        private readonly uint fifoSizeLog2;
+        private readonly uint fifoSize;
         private readonly Queue<byte> outputFifo;
         private ISPIPeripheral selectedDevice;
         private uint sizeLeft;
