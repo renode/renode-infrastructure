@@ -1,12 +1,11 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.Collections.Generic;
-
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -297,7 +296,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
 
             // send dummy bytes
-            while(!TrySendDataInner(0, device)) {}
+            while(!TrySendDataInner(0, device)) { }
         }
 
         private bool TrySendData(uint value)
