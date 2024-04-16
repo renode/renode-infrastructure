@@ -549,6 +549,20 @@ namespace Antmicro.Renode.Utilities
             }
         }
 
+        public static TValue GetOrDefault<TKey, TValue>(this IReadOnlyDictionary<TKey, TValue> @this, TKey key)
+        {
+            return @this.GetOrDefault(key, default(TValue));
+        }
+
+        public static TValue GetOrDefault<TKey, TValue>(this IReadOnlyDictionary<TKey, TValue> @this, TKey key, TValue defaultValue)
+        {
+            if(@this.TryGetValue(key, out var value))
+            {
+                return value;
+            }
+            return defaultValue;
+        }
+
         public static byte HiByte(this UInt16 value)
         {
             return (byte)((value >> 8) & 0xFF);
