@@ -42,15 +42,6 @@ namespace Antmicro.Renode.Core
 
         public bool Contains(ulong address)
         {
-            // The empty range does not contain any addresses.
-            // Unfortunately, the empty range is indistinguishable from a
-            // 1-byte-long range starting at address 0, so such a range
-            // will be said not to contain address 0.
-            if(this == Empty)
-            {
-                return false;
-            }
-
             return address >= StartAddress && address <= EndAddress;
         }
 
@@ -68,16 +59,6 @@ namespace Antmicro.Renode.Core
 
         public bool Contains(Range range)
         {
-            // Every range contains the empty range.
-            // See `Contains` for a caveat about 1-byte ranges starting at
-            // address 0 - here it means that every range will be said to
-            // contain a 1-byte-long range starting at address 0.
-
-            if(range == Empty)
-            {
-                return true;
-            }
-
             return range.StartAddress >= StartAddress && range.EndAddress <= EndAddress;
         }
 
@@ -99,13 +80,14 @@ namespace Antmicro.Renode.Core
             return startAddress.To(endAddress + 1);
         }
 
-        public Range Intersect(Range range)
+        /// <returns>Intersection if ranges overlap, <c>null</c> otherwise.</returns>
+        public Range? Intersect(Range range)
         {
             var startAddress = Math.Max(StartAddress, range.StartAddress);
             var endAddress = Math.Min(EndAddress, range.EndAddress);
             if(startAddress > endAddress)
             {
-                return Range.Empty;
+                return null;
             }
             return new Range(startAddress, endAddress - startAddress + 1);
         }
@@ -161,7 +143,7 @@ namespace Antmicro.Renode.Core
 
         public bool Intersects(Range range)
         {
-            return Intersect(range) != Range.Empty;
+            return Intersect(range).HasValue;
         }
 
         public ulong StartAddress
@@ -240,8 +222,6 @@ namespace Antmicro.Renode.Core
         {
             return range.ShiftBy(-minuend);
         }
-
-        public static Range Empty;
     }
 
     public class MinimalRangesCollection : IEnumerable<Range>

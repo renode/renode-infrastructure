@@ -66,6 +66,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                     returnValue = RegistersCollection.Read((long)Registers.StatusRegister2);
                     break;
                 case Commands.BlockErase64:
+                {
                     if(addressBuffer.Count < AddressByteCount)
                     {
                         addressBuffer.Add(data);
@@ -83,7 +84,8 @@ namespace Antmicro.Renode.Peripherals.SPI
                     }
 
                     var address = BitHelper.ToUInt32(addressBuffer.ToArray(), 0, AddressByteCount, true);
-                    if(ProtectedRange.Contains(address))
+                    var protectedRange = ProtectedRange;
+                    if(protectedRange.HasValue && protectedRange.Value.Contains(address))
                     {
                         this.ErrorLog("Attempted to perform a Block Erase operation on a protected block. Operation will be ignored");
                         break;
@@ -92,7 +94,9 @@ namespace Antmicro.Renode.Peripherals.SPI
                     memory.SetRange(address, 64.KB(), 0xFF);
                     writeEnabled = false;
                     break;
+                }
                 case Commands.PageProgram:
+                {
                     if(addressBuffer.Count < AddressByteCount)
                     {
                         addressBuffer.Add(data);
@@ -109,7 +113,8 @@ namespace Antmicro.Renode.Peripherals.SPI
                         break;
                     }
 
-                    if(ProtectedRange.Contains(temporaryAddress))
+                    var protectedRange = ProtectedRange;
+                    if(protectedRange.HasValue && protectedRange.Value.Contains(temporaryAddress))
                     {
                         this.ErrorLog("Attempted to perform a Page Program operation on a protected block. Operation will be ignored");
                         break;
@@ -130,6 +135,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                     }
                     resetWriteEnable = true;
                     break;
+                }
                 case Commands.WriteStatusRegister:
                     if(statusRegisterProtect.Value && !WriteProtect.IsSet)
                     {
@@ -200,7 +206,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
         }
 
-        public Range ProtectedRange
+        public Range? ProtectedRange
         {
             get
             {
@@ -219,7 +225,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                     case BlockProtect.None:
                     case BlockProtect.Reserved1:
                     case BlockProtect.Reserved2:
-                        return Range.Empty;
+                        return null;
                     default:
                         throw new Exception("unreachable");
                 }

@@ -1875,14 +1875,17 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         private string TryGetTag(ulong address, out ulong defaultValue)
         {
-            var tag = tags.FirstOrDefault(x => x.Key.Contains(address));
-            defaultValue = default(ulong);
-            if(tag.Key == Range.Empty)
+            // The `return` inside is intentional; we just want to find the first tag.
+            // `FirstOrDefault` isn't used cause the default `Range` is a valid `<0, 0>` range.
+            // `Any` + `First` aren't used to avoid analyzing `tags` keys up to the matching one twice.
+            // `ToArray` isn't used to avoid analyzing all `tags` keys since we only use the first one.
+            foreach(var tag in tags.Where(x => x.Key.Contains(address)).Select(x => x.Value))
             {
-                return null;
+                defaultValue = tag.DefaultValue;
+                return tag.Name;
             }
-            defaultValue = tag.Value.DefaultValue;
-            return tag.Value.Name;
+            defaultValue = default(ulong);
+            return null;
         }
 
         private string EnterTag(string str, ulong address, out bool tagEntered, out ulong defaultValue)

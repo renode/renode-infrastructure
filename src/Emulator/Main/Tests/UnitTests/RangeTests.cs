@@ -78,41 +78,11 @@ namespace Antmicro.Renode.UnitTests
         }
 
         [Test]
-        public void EmptyRangeShouldContainItself()
-        {
-            Assert.IsTrue(Range.Empty.Contains(Range.Empty));
-        }
-
-        [Test]
-        public void EmptyRangeShouldNotContainAnyAddress()
-        {
-            Assert.IsFalse(Range.Empty.Contains(0UL));
-            Assert.IsFalse(Range.Empty.Contains(0x80000000UL));
-            Assert.IsFalse(Range.Empty.Contains(0xFFFFFFFFUL));
-            Assert.IsFalse(Range.Empty.Contains(0x8000000000000000UL));
-            Assert.IsFalse(Range.Empty.Contains(0xFFFFFFFFFFFFFFFFUL));
-        }
-
-        [Test]
-        public void ShouldContainEmptyRange()
-        {
-            var range = new Range(0x1000, 0x1200);
-            Assert.IsTrue(range.Contains(Range.Empty));
-        }
-
-        [Test]
         public void SubtractNoIntersection()
         {
             var range = new Range(0x1600, 0xA00);
             var sub = new Range(0x1000, 0x200);
             CollectionAssert.AreEquivalent(new [] { range }, range.Subtract(sub));
-        }
-
-        [Test]
-        public void SubtractEmpty()
-        {
-            var range = new Range(0x0, 0xA00);
-            CollectionAssert.AreEquivalent(new [] { range }, range.Subtract(Range.Empty));
         }
 
         [Test]
@@ -182,13 +152,12 @@ namespace Antmicro.Renode.UnitTests
         }
 
         [Test]
-        public void MinimalRangesCollectionRemoveEmptyOrOutside()
+        public void MinimalRangesCollectionRemoveOutside()
         {
             var ranges = new MinimalRangesCollection();
             var range = new Range(0x1000, 0x1000);
             ranges.Add(range);
 
-            Assert.IsFalse(ranges.Remove(Range.Empty));
             Assert.IsFalse(ranges.Remove(new Range(0x0, 0x1000)));
             Assert.IsFalse(ranges.Remove(new Range(0x2000, 0x1000)));
             Assert.IsFalse(ranges.Remove(new Range(0x8000, 0x1000)));
