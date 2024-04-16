@@ -1035,8 +1035,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 {(long)CPUInterfaceSystemRegisters.GroupEnable1, new QuadWordRegister(this)
                     .WithReservedBits(1, 63)
                     .WithFlag(0, name: "EnableGroup1",
-                        valueProviderCallback: _ => GetAskingCPUEntry().GetGroupForRegister(GroupTypeRegister.Group1).Enabled,
-                        writeCallback: (_, val) => GetAskingCPUEntry().GetGroupForRegister(GroupTypeRegister.Group1).Enabled = val
+                        valueProviderCallback: _ => GetAskingCPUEntry().GetGroupForRegisterSecurityAgnostic(GroupTypeSecurityAgnostic.Group1).Enabled,
+                        writeCallback: (_, val) => GetAskingCPUEntry().GetGroupForRegisterSecurityAgnostic(GroupTypeSecurityAgnostic.Group1).Enabled = val
                     )
                 },
                 {(long)CPUInterfaceSystemRegisters.GroupEnable1EL3, new QuadWordRegister(this)
@@ -1066,21 +1066,21 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     )
                 },
                 {(long)CPUInterfaceSystemRegisters.InterruptAcknowledgeGroup0,
-                    BuildInterruptAcknowledgeRegister(new QuadWordRegister(this), 64, "InterruptAcknowledgeGroup0", () => GroupTypeRegister.Group0, false)
+                    BuildInterruptAcknowledgeRegister(new QuadWordRegister(this), 64, "InterruptAcknowledgeGroup0", () => GroupTypeSecurityAgnostic.Group0, false)
                 },
                 {(long)CPUInterfaceSystemRegisters.InterruptAcknowledgeGroup1,
-                    BuildInterruptAcknowledgeRegister(new QuadWordRegister(this), 64, "InterruptAcknowledgeGroup1", () => GroupTypeRegister.Group1, false)
+                    BuildInterruptAcknowledgeRegister(new QuadWordRegister(this), 64, "InterruptAcknowledgeGroup1", () => GroupTypeSecurityAgnostic.Group1, false)
                 },
                 {(long)CPUInterfaceSystemRegisters.InterruptDeactivate,
                     BuildInterruptDeactivateOrInterruptEndRegister(new QuadWordRegister(this), 64, "InterruptDeactivate", null,
                         useCPUIdentifier: false, isDeactivateRegister: true)
                 },
                 {(long)CPUInterfaceSystemRegisters.InterruptEndGroup0,
-                    BuildInterruptDeactivateOrInterruptEndRegister(new QuadWordRegister(this), 64, "InterruptEndGroup0", () => GroupTypeRegister.Group0,
+                    BuildInterruptDeactivateOrInterruptEndRegister(new QuadWordRegister(this), 64, "InterruptEndGroup0", () => GroupTypeSecurityAgnostic.Group0,
                         useCPUIdentifier: false, isDeactivateRegister: false)
                 },
                 {(long)CPUInterfaceSystemRegisters.InterruptEndGroup1,
-                    BuildInterruptDeactivateOrInterruptEndRegister(new QuadWordRegister(this), 64, "InterruptEndGroup1", () => GroupTypeRegister.Group1,
+                    BuildInterruptDeactivateOrInterruptEndRegister(new QuadWordRegister(this), 64, "InterruptEndGroup1", () => GroupTypeSecurityAgnostic.Group1,
                         useCPUIdentifier: false, isDeactivateRegister: false)
                 },
                 {(long)CPUInterfaceSystemRegisters.ControlEL1, new QuadWordRegister(this)
@@ -1280,7 +1280,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private Dictionary<long, DoubleWordRegister> BuildCPUInterfaceRegistersMap()
         {
-            Func<GroupTypeRegister> getRegisterGroupType = () => (DisabledSecurity || GetAskingCPUEntry().IsStateSecure) ? GroupTypeRegister.Group0 : GroupTypeRegister.Group1;
+            Func<GroupTypeSecurityAgnostic> getRegisterGroupTypeSecurityAgnostic = () => (DisabledSecurity || GetAskingCPUEntry().IsStateSecure) ? GroupTypeSecurityAgnostic.Group0 : GroupTypeSecurityAgnostic.Group1;
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {
                 {(long)CPUInterfaceRegisters.InterfaceIdentification, new DoubleWordRegister(this)
@@ -1303,10 +1303,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     )
                 },
                 {(long)CPUInterfaceRegisters.InterruptAcknowledge,
-                    BuildInterruptAcknowledgeRegister(new DoubleWordRegister(this), 32, "InterruptAcknowledge", getRegisterGroupType, true)
+                    BuildInterruptAcknowledgeRegister(new DoubleWordRegister(this), 32, "InterruptAcknowledge", getRegisterGroupTypeSecurityAgnostic, true)
                 },
                 {(long)CPUInterfaceRegisters.InterruptEnd,
-                    BuildInterruptDeactivateOrInterruptEndRegister(new DoubleWordRegister(this), 32, "InterruptEnd", getRegisterGroupType,
+                    BuildInterruptDeactivateOrInterruptEndRegister(new DoubleWordRegister(this), 32, "InterruptEnd", getRegisterGroupTypeSecurityAgnostic,
                         useCPUIdentifier: true, isDeactivateRegister: false)
                 },
                 {(long)CPUInterfaceRegisters.InterruptDeactivate,
@@ -1403,10 +1403,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
                 // Aliases for acknowledging/ending non-secure interrupts in secure state.
                 {(long)CPUInterfaceRegisters.InterruptAcknowledgeAlias,
-                    BuildInterruptAcknowledgeRegister(new DoubleWordRegister(this), 32, "InterruptAcknowledgeAlias", () => GroupTypeRegister.Group1, true)
+                    BuildInterruptAcknowledgeRegister(new DoubleWordRegister(this), 32, "InterruptAcknowledgeAlias", () => GroupTypeSecurityAgnostic.Group1, true)
                 },
                 {(long)CPUInterfaceRegisters.InterruptEndAlias,
-                    BuildInterruptDeactivateOrInterruptEndRegister(new DoubleWordRegister(this), 32, "InterruptEndAlias", () => GroupTypeRegister.Group1,
+                    BuildInterruptDeactivateOrInterruptEndRegister(new DoubleWordRegister(this), 32, "InterruptEndAlias", () => GroupTypeSecurityAgnostic.Group1,
                         useCPUIdentifier: true, isDeactivateRegister: false)
                 },
             };
@@ -1414,7 +1414,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         }
 
         private T BuildInterruptAcknowledgeRegister<T>(T register, int registerWidth, string name,
-            Func<GroupTypeRegister> groupTypeRegisterProvider, bool useCPUIdentifier) where T : PeripheralRegister
+            Func<GroupTypeSecurityAgnostic> groupTypeRegisterProvider, bool useCPUIdentifier) where T : PeripheralRegister
         {
             return register
                 .WithReservedBits(24, registerWidth - 24)
@@ -1429,7 +1429,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         }
 
         private T BuildInterruptDeactivateOrInterruptEndRegister<T>(T register, int registerWidth, string name,
-            Func<GroupTypeRegister> groupTypeRegisterProvider, bool useCPUIdentifier, bool isDeactivateRegister) where T : PeripheralRegister
+            Func<GroupTypeSecurityAgnostic> groupTypeRegisterProvider, bool useCPUIdentifier, bool isDeactivateRegister) where T : PeripheralRegister
         {
             return register
                 .WithReservedBits(24, registerWidth - 24)
@@ -2097,9 +2097,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 PrivateInterruptChanged?.Invoke(this, number, value);
             }
 
-            public virtual InterruptId AcknowledgeBestPending(GroupTypeRegister groupTypeRegister, out CPUEntry sgiRequestingCPU)
+            public virtual InterruptId AcknowledgeBestPending(GroupTypeSecurityAgnostic groupTypeRegister, out CPUEntry sgiRequestingCPU)
             {
-                var groupType = GetGroupTypeForRegister(groupTypeRegister);
+                var groupType = GetGroupTypeForRegisterSecurityAgnostic(groupTypeRegister);
                 var isVirtualized = IsVirtualized(groupType);
                 sgiRequestingCPU = null;
                 var pendingIrq = isVirtualized ? BestPendingVirtual : BestPending;
@@ -2110,7 +2110,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 if(pendingIrq.Config.GroupType != groupType)
                 {
                     // In GICv2, Secure (Group 0) access can acknowledge Group 1 interrupt if GICC_CTLR.AckCtl is set. Otherwise, the returned Interrupt ID is 1022 (NoPending=1023).
-                    if(!isVirtualized && gic.ArchitectureVersion == ARM_GenericInterruptControllerVersion.GICv2 && groupTypeRegister == GroupTypeRegister.Group0)
+                    if(!isVirtualized && gic.ArchitectureVersion == ARM_GenericInterruptControllerVersion.GICv2 && groupTypeRegister == GroupTypeSecurityAgnostic.Group0)
                     {
                         if(!gic.ackControl)
                         {
@@ -2145,9 +2145,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
 
             // Performs priority drop and, if independentEOIControls is false, IRQ deactivation.
-            public void InterruptEnd(InterruptId id, GroupTypeRegister groupTypeRegister, CPUEntry sgiRequestingCPU)
+            public void InterruptEnd(InterruptId id, GroupTypeSecurityAgnostic groupTypeRegister, CPUEntry sgiRequestingCPU)
             {
-                var groupType = GetGroupTypeForRegister(groupTypeRegister);
+                var groupType = GetGroupTypeForRegisterSecurityAgnostic(groupTypeRegister);
                 var isVirtualized = IsVirtualized(groupType);
                 var shouldBeDeactivated = CurrentEndOfInterruptMode == EndOfInterruptModes.PriorityDropAndDeactivation;
                 gic.Log(LogLevel.Debug, "Ending interrupt with id {0}{1}.", (uint)id, shouldBeDeactivated ? "" : " but it won't be deactivated");
@@ -2162,7 +2162,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 if(runningIrq.Config.GroupType != groupType)
                 {
                     // In GICv2, Secure (Group 0) access can affect Group 1 interrupts if GICC_CTLR.AckCtl is set.
-                    if(!isVirtualized && gic.ArchitectureVersion == ARM_GenericInterruptControllerVersion.GICv2 && groupTypeRegister == GroupTypeRegister.Group0)
+                    if(!isVirtualized && gic.ArchitectureVersion == ARM_GenericInterruptControllerVersion.GICv2 && groupTypeRegister == GroupTypeSecurityAgnostic.Group0)
                     {
                         if(!gic.ackControl)
                         {
@@ -2263,18 +2263,18 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 }
             }
 
-            public InterruptGroup GetGroupForRegister(GroupTypeRegister type)
+            public InterruptGroup GetGroupForRegisterSecurityAgnostic(GroupTypeSecurityAgnostic type)
             {
-                return Groups[GetGroupTypeForRegister(type)];
+                return Groups[GetGroupTypeForRegisterSecurityAgnostic(type)];
             }
 
-            public GroupType GetGroupTypeForRegister(GroupTypeRegister type)
+            public GroupType GetGroupTypeForRegisterSecurityAgnostic(GroupTypeSecurityAgnostic type)
             {
-                if(type == GroupTypeRegister.Group0)
+                if(type == GroupTypeSecurityAgnostic.Group0)
                 {
                     return GroupType.Group0;
                 }
-                else if(type == GroupTypeRegister.Group1)
+                else if(type == GroupTypeSecurityAgnostic.Group1)
                 {
                     var securityState = cpu.SecurityState;
                     if(gic.DisabledSecurity || securityState == SecurityState.NonSecure)
@@ -2631,10 +2631,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 base.Reset();
             }
 
-            public override InterruptId AcknowledgeBestPending(GroupTypeRegister groupTypeRegister, out CPUEntry sgiRequestingCPU)
+            public override InterruptId AcknowledgeBestPending(GroupTypeSecurityAgnostic groupTypeRegister, out CPUEntry sgiRequestingCPU)
             {
                 sgiRequestingCPU = null;
-                if(BestPending != null && groupTypeRegister == GroupTypeRegister.Group0 && cpu.ExceptionLevel == ExceptionLevel.EL3_MonitorMode)
+                if(BestPending != null && groupTypeRegister == GroupTypeSecurityAgnostic.Group0 && cpu.ExceptionLevel == ExceptionLevel.EL3_MonitorMode)
                 {
                     if(BestPending.Config.GroupType == GroupType.Group1Secure)
                     {
@@ -3106,7 +3106,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             Group1 = Group1NonSecure,
         }
 
-        private enum GroupTypeRegister
+        private enum GroupTypeSecurityAgnostic
         {
             Group0,
             Group1
