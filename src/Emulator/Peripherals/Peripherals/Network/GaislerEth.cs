@@ -50,10 +50,10 @@ namespace Antmicro.Renode.Peripherals.Network
                 return registers.Status;
             case Registers.MacAddressHi:
                 //return registers.MacAddresHi;
-                return (uint)BitConverter.ToUInt16(MAC.Bytes, 4);
+                return (uint)EndianBitConverter.Big.ToUInt16(MAC.Bytes, 4);
             case Registers.MacAddressLo:
                 //return registers.MacAddresLo;
-                return BitConverter.ToUInt32(MAC.Bytes, 0);
+                return EndianBitConverter.Big.ToUInt32(MAC.Bytes, 0);
             case Registers.MDIOControlStatus:
                 return registers.MDIOControlStatus;
             case Registers.TxDescriptorPointer:
