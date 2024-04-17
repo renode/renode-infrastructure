@@ -2006,10 +2006,14 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        /// <summary>
+        /// This function returns <see cref="CPUCore.Id" /> instead of <see cref="Slot" />, since <see cref="Slot" /> is assigned at platform creation time.
+        /// It's usually not what is needed to identify a core in multi-processing context - instead `cpuId` (passed in CPU constructor) is used.
+        /// </summary>
         [Export]
-        private int GetCpuIndex()
+        private uint GetMpIndex()
         {
-            return Slot;
+            return Id;
         }
 
         public string DisassembleBlock(ulong addr = ulong.MaxValue, uint blockSize = 40, uint flags = 0)
