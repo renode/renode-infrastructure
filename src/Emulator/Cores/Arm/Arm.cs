@@ -83,15 +83,15 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override List<GDBFeatureDescriptor> GDBFeatures { get { return new List<GDBFeatureDescriptor>(); } }
 
-        public uint ID
+        public uint ModelID
         {
             get
             {
-                return TlibGetCpuId();
+                return TlibGetCpuModelId();
             }
             set
             {
-                TlibSetCpuId(value);
+                TlibSetCpuModelId(value);
             }
         }
 
@@ -437,7 +437,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 #pragma warning disable 649
 
         [Import]
-        private ActionUInt32 TlibSetCpuId;
+        private ActionUInt32 TlibSetCpuModelId;
 
         [Import]
         private FuncUInt32 TlibGetItState;
@@ -446,7 +446,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private FuncUInt32UInt32 TlibEvaluateConditionCode;
 
         [Import]
-        private FuncUInt32 TlibGetCpuId;
+        private FuncUInt32 TlibGetCpuModelId;
 
         [Import]
         private ActionInt32 TlibSetThumb;
