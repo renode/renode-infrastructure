@@ -191,6 +191,11 @@ namespace Antmicro.Renode.Utilities
 #endif
         }
 
+        public static string GetLastError()
+        {
+            return Strerror(Marshal.GetLastWin32Error());
+        }
+
         public static int Socket(int domain, int type, int protocol)
         {
 #if !PLATFORM_LINUX
