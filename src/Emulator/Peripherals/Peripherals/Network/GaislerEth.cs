@@ -214,7 +214,7 @@ namespace Antmicro.Renode.Peripherals.Network
             if(!EthernetFrame.CheckCRC(frame.Bytes))
             {
                 rd.CRCError = true;
-                this.Log(LogLevel.Info, "Invalid CRC, packet discarded");
+                this.Log(LogLevel.Warning, "Invalid CRC, packet discarded");
                 return;
             }
 
@@ -270,8 +270,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 return;
             }
 
-            this.Log(LogLevel.Info, "Sending packet length {0}", packet.Bytes.Length);
-            this.Log(LogLevel.Info, "Packet address = 0x{0:X}", td.PacketAddress);
+            this.Log(LogLevel.Noisy, "Sending packet length {0}, packet address = 0x{1:X}", packet.Bytes.Length, td.PacketAddress);
             FrameReady?.Invoke(packet);
 
             registers.Status |= 1u << 3;
