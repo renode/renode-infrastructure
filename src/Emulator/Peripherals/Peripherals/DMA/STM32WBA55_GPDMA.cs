@@ -18,6 +18,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             this.numberOfChannels = numberOfChannels;
             channels = new Channel[numberOfChannels];
             var innerConnections = new Dictionary<int, IGPIO>();
+
             for (var i = 0; i < numberOfChannels; ++i)
             {
                 channels[i] = new Channel(this, i);
@@ -32,12 +33,15 @@ namespace Antmicro.Renode.Peripherals.DMA
             var configurationLock = new DoubleWordRegister(this);
             var nonsecureMaskedInteruptStatus = new DoubleWordRegister(this);
             var secureMaskedInteruptStatus = new DoubleWordRegister(this);
-            
-            this.Log(LogLevel.Info, "Connections: {0}", Connections);
 
             for (var i = 0; i < numberOfChannels; ++i)
             {
-              //TODO: SECURITY REGISTERS
+                //TODO: SECURITY REGISTERS
+                var j = i;
+
+                nonsecureMaskedInteruptStatus.DefineFlagField(j, FieldMode.Read,
+                    valueProviderCallback: _ => channels[j].GlobalInterrupt,
+                    name: $"Masked interrupt status for secure channel {j} (MIS{j})");
             }
 
             var registerMap = new Dictionary<long, DoubleWordRegister>
@@ -50,7 +54,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             };
 
             registers = new DoubleWordRegisterCollection(this, registerMap);
-            this.Log(LogLevel.Info, "Registers: {0}", registers.ToString());
+            this.Log(LogLevel.Debug, "Registers: {0}", registerMap.Keys);
         }
 
         public void Reset()
@@ -80,8 +84,6 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
             if (TryGetChannelNumberBasedOnOffset(offset, out var channelNo))
             {
-
-                this.Log(LogLevel.Info, "Write in Channel {0} with offset: {1} and value: {2}", channelNo, offset, value);
                 channels[channelNo].WriteDoubleWord(offset, value);
                 return;
             }
@@ -90,6 +92,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         public void OnGPIO(int number, bool value)
         {
+            this.Log(LogLevel.Debug, "DMA peripheral request on channel {0}", number);
             if (number > channels.Length)
             {
                 this.Log(LogLevel.Error, "Channel number {0} is out of range, must be in [0; {1}]", number, channels.Length - 1);
@@ -101,7 +104,6 @@ namespace Antmicro.Renode.Peripherals.DMA
                 return;
             }
 
-            this.Log(LogLevel.Debug, "DMA peripheral request on channel {0}", number);
             if (!channels[number - 1].TryTriggerTransfer())
             {
                 this.Log(LogLevel.Warning, "DMA peripheral request on channel {0} ignored - channel is disabled "
@@ -112,7 +114,7 @@ namespace Antmicro.Renode.Peripherals.DMA
         public IReadOnlyDictionary<int, IGPIO> Connections { get; }
 
         public long Size => 0x1000;
-        
+
         private bool TryGetChannelNumberBasedOnOffset(long offset, out int channel)
         {
             var shifted = offset - (long)Registers.Channel0LinkedListBaseAddress;
@@ -125,14 +127,16 @@ namespace Antmicro.Renode.Peripherals.DMA
         }
         private void Update(int channel)
         {
-            this.Log(LogLevel.Debug, "Update of channel {0} triggered", channel);
-                Connections[channel].Set((channels[channel].TransferComplete && channels[channel].TransferCompleteInterruptEnable)
-                        || (channels[channel].HalfTransfer && channels[channel].HalfTransferInterruptEnable)
-                        || (channels[channel].DataTransferError && channels[channel].DataTransferErrorInterruptEnable)
-                        || (channels[channel].UpdateLinkTransferError && channels[channel].UpdateLinkTransferErrorInterruptEnable)
-                        || (channels[channel].UserSettingError && channels[channel].UserSettingErrorInterruptEnable)
-                        || (channels[channel].CompletedSuspension && channels[channel].CompletedSuspensionInterruptEnable)
-                        || (channels[channel].TriggerOverrun && channels[channel].TriggerOverrunInterruptEnable));
+            var result = (channels[channel].TransferComplete && channels[channel].TransferCompleteInterruptEnable)
+                    || (channels[channel].HalfTransfer && channels[channel].HalfTransferInterruptEnable)
+                    || (channels[channel].DataTransferError && channels[channel].DataTransferErrorInterruptEnable)
+                    || (channels[channel].UpdateLinkTransferError && channels[channel].UpdateLinkTransferErrorInterruptEnable)
+                    || (channels[channel].UserSettingError && channels[channel].UserSettingErrorInterruptEnable)
+                    || (channels[channel].CompletedSuspension && channels[channel].CompletedSuspensionInterruptEnable)
+                    || (channels[channel].TriggerOverrun && channels[channel].TriggerOverrunInterruptEnable);
+            Connections[channel].Set(result);
+
+            this.Log(LogLevel.Debug, "Update of channel {0} triggered. Interrupt set: {1}", channel, result);
         }
 
         private readonly IMachine machine;
@@ -244,10 +248,11 @@ namespace Antmicro.Renode.Peripherals.DMA
                         {
                             if (val)
                             {
-                                parent.Log(LogLevel.Info, "Before DoTransfer in Enable register");
+                                parent.Log(LogLevel.Debug, "Before DoTransfer in Enable register");
                                 DoTransfer();
                             }
-                        })
+                        },
+                        valueProviderCallback: _ => false, name: "Enable (EN)")
                       .WithFlag(1, out channelReset,
                         writeCallback: (_, val) =>
                         {
@@ -306,7 +311,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     .WithReservedBits(6, 3)
                     .WithFlag(9, out softwareRequest, name: "Software request (SWREQ)")
                     .WithTag("Destination hardware request (DREQ)", 10, 1)
-                    .WithTag("Block hardware request (BREQ)", 11, 1)
+                    .WithFlag(11, out blockHardwareRequest, name: "Block hardware request (BREQ)") //TODO: implement block/burst transfer
                     .WithReservedBits(12, 2)
                     .WithTag("Trigger mode (TRIGM)", 14, 2)
                     .WithEnumField(16, 5, out triggerEventInputSelection, name: "Trigger event input selection (TRIGSEL)")
@@ -321,13 +326,16 @@ namespace Antmicro.Renode.Peripherals.DMA
                     read-only and is decremented, indicating the remaining number of data items in the current
                     source block to be transferred. BNDT[15:0] is programmed in number of bytes, maximum
                     source block size is 64 Kbytes -1. Once the last data transfer is completed (BNDT[15:0] = 0)*/
-                    .WithValueField(0, 16, out blockNumberDataBytesFromSource, name: "Block number data bytes from source (BNDT)")
+                    .WithValueField(0, 16, out blockNumberDataBytesFromSource, name: "Block number data bytes from source (BNDT)",
+                    writeCallback: (_, val) => originalBlockNumberDataBytesFromSource = val)
                     );
                 registersMap.Add((long)ChannelRegisters.ChannelSourceAddress + (number * ShiftBetweenChannels), new DoubleWordRegister(parent)
-                    .WithValueField(0, 32, out sourceAddress, name: "Source address (SA)")
+                    .WithValueField(0, 32, out sourceAddress, name: "Source address (SA)",
+                    writeCallback: (_, val) => currentSourceAddress = val)
                     );
                 registersMap.Add((long)ChannelRegisters.ChannelDestinationAddress + (number * ShiftBetweenChannels), new DoubleWordRegister(parent)
-                    .WithValueField(0, 32, out destinationAddress, name: "Destination address (DA)"));
+                    .WithValueField(0, 32, out destinationAddress, name: "Destination address (DA)",
+                    writeCallback: (_, val) => currentDestinationAddress = val));
                 registersMap.Add((long)ChannelRegisters.ChannelLinkedListAddress + (number * ShiftBetweenChannels), new DoubleWordRegister(parent)
                     .WithReservedBits(0, 2)
                     /*TODO: If UT1 = UT2 = UB1 = USA = UDA = ULL = 0 and if LA[15:2] = 0, the current LLI is the last
@@ -372,7 +380,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 {
                     return false;
                 }
-                parent.Log(LogLevel.Info, "Before DoTransfer from TryTriggerTransfer");
+                parent.Log(LogLevel.Debug, "Before DoTransfer from TryTriggerTransfer");
                 DoTransfer();
                 parent.Update(this.channelNumber);
                 return true;
@@ -382,7 +390,8 @@ namespace Antmicro.Renode.Peripherals.DMA
             {
                 get
                 {
-                    return HalfTransfer || TransferComplete;
+                    return HalfTransfer || TransferComplete || DataTransferError ||
+                    UpdateLinkTransferError || UserSettingError || CompletedSuspension || TriggerOverrun;
                 }
                 set
                 {
@@ -392,6 +401,11 @@ namespace Antmicro.Renode.Peripherals.DMA
                     }
                     HalfTransfer = false;
                     TransferComplete = false;
+                    DataTransferError = false;
+                    UpdateLinkTransferError = false;
+                    UserSettingError = false;
+                    CompletedSuspension = false;
+                    TriggerOverrun = false;
                 }
             }
 
@@ -427,39 +441,41 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             private void DoTransfer()
             {
-                parent.Log(LogLevel.Info, "Start DoTransfer");
+                parent.Log(LogLevel.Debug, "Start DoTransfer");
                 //TODO: implement linked list mode / 
-                var toCopy = (uint)blockNumberDataBytesFromSource.Value;
-                parent.Log(LogLevel.Info, "toCopy: {0}", toCopy);
-                toCopy = Math.Max((uint)SizeToType(sourceDataWith.Value),
-                   (uint)SizeToType(destinationDataWith.Value));
-                parent.Log(LogLevel.Info, "toCopy: {0}", toCopy);
-                blockNumberDataBytesFromSource.Value -= 1; //TODO update proper register
-                parent.Log(LogLevel.Info, "blockNumberDataBytesFromSource: {0}", blockNumberDataBytesFromSource.Value);
+                //TODO: implement to copy whole block if source = destination = memory
+                // var toCopy = (uint)blockNumberDataBytesFromSource.Value;
+                //parent.Log(LogLevel.Debug, "toCopy: {0}", toCopy);
 
-                parent.Log(LogLevel.Info, "IssueCopy - currentSourceAddress: {0}, currentDestinationAddress: {1}, " + 
-                        "sourceIncrementingBurst: {2}, destinationIncrementingBurst: {3}, " + 
-                        "sourceDataWith: {4}, destinationDataWith: {5} ",
-                            currentSourceAddress, currentDestinationAddress,
-                            sourceIncrementingBurst.Value, destinationIncrementingBurst.Value,
-                            sourceDataWith.Value,destinationDataWith.Value);
-                var response = IssueCopy(currentSourceAddress, currentDestinationAddress, toCopy,
-                    sourceIncrementingBurst.Value, destinationIncrementingBurst.Value, sourceDataWith.Value,
-                    destinationDataWith.Value);
-                parent.Log(LogLevel.Info, "response read/write addr: {0} / {1}", response.ReadAddress, response.WriteAddress);
-                currentSourceAddress = response.ReadAddress.Value;
-                currentDestinationAddress = response.WriteAddress.Value;
-                HalfTransfer = blockNumberDataBytesFromSource.Value <= originalBlockNumberDataBytesFromSource / 2;
-                TransferComplete = blockNumberDataBytesFromSource.Value == 0;
+                //get the size of a data unit (data beat) to copy
+                var toCopy = Math.Max((uint)SizeToType(sourceDataWith.Value), (uint)SizeToType(destinationDataWith.Value));
+                parent.Log(LogLevel.Debug, "toCopy: {0}", toCopy);
 
-                // TODO: check if this still applies to WBA55. currently leads to NullRef
-                // Loop around if circular mode is enabled
-                /*if (circularMode.Value && blockNumberDataBytesFromSource.Value == 0)
+                while (blockNumberDataBytesFromSource.Value > 0)
                 {
-                    blockNumberDataBytesFromSource.Value = originalBlockNumberDataBytesFromSource;
-                    currentSourceAddress = sourceAddress.Value;
-                    currentDestinationAddress = destinationAddress.Value;
-                }*/
+                    parent.Log(LogLevel.Debug, "blockNumberDataBytesFromSource: {0}", blockNumberDataBytesFromSource.Value);
+                    parent.Log(LogLevel.Debug, "IssueCopy - currentSourceAddress: 0x{0:X}, currentDestinationAddress: 0x{1:X}, " +
+                            "sourceIncrementingBurst: {2}, destinationIncrementingBurst: {3}, " +
+                            "sourceDataWith: {4}, destinationDataWith: {5} ",
+                                currentSourceAddress, currentDestinationAddress,
+                                sourceIncrementingBurst.Value, destinationIncrementingBurst.Value,
+                                sourceDataWith.Value, destinationDataWith.Value);
+                    var response = IssueCopy(currentSourceAddress, currentDestinationAddress, toCopy,
+                        sourceIncrementingBurst.Value, destinationIncrementingBurst.Value, sourceDataWith.Value,
+                        destinationDataWith.Value);
+                    parent.Log(LogLevel.Debug, "response read/write addr: 0x{0:X} / 0x{1:X}", response.ReadAddress, response.WriteAddress);
+
+                    sourceAddress.Value = response.ReadAddress.Value;
+                    currentSourceAddress = response.ReadAddress.Value;
+                    destinationAddress.Value = response.WriteAddress.Value;
+                    currentDestinationAddress =response.WriteAddress.Value;
+
+                    blockNumberDataBytesFromSource.Value -= 1;
+                    HalfTransfer = blockNumberDataBytesFromSource.Value <= originalBlockNumberDataBytesFromSource / 2;
+                    TransferComplete = blockNumberDataBytesFromSource.Value == 0;
+                    parent.Update(channelNumber);
+                }
+
                 // No parent.Update - this is called by the register write and TryTriggerTransfer
                 // to avoid calling it twice in the former case
             }
@@ -494,7 +510,6 @@ namespace Antmicro.Renode.Peripherals.DMA
                 }
             }
 
-            private IFlagRegisterField circularMode;
             private IValueRegisterField monitoredFIFOlevel;
 
             //Channel Control CxCR
@@ -521,6 +536,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             private IEnumRegisterField<TransferSize> destinationDataWith;
             private IEnumRegisterField<HardwareRequestSelection> hardwareRequestSelection;
             private IFlagRegisterField softwareRequest;
+            private IFlagRegisterField blockHardwareRequest;
             private IEnumRegisterField<TriggerEventInputSelection> triggerEventInputSelection;
             private IValueRegisterField transferCompleteEventMode;
 
@@ -685,17 +701,20 @@ namespace Antmicro.Renode.Peripherals.DMA
             Channel0DestinationAddress = 0xA0, //CxDAR
             Channel0LinkedListAddress = 0xCC, //CxLLR
 
-            //probably not needed
-            /*Channel1LinkedListBaseAddress = 0xD0,
-            Channel1FlagClear = 0x5C,
-            Channel1Status = 0x60,
-            Channel1Control = 0x64,
-            Channel1Transfer1 = 0x90,
-            Channel1Transfer2 = 0x94,
-            Channel1Block1 = 0x98,
-            Channel1SourceAddress = 0x9C,
-            Channel1DestinationAddress = 0xA0,
-            Channel1LinkedListAddress = 0xCC,
+
+            //needed for proper log output when accessed
+            Channel1LinkedListBaseAddress = 0xD0,
+            Channel1FlagClear = 0xDC,
+            Channel1Status = 0xE0,
+            Channel1Control = 0xE4,
+            Channel1Transfer1 = 0x110,
+            Channel1Transfer2 = 0x114,
+            Channel1Block1 = 0x118,
+            Channel1SourceAddress = 0x11C,
+            Channel1DestinationAddress = 0x120,
+            Channel1LinkedListAddress = 0x14C,
+
+            /*TODO: update adresses and uncomment
 
             Channel2LinkedListBaseAddress = 0x50,
             Channel2FlagClear = 0x5C,
@@ -761,7 +780,8 @@ namespace Antmicro.Renode.Peripherals.DMA
             Channel7Block1 = 0x98,
             Channel7SourceAddress = 0x9C,
             Channel7DestinationAddress = 0xA0,
-            Channel7LinkedListAddress = 0xCC,*/
+            Channel7LinkedListAddress = 0xCC,
+            */
         }
     }
 }
