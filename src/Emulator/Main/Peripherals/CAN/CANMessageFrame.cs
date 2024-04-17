@@ -5,7 +5,6 @@
 //  Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Packets;
@@ -26,7 +25,7 @@ namespace Antmicro.Renode.Core.CAN
 
         public override string ToString()
         {
-            return $"[Message: Data=[{DataAsHex}], Remote={RemoteFrame}, Extended={ExtendedFormat}, BitRateSwitch={BitRateSwitch}, FDFormat={FDFormat}, Id={Id}, DataLength={Data.Length}]";
+            return $"[Message: Data={DataAsHex}, Remote={RemoteFrame}, Extended={ExtendedFormat}, BitRateSwitch={BitRateSwitch}, FDFormat={FDFormat}, Id={Id}, DataLength={Data.Length}]";
         }
 
         public byte[] ToSocketCAN(bool useNetworkByteOrder)
@@ -47,7 +46,7 @@ namespace Antmicro.Renode.Core.CAN
             return FlexibleSocketCANFrame.FromCANMessageFrame(this).Encode(useNetworkByteOrder);
         }
 
-        public string DataAsHex => Data.Select(x => "0x{0:X2}".FormatWith(x)).Stringify(", ");
+        public string DataAsHex => Misc.PrettyPrintCollectionHex(Data);
 
         public uint Id { get; }
         public byte[] Data { get; }
