@@ -11,6 +11,7 @@ using Antmicro.Renode.UserInterface.Tokenizer;
 using AntShell.Commands;
 using System.IO;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.UserInterface.Commands
 {
@@ -30,30 +31,29 @@ namespace Antmicro.Renode.UserInterface.Commands
         }
 
         [Runnable]
-        public bool Run(ICommandInteraction writer, PathToken path)
+        public bool Run(ICommandInteraction writer, StringToken path)
         {
-            if(!File.Exists(path.Value))
-            {
-                writer.WriteError(String.Format("No such file {0}.", path.Value));
-                return false;
-            }
-
-            using(var progress = EmulationManager.Instance.ProgressMonitor.Start("Including script: " + path.Value))
+            return Run(writer, path.Value);
+        }
+        
+        private bool Run(ICommandInteraction writer, ReadFilePath path)
+        {
+            using(var progress = EmulationManager.Instance.ProgressMonitor.Start("Including script: " + path))
             {
                 bool result = false;
-                switch(Path.GetExtension(path.Value))
+                switch(Path.GetExtension(path))
                 {
                 case ".py":
-                    result = PythonExecutor(path.Value, writer);
+                    result = PythonExecutor(path, writer);
                     break;
                 case ".cs":
-                    result = CsharpExecutor(path.Value, writer);
+                    result = CsharpExecutor(path, writer);
                     break;
                 case ".repl":
-                    result = ReplExecutor(path.Value, writer);
+                    result = ReplExecutor(path, writer);
                     break;
                 default:
-                    result = ScriptExecutor(path.Value);
+                    result = ScriptExecutor(path);
                     break;
                 }
 

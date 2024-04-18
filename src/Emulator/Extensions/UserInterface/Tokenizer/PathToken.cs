@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -11,14 +11,12 @@ using System.Linq;
 
 namespace Antmicro.Renode.UserInterface.Tokenizer
 {
-    public class PathToken : Token
+    public class PathToken : StringToken
     {
         public PathToken(string value) : base(value)
         {
             Value = value.TrimStart('@').Replace(@"\ ", " ");
         }
-
-        public string Value { get; private set; }
 
         public override object GetObjectValue()
         {
