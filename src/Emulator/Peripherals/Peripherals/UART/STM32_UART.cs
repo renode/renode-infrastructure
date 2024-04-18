@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Threading;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
@@ -12,6 +13,7 @@ using System.Collections.Generic;
 using Antmicro.Migrant;
 using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -33,12 +35,28 @@ namespace Antmicro.Renode.Peripherals.UART
             }
             receiveFifo.Enqueue(value);
             readFifoNotEmpty.Value = true;
+
+            if(BaudRate == 0)
+            {
+                this.Log(LogLevel.Warning, "Unknown baud rate, couldn't trigger the idle line interrupt");
+            }
+            else
+            {
+                // Setup a timeout of 1 UART frame (8 bits) for Idle line detection
+                idleLineDetectedCancellationTokenSrc?.Cancel();
+
+                var idleLineIn = (8 * 1000000) / BaudRate;
+                idleLineDetectedCancellationTokenSrc = new CancellationTokenSource();
+                machine.ScheduleAction(TimeInterval.FromMicroseconds(idleLineIn), _ => ReportIdleLineDetected(idleLineDetectedCancellationTokenSrc.Token), name: $"{nameof(STM32_UART)} Idle line detected");
+            }
+
             Update();
         }
 
         public override void Reset()
         {
             base.Reset();
+            idleLineDetectedCancellationTokenSrc?.Cancel();
             receiveFifo.Clear();
             IRQ.Set(false);
         }
@@ -93,7 +111,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTaggedFlag("FE", 1)
                 .WithTaggedFlag("NF", 2)
                 .WithFlag(3, FieldMode.Read, valueProviderCallback: _ => false, name: "ORE") // we assume no receive overruns
-                .WithTaggedFlag("IDLE", 4)
+                .WithFlag(4, out idleLineDetected, FieldMode.Read, name: "IDLE")
                 .WithFlag(5, out readFifoNotEmpty, FieldMode.Read | FieldMode.WriteZeroToClear, name: "RXNE") // as these two flags are WZTC, we cannot just calculate their results
                 .WithFlag(6, out transmissionComplete, FieldMode.Read | FieldMode.WriteZeroToClear, name: "TC")
                 .WithFlag(7, FieldMode.Read, valueProviderCallback: _ => true, name: "TXE") // we always assume "transmit data register empty"
@@ -106,6 +124,11 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithValueField(0, 9, valueProviderCallback: _ =>
                     {
                         uint value = 0;
+
+                        // "Cleared by a USART_SR register followed by a read to the USART_DR register."
+                        // We can assume that USART_SR has already been read on the ISR.
+                        idleLineDetected.Value = false;
+
                         if(receiveFifo.Count > 0)
                         {
                             value = receiveFifo.Dequeue();
@@ -135,7 +158,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTaggedFlag("RWU", 1)
                 .WithFlag(2, out receiverEnabled, name: "RE")
                 .WithFlag(3, out transmitterEnabled, name: "TE")
-                .WithTaggedFlag("IDLEIE", 4)
+                .WithFlag(4, out idleLineDetectedInterruptEnabled, name: "IDLEIE")
                 .WithFlag(5, out receiverNotEmptyInterruptEnabled, name: "RXNEIE")
                 .WithFlag(6, out transmissionCompleteInterruptEnabled, name: "TCIE")
                 .WithFlag(7, out transmitDataRegisterEmptyInterruptEnabled, name: "TXEIE")
@@ -148,7 +171,14 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithReservedBits(14, 1)
                 .WithEnumField(15, 1, out oversamplingMode, name: "OVER8")
                 .WithReservedBits(16, 16)
-                .WithWriteCallback((_, __) => Update())
+                .WithWriteCallback((_, __) =>
+                {
+                    if(!receiverEnabled.Value || !usartEnabled.Value)
+                    {
+                        idleLineDetectedCancellationTokenSrc?.Cancel();
+                    }
+                    Update();
+                })
             ;
             Register.Control2.Define(this, name: "USART_CR2")
                 .WithTag("ADD", 0, 4)
@@ -165,9 +195,19 @@ namespace Antmicro.Renode.Peripherals.UART
             ;
         }
 
+        private void ReportIdleLineDetected(CancellationToken ct)
+        {
+            if(!ct.IsCancellationRequested)
+            {
+                idleLineDetected.Value = true;
+                Update();
+            }
+        }
+
         private void Update()
         {
             IRQ.Set(
+                (idleLineDetectedInterruptEnabled.Value && idleLineDetected.Value) ||
                 (receiverNotEmptyInterruptEnabled.Value && readFifoNotEmpty.Value) ||
                 (transmitDataRegisterEmptyInterruptEnabled.Value) || // TXE is assumed to be true
                 (transmissionCompleteInterruptEnabled.Value && transmissionComplete.Value)
@@ -176,6 +216,8 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private readonly uint frequency;
 
+        private CancellationTokenSource idleLineDetectedCancellationTokenSrc;
+
         private IEnumRegisterField<OversamplingMode> oversamplingMode;
         private IEnumRegisterField<StopBitsValues> stopBits;
         private IFlagRegisterField usartEnabled;
@@ -183,9 +225,11 @@ namespace Antmicro.Renode.Peripherals.UART
         private IEnumRegisterField<ParitySelection> paritySelection;
         private IFlagRegisterField transmissionCompleteInterruptEnabled;
         private IFlagRegisterField transmitDataRegisterEmptyInterruptEnabled;
+        private IFlagRegisterField idleLineDetectedInterruptEnabled;
         private IFlagRegisterField receiverNotEmptyInterruptEnabled;
         private IFlagRegisterField receiverEnabled;
         private IFlagRegisterField transmitterEnabled;
+        private IFlagRegisterField idleLineDetected;
         private IFlagRegisterField readFifoNotEmpty;
         private IFlagRegisterField transmissionComplete;
         private IValueRegisterField dividerMantissa;
