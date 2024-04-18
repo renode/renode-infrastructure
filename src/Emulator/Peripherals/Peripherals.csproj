@@ -681,6 +681,8 @@
     <Compile Include="Peripherals\Sensors\AK0991x.cs" />
     <Compile Include="Peripherals\Sensors\AK09916.cs" />
     <Compile Include="Peripherals\Sensors\AK09918.cs" />
+    <Compile Include="Peripherals\CAN\S32K3XX_FlexCAN\S32K3XX_FlexCAN_Structures.cs" />
+    <Compile Include="Peripherals\CAN\S32K3XX_FlexCAN\S32K3XX_FlexCAN.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
