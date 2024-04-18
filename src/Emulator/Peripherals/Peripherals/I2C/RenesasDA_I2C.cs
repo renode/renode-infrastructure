@@ -513,7 +513,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                 .WithFlag(0, out controllerEnabled, name: "I2C_EN")
                 .WithFlag(1, name: "I2C_ABORT",
                     valueProviderCallback: _ => false,
-                    writeCallback: (value, _) => { if(value && controllerEnabled.Value) AbortTransmisson(); }
+                    writeCallback: (_, value) => { if(value && controllerEnabled.Value) AbortTransmisson(); }
                 )
                 .WithFlag(2, out txBlocked, name: "I2C_TX_CMD_BLOCK",
                     changeCallback: (_, __) =>
