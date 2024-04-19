@@ -1675,6 +1675,25 @@ namespace Antmicro.Renode.Utilities
             // This will enumerate the collection twice - it might be not optimal for performance sensitive operations
             return @this.Skip(Math.Max(0, @this.Count() - count));
         }
+
+        public static IEnumerable<T[]> Chunk<T>(this IEnumerable<T> @this, int size)
+        {
+            var buffer = new Queue<T>();
+            foreach(var item in @this)
+            {
+                buffer.Enqueue(item);
+                if(buffer.Count == size)
+                {
+                    yield return buffer.ToArray();
+                    buffer.Clear();
+                }
+            }
+
+            if(buffer.Count > 0)
+            {
+                yield return buffer.ToArray();
+            }
+        }
 #endif
 
         public static ulong CastToULong(dynamic number)
