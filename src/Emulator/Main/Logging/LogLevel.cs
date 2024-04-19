@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -14,7 +14,7 @@ using Antmicro.Renode.Utilities;
 namespace Antmicro.Renode.Logging
 {
     [Convertible]
-    public sealed class LogLevel : IEquatable<LogLevel>
+    public sealed class LogLevel : IEquatable<LogLevel>, IComparable<LogLevel>
     {
         public static LogLevel Noisy = new LogLevel(Level.Noisy);
         public static LogLevel Debug = new LogLevel(Level.Debug);
@@ -164,6 +164,11 @@ namespace Antmicro.Renode.Logging
             if(log != null)
                 return Equals(log);
             return false;
+        }
+
+        public int CompareTo(LogLevel other)
+        {
+            return type.CompareTo(other.type);
         }
 
         public override int GetHashCode()
