@@ -25,7 +25,13 @@ namespace Antmicro.Renode.Peripherals.SD
     // Card type (SC/HC/XC/UC) is determined based on the provided capacity
     public class SDCard : ISPIPeripheral, IDisposable
     {
+        public SDCard(long capacity, bool persistent = false, bool spiMode = false, BlockLength blockSize = BlockLength.Undefined)
+            : this(DataStorage.CreateInMemory((int)capacity), capacity, persistent, spiMode, blockSize) {}
+
         public SDCard(string imageFile, long capacity, bool persistent = false, bool spiMode = false, BlockLength blockSize = BlockLength.Undefined)
+            : this(DataStorage.CreateFromFile(imageFile, capacity, persistent), capacity, persistent, spiMode, blockSize) {}
+
+        private SDCard(Stream dataBackend, long capacity, bool persistent = false, bool spiMode = false, BlockLength blockSize = BlockLength.Undefined)
         {
             var blockLenghtInBytes = SDHelpers.BlockLengthInBytes(blockSize);
             if((blockSize != BlockLength.Undefined) && (capacity % blockLenghtInBytes != 0))
@@ -39,7 +45,7 @@ namespace Antmicro.Renode.Peripherals.SD
             this.blockSize = blockSize;
             spiContext = new SpiContext();
 
-            dataBackend = DataStorage.Create(imageFile, capacity, persistent);
+            this.dataBackend = dataBackend;
 
             var sdCapacityParameters = SDHelpers.SeekForCapacityParameters(capacity, blockSize);
             blockLengthInBytes = SDHelpers.BlockLengthInBytes(sdCapacityParameters.BlockSize);
