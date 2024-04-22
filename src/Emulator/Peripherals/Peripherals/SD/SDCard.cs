@@ -1001,7 +1001,6 @@ namespace Antmicro.Renode.Peripherals.SD
             public Queue<byte> ResponseBuffer = new Queue<byte>();
             public byte[] DataBuffer;
             public int ArgumentBytes;
-            public int CRCBytes;
             public uint Argument;
             public uint CommandNumber;
             public SpiState State;
