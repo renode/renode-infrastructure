@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -50,7 +50,21 @@ namespace Antmicro.Renode.Utilities
 #else
             //HACK: returns 0 on first call, somehow
             dlerror();
-            address = dlopen(path, 2); //relocation now (RTLD_NOW)
+
+            int dlopenFlags = RTLD_NOW; // relocation now
+
+#if PLATFORM_OSX
+            // RTLD_LOCAL prevents loaded symbols from being "made available to resolve references
+            // in subsequently loaded shared objects.". It's the default on Linux.
+            //
+            // With the alternative RTLD_GLOBAL flag, which is the default on macOS, tlib's weak
+            // arch-independent functions that are implemented only for some architectures will be
+            // resolved by implementations from previously loaded tlib for other architectures.
+            // This is certainly an unwanted behavior so we need to pass RTLD_LOCAL on macOS.
+            dlopenFlags |= RTLD_LOCAL;
+#endif
+
+            address = dlopen(path, dlopenFlags);
 #endif
             return address != IntPtr.Zero;
         }
@@ -180,6 +194,9 @@ namespace Antmicro.Renode.Utilities
 
         [DllImport("libdl.so.2")]
         private static extern int dlclose(IntPtr handle);
+
+        // Source: https://sourceware.org/git/?p=glibc.git;a=blob;f=bits/dlfcn.h;hb=HEAD
+        private const int RTLD_NOW = 2;
 #else
         [DllImport("dl")]
         private static extern IntPtr dlopen(string file, int mode);
@@ -192,6 +209,10 @@ namespace Antmicro.Renode.Utilities
 
         [DllImport("dl")]
         private static extern int dlclose(IntPtr handle);
+
+        // Source: https://opensource.apple.com/source/dyld/dyld-239.3/include/dlfcn.h.auto.html
+        private const int RTLD_NOW = 2;
+        private const int RTLD_LOCAL = 4;
 #endif
     }
 }
