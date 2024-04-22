@@ -123,6 +123,16 @@ namespace Antmicro.Renode.Utilities
             reg |= mask;
         }
 
+        public static void SetBits(ref ulong reg, int position, int width)
+        {
+            var mask = 0x0u;
+            for(var i = 0; i < width; i++)
+            {
+                mask += 1u << (position + i);
+            }
+            reg |= mask;
+        }
+
         public static void ReplaceBits(ref uint destination, uint source, int width, int destinationPosition = 0, int sourcePosition = 0)
         {
             if(width < 0 || width > 32)
@@ -216,6 +226,12 @@ namespace Antmicro.Renode.Utilities
         {
             var mask = CalculateQuadWordMask(width, position);
             return (reg & mask) != 0;
+        }
+
+        public static bool AreAllBitsSet(ulong reg, int position, int width)
+        {
+            var mask = CalculateQuadWordMask(width, position);
+            return (~reg & mask) == 0;
         }
 
         public static void UpdateWithShifted(ref uint reg, uint newValue, int position, int width)

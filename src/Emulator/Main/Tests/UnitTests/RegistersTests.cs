@@ -9,6 +9,7 @@ using System;
 using NUnit.Framework;
 using Antmicro.Renode.Core.Structure.Registers;
 using System.Collections.Generic;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.UnitTests
 {
@@ -154,17 +155,17 @@ namespace Antmicro.Renode.UnitTests
             Assert.AreEqual(1 << 18 | RegisterResetValue, register.Read());
             register.Write(0, 0);
             Assert.AreEqual(false, flagW0CField.Value);
-            Assert.AreEqual(0, register.Read());
+            Assert.AreEqual(0, register.Read() & readMask);
         }
 
         [Test]
         public void ShouldWriteOneToClear()
         {
             flagW1CField.Value = true;
-            Assert.AreEqual(1 << 17 | RegisterResetValue, register.Read());
+            Assert.AreEqual(1 << 17 | RegisterResetValue, register.Read() & readMask);
             register.Write(0, 1 << 17);
             Assert.AreEqual(false, flagW0CField.Value);
-            Assert.AreEqual(0, register.Read());
+            Assert.AreEqual(0, register.Read() & readMask);
         }
 
         [Test]
@@ -173,6 +174,50 @@ namespace Antmicro.Renode.UnitTests
             flagWRTCField.Value = true;
             Assert.AreEqual(1 << 19 | RegisterResetValue, register.Read());
             Assert.AreEqual(false, flagWRTCField.Value);
+        }
+
+        [Test]
+        public void ShouldWriteZeroToSet()
+        {
+            flagWZTSField.Value = false;
+
+            register.Write(0, 1 << 0x1c);
+            Assert.IsFalse(flagWZTSField.Value);
+
+            register.Write(0, 0);
+            Assert.IsTrue(flagWZTSField.Value);
+
+            register.Write(0, 0);
+            Assert.IsTrue(flagWZTSField.Value);
+
+            register.Write(0, 1 << 0x1c);
+            Assert.IsTrue(flagWZTSField.Value);
+        }
+
+        [Test]
+        public void ShouldWriteZeroToToggle()
+        {
+            flagWZTTField.Value = false;
+
+            register.Write(0, 1 << 0x1d);
+            Assert.IsFalse(flagWZTTField.Value);
+
+            register.Write(0, 0);
+            Assert.IsTrue(flagWZTTField.Value);
+
+            register.Write(0, 1 << 0x1d);
+            Assert.IsTrue(flagWZTTField.Value);
+
+            register.Write(0, 0);
+            Assert.IsFalse(flagWZTTField.Value);
+        }
+
+        [Test]
+        public void ShouldReadToSet()
+        {
+            flagRTSField.Value = false;
+            Assert.AreEqual(~(1UL << 0x1e) & RegisterResetValue, register.Read());
+            Assert.IsTrue(flagRTSField.Value);
         }
 
         [Test]
@@ -221,23 +266,25 @@ namespace Antmicro.Renode.UnitTests
         [Test]
         public void ShouldCallGlobalReadHandler()
         {
+            flagRTSField.Value = true; // prevent change callback from being fired
             Assert.AreEqual(0, globalCallbacks);
             register.Read();
             Assert.AreEqual(1, globalCallbacks);
-            Assert.AreEqual(RegisterResetValue, oldGlobalValue);
-            Assert.AreEqual(RegisterResetValue, newGlobalValue);
+            Assert.AreEqual(RegisterResetValue & readMask, oldGlobalValue & readMask);
+            Assert.AreEqual(RegisterResetValue & readMask, newGlobalValue & readMask);
         }
 
         [Test]
         public void ShouldCallGlobalWriteAndChangeHandler()
         {
+            register.Reset();
             Assert.AreEqual(0, globalCallbacks);
-            register.Write(0, 0x2A80);
+            register.Write(0, 0x2A80 & writeMask);
             //1 for write, 1 for change
             Assert.AreEqual(2, globalCallbacks);
 
             Assert.AreEqual(RegisterResetValue, oldGlobalValue);
-            Assert.AreEqual(0x2A80, newGlobalValue);
+            Assert.AreEqual(0x2A80 & writeMask, newGlobalValue & writeMask);
         }
 
         [Test]
@@ -303,6 +350,9 @@ namespace Antmicro.Renode.UnitTests
             register.DefineValueField(22, 3, valueProviderCallback: ModifyingValueCallback);
             register.DefineFlagField(25, valueProviderCallback: ModifyingFlagCallback);
             register.DefineEnumField<TwoBitEnum>(26, 2, valueProviderCallback: ModifyingEnumCallback);
+            flagWZTSField = register.DefineFlagField(28, FieldMode.WriteZeroToSet);
+            flagWZTTField = register.DefineFlagField(29, FieldMode.WriteZeroToToggle);
+            flagRTSField = register.DefineFlagField(30, FieldMode.ReadToSet);
 
             register.WithReadCallback(GlobalCallback).WithWriteCallback(GlobalCallback).WithChangeCallback(GlobalCallback);
 
@@ -414,13 +464,19 @@ namespace Antmicro.Renode.UnitTests
           15      |   Bool r
           --------------------
           16      |   Value rw w/changing r callback
-          17      |   
-          18      |   
+          17      |
+          18      |
           --------------------
           19      |   Bool rw w/changing r callback
           --------------------
           1A      |   Enum rw w/changing r callback
           1B      |
+          --------------------
+          1C      |   Bool wzts
+          --------------------
+          1D      |   Bool wztt
+          --------------------
+          1E      |   Bool rts
         */
         private QuadWordRegister register;
 
@@ -451,7 +507,14 @@ namespace Antmicro.Renode.UnitTests
         private IFlagRegisterField flagWRTCField;
         private IFlagRegisterField flagWField;
         private IFlagRegisterField flagRField;
+        private IFlagRegisterField flagWZTSField;
+        private IFlagRegisterField flagWZTTField;
+        private IFlagRegisterField flagRTSField;
 
+        // Bits that store written value
+        private ulong writeMask = 0b0000_1111_1101_1000__0111_1111_1111_1111;
+        // Bits that provide stored value
+        private ulong readMask =  0b0000_1111_1110_0111__1111_1111_1111_1111;
         private const ulong RegisterResetValue = 0x3780u;
 
         private enum TwoBitEnum

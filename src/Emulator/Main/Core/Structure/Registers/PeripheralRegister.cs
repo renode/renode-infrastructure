@@ -620,10 +620,17 @@ namespace Antmicro.Renode.Core.Structure.Registers
                 {
                     BitHelper.ClearBits(ref valueToRead, registerField.position, registerField.width);
                 }
+
                 if(registerField.fieldMode.IsFlagSet(FieldMode.ReadToClear)
                    && BitHelper.AreAnyBitsSet(UnderlyingValue, registerField.position, registerField.width))
                 {
                     BitHelper.ClearBits(ref UnderlyingValue, registerField.position, registerField.width);
+                    changedFields.Add(registerField);
+                }
+                if(registerField.fieldMode.IsFlagSet(FieldMode.ReadToSet)
+                   && !BitHelper.AreAllBitsSet(UnderlyingValue, registerField.position, registerField.width))
+                {
+                    BitHelper.SetBits(ref UnderlyingValue, registerField.position, registerField.width);
                     changedFields.Add(registerField);
                 }
             }
@@ -649,7 +656,6 @@ namespace Antmicro.Renode.Core.Structure.Registers
         {
             var baseValue = UnderlyingValue;
             var difference = UnderlyingValue ^ value;
-            var setRegisters = value & (~UnderlyingValue);
             var changedRegisters = new List<RegisterField>();
             foreach(var registerField in registerFields)
             {
@@ -664,6 +670,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
                         }
                         break;
                     case FieldMode.Set:
+                        var setRegisters = value & (~UnderlyingValue);
                         if(BitHelper.AreAnyBitsSet(setRegisters, registerField.position, registerField.width))
                         {
                             BitHelper.OrWith(ref UnderlyingValue, setRegisters, registerField.position, registerField.width);
@@ -688,6 +695,21 @@ namespace Antmicro.Renode.Core.Structure.Registers
                         if(BitHelper.AreAnyBitsSet((difference & UnderlyingValue), registerField.position, registerField.width))
                         {
                             BitHelper.AndWithNot(ref UnderlyingValue, ~value, registerField.position, registerField.width);
+                            changedRegisters.Add(registerField);
+                        }
+                        break;
+                    case FieldMode.WriteZeroToSet:
+                        var negSetRegisters = ~value & (~UnderlyingValue);
+                        if(BitHelper.AreAnyBitsSet(negSetRegisters, registerField.position, registerField.width))
+                        {
+                            BitHelper.OrWith(ref UnderlyingValue, negSetRegisters, registerField.position, registerField.width);
+                            changedRegisters.Add(registerField);
+                        }
+                        break;
+                    case FieldMode.WriteZeroToToggle:
+                        if(BitHelper.AreAnyBitsSet(~value, registerField.position, registerField.width))
+                        {
+                            BitHelper.XorWith(ref UnderlyingValue, ~value, registerField.position, registerField.width);
                             changedRegisters.Add(registerField);
                         }
                         break;

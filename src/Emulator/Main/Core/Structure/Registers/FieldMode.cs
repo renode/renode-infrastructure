@@ -19,7 +19,10 @@ namespace Antmicro.Renode.Core.Structure.Registers
         Toggle = 1 << 3,
         WriteOneToClear = 1 << 4,
         WriteZeroToClear = 1 << 5,
-        ReadToClear = 1 << 6
+        ReadToClear = 1 << 6,
+        WriteZeroToSet = 1 << 7,
+        WriteZeroToToggle = 1 << 8,
+        ReadToSet = 1 << 11
     }
 
     public static class FieldModeHelper
@@ -31,36 +34,29 @@ namespace Antmicro.Renode.Core.Structure.Registers
 
         public static bool IsReadable(this FieldMode mode)
         {
-            return (mode & (FieldMode.Read | FieldMode.ReadToClear)) != 0;
+            return (mode & (FieldMode.Read | FieldMode.ReadToClear | FieldMode.ReadToSet)) != 0;
         }
 
         public static bool IsWritable(this FieldMode mode)
         {
-            return (mode & (FieldMode.Write | FieldMode.Set | FieldMode.Toggle | FieldMode.WriteOneToClear | FieldMode.WriteZeroToClear)) != 0;
+            return (mode & (FieldMode.Write | FieldMode.Set | FieldMode.Toggle | FieldMode.WriteOneToClear | FieldMode.WriteZeroToClear |
+                            FieldMode.WriteZeroToSet | FieldMode.WriteZeroToToggle)) != 0;
         }
 
         public static FieldMode WriteBits(this FieldMode mode)
         {
-            return mode & ~(FieldMode.Read | FieldMode.ReadToClear);
+            return mode & ~(FieldMode.Read | FieldMode.ReadToClear | FieldMode.ReadToSet);
         }
 
         public static FieldMode ReadBits(this FieldMode mode)
         {
-            return mode & (FieldMode.Read | FieldMode.ReadToClear);
+            return mode & (FieldMode.Read | FieldMode.ReadToClear | FieldMode.ReadToSet);
         }
 
         public static bool IsValid(this FieldMode mode)
         {
-            if((mode & (FieldMode.Read | FieldMode.ReadToClear)) == (FieldMode.Read | FieldMode.ReadToClear))
-            {
-                return false;
-            }
             //the assumption that write flags are exclusive is used in BusRegister logic (switch instead of ifs)
-            if(BitHelper.GetSetBits((uint)(mode & (FieldMode.Write | FieldMode.Set | FieldMode.Toggle | FieldMode.WriteOneToClear | FieldMode.WriteZeroToClear))).Count > 1)
-            {
-                return false;
-            }
-            return true;
+            return !(BitHelper.GetSetBits((uint)ReadBits(mode)).Count > 1) && !(BitHelper.GetSetBits((uint)WriteBits(mode)).Count > 1);
         }
     }
 }
