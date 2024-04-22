@@ -44,6 +44,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         {
                             vosValue.Value = RegulatorVoltageScalingOutputSelection.ScaleMode3;
                         }
+                        vosrdyValue.Value = true;
                     })
                 .WithFlag(16, name: "ODEN", writeCallback: (_, value) =>
                     {
@@ -67,7 +68,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithTaggedFlag("EWUP", 8)
                 .WithTaggedFlag("BER", 9)
                 .WithReservedBits(10, 4)
-                .WithTaggedFlag("VOSRDY", 14)
+                .WithFlag(14, out vosrdyValue, FieldMode.Read, name: "VOSRDY")
                 .WithReservedBits(15, 1)
                 .WithFlag(16, out odrdyValue, FieldMode.Read, name: "ODRDY")
                 .WithFlag(17, out odswrdyValue, FieldMode.Read, name: "ODSWRDY")
@@ -79,6 +80,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private IEnumRegisterField<RegulatorVoltageScalingOutputSelection> vosValue;
         private IFlagRegisterField odswenValue;
+        private IFlagRegisterField vosrdyValue;
         private IFlagRegisterField odrdyValue;
         private IFlagRegisterField odswrdyValue;
 
