@@ -60,6 +60,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             : base(id, cpuType, machine, endianness, bitness)
         {
             this.translationCacheSize = DefaultTranslationCacheSize;
+            atomicId = -1;
             translationCacheSync = new object();
             pauseGuard = new CpuThreadPauseGuard(this);
             decodedIrqs = new Dictionary<Interrupt, HashSet<int>>();
@@ -1301,7 +1302,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             if(machine != null)
             {
-                TlibAtomicMemoryStateInit(checked((int)this.Id), machine.AtomicMemoryStatePointer);
+                atomicId = TlibAtomicMemoryStateInit(machine.AtomicMemoryStatePointer, atomicId);
+                if(atomicId == -1)
+                {
+                    throw new ConstructionException("Failed to initialize atomic state, see the log for details");
+                }
             }
             HandleRamSetup();
             foreach(var hook in hooks)
@@ -1332,6 +1337,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Transient]
         private ActionUInt64 onTranslationBlockFetch;
         private byte[] cpuState;
+
+        /// <summary>
+        /// <see cref="atomicId" /> acts as a binder between the CPU and atomic state.
+        /// It's used to restore the atomic state after deserialization
+        /// </summary>
+        private int atomicId;
         
         [Transient]
         private string libraryFile;
@@ -1828,7 +1839,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         protected Action TlibSetReturnRequest;
 
         [Import]
-        private ActionInt32IntPtr TlibAtomicMemoryStateInit;
+        private FuncInt32IntPtrInt32 TlibAtomicMemoryStateInit;
 
         [Import]
         private FuncUInt32 TlibGetPageSize;
