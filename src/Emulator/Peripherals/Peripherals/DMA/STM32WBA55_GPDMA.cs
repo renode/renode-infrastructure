@@ -442,7 +442,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             private void DoTransfer()
             {
                 parent.Log(LogLevel.Debug, "Start DoTransfer");
-                //TODO: implement linked list mode / 
+                //TODO: implement linked list mode 
                 //TODO: implement to copy whole block if source = destination = memory
                 // var toCopy = (uint)blockNumberDataBytesFromSource.Value;
                 //parent.Log(LogLevel.Debug, "toCopy: {0}", toCopy);
@@ -468,16 +468,13 @@ namespace Antmicro.Renode.Peripherals.DMA
                     sourceAddress.Value = response.ReadAddress.Value;
                     currentSourceAddress = response.ReadAddress.Value;
                     destinationAddress.Value = response.WriteAddress.Value;
-                    currentDestinationAddress =response.WriteAddress.Value;
+                    currentDestinationAddress = response.WriteAddress.Value;
 
                     blockNumberDataBytesFromSource.Value -= 1;
                     HalfTransfer = blockNumberDataBytesFromSource.Value <= originalBlockNumberDataBytesFromSource / 2;
                     TransferComplete = blockNumberDataBytesFromSource.Value == 0;
                     parent.Update(channelNumber);
                 }
-
-                // No parent.Update - this is called by the register write and TryTriggerTransfer
-                // to avoid calling it twice in the former case
             }
 
             private Response IssueCopy(ulong sourceAddress, ulong destinationAddress, uint size,
@@ -714,74 +711,72 @@ namespace Antmicro.Renode.Peripherals.DMA
             Channel1DestinationAddress = 0x120,
             Channel1LinkedListAddress = 0x14C,
 
-            /*TODO: update adresses and uncomment
 
-            Channel2LinkedListBaseAddress = 0x50,
-            Channel2FlagClear = 0x5C,
-            Channel2Status = 0x60,
-            Channel2Control = 0x64,
-            Channel2Transfer1 = 0x90,
-            Channel2Transfer2 = 0x94,
-            Channel2Block1 = 0x98,
-            Channel2SourceAddress = 0x9C,
-            Channel2DestinationAddress = 0xA0,
-            Channel2LinkedListAddress = 0xCC,
+            Channel2LinkedListBaseAddress = 0x150,
+            Channel2FlagClear = 0x15C,
+            Channel2Status = 0x160,
+            Channel2Control = 0x164,
+            Channel2Transfer1 = 0x190,
+            Channel2Transfer2 = 0x194,
+            Channel2Block1 = 0x198,
+            Channel2SourceAddress = 0x19C,
+            Channel2DestinationAddress = 0x1A0,
+            Channel2LinkedListAddress = 0x1CC,
 
-            Channel3LinkedListBaseAddress = 0x50,
-            Channel3FlagClear = 0x5C,
-            Channel3Status = 0x60,
-            Channel3Control = 0x64,
-            Channel3Transfer1 = 0x90,
-            Channel3Transfer2 = 0x94,
-            Channel3Block1 = 0x98,
-            Channel3SourceAddress = 0x9C,
-            Channel3DestinationAddress = 0xA0,
-            Channel3LinkedListAddress = 0xCC,
+            Channel3LinkedListBaseAddress = 0x1D0,
+            Channel3FlagClear = 0x1DC,
+            Channel3Status = 0x1E0,
+            Channel3Control = 0x1E4,
+            Channel3Transfer1 = 0x210,
+            Channel3Transfer2 = 0x214,
+            Channel3Block1 = 0x218,
+            Channel3SourceAddress = 0x21C,
+            Channel3DestinationAddress = 0x220,
+            Channel3LinkedListAddress = 0x24C,
 
-            Channel4LinkedListBaseAddress = 0x50,
-            Channel4FlagClear = 0x5C,
-            Channel4Status = 0x60,
-            Channel4Control = 0x64,
-            Channel4Transfer1 = 0x90,
-            Channel4Transfer2 = 0x94,
-            Channel4Block1 = 0x98,
-            Channel4SourceAddress = 0x9C,
-            Channel4DestinationAddress = 0xA0,
-            Channel4LinkedListAddress = 0xCC,
+            Channel4LinkedListBaseAddress = 0x250,
+            Channel4FlagClear = 0x25C,
+            Channel4Status = 0x260,
+            Channel4Control = 0x264,
+            Channel4Transfer1 = 0x290,
+            Channel4Transfer2 = 0x294,
+            Channel4Block1 = 0x298,
+            Channel4SourceAddress = 0x29C,
+            Channel4DestinationAddress = 0x2A0,
+            Channel4LinkedListAddress = 0x2CC,
 
-            Channel5LinkedListBaseAddress = 0x50,
-            Channel5FlagClear = 0x5C,
-            Channel5Status = 0x60,
-            Channel5Control = 0x64,
-            Channel5Transfer1 = 0x90,
-            Channel5Transfer2 = 0x94,
-            Channel5Block1 = 0x98,
-            Channel5SourceAddress = 0x9C,
-            Channel5DestinationAddress = 0xA0,
-            Channel5LinkedListAddress = 0xCC,
+            Channel5LinkedListBaseAddress = 0x2D0,
+            Channel5FlagClear = 0x2DC,
+            Channel5Status = 0x2E0,
+            Channel5Control = 0x2E4,
+            Channel5Transfer1 = 0x310,
+            Channel5Transfer2 = 0x314,
+            Channel5Block1 = 0x318,
+            Channel5SourceAddress = 0x31C,
+            Channel5DestinationAddress = 0x320,
+            Channel5LinkedListAddress = 0x34C,
 
-            Channel6LinkedListBaseAddress = 0x50,
-            Channel6FlagClear = 0x5C,
-            Channel6Status = 0x60,
-            Channel6Control = 0x64,
-            Channel6Transfer1 = 0x90,
-            Channel6Transfer2 = 0x94,
-            Channel6Block1 = 0x98,
-            Channel6SourceAddress = 0x9C,
-            Channel6DestinationAddress = 0xA0,
-            Channel6LinkedListAddress = 0xCC,
+            Channel6LinkedListBaseAddress = 0x350,
+            Channel6FlagClear = 0x35C,
+            Channel6Status = 0x360,
+            Channel6Control = 0x364,
+            Channel6Transfer1 = 0x390,
+            Channel6Transfer2 = 0x394,
+            Channel6Block1 = 0x398,
+            Channel6SourceAddress = 0x39C,
+            Channel6DestinationAddress = 0x3A0,
+            Channel6LinkedListAddress = 0x3CC,
 
-            Channel7LinkedListBaseAddress = 0x50,
-            Channel7FlagClear = 0x5C,
-            Channel7Status = 0x60,
-            Channel7Control = 0x64,
-            Channel7Transfer1 = 0x90,
-            Channel7Transfer2 = 0x94,
-            Channel7Block1 = 0x98,
-            Channel7SourceAddress = 0x9C,
-            Channel7DestinationAddress = 0xA0,
-            Channel7LinkedListAddress = 0xCC,
-            */
+            Channel7LinkedListBaseAddress = 0x3D0,
+            Channel7FlagClear = 0x3DC,
+            Channel7Status = 0x3E0,
+            Channel7Control = 0x3E4,
+            Channel7Transfer1 = 0x410,
+            Channel7Transfer2 = 0x414,
+            Channel7Block1 = 0x418,
+            Channel7SourceAddress = 0x41C,
+            Channel7DestinationAddress = 0x420,
+            Channel7LinkedListAddress = 0x44C,
         }
     }
 }
