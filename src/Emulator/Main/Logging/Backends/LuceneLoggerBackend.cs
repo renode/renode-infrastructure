@@ -117,6 +117,9 @@ namespace Antmicro.Renode.Logging.Backends
             writer.UseCompoundFile = false;
 
             logLevel = LogLevel.Noisy;
+            // The Lucene backend is different from the others in that it always collects logs at the maximum
+            // level to enable filtering later. Notify the Logger about this.
+            base.SetLogLevel(LogLevel.Noisy, sourceId: -1);
             searcher = new Searcher(directory, analyzer);
 
             cache = new FileCache();
