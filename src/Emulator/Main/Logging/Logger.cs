@@ -89,82 +89,82 @@ namespace Antmicro.Renode.Logging
 
         public static void Log(LogLevel type, string message, params object[] args)
         {
-            Log(null, type, message, args);
+            LogAs(null, type, message, args);
         }
 
         public static void Error(string message)
         {
-            Log(LogLevel.Error, message);
+            LogAs(null, LogLevel.Error, message, null);
         }
 
         public static void Warning(string message)
         {
-            Log(LogLevel.Warning, message);
+            LogAs(null, LogLevel.Warning, message, null);
         }
 
         public static void Info(string message)
         {
-            Log(LogLevel.Info, message);
+            LogAs(null, LogLevel.Info, message, null);
         }
 
         public static void Debug(string message)
         {
-            Log(LogLevel.Debug, message);
+            LogAs(null, LogLevel.Debug, message, null);
         }
 
         public static void Noisy(string message)
         {
-            Log(LogLevel.Noisy, message);
+            LogAs(null, LogLevel.Noisy, message, null);
         }
 
         public static void ErrorLog(this IEmulationElement e, string message)
         {
-            Log(e, LogLevel.Error, message);
+            LogAs(e, LogLevel.Error, message, null);
         }
 
         public static void ErrorLog(this IEmulationElement e, string message, params object[] args)
         {
-            ErrorLog(e, string.Format(message, args));
+            LogAs(e, LogLevel.Error, message, args);
         }
 
         public static void WarningLog(this IEmulationElement e, string message)
         {
-            Log(e, LogLevel.Warning, message);
+            LogAs(e, LogLevel.Warning, message, null);
         }
 
         public static void WarningLog(this IEmulationElement e, string message, params object[] args)
         {
-            WarningLog(e, string.Format(message, args));
+            LogAs(e, LogLevel.Warning, message, args);
         }
 
         public static void InfoLog(this IEmulationElement e, string message)
         {
-            Log(e, LogLevel.Info, message);
+            LogAs(e, LogLevel.Info, message, null);
         }
 
         public static void InfoLog(this IEmulationElement e, string message, params object[] args)
         {
-            InfoLog(e, string.Format(message, args));
+            LogAs(e, LogLevel.Info, message, args);
         }
 
         public static void DebugLog(this IEmulationElement e, string message)
         {
-            Log(e, LogLevel.Debug, message);
+            LogAs(e, LogLevel.Debug, message, null);
         }
 
         public static void DebugLog(this IEmulationElement e, string message, params object[] args)
         {
-            DebugLog(e, string.Format(message, args));
+            LogAs(e, LogLevel.Debug, message, args);
         }
 
         public static void NoisyLog(this IEmulationElement e, string message)
         {
-            Log(e, LogLevel.Noisy, message);
+            LogAs(e, LogLevel.Noisy, message, null);
         }
 
         public static void NoisyLog(this IEmulationElement e, string message, params object[] args)
         {
-            NoisyLog(e, string.Format(message, args));
+            LogAs(e, LogLevel.Noisy, message, args);
         }
 
         public static void Log(this IEmulationElement e, LogLevel type, string message)
@@ -179,6 +179,13 @@ namespace Antmicro.Renode.Logging
 
         public static void LogAs(object o, LogLevel type, string message, params object[] args)
         {
+            // The inner log method is only skipped if the level of this message is lower than the level set
+            // for any source on any backend. This means that setting any element's log level to Debug will
+            // make all Debug and higher logs get sent to the backends.
+            if(type < minLevel)
+            {
+                return;
+            }
             var emulationManager = EmulationManager.Instance;
             if(emulationManager != null)
             {
