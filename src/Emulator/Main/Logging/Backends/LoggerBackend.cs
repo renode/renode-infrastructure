@@ -26,6 +26,7 @@ namespace Antmicro.Renode.Logging
 
         public virtual void SetLogLevel(LogLevel level, int sourceId = -1)
         {
+            Logger.SetLogLevel(this, level, sourceId);
             if(sourceId != -1)
             {
                 if(level == null)

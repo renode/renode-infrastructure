@@ -28,6 +28,7 @@ using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Utilities.Collections;
 using System.Diagnostics;
 using System.Text;
+using System.Linq;
 using Antmicro.Renode.Debugging;
 
 namespace Antmicro.Renode.Logging
@@ -45,11 +46,22 @@ namespace Antmicro.Renode.Logging
                 value.Dispose();
                 return backend;
             });
+            levels[new BackendSourceIdPair(backend, -1)] = backend.GetLogLevel();
+            foreach(var level in backend.GetCustomLogLevels())
+            {
+                levels[new BackendSourceIdPair(backend, level.Key)] = level.Value;
+            }
+            UpdateMinimumLevel();
             backends.Add(backend);
         }
 
         public static void RemoveBackend(ILoggerBackend backend)
         {
+            foreach(var level in levels.Where(pair => pair.Key.backend == backend).ToList())
+            {
+                levels.TryRemove(level.Key, out var _);
+            }
+            UpdateMinimumLevel();
             backends.Remove(backend);
             backend.Dispose();
         }
@@ -67,6 +79,12 @@ namespace Antmicro.Renode.Logging
             }
             backends.Clear();
             backendNames.Clear();
+        }
+
+        public static void SetLogLevel(ILoggerBackend backend, LogLevel level, int sourceId)
+        {
+            levels[new BackendSourceIdPair(backend, sourceId)] = level;
+            UpdateMinimumLevel();
         }
 
         public static void Log(LogLevel type, string message, params object[] args)
@@ -246,8 +264,11 @@ namespace Antmicro.Renode.Logging
         }
 
         private static ulong nextEntryId = 0;
+        private static LogLevel minLevel = DefaultLogLevel;
         private static readonly ConcurrentDictionary<string, ILoggerBackend> backendNames = new ConcurrentDictionary<string, ILoggerBackend>();
         private static readonly FastReadConcurrentCollection<ILoggerBackend> backends = new FastReadConcurrentCollection<ILoggerBackend>();
+        private static readonly ConcurrentDictionary<BackendSourceIdPair, LogLevel> levels = new ConcurrentDictionary<BackendSourceIdPair, LogLevel>();
+
 
         private static string GetGenericName(object o)
         {
@@ -257,6 +278,11 @@ namespace Antmicro.Renode.Logging
             }
             var type = o.GetType();
             return PrintFullName ? type.FullName : type.Name;
+        }
+
+        private static void UpdateMinimumLevel()
+        {
+            minLevel = levels.Min(l => l.Value);
         }
 
         internal class ActualLogger : ILogger
@@ -545,6 +571,18 @@ namespace Antmicro.Renode.Logging
                 private readonly ConcurrentDictionary<int, WeakWrapper<object>> idToObjectMap;
                 private readonly ConcurrentDictionary<WeakWrapper<object>, int> objectToIdMap;
             }
+        }
+
+        internal struct BackendSourceIdPair
+        {
+            public BackendSourceIdPair(ILoggerBackend backend, int sourceId)
+            {
+                this.backend = backend;
+                this.sourceId = sourceId;
+            }
+
+            public readonly ILoggerBackend backend;
+            public readonly int sourceId;
         }
     }
 }
