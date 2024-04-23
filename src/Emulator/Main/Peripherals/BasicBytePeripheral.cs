@@ -57,14 +57,19 @@ namespace Antmicro.Renode.Peripherals
             DefineMany(o, p, count, setup, stepInBytes, resetValue, softResettable, name);
         }
 
-        public static void DefineMany(this System.Enum o, IProvidesRegisterCollection<ByteRegisterCollection> p, uint count, Action<ByteRegister, int> setup, uint stepInBytes = 1, byte resetValue = 0, bool softResettable = true, string name = "")
+        public static void DefineMany(this System.Enum o, ByteRegisterCollection c, uint count, Action<ByteRegister, int> setup, uint stepInBytes = 1, byte resetValue = 0, bool softResettable = true, string name = "")
         {
             var baseAddress = Convert.ToInt64(o);
             for(var i = 0; i < count; i++)
             {
-                var register = p.RegistersCollection.DefineRegister(baseAddress + i * stepInBytes, resetValue, softResettable);
+                var register = c.DefineRegister(baseAddress + i * stepInBytes, resetValue, softResettable);
                 setup(register, i);
             }
+        }
+
+        public static void DefineMany(this System.Enum o, IProvidesRegisterCollection<ByteRegisterCollection> p, uint count, Action<ByteRegister, int> setup, uint stepInBytes = 1, byte resetValue = 0, bool softResettable = true, string name = "")
+        {
+            DefineMany(o, p.RegistersCollection, count, setup, stepInBytes, resetValue, softResettable, name);
         }
 
         public static ByteRegister Define8(this System.Enum o, IProvidesRegisterCollection<ByteRegisterCollection> p, byte resetValue = 0, bool softResettable = true, string name = "")
