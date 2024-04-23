@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -232,6 +232,8 @@ namespace Antmicro.Renode.Logging
         }
 
         public static bool PrintFullName { get; set; }
+
+        public static readonly LogLevel DefaultLogLevel = LogLevel.Info;
 
         internal static ILogger GetLogger()
         {
