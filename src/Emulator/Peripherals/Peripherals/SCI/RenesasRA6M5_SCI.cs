@@ -173,9 +173,18 @@ namespace Antmicro.Renode.Peripherals.SCI
             var teState = transmitEndInterruptEnabled.Value;
 
             this.DebugLog("ReceiveIRQ: {0}, TransmitIRQ: {1}, TransmitEndIRQ: {2}.", rxState ? "set" : "unset", txState ? "set" : "unset", teState ? "set" : "unset");
-            ReceiveIRQ.Set(rxState);
-            TransmitIRQ.Set(txState);
-            TransmitEndIRQ.Set(teState);
+            if(rxState)
+            {
+                ReceiveIRQ.Blink();
+            }
+            if(txState)
+            {
+                TransmitIRQ.Blink();
+            }
+            if(teState)
+            {
+                TransmitEndIRQ.Blink();
+            }
         }
 
         private void UpdateInterruptsInIICMode()
