@@ -291,7 +291,11 @@ namespace Antmicro.Renode.UserInterface
                 //E.g. i $ORIGIN/dir/script. This happens only if the variable is the last successful token.
                 if(result.Tokens.Any() && result.Tokens.Last() is VariableToken lastVariableToken)
                 {
-                    var lastExpandedToken = ExpandVariable(lastVariableToken, variables);
+                    if(!TryExpandVariable(lastVariableToken, variables, out var lastExpandedToken))
+                    {
+                        writer.WriteError($"No such variable: ${lastVariableToken.Value}");
+                        return null;
+                    }
                     // replace the last token with the expanded version
                     var newString = result.Tokens.Take(result.Tokens.Count() - 1).Select(x => x.OriginalValue).Stringify() + lastExpandedToken.OriginalValue + cmd.Substring(cmd.Length - result.UnmatchedCharactersLeft);
                     return Tokenize(newString, writer);
