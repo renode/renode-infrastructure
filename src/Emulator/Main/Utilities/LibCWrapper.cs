@@ -200,6 +200,15 @@ namespace Antmicro.Renode.Utilities
 #endif
         }
 
+        public static int SetSocketOption(int socket, int level, int optionName, ref int optionValue)
+        {
+#if !PLATFORM_LINUX
+            throw new NotSupportedException("This API is available on Linux only!");
+#else
+            return setsockopt(socket, level, optionName, ref optionValue, 4);
+#endif
+        }
+
         public static int Bind(int domain, SocketAddressCan addr, int addrSize)
         {
 #if !PLATFORM_LINUX
@@ -228,6 +237,9 @@ namespace Antmicro.Renode.Utilities
 
         [DllImport("libc", EntryPoint = "socket", SetLastError = true)]
         private static extern int socket(int domain, int type, int protocol);
+
+        [DllImport("libc", EntryPoint = "setsockopt", SetLastError = true)]
+        private static extern int setsockopt(int socket, int level, int optionName, ref int optionValue, int optionLength);
 
         [DllImport("libc", EntryPoint = "bind", SetLastError = true)]
         public static extern int bind(int sockfd, ref SocketAddressCan addr, int addrSize);
