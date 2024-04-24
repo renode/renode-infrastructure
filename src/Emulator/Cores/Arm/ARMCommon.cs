@@ -97,13 +97,13 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public uint AllLevels
         {
-            get => BitHelper.ToUInt32(levels, 0, levels.Length, false);
-            protected set => BitHelper.GetBytesFromValue(levels, 0, value, levels.Length, false);
+            get => BitHelper.ToUInt32(levels, 0, levels.Length, reverse: true);
+            protected set => BitHelper.GetBytesFromValue(levels, 0, value, levels.Length, reverse: true);
         }
 
         public override string ToString()
         {
-            return String.Join(".", levels.Reverse());
+            return String.Join(".", levels);
         }
 
         protected readonly byte[] levels = new byte[LevelsCount];
