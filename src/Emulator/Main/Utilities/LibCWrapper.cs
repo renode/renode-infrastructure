@@ -252,7 +252,7 @@ namespace Antmicro.Renode.Utilities
         [DllImport("libc", EntryPoint = "close")]
         private static extern int close(int fd);
 
-        [DllImport("libc", EntryPoint = "write")]
+        [DllImport("libc", EntryPoint = "write", SetLastError = true)]
         private static extern int write(int fd, IntPtr buf, int count);
 
         [DllImport("libc", EntryPoint = "read")]
