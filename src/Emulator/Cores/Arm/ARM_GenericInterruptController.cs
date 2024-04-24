@@ -25,6 +25,15 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
     {
         public ARM_GenericInterruptController(IMachine machine, bool supportsTwoSecurityStates = true, ARM_GenericInterruptControllerVersion architectureVersion = ARM_GenericInterruptControllerVersion.Default, uint sharedPeripheralCount = 960)
         {
+            if(architectureVersion == ARM_GenericInterruptControllerVersion.GICv1)
+            {
+                // On GICv1, `GICD_ITARGETSRn` supports up to 8 CPU targets, so we ignore higher affinity levels completely
+                affinityToIdMask = 0xFF;
+            }
+            else
+            {
+                affinityToIdMask = uint.MaxValue;
+            }
             busController = machine.GetSystemBus(this);
 
             if(sharedPeripheralCount > InterruptsDecoder.MaximumSharedPeripheralCount)
@@ -124,7 +133,18 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public void AttachCPU(IARMSingleSecurityStateCPU cpu)
         {
-            var processorNumber = cpu.Id;
+            if(ArchitectureVersion == ARM_GenericInterruptControllerVersion.GICv1)
+            {
+                var affinities = cpuEntries.Keys.Select(c => c.Affinity).Select(a => new Affinity(a.AllLevels & ~affinityToIdMask));
+                var highAffinity = cpu.Affinity.AllLevels & ~affinityToIdMask;
+                if(affinities.Any(a => highAffinity != a.AllLevels))
+                {
+                    throw new RecoverableException($"Previously registered CPUs have Affinities above Aff0 different from {new Affinity(highAffinity)}."
+                        + $" This is illegal for {nameof(ARM_GenericInterruptControllerVersion.GICv1)}.");
+                }
+            }
+            var processorNumber = cpu.Affinity.AllLevels & affinityToIdMask;
+            this.Log(LogLevel.Noisy, "Trying to attach CPU {0}", cpu.Affinity);
             if(TryGetCPUEntry(processorNumber, out var existingCPUEntry))
             {
                 throw new RecoverableException($"The CPU with the Processor Number {processorNumber} already exists.");
@@ -2051,6 +2071,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private readonly DoubleWordRegisterCollection cpuInterfaceRegistersDisabledSecurityView;
         private readonly QuadWordRegisterCollection cpuInterfaceSystemRegisters;
 
+        private readonly uint affinityToIdMask;
         private readonly bool supportsTwoSecurityStates;
         private readonly InterruptsDecoder irqsDecoder;
 
@@ -2413,7 +2434,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             public EndOfInterruptModes EndOfInterruptModeVirtual { get; set; }
             public bool IsStateSecure => cpu.SecurityState == SecurityState.Secure;
             public string Name { get; }
-            public uint ProcessorNumber => cpu.Id;
+            public uint ProcessorNumber => cpu.Affinity.AllLevels & gic.affinityToIdMask;
             public uint TargetFieldFlag => ProcessorNumber <= CPUsCountLegacySupport ? 1U << (int)ProcessorNumber : 0;
             public bool VirtualCPUInterfaceEnabled { get; set; }
             public bool VirtualFIQEnabled { get; set; }
