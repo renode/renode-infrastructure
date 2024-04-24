@@ -53,7 +53,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
                 xmlFile.Append("<?xml version=\"1.0\"?>\n<threads>\n");
                 foreach(var cpu in manager.ManagedCpus)
                 {
-                    xmlFile.Append($"<thread id=\"{cpu.Key}\" core=\"{cpu.Key - 1}\" name=\"{cpu.Value.GetName()}\"></thread>\n");
+                    xmlFile.Append($"<thread id=\"{cpu.Key:x}\" core=\"{cpu.Key - 1}\" name=\"{cpu.Value.GetName()}\"></thread>\n");
                 }
                 xmlFile.Append("</threads>\n");
             }
