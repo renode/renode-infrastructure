@@ -143,6 +143,15 @@ namespace Antmicro.Renode.Core.CAN
             };
         }
 
+        public override string ToString() => $@"ClassicalSocketCANFrame {{
+    id: 0x{id:X},
+    errorMessageFrame: {errorMessageFrame},
+    remoteTransmissionRequest: {remoteTransmissionRequest},
+    extendedFrameFormat: {extendedFrameFormat},
+    length: {length},
+    data: {Misc.PrettyPrintCollectionHex(data)}
+}}";
+
         public IEnumerable<FieldMarker> MultibyteFields => multibyteFields;
 
         int ISocketCANFrame.Size => ClassicalSocketCANFrame.Size;
@@ -195,6 +204,18 @@ namespace Antmicro.Renode.Core.CAN
             };
         }
 
+        public override string ToString() => $@"FlexibleSocketCANFrame {{
+    id: 0x{id:X},
+    errorMessageFrame: {errorMessageFrame},
+    remoteTransmissionRequest: {remoteTransmissionRequest},
+    extendedFrameFormat: {extendedFrameFormat},
+    length: {length},
+    bitRateSwitch: {bitRateSwitch},
+    errorStateIndicator: {errorStateIndicator},
+    flexibleDataRateFrame: {flexibleDataRateFrame},
+    data: {Misc.PrettyPrintCollectionHex(data)}
+}}";
+
         public IEnumerable<FieldMarker> MultibyteFields => multibyteFields;
 
         int ISocketCANFrame.Size => FlexibleSocketCANFrame.Size;
@@ -240,6 +261,17 @@ namespace Antmicro.Renode.Core.CAN
     [LeastSignificantByteFirst]
     public struct XLSocketCANFrame : ISocketCANFrame
     {
+        public override string ToString() => $@"XLSocketCANFrame {{
+    priority: 0x{priority:X},
+    virtualCANNetworkId: 0x{virtualCANNetworkId:X},
+    simpleExtendedContent: {simpleExtendedContent},
+    extendedFrameLengthFrame: {extendedFrameLengthFrame},
+    serviceDataUnit: 0x{serviceDataUnit:X},
+    length: {length},
+    acceptanceField: 0x{acceptanceField:X},
+    data: {Misc.PrettyPrintCollectionHex(data)}
+}}";
+
         public IEnumerable<FieldMarker> MultibyteFields => multibyteFields;
 
         int ISocketCANFrame.Size => XLSocketCANFrame.Size;
