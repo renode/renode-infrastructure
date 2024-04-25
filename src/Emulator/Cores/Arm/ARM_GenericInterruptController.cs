@@ -818,6 +818,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 BuildInterruptClearActiveRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.SharedPeripheralLast, "InterruptClearActive")
             );
 
+            AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptSetPending_0,
+                BuildInterruptSetPendingRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.SharedPeripheralLast, "InterruptSetPending")
+            );
+
             AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptClearPending_0,
                 BuildInterruptClearPendingRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.SharedPeripheralLast, "InterruptClearPending")
             );
@@ -1630,6 +1634,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             return BuildInterruptFlagRegisters(startId, endId, name,
                 writeCallback: (irq, val) => irq.State.Active &= !val,
                 valueProviderCallback: irq => irq.State.Active
+            );
+        }
+
+        private IEnumerable<DoubleWordRegister> BuildInterruptSetPendingRegisters(InterruptId startId, InterruptId endId, string name)
+        {
+            return BuildInterruptFlagRegisters(startId, endId, name,
+                writeCallback: (irq, val) => irq.State.Pending |= val,
+                valueProviderCallback: irq => irq.State.Pending
             );
         }
 
