@@ -259,7 +259,6 @@ namespace Antmicro.Renode.Peripherals.DMA
                             if (val)
                             {
                                 //TODO: check GPDMA_CxBR1,GPDMA_CxSAR, and GPDMA_CxDAR
-                                //registers; propably need to be updated 
                                 channelEnable.Value = false;
                                 channelSuspend.Value = false;
                             }
