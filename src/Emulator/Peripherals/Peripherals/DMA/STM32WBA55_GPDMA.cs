@@ -443,8 +443,6 @@ namespace Antmicro.Renode.Peripherals.DMA
                 parent.Log(LogLevel.Debug, "Start DoTransfer");
                 //TODO: implement linked list mode 
                 //TODO: implement to copy whole block if source = destination = memory
-                // var toCopy = (uint)blockNumberDataBytesFromSource.Value;
-                //parent.Log(LogLevel.Debug, "toCopy: {0}", toCopy);
 
                 //get the size of a data unit (data beat) to copy
                 var toCopy = Math.Max((uint)SizeToType(sourceDataWith.Value), (uint)SizeToType(destinationDataWith.Value));
