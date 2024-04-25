@@ -251,6 +251,11 @@ namespace Antmicro.Renode.Peripherals.CPU
                     }
                     else
                     {
+                        if(State == CPUState.InReset)
+                        {
+                            State = CPUState.Running;
+                        }
+
                         if(wasRunningWhenHalted)
                         {
                             Resume();
@@ -273,6 +278,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                     return;
                 }
                 state = value;
+                if(oldState == CPUState.InReset)
+                {
+                    OnLeavingResetState();
+                }
                 StateChanged?.Invoke(this, oldState, value);
             }
         }
@@ -384,8 +393,17 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        protected virtual void OnLeavingResetState()
+        {
+            // Intentionally left blank.
+        }
+
         protected override void OnResume()
         {
+            if(State == CPUState.InReset && !currentHaltedState)
+            {
+                State = CPUState.Running;
+            }
             singleStepSynchronizer.Enabled = IsSingleStepMode;
             StartCPUThread();
         }
@@ -557,14 +575,6 @@ restart:
                 this.Trace();
                 return CpuResult.NothingExecuted;
             }
-
-            if(State != CPUState.Running)
-            {
-                // Here we know for sure that the machine has been started and the CPU isn't halted.
-                // Currently, the state can be Aborted, InReset and Running so stepping etc. is ignored.
-                State = CPUState.Running;
-            }
-
             this.Trace($"CPU thread body running... granted {interval.Ticks} ticks");
             var mmuFaultThrown = false;
             var initialExecutedResiduum = executedResiduum;

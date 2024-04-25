@@ -156,6 +156,11 @@ namespace Antmicro.Renode.Peripherals.Bus
             return ParentController.GetCurrentCPU();
         }
 
+        public virtual IEnumerable<IBusRegistered<IBusPeripheral>> GetRegisteredPeripherals(ICPU context = null)
+        {
+            return ParentController.GetRegisteredPeripherals(context);
+        }
+
         public virtual IEnumerable<BusRangeRegistration> GetRegistrationPoints(IBusPeripheral peripheral)
         {
             return ParentController.GetRegistrationPoints(peripheral);

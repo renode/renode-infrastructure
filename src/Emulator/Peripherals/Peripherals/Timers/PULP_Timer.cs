@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -13,7 +13,7 @@ using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
-    public class PULP_Timer : BasicDoubleWordPeripheral, INumberedGPIOOutput
+    public class PULP_Timer : BasicDoubleWordPeripheral, IKnownSize, INumberedGPIOOutput
     {
         public PULP_Timer(IMachine machine, long frequency) : base(machine)
         {

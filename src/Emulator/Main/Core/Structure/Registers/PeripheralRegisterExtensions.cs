@@ -34,6 +34,24 @@ namespace Antmicro.Renode.Core.Structure.Registers
         }
 
         /// <summary>
+        /// Fluent API for handling for loops. This helper is equivalent to calling the callback in a for loop
+        /// going from "start" to "end" being incremented by "step"
+        /// </summary>
+        /// <param name="callback">Callback to execute on each loop iteration</param>
+        /// <param name="start">Starting value of the loop variable</param>
+        /// <param name="end">Exclusive ending value of the loop variable</param>
+        /// <param name="step">Amount that the loop variable will be incremented by after each iteration</param>
+        /// <returns>This register after all loop iterations</returns>
+        public static T For<T>(this T register, Action<T, int> callback, int start, int end, int step = 1) where T : PeripheralRegister
+        {
+            for(var i = start; i < end; i += step)
+            {
+                callback(register, i);
+            }
+            return register;
+        }
+
+        /// <summary>
         /// Fluent API for flag field creation. For parameters see <see cref="PeripheralRegister.DefineFlagField"/>.
         /// </summary>
         /// <returns>This register with a defined flag.</returns>

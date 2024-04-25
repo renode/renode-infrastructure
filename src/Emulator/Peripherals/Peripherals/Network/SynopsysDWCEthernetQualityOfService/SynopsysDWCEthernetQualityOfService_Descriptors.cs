@@ -16,43 +16,6 @@ namespace Antmicro.Renode.Peripherals.Network
 {
     public partial class SynopsysDWCEthernetQualityOfService
     {
-        private TxDescriptor GetTxDescriptor(ulong index = 0)
-        {
-            var descriptor = new TxDescriptor(Bus, txDescriptorRingCurrent.Value, cpuContext);
-            descriptor.Fetch();
-            return descriptor;
-        }
-
-        private RxDescriptor GetRxDescriptor()
-        {
-            var descriptor = new RxDescriptor(Bus, rxDescriptorRingCurrent.Value, cpuContext);
-            descriptor.Fetch();
-            return descriptor;
-        }
-
-        private void IncreaseTxDescriptorPointer()
-        {
-            IncreaseDescriptorPointer(txDescriptorRingCurrent, txDescriptorRingStart, txDescriptorRingLength, "TX");
-            txFinishedRing = txDescriptorRingCurrent.Value == txDescriptorRingTail.Value;
-        }
-
-        private void IncreaseRxDescriptorPointer()
-        {
-            IncreaseDescriptorPointer(rxDescriptorRingCurrent, rxDescriptorRingStart, rxDescriptorRingLength, "RX");
-            rxFinishedRing = rxDescriptorRingCurrent.Value == rxDescriptorRingTail.Value;
-        }
-
-        private void IncreaseDescriptorPointer(IValueRegisterField current, IValueRegisterField start, IValueRegisterField length, string name)
-        {
-            var size = descriptorSkipLength.Value * 4 + Descriptor.Size;
-            var offset = current.Value - start.Value;
-            offset += size;
-            // The docs state that: "If you want to have 10 descriptors, program it to a value of 0x9" - so it always should be +1 descriptor than obtained from the register
-            offset %= (length.Value + 1) * size;
-            this.Log(LogLevel.Noisy, "{0} Descriptor pointer was 0x{1:X}, now is 0x{2:X}, size 0x{3:X}, ring length 0x{4:x}", name, current.Value, start.Value + offset, size, length.Value);
-            current.Value = start.Value + offset;
-        }
-
         private abstract class Descriptor
         {
             public Descriptor(IBusController bus, ulong address, ICPU cpuContext = null)

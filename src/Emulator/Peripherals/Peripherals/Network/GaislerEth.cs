@@ -13,6 +13,7 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Network;
 using Antmicro.Renode.Utilities;
+using MiscUtil.Conversion;
 
 namespace Antmicro.Renode.Peripherals.Network
 {
@@ -49,10 +50,10 @@ namespace Antmicro.Renode.Peripherals.Network
                 return registers.Status;
             case Registers.MacAddressHi:
                 //return registers.MacAddresHi;
-                return (uint)BitConverter.ToUInt16(MAC.Bytes, 4);
+                return (uint)EndianBitConverter.Big.ToUInt16(MAC.Bytes, 4);
             case Registers.MacAddressLo:
                 //return registers.MacAddresLo;
-                return BitConverter.ToUInt32(MAC.Bytes, 0);
+                return EndianBitConverter.Big.ToUInt32(MAC.Bytes, 0);
             case Registers.MDIOControlStatus:
                 return registers.MDIOControlStatus;
             case Registers.TxDescriptorPointer:
@@ -90,9 +91,13 @@ namespace Antmicro.Renode.Peripherals.Network
                 break;
             case Registers.MacAddressHi:
                 registers.MacAddresHi = value;
+                var macBytes = EndianBitConverter.Big.GetBytes(value);
+                MAC = MAC.WithNewOctets(a: macBytes[2], b: macBytes[3]);
                 break;
             case Registers.MacAddressLo:
                 registers.MacAddresLo = value;
+                macBytes = EndianBitConverter.Big.GetBytes(value);
+                MAC = MAC.WithNewOctets(c: macBytes[0], d: macBytes[1], e: macBytes[2], f: macBytes[3]);
                 break;
             case Registers.MDIOControlStatus:
 
@@ -209,7 +214,7 @@ namespace Antmicro.Renode.Peripherals.Network
             if(!EthernetFrame.CheckCRC(frame.Bytes))
             {
                 rd.CRCError = true;
-                this.Log(LogLevel.Info, "Invalid CRC, packet discarded");
+                this.Log(LogLevel.Warning, "Invalid CRC, packet discarded");
                 return;
             }
 
@@ -265,8 +270,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 return;
             }
 
-            this.Log(LogLevel.Info, "Sending packet length {0}", packet.Bytes.Length);
-            this.Log(LogLevel.Info, "Packet address = 0x{0:X}", td.PacketAddress);
+            this.Log(LogLevel.Noisy, "Sending packet length {0}, packet address = 0x{1:X}", packet.Bytes.Length, td.PacketAddress);
             FrameReady?.Invoke(packet);
 
             registers.Status |= 1u << 3;

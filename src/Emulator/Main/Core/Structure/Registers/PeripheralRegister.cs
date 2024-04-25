@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -739,16 +739,16 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// Returns information about tag writes. Extracted as a method to allow future lazy evaluation.
         /// </summary>
         /// <param name="offset">The offset of the affected register.</param>
-        /// <param name="value">Unhandled value.</param>
+        /// <param name="unhandledMask">Unhandled bits mask.</param>
         /// <param name="originalValue">The whole value written to the register.</param>
-        private string TagLogger(long offset, ulong value, ulong originalValue)
+        private string TagLogger(long offset, ulong unhandledMask, ulong originalValue)
         {
-            var tagsAffected = tags.Select(x => new { x.Name, Value = BitHelper.GetValue(value, x.Position, x.Width) })
-                .Where(x => x.Value != 0);
+            var tagsAffected = tags.Where(x => BitHelper.AreAnyBitsSet(unhandledMask, x.Position, x.Width))
+                .Select(x =>  new { x.Name, Value = BitHelper.GetValue(originalValue, x.Position, x.Width) });
             return "Unhandled write to offset 0x{2:X}. Unhandled bits: [{1}] when writing value 0x{3:X}.{0}"
                 .FormatWith(tagsAffected.Any() ? " Tags: {0}.".FormatWith(
                     tagsAffected.Select(x => "{0} (0x{1:X})".FormatWith(x.Name, x.Value)).Stringify(", ")) : String.Empty,
-                    BitHelper.GetSetBitsPretty(value),
+                    BitHelper.GetSetBitsPretty(unhandledMask),
                     offset,
                     originalValue);
         }

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -8,6 +8,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.SPI;
@@ -26,12 +27,12 @@ namespace Antmicro.Renode.Peripherals.SD
     {
         public SDCard(string imageFile, long capacity, bool persistent = false, bool spiMode = false, BlockLength blockSize = BlockLength.Undefined)
         {
-            var blockLenghtInBytes = SDHelpers.BlockLengthInBytes(blockSize); 
+            var blockLenghtInBytes = SDHelpers.BlockLengthInBytes(blockSize);
             if((blockSize != BlockLength.Undefined) && (capacity % blockLenghtInBytes != 0))
             {
                 throw new ConstructionException($"Size (0x{capacity:X}) is not aligned to selected block size(0x{blockLenghtInBytes:X})");
             }
-            
+
             this.spiMode = spiMode;
             this.highCapacityMode = SDHelpers.TypeFromCapacity((ulong)capacity) != CardType.StandardCapacity_SC;
             this.capacity = capacity;
@@ -77,7 +78,7 @@ namespace Antmicro.Renode.Peripherals.SD
                     .DefineFragment(62, 12, (ulong)sdCapacityParameters.DeviceSize, name: "device size")
                     .DefineFragment(80, 4, (uint)sdCapacityParameters.BlockSize, name: "max read data block length")
                     .DefineFragment(84, 12, (uint)(
-                          CardCommandClass.Class0 
+                          CardCommandClass.Class0
                         | CardCommandClass.Class2
                         | CardCommandClass.Class4
                         ), name: "card command classes")
@@ -92,7 +93,7 @@ namespace Antmicro.Renode.Peripherals.SD
                     .DefineFragment(48, 22, (ulong)sdCapacityParameters.DeviceSize, name: "device size")
                     .DefineFragment(80, 4, (uint)sdCapacityParameters.BlockSize, name: "max read data block length")
                     .DefineFragment(84, 12, (uint)(
-                          CardCommandClass.Class0 
+                          CardCommandClass.Class0
                         | CardCommandClass.Class2
                         | CardCommandClass.Class4
                         ), name: "card command classes")
@@ -134,6 +135,23 @@ namespace Antmicro.Renode.Peripherals.SD
                 .DefineFragment(56, 4, 0, name: "SD Card - Spec. Version") // 0: Version 1.0-1.01
                 .DefineFragment(60, 4, 0, name: "SCR Structure") // 0: SCR version No 1.0
             ;
+
+            operatingVoltageGenerator = new VariableLengthValue(24)
+                .DefineFragment(0, 4, 0x1, name: "voltage accepted") // 0x1: 2.7-3.6V
+                .DefineFragment(4, 16, 0, name: "reserved")
+                .DefineFragment(20, 4, 0, name: "command version");
+            ;
+
+            crcEngine = new CRCEngine(0x1021, 16, false, false, 0x00);
+            var bufferSize = highCapacityMode ? HighCapacityBlockLength : blockLengthInBytes;
+            /*
+             * enough to hold:
+             * 1 byte - start block token
+             * bufferSize bytes - actual data
+             * 2 bytes - CRC
+             * 1 byte - dummy byte required for the read transaction
+             */
+            spiContext.DataBuffer = new byte[bufferSize + 4];
         }
 
         public void Reset()
@@ -165,9 +183,7 @@ namespace Antmicro.Renode.Peripherals.SD
 
         public void WriteData(byte[] data)
         {
-            WriteDataToUnderlyingFile(writeContext.Offset, data.Length, data);
-            writeContext.Move((uint)data.Length);
-            state = SDCardState.Transfer;
+            WriteData(data, data.Length);
         }
 
         public byte[] ReadData(uint size)
@@ -201,26 +217,42 @@ namespace Antmicro.Renode.Peripherals.SD
             {
                 case SpiState.WaitingForCommand:
                 {
-                    if(data == DummyByte)
+                    if(spiContext.IoState == IoState.Idle && data == DummyByte)
                     {
-                        this.Log(LogLevel.Noisy, "Received a DUMMY byte, ignoring it");
-                        return GenerateR1Response().AsByte();
+                        this.Log(LogLevel.Noisy, "Received a DUMMY byte in the idle state, ignoring it");
+                        break;
                     }
 
-                    // two MSB of the SPI command byte should be '01'
-                    if(BitHelper.IsBitSet(data, 7) || !BitHelper.IsBitSet(data, 6))
+                    if((spiContext.IoState == IoState.Idle || spiContext.IoState == IoState.MultipleBlockRead) && data != DummyByte)
                     {
-                        this.Log(LogLevel.Warning, "Unexpected command number value 0x{0:X}, ignoring this - expect problems", data);
-                        return GenerateR1Response(illegalCommand: true).AsByte();
+                        // two MSB of the SPI command byte should be '01'
+                        if(BitHelper.IsBitSet(data, 7) || !BitHelper.IsBitSet(data, 6))
+                        {
+                            this.Log(LogLevel.Warning, "Unexpected command number value 0x{0:X}, ignoring this - expect problems", data);
+                            return GenerateR1Response(illegalCommand: true).AsByte();
+                        }
+
+                        // clear COMMAND bit, we don't need it anymore
+                        BitHelper.ClearBits(ref data, 6);
+
+                        spiContext.CommandNumber = (uint)data;
+                        spiContext.ArgumentBytes = 0;
+                        spiContext.State = SpiState.WaitingForArgBytes;
+                        
+                        break;
                     }
 
-                    // clear COMMAND bit, we don't need it anymore
-                    BitHelper.ClearBits(ref data, 6);
+                    switch(spiContext.IoState)
+                    {
+                        case IoState.SingleBlockRead:
+                        case IoState.MultipleBlockRead:
+                            return HandleRead();
+                        case IoState.SingleBlockWrite:
+                        case IoState.MultipleBlockWrite:
+                            var ret = HandleWrite(data);
+                            return ret;
+                    }
 
-                    spiContext.CommandNumber = (uint)data;
-
-                    spiContext.ArgumentBytes = 0;
-                    spiContext.State = SpiState.WaitingForArgBytes;
                     break;
                 }
 
@@ -245,31 +277,35 @@ namespace Antmicro.Renode.Peripherals.SD
 
                     this.Log(LogLevel.Noisy, "Sending a command to the SD card");
                     var result = HandleCommand(spiContext.CommandNumber, spiContext.Argument).AsByteArray();
-                    spiContext.ResponseBuffer.EnqueueRange(result);
 
-                    if(spiContext.ResponseBuffer.Count == 0)
+                    if(result.Length == 0)
                     {
                         this.Log(LogLevel.Warning, "Received an empty response, this is strange and might cause problems!");
                         spiContext.State = SpiState.WaitingForCommand;
-                        break;
                     }
                     else
                     {
+                        // The response is sent back within command response time,
+                        // 0 to 8 bytes for SDC, 1 to 8 bytes for MMC.
+                        // Send single dummy byte for compatibility with both cases.
+                        spiContext.ResponseBuffer.Enqueue(DummyByte);
+
+                        spiContext.ResponseBuffer.EnqueueRange(result);
                         spiContext.State = SpiState.SendingResponse;
-                        return spiContext.ResponseBuffer.Dequeue();
                     }
+                    break;
                 }
 
                 case SpiState.SendingResponse:
                 {
-                    if(spiContext.ResponseBuffer.TryDequeue(out var value))
-                    {
-                        return value;
-                    }
+                    spiContext.ResponseBuffer.TryDequeue(out var res);
 
-                    this.Log(LogLevel.Noisy, "This is the end of response buffer");
-                    spiContext.State = SpiState.WaitingForCommand;
-                    break;
+                    if(spiContext.ResponseBuffer.Count == 0)
+                    {
+                        this.Log(LogLevel.Noisy, "This is the end of response buffer");
+                        spiContext.State = SpiState.WaitingForCommand;
+                    }
+                    return res;
                 }
 
                 default:
@@ -278,7 +314,7 @@ namespace Antmicro.Renode.Peripherals.SD
                 }
             }
 
-            return 0;
+            return DummyByte;
         }
 
         public void FinishTransmission()
@@ -317,6 +353,15 @@ namespace Antmicro.Renode.Peripherals.SD
 
         public BitStream CardIdentification => cardIdentificationGenerator.Bits;
 
+        public BitStream OperatingVoltage => operatingVoltageGenerator.Bits;
+
+        private void WriteData(byte[] data, int length)
+        {
+            WriteDataToUnderlyingFile(writeContext.Offset, length, data);
+            writeContext.Move((uint)length);
+            state = SDCardState.Transfer;
+        }
+
         private void WriteDataToUnderlyingFile(long offset, int size, byte[] data)
         {
             dataBackend.Position = offset;
@@ -336,7 +381,12 @@ namespace Antmicro.Renode.Peripherals.SD
             {
                 this.Log(LogLevel.Warning, "Tried to read {0} bytes of data from offset {1}, but only {2} is available.", size, offset, actualSize);
             }
-            var result = new byte[actualSize];
+
+            /* During multi-block read, when reading till the end of disk, the SD card could reach end of disk before receiving
+             * stop transmission command. SD card specification doesn't specify what should be done in such situation.
+             * Return 0s as missing bytes.
+             */
+            var result = new byte[size];
             var readSoFar = 0;
             while(readSoFar < actualSize)
             {
@@ -363,6 +413,106 @@ namespace Antmicro.Renode.Peripherals.SD
             spiContext.Reset();
         }
 
+        /* Data packet has the following format:
+         * bytes:
+         * [ 0                          ] data token
+         * [ 1            : blockSize   ] actual data
+         * [ blocksSize+1 : blockSize+2 ] CRC
+         *
+         * After sending CRC, we have to send single DummyByte before sending next
+         * data packet.
+         */
+        private byte HandleRead()
+        {
+            var blockSize = highCapacityMode ? HighCapacityBlockLength : blockLengthInBytes;
+            ushort crc = 0;
+
+            if(spiContext.BytesSent == 0)
+            {
+                var readData = ReadData(blockSize);
+                crc = (ushort)crcEngine.Calculate(readData);
+
+                spiContext.DataBuffer[0] = BlockBeginIndicator;
+                System.Array.Copy(readData, 0, spiContext.DataBuffer, 1, blockSize);
+                spiContext.DataBuffer[blockSize + 1] = crc.HiByte();
+                spiContext.DataBuffer[blockSize + 2] = crc.LoByte();
+                // before sending new packet, at least one DummyByte should be sent
+                spiContext.DataBuffer[blockSize + 3] = DummyByte;
+            }
+
+            var res = spiContext.DataBuffer[spiContext.BytesSent]; 
+
+            spiContext.BytesSent++;
+            // We sent whole required data and can proceed to the next data packet,
+            // or finish the data read.
+            if(spiContext.BytesSent == blockSize + 4)
+            {
+                if(spiContext.IoState == IoState.SingleBlockRead)
+                {
+                    spiContext.IoState = IoState.Idle;
+                }
+                spiContext.BytesSent = 0;
+            }
+            return res;
+        }
+
+        /* Data packet has the following format:
+         * bytes:
+         * [ 0                          ] data token
+         * [ 1            : blockSize   ] actual data
+         * [ blocksSize+1 : blockSize+2 ] CRC
+         *
+         * After sending CRC, we have to send data response.
+         */
+        private byte HandleWrite(byte data)
+        {
+            var blockSize = highCapacityMode ? HighCapacityBlockLength : blockLengthInBytes;
+
+            switch(spiContext.ReceptionState)
+            {
+                case ReceptionState.WaitingForDataToken:
+                    switch((DataToken)data)
+                    {
+                        case DataToken.StopTran:
+                            spiContext.IoState = IoState.Idle;
+                            state = SDCardState.Programming;
+                            break;
+                        case DataToken.SingleWriteStartBlock:
+                        case DataToken.MultiWriteStartBlock:
+                            spiContext.DataBytesReceived = 0;
+                            spiContext.ReceptionState = ReceptionState.ReceivingData;
+                            break;
+                    }
+                    return DummyByte;
+                case ReceptionState.ReceivingData:
+                    spiContext.DataBuffer[spiContext.DataBytesReceived] = data;
+                    spiContext.DataBytesReceived++;
+                    if(spiContext.DataBytesReceived == blockSize)
+                    {
+                        spiContext.ReceptionState = ReceptionState.ReceivingCRC;
+                        spiContext.CRCBytesReceived = 0;
+                    }
+                    return DummyByte;
+                case ReceptionState.ReceivingCRC:
+                    spiContext.CRCBytesReceived++;
+                    if(spiContext.CRCBytesReceived == 2)
+                    {
+                        spiContext.ReceptionState = ReceptionState.SendingResponse;
+                    }
+                    return DummyByte;
+                case ReceptionState.SendingResponse:
+                    WriteData(spiContext.DataBuffer, (int)blockSize);
+                    spiContext.ReceptionState = ReceptionState.WaitingForDataToken;
+                    if(spiContext.IoState == IoState.SingleBlockWrite)
+                    {
+                        spiContext.IoState = IoState.Idle;
+                        state = SDCardState.Programming;
+                    }
+                    return DataAcceptedResponse;
+            }
+            return DummyByte;
+        }
+
         private BitStream GenerateR1Response(bool illegalCommand = false)
         {
             return new BitStream()
@@ -378,26 +528,32 @@ namespace Antmicro.Renode.Peripherals.SD
 
         private BitStream GenerateR2Response()
         {
-            return new BitStream()
-                .Append(GenerateR1Response().AsByte())
+            return GenerateR1Response()
                 .Append((byte)0); // TODO: fill with the actual data
         }
 
         private BitStream GenerateR3Response()
         {
-            return new BitStream()
-                .Append(GenerateR1Response().AsByte())
+            return GenerateR1Response()
                 .Append(OperatingConditions.AsByteArray());
         }
 
-        private BitStream GenerateR7Response()
+        private BitStream GenerateR7Response(byte checkPattern)
         {
-            return new BitStream()
-                .Append(GenerateR1Response().AsByte())
-                .Append((byte)0) // see: http://www.rjhcoding.com/avrc-sd-interface-2.php for reference
-                .Append((byte)0) // TODO: fill with the actual data
-                .Append((byte)0)
-                .Append((byte)0);
+            return GenerateR1Response()
+                .Append(OperatingVoltage.AsByteArray().Reverse().ToArray())
+                .Append(checkPattern);
+        }
+
+        private BitStream GenerateRegisterResponse(BitStream register)
+        {
+            var reg = register.AsByteArray().Reverse().ToArray();
+            ushort crc = (ushort)crcEngine.Calculate(reg);
+            return GenerateR1Response()
+                .Append(BlockBeginIndicator)
+                .Append(reg)
+                .Append(crc.HiByte())
+                .Append(crc.LoByte());
         }
 
         private BitStream HandleStandardCommand(SdCardCommand command, uint arg)
@@ -407,7 +563,7 @@ namespace Antmicro.Renode.Peripherals.SD
             {
                 case SdCardCommand.GoIdleState_CMD0:
                     GoToIdle();
-                    return spiMode 
+                    return spiMode
                         ? GenerateR1Response()
                         : BitStream.Empty; // no response in SD mode
 
@@ -481,13 +637,18 @@ namespace Antmicro.Renode.Peripherals.SD
 
                 case SdCardCommand.SendInterfaceConditionCommand_CMD8:
                     return spiMode
-                        ? GenerateR7Response()
+                        ? GenerateR7Response((byte)arg)
                         : CardStatus;
 
                 case SdCardCommand.SendCardSpecificData_CMD9:
                     return spiMode
-                        ? GenerateR1Response()
+                        ? GenerateRegisterResponse(CardSpecificData)
                         : CardSpecificData;
+
+                case SdCardCommand.SendCardIdentification_CMD10:
+                    return spiMode
+                        ? GenerateRegisterResponse(CardIdentification)
+                        : CardIdentification;
 
                 case SdCardCommand.StopTransmission_CMD12:
                     readContext.Reset();
@@ -497,13 +658,14 @@ namespace Antmicro.Renode.Peripherals.SD
                     {
                         case SDCardState.SendingData:
                             state = SDCardState.Transfer;
+                            spiContext.IoState = IoState.Idle;
                             break;
 
                         case SDCardState.ReceivingData:
                             state = SDCardState.Programming;
                             break;
                     }
-                    
+
                     return spiMode
                         ? GenerateR1Response()
                         : CardStatus;
@@ -520,28 +682,26 @@ namespace Antmicro.Renode.Peripherals.SD
                         : CardStatus;
 
                 case SdCardCommand.ReadSingleBlock_CMD17:
-                    readContext.Offset = highCapacityMode
-                        ? arg * HighCapacityBlockLength 
-                        : arg;
+                    spiContext.IoState = IoState.SingleBlockRead;
                     state = SDCardState.SendingData;
-                    return spiMode
-                        ? GenerateR1Response()
-                            .Append(BlockBeginIndicator)
-                            .Append(ReadData(highCapacityMode ? HighCapacityBlockLength : blockLengthInBytes)) // the actual data
-                        : CardStatus;
-
-                case SdCardCommand.ReadMultipleBlocks_CMD18:
-                    if(spiMode)
-                    {
-                        this.Log(LogLevel.Warning, "Reading Multiple Blocks is currently not supported in the SPI mode by this model");
-                        // TODO: implement it
-                        break;
-                    }
-                    state = SDCardState.SendingData;
+                    spiContext.BytesSent = 0;
                     readContext.Offset = highCapacityMode
                         ? arg * HighCapacityBlockLength
                         : arg;
-                    return CardStatus;
+                    return spiMode
+                        ? GenerateR1Response()
+                        : CardStatus;
+
+                case SdCardCommand.ReadMultipleBlocks_CMD18:
+                    spiContext.IoState = IoState.MultipleBlockRead;
+                    state = SDCardState.SendingData;
+                    spiContext.BytesSent = 0;
+                    readContext.Offset = highCapacityMode
+                        ? arg * HighCapacityBlockLength
+                        : arg;
+                    return spiMode
+                        ? GenerateR1Response()
+                        : CardStatus;
 
                 case SdCardCommand.SetBlockCount_CMD23:
                     return spiMode
@@ -549,18 +709,28 @@ namespace Antmicro.Renode.Peripherals.SD
                         : CardStatus;
 
                 case SdCardCommand.WriteSingleBlock_CMD24:
-                case SdCardCommand.WriteMultipleBlocks_CMD25:
-                    if(spiMode)
-                    {
-                        this.Log(LogLevel.Warning, "Writing is currently not supported in the SPI mode by this model");
-                        // TODO: implement it
-                        break;
-                    }
                     state = SDCardState.ReceivingData;
+                    spiContext.IoState = IoState.SingleBlockWrite;
+                    spiContext.DataBytesReceived = 0;
+                    spiContext.ReceptionState = ReceptionState.WaitingForDataToken;
                     writeContext.Offset = highCapacityMode
                         ? arg * HighCapacityBlockLength
                         : arg;
-                    return CardStatus;
+                    return spiMode
+                        ? GenerateR1Response()
+                        : CardStatus;
+
+                case SdCardCommand.WriteMultipleBlocks_CMD25:
+                    state = SDCardState.ReceivingData;
+                    spiContext.IoState = IoState.MultipleBlockWrite;
+                    spiContext.DataBytesReceived = 0;
+                    spiContext.ReceptionState = ReceptionState.WaitingForDataToken;
+                    writeContext.Offset = highCapacityMode
+                        ? arg * HighCapacityBlockLength
+                        : arg;
+                    return spiMode
+                        ? GenerateR1Response()
+                        : CardStatus;
 
                 case SdCardCommand.AppCommand_CMD55:
                     treatNextCommandAsAppCommand = true;
@@ -571,6 +741,12 @@ namespace Antmicro.Renode.Peripherals.SD
                 case SdCardCommand.ReadOperationConditionRegister_CMD58:
                     return spiMode
                         ? GenerateR3Response()
+                        : BitStream.Empty;
+
+                case SdCardCommand.EnableCRCChecking_CMD59:
+                    // we don't have to check CRC, but the software requires proper response after such request
+                    return spiMode
+                        ? GenerateR1Response()
                         : BitStream.Empty;
             }
 
@@ -609,7 +785,7 @@ namespace Antmicro.Renode.Peripherals.SD
                 case SdCardApplicationSpecificCommand.SendSDConfigurationRegister_ACMD51:
                     readContext.Data = SDConfiguration;
                     result = spiMode
-                        ? GenerateR1Response()
+                        ? GenerateRegisterResponse(SDConfiguration)
                         : CardStatus;
                     return true;
 
@@ -634,15 +810,18 @@ namespace Antmicro.Renode.Peripherals.SD
         private readonly VariableLengthValue extendedCardSpecificDataGenerator;
         private readonly VariableLengthValue cardIdentificationGenerator;
         private readonly VariableLengthValue switchFunctionStatusGenerator;
+        private readonly VariableLengthValue operatingVoltageGenerator;
 
         private readonly long capacity;
         private readonly BlockLength blockSize;
         private readonly bool spiMode;
         private readonly bool highCapacityMode;
         private readonly SpiContext spiContext;
+        private readonly CRCEngine crcEngine;
         private const byte DummyByte = 0xFF;
         private const byte BlockBeginIndicator = 0xFE;
         private const int HighCapacityBlockLength = 512;
+        private const byte DataAcceptedResponse = 0x05;
 
         private struct IoContext
         {
@@ -698,6 +877,7 @@ namespace Antmicro.Renode.Peripherals.SD
             // this command has been added in spec version 2.0 - we don't have to answer to it
             SendInterfaceConditionCommand_CMD8 = 8,
             SendCardSpecificData_CMD9 = 9,
+            SendCardIdentification_CMD10 = 10,
             StopTransmission_CMD12 = 12,
             SendStatus_CMD13 = 13,
             SetBlockLength_CMD16 = 16,
@@ -707,7 +887,8 @@ namespace Antmicro.Renode.Peripherals.SD
             WriteSingleBlock_CMD24 = 24,
             WriteMultipleBlocks_CMD25 = 25,
             AppCommand_CMD55 = 55,
-            ReadOperationConditionRegister_CMD58 = 58
+            ReadOperationConditionRegister_CMD58 = 58,
+            EnableCRCChecking_CMD59 = 59
         }
 
         private enum SdCardApplicationSpecificCommand
@@ -772,11 +953,35 @@ namespace Antmicro.Renode.Peripherals.SD
             DDR = 4
         }
 
+        private enum DataToken
+        {
+            SingleWriteStartBlock = 0xFE,
+            MultiWriteStartBlock = 0xFC,
+            StopTran = 0xFD
+        }
+
         private enum SpiState
         {
             WaitingForCommand,
             WaitingForArgBytes,
             WaitingForCRC,
+            SendingResponse
+        }
+
+        private enum IoState
+        {
+            Idle,
+            SingleBlockRead,
+            MultipleBlockRead,
+            SingleBlockWrite,
+            MultipleBlockWrite
+        }
+
+        private enum ReceptionState
+        {
+            WaitingForDataToken,
+            ReceivingData,
+            ReceivingCRC,
             SendingResponse
         }
 
@@ -789,13 +994,22 @@ namespace Antmicro.Renode.Peripherals.SD
                 Argument = 0;
                 CommandNumber = 0;
                 State = SpiState.WaitingForCommand;
+                BytesSent = 0;
+                IoState = IoState.Idle;
             }
 
             public Queue<byte> ResponseBuffer = new Queue<byte>();
+            public byte[] DataBuffer;
             public int ArgumentBytes;
+            public int CRCBytes;
             public uint Argument;
             public uint CommandNumber;
             public SpiState State;
+            public uint BytesSent;
+            public uint DataBytesReceived;
+            public uint CRCBytesReceived;
+            public IoState IoState;
+            public ReceptionState ReceptionState;
         }
 
         private enum SDCardState

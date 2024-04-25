@@ -51,7 +51,7 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         public DoubleWordRegisterCollection RegistersCollection { get; }
         public GPIO IRQ { get; }
-        public long Size => 0x4000;
+        public long Size => 0x1000;
 
         private void UpdateInterrupts()
         {

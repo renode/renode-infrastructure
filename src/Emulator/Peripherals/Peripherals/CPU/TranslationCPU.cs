@@ -131,15 +131,29 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public int CyclesPerInstruction
+        /// <summary>
+        /// The value is used to convert instructions count to cycles, e.g.:
+        /// * for RISC-V CYCLE and MCYCLE CSRs
+        /// * in ARM Performance Monitoring Unit
+        /// </summary>
+        public decimal CyclesPerInstruction
         {
             get
             {
-                return checked((int)TlibGetCyclesPerInstruction());
+                return checked(TlibGetMillicyclesPerInstruction() / 1000m);
             }
             set
             {
-                TlibSetCyclesPerInstruction(checked((uint)value));
+                if(value <= 0)
+                {
+                    throw new RecoverableException("Value must be a positive number.");
+                }
+                var millicycles = value * 1000m;
+                if(millicycles % 1m != 0)
+                {
+                    throw new RecoverableException("Value's precision can't be greater than 0.001");
+                }
+                TlibSetMillicyclesPerInstruction(checked((uint)millicycles));
             }
         }
 
@@ -302,6 +316,12 @@ namespace Antmicro.Renode.Peripherals.CPU
                     throw new RecoverableException($"There was a problem when preparing the log file {logFile}: {e.Message}");
                 }
             }
+        }
+
+        protected override void OnLeavingResetState()
+        {
+            base.OnLeavingResetState();
+            TlibOnLeavingResetState();
         }
 
         protected override void RequestPause()
@@ -1827,10 +1847,10 @@ namespace Antmicro.Renode.Peripherals.CPU
         private FuncUInt32 TlibGetMaximumBlockSize;
 
         [Import]
-        private ActionUInt32 TlibSetCyclesPerInstruction;
+        private ActionUInt32 TlibSetMillicyclesPerInstruction;
 
         [Import]
-        private FuncUInt32 TlibGetCyclesPerInstruction;
+        private FuncUInt32 TlibGetMillicyclesPerInstruction;
 
         [Import]
         private FuncInt32 TlibRestoreContext;
@@ -1925,6 +1945,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Import]
         private ActionInt32 TlibSetBroadcastDirty;
 
+        [Import]
+        private Action TlibOnLeavingResetState;
+
 #pragma warning restore 649
 
         protected const int DefaultTranslationCacheSize = 32 * 1024 * 1024;
@@ -1983,10 +2006,14 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        /// <summary>
+        /// This function returns <see cref="CPUCore.Id" /> instead of <see cref="Slot" />, since <see cref="Slot" /> is assigned at platform creation time.
+        /// It's usually not what is needed to identify a core in multi-processing context - instead `cpuId` (passed in CPU constructor) is used.
+        /// </summary>
         [Export]
-        private int GetCpuIndex()
+        private uint GetMpIndex()
         {
-            return Slot;
+            return Id;
         }
 
         public string DisassembleBlock(ulong addr = ulong.MaxValue, uint blockSize = 40, uint flags = 0)
@@ -2132,6 +2159,17 @@ namespace Antmicro.Renode.Peripherals.CPU
                 DeactivateHooks(PC);
                 return true;
             }
+            else if(result == ExecutionResult.StoppedAtWatchpoint)
+            {
+                this.Trace();
+                // If we stopped at a watchpoint we must've been in the process
+                // of executing an instruction which accesses memory.
+                // That means that if there have been any hooks added for the current PC,
+                // they were already executed, and the PC has been moved back by one instruction.
+                // We don't want to execute them again, so we disable them temporarily.
+                DeactivateHooks(PC);
+                return true;
+            }
             else if(result == ExecutionResult.WaitingForInterrupt)
             {
                 if(InDebugMode || neverWaitForInterrupt)
@@ -2226,6 +2264,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                     return ExecutionResult.StoppedAtBreakpoint;
 
                 case TlibExecutionResult.StoppedAtWatchpoint:
+                    return ExecutionResult.StoppedAtWatchpoint;
+
                 case TlibExecutionResult.ReturnRequested:
                     return ExecutionResult.Interrupted;
 

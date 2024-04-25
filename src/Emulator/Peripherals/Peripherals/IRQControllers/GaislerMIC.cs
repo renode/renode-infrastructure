@@ -517,13 +517,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 interruptPriority = number + (((registers.InterruptLevel & 1u<<number) != 0) ? 16 : 0);
             }
 
-            try
+            // Safe as this is only called under the interrupts[cpuid] lock
+            if(!interrupts[cpuid].ContainsKey(number))
             {
                 interrupts[cpuid].Add(number, interruptPriority);
-            }
-            catch(ArgumentException)
-            {
-
             }
         }
 

@@ -7,6 +7,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Utilities;
@@ -52,6 +53,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         IEnumerable<ICPU> GetCPUs();
         int GetCPUId(ICPU cpu);
         ICPU GetCurrentCPU();
+        IEnumerable<IBusRegistered<IBusPeripheral>> GetRegisteredPeripherals(ICPU context = null);
         bool TryGetCurrentCPU(out ICPU cpu);
 
         void UnregisterFromAddress(ulong address, ICPU context = null);
@@ -100,6 +102,18 @@ namespace Antmicro.Renode.Peripherals.Bus
         public static void DisablePeripheral(this IBusController bus, IPeripheral peripheral)
         {
             bus.SetPeripheralEnabled(peripheral, false);
+        }
+
+        public static void MoveBusMultiRegistrationWithinContext(this IBusController bus, IBusPeripheral peripheral, ulong newAddress, ICPU cpu, string regionName)
+        {
+            bus.MoveRegistrationWithinContext(peripheral, newAddress, cpu,
+                selector: busRegisteredEnumerable =>
+                {
+                    return busRegisteredEnumerable.Where(
+                            busRegistered => (busRegistered.RegistrationPoint is BusMultiRegistration multiRegistration) && multiRegistration.ConnectionRegionName == regionName
+                        ).Single();
+                }
+            );
         }
 
         public static void ZeroRange(this IBusController bus, long from, long size, ICPU context = null)

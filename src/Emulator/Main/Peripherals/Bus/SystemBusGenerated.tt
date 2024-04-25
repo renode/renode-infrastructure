@@ -26,15 +26,11 @@
 */
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Bus.Wrappers;
 using Antmicro.Renode.Peripherals.CPU;
-using Antmicro.Renode.Utilities.Collections;
 
 using Range = Antmicro.Renode.Core.Range;
 
@@ -50,6 +46,14 @@ namespace Antmicro.Renode.Peripherals.Bus
 #>
         public <#= type #> Read<#= name #>(ulong address, ICPU context = null)
         {
+            var accessWidth = SysbusAccessWidth.<#=name#>;
+            if(IsAddressRangeLocked(address.By((ulong)accessWidth)))
+            {
+                this.Log(LogLevel.Warning, "Tried to read {0} bytes at 0x{1:X} which is inside a locked address range, returning 0",
+                    (uint)accessWidth, address);
+                return 0;
+            }
+
             using(SetLocalContext(context))
             {
                 ulong startAddress, endAddress;
@@ -68,7 +72,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 }
                 if(accessMethods == null)
                 {
-                    return (<#= type #>)ReportNonExistingRead(address, SysbusAccessWidth.<#=name#>);
+                    return (<#= type #>)ReportNonExistingRead(address, accessWidth);
                 }
                 if(!IsPeripheralEnabled(accessMethods.Peripheral))
                 {
@@ -100,6 +104,14 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public void Write<#=name#>(ulong address, <#=type#> value, ICPU context = null)
         {
+            var accessWidth = SysbusAccessWidth.<#=name#>;
+            if(IsAddressRangeLocked(address.By((ulong)accessWidth)))
+            {
+                this.Log(LogLevel.Warning, "Tried to write {0} bytes (0x{1:X}) at 0x{2:X} which is inside a locked address range, write ignored",
+                    (uint)accessWidth, value, address);
+                return;
+            }
+
             using(SetLocalContext(context))
             {
                 ulong startAddress, endAddress;
@@ -118,7 +130,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 }
                 if(accessMethods == null)
                 {
-                    ReportNonExistingWrite(address, value, SysbusAccessWidth.<#=name#>);
+                    ReportNonExistingWrite(address, value, accessWidth);
                     return;
                 }
                 if(!IsPeripheralEnabled(accessMethods.Peripheral))

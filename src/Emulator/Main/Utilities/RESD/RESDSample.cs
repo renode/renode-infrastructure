@@ -203,6 +203,30 @@ namespace Antmicro.Renode.Utilities.RESD
         }
     }
 
+    [SampleType(SampleType.MagneticFluxDensity)]
+    public class MagneticSample : RESDSample
+    {
+        public override int? Width => 4 * 3;
+
+        public int MagneticFluxDensityX { get; private set; }
+        public int MagneticFluxDensityY { get; private set; }
+        public int MagneticFluxDensityZ { get; private set; }
+
+        public override bool TryReadFromStream(SafeBinaryReader reader)
+        {
+            MagneticFluxDensityX = reader.ReadInt32();
+            MagneticFluxDensityY = reader.ReadInt32();
+            MagneticFluxDensityZ = reader.ReadInt32();
+
+            return true;
+        }
+
+        public override string ToString()
+        {
+            return $"[{MagneticFluxDensityX}, {MagneticFluxDensityY}, {MagneticFluxDensityZ}] nT";
+        }
+    }
+
     public class SampleTypeAttribute : Attribute
     {
         public SampleTypeAttribute(SampleType sampleType)
@@ -223,6 +247,7 @@ namespace Antmicro.Renode.Utilities.RESD
         ECG = 0x0005,
         Humidity = 0x0006,
         Pressure = 0x0007,
+        MagneticFluxDensity = 0x0008,
 
         // Custom sample types
         Custom = 0xF000,

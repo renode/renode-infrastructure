@@ -33,10 +33,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 return;
             }
             receiveFifo.Enqueue(value);
-            if(receiverInterruptEnable.Value)
-            {
-                IRQ.Blink();
-            }
+            UpdateInterrupt();
         }
 
         public override void Reset()
@@ -84,10 +81,7 @@ namespace Antmicro.Renode.Peripherals.UART
                         {
                             this.Log(LogLevel.Warning, "Trying to read data from empty receive fifo");
                         }
-                        if(receiveFifo.Count > 0 && receiverInterruptEnable.Value)
-                        {
-                            IRQ.Blink();
-                        }
+                        UpdateInterrupt();
                         return value;
                     }, writeCallback: (_, value) =>
                     {
@@ -97,10 +91,7 @@ namespace Antmicro.Renode.Peripherals.UART
                             return;
                         }
                         CharReceived?.Invoke((byte)value);
-                        if(transmitterInterruptEnable.Value)
-                        {
-                            IRQ.Blink();
-                        }
+                        UpdateInterrupt();
                     }, name: "DATA"
                 )
                 .WithReservedBits(8, 24)
@@ -123,7 +114,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithValueField(26, 6, FieldMode.Read, valueProviderCallback: _ => (ulong) Math.Min(receiveFifo.Count, fifoDepth), name: "RCNT")
             ;
 
-            Registers.Control.Define(this, name: "CONTROL")
+            Registers.Control.Define(this, 0x80000000, name: "CONTROL")
                 .WithFlag(0, out receiverEnable, name: "RE")
                 .WithFlag(1, out transmitterEnable, name: "TE")
                 .WithFlag(2, out receiverInterruptEnable, name: "RI", softResettable: false)
@@ -147,6 +138,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithFlag(14, out transmitterShiftRegisterEmptyInterruptEnable, name: "SI", softResettable: false)
                 .WithReservedBits(15, 16)
                 .WithTaggedFlag("FA", 31)
+                .WithChangeCallback((_, __) => UpdateInterrupt())
             ;
 
             Registers.Scaler.Define(this, name: "SCALER")
@@ -158,6 +150,18 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTag("SOFT_RESET", 0, 8)
                 .WithReservedBits(8, 24)
             ;
+        }
+
+        private void UpdateInterrupt()
+        {
+            if(receiveFifo.Count > 0 && receiverInterruptEnable.Value || transmitterInterruptEnable.Value)
+            {
+                IRQ.Blink();
+            }
+            else
+            {
+                IRQ.Set(transmitterFifoInterruptEnable.Value && transmitterEnable.Value);
+            }
         }
 
         private IFlagRegisterField dataReady;

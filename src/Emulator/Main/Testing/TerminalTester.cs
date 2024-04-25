@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -57,18 +57,33 @@ namespace Antmicro.Renode.Testing
 
         public void Write(string text)
         {
-            foreach(var chr in text)
+            if(WriteCharDelay != TimeSpan.Zero)
             {
-                CallCharReceived((byte)chr);
-                WaitBeforeNextChar();
+                lock(delayedChars)
+                {
+                    foreach(var character in text)
+                    {
+                        delayedChars.Enqueue(Tuple.Create(WriteCharDelay, character));
+                    }
+
+                    if(!delayedCharInProgress)
+                    {
+                        HandleDelayedChars();
+                    }
+                }
+            }
+            else
+            {
+                foreach(var chr in text)
+                {
+                    CallCharReceived((byte)chr);
+                }
             }
         }
 
         public void WriteLine(string line = "")
         {
-            Write(line);
-            CallCharReceived(CarriageReturn);
-            WaitBeforeNextChar();
+            Write(line + CarriageReturn);
         }
 
         public override void WriteChar(byte value)
@@ -242,6 +257,27 @@ namespace Antmicro.Renode.Testing
         public TimeInterval GlobalTimeout { get; set; }
         public TimeSpan WriteCharDelay { get; set; }
 
+        private void HandleDelayedChars()
+        {
+            lock(delayedChars)
+            {
+                if(!delayedChars.TryDequeue(out var delayed))
+                {
+                    delayedCharInProgress = false;
+                    return;
+                }
+
+                delayedCharInProgress = true;
+
+                var delay = TimeInterval.FromSeconds(delayed.Item1.TotalSeconds);
+                machine.ScheduleAction(delay, _ =>
+                {
+                    CallCharReceived((byte)delayed.Item2);
+                    HandleDelayedChars();
+                });
+            }
+        }
+
         private TerminalTesterResult WaitForMatch(Func<TerminalTesterResult> resultMatcher, TimeInterval timeout, bool pauseEmulation = false)
         {
             var emulation = EmulationManager.Instance.CurrentEmulation;
@@ -374,14 +410,6 @@ namespace Antmicro.Renode.Testing
             }
 
             return null;
-        }
-
-        private void WaitBeforeNextChar()
-        {
-            if(WriteCharDelay != TimeSpan.Zero)
-            {
-                Thread.Sleep(WriteCharDelay);
-            }
         }
 
         private string[] GetMatchGroups(Match match)
@@ -544,8 +572,9 @@ namespace Antmicro.Renode.Testing
         private Func<TerminalTesterResult> resultMatcher;
         private TerminalTesterResult testerResult;
         private bool pauseEmulation;
+        private bool delayedCharInProgress;
 
-        // Similarly how it is handled for FrameBufferTester is shouldn't matter if we unset the charEvent during deserialization 
+        // Similarly how it is handled for FrameBufferTester it shouldn't matter if we unset the charEvent during deserialization
         // as we check for char match on load in `WaitForMatch` either way
         // Additionally in `IsIdle` the timeout would long since expire so it doesn't matter there either.
         [Constructor(false)]
@@ -559,9 +588,10 @@ namespace Antmicro.Renode.Testing
         private readonly bool removeColors;
         private readonly List<Line> lines;
         private readonly SafeStringBuilder report;
+        private readonly Queue<Tuple<TimeSpan, char>> delayedChars = new Queue<Tuple<TimeSpan, char>>();
 
-        private const byte LineFeed = 0xA;
-        private const byte CarriageReturn = 0xD;
+        private const char LineFeed = '\x0A';
+        private const char CarriageReturn = '\x0D';
         private const char EscapeChar = '\x1B';
 
         private class Line

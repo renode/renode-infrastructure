@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -14,26 +14,48 @@ using Antmicro.Renode.Utilities;
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     // Implementation based on: https://developer.arm.com/documentation/ddi0458/c/Multiprocessing/About-multiprocessing-and-the-SCU
-    public class ArmSnoopControlUnit : BasicDoubleWordPeripheral, IKnownSize
+    public class ArmSnoopControlUnit : BasicDoubleWordPeripheral, IHasOwnLife, IKnownSize
     {
-        public ArmSnoopControlUnit(IMachine machine, byte smpMask = 0xFF) : base(machine)
+        public ArmSnoopControlUnit(IMachine machine, byte smpMask = 0xFF, ArmSignalsUnit signalsUnit = null) : base(machine)
         {
+            this.signalsUnit = signalsUnit;
             this.smpMask = smpMask;
 
             DefineRegisters();
             Reset();
         }
 
+        public void Pause()
+        {
+            // Intentionally left blank.
+        }
+
         public override void Reset()
         {
             lockedCPUs = new bool[MaximumCPUs];
             numberOfCPUs = -1;
+            started = false;
 
             /* Do not reset FilteringStart/End properties - this is intentional
             /* they are SoC-specific and once set should not change on Reset
             */
 
             base.Reset();
+        }
+
+        public void Resume()
+        {
+            // Intentionally left blank.
+        }
+
+        public void Start()
+        {
+            if(started)
+            {
+                return;
+            }
+            started = true;
+            ApplyConfigurationSignals();
         }
 
         public override void WriteDoubleWord(long offset, uint value)
@@ -57,12 +79,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             Registers.Control.Define(this)
                 .WithFlag(0, out enabled, name: "SCU Enable")
-                // We return 0 here to signify that these are not supported
-                .WithFlag(1, FieldMode.Read, valueProviderCallback: (_) =>
-                    {
-                        return MasterFilteringStartRange != 0 && MasterFilteringEndRange != 0;
-                    }, 
-                    name: "Address Filtering Enable")
+                .WithFlag(1, out addressFilteringEnabled, FieldMode.Read, name: "Address Filtering Enable")
                 .WithFlag(2, FieldMode.Read, valueProviderCallback: (_) => false, name: "ECC/Parity Enable") // Parity for Cortex-A9, otherwise ECC
                 .WithTaggedFlag("Speculative linefills enable", 3)
                 .WithTaggedFlag("Force all Device to port0 enable", 4) // Cortex-A9 only
@@ -134,7 +151,27 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => MasterFilteringEndRange & ~0xFFFFFUL);
         }
 
+        public ulong MasterFilteringStartRange { get; set; }
+        public ulong MasterFilteringEndRange { get; set; }
+
+        public ulong PeripheralsFilteringStartRange { get; set; }
+        public ulong PeripheralsFilteringEndRange { get; set; }
+
         public long Size => 0x100;
+
+        private void ApplyConfigurationSignals()
+        {
+            if(signalsUnit == null)
+            {
+                return;
+            }
+
+            addressFilteringEnabled.Value = signalsUnit.IsSignalEnabled(ArmSignals.MasterFilterEnable);
+            MasterFilteringEndRange = signalsUnit.GetAddress(ArmSignals.MasterFilterEnd);
+            MasterFilteringStartRange = signalsUnit.GetAddress(ArmSignals.MasterFilterStart);
+            PeripheralsFilteringEndRange = signalsUnit.GetAddress(ArmSignals.PeripheralFilterEnd);
+            PeripheralsFilteringStartRange = signalsUnit.GetAddress(ArmSignals.PeripheralFilterStart);
+        }
 
         private int CountCPUs()
         {
@@ -152,16 +189,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             return numberOfCPUs;
         }
 
+        private IFlagRegisterField addressFilteringEnabled;
         private IFlagRegisterField enabled;
         private bool[] lockedCPUs;
-        private readonly byte smpMask;
         private int numberOfCPUs;
+        private bool started;
 
-        public ulong PeripheralsFilteringStartRange { get; set; }
-        public ulong PeripheralsFilteringEndRange { get; set; }
-
-        public ulong MasterFilteringStartRange { get; set; }
-        public ulong MasterFilteringEndRange { get; set; }
+        private readonly ArmSignalsUnit signalsUnit;
+        private readonly byte smpMask;
 
         // Should not be more than 4, but could be less
         private const int MaximumCPUs = 4;

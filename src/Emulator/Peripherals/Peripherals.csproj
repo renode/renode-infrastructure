@@ -374,6 +374,7 @@
     <Compile Include="Peripherals\Miscellaneous\LiteX_SoC_Controller_CSR32.cs" />
     <Compile Include="Peripherals\SPI\DesignWare_SPI.cs" />
     <Compile Include="Peripherals\Miscellaneous\LiteX_MMCM.cs" />
+    <Compile Include="Peripherals\Analog\CAES_ADC.cs" />
     <Compile Include="Peripherals\Analog\EOSS3_ADC.cs" />
     <Compile Include="Peripherals\Analog\STM32_ADC_Common.cs" />
     <Compile Include="Peripherals\Analog\STM32F0_ADC.cs" />
@@ -437,6 +438,7 @@
     <Compile Include="Peripherals\I2C\PULP_uDMA_I2C.cs" />
     <Compile Include="Peripherals\SPI\PULP_uDMA_SPI.cs" />
     <Compile Include="Peripherals\Mocks\DummySPISlave.cs" />
+    <Compile Include="Peripherals\Mocks\DummySENTTransmitter.cs" />
     <Compile Include="Peripherals\SD\PULP_uDMA_SDIO.cs" />
     <Compile Include="Peripherals\Sensors\PULP_uDMA_Camera.cs" />
     <Compile Include="Peripherals\Sensors\HM01B0.cs" />
@@ -591,6 +593,8 @@
     <Compile Include="Peripherals\Network\Quectel_BC66.cs" />
     <Compile Include="Peripherals\Network\Quectel_BG96.cs" />
     <Compile Include="Peripherals\Network\DA16200.cs" />
+    <Compile Include="Peripherals\Network\S32K3XX_GMAC.cs" />
+    <Compile Include="Peripherals\Network\S32K3XX_EMAC.cs" />
     <Compile Include="Peripherals\UART\SiLabs\EFR32_GenericUSART.cs" />
     <Compile Include="Peripherals\UART\EFR32xG22_USART.cs" />
     <Compile Include="Peripherals\SPI\SPIMultiplexer.cs" />
@@ -602,6 +606,7 @@
     <Compile Include="Peripherals\Network/SynopsysDWCEthernetQualityOfService\SynopsysDWCEthernetQualityOfService_Descriptors.cs" />
     <Compile Include="Peripherals\Network/SynopsysDWCEthernetQualityOfService\SynopsysDWCEthernetQualityOfService_FrameAssembler.cs" />
     <Compile Include="Peripherals\Network/SynopsysDWCEthernetQualityOfService\SynopsysDWCEthernetQualityOfService_Registers.cs" />
+    <Compile Include="Peripherals\Network/SynopsysDWCEthernetQualityOfService\SynopsysDWCEthernetQualityOfService_DMA.cs" />
     <Compile Include="Peripherals\Timers\EFR32xG2_RTCC.cs" />
     <Compile Include="Peripherals\Timers\EFR32_RTCCCounter.cs" />
     <Compile Include="Peripherals\Miscellaneous\STM32H7_HardwareSemaphore.cs" />
@@ -640,13 +645,25 @@
     <Compile Include="Peripherals\UART\RenesasDA14_UART.cs" />
     <Compile Include="Peripherals\Timers\RenesasDA_Watchdog.cs" />
     <Compile Include="Peripherals\GPIOPort\RenesasDA14_GPIO.cs" />
+    <Compile Include="Peripherals\SPI\RenesasDA_SPI.cs" />
     <Compile Include="Peripherals\Timers\S32K3XX_PeriodicInterruptTimer.cs" />
     <Compile Include="Peripherals\Timers\S32K3XX_SystemTimerModule.cs" />
     <Compile Include="Peripherals\Timers\S32K3XX_SoftwareWatchdogTimer.cs" />
     <Compile Include="Peripherals\Timers\S32K3XX_RealTimeClock.cs" />
     <Compile Include="Peripherals\Miscellaneous\S32K3XX_MiscellaneousSystemControlModule.cs" />
     <Compile Include="Peripherals\Miscellaneous\S32K3XX_SystemIntegrationUnitLite2.cs" />
-    <Compile Include="Peripherals\Miscellaneous\S32K3XX_FlexIO.cs" />
+    <Compile Include="Peripherals\Miscellaneous\S32K3XX_FlexIO\S32K3XX_FlexIO.cs" />
+    <Compile Include="Peripherals\Miscellaneous\S32K3XX_FlexIO\IEndpoint.cs" />
+    <Compile Include="Peripherals\Miscellaneous\S32K3XX_FlexIO\Interrupt.cs" />
+    <Compile Include="Peripherals\Miscellaneous\S32K3XX_FlexIO\ResourceBlock.cs" />
+    <Compile Include="Peripherals\Miscellaneous\S32K3XX_FlexIO\ResourceBlockManager.cs" />
+    <Compile Include="Peripherals\Miscellaneous\S32K3XX_FlexIO\S32K3XX_FlexIO_UART.cs" />
+    <Compile Include="Peripherals\Miscellaneous\S32K3XX_FlexIO\S32K3XX_FlexIO_SENT.cs" />
+    <Compile Include="Peripherals\Miscellaneous\S32K3XX_FlexIO\Shifter.cs" />
+    <Compile Include="Peripherals\Miscellaneous\S32K3XX_FlexIO\Timer.cs" />
+    <Compile Include="Peripherals\Miscellaneous\S32K3XX_FlexIO\UARTDirectionBase.cs" />
+    <Compile Include="Peripherals\Miscellaneous\S32K3XX_FlexIO\UARTReceiver.cs" />
+    <Compile Include="Peripherals\Miscellaneous\S32K3XX_FlexIO\UARTTransmitter.cs" />
     <Compile Include="Peripherals\Miscellaneous\S32K3XX_ModeEntryModule.cs" />
     <Compile Include="Peripherals\DMA\RenesasDA14_DMA.cs" />
     <Compile Include="Peripherals\DMA\RenesasDA_DMABase.cs" />
@@ -657,6 +674,15 @@
     <Compile Include="Peripherals\I2C\S32K3XX_LowPowerInterIntegratedCircuit.cs" />
     <Compile Include="Peripherals\Miscellaneous\Crypto\STM32H7_CRYPTO.cs" />
     <Compile Include="Peripherals\UART\DummyLINPeripheral.cs" />
+    <Compile Include="Peripherals\Miscellaneous\RenesasDA14_XTAL32MRegisters.cs" />
+    <Compile Include="Peripherals\Miscellaneous\RenesasDA14_GeneralRegisters.cs" />
+    <Compile Include="Peripherals\CAN\UT32_CAN.cs" />
+    <Compile Include="Peripherals\SPI\STM32H7_QuadSPI.cs" />
+    <Compile Include="Peripherals\Sensors\AK0991x.cs" />
+    <Compile Include="Peripherals\Sensors\AK09916.cs" />
+    <Compile Include="Peripherals\Sensors\AK09918.cs" />
+    <Compile Include="Peripherals\CAN\S32K3XX_FlexCAN\S32K3XX_FlexCAN_Structures.cs" />
+    <Compile Include="Peripherals\CAN\S32K3XX_FlexCAN\S32K3XX_FlexCAN.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>

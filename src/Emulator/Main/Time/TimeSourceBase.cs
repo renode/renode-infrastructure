@@ -511,13 +511,15 @@ namespace Antmicro.Renode.Time
         {
             lock(hostTicksElapsed)
             {
-                var currentTimestamp = stopwatch.Elapsed;
+                // Converting to TimeInterval truncates to whole microseconds. Convert before saving the value to
+                // elapsedAtLastUpdate, as otherwise we would lose this decimal part.
+                var currentTimestamp = TimeInterval.FromTimeSpan(stopwatch.Elapsed);
                 var elapsedThisTime = currentTimestamp - elapsedAtLastUpdate;
                 elapsedAtLastUpdate = currentTimestamp;
 
                 this.Trace($"Updating virtual time by {virtualTimeElapsed.TotalMicroseconds} us");
                 this.virtualTicksElapsed.Update(virtualTimeElapsed.Ticks);
-                this.hostTicksElapsed.Update(TimeInterval.FromTimeSpan(elapsedThisTime).Ticks);
+                this.hostTicksElapsed.Update(elapsedThisTime.Ticks);
             }
         }
 
@@ -735,7 +737,7 @@ namespace Antmicro.Renode.Time
         [Antmicro.Migrant.Constructor(true)]
         private ManualResetEvent blockingEvent;
 
-        private TimeSpan elapsedAtLastUpdate;
+        private TimeInterval elapsedAtLastUpdate;
         private bool isBlocked;
         private bool updateNearestSyncPoint;
         private int? executeThreadId;

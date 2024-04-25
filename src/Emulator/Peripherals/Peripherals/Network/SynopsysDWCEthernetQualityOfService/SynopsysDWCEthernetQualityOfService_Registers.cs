@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -17,12 +17,12 @@ namespace Antmicro.Renode.Peripherals.Network
 {
     public partial class SynopsysDWCEthernetQualityOfService : IDoubleWordPeripheral
     {
-        public uint ReadDoubleWord(long offset)
+        public virtual uint ReadDoubleWord(long offset)
         {
             return Read<RegistersMacAndMmc>(macAndMmcRegisters, "MAC and MMC", offset);
         }
 
-        public void WriteDoubleWord(long offset, uint value)
+        public virtual void WriteDoubleWord(long offset, uint value)
         {
             Write<RegistersMacAndMmc>(macAndMmcRegisters, "MAC and MMC", offset, value);
         }
@@ -84,6 +84,8 @@ namespace Antmicro.Renode.Peripherals.Network
         // but supports regions. Setting this to `null` disables logging.
         public LogLevel PeripheralAccessLogLevel { get; set; } = null;
 
+        protected IEnumRegisterField<DMAChannelInterruptMode> dmaInterruptMode;
+
         private void ResetRegisters()
         {
             macAndMmcRegisters.Reset();
@@ -106,7 +108,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithTaggedFlag("MACCR.DCRS (DCRS)", 9)
                     .WithTaggedFlag("MACCR.DO (DO)", 10)
                     .WithTaggedFlag("MACCR.ECRSFD (ECRSFD)", 11)
-                    .WithTaggedFlag("MACCR.LM (LM)", 12)
+                    .WithFlag(12, out loopbackEnabled, name: "MACCR.LM (LM)")
                     .WithTaggedFlag("MACCR.DM (DM)", 13)
                     .WithTaggedFlag("MACCR.FES (FES)", 14)
                     .WithReservedBits(15, 1)
@@ -129,7 +131,10 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithFlag(16, out crcCheckDisable, name: "MACECR.DCRCC (DCRCC)")
                     .WithTaggedFlag("MACECR.SPEN (SPEN)", 17)
                     .WithTaggedFlag("MACECR.USP (USP)", 18)
-                    .WithReservedBits(19, 5)
+                    .If(dmaChannels.Length > 1)
+                        .Then(r => r.WithFlag(19, out packetDuplicationControl, name: "MACECR.PDC (PDC)"))
+                        .Else(r => r.WithReservedBits(19, 1))
+                    .WithReservedBits(20, 4)
                     .WithTaggedFlag("MACECR.EIPGEN (EIPGEN)", 24)
                     .WithTag("MACECR.EIPG (EIPG)", 25, 5)
                     .WithReservedBits(30, 2)
@@ -417,7 +422,11 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithValueField(8, 8, name: "MACA0HR.ADDRHI (ADDRHI) [MAC.F]",
                         valueProviderCallback: _ => MAC.F,
                         writeCallback: (_, value) => MAC = MAC.WithNewOctets(f: (byte)value))
-                    .WithReservedBits(16, 15)
+                    .If(dmaChannels.Length > 1)
+                        .Then(r => r
+                            .WithValueField(16, dmaChannels.Length, out dmaChannelSelect, name: "MACA0HR.DCS (DCS)")
+                            .WithReservedBits(16 + dmaChannels.Length, 15 - dmaChannels.Length))
+                        .Else(r => r.WithReservedBits(16, 15))
                     .WithFlag(31, FieldMode.Read, name: "MACA0HR.AE (AE)",
                         valueProviderCallback: _ => true)
                 },
@@ -1123,7 +1132,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
         private IDictionary<long, DoubleWordRegister> CreateDMARegisterMap()
         {
-            return new Dictionary<long, DoubleWordRegister>()
+            var map = new Dictionary<long, DoubleWordRegister>()
             {
                 {(long)RegistersDMA.DMAMode, new DoubleWordRegister(this)
                     .WithFlag(0, FieldMode.Read | FieldMode.Set, writeCallback: (_, value) =>
@@ -1140,7 +1149,18 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithTaggedFlag("DMAMR.TXPR (Transmit priority)", 11)
                     .WithTag("DMAMR.PR (Priority ratio)", 12, 3)
                     .WithReservedBits(15, 1)
-                    .WithTag("DMAMR.INTM (Interrupt Mode)", 16, 2)
+                    .WithEnumField(16, 2, out dmaInterruptMode, name: "DMAMR.INTM (Interrupt Mode)",
+                        changeCallback: (previous, current) =>
+                        {
+                            if(current == DMAChannelInterruptMode.Reserved)
+                            {
+                                this.Log(LogLevel.Warning, "Attempted to set DMA interrupt mode to a reserved value. Reverting back to the previous value {0}", previous);
+                                dmaInterruptMode.Value = previous;
+                                return;
+                            }
+
+                            UpdateInterrupts();
+                        })
                     .WithReservedBits(18, 14)
                 },
                 {(long)RegistersDMA.SystemBusMode, new DoubleWordRegister(this)
@@ -1153,8 +1173,9 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithReservedBits(16, 16)
                 },
                 {(long)RegistersDMA.InterruptStatus, new DoubleWordRegister(this)
-                    .WithFlag(0, valueProviderCallback: _ => DMAInterrupts, name: "DMAISR.DC0IS (DMA Channel Interrupt Status)")
-                    .WithReservedBits(1, 15)
+                    .WithFlags(0, dmaChannels.Length, name: "DMAISR.DCxIS (DMA Channel Interrupt Status)",
+                        valueProviderCallback: (i, _) => dmaChannels[i].Interrupts)
+                    .WithReservedBits(dmaChannels.Length, 16 - dmaChannels.Length)
                     .WithTaggedFlag("DMAISR.MTLIS (MTL Interrupt Status)", 16)
                     .WithTaggedFlag("DMAISR.MACIS (MAC Interrupt Status)", 17)
                     .WithReservedBits(18, 14)
@@ -1163,175 +1184,23 @@ namespace Antmicro.Renode.Peripherals.Network
                 {(long)RegistersDMA.DebugStatus, new DoubleWordRegister(this)
                     .WithTaggedFlag("DMADSR.AXWHSTS (AHB Master Write Channel)", 0)
                     .WithReservedBits(1, 7)
-                    .WithEnumField<DoubleWordRegister, DMARxProcessState>(8, 4, FieldMode.Read,
-                        valueProviderCallback: _ => DmaRxState, name: "DMADSR.RPS0 (DMA Channel 0 Receive Process State)")
-                    .WithEnumField<DoubleWordRegister, DMATxProcessState>(12, 4, FieldMode.Read,
-                        valueProviderCallback: _ => DmaTxState, name: "DMADSR.TPS0 (DMA Channel 0 Transmit Process State)")
-                    .WithTag("DMADSR.RPS1 (DMA Channel 1 Receive Process State)", 16, 4)
-                    .WithTag("DMADSR.TPS1 (DMA Channel 1 Transmit Process State)", 20, 4)
-                    .WithReservedBits(24, 7)
-                },
-                {(long)RegistersDMA.ChannelControl, new DoubleWordRegister(this)
-                    .WithValueField(0, 14, out maximumSegmentSize, name: "DMACCR.MSS (Maximum Segment Size)")
-                    .WithReservedBits(14, 2)
-                    .WithFlag(16, out programableBurstLengthTimes8, name: "DMACCR.PBLX8 (8xPBL mode)")
-                    .WithReservedBits(17, 1)
-                    .WithValueField(18, 3, out descriptorSkipLength, name: "DMACCR.DSL (Descriptor Skip Length)")
-                    .WithReservedBits(21, 11)
-                },
-                {(long)RegistersDMA.ChannelTransmitControl, new DoubleWordRegister(this)
-                    .WithFlag(0, out startTx, changeCallback: (_, __) =>
+                    .For((r, i) =>
                     {
-                        if(startTx.Value)
-                        {
-                            txDescriptorRingCurrent.Value = txDescriptorRingStart.Value;
-                            txFinishedRing = false;
-                            StartTxDMA();
-                        }
-                    },
-                    name: "DMACTxCR.ST (Start or Stop Transmission Command)")
-                    .WithReservedBits(1, 3)
-                    .WithFlag(4, out operateOnSecondPacket, name: "DMACTxCR.OSF (Operate on Second Packet)")
-                    .WithReservedBits(5, 7)
-                    .WithFlag(12, out tcpSegmentationEnable, name: "DMACTxCR.TSE (TCP Segmentation Enabled)")
-                    .WithReservedBits(13, 3)
-                    .WithValueField(16, 6, out txProgramableBurstLength, name: "DMACTxCR.TXPBL (Transmit Programmable Burst Length)")
-                    .WithReservedBits(22, 10)
+                        var offset = i * 8;
+                        r.WithEnumField<DoubleWordRegister, DMARxProcessState>(8 + offset, 4, FieldMode.Read,
+                            valueProviderCallback: _ => dmaChannels[i].DmaRxState, name: $"DMADSR.RPS{i} (DMA Channel {i} Receive Process State)")
+                        .WithEnumField<DoubleWordRegister, DMATxProcessState>(12 + offset, 4, FieldMode.Read,
+                            valueProviderCallback: _ => dmaChannels[i].DmaTxState, name: $"DMADSR.TPS{i} (DMA Channel {i} Transmit Process State)");
+                    }, 0, dmaChannels.Length)
                 },
-                {(long)RegistersDMA.ChannelReceiveControl, new DoubleWordRegister(this)
-                    .WithFlag(0, out startRx, changeCallback: (_, __) =>
-                    {
-                        if(startRx.Value)
-                        {
-                            rxDescriptorRingCurrent.Value = rxDescriptorRingStart.Value;
-                            rxFinishedRing = false;
-                            StartRxDMA();
-                        }
-                    },
-                    name: "DMACRxCR.SR (Start or Stop Receive Command)")
-                    .WithValueField(1, 14, out rxBufferSize, writeCallback: (_, __) =>
-                    {
-                        if(rxBufferSize.Value % 4 != 0)
-                        {
-                            this.Log(LogLevel.Warning, "Receive buffer size must be a multiple of 4. Ignoring LSBs, but this behavior is undefined.");
-                            rxBufferSize.Value &= ~0x3UL;
-                        }
-                    },
-                    name: "DMACRxCR.RBSZ (Receive Buffer size)")
-                    .WithReservedBits(15, 1)
-                    .WithValueField(16, 6, out rxProgramableBurstLength, name: "DMACRxCR.RXPBL (RXPBL)")
-                    .WithReservedBits(22, 9)
-                    .WithTaggedFlag("DMACRxCR.RPF (DMA Rx Channel Packet Flush)", 31)
-                },
-                {(long)RegistersDMA.ChannelTxDescriptorListAddress, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out txDescriptorRingStart, name: "DMACTxDLAR.TDESLA (Start of Transmit List)")
-                },
-                {(long)RegistersDMA.ChannelRxDescriptorListAddress, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out rxDescriptorRingStart, name: "DMACRxDLAR.RDESLA (Start of Receive List)")
-                },
-                {(long)RegistersDMA.ChannelTxDescriptorTailPointer, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out txDescriptorRingTail, changeCallback: (previousValue, _) =>
-                    {
-                        var clearTxFinishedRing = txDescriptorRingTail.Value != txDescriptorRingCurrent.Value;
-                        if((txState & DMAState.Suspended) != 0 || (txFinishedRing && clearTxFinishedRing))
-                        {
-                            txFinishedRing &= !clearTxFinishedRing;
-                            StartTxDMA();
-                        }
-                    }, name: "DMACTxDTPR.TDT (Transmit Descriptor Tail Pointer)")
-                },
-                {(long)RegistersDMA.ChannelRxDescriptorTailPointer, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out rxDescriptorRingTail, changeCallback: (previousValue, _) =>
-                    {
-                        var clearRxFinishedRing = rxDescriptorRingTail.Value != rxDescriptorRingCurrent.Value;
-                        if((rxState & DMAState.Suspended) != 0 || (rxFinishedRing && clearRxFinishedRing))
-                        {
-                            rxFinishedRing &= !clearRxFinishedRing;
-                            StartRxDMA();
-                        }
-                    }, name: "DMACRxDTPR.RDT (Receive Descriptor Tail Pointer)")
-                },
-                {(long)RegistersDMA.ChannelTxDescriptorRingLength, new DoubleWordRegister(this)
-                    .WithValueField(0, 10, out txDescriptorRingLength, name: "DMACTxRLR.TDRL (Transmit Descriptor Ring Length)")
-                    .WithReservedBits(10, 22)
-                },
-                {(long)RegistersDMA.ChannelRxDescriptorRingLength, new DoubleWordRegister(this)
-                    .WithValueField(0, 10, out rxDescriptorRingLength, name: "DMACRxRLR.RDRL (Receive Descriptor Ring Length)")
-                    .WithReservedBits(10, 6)
-                    .WithValueField(16, 8, out alternateRxBufferSize, name: "DMACRxRLR.ARBS (Alternate Receive Buffer Size)")
-                    .WithReservedBits(24, 8)
-                },
-                {(long)RegistersDMA.ChannelInterruptEnable, new DoubleWordRegister(this)
-                    .WithFlag(0, out txInterruptEnable, name: "DMACIER.TIE (Transmit Interrupt Enable)")
-                    .WithFlag(1, out txProcessStoppedEnable, name: "DMACIER.TXSE (Transmit Stopped Enable)")
-                    .WithFlag(2, out txBufferUnavailableEnable, name: "DMACIER.TBUE (Transmit Buffer Unavailable Enable)")
-                    .WithReservedBits(3, 3)
-                    .WithFlag(6, out rxInterruptEnable, name: "DMACIER.RIE (Receive Interrupt Enable)")
-                    .WithFlag(7, out rxBufferUnavailableEnable, name: "DMACIER.RBUE (Receive Buffer Unavailable Enable)")
-                    .WithFlag(8, out rxProcessStoppedEnable, name: "DMACIER.RSE (Receive Stopped Enable)")
-                    .WithFlag(9, out rxWatchdogTimeoutEnable, name: "DMACIER.RWTE (Receive Watchdog Timeout Enable)")
-                    .WithFlag(10, out earlyTxInterruptEnable, name: "DMACIER.ETIE (Early Transmit Interrupt Enable)")
-                    .WithFlag(11, out earlyRxInterruptEnable, name: "DMACIER.ERIE (Early Receive Interrupt Enable)")
-                    .WithFlag(12, out fatalBusErrorEnable, name: "DMACIER.FBEE (Fatal Bus Error Enable)")
-                    .WithFlag(13, out contextDescriptorErrorEnable, name: "DMACIER.CDEE (Context Descriptor Error Enable)")
-                    .WithFlag(14, out abnormalInterruptSummaryEnable, name: "DMACIER.AIE (Abnormal Interrupt Summary Enable)")
-                    .WithFlag(15, out normalInterruptSummaryEnable, name: "DMACIER.NIE (Normal Interrupt Summary Enable)")
-                    .WithReservedBits(16, 16)
-                    .WithChangeCallback((_, __) => UpdateInterrupts())
-                },
-                {(long)RegistersDMA.ChannelRxInterruptWatchdogTimer, new DoubleWordRegister(this)
-                    .WithValueField(0, 8, out rxWatchdogCounter, changeCallback: (_, __) =>
-                    {
-                        rxWatchdog.Limit = rxWatchdogCounter.Value;
-                    },
-                    name: "DMACRxIWTR.RWT (Receive Interrupt Watchdog Timer Count)")
-                    .WithReservedBits(8, 8)
-                    .WithValueField(16, 2, out rxWatchdogCounterUnit, changeCallback: (_, __) =>
-                    {
-                        rxWatchdog.Divider = RxWatchdogDivider << (byte)rxWatchdogCounterUnit.Value;
-                    },
-                    name: "DMACRxIWTR.RWTU (Receive Interrupt Watchdog Timer Count Units)")
-                    .WithReservedBits(18, 14)
-                },
-                {(long)RegistersDMA.ChannelCurrentApplicationTransmitDescriptor, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out txDescriptorRingCurrent, FieldMode.Read, name: "DMACCATxDR.CURTDESAPTR (Application Transmit Descriptor Address Pointer)")
-                },
-                {(long)RegistersDMA.ChannelCurrentApplicationReceiveDescriptor, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out rxDescriptorRingCurrent, FieldMode.Read, name: "DMACCARxDR.CURRDESAPTR (Application Receive Descriptor Address Pointer)")
-                },
-                {(long)RegistersDMA.ChannelCurrentApplicationTransmitBuffer, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out txCurrentBuffer, FieldMode.Read, name: "DMACCATxBR.CURTBUFAPTR (Application Transmit Buffer Address Pointer)")
-                },
-                {(long)RegistersDMA.ChannelCurrentApplicationReceiveBuffer, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out rxCurrentBuffer, FieldMode.Read, name: "DMACCARxBR.CURRBUFAPTR (Application Receive Buffer Address Pointer)")
-                },
-                {(long)RegistersDMA.ChannelStatus, new DoubleWordRegister(this)
-                    .WithFlag(0, out txInterrupt, FieldMode.Read | FieldMode.WriteOneToClear, name: "DMACSR.TI (Transmit Interrupt)")
-                    .WithFlag(1, out txProcessStopped, FieldMode.Read | FieldMode.WriteOneToClear, name: "DMACSR.TPS (Transmit Process Stopped)")
-                    .WithFlag(2, out txBufferUnavailable, FieldMode.Read | FieldMode.WriteOneToClear, name: "DMACSR.TBU (Transmit Buffer Unavailable)")
-                    .WithReservedBits(3, 3)
-                    .WithFlag(6, out rxInterrupt, FieldMode.Read | FieldMode.WriteOneToClear, name: "DMACSR.RI (Receive Interrupt)")
-                    .WithFlag(7, out rxBufferUnavailable, FieldMode.Read | FieldMode.WriteOneToClear, name: "DMACSR.RBU (Receive Buffer Unavailable)")
-                    .WithFlag(8, out rxProcessStopped, FieldMode.Read | FieldMode.WriteOneToClear, name: "DMACSR.RPS (Receive Process Stopped)")
-                    .WithFlag(9, out rxWatchdogTimeout, FieldMode.Read | FieldMode.WriteOneToClear, name: "DMACSR.RWT (Receive Watchdog Timeout)")
-                    .WithFlag(10, out earlyTxInterrupt, FieldMode.Read | FieldMode.WriteOneToClear, name: "DMACSR.ET (Early Transmit Interrupt)")
-                    .WithFlag(11, out earlyRxInterrupt, FieldMode.Read | FieldMode.WriteOneToClear, name: "DMACSR.ER (Early Receive Interrupt)")
-                    .WithFlag(12, out fatalBusError, FieldMode.Read | FieldMode.WriteOneToClear, name: "DMACSR.FBE (Fatal Bus Error)")
-                    .WithFlag(13, out contextDescriptorError, FieldMode.Read | FieldMode.WriteOneToClear, name: "DMACSR.CDE (Context Descriptor Error)")
-                    .WithFlag(14, out abnormalInterruptSummary, FieldMode.Read | FieldMode.WriteOneToClear, name: "DMACSR.AIS (Abnormal Interrupt Summary)")
-                    .WithFlag(15, out normalInterruptSummary, FieldMode.Read | FieldMode.WriteOneToClear, name: "DMACSR.NIS (Normal Interrupt Summary)")
-                    .WithTag("DMACSR.TEB (Tx DMA Error Bits)", 16, 3)
-                    .WithTag("DMACSR.REB (Rx DMA Error Bits)", 19, 3)
-                    .WithReservedBits(22, 10)
-                    .WithChangeCallback((_, __) => UpdateInterrupts())
-                },
-                {(long)RegistersDMA.ChannelMissedFrameCount, new DoubleWordRegister(this)
-                    .WithTag("DMACMFCR.MFC (Dropped Packet Counters)", 0, 11)
-                    .WithReservedBits(11, 4)
-                    .WithTaggedFlag("DMACMFCR.MFCO (Overflow status of the MFC Counter)", 15)
-                    .WithReservedBits(16, 16)
-                }
             };
+
+            foreach(var channel in dmaChannels)
+            {
+                channel.DefineChannelRegisters(ref map);
+            }
+
+            return map;
         }
 
         private uint Read<T>(DoubleWordRegisterCollection registersCollection, string regionName, long offset)
@@ -1440,14 +1309,12 @@ namespace Antmicro.Renode.Peripherals.Network
             }
         }
 
-        private DMATxProcessState DmaTxState => (txState == DMAState.Stopped) ? DMATxProcessState.Stopped : DMATxProcessState.Suspended;
-        private DMARxProcessState DmaRxState => (rxState == DMAState.Stopped) ? DMARxProcessState.Stopped :
-                                        ((incomingFrames.Count == 0) ? DMARxProcessState.WaitingForPacket : DMARxProcessState.Suspended);
-
         private IFlagRegisterField rxEnable;
         private IFlagRegisterField txEnable;
+        private IFlagRegisterField loopbackEnabled;
         private IFlagRegisterField checksumOffloadEnable;
         private IFlagRegisterField crcCheckDisable;
+        private IFlagRegisterField packetDuplicationControl;
         private IFlagRegisterField ptpMessageTypeInterrupt;
         private IFlagRegisterField lowPowerIdleInterrupt;
         private IFlagRegisterField timestampInterrupt;
@@ -1461,6 +1328,7 @@ namespace Antmicro.Renode.Peripherals.Network
         private IValueRegisterField miiPhy;
         private IValueRegisterField miiData;
         private IValueRegisterField miiAddress;
+        private IValueRegisterField dmaChannelSelect;
         private IFlagRegisterField rxUnicastPacketCounterInterrupt;
         private IFlagRegisterField rxFifoPacketCounterInterrupt;
         private IFlagRegisterField rxCrcErrorPacketCounterInterrupt;
@@ -1508,57 +1376,6 @@ namespace Antmicro.Renode.Peripherals.Network
         private IValueRegisterField rxFifoPacketCounter;
         private IFlagRegisterField enableTimestamp;
         private IFlagRegisterField enableTimestampForAll;
-
-        private IValueRegisterField maximumSegmentSize;
-        private IFlagRegisterField programableBurstLengthTimes8;
-        private IValueRegisterField descriptorSkipLength;
-        private IFlagRegisterField startTx;
-        private IFlagRegisterField operateOnSecondPacket;
-        private IFlagRegisterField tcpSegmentationEnable;
-        private IValueRegisterField txProgramableBurstLength;
-        private IFlagRegisterField startRx;
-        private IValueRegisterField rxBufferSize;
-        private IValueRegisterField rxProgramableBurstLength;
-        private IValueRegisterField txDescriptorRingStart;
-        private IValueRegisterField rxDescriptorRingStart;
-        private IValueRegisterField txDescriptorRingTail;
-        private IValueRegisterField rxDescriptorRingTail;
-        private IValueRegisterField txDescriptorRingLength;
-        private IValueRegisterField rxDescriptorRingLength;
-        private IValueRegisterField alternateRxBufferSize;
-        private IValueRegisterField txDescriptorRingCurrent;
-        private IValueRegisterField rxDescriptorRingCurrent;
-        private IValueRegisterField txCurrentBuffer;
-        private IValueRegisterField rxCurrentBuffer;
-
-        private IFlagRegisterField txInterruptEnable;
-        private IFlagRegisterField txProcessStoppedEnable;
-        private IFlagRegisterField txBufferUnavailableEnable;
-        private IFlagRegisterField rxInterruptEnable;
-        private IFlagRegisterField rxBufferUnavailableEnable;
-        private IFlagRegisterField rxProcessStoppedEnable;
-        private IFlagRegisterField rxWatchdogTimeoutEnable;
-        private IFlagRegisterField earlyTxInterruptEnable;
-        private IFlagRegisterField earlyRxInterruptEnable;
-        private IFlagRegisterField fatalBusErrorEnable;
-        private IFlagRegisterField contextDescriptorErrorEnable;
-        private IFlagRegisterField abnormalInterruptSummaryEnable;
-        private IValueRegisterField rxWatchdogCounter;
-        private IValueRegisterField rxWatchdogCounterUnit;
-        private IFlagRegisterField normalInterruptSummaryEnable;
-        private IFlagRegisterField txInterrupt;
-        private IFlagRegisterField txProcessStopped;
-        private IFlagRegisterField txBufferUnavailable;
-        private IFlagRegisterField rxInterrupt;
-        private IFlagRegisterField rxBufferUnavailable;
-        private IFlagRegisterField rxProcessStopped;
-        private IFlagRegisterField rxWatchdogTimeout;
-        private IFlagRegisterField earlyTxInterrupt;
-        private IFlagRegisterField earlyRxInterrupt;
-        private IFlagRegisterField fatalBusError;
-        private IFlagRegisterField contextDescriptorError;
-        private IFlagRegisterField abnormalInterruptSummary;
-        private IFlagRegisterField normalInterruptSummary;
 
         private readonly IFlagRegisterField[] rxIpcPacketCounterInterruptEnable;
         private readonly IFlagRegisterField[] rxIpcByteCounterInterruptEnable;
@@ -1732,23 +1549,51 @@ namespace Antmicro.Renode.Peripherals.Network
             SystemBusMode = 0x004,
             InterruptStatus = 0x008,
             DebugStatus = 0x00C,
-            ChannelControl = 0x100,
-            ChannelTransmitControl = 0x104,
-            ChannelReceiveControl = 0x108,
-            ChannelTxDescriptorListAddress = 0x114,
-            ChannelRxDescriptorListAddress = 0x11C,
-            ChannelTxDescriptorTailPointer = 0x120,
-            ChannelRxDescriptorTailPointer = 0x128,
-            ChannelTxDescriptorRingLength = 0x12C,
-            ChannelRxDescriptorRingLength = 0x130,
-            ChannelInterruptEnable = 0x134,
-            ChannelRxInterruptWatchdogTimer = 0x138,
-            ChannelCurrentApplicationTransmitDescriptor = 0x144,
-            ChannelCurrentApplicationReceiveDescriptor = 0x14C,
-            ChannelCurrentApplicationTransmitBuffer = 0x154,
-            ChannelCurrentApplicationReceiveBuffer = 0x15C,
-            ChannelStatus = 0x160,
-            ChannelMissedFrameCount = 0x16C,
+        }
+
+        public enum RegistersDMAChannel : long
+        {
+            Control = 0x00,
+            TransmitControl = 0x04,
+            ReceiveControl = 0x08,
+            TxDescriptorListAddress = 0x14,
+            RxDescriptorListAddress = 0x1C,
+            TxDescriptorTailPointer = 0x20,
+            RxDescriptorTailPointer = 0x28,
+            TxDescriptorRingLength = 0x2C,
+            RxDescriptorRingLength = 0x30,
+            InterruptEnable = 0x34,
+            RxInterruptWatchdogTimer = 0x38,
+            CurrentApplicationTransmitDescriptor = 0x44,
+            CurrentApplicationReceiveDescriptor = 0x4C,
+            CurrentApplicationTransmitBuffer = 0x54,
+            CurrentApplicationReceiveBuffer = 0x5C,
+            Status = 0x60,
+            MissedFrameCount = 0x6C,
+        }
+
+        protected enum DMATxProcessState
+        {
+            Stopped             = 0b000, // Reset or Stop Receive Command issued
+            FetchingDescriptor  = 0b001, // Fetching Tx Transfer Descriptor
+            WaitingForStatus    = 0b010, // Waiting for status
+            FetchingBufferData  = 0b011, // Reading Data from system memory buffer and queuing it to the Tx buffer (Tx FIFO)
+            TimestampWriteState = 0b100, // Timestamp write state
+            // Reserved         = 0b101, // Reserved for future use
+            Suspended           = 0b110, // Tx Descriptor Unavailable or Tx Buffer Underflow
+            ClosingDescriptor   = 0b111, // Closing Tx Descriptor
+        }
+
+        protected enum DMARxProcessState
+        {
+            Stopped             = 0b000, // Reset or Stop Receive Command issued
+            FetchingDescriptor  = 0b001, // Fetching Rx Transfer Descriptor
+            // Reserved         = 0b010, // Reserved for future use
+            WaitingForPacket    = 0b011, // Waiting for Rx packet
+            Suspended           = 0b100, // Rx Descriptor Unavailable
+            ClosingDescriptor   = 0b101, // Closing the Rx Descriptor
+            TimestampWriteState = 0b110, // Timestamp write state
+            WritingBufferData   = 0b111, // Transferring the received packet data from the Rx buffer to the system memory
         }
 
         private enum MIIOperation : byte
@@ -1782,30 +1627,6 @@ namespace Antmicro.Renode.Peripherals.Network
             Read = 0b01,
             Waiting = 0b10,
             Flushing = 0b11,
-        }
-
-        private enum DMATxProcessState
-        {
-            Stopped             = 0b000, // Reset or Stop Receive Command issued
-            FetchingDescriptor  = 0b001, // Fetching Tx Transfer Descriptor
-            WaitingForStatus    = 0b010, // Waiting for status
-            FetchingBufferData  = 0b011, // Reading Data from system memory buffer and queuing it to the Tx buffer (Tx FIFO)
-            TimestampWriteState = 0b100, // Timestamp write state
-            // Reserved         = 0b101, // Reserved for future use
-            Suspended           = 0b110, // Tx Descriptor Unavailable or Tx Buffer Underflow
-            ClosingDescriptor   = 0b111, // Closing Tx Descriptor
-        }
-
-        private enum DMARxProcessState
-        {
-            Stopped             = 0b000, // Reset or Stop Receive Command issued
-            FetchingDescriptor  = 0b001, // Fetching Rx Transfer Descriptor
-            // Reserved         = 0b010, // Reserved for future use
-            WaitingForPacket    = 0b011, // Waiting for Rx packet
-            Suspended           = 0b100, // Rx Descriptor Unavailable
-            ClosingDescriptor   = 0b101, // Closing the Rx Descriptor
-            TimestampWriteState = 0b110, // Timestamp write state
-            WritingBufferData   = 0b111, // Transferring the received packet data from the Rx buffer to the system memory
         }
     }
 }

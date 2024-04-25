@@ -40,7 +40,15 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
 
             this.nvic = nvic;
-            nvic.AttachCPU(this);
+            try
+            {
+                nvic.AttachCPU(this);
+            }
+            catch(RecoverableException e)
+            {
+                // Rethrow attachment error as ConstructionException, so the CreationDriver doesn't crash
+                throw new ConstructionException("Exception occurred when attaching NVIC: ", e);
+            }
         }
 
         public override void Reset()

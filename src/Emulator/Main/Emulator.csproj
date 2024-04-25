@@ -158,6 +158,10 @@
     <Compile Include="Peripherals\IHasOwnLife.cs" />
     <Compile Include="Core\Range.cs" />
     <Compile Include="Peripherals\UART\IUART.cs" />
+    <Compile Include="Peripherals\SENT\ISENTPeripheral.cs" />
+    <Compile Include="Peripherals\SENT\Transmitter.cs" />
+    <Compile Include="Peripherals\SENT\SENTPeripheralBase.cs" />
+    <Compile Include="Peripherals\SENT\Messages.cs" />
     <Compile Include="Peripherals\CFU\ICFU.cs" />
     <Compile Include="Utilities\SharedLibraries.cs" />
     <Compile Include="Peripherals\Network\INetworkInterface.cs" />
@@ -614,6 +618,8 @@
     <Compile Include="Peripherals\UART\LINHub.cs" />
     <Compile Include="Utilities\LINDecoder.cs" />
     <Compile Include="Peripherals\UART\LINBase.cs" />
+    <Compile Include="Peripherals\CAN\SocketCAN.cs" />
+    <Compile Include="Peripherals\Sensor\IMagneticSensor.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />

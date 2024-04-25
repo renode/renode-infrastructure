@@ -1,12 +1,14 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Antmicro.Renode.Core
 {
@@ -28,6 +30,16 @@ namespace Antmicro.Renode.Core
             }
         }
 
+        /// <summary>
+        /// Checks if this <c>Range</c> can be expanded by <c>range</c> so that
+        /// <c>this.Contains(address) || range.Contains(address)</c> equals
+        /// <c>this.Expand(range).Contains(address)</c> for any address.
+        /// </summary>
+        public bool CanBeExpandedBy(Range range)
+        {
+            return Intersects(range) || IsAdjacentTo(range);
+        }
+
         public bool Contains(ulong address)
         {
             // The empty range does not contain any addresses.
@@ -40,6 +52,18 @@ namespace Antmicro.Renode.Core
             }
 
             return address >= StartAddress && address <= EndAddress;
+        }
+
+        public bool Contains(long address)
+        {
+            // Range operates on positive numbers
+            // so it cannot contain a negative number.
+            if(address < 0)
+            {
+                return false;
+            }
+
+            return Contains((ulong)address);
         }
 
         public bool Contains(Range range)
@@ -57,6 +81,24 @@ namespace Antmicro.Renode.Core
             return range.StartAddress >= StartAddress && range.EndAddress <= EndAddress;
         }
 
+        /// <param name="range">
+        /// <c>range</c> has to overlap or be adjacent to this <c>Range</c>
+        /// which can be tested with <c>CanBeExpandedBy(range)</c>.
+        /// An <c>ArgumentException</c> is thrown if the condition isn't satisfied.
+        /// </param>
+        public Range Expand(Range range)
+        {
+            if(!CanBeExpandedBy(range))
+            {
+                throw new ArgumentException($"{this} can't be expanded by {range}.");
+            }
+            var startAddress = Math.Min(StartAddress, range.StartAddress);
+            var endAddress = Math.Max(EndAddress, range.EndAddress);
+
+            // + 1 because the argument of `ulong.To` is the first byte after the Range ends.
+            return startAddress.To(endAddress + 1);
+        }
+
         public Range Intersect(Range range)
         {
             var startAddress = Math.Max(StartAddress, range.StartAddress);
@@ -66,6 +108,11 @@ namespace Antmicro.Renode.Core
                 return Range.Empty;
             }
             return new Range(startAddress, endAddress - startAddress + 1);
+        }
+
+        public bool IsAdjacentTo(Range range)
+        {
+            return (StartAddress == range.EndAddress + 1) || (EndAddress == range.StartAddress - 1);
         }
 
         public List<Range> Subtract(Range sub)
@@ -197,8 +244,70 @@ namespace Antmicro.Renode.Core
         public static Range Empty;
     }
 
+    public class MinimalRangesCollection : IEnumerable
+    {
+        /// <summary>
+        /// Adds a <c>range</c> expanding any elements, if possible. Therefore ranges overlapping,
+        /// and adjacent to the <c>range</c> are removed from the collection and re-added as a
+        /// single expanded <c>Range</c>.
+        /// </summary>
+        public void Add(Range range)
+        {
+            // ToArray is necessary because ranges gets modified in the code block.
+            foreach(var expandableRange in ranges.Where(collectionRange => collectionRange.CanBeExpandedBy(range)).ToArray())
+            {
+                ranges.Remove(expandableRange);
+                range = range.Expand(expandableRange);
+            }
+            ranges.Add(range);
+        }
+
+        public void Clear()
+        {
+            ranges.Clear();
+        }
+
+        public bool ContainsOverlappingRange(Range range)
+        {
+            return ranges.Any(existingRange => existingRange.Intersects(range));
+        }
+
+        public IEnumerator GetEnumerator()
+        {
+            return ranges.GetEnumerator();
+        }
+
+        public bool Remove(Range range)
+        {
+            return ranges.SubtractAll(range);
+        }
+
+        public int Count => ranges.Count;
+
+        private readonly HashSet<Range> ranges = new HashSet<Range>();
+    }
+
     public static class RangeExtensions
     {
+        /// <summary>
+        /// Subtracts the given <c>range</c> from each overlapping element in <c>ranges</c>.
+        /// </summary>
+        /// <returns>True if <c>range</c> was subtracted from any element in <c>ranges</c>.</returns>
+        public static bool SubtractAll(this ICollection<Range> ranges, Range range)
+        {
+            // ToArray is necessary because ranges gets modified in the code block.
+            var overlappingRanges = ranges.Where(collectionRange => collectionRange.Intersects(range)).ToArray();
+            foreach(var overlappingRange in overlappingRanges)
+            {
+                ranges.Remove(overlappingRange);
+                foreach(var remainingRange in overlappingRange.Subtract(range))
+                {
+                    ranges.Add(remainingRange);
+                }
+            }
+            return overlappingRanges.Any();
+        }
+
         public static Range By(this ulong startAddress, ulong size)
         {
             return new Range(startAddress, size);

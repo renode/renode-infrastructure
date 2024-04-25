@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -156,6 +156,62 @@ namespace Antmicro.Renode.UnitTests
             var expected1 = new Range(0x1600, 0x200);
             var expected2 = new Range(0x1A00, 0x600);
             CollectionAssert.AreEquivalent(new [] { expected1, expected2 }, range.Subtract(sub));
+        }
+
+        [Test]
+        public void MinimalRangesCollectionAdd()
+        {
+            var ranges = new MinimalRangesCollection();
+            Assert.AreEqual(ranges.Count, 0);
+
+            ranges.Add(new Range(0x1000, 0x400));
+            ranges.Add(new Range(0x1800, 0x800));
+            Assert.AreEqual(ranges.Count, 2);
+
+            ranges.Add(new Range(0x0, 0x1000));
+            Assert.AreEqual(ranges.Count, 2);
+
+            ranges.Add(new Range(0x2000, 0x400));
+            Assert.AreEqual(ranges.Count, 2);
+
+            ranges.Add(new Range(0x1000, 0x1000));
+            Assert.AreEqual(ranges.Count, 1);
+
+            var expected = new Range(0x0, 0x2400);
+            CollectionAssert.AreEquivalent(new [] { expected }, ranges);
+        }
+
+        [Test]
+        public void MinimalRangesCollectionRemoveEmptyOrOutside()
+        {
+            var ranges = new MinimalRangesCollection();
+            var range = new Range(0x1000, 0x1000);
+            ranges.Add(range);
+
+            Assert.IsFalse(ranges.Remove(Range.Empty));
+            Assert.IsFalse(ranges.Remove(new Range(0x0, 0x1000)));
+            Assert.IsFalse(ranges.Remove(new Range(0x2000, 0x1000)));
+            Assert.IsFalse(ranges.Remove(new Range(0x8000, 0x1000)));
+
+            CollectionAssert.AreEquivalent(new [] { range }, ranges);
+        }
+
+        [Test]
+        public void MinimalRangesCollectionRemoveSubrange()
+        {
+            var ranges = new MinimalRangesCollection();
+            var modifiedRange = new Range(0x1000, 0x1000);
+            var untouchedRange = new Range(0x8000, 0x1000);
+            ranges.Add(modifiedRange);
+            ranges.Add(untouchedRange);
+
+            var sub = new Range(0x1400, 0x800);
+            var wasRemoved = ranges.Remove(sub);
+            Assert.IsTrue(wasRemoved);
+
+            var expected1 = new Range(0x1000, 0x400);
+            var expected2 = new Range(0x1C00, 0x400);
+            CollectionAssert.AreEquivalent(new [] { expected1, expected2, untouchedRange }, ranges);
         }
     }
 }

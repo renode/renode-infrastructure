@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -13,10 +13,11 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Peripherals.Sensor;
 
 namespace Antmicro.Renode.Peripherals.I2C
 {
-    public class BME280 : II2CPeripheral, IProvidesRegisterCollection<ByteRegisterCollection>
+    public class BME280 : II2CPeripheral, IProvidesRegisterCollection<ByteRegisterCollection>, ITemperatureSensor
     {
         public BME280()
         {
@@ -91,7 +92,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             }
         }
 
-        public double Temperature
+        public decimal Temperature
         {
             get
             {
@@ -287,7 +288,7 @@ namespace Antmicro.Renode.Peripherals.I2C
         private State state;
         private Registers selectedRegister;
 
-        private double temperature;
+        private decimal temperature;
         private double pressure;
         private double humidity;
 

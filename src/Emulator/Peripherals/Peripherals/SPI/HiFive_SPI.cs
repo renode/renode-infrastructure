@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -30,6 +30,15 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             var registersMap = new Dictionary<long, DoubleWordRegister>()
             {
+                {(long)Registers.SerialClockDivisor, new DoubleWordRegister(this, 0x3)
+                    .WithValueField(0, 12, name: "div")
+                    .WithReservedBits(12, 20)
+                },
+                {(long)Registers.SerialClockMode, new DoubleWordRegister(this, 0x0)
+                    .WithFlag(0, name: "pha")
+                    .WithFlag(1, name: "pol")
+                    .WithReservedBits(2, 30)
+                },
                 {(long)Registers.ChipSelectId, new DoubleWordRegister(this)
                     .WithValueField(0, 32, out selectedSlave, name: "csid", writeCallback: (previousValue, value) =>
                     {
@@ -64,6 +73,43 @@ namespace Antmicro.Renode.Peripherals.SPI
                                 FinishTransmission();
                             }
                         })
+                },
+
+                {(long)Registers.FrameFormat, new DoubleWordRegister(this, 0x80000)
+                    .WithValueField(0, 2, out spiProtocol, name: "proto", writeCallback: (oldValue, value) =>
+                    {
+                        if(value != 0x0)
+                        {
+                            this.WarningLog("Only single SPI protocol (value 0x0) is supported");
+                            spiProtocol.Value = oldValue;
+                        }
+                    })
+                    .WithFlag(2, out spiEndianess, name: "endian", writeCallback: (oldValue, value) =>
+                    {
+                        if(value)
+                        {
+                            this.WarningLog("Only transmitting MSB first (value 0x0) is supported");
+                            spiEndianess.Value = oldValue;
+                        }
+                    })
+                    .WithFlag(3, out spiIODirection, name: "dir", writeCallback: (oldValue, value) =>
+                    {
+                        if(value)
+                        {
+                            this.WarningLog("Only Rx direction (value 0x0) is supported");
+                            spiIODirection.Value = oldValue;
+                        }
+                    })
+                    .WithReservedBits(4, 12)
+                    .WithValueField(16, 4, out numberOfBitsPerFrame, name: "len", writeCallback: (oldValue, value) =>
+                    {
+                        if(value != 0x8)
+                        {
+                            this.WarningLog("Only 8 bits per frame (value 0x8) are supported");
+                            numberOfBitsPerFrame.Value = oldValue;
+                        }
+                    })
+                    .WithReservedBits(20, 12)
                 },
 
                 {(long)Registers.TxFifoData, new DoubleWordRegister(this, 0x0)
@@ -191,6 +237,10 @@ namespace Antmicro.Renode.Peripherals.SPI
         private readonly IValueRegisterField transmitWatermark;
         private readonly IValueRegisterField receiveWatermark;
         private readonly IValueRegisterField selectedSlave;
+        private readonly IValueRegisterField spiProtocol;
+        private readonly IFlagRegisterField spiEndianess;
+        private readonly IFlagRegisterField spiIODirection;
+        private readonly IValueRegisterField numberOfBitsPerFrame;
         private readonly DoubleWordRegisterCollection registers;
 
         private const uint FifoEmptyMarker = 0x80000000;
