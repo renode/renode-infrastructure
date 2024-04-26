@@ -92,34 +92,49 @@ namespace Antmicro.Renode.Logging
             LogAs(null, type, message, args);
         }
 
+        public static void Log(LogLevel type, string message)
+        {
+            LogAs(null, type, message);
+        }
+
+        public static void Log(LogLevel type, string message, object arg1)
+        {
+            LogAs(null, type, message, arg1);
+        }
+
+        public static void Log(LogLevel type, string message, object arg1, object arg2)
+        {
+            LogAs(null, type, message, arg1, arg2);
+        }
+
+        public static void Log(LogLevel type, string message, object arg1, object arg2, object arg3)
+        {
+            LogAs(null, type, message, arg1, arg2, arg3);
+        }
+
         public static void Error(string message)
         {
-            LogAs(null, LogLevel.Error, message, null);
+            LogAs(null, LogLevel.Error, message);
         }
 
         public static void Warning(string message)
         {
-            LogAs(null, LogLevel.Warning, message, null);
+            LogAs(null, LogLevel.Warning, message);
         }
 
         public static void Info(string message)
         {
-            LogAs(null, LogLevel.Info, message, null);
+            LogAs(null, LogLevel.Info, message);
         }
 
         public static void Debug(string message)
         {
-            LogAs(null, LogLevel.Debug, message, null);
+            LogAs(null, LogLevel.Debug, message);
         }
 
         public static void Noisy(string message)
         {
-            LogAs(null, LogLevel.Noisy, message, null);
-        }
-
-        public static void ErrorLog(this IEmulationElement e, string message)
-        {
-            LogAs(e, LogLevel.Error, message, null);
+            LogAs(null, LogLevel.Noisy, message);
         }
 
         public static void ErrorLog(this IEmulationElement e, string message, params object[] args)
@@ -127,9 +142,24 @@ namespace Antmicro.Renode.Logging
             LogAs(e, LogLevel.Error, message, args);
         }
 
-        public static void WarningLog(this IEmulationElement e, string message)
+        public static void ErrorLog(this IEmulationElement e, string message)
         {
-            LogAs(e, LogLevel.Warning, message, null);
+            LogAs(e, LogLevel.Error, message);
+        }
+
+        public static void ErrorLog(this IEmulationElement e, string message, object arg1)
+        {
+            LogAs(e, LogLevel.Error, message, arg1);
+        }
+
+        public static void ErrorLog(this IEmulationElement e, string message, object arg1, object arg2)
+        {
+            LogAs(e, LogLevel.Error, message, arg1, arg2);
+        }
+
+        public static void ErrorLog(this IEmulationElement e, string message, object arg1, object arg2, object arg3)
+        {
+            LogAs(e, LogLevel.Error, message, arg1, arg2, arg3);
         }
 
         public static void WarningLog(this IEmulationElement e, string message, params object[] args)
@@ -137,9 +167,24 @@ namespace Antmicro.Renode.Logging
             LogAs(e, LogLevel.Warning, message, args);
         }
 
-        public static void InfoLog(this IEmulationElement e, string message)
+        public static void WarningLog(this IEmulationElement e, string message)
         {
-            LogAs(e, LogLevel.Info, message, null);
+            LogAs(e, LogLevel.Warning, message);
+        }
+
+        public static void WarningLog(this IEmulationElement e, string message, object arg1)
+        {
+            LogAs(e, LogLevel.Warning, message, arg1);
+        }
+
+        public static void WarningLog(this IEmulationElement e, string message, object arg1, object arg2)
+        {
+            LogAs(e, LogLevel.Warning, message, arg1, arg2);
+        }
+
+        public static void WarningLog(this IEmulationElement e, string message, object arg1, object arg2, object arg3)
+        {
+            LogAs(e, LogLevel.Warning, message, arg1, arg2, arg3);
         }
 
         public static void InfoLog(this IEmulationElement e, string message, params object[] args)
@@ -147,9 +192,24 @@ namespace Antmicro.Renode.Logging
             LogAs(e, LogLevel.Info, message, args);
         }
 
-        public static void DebugLog(this IEmulationElement e, string message)
+        public static void InfoLog(this IEmulationElement e, string message)
         {
-            LogAs(e, LogLevel.Debug, message, null);
+            LogAs(e, LogLevel.Info, message);
+        }
+
+        public static void InfoLog(this IEmulationElement e, string message, object arg1)
+        {
+            LogAs(e, LogLevel.Info, message, arg1);
+        }
+
+        public static void InfoLog(this IEmulationElement e, string message, object arg1, object arg2)
+        {
+            LogAs(e, LogLevel.Info, message, arg1, arg2);
+        }
+
+        public static void InfoLog(this IEmulationElement e, string message, object arg1, object arg2, object arg3)
+        {
+            LogAs(e, LogLevel.Info, message, arg1, arg2, arg3);
         }
 
         public static void DebugLog(this IEmulationElement e, string message, params object[] args)
@@ -157,9 +217,24 @@ namespace Antmicro.Renode.Logging
             LogAs(e, LogLevel.Debug, message, args);
         }
 
-        public static void NoisyLog(this IEmulationElement e, string message)
+        public static void DebugLog(this IEmulationElement e, string message)
         {
-            LogAs(e, LogLevel.Noisy, message, null);
+            LogAs(e, LogLevel.Debug, message);
+        }
+
+        public static void DebugLog(this IEmulationElement e, string message, object arg1)
+        {
+            LogAs(e, LogLevel.Debug, message, arg1);
+        }
+
+        public static void DebugLog(this IEmulationElement e, string message, object arg1, object arg2)
+        {
+            LogAs(e, LogLevel.Debug, message, arg1, arg2);
+        }
+
+        public static void DebugLog(this IEmulationElement e, string message, object arg1, object arg2, object arg3)
+        {
+            LogAs(e, LogLevel.Debug, message, arg1, arg2, arg3);
         }
 
         public static void NoisyLog(this IEmulationElement e, string message, params object[] args)
@@ -167,14 +242,49 @@ namespace Antmicro.Renode.Logging
             LogAs(e, LogLevel.Noisy, message, args);
         }
 
-        public static void Log(this IEmulationElement e, LogLevel type, string message)
+        public static void NoisyLog(this IEmulationElement e, string message)
         {
-            LogAs(e, type, message, null);
+            LogAs(e, LogLevel.Noisy, message);
+        }
+
+        public static void NoisyLog(this IEmulationElement e, string message, object arg1)
+        {
+            LogAs(e, LogLevel.Noisy, message, arg1);
+        }
+
+        public static void NoisyLog(this IEmulationElement e, string message, object arg1, object arg2)
+        {
+            LogAs(e, LogLevel.Noisy, message, arg1, arg2);
+        }
+
+        public static void NoisyLog(this IEmulationElement e, string message, object arg1, object arg2, object arg3)
+        {
+            LogAs(e, LogLevel.Noisy, message, arg1, arg2, arg3);
         }
 
         public static void Log(this IEmulationElement e, LogLevel type, string message, params object[] args)
         {
             LogAs(e, type, message, args);
+        }
+
+        public static void Log(this IEmulationElement e, LogLevel type, string message)
+        {
+            LogAs(e, type, message);
+        }
+
+        public static void Log(this IEmulationElement e, LogLevel type, string message, object arg1)
+        {
+            LogAs(e, type, message, arg1);
+        }
+
+        public static void Log(this IEmulationElement e, LogLevel type, string message, object arg1, object arg2)
+        {
+            LogAs(e, type, message, arg1, arg2);
+        }
+
+        public static void Log(this IEmulationElement e, LogLevel type, string message, object arg1, object arg2, object arg3)
+        {
+            LogAs(e, type, message, arg1, arg2, arg3);
         }
 
         public static void LogAs(object o, LogLevel type, string message, params object[] args)
@@ -190,6 +300,58 @@ namespace Antmicro.Renode.Logging
             if(emulationManager != null)
             {
                 ((ActualLogger)emulationManager.CurrentEmulation.CurrentLogger).ObjectInnerLog(o, type, message, args);
+            }
+        }
+
+        public static void LogAs(object o, LogLevel type, string message)
+        {
+            if(type < minLevel)
+            {
+                return;
+            }
+            var emulationManager = EmulationManager.Instance;
+            if(emulationManager != null)
+            {
+                ((ActualLogger)emulationManager.CurrentEmulation.CurrentLogger).ObjectInnerLog(o, type, message);
+            }
+        }
+
+        public static void LogAs(object o, LogLevel type, string message, object arg1)
+        {
+            if(type < minLevel)
+            {
+                return;
+            }
+            var emulationManager = EmulationManager.Instance;
+            if(emulationManager != null)
+            {
+                ((ActualLogger)emulationManager.CurrentEmulation.CurrentLogger).ObjectInnerLog(o, type, message, arg1);
+            }
+        }
+
+        public static void LogAs(object o, LogLevel type, string message, object arg1, object arg2)
+        {
+            if(type < minLevel)
+            {
+                return;
+            }
+            var emulationManager = EmulationManager.Instance;
+            if(emulationManager != null)
+            {
+                ((ActualLogger)emulationManager.CurrentEmulation.CurrentLogger).ObjectInnerLog(o, type, message, arg1, arg2);
+            }
+        }
+
+        public static void LogAs(object o, LogLevel type, string message, object arg1, object arg2, object arg3)
+        {
+            if(type < minLevel)
+            {
+                return;
+            }
+            var emulationManager = EmulationManager.Instance;
+            if(emulationManager != null)
+            {
+                ((ActualLogger)emulationManager.CurrentEmulation.CurrentLogger).ObjectInnerLog(o, type, message, arg1, arg2, arg3);
             }
         }
 
