@@ -66,56 +66,54 @@ namespace Antmicro.Renode.Peripherals.SPI
                     if(addressBuffer.Count < AddressByteCount)
                     {
                         addressBuffer.Add(data);
-                        if(addressBuffer.Count != AddressByteCount)
-                        {
-                            break;
-                        }
-
-                        if(WriteEnabled)
-                        {
-                            var address = BitHelper.ToUInt32(addressBuffer.ToArray(), 0, AddressByteCount, true);
-                            memory.SetRange(address, 64.KB(), 0xFF);
-                            WriteEnabled = false;
-                        }
-                        else
-                        {
-                            this.ErrorLog("Attempted to perform a Block Erase operation while flash is in write-disabled state. Operation will be ignored");
-                        }
                     }
+
+                    if(addressBuffer.Count != AddressByteCount)
+                    {
+                        break;
+                    }
+
+                    if(!WriteEnabled)
+                    {
+                        this.ErrorLog("Attempted to perform a Block Erase operation while flash is in write-disabled state. Operation will be ignored");
+                        break;
+                    }
+
+                    var address = BitHelper.ToUInt32(addressBuffer.ToArray(), 0, AddressByteCount, true);
+                    memory.SetRange(address, 64.KB(), 0xFF);
+                    WriteEnabled = false;
                     break;
                 case Commands.PageProgram:
-                    if(addressBuffer.Count == AddressByteCount)
-                    {
-                        if(WriteEnabled)
-                        {
-                            memory.WriteByte(temporaryAddress, data);
-                            var currentPage = temporaryAddress / PageProgramSize;
-                            var nextPage = (temporaryAddress + 1) / PageProgramSize;
-                            if(nextPage == currentPage)
-                            {
-                                temporaryAddress++;
-                            }
-                            else
-                            {
-                                // Address should wrap around to the start of the page
-                                // when attempting to cross the page boundry
-                                temporaryAddress = currentPage * PageProgramSize;
-                            }
-                            resetWriteEnable = true;
-                        }
-                        else
-                        {
-                            this.ErrorLog("Attempted to perform a Page Program operation while flash is in write-disabled state. Operation will be ignored");
-                        }
-                    }
-                    else
+                    if(addressBuffer.Count < AddressByteCount)
                     {
                         addressBuffer.Add(data);
                         if(addressBuffer.Count == AddressByteCount)
                         {
                             temporaryAddress = BitHelper.ToUInt32(addressBuffer.ToArray(), 0, AddressByteCount, true);
                         }
+                        break;
                     }
+
+                    if(!WriteEnabled)
+                    {
+                        this.ErrorLog("Attempted to perform a Page Program operation while flash is in write-disabled state. Operation will be ignored");
+                        break;
+                    }
+
+                    memory.WriteByte(temporaryAddress, data);
+                    var currentPage = temporaryAddress / PageProgramSize;
+                    var nextPage = (temporaryAddress + 1) / PageProgramSize;
+                    if(nextPage == currentPage)
+                    {
+                        temporaryAddress++;
+                    }
+                    else
+                    {
+                        // Address should wrap around to the start of the page
+                        // when attempting to cross the page boundary
+                        temporaryAddress = currentPage * PageProgramSize;
+                    }
+                    resetWriteEnable = true;
                     break;
                 default:
                     if(Enum.IsDefined(typeof(Commands), currentCommand.Value))
