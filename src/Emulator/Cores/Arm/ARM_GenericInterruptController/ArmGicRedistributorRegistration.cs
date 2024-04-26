@@ -1,0 +1,139 @@
+//
+// Copyright (c) 2010-2024 Antmicro
+//
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
+//
+using System;
+using System.Linq;
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Debugging;
+using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Core.Structure.Registers;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Peripherals.CPU;
+using Antmicro.Renode.Peripherals.IRQControllers.ARM_GenericInterruptControllerModel;
+
+namespace Antmicro.Renode.Peripherals.IRQControllers
+{
+    public class ArmGicRedistributorRegistration : BusParametrizedRegistration
+    {
+        public ArmGicRedistributorRegistration(ulong address, IARMSingleSecurityStateCPU cpu) : base(address, 0x20000, null)
+        {
+            this.cpu = cpu;
+        }
+
+        public override Action<long, byte> GetWriteByteMethod(IBusPeripheral peripheral)
+        {
+            GetGICAndCPUEntry(peripheral, out var gic, out var entry);
+            return (offset, value) =>
+            {
+                gic.LockExecuteAndUpdate(() =>
+                    {
+                        var registerExists = IsByteAccessible(offset) && Utils.TryWriteByteToDoubleWordCollection(entry.RedistributorDoubleWordRegisters, offset, value);
+                        gic.LogWriteAccess(registerExists, value, "Redistributor (byte access)", offset, (ARM_GenericInterruptController.RedistributorRegisters)offset);
+                    }
+                );
+            };
+        }
+
+        public override Func<long, byte> GetReadByteMethod(IBusPeripheral peripheral)
+        {
+            GetGICAndCPUEntry(peripheral, out var gic, out var entry);
+            return (offset) =>
+            {
+                byte value = 0;
+                gic.LockExecuteAndUpdate(() =>
+                    {
+                        var registerExists = IsByteAccessible(offset) && Utils.TryReadByteFromDoubleWordCollection(entry.RedistributorDoubleWordRegisters, offset, out value);
+                        gic.LogReadAccess(registerExists, value, "Redistributor (byte access)", offset, (ARM_GenericInterruptController.RedistributorRegisters)offset);
+                    }
+                );
+                return value;
+            };
+        }
+
+        public override Action<long, uint> GetWriteDoubleWordMethod(IBusPeripheral peripheral)
+        {
+            GetGICAndCPUEntry(peripheral, out var gic, out var entry);
+            return (offset, value) =>
+            {
+                gic.LockExecuteAndUpdate(() =>
+                    {
+                        // Only a few virtual quad word registers can't be double word accessed, assume all accesses are valid.
+                        var registerExists = entry.RedistributorDoubleWordRegisters.TryWrite(offset, value)
+                            || Utils.TryWriteDoubleWordToQuadWordCollection(entry.RedistributorQuadWordRegisters, offset, value);
+                        gic.LogWriteAccess(registerExists, value, "Redistributor", offset, (ARM_GenericInterruptController.RedistributorRegisters)offset);
+                    }
+                );
+            };
+        }
+
+        public override Func<long, uint> GetReadDoubleWordMethod(IBusPeripheral peripheral)
+        {
+            GetGICAndCPUEntry(peripheral, out var gic, out var entry);
+            return (offset) =>
+            {
+                uint value = 0;
+                gic.LockExecuteAndUpdate(() =>
+                    {
+                        // Only a few virtual quad word registers can't be double word accessed, assume all accesses are valid.
+                        var registerExists = entry.RedistributorDoubleWordRegisters.TryRead(offset, out value)
+                            || Utils.TryReadDoubleWordFromQuadWordCollection(entry.RedistributorQuadWordRegisters, offset, out value);
+                        gic.LogReadAccess(registerExists, value, "Redistributor", offset, (ARM_GenericInterruptController.RedistributorRegisters)offset);
+                    }
+                );
+                return value;
+            };
+        }
+
+        public override Action<long, ulong> GetWriteQuadWordMethod(IBusPeripheral peripheral)
+        {
+            GetGICAndCPUEntry(peripheral, out var gic, out var entry);
+            return (offset, value) =>
+            {
+                gic.LockExecuteAndUpdate(() =>
+                    gic.LogWriteAccess(entry.RedistributorQuadWordRegisters.TryWrite(offset, value), value, "Redistributor", offset, (ARM_GenericInterruptController.RedistributorRegisters)offset)
+                );
+            };
+        }
+
+        public override Func<long, ulong> GetReadQuadWordMethod(IBusPeripheral peripheral)
+        {
+            GetGICAndCPUEntry(peripheral, out var gic, out var entry);
+            return (offset) =>
+            {
+                ulong value = 0;
+                gic.LockExecuteAndUpdate(() =>
+                    gic.LogReadAccess(entry.RedistributorQuadWordRegisters.TryRead(offset, out value), value, "Redistributor", offset, (ARM_GenericInterruptController.RedistributorRegisters)offset)
+                );
+                return value;
+            };
+        }
+
+        private void GetGICAndCPUEntry(IBusPeripheral peripheral, out ARM_GenericInterruptController gic, out ARM_GenericInterruptController.CPUEntry entry)
+        {
+            gic = peripheral as ARM_GenericInterruptController;
+            if(gic == null)
+            {
+                throw new RegistrationException("RedistributorRegistration can only be attached to ARM_GenericInterruptController");
+            }
+            if(!gic.TryGetCPUEntryForCPU(cpu, out entry))
+            {
+                throw new RegistrationException($"Couldn't register redistributor for CPU {cpu.Id} because the CPU isn't attached to this GIC");
+            }
+        }
+
+        private bool IsByteAccessible(long offset)
+        {
+            const long maxByteOffset = 3;
+            return (long)ARM_GenericInterruptController.RedistributorRegisters.InterruptPriority_0 <= offset && offset <= (long)ARM_GenericInterruptController.RedistributorRegisters.InterruptPriority_7 + maxByteOffset;
+        }
+
+        private readonly IARMSingleSecurityStateCPU cpu;
+    }
+}
