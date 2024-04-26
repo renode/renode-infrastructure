@@ -102,7 +102,12 @@ namespace Antmicro.Renode.Peripherals.Bus
         public void Register(IBusPeripheral peripheral, BusRangeRegistration registrationPoint)
         {
             var methods = PeripheralAccessMethods.CreateWithLock();
-            if(registrationPoint is BusMultiRegistration multiRegistrationPoint)
+            if(registrationPoint is BusParametrizedRegistration parametrizedRegistrationPoint)
+            {
+                parametrizedRegistrationPoint.FillAccessMethods(peripheral, ref methods);
+                FillAccessMethodsWithDefaultMethods(peripheral, ref methods);
+            }
+            else if(registrationPoint is BusMultiRegistration multiRegistrationPoint)
             {
                 if(peripheral is IMapped)
                 {
@@ -118,6 +123,11 @@ namespace Antmicro.Renode.Peripherals.Bus
         }
 
         public void Register(IBusPeripheral peripheral, BusMultiRegistration registrationPoint)
+        {
+            Register(peripheral, (BusRangeRegistration)registrationPoint);
+        }
+
+        public void Register(IBusPeripheral peripheral, BusParametrizedRegistration registrationPoint)
         {
             Register(peripheral, (BusRangeRegistration)registrationPoint);
         }

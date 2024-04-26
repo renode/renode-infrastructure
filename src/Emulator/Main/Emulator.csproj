@@ -191,6 +191,7 @@
     <Compile Include="Peripherals\IKnownSize.cs" />
     <Compile Include="Peripherals\Bus\BusPointRegistration.cs" />
     <Compile Include="Peripherals\Bus\BusRangeRegistration.cs" />
+    <Compile Include="Peripherals\Bus\BusParametrizedRegistration.cs" />
     <Compile Include="Core\Machine.cs" />
     <Compile Include="Peripherals\Bus\IBusPeripheral.cs" />
     <Compile Include="Peripherals\PCI\IPCIPeripheral.cs" />

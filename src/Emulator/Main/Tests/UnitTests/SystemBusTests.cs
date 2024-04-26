@@ -209,6 +209,48 @@ namespace Antmicro.Renode.UnitTests
         }
 
         [Test]
+        public void ShouldRegisterParametrizedPeripheral()
+        {
+            var parametrizedRegistration = new ParametrizedRegistrationPeripheral.Registration(0, 100);
+            var peripheral = new ParametrizedRegistrationPeripheral();
+            sysbus.Register(peripheral, parametrizedRegistration);
+            sysbus.Register(peripheral, new BusRangeRegistration(200, 100));
+
+            Assert.AreEqual(false, peripheral.ByteRead);
+            Assert.AreEqual(false, peripheral.ByteWritten);
+            Assert.AreEqual(false, peripheral.DoubleWordRead);
+            Assert.AreEqual(false, peripheral.DoubleWordWritten);
+
+            sysbus.ReadByte(10);
+
+            Assert.AreEqual(true, peripheral.ByteRead);
+            Assert.AreEqual(false, peripheral.ByteWritten);
+            Assert.AreEqual(false, peripheral.DoubleWordRead);
+            Assert.AreEqual(false, peripheral.DoubleWordWritten);
+
+            sysbus.WriteByte(10, 0);
+
+            Assert.AreEqual(true, peripheral.ByteRead);
+            Assert.AreEqual(true, peripheral.ByteWritten);
+            Assert.AreEqual(false, peripheral.DoubleWordRead);
+            Assert.AreEqual(false, peripheral.DoubleWordWritten);
+
+            sysbus.ReadDoubleWord(10);
+
+            Assert.AreEqual(true, peripheral.ByteRead);
+            Assert.AreEqual(true, peripheral.ByteWritten);
+            Assert.AreEqual(true, peripheral.DoubleWordRead);
+            Assert.AreEqual(false, peripheral.DoubleWordWritten);
+
+            sysbus.WriteDoubleWord(10, 0);
+
+            Assert.AreEqual(true, peripheral.ByteRead);
+            Assert.AreEqual(true, peripheral.ByteWritten);
+            Assert.AreEqual(true, peripheral.DoubleWordRead);
+            Assert.AreEqual(true, peripheral.DoubleWordWritten);
+        }
+
+        [Test]
         public void ShouldHandleWriteToMemorySegment()
         {
             CreateMachineAndExecute(sysbus =>
@@ -390,6 +432,59 @@ namespace Antmicro.Renode.UnitTests
             public void WriteByte2(long offset, byte value)
             {
                 ByteWritten2 = true;
+            }
+        }
+
+        private class ParametrizedRegistrationPeripheral : IBusPeripheral, IDoubleWordPeripheral
+        {
+            public void Reset()
+            {
+                throw new NotImplementedException();
+            }
+
+            public bool ByteRead { get; private set; }
+
+            public bool ByteWritten { get; private set; }
+
+            public bool DoubleWordRead { get; private set; }
+
+            public bool DoubleWordWritten { get; private set; }
+
+            public uint ReadDoubleWord(long offset)
+            {
+                DoubleWordRead = true;
+                return 0;
+            }
+
+            public void WriteDoubleWord(long offset, uint value)
+            {
+                DoubleWordWritten = true;
+            }
+
+            public class Registration : BusParametrizedRegistration
+            {
+                public Registration(ulong address, ulong size) : base(address, size, null)
+                {
+                }
+
+                public override Func<long, byte> GetReadByteMethod(IBusPeripheral peripheral)
+                {
+                    var parent = peripheral as ParametrizedRegistrationPeripheral;
+                    return (offset) =>
+                    {
+                        parent.ByteRead = true;
+                        return 0;
+                    };
+                }
+
+                public override Action<long, byte> GetWriteByteMethod(IBusPeripheral peripheral)
+                {
+                    var parent = peripheral as ParametrizedRegistrationPeripheral;
+                    return (offset, value) =>
+                    {
+                        parent.ByteWritten = true;
+                    };
+                }
             }
         }
     }

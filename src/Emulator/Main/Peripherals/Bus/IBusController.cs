@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 {
     public interface IBusController: IPeripheralContainer<IBusPeripheral, BusRangeRegistration>, IPeripheralRegister<IKnownSize, BusPointRegistration>,
         IPeripheralRegister<ICPU, CPURegistrationPoint>, IPeripheralRegister<IBusPeripheral, BusMultiRegistration>, IPeripheralRegister<IPeripheral, NullRegistrationPoint>,
-        ICanLoadFiles, IPeripheral, IMultibyteWritePeripheral
+        IPeripheralRegister<IBusPeripheral, BusParametrizedRegistration>, ICanLoadFiles, IPeripheral, IMultibyteWritePeripheral
     {
         byte ReadByte(ulong address, ICPU context = null);
         void WriteByte(ulong address, byte value, ICPU context = null);
