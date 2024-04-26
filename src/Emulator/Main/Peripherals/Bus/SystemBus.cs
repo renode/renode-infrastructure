@@ -628,7 +628,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             this.DebugLog("Loading ELF {0}.", fileName);
             using(var elf = GetELFFromFile(fileName))
             {
-                var segmentsToLoad = elf.Segments.Where(x => x.Type == SegmentType.Load);
+                var segmentsToLoad = elf.Segments.Where(x => x.Type == SegmentType.Load && x.FileSize > 0);
                 if(!segmentsToLoad.Any())
                 {
                     throw new RecoverableException($"ELF '{fileName}' has no loadable segments.");

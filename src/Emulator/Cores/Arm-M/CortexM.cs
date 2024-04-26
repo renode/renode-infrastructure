@@ -302,16 +302,16 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private void InitPCAndSP()
         {
-            var firstNotNullSection = machine.SystemBus.Lookup.FirstNotNullSectionAddress;
-            if(!vtorInitialized && firstNotNullSection.HasValue)
+            var firstNotNullSegment = machine.SystemBus.Lookup.FirstNotNullSegmentAddress;
+            if(!vtorInitialized && firstNotNullSegment.HasValue)
             {
-                if((firstNotNullSection.Value & (2 << 6 - 1)) > 0)
+                if((firstNotNullSegment.Value & (2 << 6 - 1)) > 0)
                 {
                     this.Log(LogLevel.Warning, "Alignment of VectorTableOffset register is not correct.");
                 }
                 else
                 {
-                    var value = firstNotNullSection.Value;
+                    var value = firstNotNullSegment.Value;
                     this.Log(LogLevel.Info, "Guessing VectorTableOffset value to be 0x{0:X}.", value);
                     VectorTableOffset = checked((uint)value);
                 }

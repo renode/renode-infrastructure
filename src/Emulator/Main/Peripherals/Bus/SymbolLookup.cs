@@ -11,6 +11,7 @@ using System.Linq;
 
 using ELFSharp.ELF;
 using ELFSharp.ELF.Sections;
+using ELFSharp.ELF.Segments;
 
 using Antmicro.Renode.Utilities.Collections;
 using System.Collections;
@@ -156,7 +157,7 @@ namespace Antmicro.Renode.Core
             private set;
         }
 
-        public ulong? FirstNotNullSectionAddress
+        public ulong? FirstNotNullSegmentAddress
         {
             get;
             private set;
@@ -203,9 +204,9 @@ namespace Antmicro.Renode.Core
                                 .Select(x => new Symbol(x.OffsetBy(offset), thumb));
             InsertSymbols(elfSymbols);
             EntryPoint = elf.GetEntryPoint();
-            FirstNotNullSectionAddress  = elf.Sections
-                                    .Where(x => x.Type != SectionType.Null && x.Flags.HasFlag(SectionFlags.Allocatable))
-                                    .Select(x => x.GetSectionPhysicalAddress())
+            FirstNotNullSegmentAddress  = elf.Segments
+                                    .Where(x => x.Type == ELFSharp.ELF.Segments.SegmentType.Load && x.FileSize > 0)
+                                    .Select(x => x.GetSegmentPhysicalAddress())
                                     .Cast<ulong?>()
                                     .Min();
         }
