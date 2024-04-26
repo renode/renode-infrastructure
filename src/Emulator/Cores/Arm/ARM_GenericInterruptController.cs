@@ -16,6 +16,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Peripherals.CPU;
+using Antmicro.Renode.Peripherals.IRQControllers.ARM_GenericInterruptControllerModel;
 
 namespace Antmicro.Renode.Peripherals.IRQControllers
 {
@@ -199,7 +200,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             LockExecuteAndUpdate(() =>
                 {
-                    var registerExists = IsDistributorByteAccessible(offset) && TryWriteByteToDoubleWordCollection(distributorDoubleWordRegisters, offset, value);
+                    var registerExists = IsDistributorByteAccessible(offset) && Utils.TryWriteByteToDoubleWordCollection(distributorDoubleWordRegisters, offset, value);
                     LogWriteAccess(registerExists, value, "Distributor (byte access)", offset, (DistributorRegisters)offset);
                 }
             );
@@ -211,7 +212,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             byte value = 0;
             LockExecuteAndUpdate(() =>
                 {
-                    var registerExists = IsDistributorByteAccessible(offset) && TryReadByteFromDoubleWordCollection(distributorDoubleWordRegisters, offset, out value);
+                    var registerExists = IsDistributorByteAccessible(offset) && Utils.TryReadByteFromDoubleWordCollection(distributorDoubleWordRegisters, offset, out value);
                     LogReadAccess(registerExists, value, "Distributor (byte access)", offset, (DistributorRegisters)offset);
                 }
             );
@@ -225,7 +226,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 {
                     var registerExists = TryWriteRegisterSecurityView(offset, value, distributorDoubleWordRegisters,
                         distributorRegistersSecureView, distributorRegistersNonSecureView, distributorRegistersDisabledSecurityView);
-                    registerExists = registerExists || TryWriteDoubleWordToQuadWordCollection(distributorQuadWordRegisters, offset, value);
+                    registerExists = registerExists || Utils.TryWriteDoubleWordToQuadWordCollection(distributorQuadWordRegisters, offset, value);
                     LogWriteAccess(registerExists, value, "Distributor", offset, (DistributorRegisters)offset);
                 }
             );
@@ -239,7 +240,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 {
                     var registerExists = TryReadRegisterSecurityView(offset, out value, distributorDoubleWordRegisters,
                         distributorRegistersSecureView, distributorRegistersNonSecureView, distributorRegistersDisabledSecurityView);
-                    registerExists = registerExists || TryReadDoubleWordFromQuadWordCollection(distributorQuadWordRegisters, offset, out value);
+                    registerExists = registerExists || Utils.TryReadDoubleWordFromQuadWordCollection(distributorQuadWordRegisters, offset, out value);
                     LogReadAccess(registerExists, value, "Distributor", offset, (DistributorRegisters)offset);
                 }
             );
@@ -714,67 +715,67 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             // All BuildInterrupt*Registers methods create registers with respect for Security State
             // There is no separate view (RegistersCollection) for this kind of registers, because their layout are independent of Security State
-            AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptSetEnable_0,
+            Utils.AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptSetEnable_0,
                 BuildInterruptSetEnableRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.SharedPeripheralLast, "InterruptSetEnable")
             );
 
-            AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptClearEnable_0,
+            Utils.AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptClearEnable_0,
                 BuildInterruptClearEnableRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.SharedPeripheralLast, "InterruptClearEnable")
             );
 
-            AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptPriority_0,
+            Utils.AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptPriority_0,
                 BuildInterruptPriorityRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.SharedPeripheralLast, "InterruptPriority")
             );
 
-            AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptProcessorTargets_0,
+            Utils.AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptProcessorTargets_0,
                 BuildPrivateInterruptTargetsRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.PrivatePeripheralLast, "InterruptProcessorTargets")
             );
-            AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptProcessorTargets_8,
+            Utils.AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptProcessorTargets_8,
                 BuildSharedInterruptTargetsRegisters(irqsDecoder.SharedPeripheralFirst, irqsDecoder.SharedPeripheralLast, "InterruptProcessorTargets")
             );
 
-            AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptConfiguration_0,
+            Utils.AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptConfiguration_0,
                 BuildInterruptConfigurationRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.SoftwareGeneratedLast, "InterruptConfiguration", isReadonly: true)
             );
-            AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptConfiguration_1,
+            Utils.AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptConfiguration_1,
                 BuildInterruptConfigurationRegisters(irqsDecoder.PrivatePeripheralFirst, irqsDecoder.SharedPeripheralLast, "InterruptConfiguration")
             );
 
-            AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptSetActive_0,
+            Utils.AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptSetActive_0,
                 BuildInterruptSetActiveRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.SharedPeripheralLast, "InterruptSetActive")
             );
 
-            AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptClearActive_0,
+            Utils.AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptClearActive_0,
                 BuildInterruptClearActiveRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.SharedPeripheralLast, "InterruptClearActive")
             );
 
-            AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptSetPending_0,
+            Utils.AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptSetPending_0,
                 BuildInterruptSetPendingRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.SharedPeripheralLast, "InterruptSetPending")
             );
 
-            AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptClearPending_0,
+            Utils.AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptClearPending_0,
                 BuildInterruptClearPendingRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.SharedPeripheralLast, "InterruptClearPending")
             );
 
-            AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptGroup_0,
+            Utils.AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptGroup_0,
                 BuildInterruptGroupRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.SharedPeripheralLast, "InterruptGroup")
             );
 
             // The range between 0xD00-0xDFC is implementation defined for GICv1 and GICv2.
             if(ArchitectureVersionAtLeast3)
             {
-                AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptGroupModifier_0_PPIStatus,
+                Utils.AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptGroupModifier_0_PPIStatus,
                     BuildInterruptGroupModifierRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.SharedPeripheralLast, "InterruptGroupModifier")
                 );
             }
             else
             {
                 // See e.g. https://developer.arm.com/documentation/ddi0416/b/programmers-model/distributor-register-descriptions and https://developer.arm.com/documentation/ddi0471/b/programmers-model/distributor-register-summary
-                AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptGroupModifier_0_PPIStatus,
+                Utils.AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptGroupModifier_0_PPIStatus,
                     BuildPrivateOrSharedPeripheralInterruptStatusRegisters(irqsDecoder.PrivatePeripheralFirst, irqsDecoder.PrivatePeripheralLast, "PPI Status")
                 );
 
-                AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptGroupModifier_1_SPIStatus_0,
+                Utils.AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptGroupModifier_1_SPIStatus_0,
                     BuildPrivateOrSharedPeripheralInterruptStatusRegisters(irqsDecoder.SharedPeripheralFirst, irqsDecoder.SharedPeripheralLast, "SPI Status")
                 );
             }
@@ -785,7 +786,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private Dictionary<long, QuadWordRegister> BuildDistributorQuadWordRegistersMap()
         {
             var registersMap = new Dictionary<long, QuadWordRegister>();
-            AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptRouting_0,
+            Utils.AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptRouting_0,
                 BuildInterruptRoutingRegisters(irqsDecoder.SharedPeripheralFirst, irqsDecoder.SharedPeripheralLast)
             );
             return registersMap;
@@ -1836,78 +1837,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 throw new RecoverableException($"There is no CPU with the Processor Number {processorNumber}.");
             }
             return cpuEntry;
-        }
-
-        private void AddRegistersAtOffset<T>(Dictionary<long, T> registersMap, long offset, IEnumerable<T> registers)
-        where T : PeripheralRegister
-        {
-            foreach(var register in registers)
-            {
-                if(registersMap.ContainsKey(offset))
-                {
-                    throw new ConstructionException($"The register map already contains register at 0x{offset:x} offset.");
-                }
-                registersMap[offset] = register;
-                offset += BitHelper.CalculateBytesCount(register.RegisterWidth);
-            }
-        }
-
-        private bool TryWriteByteToDoubleWordCollection(DoubleWordRegisterCollection registers, long offset, uint value)
-        {
-            AlignRegisterOffset(offset, DoubleWordRegister.DoubleWordWidth, out var alignedOffset, out var byteOffset);
-            var registerExists = registers.TryRead(alignedOffset, out var currentValue);
-            if(registerExists)
-            {
-                BitHelper.UpdateWithShifted(ref currentValue, value, byteOffset * BitHelper.BitsPerByte, BitHelper.BitsPerByte);
-                registerExists &= registers.TryWrite(alignedOffset, currentValue);
-            }
-            return registerExists;
-        }
-
-        private bool TryReadByteFromDoubleWordCollection(DoubleWordRegisterCollection registers, long offset, out byte value)
-        {
-            AlignRegisterOffset(offset, DoubleWordRegister.DoubleWordWidth, out var alignedOffset, out var byteOffset);
-            var registerExists = registers.TryRead(alignedOffset, out var registerValue);
-            value = (byte)(registerValue >> (byteOffset * BitHelper.BitsPerByte));
-            return registerExists;
-        }
-
-        private bool TryWriteDoubleWordToQuadWordCollection(QuadWordRegisterCollection registers, long offset, uint value)
-        {
-            AlignRegisterOffset(offset, QuadWordRegister.QuadWordWidth, out var alignedOffset, out var byteOffset);
-            if(byteOffset % BitHelper.CalculateBytesCount(DoubleWordRegister.DoubleWordWidth) != 0)
-            {
-                // Unaligned access is forbidden.
-                return false;
-            }
-            var registerExists = registers.TryRead(alignedOffset, out var currentValue);
-            if(registerExists)
-            {
-                BitHelper.UpdateWithShifted(ref currentValue, value, byteOffset * BitHelper.BitsPerByte, BitHelper.BitsPerByte);
-                registerExists &= registers.TryWrite(alignedOffset, currentValue);
-            }
-            return registerExists;
-        }
-
-        private bool TryReadDoubleWordFromQuadWordCollection(QuadWordRegisterCollection registers, long offset, out uint value)
-        {
-            AlignRegisterOffset(offset, QuadWordRegister.QuadWordWidth, out var alignedOffset, out var byteOffset);
-            if(byteOffset % BitHelper.CalculateBytesCount(DoubleWordRegister.DoubleWordWidth) != 0)
-            {
-                // Unaligned access is forbidden.
-                value = 0;
-                return false;
-            }
-            var registerExists = registers.TryRead(alignedOffset, out var registerValue);
-            value = (byte)(registerValue >> (byteOffset * BitHelper.BitsPerByte));
-            return registerExists;
-        }
-
-        private void AlignRegisterOffset(long offset, int bitsPerRegister, out long alignedOffset, out int byteOffset)
-        {
-            var bytesPerRegister = BitHelper.CalculateBytesCount(bitsPerRegister);
-            byteOffset = (int)(offset % bytesPerRegister);
-            alignedOffset = offset - byteOffset;
         }
 
         private void LogWriteAccess(bool registerExists, object value, string collectionName, long offset, object prettyOffset)
