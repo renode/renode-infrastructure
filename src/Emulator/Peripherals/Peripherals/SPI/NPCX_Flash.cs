@@ -7,14 +7,17 @@
 using System;
 using System.Collections.Generic;
 
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Memory;
 using Antmicro.Renode.Utilities;
 
+using Range = Antmicro.Renode.Core.Range;
+
 namespace Antmicro.Renode.Peripherals.SPI
 {
-    public class NPCX_Flash : ISPIPeripheral, IProvidesRegisterCollection<ByteRegisterCollection>
+    public class NPCX_Flash : ISPIPeripheral, IGPIOReceiver, IProvidesRegisterCollection<ByteRegisterCollection>
     {
         public NPCX_Flash(NPCX_FIU fiu, MappedMemory memory)
         {
@@ -80,6 +83,12 @@ namespace Antmicro.Renode.Peripherals.SPI
                     }
 
                     var address = BitHelper.ToUInt32(addressBuffer.ToArray(), 0, AddressByteCount, true);
+                    if(ProtectedRange.Contains(address))
+                    {
+                        this.ErrorLog("Attempted to perform a Block Erase operation on a protected block. Operation will be ignored");
+                        break;
+                    }
+
                     memory.SetRange(address, 64.KB(), 0xFF);
                     WriteEnabled = false;
                     break;
@@ -100,6 +109,12 @@ namespace Antmicro.Renode.Peripherals.SPI
                         break;
                     }
 
+                    if(ProtectedRange.Contains(temporaryAddress))
+                    {
+                        this.ErrorLog("Attempted to perform a Page Program operation on a protected block. Operation will be ignored");
+                        break;
+                    }
+
                     memory.WriteByte(temporaryAddress, data);
                     var currentPage = temporaryAddress / PageProgramSize;
                     var nextPage = (temporaryAddress + 1) / PageProgramSize;
@@ -114,6 +129,27 @@ namespace Antmicro.Renode.Peripherals.SPI
                         temporaryAddress = currentPage * PageProgramSize;
                     }
                     resetWriteEnable = true;
+                    break;
+                case Commands.WriteStatusRegister:
+                    if(statusRegisterProtect.Value && !WriteProtect.IsSet)
+                    {
+                        this.Log(LogLevel.Warning, "Trying to write status register while SRP is enabled and WP signal is low; ignoring");
+                        break;
+                    }
+
+                    if(temporaryAddress > (uint)Registers.StatusRegister2)
+                    {
+                        WriteEnabled = false;
+                    }
+
+                    if(!WriteEnabled)
+                    {
+                        this.ErrorLog("Attempted to perform a Write Status operation while flash is in write-disabled state. Operation will be ignored");
+                        break;
+                    }
+
+                    RegistersCollection.Write(temporaryAddress, data);
+                    temporaryAddress++;
                     break;
                 default:
                     if(Enum.IsDefined(typeof(Commands), currentCommand.Value))
@@ -141,7 +177,54 @@ namespace Antmicro.Renode.Peripherals.SPI
             resetWriteEnable = false;
         }
 
+        public void OnGPIO(int number, bool value)
+        {
+            if(number != 0)
+            {
+                this.Log(LogLevel.Error, "This peripheral supports gpio input only on index 0, but {0} was called.", number);
+                return;
+            }
+            WriteProtect.Set(value);
+        }
+
         public ByteRegisterCollection RegistersCollection { get; }
+        public GPIO WriteProtect { get; } = new GPIO();
+
+        public BlockProtect BlockProtectBits
+        {
+            get => blockProtectBits.Value;
+            set
+            {
+                blockProtectBitsMSB.Value = value != BlockProtect.None;
+                blockProtectBits.Value = value;
+            }
+        }
+
+        public Range ProtectedRange
+        {
+            get
+            {
+                switch(BlockProtectBits)
+                {
+                    case BlockProtect._64KB:
+                        return new Range(0x0, (ulong)64.KB());
+                    case BlockProtect._128KB:
+                        return new Range(0x0, (ulong)128.KB());
+                    case BlockProtect._256KB:
+                        return new Range(0x0, (ulong)256.KB());
+                    case BlockProtect._512KB:
+                        return new Range(0x0, (ulong)512.KB());
+                    case BlockProtect.Everything:
+                        return new Range(0x0, (ulong)memory.Size);
+                    case BlockProtect.None:
+                    case BlockProtect.Reserved1:
+                    case BlockProtect.Reserved2:
+                        return Range.Empty;
+                    default:
+                        throw new Exception("unreachable");
+                }
+            }
+        }
 
         private void DefineRegisters()
         {
@@ -150,12 +233,10 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithFlag(1, name: "WEL (Write Enable Latch)",
                     valueProviderCallback: _ => WriteEnabled,
                     writeCallback: (_, value) => WriteEnabled = value)
-                .WithTaggedFlag("BP0 (Block Protect Bits)", 2)
-                .WithTaggedFlag("BP1 (Block Protect Bits)", 3)
-                .WithTaggedFlag("BP2 (Block Protect Bits)", 4)
-                .WithTaggedFlag("BP3 (Block Protect Bits)", 5)
+                .WithEnumField(2, 3, out blockProtectBits, name: "BP0-BP2 (Block Protect Bits)")
+                .WithFlag(5, out blockProtectBitsMSB, name: "BP3 (Block Protect Bits)")
                 .WithReservedBits(6, 1)
-                .WithTaggedFlag("SRP (Status Register Protect)", 7);
+                .WithFlag(7, out statusRegisterProtect, name: "SRP (Status Register Protect)");
 
             Registers.StatusRegister2.Define(this)
                 .WithReservedBits(0, 1)
@@ -194,6 +275,22 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private const int PageProgramSize = 256;
         private const int AddressByteCount = 3;
+
+        private IEnumRegisterField<BlockProtect> blockProtectBits;
+        private IFlagRegisterField blockProtectBitsMSB;
+        private IFlagRegisterField statusRegisterProtect;
+
+        public enum BlockProtect
+        {
+            None,
+            _64KB,
+            _128KB,
+            _256KB,
+            _512KB,
+            Reserved1,
+            Reserved2,
+            Everything,
+        }
 
         private enum Registers
         {
