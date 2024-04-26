@@ -696,6 +696,7 @@
     <Compile Include="Peripherals\Miscellaneous\ZynqMP_IPI.cs" />
     <Compile Include="Peripherals\Miscellaneous\ZynqMP_PlatformManagementUnit.cs" />
     <Compile Include="Peripherals\DMA\STM32WBA_GPDMA.cs" />
+    <Compile Include="Peripherals\GPIOPort\NPCX_GPIO.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
