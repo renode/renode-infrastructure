@@ -87,8 +87,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             // The rest may behave differently for various security settings, but the layout of fields doesn't change
             distributorDoubleWordRegisters = new DoubleWordRegisterCollection(this, BuildDistributorDoubleWordRegistersMap());
             distributorQuadWordRegisters = new QuadWordRegisterCollection(this, BuildDistributorQuadWordRegistersMap());
-            redistributorDoubleWordRegisters = new DoubleWordRegisterCollection(this, BuildRedistributorDoubleWordRegistersMap());
-            redistributorQuadWordRegisters = new QuadWordRegisterCollection(this, BuildRedistributorQuadWordRegistersMap());
             cpuInterfaceRegisters = new DoubleWordRegisterCollection(this, BuildCPUInterfaceRegistersMap());
             cpuInterfaceSystemRegisters = new QuadWordRegisterCollection(this, BuildCPUInterfaceSystemRegistersMap());
 
@@ -123,8 +121,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             distributorRegistersDisabledSecurityView.Reset();
             distributorDoubleWordRegisters.Reset();
             distributorQuadWordRegisters.Reset();
-            redistributorDoubleWordRegisters.Reset();
-            redistributorQuadWordRegisters.Reset();
             cpuInterfaceRegistersSecureView.Reset();
             cpuInterfaceRegistersNonSecureView.Reset();
             cpuInterfaceRegistersDisabledSecurityView.Reset();
@@ -873,129 +869,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 {(long)DistributorRegisters.Control, controlRegister}
             };
-            return registersMap;
-        }
-
-        private Dictionary<long, DoubleWordRegister> BuildRedistributorDoubleWordRegistersMap()
-        {
-            var registersMap = new Dictionary<long, DoubleWordRegister>
-            {
-                {(long)RedistributorRegisters.Control, new DoubleWordRegister(this)
-                    .WithFlag(31, FieldMode.Read, name: "UpstreamWritePending",
-                        valueProviderCallback: _ => false
-                    )
-                    .WithReservedBits(27, 4)
-                    .WithTaggedFlag("DisableProcessorSelectionGroup1Secure", 26)
-                    .WithTaggedFlag("DisableProcessorSelectionGroup1NonSecure", 25)
-                    .WithTaggedFlag("DisableProcessorSelectionGroup0", 24)
-                    .WithReservedBits(4, 20)
-                    .WithFlag(3, FieldMode.Read, name: "RegisterWritePending",
-                        valueProviderCallback: _ => false
-                    )
-                    .WithFlag(2, FieldMode.Read, name: "LocalitySpecificInterruptInvalidateSupport",
-                        valueProviderCallback: _ => false
-                    )
-                    .WithFlag(1, FieldMode.Read, name: "LocalitySpecificInterruptClearEnableSupport",
-                        valueProviderCallback: _ => false
-                    )
-                    .WithTaggedFlag("LocalitySpecificInterruptEnable", 0)
-                },
-                {(long)RedistributorRegisters.Wake, new DoubleWordRegister(this, 0x1)
-                    // "There is only one GICR_WAKER.Sleep and one GICR_WAKER.Quiescent bit that can be read and written through the GICR_WAKER register of any Redistributor."
-                    .WithTaggedFlag("Quiescent", 31)
-                    .WithReservedBits(3, 28)
-                    .WithFlag(2, FieldMode.Read, name: "ChildrenAsleep",
-                        valueProviderCallback: _ => GetAskingCPUEntry().IsSleeping
-                    )
-                    .WithFlag(1, name: "ProcessorSleep",
-                        writeCallback: (_, val) => GetAskingCPUEntry().IsSleeping = val,
-                        valueProviderCallback: _ => GetAskingCPUEntry().IsSleeping
-                    )
-                    .WithTaggedFlag("Sleep", 0)
-                    // According to the reference manual this register should be RAZ/WI for an unsecure access, but we just show a warning in such a situation.
-                    .WithWriteCallback((_, __) => { if(!DisabledSecurity && !GetAskingCPUEntry().IsStateSecure) this.Log(LogLevel.Warning, "Writing to the GICR_WAKER register from wrong security state."); })
-                    .WithReadCallback((_, __) => { if(!DisabledSecurity && !GetAskingCPUEntry().IsStateSecure) this.Log(LogLevel.Warning, "Reading from the GICR_WAKER register from wrong security state."); })
-                },
-                {GetPeripheralIdentificationOffset(), new DoubleWordRegister(this)
-                    .WithReservedBits(8, 24)
-                    .WithEnumField<DoubleWordRegister, ARM_GenericInterruptControllerVersion>(4, 4, FieldMode.Read, name: "ArchitectureVersion",
-                        valueProviderCallback: _ => ArchitectureVersion
-                    )
-                    .WithTag("ImplementationDefinedIdentificator", 0, 4)
-                }
-            };
-
-            AddRegistersAtOffset(registersMap, (long)RedistributorRegisters.InterruptSetEnable_0,
-                BuildInterruptSetEnableRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.PrivatePeripheralLast, "InterruptSetEnable")
-            );
-
-            AddRegistersAtOffset(registersMap, (long)RedistributorRegisters.InterruptClearEnable_0,
-                BuildInterruptClearEnableRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.PrivatePeripheralLast, "InterruptClearEnable")
-            );
-
-            AddRegistersAtOffset(registersMap, (long)RedistributorRegisters.InterruptClearPending_0,
-                BuildInterruptClearPendingRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.PrivatePeripheralLast, "InterruptClearPending")
-            );
-
-            AddRegistersAtOffset(registersMap, (long)RedistributorRegisters.InterruptPriority_0,
-                BuildInterruptPriorityRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.PrivatePeripheralLast, "InterruptPriority")
-            );
-
-            AddRegistersAtOffset(registersMap, (long)RedistributorRegisters.PrivatePeripheralInterruptConfiguration,
-                BuildInterruptConfigurationRegisters(irqsDecoder.PrivatePeripheralFirst, irqsDecoder.PrivatePeripheralLast, "PrivatePeripheralInterruptConfiguration")
-            );
-
-            AddRegistersAtOffset(registersMap, (long)RedistributorRegisters.InterruptGroup_0,
-                BuildInterruptGroupRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.PrivatePeripheralLast, "InterruptGroup")
-            );
-
-            AddRegistersAtOffset(registersMap, (long)RedistributorRegisters.InterruptGroupModifier_0,
-                BuildInterruptGroupModifierRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.PrivatePeripheralLast, "InterruptGroupModifier")
-            );
-
-            return registersMap;
-        }
-
-        private Dictionary<long, QuadWordRegister> BuildRedistributorQuadWordRegistersMap()
-        {
-            var registersMap = new Dictionary<long, QuadWordRegister>
-            {
-                {(long)RedistributorRegisters.ControllerType, new QuadWordRegister(this)
-                    .WithValueField(32, 32, FieldMode.Read, name: "CPUAffinity",
-                        valueProviderCallback: _ => GetAskingCPUEntry().Affinity.AllLevels
-                    )
-                    .WithValueField(27, 5, FieldMode.Read, name: "MaximumPrivatePeripheralInterruptIdentifier",
-                        valueProviderCallback: _ => 0b00 // The maximum PPI identifier is 31, because the GIC doesn't support an extended range of PPI
-                    )
-                    .WithFlag(26, FieldMode.Read, name: "DirectSoftwareGeneratedInterruptInjectionSupport",
-                        valueProviderCallback: _ => false
-                    )
-                    .WithTag("LocalitySpecificInterruptConfigurationSharing", 24, 2)
-                    .WithValueField(8, 16, FieldMode.Read, name: "ProcessorNumber",
-                        valueProviderCallback: _ => GetAskingCPUEntry().ProcessorNumber
-                    )
-                    .WithTaggedFlag("vPEResidentIndicator", 7)
-                    .WithFlag(6, FieldMode.Read, name: "MPAMSupport",
-                        valueProviderCallback: _ => false
-                    )
-                    .WithFlag(5, FieldMode.Read, name: "DPGSupport",
-                        valueProviderCallback: _ => false
-                    )
-                    .WithFlag(4, FieldMode.Read, name: "HighestRedistributorInSeries",
-                        valueProviderCallback: _ => true) // There is no multi core support yet, so the Redistributor instance always is the latest one
-                    .WithFlag(3, FieldMode.Read, name: "LocalitySpecificInterruptDirectInjectionSupport",
-                        valueProviderCallback: _ => false
-                    )
-                    .WithTaggedFlag("DirtyBitControl", 2)
-                    .WithFlag(1, FieldMode.Read, name: "VirtualLocalitySpecificInterruptSupport",
-                        valueProviderCallback: _ => false
-                    )
-                    .WithFlag(0, FieldMode.Read, name: "PhysicalLocalitySpecificInterruptSupport",
-                        valueProviderCallback: _ => false
-                    )
-                }
-            };
-
             return registersMap;
         }
 
@@ -1956,8 +1829,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private readonly DoubleWordRegisterCollection distributorRegistersSecureView;
         private readonly DoubleWordRegisterCollection distributorRegistersNonSecureView;
         private readonly DoubleWordRegisterCollection distributorRegistersDisabledSecurityView;
-        private readonly DoubleWordRegisterCollection redistributorDoubleWordRegisters;
-        private readonly QuadWordRegisterCollection redistributorQuadWordRegisters;
         private readonly DoubleWordRegisterCollection cpuInterfaceRegisters;
         private readonly DoubleWordRegisterCollection cpuInterfaceRegistersSecureView;
         private readonly DoubleWordRegisterCollection cpuInterfaceRegistersNonSecureView;
@@ -2019,6 +1890,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     interrupt.Reset();
                 }
                 Groups.Reset();
+                redistributorQuadWordRegisters.Reset();
+                redistributorDoubleWordRegisters.Reset();
                 VirtualCPUInterfaceEnabled = false;
                 BestPending = null;
                 BestPendingVirtual = null;
@@ -2266,6 +2139,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 throw new ArgumentOutOfRangeException($"There is no valid InterruptGroupType for value: {type}.");
             }
 
+            public QuadWordRegisterCollection RedistributorQuadWordRegisters => redistributorQuadWordRegisters;
+            public DoubleWordRegisterCollection RedistributorDoubleWordRegisters => redistributorDoubleWordRegisters;
+
             public event Action<CPUEntry, int, bool> PrivateInterruptChanged;
 
             public IReadOnlyDictionary<InterruptId, Interrupt> PrivatePeripheralInterrupts { get; }
@@ -2428,9 +2304,134 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 return true;
             }
 
+            private Dictionary<long, QuadWordRegister> BuildRedistributorQuadWordRegisterMap()
+            {
+                var registerMap = new Dictionary<long, QuadWordRegister>
+                {
+                    {(long)RedistributorRegisters.ControllerType, new QuadWordRegister(this)
+                        .WithValueField(32, 32, FieldMode.Read, name: "CPUAffinity",
+                            valueProviderCallback: _ => this.Affinity.AllLevels
+                        )
+                        .WithValueField(27, 5, FieldMode.Read, name: "MaximumPrivatePeripheralInterruptIdentifier",
+                            valueProviderCallback: _ => 0b00 // The maximum PPI identifier is 31, because the GIC doesn't support an extended range of PPI
+                        )
+                        .WithFlag(26, FieldMode.Read, name: "DirectSoftwareGeneratedInterruptInjectionSupport",
+                            valueProviderCallback: _ => false
+                        )
+                        .WithTag("LocalitySpecificInterruptConfigurationSharing", 24, 2)
+                        .WithValueField(8, 16, FieldMode.Read, name: "ProcessorNumber",
+                            valueProviderCallback: _ => this.ProcessorNumber
+                        )
+                        .WithTaggedFlag("vPEResidentIndicator", 7)
+                        .WithFlag(6, FieldMode.Read, name: "MPAMSupport",
+                            valueProviderCallback: _ => false
+                        )
+                        .WithFlag(5, FieldMode.Read, name: "DPGSupport",
+                            valueProviderCallback: _ => false
+                        )
+                        .WithFlag(4, FieldMode.Read, name: "HighestRedistributorInSeries",
+                            valueProviderCallback: _ => true) // There is no multi core support yet, so the Redistributor instance always is the latest one
+                        .WithFlag(3, FieldMode.Read, name: "LocalitySpecificInterruptDirectInjectionSupport",
+                            valueProviderCallback: _ => false
+                        )
+                        .WithTaggedFlag("DirtyBitControl", 2)
+                        .WithFlag(1, FieldMode.Read, name: "VirtualLocalitySpecificInterruptSupport",
+                            valueProviderCallback: _ => false
+                        )
+                        .WithFlag(0, FieldMode.Read, name: "PhysicalLocalitySpecificInterruptSupport",
+                            valueProviderCallback: _ => false
+                        )
+                    }
+                };
+
+                return registerMap;
+            }
+
+            private Dictionary<long, DoubleWordRegister> BuildRedistributorDoubleWordRegisterMap()
+            {
+                var registerMap = new Dictionary<long, DoubleWordRegister>
+                {
+                    {(long)RedistributorRegisters.Control, new DoubleWordRegister(this)
+                        .WithFlag(31, FieldMode.Read, name: "UpstreamWritePending",
+                            valueProviderCallback: _ => false
+                        )
+                        .WithReservedBits(27, 4)
+                        .WithTaggedFlag("DisableProcessorSelectionGroup1Secure", 26)
+                        .WithTaggedFlag("DisableProcessorSelectionGroup1NonSecure", 25)
+                        .WithTaggedFlag("DisableProcessorSelectionGroup0", 24)
+                        .WithReservedBits(4, 20)
+                        .WithFlag(3, FieldMode.Read, name: "RegisterWritePending",
+                            valueProviderCallback: _ => false
+                        )
+                        .WithFlag(2, FieldMode.Read, name: "LocalitySpecificInterruptInvalidateSupport",
+                            valueProviderCallback: _ => false
+                        )
+                        .WithFlag(1, FieldMode.Read, name: "LocalitySpecificInterruptClearEnableSupport",
+                            valueProviderCallback: _ => false
+                        )
+                        .WithTaggedFlag("LocalitySpecificInterruptEnable", 0)
+                    },
+                    {(long)RedistributorRegisters.Wake, new DoubleWordRegister(this, 0x1)
+                        // "There is only one GICR_WAKER.Sleep and one GICR_WAKER.Quiescent bit that can be read and written through the GICR_WAKER register of any Redistributor."
+                        .WithTaggedFlag("Quiescent", 31)
+                        .WithReservedBits(3, 28)
+                        .WithFlag(2, FieldMode.Read, name: "ChildrenAsleep",
+                            valueProviderCallback: _ => this.IsSleeping
+                        )
+                        .WithFlag(1, name: "ProcessorSleep",
+                            writeCallback: (_, val) => this.IsSleeping = val,
+                            valueProviderCallback: _ => this.IsSleeping
+                        )
+                        .WithTaggedFlag("Sleep", 0)
+                        // According to the reference manual this register should be RAZ/WI for an unsecure access, but we just show a warning in such a situation.
+                        .WithWriteCallback((_, __) => { if(!gic.DisabledSecurity && !this.IsStateSecure) this.Log(LogLevel.Warning, "Writing to the GICR_WAKER register from wrong security state."); })
+                        .WithReadCallback((_, __) => { if(!gic.DisabledSecurity && !this.IsStateSecure) this.Log(LogLevel.Warning, "Reading from the GICR_WAKER register from wrong security state."); })
+                    },
+                    {gic.GetPeripheralIdentificationOffset(), new DoubleWordRegister(this)
+                        .WithReservedBits(8, 24)
+                        .WithEnumField<DoubleWordRegister, ARM_GenericInterruptControllerVersion>(4, 4, FieldMode.Read, name: "ArchitectureVersion",
+                            valueProviderCallback: _ => gic.ArchitectureVersion
+                        )
+                        .WithTag("ImplementationDefinedIdentificator", 0, 4)
+                    }
+                };
+
+                Utils.AddRegistersAtOffset(registerMap, (long)RedistributorRegisters.InterruptSetEnable_0,
+                    gic.BuildInterruptSetEnableRegisters(gic.irqsDecoder.SoftwareGeneratedFirst, gic.irqsDecoder.PrivatePeripheralLast, "InterruptSetEnable")
+                );
+
+                Utils.AddRegistersAtOffset(registerMap, (long)RedistributorRegisters.InterruptClearEnable_0,
+                    gic.BuildInterruptClearEnableRegisters(gic.irqsDecoder.SoftwareGeneratedFirst, gic.irqsDecoder.PrivatePeripheralLast, "InterruptClearEnable")
+                );
+
+                Utils.AddRegistersAtOffset(registerMap, (long)RedistributorRegisters.InterruptClearPending_0,
+                    gic.BuildInterruptClearPendingRegisters(gic.irqsDecoder.SoftwareGeneratedFirst, gic.irqsDecoder.PrivatePeripheralLast, "InterruptClearPending")
+                );
+
+                Utils.AddRegistersAtOffset(registerMap, (long)RedistributorRegisters.InterruptPriority_0,
+                    gic.BuildInterruptPriorityRegisters(gic.irqsDecoder.SoftwareGeneratedFirst, gic.irqsDecoder.PrivatePeripheralLast, "InterruptPriority")
+                );
+
+                Utils.AddRegistersAtOffset(registerMap, (long)RedistributorRegisters.PrivatePeripheralInterruptConfiguration,
+                    gic.BuildInterruptConfigurationRegisters(gic.irqsDecoder.PrivatePeripheralFirst, gic.irqsDecoder.PrivatePeripheralLast, "PrivatePeripheralInterruptConfiguration")
+                );
+
+                Utils.AddRegistersAtOffset(registerMap, (long)RedistributorRegisters.InterruptGroup_0,
+                    gic.BuildInterruptGroupRegisters(gic.irqsDecoder.SoftwareGeneratedFirst, gic.irqsDecoder.PrivatePeripheralLast, "InterruptGroup")
+                );
+
+                Utils.AddRegistersAtOffset(registerMap, (long)RedistributorRegisters.InterruptGroupModifier_0,
+                    gic.BuildInterruptGroupModifierRegisters(gic.irqsDecoder.SoftwareGeneratedFirst, gic.irqsDecoder.PrivatePeripheralLast, "InterruptGroupModifier")
+                );
+
+                return registerMap;
+            }
+
             private bool isSleeping = true;
             private readonly IARMSingleSecurityStateCPU cpu;
             private readonly IReadOnlyDictionary<InterruptSignalType, IGPIO> interruptSignals;
+            private readonly QuadWordRegisterCollection redistributorQuadWordRegisters;
+            private readonly DoubleWordRegisterCollection redistributorDoubleWordRegisters;
 
             public class GroupCollection
             {
