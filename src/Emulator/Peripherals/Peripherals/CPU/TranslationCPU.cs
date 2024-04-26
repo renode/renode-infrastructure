@@ -343,9 +343,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         public override void Reset()
         {
             base.Reset();
-            disabledMemory.Clear();  // Must be before HandleRamSetup.
             isInterruptLoggingEnabled = false;
-            HandleRamSetup();
             TlibReset();
             ResetOpcodesCounters();
             profiler?.Dispose();
