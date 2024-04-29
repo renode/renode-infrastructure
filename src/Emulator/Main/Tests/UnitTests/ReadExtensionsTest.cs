@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -218,6 +218,54 @@ namespace Antmicro.Renode.UnitTests
         {
             Assert.AreEqual(0x12345678, qwordPeripheral.ReadDoubleWordUsingQwordBigEndian(0));
             Assert.AreEqual(0x87654321, qwordPeripheral.ReadDoubleWordUsingQwordBigEndian(4));
+        }
+
+        [Test]
+        public void ShouldReadQuadWordUsingByte()
+        {
+            Assert.AreEqual(0xccbbaa9078563412, bytePeripheral.ReadQuadWordUsingByte(0));
+        }
+
+        [Test]
+        public void ShouldReadQuadWordUsingByteBigEndian()
+        {
+            Assert.AreEqual(0x1234567890aabbcc, bytePeripheral.ReadQuadWordUsingByteBigEndian(0));
+        }
+
+        [Test]
+        public void ShouldReadQuadWordUsingByteNotAligned()
+        {
+            Assert.AreEqual(0xccbbaa90785634, bytePeripheral.ReadQuadWordUsingByte(1));
+        }
+
+        [Test]
+        public void ShouldReadQuadWordUsingByteNotAlignedBigEndian()
+        {
+            Assert.AreEqual(0x34567890aabbcc00, bytePeripheral.ReadQuadWordUsingByteBigEndian(1));
+        }
+
+        [Test]
+        public void ShouldReadQuadWordUsingWord()
+        {
+            Assert.AreEqual(0xccbbaa9078563412, wordPeripheral.ReadQuadWordUsingWord(0));
+        }
+
+        [Test]
+        public void ShouldReadQuadWordUsingWordBigEndian()
+        {
+            Assert.AreEqual(0x1234567890aabbcc, wordPeripheral.ReadQuadWordUsingWordBigEndian(0));
+        }
+
+        [Test]
+        public void ShouldReadQuadWordUsingDoubleWord()
+        {
+            Assert.AreEqual(0xccbbaa9078563412, dwordPeripheral.ReadQuadWordUsingDword(0));
+        }
+
+        [Test]
+        public void ShouldReadQuadWordUsingDoubleWordBigEndian()
+        {
+            Assert.AreEqual(0x1234567890aabbcc, dwordPeripheral.ReadQuadWordUsingDwordBigEndian(0));
         }
 
         private IBytePeripheral bytePeripheral;

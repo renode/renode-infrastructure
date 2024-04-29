@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -265,6 +265,92 @@ namespace Antmicro.Renode.UnitTests
             PrepareOldData();
             dwordPeripheral.WriteWordUsingDwordBigEndian(1, 0xDFEF);
             dwordPeriMock.Verify(x => x.WriteDoubleWord(0, 0x78EFDF12), Times.Once());
+        }
+
+        [Test]
+        public void ShouldWriteByteUsingQuadWord()
+        {
+            byte[] bytes = {0x12, 0x34, 0x56, 0x78, 0x87, 0x65, 0x43, 0x21};
+            var qwordPeripheral = qwordPeriMock.Object;
+            ulong act = 0;
+            for(var i = 0; i < 7; i++)
+            {
+                qwordPeripheral.WriteByteUsingQword(i, bytes[i]);
+                act |= (ulong)bytes[i] << (8 * i);
+                qwordPeriMock.Verify(x => x.WriteQuadWord(0, act));
+                qwordPeriMock.Setup(x => x.ReadQuadWord(0)).Returns(act);
+            }
+        }
+
+        [Test]
+        public void ShouldWriteByteUsingQuadWordBigEndian()
+        {
+            byte[] bytes = {0x12, 0x34, 0x56, 0x78, 0x87, 0x65, 0x43, 0x21};
+            var qwordPeripheral = qwordPeriMock.Object;
+            ulong act = 0;
+            for(var i = 0; i < 7; i++)
+            {
+                qwordPeripheral.WriteByteUsingQwordBigEndian(i, bytes[i]);
+                act |= (ulong)bytes[i] << (7 - i) * 8;
+                qwordPeriMock.Verify(x => x.WriteQuadWord(0, act));
+                qwordPeriMock.Setup(x => x.ReadQuadWord(0)).Returns(act);
+            }
+        }
+
+        [Test]
+        public void ShouldWriteWordUsingQuadWord()
+        {
+            var qwordPeripheral = qwordPeriMock.Object;
+            qwordPeripheral.WriteWordUsingQword(0, 0x3412);
+            qwordPeriMock.Verify(x => x.WriteQuadWord(0, 0x3412));
+            qwordPeriMock.Setup(x => x.ReadQuadWord(0)).Returns(0x3412);
+            qwordPeripheral.WriteWordUsingQword(2, 0x7856);
+            qwordPeriMock.Verify(x => x.WriteQuadWord(0, 0x78563412));
+            qwordPeriMock.Setup(x => x.ReadQuadWord(0)).Returns(0x78563412);
+            qwordPeripheral.WriteWordUsingQword(4, 0x5678);
+            qwordPeriMock.Verify(x => x.WriteQuadWord(0, 0x567878563412));
+            qwordPeriMock.Setup(x => x.ReadQuadWord(0)).Returns(0x567878563412);
+            qwordPeripheral.WriteWordUsingQword(6, 0x1234);
+            qwordPeriMock.Verify(x => x.WriteQuadWord(0, 0x1234567878563412));
+        }
+
+        [Test]
+        public void ShouldWriteWordUsingQuadWordBigEndian()
+        {
+            var qwordPeripheral = qwordPeriMock.Object;
+            qwordPeripheral.WriteWordUsingQwordBigEndian(0, 0x3412);
+            qwordPeriMock.Verify(x => x.WriteQuadWord(0, 0x1234000000000000));
+            qwordPeriMock.Setup(x => x.ReadQuadWord(0)).Returns(0x1234000000000000);
+            qwordPeripheral.WriteWordUsingQwordBigEndian(2, 0x7856);
+            qwordPeriMock.Verify(x => x.WriteQuadWord(0, 0x1234567800000000));
+            qwordPeriMock.Setup(x => x.ReadQuadWord(0)).Returns(0x1234567800000000);
+            qwordPeripheral.WriteWordUsingQwordBigEndian(4, 0x6587);
+            qwordPeriMock.Verify(x => x.WriteQuadWord(0, 0x1234567887650000));
+            qwordPeriMock.Setup(x => x.ReadQuadWord(0)).Returns(0x1234567887650000);
+            qwordPeripheral.WriteWordUsingQwordBigEndian(6, 0x2143);
+            qwordPeriMock.Verify(x => x.WriteQuadWord(0, 0x1234567887654321));
+        }
+
+        [Test]
+        public void ShouldWriteDoubleWordUsingQuadWord()
+        {
+            var qwordPeripheral = qwordPeriMock.Object;
+            qwordPeripheral.WriteDoubleWordUsingQword(0, 0x78563412);
+            qwordPeriMock.Verify(x => x.WriteQuadWord(0, 0x78563412));
+            qwordPeriMock.Setup(x => x.ReadQuadWord(0)).Returns(0x78563412);
+            qwordPeripheral.WriteDoubleWordUsingQword(4, 0x12345678);
+            qwordPeriMock.Verify(x => x.WriteQuadWord(0, 0x1234567878563412));
+        }
+
+        [Test]
+        public void ShouldWriteDoubleWordUsingQuadWordBigEndian()
+        {
+            var qwordPeripheral = qwordPeriMock.Object;
+            qwordPeripheral.WriteDoubleWordUsingQwordBigEndian(0, 0x78563412);
+            qwordPeriMock.Verify(x => x.WriteQuadWord(0, 0x1234567800000000));
+            qwordPeriMock.Setup(x => x.ReadQuadWord(0)).Returns(0x1234567800000000);
+            qwordPeripheral.WriteDoubleWordUsingQwordBigEndian(4, 0x21436587);
+            qwordPeriMock.Verify(x => x.WriteQuadWord(0, 0x1234567887654321));
         }
 
         private void PrepareOldData()
