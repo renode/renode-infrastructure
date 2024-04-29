@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -97,10 +97,10 @@ namespace Antmicro.Renode.Core.Extensions
             unchecked
             {
                 return (ulong)
-                    (peripheral.ReadByte(address + 7) << 56 | peripheral.ReadByte(address + 6) << 48
-                     | peripheral.ReadByte(address + 5) << 40 | peripheral.ReadByte(address + 4) << 32
-                     | peripheral.ReadByte(address + 3) << 24 | peripheral.ReadByte(address + 2) << 16
-                     | peripheral.ReadByte(address + 1) << 8 | peripheral.ReadByte(address));
+                    ((ulong)peripheral.ReadByte(address + 7) << 56 | (ulong)peripheral.ReadByte(address + 6) << 48
+                     | (ulong)peripheral.ReadByte(address + 5) << 40 | (ulong)peripheral.ReadByte(address + 4) << 32
+                     | (ulong)peripheral.ReadByte(address + 3) << 24 | (ulong)peripheral.ReadByte(address + 2) << 16
+                     | (ulong)peripheral.ReadByte(address + 1) << 8 | peripheral.ReadByte(address));
             }
         }
 
@@ -109,10 +109,10 @@ namespace Antmicro.Renode.Core.Extensions
             unchecked
             {
                 return (ulong)
-                    (peripheral.ReadByte(address + 7) | peripheral.ReadByte(address + 6) << 8
-                     | peripheral.ReadByte(address + 5) << 16 | peripheral.ReadByte(address + 4) << 24
-                     | peripheral.ReadByte(address + 3) << 32 | peripheral.ReadByte(address + 2) << 40
-                     | peripheral.ReadByte(address + 1) << 48 | peripheral.ReadByte(address) << 56);
+                    (peripheral.ReadByte(address + 7) | (ulong)peripheral.ReadByte(address + 6) << 8
+                     | (ulong)peripheral.ReadByte(address + 5) << 16 | (ulong)peripheral.ReadByte(address + 4) << 24
+                     | (ulong)peripheral.ReadByte(address + 3) << 32 | (ulong)peripheral.ReadByte(address + 2) << 40
+                     | (ulong)peripheral.ReadByte(address + 1) << 48 | (ulong)peripheral.ReadByte(address) << 56);
             }
         }
 
@@ -342,7 +342,7 @@ namespace Antmicro.Renode.Core.Extensions
                 var alignedAddress = address & (~7);
                 var offset = (int)(address & 7);
                 var oldValue = peripheral.ReadQuadWord(alignedAddress) & ~(0xFFFFul << offset * 8);
-                peripheral.WriteQuadWord(alignedAddress, (uint)(oldValue | (uint)(value << 8 * offset)));
+                peripheral.WriteQuadWord(alignedAddress, (oldValue | ((ulong)value << 8 * offset)));
             }
         }
 
@@ -354,7 +354,7 @@ namespace Antmicro.Renode.Core.Extensions
                 var alignedAddress = address & (~7);
                 var offset = 6 - (int)(address & 7);
                 var oldValue = peripheral.ReadQuadWord(alignedAddress) & ~(0xFFFFul << offset * 8);
-                peripheral.WriteQuadWord(alignedAddress, (uint)(oldValue | (uint)(value << 8 * offset)));
+                peripheral.WriteQuadWord(alignedAddress, (oldValue | ((ulong)value << 8 * offset)));
             }
         }
 
@@ -420,7 +420,7 @@ namespace Antmicro.Renode.Core.Extensions
                 var alignedAddress = address & (~7);
                 var offset = (int)(address & 7);
                 var oldValue = peripheral.ReadQuadWord(alignedAddress) & ~(0xFFFFFFFFul << offset * 8);
-                peripheral.WriteQuadWord(alignedAddress, (ulong)(oldValue | (ulong)(value << 8 * offset)));
+                peripheral.WriteQuadWord(alignedAddress, (oldValue | ((ulong)value << 8 * offset)));
             }
         }
 
@@ -432,7 +432,7 @@ namespace Antmicro.Renode.Core.Extensions
                 var alignedAddress = address & (~7);
                 var offset = 4 - (int)(address & 7);
                 var oldValue = peripheral.ReadQuadWord(alignedAddress) & ~(0xFFFFFFFFul << offset * 8);
-                peripheral.WriteQuadWord(alignedAddress, (ulong)(oldValue | (ulong)(value << 8 * offset)));
+                peripheral.WriteQuadWord(alignedAddress, (oldValue | ((ulong)value << 8 * offset)));
             }
         }
 
@@ -441,8 +441,8 @@ namespace Antmicro.Renode.Core.Extensions
             unchecked
             {
                 return (ulong)
-                    (peripheral.ReadWord(address + 6) << 48 | peripheral.ReadWord(address + 4) << 32
-                     | peripheral.ReadWord(address + 2) << 16 | peripheral.ReadWord(address));
+                    ((ulong)peripheral.ReadWord(address + 6) << 48 | (ulong)peripheral.ReadWord(address + 4) << 32
+                     | (ulong)peripheral.ReadWord(address + 2) << 16 | peripheral.ReadWord(address));
             }
         }
 
@@ -451,9 +451,9 @@ namespace Antmicro.Renode.Core.Extensions
             unchecked
             {
                 return (ulong)
-                    (Misc.SwapBytesUShort(peripheral.ReadWord(address)) << 48 |
-                     Misc.SwapBytesUShort(peripheral.ReadWord(address + 2)) << 32 |
-                     Misc.SwapBytesUShort(peripheral.ReadWord(address + 4)) << 16 |
+                    ((ulong)Misc.SwapBytesUShort(peripheral.ReadWord(address)) << 48 |
+                     (ulong)Misc.SwapBytesUShort(peripheral.ReadWord(address + 2)) << 32 |
+                     (ulong)Misc.SwapBytesUShort(peripheral.ReadWord(address + 4)) << 16 |
                      Misc.SwapBytesUShort(peripheral.ReadWord(address + 6)));
             }
         }
@@ -485,7 +485,7 @@ namespace Antmicro.Renode.Core.Extensions
             unchecked
             {
                 return (ulong)
-                    (peripheral.ReadDoubleWord(address + 4) << 32
+                    ((ulong)peripheral.ReadDoubleWord(address + 4) << 32
                      | peripheral.ReadDoubleWord(address));
             }
         }
@@ -495,7 +495,7 @@ namespace Antmicro.Renode.Core.Extensions
             unchecked
             {
                 return (ulong)
-                    (Misc.SwapBytesUInt(peripheral.ReadDoubleWord(address)) << 32 |
+                    ((ulong)Misc.SwapBytesUInt(peripheral.ReadDoubleWord(address)) << 32 |
                      Misc.SwapBytesUInt(peripheral.ReadDoubleWord(address + 4)));
             }
         }
