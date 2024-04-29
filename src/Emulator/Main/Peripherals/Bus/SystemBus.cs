@@ -603,7 +603,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         // to GDB's add-symbol-file.
         public void LoadSymbolsFrom(ReadFilePath fileName, bool useVirtualAddress = false, ulong? textAddress = null)
         {
-            using (var elf = GetELFFromFile(fileName))
+            using(var elf = GetELFFromFile(fileName))
             {
                 Lookup.LoadELF(elf, useVirtualAddress, textAddress);
             }
