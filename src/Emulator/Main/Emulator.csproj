@@ -115,6 +115,8 @@
     <Compile Include="Storage\SCSI\Commands\SCSIResponses.cs" />
     <Compile Include="Storage\SCSI\SCSICommand.cs" />
     <Compile Include="Storage\SCSI\SCSICommandDescriptorBlock.cs" />
+    <Compile Include="Storage\VirtIO\Virtqueue.cs" />
+    <Compile Include="Storage\VirtIO\VirtIO.cs" />
     <Compile Include="Peripherals\USB\MSC\BOT\CommandStatusWrapper.cs" />
     <Compile Include="Peripherals\USB\MSC\BulkOnlyTransportCommandBlockWrapper.cs" />
     <Compile Include="Peripherals\USB\MSC\BOT\CommandStatus.cs" />
