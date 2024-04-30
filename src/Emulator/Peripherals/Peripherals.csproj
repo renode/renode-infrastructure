@@ -478,6 +478,7 @@
     <Compile Include="Peripherals\Timers\NRF52840_Watchdog.cs" />
     <Compile Include="Peripherals\Timers\AmbiqApollo4_Watchdog.cs" />
     <Compile Include="Peripherals\Storage\VirtIOBlockDevice.cs" />
+    <Compile Include="Peripherals\Storage\VirtIOFSDevice.cs" />
     <Compile Include="Peripherals\Storage\UFS\UFSDeviceDescriptors.cs" />
     <Compile Include="Peripherals\Storage\UFS\UFSProtocolInformationUnits.cs" />
     <Compile Include="Peripherals\Storage\UFS\UTPProtocol.cs" />
