@@ -4,6 +4,9 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
+using Antmicro.Renode.Peripherals;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.I2C;
@@ -13,6 +16,48 @@ namespace Antmicro.Renode.Peripherals.Sensors
 {
     public partial class ICM20948
     {
+        private bool TryGetI2CPeripherial(out II2CPeripheral pheriperial)
+        {
+            if(!i2cContainer.TryGetByAddress((int)slaveAddress0.Value, out pheriperial))
+            {
+                this.WarningLog("Selecting unconnected IIC slave address: 0x{0:X}", slaveAddress0.Value);
+                return false;
+            }
+            this.DebugLog("Selected slave address 0x{0:X}", slaveAddress0.Value);
+            return true;
+        }
+
+        private void WriteI2CPeripherial(II2CPeripheral selectedI2CSlave, byte[] data)
+        {
+            selectedI2CSlave.Write(data);
+            selectedI2CSlave.FinishTransmission();
+        }
+
+        private void ReadI2CPeripherial(II2CPeripheral selectedI2CSlave, int length)
+        {
+            if(length > externalSlaveSensorData.Length)
+            {
+                this.Log(LogLevel.Warning, "Requested read length is greater than the number of available external sensor data registers. Clamping to the maximum available length.");
+                length = externalSlaveSensorData.Length;
+            }
+            byte[] data = selectedI2CSlave.Read(length);
+            selectedI2CSlave.FinishTransmission();
+            for(int i = 0; i < data.Length; i++)
+            {
+                externalSlaveSensorData[i].Value = data[i];
+            }
+        }
+
+        private void ReadSensorData()
+        {
+            if(!TryGetI2CPeripherial(out var selectedI2CSlave))
+            {
+                return;
+            }
+            WriteI2CPeripherial(selectedI2CSlave, new byte[] { (byte)slaveTransactionRegisterAddress0.Value } );
+            ReadI2CPeripherial(selectedI2CSlave, (int)slaveTransferLength0.Value );
+        }
+
         private void DefineGyroAccelUserBank3Registers()
         {
             GyroAccelUserBank3Registers.I2CIDRMasterConfig.Define(gyroAccelUserBank3Registers)
@@ -38,24 +83,50 @@ namespace Antmicro.Renode.Peripherals.Sensors
             ;
 
             GyroAccelUserBank3Registers.I2CSlave0Address.Define(gyroAccelUserBank3Registers)
-                .WithTag("I2C_SLV0_RNW", 7, 1)
-                .WithTag("I2C_ID_0", 0, 7)
+                .WithFlag(7, out slaveRWBit0, name: "I2C_SLV0_RNW")
+                .WithValueField(0, 7, out slaveAddress0, name: "I2C_ID_0")
             ;
 
             GyroAccelUserBank3Registers.I2CSlave0Register.Define(gyroAccelUserBank3Registers)
-                .WithTag("I2C_SLV0_REG", 0, 8)
+                .WithValueField(0, 8, out slaveTransactionRegisterAddress0, name: "I2C_SLV0_REG")
             ;
 
             GyroAccelUserBank3Registers.I2CSlave0Control.Define(gyroAccelUserBank3Registers)
-                .WithTag("I2C_SLV0_EN", 7, 1)
+                .WithFlag(7, out var slaveEnable0, name: "I2C_SLV0_EN",
+                        writeCallback: (_, value) =>
+                        {
+                            if(!value)
+                            {
+                                magFeederThread?.Stop();
+                                return;
+                            }
+                            magFeederThread?.Stop();
+                            var machine = this.GetMachine();
+                            Action feedSample = () =>
+                            {
+                                ReadSensorData();
+                            };
+                            Func<bool> stopCondition = () => false;
+                            magFeederThread = machine.ObtainManagedThread(feedSample, (uint)InternalSampleRateHz, "Magnetometer stream thread", this, stopCondition);
+                            this.Log(LogLevel.Debug, "Starting reading magnetometer samples at frequency {0}Hz", InternalSampleRateHz);
+                            magFeederThread.Start();
+                        })
                 .WithTag("I2C_SLV0_BYTE_SW", 6, 1)
                 .WithTag("I2C_SLV0_REG_DIS", 5, 1)
                 .WithTag("I2C_SLV0_GRP", 4, 1)
-                .WithTag("I2C_SLV0_LENG", 0, 4)
+                .WithValueField(0, 4, out slaveTransferLength0, name: "I2C_SLV0_LENG")
             ;
 
             GyroAccelUserBank3Registers.I2CSlave0DataOut.Define(gyroAccelUserBank3Registers)
-                .WithTag("I2C_SLV0_DO", 0, 8)
+                .WithValueField(0, 8, out slaveDataOut0, name: "I2C_SLV0_DO",
+                    writeCallback: (_, val) =>
+                    {
+                        if(!TryGetI2CPeripherial(out var selectedI2CSlave))
+                        {
+                            return;
+                        }
+                        WriteI2CPeripherial(selectedI2CSlave, new byte[] { (byte)slaveTransactionRegisterAddress0.Value, (byte)val } );
+                    })
             ;
 
             GyroAccelUserBank3Registers.I2CSlave1Address.Define(gyroAccelUserBank3Registers)
@@ -148,6 +219,14 @@ namespace Antmicro.Renode.Peripherals.Sensors
             DefineBankSelectRegister(gyroAccelUserBank3Registers);
         }
 
+        private IManagedThread magFeederThread;
+
+        private IValueRegisterField slaveAddress0;
+        private IFlagRegisterField slaveRWBit0;
+        private IValueRegisterField slaveTransactionRegisterAddress0;
+        private IValueRegisterField slaveTransferLength0;
+        private IValueRegisterField slaveDataOut0;
+
         private enum GyroAccelUserBank3Registers : byte
         {
             I2CIDRMasterConfig = 0x0,
@@ -174,6 +253,13 @@ namespace Antmicro.Renode.Peripherals.Sensors
             I2CSlave4Control = 0x15,
             I2CSlave4DataOut = 0x16,
             I2CSlave4DataIn = 0x17,
+        }
+
+        private enum I2CTransactionDirection
+        {
+            Unset,
+            Read,
+            Write,
         }
     }
 }

@@ -31,8 +31,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             i2cContainer = new SimpleContainerHelper<II2CPeripheral>(machine, this);
 
-            magnetometerRegisters = new ByteRegisterCollection(this);
-
             userBankRegisters = new Dictionary<ulong, ByteRegisterCollection>
             {
                 {0, gyroAccelUserBank0Registers},
@@ -45,7 +43,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
             DefineGyroAccelUserBank1Registers();
             DefineGyroAccelUserBank2Registers();
             DefineGyroAccelUserBank3Registers();
-            DefineMagnetometerRegisters();
         }
 
         public void Write(byte[] data)
@@ -189,6 +186,10 @@ namespace Antmicro.Renode.Peripherals.Sensors
             gyroResdStream?.Dispose();
             gyroResdStream = null;
             gyroFeederThread = null;
+
+            magFeederThread?.Stop();
+            magFeederThread?.Dispose();
+            magFeederThread = null;
         }
 
         public void SoftwareReset()
@@ -197,7 +198,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
             gyroAccelUserBank1Registers.Reset();
             gyroAccelUserBank2Registers.Reset();
             gyroAccelUserBank3Registers.Reset();
-            magnetometerRegisters.Reset();
 
             chipSelected = false;
             selectedRegister = 0x0;
@@ -292,7 +292,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private readonly ByteRegisterCollection gyroAccelUserBank1Registers;
         private readonly ByteRegisterCollection gyroAccelUserBank2Registers;
         private readonly ByteRegisterCollection gyroAccelUserBank3Registers;
-        private readonly ByteRegisterCollection magnetometerRegisters;
 
         private const int NumberOfExternalSlaveSensorDataRegisters = 24;
         private const decimal InternalSampleRateHz = 1125;

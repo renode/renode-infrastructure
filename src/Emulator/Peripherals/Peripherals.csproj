@@ -567,7 +567,6 @@
     <Compile Include="Peripherals\Sensors\ICM20948\ICM20948_Bank2Registers.cs" />
     <Compile Include="Peripherals\Sensors\ICM20948\ICM20948_Bank3Registers.cs" />
     <Compile Include="Peripherals\Sensors\ICM20948\ICM20948_Gyroscope.cs" />
-    <Compile Include="Peripherals\Sensors\ICM20948\ICM20948_MagnetometerRegisters.cs" />
     <Compile Include="Peripherals\Sensors\ICM20948\ICM20948_Thermometer.cs" />
     <Compile Include="Peripherals\Sensors\TMP108.cs" />
     <Compile Include="Peripherals\I2C\MAX32650_I2C.cs" />
