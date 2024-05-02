@@ -7,9 +7,7 @@
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.I2C;
-using Antmicro.Renode.Peripherals.SPI;
 using Antmicro.Renode.Peripherals.Sensor;
-using Antmicro.Renode.Utilities.RESD;
 
 namespace Antmicro.Renode.Peripherals.Sensors
 {
