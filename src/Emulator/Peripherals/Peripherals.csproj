@@ -698,6 +698,7 @@
     <Compile Include="Peripherals\DMA\STM32WBA_GPDMA.cs" />
     <Compile Include="Peripherals\GPIOPort\NPCX_GPIO.cs" />
     <Compile Include="Peripherals\Timers\NXP_OsTimer.cs" />
+    <Compile Include="Peripherals\I2C\NPCX_SMBus.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
