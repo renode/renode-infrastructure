@@ -502,7 +502,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             SetInternalHookAtBlockBegin((pc, size) =>
             {
-                if(Bus.TryFindSymbolAt(pc, out var name, out var symbol))
+                if(Bus.TryFindSymbolAt(pc, out var name, out var symbol, this))
                 {
                     if(removeDuplicates && symbol == previousSymbol)
                     {
@@ -1105,7 +1105,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private void OnTranslationBlockFetch(ulong offset)
         {
-            var info = Bus.FindSymbolAt(offset);
+            var info = Bus.FindSymbolAt(offset, this);
             if(info != string.Empty)
             {
                 info = " - " + info;
@@ -2023,7 +2023,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
 
             var phy = TranslateAddress(pc, MpuAccess.InstructionFetch);
-            var symbol = Bus.FindSymbolAt(pc);
+            var symbol = Bus.FindSymbolAt(pc, this);
             var tab = Bus.ReadBytes(phy, (int)size, true, context: this);
             Disassembler.DisassembleBlock(pc, tab, flags, out var disas);
 

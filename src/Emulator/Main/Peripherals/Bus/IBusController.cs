@@ -72,9 +72,9 @@ namespace Antmicro.Renode.Peripherals.Bus
         void SetHookBeforePeripheralWrite<T>(IBusPeripheral peripheral, Func<T, long, T> hook, Range? subrange = null);
         void ClearHookAfterPeripheralRead<T>(IBusPeripheral peripheral);
 
-        string FindSymbolAt(ulong offset);
-        ulong GetSymbolAddress(string symbolName);
-        bool TryFindSymbolAt(ulong offset, out string name, out Symbol symbol);
+        string FindSymbolAt(ulong offset, ICPU context = null);
+        ulong GetSymbolAddress(string symbolName, ICPU context = null);
+        bool TryFindSymbolAt(ulong offset, out string name, out Symbol symbol, ICPU context = null);
         string DecorateWithCPUNameAndPC(string str);
 
         void MapMemory(IMappedSegment segment, IBusPeripheral owner, bool relative = true, ICPUWithMappedMemory context = null);
@@ -87,13 +87,13 @@ namespace Antmicro.Renode.Peripherals.Bus
         void LoadUImage(ReadFilePath fileName, IInitableCPU cpu = null);
         void LoadELF(ReadFilePath fileName, bool useVirtualAddress = false, bool allowLoadsOnlyToMemory = true, IInitableCPU cpu = null);
 
+        SymbolLookup GetLookup(ICPU context = null);
+
         IMachine Machine { get; }
 
         bool IsMultiCore { get; }
 
         Endianess Endianess { get; }
-
-        SymbolLookup Lookup { get; }
     }
 
     public static class BusControllerExtensions

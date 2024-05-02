@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 // Copyright (c) 2020-2021 Microsoft
 //
@@ -302,7 +302,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private void InitPCAndSP()
         {
-            var firstNotNullSection = machine.SystemBus.Lookup.FirstNotNullSectionAddress;
+            var firstNotNullSection = machine.SystemBus.GetLookup(this).FirstNotNullSectionAddress;
             if(!vtorInitialized && firstNotNullSection.HasValue)
             {
                 if((firstNotNullSection.Value & (2 << 6 - 1)) > 0)

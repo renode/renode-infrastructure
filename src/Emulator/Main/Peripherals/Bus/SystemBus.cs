@@ -601,20 +601,20 @@ namespace Antmicro.Renode.Peripherals.Bus
         // Specifying `textAddress` will override the address of the program text - the symbols will be applied
         // as if the first loaded segment started at the specified address. This is equivalent to the ADDR parameter
         // to GDB's add-symbol-file.
-        public void LoadSymbolsFrom(ReadFilePath fileName, bool useVirtualAddress = false, ulong? textAddress = null)
+        public void LoadSymbolsFrom(ReadFilePath fileName, bool useVirtualAddress = false, ulong? textAddress = null, ICPU context = null)
         {
             using(var elf = GetELFFromFile(fileName))
             {
-                Lookup.LoadELF(elf, useVirtualAddress, textAddress);
+                GetOrCreateLookup(context).LoadELF(elf, useVirtualAddress, textAddress);
             }
             pcCache.Invalidate();
         }
 
-        public void AddSymbol(Range address, string name, bool isThumb = false)
+        public void AddSymbol(Range address, string name, bool isThumb = false, ICPU context = null)
         {
             checked
             {
-                Lookup.InsertSymbol(name, address.StartAddress, address.Size);
+                GetOrCreateLookup(context).InsertSymbol(name, address.StartAddress, address.Size);
             }
             pcCache.Invalidate();
         }
@@ -647,7 +647,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     UpdateLowestLoadedAddress(loadAddress);
                     this.DebugLog("Segment loaded.");
                 }
-                Lookup.LoadELF(elf, useVirtualAddress);
+                GetOrCreateLookup(cpu).LoadELF(elf, useVirtualAddress);
                 pcCache.Invalidate();
 
                 if(cpu != null)
@@ -733,25 +733,25 @@ namespace Antmicro.Renode.Peripherals.Bus
             return new BinaryFingerprint(fileName);
         }
 
-        public bool TryGetAllSymbolAddresses(string symbolName, out IEnumerable<ulong> symbolAddresses)
+        public bool TryGetAllSymbolAddresses(string symbolName, out IEnumerable<ulong> symbolAddresses, ICPU context = null)
         {
-            var result = Lookup.TryGetSymbolsByName(symbolName, out var symbols);
+            var result = GetLookup(context).TryGetSymbolsByName(symbolName, out var symbols);
             symbolAddresses = symbols.Select(symbol => symbol.Start.RawValue);
             return result;
         }
 
-        public IEnumerable<ulong> GetAllSymbolAddresses(string symbolName)
+        public IEnumerable<ulong> GetAllSymbolAddresses(string symbolName, ICPU context = null)
         {
-            if(!TryGetAllSymbolAddresses(symbolName, out var symbolAddresses))
+            if(!TryGetAllSymbolAddresses(symbolName, out var symbolAddresses, context))
             {
                 throw new RecoverableException(string.Format("No symbol with name `{0}` found.", symbolName));
             }
             return symbolAddresses;
         }
 
-        public ulong GetSymbolAddress(string symbolName)
+        public ulong GetSymbolAddress(string symbolName, ICPU context = null)
         {
-            var addresses = GetAllSymbolAddresses(symbolName).ToArray();
+            var addresses = GetAllSymbolAddresses(symbolName, context).ToArray();
             if(addresses.Length > 1)
             {
                 throw new RecoverableException(string.Format("Ambiguous symbol name: `{0}`. Use GetAllSymbolAddresses to get all possible addresses.", symbolName));
@@ -760,20 +760,20 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         }
 
-        public string FindSymbolAt(ulong offset)
+        public string FindSymbolAt(ulong offset, ICPU context = null)
         {
-            if(!TryFindSymbolAt(offset, out var name, out var _))
+            if(!TryFindSymbolAt(offset, out var name, out var _, context))
             {
                 return null;
             }
             return name;
         }
 
-        public bool TryFindSymbolAt(ulong offset, out string name, out Symbol symbol)
+        public bool TryFindSymbolAt(ulong offset, out string name, out Symbol symbol, ICPU context = null)
         {
             if(!pcCache.TryGetValue(offset, out var entry))
             {
-                if(!Lookup.TryGetSymbolByAddress(offset, out symbol))
+                if(!GetLookup(context).TryGetSymbolByAddress(offset, out symbol))
                 {
                     symbol = null;
                     name = null;
@@ -1091,7 +1091,8 @@ namespace Antmicro.Renode.Peripherals.Bus
         public void Reset()
         {
             LowestLoadedAddress = null;
-            Lookup = new SymbolLookup();
+            globalLookup = new SymbolLookup();
+            localLookups = new Dictionary<ICPU, SymbolLookup>();
             pcCache.Invalidate();
         }
 
@@ -1118,6 +1119,17 @@ namespace Antmicro.Renode.Peripherals.Bus
                 .Append(str);
 
             return builder.ToString();
+        }
+
+        public SymbolLookup GetLookup(ICPU context = null)
+        {
+            if(context == null
+               || !localLookups.TryGetValue(context, out var cpuLookup))
+            {
+                return globalLookup;
+            }
+
+            return cpuLookup;
         }
 
         public IMachine Machine { get; }
@@ -1175,13 +1187,23 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
-        public SymbolLookup Lookup
-        {
-            get;
-            private set;
-        }
-
         public UnhandledAccessBehaviour UnhandledAccessBehaviour { get; set; }
+
+        private SymbolLookup GetOrCreateLookup(ICPU context)
+        {
+            if(context == null)
+            {
+                return globalLookup;
+            }
+
+            if(!localLookups.TryGetValue(context, out var lookup))
+            {
+                lookup = new SymbolLookup();
+                localLookups[context] = lookup;
+            }
+
+            return lookup;
+        }
 
         private void UnregisterInner(IBusPeripheral peripheral)
         {
@@ -1723,7 +1745,8 @@ namespace Antmicro.Renode.Peripherals.Bus
             hooksOnRead.Clear();
             hooksOnWrite.Clear();
             pcCache.Invalidate();
-            Lookup = new SymbolLookup();
+            globalLookup = new SymbolLookup();
+            localLookups = new Dictionary<ICPU, SymbolLookup>();
             cachedCpuId = new ThreadLocal<int>();
             globalPeripherals = new PeripheralCollection(this);
             cpuLocalPeripherals = new Dictionary<ICPU, PeripheralCollection>();
@@ -1929,6 +1952,8 @@ namespace Antmicro.Renode.Peripherals.Bus
         [Transient]
         private ThreadLocalContext threadLocalContext;
         private object cpuSync;
+        private SymbolLookup globalLookup;
+        private Dictionary<ICPU, SymbolLookup> localLookups;
         private Dictionary<Range, TagEntry> tags;
         private List<SVDParser> svdDevices;
         private HashSet<string> pausingTags;

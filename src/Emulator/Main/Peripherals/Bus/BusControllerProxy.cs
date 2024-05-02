@@ -201,9 +201,9 @@ namespace Antmicro.Renode.Peripherals.Bus
             return ParentController.TryGetWatchpointsAt(address, access, out result);
         }
 
-        public virtual string FindSymbolAt(ulong offset)
+        public virtual string FindSymbolAt(ulong offset, ICPU context = null)
         {
-            return ParentController.FindSymbolAt(offset);
+            return ParentController.FindSymbolAt(offset, context);
         }
 
         /// <returns>True if any part of the <c>range</c> is locked.</returns>
@@ -232,9 +232,9 @@ namespace Antmicro.Renode.Peripherals.Bus
             ParentController.SetPeripheralEnabled(peripheral, enabled);
         }
 
-        public virtual bool TryFindSymbolAt(ulong offset, out string name, out Symbol symbol)
+        public virtual bool TryFindSymbolAt(ulong offset, out string name, out Symbol symbol, ICPU context = null)
         {
-            return ParentController.TryFindSymbolAt(offset, out name, out symbol);
+            return ParentController.TryFindSymbolAt(offset, out name, out symbol, context);
         }
 
         public virtual ulong ReadQuadWord(ulong address, ICPU context = null)
@@ -317,9 +317,9 @@ namespace Antmicro.Renode.Peripherals.Bus
             ParentController.UnregisterFromAddress(address, context);
         }
 
-        public virtual ulong GetSymbolAddress(string symbolName)
+        public virtual ulong GetSymbolAddress(string symbolName, ICPU context = null)
         {
-            return ParentController.GetSymbolAddress(symbolName);
+            return ParentController.GetSymbolAddress(symbolName, context);
         }
 
         public virtual IBusRegistered<MappedMemory> FindMemory(ulong address, ICPU context = null)
@@ -362,9 +362,12 @@ namespace Antmicro.Renode.Peripherals.Bus
             ParentController.MapMemory(segment, owner, relative, context);
         }
 
-        public virtual IMachine Machine => ParentController.Machine;
+        public virtual SymbolLookup GetLookup(ICPU context = null)
+        {
+            return ParentController.GetLookup(context);
+        }
 
-        public virtual SymbolLookup Lookup => ParentController.Lookup;
+        public virtual IMachine Machine => ParentController.Machine;
 
         public virtual IEnumerable<IRegistered<IBusPeripheral, BusRangeRegistration>> Children => ParentController.Children;
 

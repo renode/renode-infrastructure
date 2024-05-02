@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -49,7 +49,7 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
 
         protected string GetSymbolName(ulong address)
         {
-            if(!cpu.Bus.TryFindSymbolAt(address, out var name, out var _))
+            if(!cpu.Bus.TryFindSymbolAt(address, out var name, out var _, cpu))
             {
                 // Symbol not found - return address must serve as a symbol
                 name = $"0x{address:X}";
