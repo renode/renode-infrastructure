@@ -162,23 +162,40 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             public void DoTransfer()
             {
-                parent.Log(LogLevel.Debug, "[Channel {0}] Starting transfer from 0x{1:X} to 0x{2:X}", channelNumber, sourceAddress.Value, destinationAddress.Value);
+                var bytesToTransfer = (int)(transferLength.Value + 1) * (int)transferType;
+                if((ulong)bytesToTransfer == itemsAlreadyTransferred.Value)
+                {
+                    parent.Log(LogLevel.Noisy, "All requested data are already transfered. Skipping this transfer.");
+                    return;
+                }
+                // In normal mode, we are instantly coping requested data size,
+                // in peripheral trigger mode, peripheral should trigger DMA on each sample
+                var transactionLength = peripheralTriggered.Value ? (int)transferType : bytesToTransfer;
                 Request getDescriptorData = new Request(sourceAddress.Value, destinationAddress.Value,
-                    (int)transferLength.Value + 1, transferType, transferType, incrementSourceAddress.Value && !dmaInit.Value, 
+                    transactionLength, transferType, transferType, incrementSourceAddress.Value && !dmaInit.Value,
                     incrementDestinationAddress.Value);
-                engine.IssueCopy(getDescriptorData);
-                itemsAlreadyTransferred.Value = transferLength.Value;
-                if(interruptLength.Value <= transferLength.Value)
+
+                parent.Log(LogLevel.Debug, "[Channel {0}] Starting transfer from 0x{1:X} to 0x{2:X}. Copy length: 0x{3:X}", channelNumber, sourceAddress.Value, destinationAddress.Value, transactionLength);
+
+                var response = engine.IssueCopy(getDescriptorData);
+                itemsAlreadyTransferred.Value += (ulong)transactionLength;
+                destinationAddress.Value = (ulong)response.WriteAddress;
+                if((interruptLength.Value * (ulong)transferType) < itemsAlreadyTransferred.Value)
                 {
                     parent.interruptsManager.SetInterrupt((Interrupt)channelNumber);
                 }
-                else
+
+                if(peripheralTriggered.Value)
                 {
-                    parent.Log(LogLevel.Warning, "Interrupt length shouldn't be greater than transfer length ({0} > {1}). Not sending IRQ.", interruptLength.Value, transferLength.Value);
-                }
-                if(!(circularMode.Value && peripheralTriggered.Value))
-                {
-                    dmaEnabled.Value = false;
+                    if(((ulong)bytesToTransfer == itemsAlreadyTransferred.Value) && !circularMode.Value)
+                    {
+                        this.parent.Log(LogLevel.Noisy, "Disabling DMA channel because all items were transferred and circular mode is off");
+                        dmaEnabled.Value = false;
+                    }
+                    if(((ulong)bytesToTransfer == itemsAlreadyTransferred.Value) && circularMode.Value)
+                    {
+                        itemsAlreadyTransferred.Value = 0;
+                    }
                 }
             }
 
