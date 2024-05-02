@@ -8,6 +8,7 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.I2C;
@@ -16,7 +17,7 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Sensors
 {
-    public partial class ICM20948 : II2CPeripheral, ISPIPeripheral, IGPIOReceiver, IProvidesRegisterCollection<ByteRegisterCollection>
+    public partial class ICM20948 : II2CPeripheral, ISPIPeripheral, IGPIOReceiver, IProvidesRegisterCollection<ByteRegisterCollection>, IPeripheralContainer<II2CPeripheral, NumberRegistrationPoint<int>>
     {
         public ICM20948(IMachine machine)
         {
@@ -27,6 +28,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
             gyroAccelUserBank1Registers = new ByteRegisterCollection(this);
             gyroAccelUserBank2Registers = new ByteRegisterCollection(this);
             gyroAccelUserBank3Registers = new ByteRegisterCollection(this);
+
+            i2cContainer = new SimpleContainerHelper<II2CPeripheral>(machine, this);
 
             magnetometerRegisters = new ByteRegisterCollection(this);
 
@@ -205,6 +208,15 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         public GPIO IRQ { get; }
 
+        public virtual void Register(II2CPeripheral peripheral, NumberRegistrationPoint<int> registrationPoint) => i2cContainer.Register(peripheral, registrationPoint);
+
+        public virtual void Unregister(II2CPeripheral peripheral) => i2cContainer.Unregister(peripheral);
+
+        public IEnumerable<NumberRegistrationPoint<int>> GetRegistrationPoints(II2CPeripheral peripheral) => i2cContainer.GetRegistrationPoints(peripheral);
+
+        IEnumerable<IRegistered<II2CPeripheral, NumberRegistrationPoint<int>>> IPeripheralContainer<II2CPeripheral, NumberRegistrationPoint<int>>.Children =>
+            i2cContainer.Children;
+
         private void UpdateInterrupts()
         {
             var dmpInterrupt = digitalMotionProcessorInterruptEnabled.Value && digitalMotionProcessorInterruptStatus.Value;
@@ -268,6 +280,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private string SelectedRegisterName => RegisterIndexToString(selectedRegister, userBankSelected);
 
         private readonly IMachine machine;
+        private readonly SimpleContainerHelper<II2CPeripheral> i2cContainer;
 
         private bool chipSelected;
         private byte selectedRegister;
