@@ -59,7 +59,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         protected TranslationCPU(uint id, string cpuType, IMachine machine, Endianess endianness, CpuBitness bitness = CpuBitness.Bits32)
             : base(id, cpuType, machine, endianness, bitness)
         {
-            this.translationCacheSize = DefaultTranslationCacheSize;
             atomicId = -1;
             translationCacheSync = new object();
             pauseGuard = new CpuThreadPauseGuard(this);
@@ -99,23 +98,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             set
             {
                 TlibSetChainingEnabled(value ? 1u : 0u);
-            }
-        }
-
-        public ulong TranslationCacheSize
-        {
-            get
-            {
-                return translationCacheSize;
-            }
-            set
-            {
-                if(value == translationCacheSize)
-                {
-                    return;
-                }
-                translationCacheSize = value;
-                SubmitTranslationCacheSizeUpdate();
             }
         }
 
@@ -212,35 +194,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             using(machine?.ObtainPausedState(true))
             {
                 TlibInvalidateTranslationCache();
-            }
-        }
-
-        private void SubmitTranslationCacheSizeUpdate()
-        {
-            lock(translationCacheSync)
-            {
-                var currentTCacheSize = translationCacheSize;
-                // disabled until segmentation fault will be resolved
-                currentTimer = new Timer(x => UpdateTranslationCacheSize(currentTCacheSize), null, -1, -1);
-            }
-        }
-
-        private void UpdateTranslationCacheSize(ulong sizeAtThatTime)
-        {
-            lock(translationCacheSync)
-            {
-                if(sizeAtThatTime != translationCacheSize)
-                {
-                    // another task will take care
-                    return;
-                }
-                currentTimer = null;
-                using(machine?.ObtainPausedState(true))
-                {
-                    PrepareState();
-                    DisposeInner(true);
-                    RestoreState();
-                }
             }
         }
 
@@ -413,10 +366,6 @@ namespace Antmicro.Renode.Peripherals.CPU
                 currentMappings.Add(new SegmentMapping(segment));
                 mappedMemory.Add(segment.GetRange());
                 SetAccessMethod(segment.GetRange(), true);
-                checked
-                {
-                    TranslationCacheSize += segment.Size / 4;
-                }
             }
             this.NoisyLog("Registered memory at 0x{0:X}, size 0x{1:X}.", segment.StartingOffset, segment.Size);
         }
@@ -454,10 +403,6 @@ namespace Antmicro.Renode.Peripherals.CPU
                 // remove mappings that are not used anymore
                 currentMappings = currentMappings.
                     Where(x => TlibIsRangeMapped(x.Segment.StartingOffset, x.Segment.StartingOffset + x.Segment.Size) == 1).ToList();
-                checked
-                {
-                    TranslationCacheSize -= range.Size / 4;
-                }
                 mappedMemory.Remove(range);
                 RebuildMemoryMappings();
             }
@@ -1117,11 +1062,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         private void OnTranslationCacheSizeChange(ulong realSize)
         {
-            if(realSize != translationCacheSize)
-            {
-                translationCacheSize = realSize;
-                this.Log(LogLevel.Warning, "Translation cache size was corrected to {0}B ({1}B).", Misc.NormalizeBinary(realSize), realSize);
-            }
+            this.Log(LogLevel.Debug, "Translation cache size was corrected to {0}B ({1}B).", Misc.NormalizeBinary(realSize), realSize);
         }
 
         private void HandleRamSetup()
@@ -1289,8 +1230,15 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
 
             binder = new NativeBinder(this, libraryFile);
-            TlibSetTranslationCacheSize(checked((IntPtr)translationCacheSize));
             MaximumBlockSize = DefaultMaximumBlockSize;
+
+            // Need to call these before initializing TCG, so to save us an immediate TB flush
+            // Note, that there is an additional hard limit within the translation library itself,
+            // that can prevent setting the new size of translation cache, with a warning log
+            var translationCacheSizeMin = (ulong)ConfigurationManager.Instance.Get("translation", "min-tb-size", DefaultMinimumTranslationCacheSize);
+            var translationCacheSizeMax = (ulong)ConfigurationManager.Instance.Get("translation", "max-tb-size", DefaultMaximumTranslationCacheSize);
+            TlibSetTranslationCacheConfiguration(translationCacheSizeMin, translationCacheSizeMax);
+
             var result = TlibInit(Model);
             if(result == -1)
             {
@@ -1349,7 +1297,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Transient]
         private string libraryFile;
 
-        private ulong translationCacheSize;
         private readonly object translationCacheSync;
 
         [Transient]
@@ -1883,7 +1830,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private ActionInt32 TlibSetOnBlockTranslationEnabled;
 
         [Import]
-        private ActionIntPtr TlibSetTranslationCacheSize;
+        private ActionUInt64UInt64 TlibSetTranslationCacheConfiguration;
 
         [Import]
         private Action TlibInvalidateTranslationCache;
@@ -2007,8 +1954,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
 #pragma warning restore 649
 
-        protected const int DefaultTranslationCacheSize = 32 * 1024 * 1024;
-
         [Export]
         protected virtual void LogAsCpu(int level, string s)
         {
@@ -2103,6 +2048,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         protected static readonly Exception InvalidInterruptNumberException = new InvalidOperationException("Invalid interrupt number.");
 
         private const int DefaultMaximumBlockSize = 0x7FF;
+        private const int DefaultMinimumTranslationCacheSize = 32 * 1024 * 1024; // 32 MiB
+        private const int DefaultMaximumTranslationCacheSize = 512 * 1024 * 1024; // 512 MiB
         private bool externalMmuEnabled;
         private readonly uint externalMmuWindowsCount;
 
