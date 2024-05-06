@@ -179,6 +179,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
                 var response = engine.IssueCopy(getDescriptorData);
                 itemsAlreadyTransferred.Value += (ulong)transactionLength;
+                sourceAddress.Value = (ulong)response.ReadAddress;
                 destinationAddress.Value = (ulong)response.WriteAddress;
                 if((interruptLength.Value * (ulong)transferType) < itemsAlreadyTransferred.Value)
                 {
