@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Utilities.GDB
 {
     public class CommandsManager
     {
-        public CommandsManager(IMachine machine, IEnumerable<ICpuSupportingGdb> cpus, bool blockOnStep)
+        public CommandsManager(IMachine machine, IEnumerable<ICpuSupportingGdb> cpus)
         {
             availableCommands = new HashSet<CommandDescriptor>();
             typesWithCommands = new HashSet<string>();
@@ -28,7 +28,6 @@ namespace Antmicro.Renode.Utilities.GDB
             mnemonicList = new List<string>();
             Machine = machine;
             CanAttachCPU = true;
-            BlockOnStep = blockOnStep;
 
             commandsCache = new Dictionary<string, Command>();
             ManagedCpus = new Dictionary<uint, ICpuSupportingGdb>();
@@ -171,7 +170,6 @@ namespace Antmicro.Renode.Utilities.GDB
                 return ManagedCpus[selectedCpuNumber];
             }
         }
-        public bool BlockOnStep { get; }
 
         private static GDBFeatureDescriptor UnifyFeature(List<GDBFeatureDescriptor> featureVariations)
         {

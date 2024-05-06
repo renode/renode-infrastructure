@@ -1197,7 +1197,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public void EnterSingleStepModeSafely(HaltArguments args, bool? blocking = null)
+        public void EnterSingleStepModeSafely(HaltArguments args)
         {
             // this method should only be called from CPU thread,
             // but we should check it anyway

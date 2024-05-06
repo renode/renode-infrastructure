@@ -16,16 +16,15 @@ namespace Antmicro.Renode.Utilities.GDB
     [Transient]
     public class GdbStub : IDisposable, IExternal
     {
-        public GdbStub(IMachine machine, IEnumerable<ICpuSupportingGdb> cpus, int port, bool autostartEmulation, bool blockOnStep)
+        public GdbStub(IMachine machine, IEnumerable<ICpuSupportingGdb> cpus, int port, bool autostartEmulation)
         {
             this.cpus = cpus;
             Port = port;
-            this.blockOnStep = blockOnStep;
 
             LogsEnabled = true;
 
             pcktBuilder = new PacketBuilder();
-            commandsManager = new CommandsManager(machine, cpus, blockOnStep);
+            commandsManager = new CommandsManager(machine, cpus);
             TypeManager.Instance.AutoLoadedType += commandsManager.Register;
 
             terminal = new SocketServerProvider(false);
@@ -232,7 +231,6 @@ namespace Antmicro.Renode.Utilities.GDB
         private readonly SocketServerProvider terminal;
         private readonly CommandsManager commandsManager;
         private readonly CommunicationHandler commHandler;
-        private readonly bool blockOnStep;
 
         private const int TrapSignal = 5;
         private const int AbortSignal = 6;

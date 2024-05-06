@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
         [Execute("s")]
         public PacketData Execute()
         {
-            manager.Cpu.Step(1, manager.BlockOnStep);
+            manager.Cpu.Step(1);
             return null;
         }
     }

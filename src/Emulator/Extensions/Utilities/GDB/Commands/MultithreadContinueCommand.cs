@@ -169,7 +169,7 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
             var operationsList = new List<Operation>();
             // ATM we support only all-stop mode, so if we receive a `step` request in the packet we skip the `continue` request,
             // but don't skip for synchronus execution, its needed in TryHandleBlockingExecution
-            var skipContinue = !manager.BlockOnStep && data.Contains('s') && data.Contains('c');
+            var skipContinue = !EmulationManager.Instance.CurrentEmulation.SingleStepBlocking && data.Contains('s') && data.Contains('c');
             var cpuIdsToHandle = new HashSet<uint>(manager.ManagedCpus.Keys);
             foreach(var pair in data.Split(';'))
             {
@@ -253,7 +253,7 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
                     cpu.Resume();
                     break;
                 case OperationType.Step:
-                    cpu.Step(1, manager.BlockOnStep);
+                    cpu.Step(1);
                     break;
                 case OperationType.None:
                     break;
