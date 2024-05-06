@@ -128,7 +128,25 @@ namespace Antmicro.Renode.Peripherals.CPU
             lock(singleStepSynchronizer.Guard)
             {
                 ChangeExecutionModeToSingleStep(blocking);
-                Resume();
+
+                // Starting emulation has to be done after changing ExecutionMode. Otherwise, continuous CPUs won't be waiting for step command.
+                var emulation = EmulationManager.Instance.CurrentEmulation;
+                if(!emulation.IsStarted)
+                {
+                    var emulationCPUs = emulation.Machines.SelectMany(x => x.SystemBus.GetCPUs());
+                    var continuousCPUs = emulationCPUs.Where(x => x.ExecutionMode == ExecutionMode.Continuous);
+                    if(continuousCPUs.Any())
+                    {
+                        this.Log(LogLevel.Info, "Automatically starting all CPUs due to '{0}' including CPUs with {1} {2}: {3}", nameof(Step),
+                            ExecutionMode.Continuous, nameof(ExecutionMode), Misc.PrettyPrintCollection(continuousCPUs, x => x.GetName())
+                            );
+                    }
+                    emulation.StartAll();
+                }
+                else
+                {
+                    Resume();
+                }
 
                 this.Log(LogLevel.Noisy, "Stepping {0} step(s)", count);
 
