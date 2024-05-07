@@ -63,7 +63,13 @@ namespace Antmicro.Renode.Peripherals.DMA
             var index = Array.FindIndex(peripheralSelect, val => (int)val.Value == number);
             if(index != -1)
             {
-                channels[MapPeripheralSelectToDMAChannel(index)].DoTransfer();
+                var channelID = MapPeripheralSelectToDMAChannel(index);
+                if(!channels[channelID].dmaEnabled.Value)
+                {
+                    this.Log(LogLevel.Warning, "Channel {0} isn't enabled. Ignoring request", channelID);
+                    return;
+                }
+                channels[channelID].DoTransfer();
             }
             else
             {
