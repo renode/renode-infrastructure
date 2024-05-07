@@ -60,7 +60,11 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         protected override void OnResume()
         {
-            InitPCAndSP();
+            // Suppress initialization when processor is turned off as binary may not even be loaded yet
+            if(!IsHalted)
+            {
+                InitPCAndSP();
+            }
             base.OnResume();
         }
 
@@ -323,7 +327,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             if(pcNotInitialized)
             {
-                pcNotInitialized = false;
                 // stack pointer and program counter are being sent according
                 // to VTOR (vector table offset register)
                 var sysbus = machine.SystemBus;
@@ -333,6 +336,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 {
                     this.Log(LogLevel.Error, "PC does not lay in memory or PC and SP are equal to zero. CPU was halted.");
                     IsHalted = true;
+                    return; // Keep PC and SP uninitialized in the case of error condition
                 }
                 this.Log(LogLevel.Info, "Setting initial values: PC = 0x{0:X}, SP = 0x{1:X}.", pc, sp);
                 PC = pc;
