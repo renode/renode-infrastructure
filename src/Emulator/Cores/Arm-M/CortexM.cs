@@ -313,6 +313,11 @@ namespace Antmicro.Renode.Peripherals.CPU
                 {
                     var value = firstNotNullSection.Value;
                     this.Log(LogLevel.Info, "Guessing VectorTableOffset value to be 0x{0:X}.", value);
+                    if(value > uint.MaxValue)
+                    {
+                        this.Log(LogLevel.Error, "Guessed VectorTableOffset doesn't fit in 32-bit address space: 0x{0:X}.", value);
+                        return; // Keep VectorTableOffset uninitialized in the case of error condition
+                    }
                     VectorTableOffset = checked((uint)value);
                 }
             }
