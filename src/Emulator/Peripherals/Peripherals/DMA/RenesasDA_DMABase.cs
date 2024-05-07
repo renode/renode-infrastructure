@@ -113,6 +113,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                         {
                             if(value && !channels[channelID].peripheralTriggered.Value)
                             {
+                                channels[channelID].itemsAlreadyTransferred.Value = 0;
                                 channels[channelID].DoTransfer();
                             }
                         })
