@@ -111,7 +111,10 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                 var buf = Bus.ReadBytes(vaddr, (int)len);
                 var bufString = System.Text.Encoding.ASCII.GetString(buf);
-                semihostingUart.SemihostingWriteString(bufString);
+                using(ObtainGenericPauseGuard())
+                {
+                    semihostingUart.SemihostingWriteString(bufString);
+                }
 
                 A[2] = bufString.Length;
                 A[3] = 0; // errno
