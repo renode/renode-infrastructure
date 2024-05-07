@@ -999,28 +999,28 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         /// <remarks>
-        /// This method should be called from tlib only, and never from C#, since it uses `ObtainPauseGuardForHook`
-        /// see: <see cref="ObtainPauseGuardForHook" /> for more information.
+        /// This method should be called from tlib only, and never from C#, since it uses `ObtainGenericPauseGuard`
+        /// see: <see cref="ObtainGenericPauseGuard" /> for more information.
         /// </remarks>
         [Export]
         private void OnWfiStateChange(int isInWfi)
         {
-            using(ObtainPauseGuardForHook())
+            using(ObtainGenericPauseGuard())
             {
                 wfiStateChangeHook?.Invoke(isInWfi > 0);
             }
         }
 
         /// <remarks>
-        /// This method should be called from tlib only, and never from C#, since it uses `ObtainPauseGuardForHook`
-        /// see: <see cref="ObtainPauseGuardForHook" /> for more information.
+        /// This method should be called from tlib only, and never from C#, since it uses `ObtainGenericPauseGuard`
+        /// see: <see cref="ObtainGenericPauseGuard" /> for more information.
         /// </remarks>
         [Export]
         private uint OnBlockBegin(ulong address, uint size)
         {
             ReactivateHooks();
 
-            using(ObtainPauseGuardForHook())
+            using(ObtainGenericPauseGuard())
             {
                 blockBeginInternalHook?.Invoke(address, size);
                 blockBeginUserHook?.Invoke(address, size);
@@ -1030,13 +1030,13 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         /// <remarks>
-        /// This method should be called from tlib only, and never from C#, since it uses `ObtainPauseGuardForHook`
-        /// see: <see cref="ObtainPauseGuardForHook" /> for more information.
+        /// This method should be called from tlib only, and never from C#, since it uses `ObtainGenericPauseGuard`
+        /// see: <see cref="ObtainGenericPauseGuard" /> for more information.
         /// </remarks>
         [Export]
         private void OnBlockFinished(ulong pc, uint executedInstructions)
         {
-            using(ObtainPauseGuardForHook())
+            using(ObtainGenericPauseGuard())
             {
                 blockFinishedHook?.Invoke(pc, executedInstructions);
             }
@@ -1435,9 +1435,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         /// and as such, we should only obtain the guard when we for certain know it is.
         /// For example, precise pause is always possible if called from CPU loop in tlib
         /// </remarks>
-        private CpuThreadPauseGuard ObtainPauseGuardForHook()
+        protected CpuThreadPauseGuard ObtainGenericPauseGuard()
         {
-            pauseGuard.InitializeForHook();
+            pauseGuard.Initialize();
             return pauseGuard;
         }
 
@@ -1566,7 +1566,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             private readonly TranslationCPU parent;
         }
 
-        private sealed class CpuThreadPauseGuard : IDisposable
+        protected sealed class CpuThreadPauseGuard : IDisposable
         {
             public CpuThreadPauseGuard(TranslationCPU parent)
             {
@@ -1584,9 +1584,9 @@ namespace Antmicro.Renode.Peripherals.CPU
                 active = false;
             }
 
-            public void InitializeForHook()
+            public void Initialize()
             {
-                Initialize();
+                guard.Value = new object();
             }
 
             public void InitializeForWriting(ulong address, SysbusAccessWidth width, ulong value)
@@ -1597,11 +1597,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             public void InitializeForReading(ulong address, SysbusAccessWidth width)
             {
                 InterruptTransaction = !ExecuteWatchpoints(address, width, null);
-            }
-
-            private void Initialize()
-            {
-                guard.Value = new object();
             }
 
             private bool ExecuteWatchpoints(ulong address, SysbusAccessWidth width, ulong? value)
