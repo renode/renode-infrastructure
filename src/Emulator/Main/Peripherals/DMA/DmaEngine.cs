@@ -6,7 +6,9 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Linq;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Memory;
 
@@ -107,8 +109,10 @@ namespace Antmicro.Renode.Peripherals.DMA
                     }
                     else
                     {
-                        // if the place to write is memory and we're not incrementing address, effectively only the last byte is written
-                        sysbus.WriteByte(destinationAddress, buffer[buffer.Length - 1], context: context);
+                        // if the place to write is memory and we're not incrementing address, effectively only the last element is written
+                        var skipCount = request.Size - ((int)request.WriteTransferType);
+                        DebugHelper.Assert(skipCount > 0);
+                        sysbus.WriteBytes(buffer.Skip(skipCount).ToArray(), destinationAddress, context: context);
                     }
                 }
                 else
