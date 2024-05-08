@@ -1,3 +1,4 @@
+#if !PLATFORM_WINDOWS
 //
 // Copyright (c) 2010-2024 Antmicro
 //
@@ -167,3 +168,4 @@ namespace Antmicro.Renode.Peripherals.Storage
         }
     }
 }
+#endif
