@@ -925,14 +925,15 @@ namespace Antmicro.Renode.Peripherals.CPU
             using(machine?.ObtainPausedState(true))
             {
                 ValidateMemoryRangeAndThrow(range);
+                if(!mappedMemory.ContainsWholeRange(range))
+                {
+                    throw new RecoverableException(
+                        $"Tried to set mapped memory access method at {range} which isn't mapped memory in CPU: {this.GetName()}"
+                    );
+                }
+
                 if(asMemory)
                 {
-                    if(!mappedMemory.ContainsWholeRange(range))
-                    {
-                        throw new RecoverableException(
-                            $"Tried to set access as memory at {range} which isn't mapped memory in CPU: {this.GetName()}"
-                        );
-                    }
                     TlibMapRange(range.StartAddress, range.Size);
                 }
                 else
