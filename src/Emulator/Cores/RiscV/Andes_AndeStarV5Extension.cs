@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -34,6 +34,15 @@ namespace Antmicro.Renode.Peripherals.CPU
             // stub CSRs to make software happy
             cpu.RegisterCSR((ulong)CustomCSR.MachineExtendedStatus, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Extended Status CSR (0x7c4) is currently not supported"); });
             cpu.RegisterCSR((ulong)CustomCSR.MachineCacheControl, () => 0xffffffff, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Cache Control CSR (0x7ca) is currently not supported"); });
+            cpu.RegisterCSR((ulong)CustomCSR.InstructionCacheAndMemoryConfiguration, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc0) is not supported"); });
+            cpu.RegisterCSR((ulong)CustomCSR.DataCacheAndMemoryConfiguration, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc1) is not supported"); });
+            cpu.RegisterCSR((ulong)CustomCSR.MachineMiscellaneousConfiguration, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc2) is not supported"); });
+            cpu.RegisterCSR((ulong)CustomCSR.MachineMiscellaneousConfigurationRV32, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc3) is not supported"); });
+            cpu.RegisterCSR((ulong)CustomCSR.VectorProcessorConfiguration, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc7) is not supported"); });
+            cpu.RegisterCSR((ulong)CustomCSR.ClusterCacheControlBaseAddress, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfcf) is not supported"); });
+            cpu.RegisterCSR((ulong)CustomCSR.Architecture, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfca) is not supported"); });
+            cpu.RegisterCSR((ulong)CustomCSR.CurrentStateSaveForCrashDebugging, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc8) is not supported"); });
+            cpu.RegisterCSR((ulong)CustomCSR.MstatusStateSaveForCrashDebugging, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc9) is not supported"); });
 
             // Custom0
             cpu.InstallCustomInstruction("iiiiiiiiiiiiiiiiii00ddddd0001011", opc => ReadFromMemoryToRegister(opc, AccessWidth.Byte, LoadExtractorByte), "LBGP");
@@ -197,6 +206,15 @@ namespace Antmicro.Renode.Peripherals.CPU
             MachineCacheControl = 0x7ca,
             MachineExtendedStatus = 0x7c4,
             MachineMiscellaneousControl = 0x7d0,
+            InstructionCacheAndMemoryConfiguration = 0xfc0,
+            DataCacheAndMemoryConfiguration = 0xfc1,
+            MachineMiscellaneousConfiguration = 0xfc2,
+            MachineMiscellaneousConfigurationRV32 = 0xfc3,
+            VectorProcessorConfiguration = 0xfc7,
+            ClusterCacheControlBaseAddress = 0xfcf,
+            Architecture = 0xfca,
+            CurrentStateSaveForCrashDebugging = 0xfc8,
+            MstatusStateSaveForCrashDebugging = 0xfc9
         }
     }
 }
