@@ -1,20 +1,21 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Net.Sockets;
-using Antmicro.Renode.Logging;
-using System.IO;
-using System.Net;
-using System.Threading;
-using System.Diagnostics;
 using System.Collections.Concurrent;
-using Antmicro.Renode.Exceptions;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Net.Sockets;
+using System.Threading;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -22,7 +23,7 @@ namespace Antmicro.Renode.Utilities
     {
         public SocketServerProvider(bool emitConfigBytes = true, bool flushOnConnect = false)
         {
-            queue = new ConcurrentQueue<byte>();
+            queue = new ConcurrentQueue<byte[]>();
             enqueuedEvent = new AutoResetEvent(false);
             this.emitConfigBytes = emitConfigBytes;
             this.flushOnConnect = flushOnConnect;
@@ -77,23 +78,29 @@ namespace Antmicro.Renode.Utilities
 
         public void SendByte(byte b)
         {
-            queue.Enqueue(b);
+            queue.Enqueue(new byte[] { b });
+            enqueuedEvent.Set();
+        }
+
+        public void Send(byte[] bytes)
+        {
+            queue.Enqueue(bytes);
             enqueuedEvent.Set();
         }
 
         public void Send(IEnumerable<byte> bytes)
         {
-            foreach(var b in bytes)
-            {
-                SendByte(b);
-            }
+            Send(bytes.ToArray());
         }
 
-        public bool IsAnythingReceiving { get { return DataReceived != null; } }
+        public int BufferSize { get; set; } = 1;
+
+        public bool IsAnythingReceiving => DataReceived != null && DataBlockReceived != null;
 
         public event Action ConnectionClosed;
         public event Action<Stream> ConnectionAccepted;
         public event Action<int> DataReceived;
+        public event Action<byte[]> DataBlockReceived;
 
         private void WriterThreadBody(Stream stream)
         {
@@ -106,9 +113,9 @@ namespace Antmicro.Renode.Utilities
                     watch.Start();
                     while(watch.ElapsedMilliseconds < MaxReadThreadPoolingTimeMs)
                     {
-                        while(queue.TryDequeue(out var dequequed))
+                        while(queue.TryDequeue(out var dequeued))
                         {
-                            stream.WriteByte(dequequed);
+                            stream.Write(dequeued, 0, dequeued.Length);
                         }
                     }
                     watch.Reset();
@@ -128,20 +135,38 @@ namespace Antmicro.Renode.Utilities
 
         private void ReaderThreadBody(Stream stream)
         {
-            var value = 0;
-            while(value != -1)
+            var size = BufferSize;
+            var buffer = new byte[size];
+
+            while(true)
             {
+                if(size != BufferSize)
+                {
+                    size = BufferSize;
+                    buffer = new byte[size];
+                }
                 try
                 {
-                    value = stream.ReadByte();
-                    if(value != -1)
+                    var count = stream.Read(buffer, 0, size);
+
+                    if(count == 0)
                     {
-                        DataReceived?.Invoke(value);
+                        break;
+                    }
+
+                    DataBlockReceived?.Invoke(buffer.Take(count).ToArray());
+
+                    var dataReceived = DataReceived;
+                    if(dataReceived != null)
+                    {
+                        foreach(var b in buffer.Take(count))
+                        {
+                            dataReceived((int)b);
+                        }
                     }
                 }
                 catch(IOException)
                 {
-                    value = -1;
                     break;
                 }
             }
@@ -207,7 +232,7 @@ namespace Antmicro.Renode.Utilities
                 if(flushOnConnect)
                 {
                     // creating a new queue not to have to lock accesses to it.
-                    queue = new ConcurrentQueue<byte>();
+                    queue = new ConcurrentQueue<byte[]>();
                 }
 
                 writerCancellationToken = new CancellationTokenSource();
@@ -240,7 +265,7 @@ namespace Antmicro.Renode.Utilities
             }
         }
 
-        private ConcurrentQueue<byte> queue;
+        private ConcurrentQueue<byte[]> queue;
 
         private CancellationTokenSource writerCancellationToken;
         private AutoResetEvent enqueuedEvent;
