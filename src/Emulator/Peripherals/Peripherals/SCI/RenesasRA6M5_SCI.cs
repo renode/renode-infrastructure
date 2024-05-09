@@ -19,6 +19,7 @@ using Antmicro.Renode.Peripherals.SPI;
 using Antmicro.Renode.Peripherals.UART;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
+using Antmicro.Migrant;
 
 namespace Antmicro.Renode.Peripherals.SCI
 {
@@ -159,6 +160,7 @@ namespace Antmicro.Renode.Peripherals.SCI
         IEnumerable<IRegistered<II2CPeripheral, NumberRegistrationPoint<int>>> IPeripheralContainer<II2CPeripheral, NumberRegistrationPoint<int>>.Children =>
             i2cContainer.Children;
 
+        [field: Transient]
         public event Action<byte> CharReceived;
 
         private void UpdateInterrupts()
