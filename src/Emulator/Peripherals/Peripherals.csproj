@@ -701,6 +701,10 @@
     <Compile Include="Peripherals\GPIOPort\NPCX_GPIO.cs" />
     <Compile Include="Peripherals\Timers\NXP_OsTimer.cs" />
     <Compile Include="Peripherals\I2C\NPCX_SMBus.cs" />
+    <Compile Include="Peripherals\Mocks\MockQuadWordPeripheralWithoutTranslations.cs" />
+    <Compile Include="Peripherals\Mocks\MockDoubleWordPeripheralWithoutTranslations.cs" />
+    <Compile Include="Peripherals\Mocks\MockWordPeripheralWithoutTranslations.cs" />
+    <Compile Include="Peripherals\Mocks\MockBytePeripheralWithoutTranslations.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
