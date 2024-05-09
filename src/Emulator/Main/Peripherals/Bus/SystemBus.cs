@@ -206,6 +206,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 cpuById.Add(registrationPoint.Slot.Value, cpu);
                 cpuLocalPeripherals[cpu] = new PeripheralCollection(this);
                 idByCpu.Add(cpu, registrationPoint.Slot.Value);
+                lockedRangesCollectionByContext[cpu] = new MinimalRangesCollection();
                 if(cpu is ICPUWithMappedMemory memoryMappedCpu)
                 {
                     foreach(var mapping in mappingsForPeripheral.SelectMany(x => x.Value)
@@ -239,6 +240,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     idByCpu.Remove(cpu);
                     cpuById.Remove(id);
                     cpuLocalPeripherals.Remove(cpu);
+                    lockedRangesCollectionByContext.RemoveContextKey(cpu);
                 }
             }
         }
@@ -492,9 +494,9 @@ namespace Antmicro.Renode.Peripherals.Bus
                 .FirstOrDefault(x => x.RegistrationPoint.Range.Contains(address));
         }
 
-        public IEnumerable<IBusRegistered<IMapped>> GetMappedPeripherals()
+        public IEnumerable<IBusRegistered<IMapped>> GetMappedPeripherals(ICPU context = null)
         {
-            return allPeripherals.SelectMany(x => x.Peripherals)
+            return GetPeripheralsForContext(context)
                 .Where(x => x.Peripheral is IMapped)
                 .Convert<IBusPeripheral, IMapped>();
         }
@@ -1016,12 +1018,12 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
-        public void SetAddressRangeLocked(Range range, bool locked)
+        public void SetAddressRangeLocked(Range range, bool locked, ICPU context = null)
         {
-            lock(lockedRangesCollection)
+            lock(lockedRangesCollectionByContext)
             {
                 // Check if `range` needs to be locked or unlocked at all.
-                if(locked ? lockedRangesCollection.ContainsWholeRange(range) : !IsAddressRangeLocked(range))
+                if(locked ? lockedRangesCollectionByContext[context].ContainsWholeRange(range) : !IsAddressRangeLocked(range, context))
                 {
                     return;
                 }
@@ -1031,7 +1033,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     var cpusWithMappedMemory = idByCpu.Keys.OfType<ICPUWithMappedMemory>();
                     if(cpusWithMappedMemory.Any())
                     {
-                        var mappedInRange = GetMappedPeripherals().Where(x => x.RegistrationPoint.Range.Intersects(range));
+                        var mappedInRange = GetMappedPeripherals(context).Where(x => x.RegistrationPoint.Range.Intersects(range));
 
                         // Only allow including whole registration range of IMapped peripherals.
                         var onlyPartiallyInRange = mappedInRange.Where(x => !range.Contains(x.RegistrationPoint.Range));
@@ -1059,11 +1061,11 @@ namespace Antmicro.Renode.Peripherals.Bus
 
                     if(locked)
                     {
-                        lockedRangesCollection.Add(range);
+                        lockedRangesCollectionByContext[context].Add(range);
                     }
                     else
                     {
-                        lockedRangesCollection.Remove(range);
+                        lockedRangesCollectionByContext[context].Remove(range);
                     }
                 }
             }
@@ -1084,10 +1086,12 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
-        /// <returns>True if any part of the <c>range</c> is locked.</returns>
-        public bool IsAddressRangeLocked(Range range)
+        /// <returns>True if any part of the <c>range</c> is locked for the given CPU (globally if <c>null</c> passed as <c>context</c>).</returns>
+        public bool IsAddressRangeLocked(Range range, ICPU context = null)
         {
-            return lockedRangesCollection.ContainsOverlappingRange(range);
+            // The locked range is either mapped for the CPU context, or globally (that is the reason for the OR)
+            return lockedRangesCollectionByContext[context].ContainsOverlappingRange(range)
+                || lockedRangesCollectionByContext[null].ContainsOverlappingRange(range);
         }
 
         public bool IsPeripheralEnabled(IPeripheral peripheral)
@@ -1779,7 +1783,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             globalPeripherals = new PeripheralCollection(this);
             cpuLocalPeripherals = new Dictionary<ICPU, PeripheralCollection>();
             lockedPeripherals = new HashSet<IPeripheral>();
-            lockedRangesCollection = new MinimalRangesCollection();
+            lockedRangesCollectionByContext = new ContextKeyDictionary<MinimalRangesCollection>(new MinimalRangesCollection());
             mappingsForPeripheral = new Dictionary<IBusPeripheral, List<MappedSegmentWrapper>>();
             tags = new Dictionary<Range, TagEntry>();
             svdDevices = new List<SVDParser>();
@@ -1964,7 +1968,73 @@ namespace Antmicro.Renode.Peripherals.Bus
         private PeripheralCollection globalPeripherals;
         private Dictionary<ICPU, PeripheralCollection> cpuLocalPeripherals;
         private ISet<IPeripheral> lockedPeripherals;
-        private MinimalRangesCollection lockedRangesCollection;
+
+        private ContextKeyDictionary<MinimalRangesCollection> lockedRangesCollectionByContext;
+
+        // It doesn't implement IDictionary because serialization doesn't work correctly for dictionaries without two generic parameters.
+        private class ContextKeyDictionary<TValue> where TValue : class
+        {
+            public ContextKeyDictionary(TValue globalValue)
+            {
+                this.globalValue = globalValue;
+            }
+
+            public void RemoveContextKey(ICPU key)
+            {
+                if(key == null || !cpuLocalValues.ContainsKey(key))
+                {
+                    throw new KeyNotFoundException($"Key: {key} is null or doesn't exist");
+                }
+                cpuLocalValues.Remove(key);
+            }
+
+            public TValue this[ICPU key]
+            {
+                get => GetValue(key);
+                set
+                {
+                    if(key == null)
+                    {
+                        throw new InvalidOperationException($"Cannot modify {nameof(globalValue)}");
+                    }
+                    else
+                    {
+                        cpuLocalValues[key] = value;
+                    }
+                }
+            }
+
+            public TValue GetValue(ICPU key)
+            {
+                if(!TryGetValue(key, out var value))
+                {
+                    throw new KeyNotFoundException($"{typeof(TValue).Name} not found for the given CPU: {key.GetName()}");
+                }
+                return value;
+            }
+
+            private bool TryGetValue(ICPU key, out TValue value)
+            {
+                if(key == null)
+                {
+                    value = globalValue;
+                }
+                else if(cpuLocalValues.TryGetValue(key, out var cpuLocalValue))
+                {
+                    value = cpuLocalValue;
+                }
+                else
+                {
+                    value = default(TValue);
+                    return false;
+                }
+                return true;
+            }
+
+            private readonly Dictionary<ICPU, TValue> cpuLocalValues = new Dictionary<ICPU, TValue>();
+            private readonly TValue globalValue;
+        }
+
         private Dictionary<IBusPeripheral, List<MappedSegmentWrapper>> mappingsForPeripheral;
         private bool mappingsRemoved;
         private bool peripheralRegistered;

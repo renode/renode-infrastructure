@@ -23,7 +23,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         public byte ReadByte(ulong address, ICPU context = null)
         {
             var accessWidth = SysbusAccessWidth.Byte;
-            if(IsAddressRangeLocked(address.By((ulong)accessWidth)))
+            if(IsAddressRangeLocked(address.By((ulong)accessWidth), context))
             {
                 this.Log(LogLevel.Warning, "Tried to read {0} bytes at 0x{1:X} which is inside a locked address range, returning 0",
                     (uint)accessWidth, address);
@@ -81,7 +81,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         public void WriteByte(ulong address, byte value, ICPU context = null)
         {
             var accessWidth = SysbusAccessWidth.Byte;
-            if(IsAddressRangeLocked(address.By((ulong)accessWidth)))
+            if(IsAddressRangeLocked(address.By((ulong)accessWidth), context))
             {
                 this.Log(LogLevel.Warning, "Tried to write {0} bytes (0x{1:X}) at 0x{2:X} which is inside a locked address range, write ignored",
                     (uint)accessWidth, value, address);
@@ -141,7 +141,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         public ushort ReadWord(ulong address, ICPU context = null)
         {
             var accessWidth = SysbusAccessWidth.Word;
-            if(IsAddressRangeLocked(address.By((ulong)accessWidth)))
+            if(IsAddressRangeLocked(address.By((ulong)accessWidth), context))
             {
                 this.Log(LogLevel.Warning, "Tried to read {0} bytes at 0x{1:X} which is inside a locked address range, returning 0",
                     (uint)accessWidth, address);
@@ -199,7 +199,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         public void WriteWord(ulong address, ushort value, ICPU context = null)
         {
             var accessWidth = SysbusAccessWidth.Word;
-            if(IsAddressRangeLocked(address.By((ulong)accessWidth)))
+            if(IsAddressRangeLocked(address.By((ulong)accessWidth), context))
             {
                 this.Log(LogLevel.Warning, "Tried to write {0} bytes (0x{1:X}) at 0x{2:X} which is inside a locked address range, write ignored",
                     (uint)accessWidth, value, address);
@@ -259,7 +259,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         public uint ReadDoubleWord(ulong address, ICPU context = null)
         {
             var accessWidth = SysbusAccessWidth.DoubleWord;
-            if(IsAddressRangeLocked(address.By((ulong)accessWidth)))
+            if(IsAddressRangeLocked(address.By((ulong)accessWidth), context))
             {
                 this.Log(LogLevel.Warning, "Tried to read {0} bytes at 0x{1:X} which is inside a locked address range, returning 0",
                     (uint)accessWidth, address);
@@ -317,7 +317,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         public void WriteDoubleWord(ulong address, uint value, ICPU context = null)
         {
             var accessWidth = SysbusAccessWidth.DoubleWord;
-            if(IsAddressRangeLocked(address.By((ulong)accessWidth)))
+            if(IsAddressRangeLocked(address.By((ulong)accessWidth), context))
             {
                 this.Log(LogLevel.Warning, "Tried to write {0} bytes (0x{1:X}) at 0x{2:X} which is inside a locked address range, write ignored",
                     (uint)accessWidth, value, address);
@@ -377,7 +377,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         public ulong ReadQuadWord(ulong address, ICPU context = null)
         {
             var accessWidth = SysbusAccessWidth.QuadWord;
-            if(IsAddressRangeLocked(address.By((ulong)accessWidth)))
+            if(IsAddressRangeLocked(address.By((ulong)accessWidth), context))
             {
                 this.Log(LogLevel.Warning, "Tried to read {0} bytes at 0x{1:X} which is inside a locked address range, returning 0",
                     (uint)accessWidth, address);
@@ -435,7 +435,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         public void WriteQuadWord(ulong address, ulong value, ICPU context = null)
         {
             var accessWidth = SysbusAccessWidth.QuadWord;
-            if(IsAddressRangeLocked(address.By((ulong)accessWidth)))
+            if(IsAddressRangeLocked(address.By((ulong)accessWidth), context))
             {
                 this.Log(LogLevel.Warning, "Tried to write {0} bytes (0x{1:X}) at 0x{2:X} which is inside a locked address range, write ignored",
                     (uint)accessWidth, value, address);

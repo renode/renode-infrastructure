@@ -206,15 +206,14 @@ namespace Antmicro.Renode.Peripherals.Bus
             return ParentController.FindSymbolAt(offset, context);
         }
 
-        /// <returns>True if any part of the <c>range</c> is locked.</returns>
-        public virtual bool IsAddressRangeLocked(Range range)
+        public virtual bool IsAddressRangeLocked(Range range, ICPU context = null)
         {
-            return ParentController.IsAddressRangeLocked(range);
+            return ParentController.IsAddressRangeLocked(range, context);
         }
 
-        public virtual void SetAddressRangeLocked(Range range, bool locked)
+        public virtual void SetAddressRangeLocked(Range range, bool locked, ICPU context = null)
         {
-            ParentController.SetAddressRangeLocked(range, locked);
+            ParentController.SetAddressRangeLocked(range, locked, context);
         }
 
         public virtual void DisablePeripheral(IPeripheral peripheral)
