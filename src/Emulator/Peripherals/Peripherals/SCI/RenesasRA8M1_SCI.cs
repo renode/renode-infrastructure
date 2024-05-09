@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using Antmicro.Migrant;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -165,6 +166,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public long Size => 0x100;
 
+        [field: Transient]
         public event Action<byte> CharReceived;
 
         private void UpdateInterrupts()
