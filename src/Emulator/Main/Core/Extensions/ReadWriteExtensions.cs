@@ -188,7 +188,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
-        public static byte ReadByteUsingDword(this IDoubleWordPeripheral peripheral, long address)
+        public static byte ReadByteUsingDoubleWord(this IDoubleWordPeripheral peripheral, long address)
         {
             unchecked
             {
@@ -198,7 +198,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
-        public static byte ReadByteUsingDwordBigEndian(this IDoubleWordPeripheral peripheral, long address)
+        public static byte ReadByteUsingDoubleWordBigEndian(this IDoubleWordPeripheral peripheral, long address)
         {
             unchecked
             {
@@ -208,7 +208,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
-        public static void WriteByteUsingDword(this IDoubleWordPeripheral peripheral, long address, byte value)
+        public static void WriteByteUsingDoubleWord(this IDoubleWordPeripheral peripheral, long address, byte value)
         {
             unchecked
             {
@@ -219,7 +219,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
-        public static void WriteByteUsingDwordBigEndian(this IDoubleWordPeripheral peripheral, long address, byte value)
+        public static void WriteByteUsingDoubleWordBigEndian(this IDoubleWordPeripheral peripheral, long address, byte value)
         {
             unchecked
             {
@@ -230,7 +230,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
-        public static byte ReadByteUsingQword(this IQuadWordPeripheral peripheral, long address)
+        public static byte ReadByteUsingQuadWord(this IQuadWordPeripheral peripheral, long address)
         {
             unchecked
             {
@@ -240,7 +240,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
-        public static byte ReadByteUsingQwordBigEndian(this IQuadWordPeripheral peripheral, long address)
+        public static byte ReadByteUsingQuadWordBigEndian(this IQuadWordPeripheral peripheral, long address)
         {
             unchecked
             {
@@ -250,7 +250,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
-        public static void WriteByteUsingQword(this IQuadWordPeripheral peripheral, long address, byte value)
+        public static void WriteByteUsingQuadWord(this IQuadWordPeripheral peripheral, long address, byte value)
         {
             unchecked
             {
@@ -261,7 +261,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
-        public static void WriteByteUsingQwordBigEndian(this IQuadWordPeripheral peripheral, long address, byte value)
+        public static void WriteByteUsingQuadWordBigEndian(this IQuadWordPeripheral peripheral, long address, byte value)
         {
             unchecked
             {
@@ -272,7 +272,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
-        public static ushort ReadWordUsingDword(this IDoubleWordPeripheral peripheral, long address)
+        public static ushort ReadWordUsingDoubleWord(this IDoubleWordPeripheral peripheral, long address)
         {
             unchecked
             {
@@ -282,7 +282,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
-        public static ushort ReadWordUsingDwordBigEndian(this IDoubleWordPeripheral peripheral, long address)
+        public static ushort ReadWordUsingDoubleWordBigEndian(this IDoubleWordPeripheral peripheral, long address)
         {
             unchecked
             {
@@ -292,7 +292,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
-        public static void WriteWordUsingDword(this IDoubleWordPeripheral peripheral, long address, ushort value)
+        public static void WriteWordUsingDoubleWord(this IDoubleWordPeripheral peripheral, long address, ushort value)
         {
             unchecked
             {
@@ -303,7 +303,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
-        public static void WriteWordUsingDwordBigEndian(this IDoubleWordPeripheral peripheral, long address, ushort value)
+        public static void WriteWordUsingDoubleWordBigEndian(this IDoubleWordPeripheral peripheral, long address, ushort value)
         {
             unchecked
             {
@@ -315,7 +315,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
-        public static ushort ReadWordUsingQword(this IQuadWordPeripheral peripheral, long address)
+        public static ushort ReadWordUsingQuadWord(this IQuadWordPeripheral peripheral, long address)
         {
             unchecked
             {
@@ -325,7 +325,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
-        public static ushort ReadWordUsingQwordBigEndian(this IQuadWordPeripheral peripheral, long address)
+        public static ushort ReadWordUsingQuadWordBigEndian(this IQuadWordPeripheral peripheral, long address)
         {
             unchecked
             {
@@ -335,7 +335,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
-        public static void WriteWordUsingQword(this IQuadWordPeripheral peripheral, long address, ushort value)
+        public static void WriteWordUsingQuadWord(this IQuadWordPeripheral peripheral, long address, ushort value)
         {
             unchecked
             {
@@ -346,7 +346,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
-        public static void WriteWordUsingQwordBigEndian(this IQuadWordPeripheral peripheral, long address, ushort value)
+        public static void WriteWordUsingQuadWordBigEndian(this IQuadWordPeripheral peripheral, long address, ushort value)
         {
             unchecked
             {
@@ -393,7 +393,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
-        public static uint ReadDoubleWordUsingQword(this IQuadWordPeripheral peripheral, long address)
+        public static uint ReadDoubleWordUsingQuadWord(this IQuadWordPeripheral peripheral, long address)
         {
             unchecked
             {
@@ -403,7 +403,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
-        public static uint ReadDoubleWordUsingQwordBigEndian(this IQuadWordPeripheral peripheral, long address)
+        public static uint ReadDoubleWordUsingQuadWordBigEndian(this IQuadWordPeripheral peripheral, long address)
         {
             unchecked
             {
@@ -413,7 +413,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
-        public static void WriteDoubleWordUsingQword(this IQuadWordPeripheral peripheral, long address, uint value)
+        public static void WriteDoubleWordUsingQuadWord(this IQuadWordPeripheral peripheral, long address, uint value)
         {
             unchecked
             {
@@ -424,7 +424,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
-        public static void WriteDoubleWordUsingQwordBigEndian(this IQuadWordPeripheral peripheral, long address, uint value)
+        public static void WriteDoubleWordUsingQuadWordBigEndian(this IQuadWordPeripheral peripheral, long address, uint value)
         {
             unchecked
             {
@@ -480,7 +480,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
-        public static ulong ReadQuadWordUsingDword(this IDoubleWordPeripheral peripheral, long address)
+        public static ulong ReadQuadWordUsingDoubleWord(this IDoubleWordPeripheral peripheral, long address)
         {
             unchecked
             {
@@ -490,7 +490,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
-        public static ulong ReadQuadWordUsingDwordBigEndian(this IDoubleWordPeripheral peripheral, long address)
+        public static ulong ReadQuadWordUsingDoubleWordBigEndian(this IDoubleWordPeripheral peripheral, long address)
         {
             unchecked
             {
@@ -500,7 +500,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
-        public static void WriteQuadWordUsingDword(this IDoubleWordPeripheral peripheral, long address, ulong value)
+        public static void WriteQuadWordUsingDoubleWord(this IDoubleWordPeripheral peripheral, long address, ulong value)
         {
             unchecked
             {
@@ -509,7 +509,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
-        public static void WriteQuadWordUsingDwordBigEndian(this IDoubleWordPeripheral peripheral, long address, ulong value)
+        public static void WriteQuadWordUsingDoubleWordBigEndian(this IDoubleWordPeripheral peripheral, long address, ulong value)
         {
             unchecked
             {

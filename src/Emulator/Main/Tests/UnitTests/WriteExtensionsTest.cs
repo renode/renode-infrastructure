@@ -179,16 +179,16 @@ namespace Antmicro.Renode.UnitTests
         public void ShouldWriteByteUsingDoubleWord()
         {
             var dwordPeripheral = dwordPeriMock.Object;
-            dwordPeripheral.WriteByteUsingDword(0, 0x12);
+            dwordPeripheral.WriteByteUsingDoubleWord(0, 0x12);
             dwordPeriMock.Verify(x => x.WriteDoubleWord(0, 0x12));
             dwordPeriMock.Setup(x => x.ReadDoubleWord(0)).Returns(0x12);
-            dwordPeripheral.WriteByteUsingDword(1, 0x34);
+            dwordPeripheral.WriteByteUsingDoubleWord(1, 0x34);
             dwordPeriMock.Verify(x => x.WriteDoubleWord(0, 0x3412));
             dwordPeriMock.Setup(x => x.ReadDoubleWord(0)).Returns(0x3412);
-            dwordPeripheral.WriteByteUsingDword(2, 0x56);
+            dwordPeripheral.WriteByteUsingDoubleWord(2, 0x56);
             dwordPeriMock.Verify(x => x.WriteDoubleWord(0, 0x563412));
             dwordPeriMock.Setup(x => x.ReadDoubleWord(0)).Returns(0x563412);
-            dwordPeripheral.WriteByteUsingDword(3, 0x78);
+            dwordPeripheral.WriteByteUsingDoubleWord(3, 0x78);
             dwordPeriMock.Verify(x => x.WriteDoubleWord(0, 0x78563412));
         }
 
@@ -196,16 +196,16 @@ namespace Antmicro.Renode.UnitTests
         public void ShouldWriteByteUsingDoubleWordBigEndian()
         {
             var dwordPeripheral = dwordPeriMock.Object;
-            dwordPeripheral.WriteByteUsingDwordBigEndian(0, 0x12);
+            dwordPeripheral.WriteByteUsingDoubleWordBigEndian(0, 0x12);
             dwordPeriMock.Verify(x => x.WriteDoubleWord(0, 0x12000000));
             dwordPeriMock.Setup(x => x.ReadDoubleWord(0)).Returns(0x12000000);
-            dwordPeripheral.WriteByteUsingDwordBigEndian(1, 0x34);
+            dwordPeripheral.WriteByteUsingDoubleWordBigEndian(1, 0x34);
             dwordPeriMock.Verify(x => x.WriteDoubleWord(0, 0x12340000));
             dwordPeriMock.Setup(x => x.ReadDoubleWord(0)).Returns(0x12340000);
-            dwordPeripheral.WriteByteUsingDwordBigEndian(2, 0x56);
+            dwordPeripheral.WriteByteUsingDoubleWordBigEndian(2, 0x56);
             dwordPeriMock.Verify(x => x.WriteDoubleWord(0, 0x12345600));
             dwordPeriMock.Setup(x => x.ReadDoubleWord(0)).Returns(0x12345600);
-            dwordPeripheral.WriteByteUsingDwordBigEndian(3, 0x78);
+            dwordPeripheral.WriteByteUsingDoubleWordBigEndian(3, 0x78);
             dwordPeriMock.Verify(x => x.WriteDoubleWord(0, 0x12345678));
         }
 
@@ -213,10 +213,10 @@ namespace Antmicro.Renode.UnitTests
         public void ShouldWriteWordUsingDoubleWord()
         {
             var dwordPeripheral = dwordPeriMock.Object;
-            dwordPeripheral.WriteWordUsingDword(0, 0x3412);
+            dwordPeripheral.WriteWordUsingDoubleWord(0, 0x3412);
             dwordPeriMock.Verify(x => x.WriteDoubleWord(0, 0x3412));
             dwordPeriMock.Setup(x => x.ReadDoubleWord(0)).Returns(0x3412);
-            dwordPeripheral.WriteWordUsingDword(2, 0x7856);
+            dwordPeripheral.WriteWordUsingDoubleWord(2, 0x7856);
             dwordPeriMock.Verify(x => x.WriteDoubleWord(0, 0x78563412));
         }
 
@@ -224,10 +224,10 @@ namespace Antmicro.Renode.UnitTests
         public void ShouldWriteWordUsingDoubleWordBigEndian()
         {
             var dwordPeripheral = dwordPeriMock.Object;
-            dwordPeripheral.WriteWordUsingDwordBigEndian(0, 0x3412);
+            dwordPeripheral.WriteWordUsingDoubleWordBigEndian(0, 0x3412);
             dwordPeriMock.Verify(x => x.WriteDoubleWord(0, 0x12340000));
             dwordPeriMock.Setup(x => x.ReadDoubleWord(0)).Returns(0x12340000);
-            dwordPeripheral.WriteWordUsingDwordBigEndian(2, 0x7856);
+            dwordPeripheral.WriteWordUsingDoubleWordBigEndian(2, 0x7856);
             dwordPeriMock.Verify(x => x.WriteDoubleWord(0, 0x12345678));
         }
 
@@ -235,7 +235,7 @@ namespace Antmicro.Renode.UnitTests
         public void ShouldWriteQuadWordUsingDoubleWord()
         {
             var dwordPeripheral = dwordPeriMock.Object;
-            dwordPeripheral.WriteQuadWordUsingDword(0, 0x7856341221436587);
+            dwordPeripheral.WriteQuadWordUsingDoubleWord(0, 0x7856341221436587);
             dwordPeriMock.Verify(x => x.WriteDoubleWord(0, 0x21436587));
             dwordPeriMock.Verify(x => x.WriteDoubleWord(4, 0x78563412));
         }
@@ -244,7 +244,7 @@ namespace Antmicro.Renode.UnitTests
         public void ShouldWriteQuadWordUsingDoubleWordBigEndian()
         {
             var dwordPeripheral = dwordPeriMock.Object;
-            dwordPeripheral.WriteQuadWordUsingDwordBigEndian(0, 0x7856341221436587);
+            dwordPeripheral.WriteQuadWordUsingDoubleWordBigEndian(0, 0x7856341221436587);
             dwordPeriMock.Verify(x => x.WriteDoubleWord(0, 0x12345678));
             dwordPeriMock.Verify(x => x.WriteDoubleWord(4, 0x87654321));
         }
@@ -254,7 +254,7 @@ namespace Antmicro.Renode.UnitTests
         {
             var dwordPeripheral = dwordPeriMock.Object;
             PrepareOldData();
-            dwordPeripheral.WriteWordUsingDword(1, 0xDFEF);
+            dwordPeripheral.WriteWordUsingDoubleWord(1, 0xDFEF);
             dwordPeriMock.Verify(x => x.WriteDoubleWord(0, 0x78DFEF12), Times.Once());
         }
 
@@ -263,7 +263,7 @@ namespace Antmicro.Renode.UnitTests
         {
             var dwordPeripheral = dwordPeriMock.Object;
             PrepareOldData();
-            dwordPeripheral.WriteWordUsingDwordBigEndian(1, 0xDFEF);
+            dwordPeripheral.WriteWordUsingDoubleWordBigEndian(1, 0xDFEF);
             dwordPeriMock.Verify(x => x.WriteDoubleWord(0, 0x78EFDF12), Times.Once());
         }
 
@@ -275,7 +275,7 @@ namespace Antmicro.Renode.UnitTests
             ulong act = 0;
             for(var i = 0; i < 7; i++)
             {
-                qwordPeripheral.WriteByteUsingQword(i, bytes[i]);
+                qwordPeripheral.WriteByteUsingQuadWord(i, bytes[i]);
                 act |= (ulong)bytes[i] << (8 * i);
                 qwordPeriMock.Verify(x => x.WriteQuadWord(0, act));
                 qwordPeriMock.Setup(x => x.ReadQuadWord(0)).Returns(act);
@@ -290,7 +290,7 @@ namespace Antmicro.Renode.UnitTests
             ulong act = 0;
             for(var i = 0; i < 7; i++)
             {
-                qwordPeripheral.WriteByteUsingQwordBigEndian(i, bytes[i]);
+                qwordPeripheral.WriteByteUsingQuadWordBigEndian(i, bytes[i]);
                 act |= (ulong)bytes[i] << (7 - i) * 8;
                 qwordPeriMock.Verify(x => x.WriteQuadWord(0, act));
                 qwordPeriMock.Setup(x => x.ReadQuadWord(0)).Returns(act);
@@ -301,16 +301,16 @@ namespace Antmicro.Renode.UnitTests
         public void ShouldWriteWordUsingQuadWord()
         {
             var qwordPeripheral = qwordPeriMock.Object;
-            qwordPeripheral.WriteWordUsingQword(0, 0x3412);
+            qwordPeripheral.WriteWordUsingQuadWord(0, 0x3412);
             qwordPeriMock.Verify(x => x.WriteQuadWord(0, 0x3412));
             qwordPeriMock.Setup(x => x.ReadQuadWord(0)).Returns(0x3412);
-            qwordPeripheral.WriteWordUsingQword(2, 0x7856);
+            qwordPeripheral.WriteWordUsingQuadWord(2, 0x7856);
             qwordPeriMock.Verify(x => x.WriteQuadWord(0, 0x78563412));
             qwordPeriMock.Setup(x => x.ReadQuadWord(0)).Returns(0x78563412);
-            qwordPeripheral.WriteWordUsingQword(4, 0x5678);
+            qwordPeripheral.WriteWordUsingQuadWord(4, 0x5678);
             qwordPeriMock.Verify(x => x.WriteQuadWord(0, 0x567878563412));
             qwordPeriMock.Setup(x => x.ReadQuadWord(0)).Returns(0x567878563412);
-            qwordPeripheral.WriteWordUsingQword(6, 0x1234);
+            qwordPeripheral.WriteWordUsingQuadWord(6, 0x1234);
             qwordPeriMock.Verify(x => x.WriteQuadWord(0, 0x1234567878563412));
         }
 
@@ -318,16 +318,16 @@ namespace Antmicro.Renode.UnitTests
         public void ShouldWriteWordUsingQuadWordBigEndian()
         {
             var qwordPeripheral = qwordPeriMock.Object;
-            qwordPeripheral.WriteWordUsingQwordBigEndian(0, 0x3412);
+            qwordPeripheral.WriteWordUsingQuadWordBigEndian(0, 0x3412);
             qwordPeriMock.Verify(x => x.WriteQuadWord(0, 0x1234000000000000));
             qwordPeriMock.Setup(x => x.ReadQuadWord(0)).Returns(0x1234000000000000);
-            qwordPeripheral.WriteWordUsingQwordBigEndian(2, 0x7856);
+            qwordPeripheral.WriteWordUsingQuadWordBigEndian(2, 0x7856);
             qwordPeriMock.Verify(x => x.WriteQuadWord(0, 0x1234567800000000));
             qwordPeriMock.Setup(x => x.ReadQuadWord(0)).Returns(0x1234567800000000);
-            qwordPeripheral.WriteWordUsingQwordBigEndian(4, 0x6587);
+            qwordPeripheral.WriteWordUsingQuadWordBigEndian(4, 0x6587);
             qwordPeriMock.Verify(x => x.WriteQuadWord(0, 0x1234567887650000));
             qwordPeriMock.Setup(x => x.ReadQuadWord(0)).Returns(0x1234567887650000);
-            qwordPeripheral.WriteWordUsingQwordBigEndian(6, 0x2143);
+            qwordPeripheral.WriteWordUsingQuadWordBigEndian(6, 0x2143);
             qwordPeriMock.Verify(x => x.WriteQuadWord(0, 0x1234567887654321));
         }
 
@@ -335,10 +335,10 @@ namespace Antmicro.Renode.UnitTests
         public void ShouldWriteDoubleWordUsingQuadWord()
         {
             var qwordPeripheral = qwordPeriMock.Object;
-            qwordPeripheral.WriteDoubleWordUsingQword(0, 0x78563412);
+            qwordPeripheral.WriteDoubleWordUsingQuadWord(0, 0x78563412);
             qwordPeriMock.Verify(x => x.WriteQuadWord(0, 0x78563412));
             qwordPeriMock.Setup(x => x.ReadQuadWord(0)).Returns(0x78563412);
-            qwordPeripheral.WriteDoubleWordUsingQword(4, 0x12345678);
+            qwordPeripheral.WriteDoubleWordUsingQuadWord(4, 0x12345678);
             qwordPeriMock.Verify(x => x.WriteQuadWord(0, 0x1234567878563412));
         }
 
@@ -346,10 +346,10 @@ namespace Antmicro.Renode.UnitTests
         public void ShouldWriteDoubleWordUsingQuadWordBigEndian()
         {
             var qwordPeripheral = qwordPeriMock.Object;
-            qwordPeripheral.WriteDoubleWordUsingQwordBigEndian(0, 0x78563412);
+            qwordPeripheral.WriteDoubleWordUsingQuadWordBigEndian(0, 0x78563412);
             qwordPeriMock.Verify(x => x.WriteQuadWord(0, 0x1234567800000000));
             qwordPeriMock.Setup(x => x.ReadQuadWord(0)).Returns(0x1234567800000000);
-            qwordPeripheral.WriteDoubleWordUsingQwordBigEndian(4, 0x21436587);
+            qwordPeripheral.WriteDoubleWordUsingQuadWordBigEndian(4, 0x21436587);
             qwordPeriMock.Verify(x => x.WriteQuadWord(0, 0x1234567887654321));
         }
 

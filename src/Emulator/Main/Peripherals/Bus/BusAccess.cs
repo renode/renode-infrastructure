@@ -11,7 +11,7 @@ using System.Collections.Generic;
 
 namespace Antmicro.Renode.Peripherals.Bus
 {
-    internal class BusAccess
+    public class BusAccess
     {
         static BusAccess()
         {

@@ -27,7 +27,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         }
 
         // We can't use AllowedTranslations because then WriteByte/WriteWord will trigger
-        // an additional read (see ReadWriteExtensions:WriteByteUsingDword).
+        // an additional read (see ReadWriteExtensions:WriteByteUsingDoubleWord).
         // We can't have this happen for the data register.
         public byte ReadByte(long offset)
         {

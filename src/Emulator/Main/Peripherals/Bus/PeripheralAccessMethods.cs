@@ -13,7 +13,7 @@ using System.Reflection;
 
 namespace Antmicro.Renode.Peripherals.Bus
 {
-    internal class PeripheralAccessMethods
+    public class PeripheralAccessMethods
     {
         public BusAccess.ByteReadMethod ReadByte;
         public BusAccess.ByteWriteMethod WriteByte;
