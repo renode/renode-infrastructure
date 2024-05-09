@@ -92,7 +92,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
         public void FinishTransmission()
         {
             this.DebugLog("Finished transmission");
-            currentRegister = 0;
         }
 
         public void Reset()
