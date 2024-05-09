@@ -17,6 +17,8 @@ using Moq;
 using System.Linq;
 using System.Collections.Generic;
 using Antmicro.Renode.Peripherals.Memory;
+using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Peripherals.Mocks;
 
 namespace Antmicro.Renode.UnitTests
 {
@@ -251,6 +253,36 @@ namespace Antmicro.Renode.UnitTests
         }
 
         [Test]
+        public void ShouldTestEnableAllTranslations()
+        {
+            var testData = new Tuple<int, IBusPeripheral> []
+            {
+                Tuple.Create(64, (IBusPeripheral)new MockQuadWordPeripheralWithoutTranslations()),
+                Tuple.Create(32, (IBusPeripheral)new MockDoubleWordPeripheralWithoutTranslations()),
+                Tuple.Create(16, (IBusPeripheral)new MockWordPeripheralWithoutTranslations()),
+                Tuple.Create(8, (IBusPeripheral)new MockBytePeripheralWithoutTranslations())
+            };
+
+            ulong address = 0;
+            foreach(var data in testData)
+            {
+                var implementedWidth = data.Item1;
+                var peripheral = data.Item2;
+                sysbus.Register(peripheral, new BusRangeRegistration(address, 8));
+                sysbus.Register(peripheral, new BusMultiRegistration(address + 8, 8, "region"));
+                address += 16;
+            }
+            
+            var testValue = 0xdeadc0de12345678;
+            for(var i = 0; i < testData.Length; i += 1)
+            {
+                var implementedWidth = testData[i].Item1;
+                testAllTranslatedAccesses((ulong)i * 16, testValue, implementedWidth);
+                testAllTranslatedAccesses((ulong)i * 16 + 8, testValue, implementedWidth);
+            }
+        }
+
+        [Test]
         public void ShouldHandleWriteToMemorySegment()
         {
             CreateMachineAndExecute(sysbus =>
@@ -371,6 +403,57 @@ namespace Antmicro.Renode.UnitTests
                 sb.Register(memory, 0xC0000000.By(16));
 
                 action(sb);
+            }
+        }
+
+        private void testAllTranslatedAccesses(ulong address, ulong testValue, int implementedWidth)
+        {
+            var widths = new int [] { 8, 16, 32, 64 };
+            var types = new dynamic []
+            {
+                (Func<ulong, byte>)Convert.ToByte,
+                (Func<ulong, ushort>)Convert.ToUInt16,
+                (Func<ulong, uint>)Convert.ToUInt32,
+                (Func<ulong, ulong>)Convert.ToUInt64,
+            };
+
+            var accessMethods = new dynamic []
+            {
+                Tuple.Create((Func<ulong, ICPU, byte>)sysbus.ReadByte, (Action<ulong, byte, ICPU>)sysbus.WriteByte),
+                Tuple.Create((Func<ulong, ICPU, ushort>)sysbus.ReadWord, (Action<ulong, ushort, ICPU>)sysbus.WriteWord),
+                Tuple.Create((Func<ulong, ICPU, uint>)sysbus.ReadDoubleWord, (Action<ulong, uint, ICPU>)sysbus.WriteDoubleWord),
+                Tuple.Create((Func<ulong, ICPU, ulong>)sysbus.ReadQuadWord, (Action<ulong, ulong, ICPU>)sysbus.WriteQuadWord),
+            };
+
+            for(var i = 0; i < accessMethods.Length; i++)
+            {
+                var width = widths[i];
+                var type = types[i];
+                var read = accessMethods[i].Item1;
+                var write = accessMethods[i].Item2;
+
+                if(width == implementedWidth)
+                    continue;
+
+                sysbus.EnableAllTranslations();
+
+                for(var offset = 0; offset < 64; offset += width)
+                {
+                    var value = type(BitHelper.GetValue(testValue, offset, width));
+                    write(address + (ulong)offset / 8, value, null);
+                    Assert.AreEqual(value, read(address + (ulong)offset / 8, null));
+                }
+
+                sysbus.EnableAllTranslations(false);
+
+                for(var offset = 0; offset < 64; offset += width)
+                {
+                    Assert.AreEqual(0x0, read(address + (ulong)offset / 8, null));
+                }
+
+                sysbus.EnableAllTranslations();
+                sysbus.WriteQuadWord(address, 0x0);
+                Assert.AreEqual(0x0, sysbus.ReadQuadWord(address));
             }
         }
 
