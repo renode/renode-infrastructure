@@ -156,7 +156,9 @@
     <Compile Include="Utilities\Misc.cs" />
     <Compile Include="Utilities\VideoCapturer.cs" />
     <Compile Include="Core\GPIOAttribute.cs" />
-    <Compile Include="Core\Extensions\ReadWriteExtensions.cs" />
+    <Compile Include="Core\Extensions\ReadWriteExtensions.cs">
+      <DependentUpon>ReadWriteExtensions.tt</DependentUpon>
+    </Compile>
     <Compile Include="Core\Extensions\FileLoaderExtensions.cs" />
     <Compile Include="Peripherals\IHasOwnLife.cs" />
     <Compile Include="Core\Range.cs" />

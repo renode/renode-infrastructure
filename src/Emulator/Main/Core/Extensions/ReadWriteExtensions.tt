@@ -1,0 +1,399 @@
+<#
+//
+// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2011-2015 Realtime Embedded
+//
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
+//
+#>
+<#@ template language="C#" #>
+<#@ import namespace="System.Collections.Generic" #>
+/********************************************************
+*
+* Warning!
+* This file was generated automatically.
+* Please do not edit. Changes should be made in the
+* appropriate *.tt file.
+*
+*/
+using System;
+using System.Text;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals;
+using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Utilities;
+
+namespace Antmicro.Renode.Core.Extensions
+{
+    public static class ReadWriteExtensions
+    {
+<#
+    var widthNames = new Dictionary<int, string>()
+    {
+        {8, "Byte"},
+        {16, "Word"},
+        {32, "DoubleWord"},
+        {64, "QuadWord"}
+    };
+
+    var widthTypes = new Dictionary<int, string>()
+    {
+        {8, "byte"},
+        {16, "ushort"},
+        {32, "uint"},
+        {64, "ulong"}
+    };
+
+    var swapBytes = new Dictionary<int, string>()
+    {
+        {8, ""},
+        {16, "Misc.SwapBytesUShort"},
+        {32, "Misc.SwapBytesUInt"},
+        {64, "Misc.SwapBytesULong"}
+    };
+
+    var masks = new Dictionary<int, string>()
+    {
+        {8, "0xFF"},
+        {16, "0xFFFF"},
+        {32, "0xFFFFFFFFUL"}
+    };
+
+    foreach(var inWidth in new int[] {8, 16, 32, 64})
+    {
+        foreach(var outWidth in new int[] {8, 16, 32, 64})
+        {
+            if(inWidth == outWidth)
+            {
+                continue;
+            }
+
+            var inType = widthTypes[inWidth];
+            var outType = widthTypes[outWidth];
+            var outName = widthNames[outWidth];
+            var inName = widthNames[inWidth];
+            var swapFuncIn = swapBytes[inWidth];
+            var swapFuncOut = swapBytes[outWidth];
+
+            if(inWidth < outWidth)
+            {
+#>
+        public static <#= outType #> Read<#= outName #>Using<#= inName #>(this I<#= inName #>Peripheral peripheral, long address)
+        {
+            unchecked
+            {
+                return (<#= outType #>)((<#= outType #>)peripheral.Read<#= inName #>(address)
+<#
+                for(var i = inWidth; i < outWidth; i += inWidth)
+                {
+#>
+                    | (<#= outType #>)peripheral.Read<#= inName #>(address + <#= i / 8 #>) << <#= i #>
+<#
+                }
+#>
+                );
+            }
+        }
+
+        public static BusAccess.<#= outName #>ReadMethod Build<#= outName #>ReadUsing(BusAccess.<#= inName #>ReadMethod read)
+        {
+            return address =>
+            {
+                unchecked
+                {
+                    return (<#= outType #>)((<#= outType #>)read(address)
+<#
+                for(var i = inWidth; i < outWidth; i += inWidth)
+                {
+#>
+                        | (<#= outType #>)read(address + <#= i / 8 #>) << <#= i #>
+<#
+                }
+#>
+                    );
+                }
+            };
+        }
+
+        public static void Write<#= outName #>Using<#= inName #>(this I<#= inName #>Peripheral peripheral, long address, <#= outType #> value)
+        {
+            unchecked
+            {
+<#
+                for(var i = 0; i < outWidth; i += inWidth)
+                {
+#>
+                peripheral.Write<#= inName #>(address + <#= i / 8 #>, (<#= inType #>)(value >> <#= i #>));
+<#
+                }
+#>
+            }
+        }
+
+        public static BusAccess.<#= outName #>WriteMethod Build<#= outName #>WriteUsing(BusAccess.<#= inName #>ReadMethod read, BusAccess.<#= inName #>WriteMethod write)
+        {
+            return (address, value) =>
+            {
+                unchecked
+                {
+<#
+                    for(var i = 0; i < outWidth; i += inWidth)
+                    {
+#>
+                    write(address + <#= i / 8 #>, (<#= inType #>)(value >> <#= i #>));
+<#
+                    }
+#>
+                }
+            };
+        }
+
+        public static <#= outType #> Read<#= outName #>Using<#= inName #>BigEndian(this I<#= inName #>Peripheral peripheral, long address)
+        {
+            unchecked
+            {
+                return (<#= outType #>)((<#= outType #>)<#= swapFuncIn #>(peripheral.Read<#= inName #>(address + <#= (outWidth - inWidth) / 8 #>))
+<#
+                for(var i = outWidth - 2 * inWidth; i >= 0; i -= inWidth)
+                {
+#>
+                    | (<#= outType #>)<#= swapFuncIn #>(peripheral.Read<#= inName #>(address + <#= i / 8 #>)) << <#= outWidth - inWidth - i #>
+<#
+                }
+#>
+                );
+            }
+        }
+
+        public static BusAccess.<#= outName #>ReadMethod Build<#= outName #>ReadBigEndianUsing(BusAccess.<#= inName #>ReadMethod read)
+        {
+            return address =>
+            {
+                unchecked
+                {
+                    return (<#= outType #>)((<#= outType #>)<#= swapFuncIn #>(read(address + <#= (outWidth - inWidth) / 8 #>))
+<#
+                    for(var i = outWidth - 2 * inWidth; i >= 0; i -= inWidth)
+                    {
+#>
+                        | (<#= outType #>)<#= swapFuncIn #>(read(address + <#= i / 8 #>)) << <#= outWidth - inWidth - i #>
+<#
+                    }
+#>
+                    );
+                }
+            };
+        }
+
+        public static void Write<#= outName #>Using<#= inName #>BigEndian(this I<#= inName #>Peripheral peripheral, long address, <#= outType #> value)
+        {
+            unchecked
+            {
+<#
+                for(var i = outWidth - inWidth; i >= 0; i -= inWidth)
+                {
+#>
+                peripheral.Write<#= inName #>(address + <#= (outWidth - inWidth - i) / 8 #>, <#= swapFuncIn #>((<#= inType #>)(value >> <#= i #>)));
+<#
+                }
+#>
+            }
+        }
+
+        public static BusAccess.<#= outName #>WriteMethod Build<#= outName #>WriteBigEndianUsing(BusAccess.<#= inName #>ReadMethod read, BusAccess.<#= inName #>WriteMethod write)
+        {
+            return (address, value) =>
+            {
+                unchecked
+                {
+<#
+                    for(var i = outWidth - inWidth; i >= 0; i -= inWidth)
+                    {
+#>
+                    write(address + <#= (outWidth - inWidth - i) / 8 #>, <#= swapFuncIn #>((<#= inType #>)(value >> <#= i #>)));
+<#
+                    }
+#>
+                }
+            };
+        }
+
+<#
+            }
+            else // inWidth >= outWidth
+            {
+                var mask = masks[outWidth];
+#>
+        public static <#= outType #> Read<#= outName #>Using<#= inName #>(this I<#= inName #>Peripheral peripheral, long address)
+        {
+            unchecked
+            {
+                var readAddress = address & (~<#= inWidth / 8 - 1 #>);
+                var offset = (int)(address & <#= inWidth / 8 - 1 #>);
+                return (<#= outType #>)(peripheral.Read<#= inName #>(readAddress) >> offset * 8);
+            }
+        }
+
+        public static BusAccess.<#= outName #>ReadMethod Build<#= outName #>ReadUsing(BusAccess.<#= inName #>ReadMethod read)
+        {
+            return address =>
+            {
+                unchecked
+                {
+                    var readAddress = address & (~<#= inWidth / 8 - 1 #>);
+                    var offset = (int)(address & <#= inWidth / 8 - 1 #>);
+                    return (<#= outType #>)(read(readAddress) >> offset * 8);
+                }
+            };
+        }
+
+        public static void Write<#= outName #>Using<#= inName #>(this I<#= inName #>Peripheral peripheral, long address, <#= outType #> value)
+        {
+            unchecked
+            {
+                var writeAddress = address & (~<#= inWidth / 8 - 1 #>);
+                var offset = (int)(address & <#= inWidth / 8 - 1 #>);
+                var oldValue = peripheral.Read<#= inName #>(writeAddress) & ~((<#= inType #>)<#= mask #> << offset * 8);
+                peripheral.Write<#= inName #>(writeAddress, (<#= inType #>)(oldValue | ((<#= inType #>)value << 8 * offset)));
+            }
+        }
+
+        public static BusAccess.<#= outName #>WriteMethod Build<#= outName #>WriteUsing(BusAccess.<#= inName #>ReadMethod read, BusAccess.<#= inName #>WriteMethod write)
+        {
+            return (address, value) =>
+            {
+                unchecked
+                {
+                    var writeAddress = address & (~<#= inWidth / 8 - 1 #>);
+                    var offset = (int)(address & <#= inWidth / 8 - 1 #>);
+                    var oldValue = read(writeAddress) & ~((<#= inType #>)<#= mask #> << offset * 8);
+                    write(writeAddress, (<#= inType #>)(oldValue | ((<#= inType #>)value << 8 * offset)));
+                }
+            };
+        }
+
+        public static <#= outType #> Read<#= outName #>Using<#= inName #>BigEndian(this I<#= inName #>Peripheral peripheral, long address)
+        {
+            unchecked
+            {
+                var readAddress = address & (~<#= inWidth / 8 - 1 #>);
+                var offset = <#= (inWidth - outWidth) / 8 #> - (int)(address & <#= inWidth / 8 - 1 #>);
+                return <#= swapFuncOut #>((<#= outType #>)(peripheral.Read<#= inName #>(readAddress) >> offset * 8));
+            }
+        }
+
+        public static BusAccess.<#= outName #>ReadMethod Build<#= outName #>ReadBigEndianUsing(BusAccess.<#= inName #>ReadMethod read)
+        {
+            return address =>
+            {
+                unchecked
+                {
+                    var readAddress = address & (~<#= inWidth / 8 - 1 #>);
+                    var offset = <#= (inWidth - outWidth) / 8 #> - (int)(address & <#= inWidth / 8 - 1 #>);
+                    return <#= swapFuncOut #>((<#= outType #>)(read(readAddress) >> offset * 8));
+                }
+            };
+        }
+
+        public static void Write<#= outName #>Using<#= inName #>BigEndian(this I<#= inName #>Peripheral peripheral, long address, <#= outType #> value)
+        {
+            unchecked
+            {
+<#
+                if(outWidth > 8) 
+                {
+#>
+                value = <#= swapFuncOut #>(value);
+<#
+                }
+#>
+                var writeAddress = address & (~<#= inWidth / 8 - 1 #>);
+                var offset = <#= (inWidth - outWidth) / 8 #> - (int)(address & <#= inWidth / 8 - 1 #>);
+                var oldValue = peripheral.Read<#= inName #>(writeAddress) & ~((<#= inType #>)<#= mask #> << offset * 8);
+                peripheral.Write<#= inName #>(writeAddress, (<#= inType #>)(oldValue | ((<#= inType #>)value << 8 * offset)));
+            }
+        }
+
+        public static BusAccess.<#= outName #>WriteMethod Build<#= outName #>WriteBigEndianUsing(BusAccess.<#= inName #>ReadMethod read, BusAccess.<#= inName #>WriteMethod write)
+        {
+            return (address, value) =>
+            {
+                unchecked
+                {
+<#
+                if(outWidth > 8)
+                {
+#>
+                    value = <#= swapFuncOut #>(value);
+<#
+                }
+#>
+                    var writeAddress = address & (~<#= inWidth / 8 - 1 #>);
+                    var offset = <#= (inWidth - outWidth) / 8 #> - (int)(address & <#= inWidth / 8 - 1 #>);
+                    var oldValue = read(writeAddress) & ~((<#= inType #>)<#= mask #> << offset * 8);
+                    write(writeAddress, (<#= inType #>)(oldValue | ((<#= inType #>)value << 8 * offset)));
+                }
+            };
+        }
+<#
+            } // else
+        } // foreach outWidth
+    } // foreach inWidth
+
+    foreach(var width in new int[] {16, 32, 64})
+    {
+        var type = widthTypes[width];
+        var name = widthNames[width];
+        var swapFunc = swapBytes[width];
+#>
+
+        public static <#= type #> Read<#= name #>BigEndian(this I<#= name #>Peripheral peripheral, long address)
+        {
+            return <#= swapFunc #>(peripheral.Read<#= name #>(address));
+        }
+
+        public static void Write<#= name #>BigEndian(this I<#= name #>Peripheral peripheral, long address, <#= type #> value)
+        {
+            peripheral.Write<#= name #>(address, <#= swapFunc #>(value));
+        }
+
+<#
+    } // foreach
+
+    foreach(var width in new int[] {8, 16, 32, 64})
+    {
+        var type = widthTypes[width];
+        var name = widthNames[width];
+#>
+
+        public static <#= type #> Read<#= name #>NotTranslated(this IBusPeripheral peripheral, long address)
+        {
+            LogNotTranslated(peripheral, SysbusAccessWidth.<#= name #>, address);
+            return 0;
+        }
+
+        public static void Write<#= name #>NotTranslated(this IBusPeripheral peripheral, long address, <#= type #> value)
+        {
+            LogNotTranslated(peripheral, SysbusAccessWidth.<#= name #>, address, value);
+        }
+<#
+    } // foreach
+#>
+
+        private static void LogNotTranslated(IBusPeripheral peripheral, SysbusAccessWidth operationWidth, long address, ulong? value = null)
+        {
+            var strBldr = new StringBuilder();
+            var isWrite = value.HasValue;
+            strBldr.AppendFormat("Attempted {0} {1} isn't supported by the peripheral.", operationWidth, isWrite ? "write" : "read");
+            strBldr.AppendFormat(" Offset 0x{0:X}", address);
+            if(isWrite)
+            {
+                strBldr.AppendFormat(", value 0x{0:X}", value.Value);
+            }
+            strBldr.Append(".");
+
+            peripheral.Log(LogLevel.Warning, peripheral.GetMachine().GetSystemBus(peripheral).DecorateWithCPUNameAndPC(strBldr.ToString()));
+        }
+    }
+}
