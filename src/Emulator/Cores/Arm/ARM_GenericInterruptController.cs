@@ -830,9 +830,24 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 BuildInterruptGroupRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.SharedPeripheralLast, "InterruptGroup")
             );
 
-            AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptGroupModifier_0,
-                BuildInterruptGroupModifierRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.SharedPeripheralLast, "InterruptGroupModifier")
-            );
+            // The range between 0xD00-0xDFC is implementation defined for GICv1 and GICv2.
+            if(ArchitectureVersionAtLeast3)
+            {
+                AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptGroupModifier_0_PPIStatus,
+                    BuildInterruptGroupModifierRegisters(irqsDecoder.SoftwareGeneratedFirst, irqsDecoder.SharedPeripheralLast, "InterruptGroupModifier")
+                );
+            }
+            else
+            {
+                // See e.g. https://developer.arm.com/documentation/ddi0416/b/programmers-model/distributor-register-descriptions and https://developer.arm.com/documentation/ddi0471/b/programmers-model/distributor-register-summary
+                AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptGroupModifier_0_PPIStatus,
+                    BuildPrivateOrSharedPeripheralInterruptStatusRegisters(irqsDecoder.PrivatePeripheralFirst, irqsDecoder.PrivatePeripheralLast, "PPI Status")
+                );
+
+                AddRegistersAtOffset(registersMap, (long)DistributorRegisters.InterruptGroupModifier_1_SPIStatus_0,
+                    BuildPrivateOrSharedPeripheralInterruptStatusRegisters(irqsDecoder.SharedPeripheralFirst, irqsDecoder.SharedPeripheralLast, "SPI Status")
+                );
+            }
 
             return registersMap;
         }
@@ -1679,6 +1694,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     },
                 valueProviderCallback: irq => irq.Config.GroupModifierBit,
                 allowAccessWhenNonSecureGroup: false
+            );
+        }
+
+        private IEnumerable<DoubleWordRegister> BuildPrivateOrSharedPeripheralInterruptStatusRegisters(InterruptId startId, InterruptId endId, string name)
+        {
+            return BuildInterruptFlagRegisters(startId, endId, name,
+                valueProviderCallback: irq => irq.State.Pending
             );
         }
 
@@ -3198,7 +3220,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             InterruptProcessorTargets_254 = 0x0AF8, // GICD_ITARGETSR<n>
             InterruptConfiguration_0 = 0x0C00, // GICD_ICFGR<n>
             InterruptConfiguration_1 = 0x0C04, // GICD_ICFGR<n>
-            InterruptGroupModifier_0 = 0x0D00, // GICD_IGRPMODR<n>
+            InterruptGroupModifier_0_PPIStatus = 0x0D00, // GICD_IGRPMODR0 on GICv3, GICD_PPISR on GICv1/2 
+            InterruptGroupModifier_1_SPIStatus_0 = 0x0D04, // GICD_IGRPMODR<n> on GICv3, GICD_SPISR<n> on GICv1/2 
             NonSecureAccessControl_0 = 0x0E00, // GICD_NSACR<n>
             SoftwareGeneratedInterruptControl = 0x0F00, // GICD_SGI
             SoftwareGeneratedIntrruptClearPending_0 = 0x0F10, // GICD_CPENDSGIR<n>
