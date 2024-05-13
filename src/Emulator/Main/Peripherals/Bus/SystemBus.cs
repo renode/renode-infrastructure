@@ -620,6 +620,12 @@ namespace Antmicro.Renode.Peripherals.Bus
             pcCache.Invalidate();
         }
 
+        public void ClearSymbols(ICPU context = null)
+        {
+            RemoveLookup(context);
+            pcCache.Invalidate();
+        }
+
         public void AddSymbol(Range address, string name, bool isThumb = false, ICPU context = null)
         {
             checked
@@ -1213,6 +1219,18 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
 
             return lookup;
+        }
+
+        private void RemoveLookup(ICPU context = null)
+        {
+            if(context == null)
+            {
+                globalLookup = new SymbolLookup();
+            }
+            else
+            {
+                localLookups.Remove(context);
+            }
         }
 
         private void UnregisterInner(IBusPeripheral peripheral)
