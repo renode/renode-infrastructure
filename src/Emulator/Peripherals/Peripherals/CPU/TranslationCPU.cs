@@ -1202,7 +1202,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             // this method should only be called from CPU thread,
             // but we should check it anyway
             CheckCpuThreadId();
-            ChangeExecutionModeToSingleStep(blocking);
+
+            ExecutionMode = ExecutionMode.SingleStep;
 
             UpdateHaltedState();
             InvokeHalted(args);

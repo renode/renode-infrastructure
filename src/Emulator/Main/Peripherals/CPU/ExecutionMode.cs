@@ -9,8 +9,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     public enum ExecutionMode
     {
         Continuous,
-        SingleStepNonBlocking,
-        SingleStepBlocking,
+        SingleStep,
     }
 }
 

@@ -378,6 +378,22 @@ namespace Antmicro.Renode.Core
             }
         }
 
+        public bool SingleStepBlocking
+        {
+            get => singleStepBlocking;
+            set
+            {
+                if(singleStepBlocking == value)
+                {
+                    return;
+                }
+                singleStepBlocking = value;
+                SingleStepBlockingChanged?.Invoke();
+            }
+        }
+
+        public event Action SingleStepBlockingChanged;
+
         public void SetNameForMachine(string name, IMachine machine)
         {
             // TODO: locking issues
@@ -638,6 +654,7 @@ namespace Antmicro.Renode.Core
             {
                 mach.StateChanged += OnMachineStateChanged;
             }
+            singleStepBlocking = true;
         }
 
         #region Event processors
@@ -684,6 +701,9 @@ namespace Antmicro.Renode.Core
 
         [Constructor]
         private CachingFileFetcher fileFetcher;
+
+        [field: Transient]
+        private bool singleStepBlocking = true;
 
         [Constructor(NameCacheSize)]
         private readonly LRUCache<object, Tuple<string, string>> nameCache;

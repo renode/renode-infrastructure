@@ -33,7 +33,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         event Action<HaltArguments> Halted;
         TimeHandle TimeHandle { get; }
 
-        ulong Step(int count = 1, bool? blocking = null);
+        ulong Step(int count = 1);
         ExecutionMode ExecutionMode { get; set; }
 
         ELFSharp.ELF.Endianess Endianness { get; }

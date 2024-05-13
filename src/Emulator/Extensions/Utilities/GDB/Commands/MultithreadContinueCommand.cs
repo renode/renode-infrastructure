@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -8,6 +8,7 @@ using System;
 using System.Threading;
 using System.Collections.Generic;
 using System.Linq;
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Utilities.GDB;
@@ -36,7 +37,7 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
                 return PacketData.ErrorReply();
             }
 
-            if(manager.BlockOnStep)
+            if(EmulationManager.Instance.CurrentEmulation.SingleStepBlocking)
             {
                 if(!TryHandleBlockingExecution(ref operations))
                 {
@@ -88,7 +89,7 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
             // this helps to keep control of the cores as none of them will successfully obtain a new time interval
             foreach(var operation in operations)
             {
-                manager.ManagedCpus[operation.CoreId].ExecutionMode = ExecutionMode.SingleStepBlocking;
+                manager.ManagedCpus[operation.CoreId].ExecutionMode = ExecutionMode.SingleStep;
                 manager.ManagedCpus[operation.CoreId].TimeHandle.DelayGrant = true;
             }
 
@@ -115,7 +116,7 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
                         return;
                     }
                     cpu.TimeHandle.ReportedBack -= callbacks[operation.CoreId];
-                    cpu.ExecutionMode = ExecutionMode.SingleStepBlocking;
+                    cpu.ExecutionMode = ExecutionMode.SingleStep;
                     // skip time if core stopped before sync-point
                     if(!isDone)
                     {

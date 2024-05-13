@@ -53,6 +53,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             isPaused = true;
 
             singleStepSynchronizer = new Synchronizer();
+            EmulationManager.Instance.CurrentEmulation.SingleStepBlockingChanged += () => UpdateHaltedState();
         }
 
         public string[,] GetRegistersValues()
@@ -112,12 +113,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             SetPCFromEntryPoint(uImage.EntryPoint);
         }
 
-        public ulong Step(bool blocking)
-        {
-            return Step(1, blocking);
-        }
-
-        public ulong Step(int count = 1, bool? blocking = null)
+        public ulong Step(int count = 1)
         {
             if(IsHalted)
             {
@@ -127,7 +123,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             lock(singleStepSynchronizer.Guard)
             {
-                ChangeExecutionModeToSingleStep(blocking);
+                ExecutionMode = ExecutionMode.SingleStep;
 
                 // Starting emulation has to be done after changing ExecutionMode. Otherwise, continuous CPUs won't be waiting for step command.
                 var emulation = EmulationManager.Instance.CurrentEmulation;
@@ -157,7 +153,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
 
                 // Invoking this to allow virtual time to be granted, without setting currentHaltedState to false
-                if(executionMode == ExecutionMode.SingleStepNonBlocking)
+                if(!IsSingleStepBlocking)
                 {
                     UpdateHaltedState(ignoreExecutionMode: true);
                 }
@@ -441,19 +437,6 @@ namespace Antmicro.Renode.Peripherals.CPU
                 this.Trace("Requesting pause");
                 sleeper.Interrupt();
             }
-        }
-
-        protected bool ChangeExecutionModeToSingleStep(bool? blocking = null)
-        {
-            var mode = ExecutionMode;
-            var isNonBlocking = mode == ExecutionMode.SingleStepNonBlocking;
-            if(blocking == isNonBlocking)
-            {
-                this.Log(LogLevel.Warning, "Changing current step configuration from {0} to {1}", mode, blocking.Value ? ExecutionMode.SingleStepBlocking : ExecutionMode.SingleStepNonBlocking);
-            }
-            blocking = blocking ?? mode != ExecutionMode.SingleStepNonBlocking;
-            ExecutionMode = blocking.Value ? ExecutionMode.SingleStepBlocking : ExecutionMode.SingleStepNonBlocking;
-            return blocking.Value;
         }
 
         protected virtual void DisposeInner(bool silent = false)
@@ -801,7 +784,7 @@ restart:
 
         protected virtual bool UpdateHaltedState(bool ignoreExecutionMode = false)
         {
-            var shouldBeHalted = (isHaltedRequested || (executionMode == ExecutionMode.SingleStepNonBlocking && !ignoreExecutionMode));
+            var shouldBeHalted = isHaltedRequested || (IsSingleStepMode && !IsSingleStepBlocking && !ignoreExecutionMode);
 
             if(shouldBeHalted == currentHaltedState)
             {
@@ -828,8 +811,10 @@ restart:
             set => skipInstructions = value;
         }
 
+        protected static bool IsSingleStepBlocking => EmulationManager.Instance.CurrentEmulation.SingleStepBlocking;
+
         protected bool InDebugMode => DebuggerConnected && ShouldEnterDebugMode && IsSingleStepMode;
-        protected bool IsSingleStepMode => executionMode == ExecutionMode.SingleStepNonBlocking || executionMode == ExecutionMode.SingleStepBlocking;
+        protected bool IsSingleStepMode => executionMode == ExecutionMode.SingleStep;
 
         protected bool shouldEnterDebugMode;
         protected bool neverWaitForInterrupt;

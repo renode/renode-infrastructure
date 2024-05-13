@@ -36,7 +36,7 @@ namespace Antmicro.Renode.Utilities.GDB
                 foreach(var cpu in commandsManager.ManagedCpus.Values)
                 {
                     cpu.Halted += OnHalted;
-                    cpu.ExecutionMode = blockOnStep ? ExecutionMode.SingleStepBlocking : ExecutionMode.SingleStepNonBlocking;
+                    cpu.ExecutionMode = ExecutionMode.SingleStep;
                     cpu.DebuggerConnected = true;
                 }
                 if(autostartEmulation && !EmulationManager.Instance.CurrentEmulation.IsStarted)
@@ -160,7 +160,7 @@ namespace Antmicro.Renode.Utilities.GDB
                 }
                 foreach(var cpu in commandsManager.ManagedCpus.Values)
                 {
-                    cpu.ExecutionMode = blockOnStep ? ExecutionMode.SingleStepBlocking : ExecutionMode.SingleStepNonBlocking;
+                    cpu.ExecutionMode = ExecutionMode.SingleStep;
                 }
                 return;
             }
