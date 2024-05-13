@@ -7,7 +7,9 @@
 using System.Collections.Generic;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Peripherals.IRQControllers;
 
 namespace Antmicro.Renode.Peripherals.IRQControllers.ARM_GenericInterruptControllerModel
 {
@@ -27,7 +29,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers.ARM_GenericInterruptControl
             }
         }
 
-        internal static bool TryWriteByteToDoubleWordCollection(DoubleWordRegisterCollection registers, long offset, uint value)
+        internal static bool TryWriteByteToDoubleWordCollection(DoubleWordRegisterCollection registers, long offset, uint value, ARM_GenericInterruptController gic)
         {
             AlignRegisterOffset(offset, DoubleWordRegister.DoubleWordWidth, out var alignedOffset, out var byteOffset);
             var registerExists = registers.TryRead(alignedOffset, out var currentValue);
@@ -39,7 +41,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers.ARM_GenericInterruptControl
             return registerExists;
         }
 
-        internal static bool TryReadByteFromDoubleWordCollection(DoubleWordRegisterCollection registers, long offset, out byte value)
+        internal static bool TryReadByteFromDoubleWordCollection(DoubleWordRegisterCollection registers, long offset, out byte value, ARM_GenericInterruptController gic)
         {
             AlignRegisterOffset(offset, DoubleWordRegister.DoubleWordWidth, out var alignedOffset, out var byteOffset);
             var registerExists = registers.TryRead(alignedOffset, out var registerValue);
@@ -47,12 +49,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers.ARM_GenericInterruptControl
             return registerExists;
         }
 
-        internal static bool TryWriteDoubleWordToQuadWordCollection(QuadWordRegisterCollection registers, long offset, uint value)
+        internal static bool TryWriteDoubleWordToQuadWordCollection(QuadWordRegisterCollection registers, long offset, uint value, ARM_GenericInterruptController gic)
         {
             AlignRegisterOffset(offset, QuadWordRegister.QuadWordWidth, out var alignedOffset, out var byteOffset);
             if(byteOffset % BitHelper.CalculateBytesCount(DoubleWordRegister.DoubleWordWidth) != 0)
             {
                 // Unaligned access is forbidden.
+                gic.Log(LogLevel.Warning, "Unaligned register write");
                 return false;
             }
             var registerExists = registers.TryRead(alignedOffset, out var currentValue);
@@ -64,12 +67,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers.ARM_GenericInterruptControl
             return registerExists;
         }
 
-        internal static bool TryReadDoubleWordFromQuadWordCollection(QuadWordRegisterCollection registers, long offset, out uint value)
+        internal static bool TryReadDoubleWordFromQuadWordCollection(QuadWordRegisterCollection registers, long offset, out uint value, ARM_GenericInterruptController gic)
         {
             AlignRegisterOffset(offset, QuadWordRegister.QuadWordWidth, out var alignedOffset, out var byteOffset);
             if(byteOffset % BitHelper.CalculateBytesCount(DoubleWordRegister.DoubleWordWidth) != 0)
             {
                 // Unaligned access is forbidden.
+                gic.Log(LogLevel.Warning, "Unaligned register read");
                 value = 0;
                 return false;
             }

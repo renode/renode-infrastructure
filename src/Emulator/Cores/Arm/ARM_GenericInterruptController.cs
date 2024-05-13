@@ -196,7 +196,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             LockExecuteAndUpdate(() =>
                 {
-                    var registerExists = IsDistributorByteAccessible(offset) && Utils.TryWriteByteToDoubleWordCollection(distributorDoubleWordRegisters, offset, value);
+                    var registerExists = IsDistributorByteAccessible(offset) && Utils.TryWriteByteToDoubleWordCollection(distributorDoubleWordRegisters, offset, value, this);
                     LogWriteAccess(registerExists, value, "Distributor (byte access)", offset, (DistributorRegisters)offset);
                 }
             );
@@ -208,7 +208,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             byte value = 0;
             LockExecuteAndUpdate(() =>
                 {
-                    var registerExists = IsDistributorByteAccessible(offset) && Utils.TryReadByteFromDoubleWordCollection(distributorDoubleWordRegisters, offset, out value);
+                    var registerExists = IsDistributorByteAccessible(offset) && Utils.TryReadByteFromDoubleWordCollection(distributorDoubleWordRegisters, offset, out value, this);
                     LogReadAccess(registerExists, value, "Distributor (byte access)", offset, (DistributorRegisters)offset);
                 }
             );
@@ -222,7 +222,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 {
                     var registerExists = TryWriteRegisterSecurityView(offset, value, distributorDoubleWordRegisters,
                         distributorRegistersSecureView, distributorRegistersNonSecureView, distributorRegistersDisabledSecurityView);
-                    registerExists = registerExists || Utils.TryWriteDoubleWordToQuadWordCollection(distributorQuadWordRegisters, offset, value);
+                    registerExists = registerExists || Utils.TryWriteDoubleWordToQuadWordCollection(distributorQuadWordRegisters, offset, value, this);
                     LogWriteAccess(registerExists, value, "Distributor", offset, (DistributorRegisters)offset);
                 }
             );
@@ -236,7 +236,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 {
                     var registerExists = TryReadRegisterSecurityView(offset, out value, distributorDoubleWordRegisters,
                         distributorRegistersSecureView, distributorRegistersNonSecureView, distributorRegistersDisabledSecurityView);
-                    registerExists = registerExists || Utils.TryReadDoubleWordFromQuadWordCollection(distributorQuadWordRegisters, offset, out value);
+                    registerExists = registerExists || Utils.TryReadDoubleWordFromQuadWordCollection(distributorQuadWordRegisters, offset, out value, this);
                     LogReadAccess(registerExists, value, "Distributor", offset, (DistributorRegisters)offset);
                 }
             );

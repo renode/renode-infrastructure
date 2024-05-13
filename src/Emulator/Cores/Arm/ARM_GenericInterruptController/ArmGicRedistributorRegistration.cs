@@ -34,7 +34,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 gic.LockExecuteAndUpdate(() =>
                     {
-                        var registerExists = IsByteAccessible(offset) && Utils.TryWriteByteToDoubleWordCollection(entry.RedistributorDoubleWordRegisters, offset, value);
+                        var registerExists = IsByteAccessible(offset) && Utils.TryWriteByteToDoubleWordCollection(entry.RedistributorDoubleWordRegisters, offset, value, gic);
                         gic.LogWriteAccess(registerExists, value, "Redistributor (byte access)", offset, (ARM_GenericInterruptController.RedistributorRegisters)offset);
                     }
                 );
@@ -49,7 +49,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 byte value = 0;
                 gic.LockExecuteAndUpdate(() =>
                     {
-                        var registerExists = IsByteAccessible(offset) && Utils.TryReadByteFromDoubleWordCollection(entry.RedistributorDoubleWordRegisters, offset, out value);
+                        var registerExists = IsByteAccessible(offset) && Utils.TryReadByteFromDoubleWordCollection(entry.RedistributorDoubleWordRegisters, offset, out value, gic);
                         gic.LogReadAccess(registerExists, value, "Redistributor (byte access)", offset, (ARM_GenericInterruptController.RedistributorRegisters)offset);
                     }
                 );
@@ -66,7 +66,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     {
                         // Only a few virtual quad word registers can't be double word accessed, assume all accesses are valid.
                         var registerExists = entry.RedistributorDoubleWordRegisters.TryWrite(offset, value)
-                            || Utils.TryWriteDoubleWordToQuadWordCollection(entry.RedistributorQuadWordRegisters, offset, value);
+                            || Utils.TryWriteDoubleWordToQuadWordCollection(entry.RedistributorQuadWordRegisters, offset, value, gic);
                         gic.LogWriteAccess(registerExists, value, "Redistributor", offset, (ARM_GenericInterruptController.RedistributorRegisters)offset);
                     }
                 );
@@ -83,7 +83,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     {
                         // Only a few virtual quad word registers can't be double word accessed, assume all accesses are valid.
                         var registerExists = entry.RedistributorDoubleWordRegisters.TryRead(offset, out value)
-                            || Utils.TryReadDoubleWordFromQuadWordCollection(entry.RedistributorQuadWordRegisters, offset, out value);
+                            || Utils.TryReadDoubleWordFromQuadWordCollection(entry.RedistributorQuadWordRegisters, offset, out value, gic);
                         gic.LogReadAccess(registerExists, value, "Redistributor", offset, (ARM_GenericInterruptController.RedistributorRegisters)offset);
                     }
                 );
