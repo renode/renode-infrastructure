@@ -414,7 +414,7 @@ namespace Antmicro.Renode.UserInterface
                         writer.WriteLine("\nPossible values are:");
                         foreach(var entry in Enum.GetValues(result.GetType()))
                         {
-                            writer.WriteLine(string.Format("\t{0} ({1})", entry, /*(int)*/entry));
+                            writer.WriteLine(string.Format("\t{0}", entry));
                         }
                         writer.WriteLine();
                     }
