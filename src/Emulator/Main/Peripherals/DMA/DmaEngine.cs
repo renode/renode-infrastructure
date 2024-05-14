@@ -28,8 +28,10 @@ namespace Antmicro.Renode.Peripherals.DMA
                 WriteAddress = request.Destination.Address,
             };
 
+            var readLengthInBytes = (int)request.ReadTransferType;
+            var writeLengthInBytes = (int)request.WriteTransferType;
             // some sanity checks
-            if((request.Size % (int)request.ReadTransferType) != 0 || (request.Size % (int)request.WriteTransferType) != 0)
+            if((request.Size % readLengthInBytes) != 0 || (request.Size % writeLengthInBytes) != 0)
             {
                 throw new ArgumentException("Request size is not aligned properly to given read or write transfer type (or both).");
             }
@@ -45,7 +47,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 var sourceAddress = request.Source.Address.Value;
                 whatIsAt = sysbus.WhatIsAt(sourceAddress, context);
                 //allow ReadBytes if the read memory is without gaps
-                if((whatIsAt == null || whatIsAt.Peripheral is MappedMemory) && (int)request.ReadTransferType == request.SourceIncrementStep)
+                if((whatIsAt == null || whatIsAt.Peripheral is MappedMemory) && readLengthInBytes == request.SourceIncrementStep)
                 {
                     if(request.IncrementReadAddress)
                     {
@@ -54,7 +56,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     }
                     else
                     {
-                        sysbus.ReadBytes(sourceAddress, (int)request.ReadTransferType, buffer, 0, context: context);
+                        sysbus.ReadBytes(sourceAddress, readLengthInBytes, buffer, 0, context: context);
                     }
                 }
                 else if(whatIsAt != null)
@@ -81,7 +83,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                         default:
                             throw new ArgumentOutOfRangeException($"Requested read transfer size: {request.ReadTransferType} is not supported by DmaEngine");
                         }
-                        transferred += (int)request.ReadTransferType;
+                        transferred += readLengthInBytes;
                         if(request.IncrementReadAddress)
                         {
                             offset += request.SourceIncrementStep;
@@ -99,7 +101,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             {
                 var destinationAddress = request.Destination.Address.Value;
                 whatIsAt = sysbus.WhatIsAt(destinationAddress);
-                if((whatIsAt == null || whatIsAt.Peripheral is MappedMemory) && (int)request.WriteTransferType == request.DestinationIncrementStep)
+                if((whatIsAt == null || whatIsAt.Peripheral is MappedMemory) && writeLengthInBytes == request.DestinationIncrementStep)
                 {
                     if(request.IncrementWriteAddress)
                     {
@@ -109,8 +111,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                     else
                     {
                         // if the place to write is memory and we're not incrementing address, effectively only the last element is written
-                        var skipCount = request.Size - ((int)request.WriteTransferType);
-                        DebugHelper.Assert(skipCount > 0);
+                        var skipCount = (request.Size == writeLengthInBytes) ? 0 : request.Size - writeLengthInBytes;
+                        DebugHelper.Assert((skipCount + request.Size) <= buffer.Length);
                         sysbus.WriteBytes(buffer.Skip(skipCount).ToArray(), destinationAddress, context: context);
                     }
                 }
@@ -137,7 +139,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                         default:
                             throw new ArgumentOutOfRangeException($"Requested write transfer size: {request.WriteTransferType} is not supported by DmaEngine");
                         }
-                        transferred += (int)request.WriteTransferType;
+                        transferred += writeLengthInBytes;
                         if(request.IncrementWriteAddress)
                         {
                             offset += request.DestinationIncrementStep;
