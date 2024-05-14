@@ -271,6 +271,16 @@ namespace Antmicro.Renode.Peripherals.Bus
             ParentController.Register(peripheral, registrationPoint);
         }
 
+        public virtual void EnableAllTranslations(bool enable = true)
+        {
+            ParentController.EnableAllTranslations(enable);
+        }
+
+        public virtual void EnableAllTranslations(IBusPeripheral busPeripheral, bool enable = true)
+        {
+            ParentController.EnableAllTranslations(busPeripheral, enable);
+        }
+
         public void MoveRegistrationWithinContext(IBusPeripheral peripheral, ulong newAddress, ICPU context, Func<IEnumerable<IBusRegistered<IBusPeripheral>>, IBusRegistered<IBusPeripheral>> selector = null)
         {
             ParentController.MoveRegistrationWithinContext(peripheral, newAddress, context, selector);

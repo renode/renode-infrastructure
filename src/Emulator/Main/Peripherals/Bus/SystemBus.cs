@@ -288,28 +288,34 @@ namespace Antmicro.Renode.Peripherals.Bus
                     }
                     if(enable)
                     {
-                        pam.WriteByte = new BusAccess.ByteWriteMethod(new WriteLoggingWrapper<byte>(busPeripheral, new Action<long, byte>(pam.WriteByte)).Write);
-                        pam.WriteWord = new BusAccess.WordWriteMethod(new WriteLoggingWrapper<ushort>(busPeripheral, new Action<long, ushort>(pam.WriteWord)).Write);
-                        pam.WriteDoubleWord = new BusAccess.DoubleWordWriteMethod(new WriteLoggingWrapper<uint>(busPeripheral, new Action<long, uint>(pam.WriteDoubleWord)).Write);
-                        pam.WriteQuadWord = new BusAccess.QuadWordWriteMethod(new WriteLoggingWrapper<ulong>(busPeripheral, new Action<long, ulong>(pam.WriteQuadWord)).Write);
-                        pam.ReadByte = new BusAccess.ByteReadMethod(new ReadLoggingWrapper<byte>(busPeripheral, new Func<long, byte>(pam.ReadByte)).Read);
-                        pam.ReadWord = new BusAccess.WordReadMethod(new ReadLoggingWrapper<ushort>(busPeripheral, new Func<long, ushort>(pam.ReadWord)).Read);
-                        pam.ReadDoubleWord = new BusAccess.DoubleWordReadMethod(new ReadLoggingWrapper<uint>(busPeripheral, new Func<long, uint>(pam.ReadDoubleWord)).Read);
-                        pam.ReadQuadWord = new BusAccess.QuadWordReadMethod(new ReadLoggingWrapper<ulong>(busPeripheral, new Func<long, ulong>(pam.ReadQuadWord)).Read);
+                        pam.WrapMethods(typeof(ReadLoggingWrapper<>), typeof(WriteLoggingWrapper<>));
                         return pam;
                     }
                     else
                     {
-                        pam.WriteByte = new BusAccess.ByteWriteMethod(((WriteLoggingWrapper<byte>)pam.WriteByte.Target).OriginalMethod);
-                        pam.WriteWord = new BusAccess.WordWriteMethod(((WriteLoggingWrapper<ushort>)pam.WriteWord.Target).OriginalMethod);
-                        pam.WriteDoubleWord = new BusAccess.DoubleWordWriteMethod(((WriteLoggingWrapper<uint>)pam.WriteDoubleWord.Target).OriginalMethod);
-                        pam.WriteQuadWord = new BusAccess.QuadWordWriteMethod(((WriteLoggingWrapper<ulong>)pam.WriteQuadWord.Target).OriginalMethod);
-                        pam.ReadByte = new BusAccess.ByteReadMethod(((ReadLoggingWrapper<byte>)pam.ReadByte.Target).OriginalMethod);
-                        pam.ReadWord = new BusAccess.WordReadMethod(((ReadLoggingWrapper<ushort>)pam.ReadWord.Target).OriginalMethod);
-                        pam.ReadDoubleWord = new BusAccess.DoubleWordReadMethod(((ReadLoggingWrapper<uint>)pam.ReadDoubleWord.Target).OriginalMethod);
-                        pam.ReadQuadWord = new BusAccess.QuadWordReadMethod(((ReadLoggingWrapper<ulong>)pam.ReadQuadWord.Target).OriginalMethod);
+                        pam.RemoveWrappersOfType(typeof(ReadLoggingWrapper<>), typeof(WriteLoggingWrapper<>));
                         return pam;
                     }
+                });
+            }
+        }
+
+        public void EnableAllTranslations(bool enable = true)
+        {
+            foreach(var p in allPeripherals.SelectMany(x => x.Peripherals))
+            {
+                EnableAllTranslations(p.Peripheral, enable);
+            }
+        }
+
+        public void EnableAllTranslations(IBusPeripheral busPeripheral, bool enable = true)
+        {
+            foreach(var peripherals in allPeripherals)
+            {
+                peripherals.VisitAccessMethods(busPeripheral, pam =>
+                {
+                    pam.EnableAllTranslations(enable, Endianess);
+                    return pam;
                 });
             }
         }

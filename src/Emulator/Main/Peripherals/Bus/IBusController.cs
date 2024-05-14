@@ -88,6 +88,9 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         SymbolLookup GetLookup(ICPU context = null);
 
+        void EnableAllTranslations(bool enable = true);
+        void EnableAllTranslations(IBusPeripheral busPeripheral, bool enable = true);
+
         IMachine Machine { get; }
 
         bool IsMultiCore { get; }
