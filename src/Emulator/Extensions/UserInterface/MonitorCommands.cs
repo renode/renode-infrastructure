@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals;
+using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Collections;
 using System.Linq;
@@ -67,6 +68,14 @@ namespace Antmicro.Renode.UserInterface
             }
             builder.AppendLine();
 
+            if(type == typeof(ExecutionMode))
+            {
+                var emulation = EmulationManager.Instance.CurrentEmulation;
+                var isBlocking = emulation.SingleStepBlocking;
+                var blockingString = isBlocking ? "blocking" : "non-blocking";
+                builder.AppendLine($"{nameof(ExecutionMode.SingleStep)} is {blockingString}. It can be changed with:");
+                builder.AppendLine($"\t{EmulationToken} {nameof(emulation.SingleStepBlocking)} {!isBlocking}");
+            }
             return builder.ToString();
         }
 

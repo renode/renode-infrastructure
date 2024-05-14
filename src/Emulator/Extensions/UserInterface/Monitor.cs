@@ -205,7 +205,7 @@ namespace Antmicro.Renode.UserInterface
         {
             Bind(Core.Machine.MachineKeyword, () => Machine);
             BindStatic("connector", () => emulationManager.CurrentEmulation.Connector);
-            BindStatic("emulation", () => Emulation);
+            BindStatic(EmulationToken, () => Emulation);
             BindStatic("plugins", () => TypeManager.Instance.PluginManager);
             BindStatic("EmulationManager", () => emulationManager);
 
@@ -1191,6 +1191,8 @@ namespace Antmicro.Renode.UserInterface
         private const string globalVariablePrefix = "global.";
 
         private const string ConfigurationSection = "monitor";
+
+        private const string EmulationToken = "emulation";
 
         private const string MultiLineTerminator = @"""""""";
 
