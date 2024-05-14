@@ -177,7 +177,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 return logTranslationBlockFetchEnabled;
             }
         }
-       
+
         // This value should only be read in CPU hooks (during execution of translated code).
         public uint CurrentBlockDisassemblyFlags => TlibGetCurrentTbDisasFlags();
 
