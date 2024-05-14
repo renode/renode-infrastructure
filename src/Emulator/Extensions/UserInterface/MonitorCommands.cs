@@ -23,6 +23,7 @@ using Antmicro.Renode.UserInterface.Commands;
 using Antmicro.Renode.UserInterface.Exceptions;
 using System.Runtime.InteropServices;
 using System.Globalization;
+using System.Text;
 
 namespace Antmicro.Renode.UserInterface
 {
@@ -49,6 +50,24 @@ namespace Antmicro.Renode.UserInterface
                 sanitizedFile = sanitizedFile.Replace("/ ", "\\ ");
             }
             return sanitizedFile;
+        }
+
+        private static string GetPossibleEnumValues(Type type)
+        {
+            if(!type.IsEnum)
+            {
+                throw new ArgumentException("Type is not Enum!", nameof(type));
+            }
+
+            var builder = new StringBuilder();
+            builder.AppendLine("Possible values are:");
+            foreach(var name in Enum.GetNames(type))
+            {
+                builder.AppendLine($"\t{name}");
+            }
+            builder.AppendLine();
+
+            return builder.ToString();
         }
 
         private bool RunCommand(ICommandInteraction writer, Command command, IList<Token> parameters)
@@ -411,12 +430,8 @@ namespace Antmicro.Renode.UserInterface
 
                     if(result.GetType().IsEnum)
                     {
-                        writer.WriteLine("\nPossible values are:");
-                        foreach(var entry in Enum.GetValues(result.GetType()))
-                        {
-                            writer.WriteLine(string.Format("\t{0}", entry));
-                        }
                         writer.WriteLine();
+                        writer.WriteLine(GetPossibleEnumValues(result.GetType()));
                     }
                 }
             }
