@@ -30,6 +30,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             var readLengthInBytes = (int)request.ReadTransferType;
             var writeLengthInBytes = (int)request.WriteTransferType;
+
             // some sanity checks
             if((request.Size % readLengthInBytes) != 0 || (request.Size % writeLengthInBytes) != 0)
             {
@@ -67,6 +68,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
             else if(whatIsAtSource != null)
             {
+                // Read from peripherals
                 var transferred = 0;
                 var offset = 0UL;
                 while(transferred < request.Size)
@@ -111,12 +113,36 @@ namespace Antmicro.Renode.Peripherals.DMA
             {
                 if(request.IncrementWriteAddress)
                 {
-                    sysbus.WriteBytes(buffer, destinationAddress, context: context);
+                    if(request.IncrementReadAddress || !isSourceContinuousMemory)
+                    {
+                        // Transfer Units |  1  |  2  |  3  |  4  |
+                        // Source         |  A  |  B  |  C  |  D  |
+                        // Destination    |  A  |  B  |  C  |  D  |
+                        sysbus.WriteBytes(buffer, destinationAddress, context: context);
+                    }
+                    else
+                    {
+                        // When writing memory with IncrementReadAddress unset all destination units are written with the first source unit
+                        // Transfer Units |  1  |  2  |  3  |  4  |
+                        // Source         |  A  |  B  |  C  |  D  |
+                        // Destination    |  A  |  A  |  A  |  A  |
+                        var chunkStartOffset = 0UL;
+                        var chunk = buffer.Take(writeLengthInBytes).ToArray();
+                        while(chunkStartOffset < (ulong)request.Size)
+                        {
+                            var writeAddress = destinationAddress + chunkStartOffset;
+                            sysbus.WriteBytes(chunk, writeAddress, context: context);
+                            chunkStartOffset += (ulong)writeLengthInBytes;
+                        }
+                    }
                     response.WriteAddress += (ulong)request.Size;
                 }
                 else
                 {
-                    // if the place to write is memory and we're not incrementing address, effectively only the last element is written
+                    // When writing to memory with IncrementWriteAddress unset, effectively, only the last unit is written with the last unit of source
+                    // Transfer Units |  1  |  2  |  3  |  4  |
+                    // Source         |  A  |  B  |  C  |  D  |
+                    // Destination    |  D  |     |     |     |
                     var skipCount = (request.Size == writeLengthInBytes) ? 0 : request.Size - writeLengthInBytes;
                     DebugHelper.Assert((skipCount + request.Size) <= buffer.Length);
                     sysbus.WriteBytes(buffer.Skip(skipCount).ToArray(), destinationAddress, context: context);
@@ -124,6 +150,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
             else if(whatIsAtDestination != null)
             {
+                // Write to peripheral
                 var transferred = 0;
                 var offset = 0UL;
                 while(transferred < request.Size)
