@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -7,6 +7,7 @@
 using System;
 using System.Linq;
 using Antmicro.Renode.Logging;
+using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Utilities.GDB.Commands
 {
@@ -56,7 +57,25 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             int startingIndex = 0;
             foreach(var access in accesses)
             {
-                manager.Machine.SystemBus.WriteBytes(data, access.Address, startingIndex, (long)access.Length, context: manager.Cpu);
+                var val = BitHelper.ToUInt64(data, startingIndex, (int)access.Length, reverse: manager.Cpu.Endianness == Endianess.LittleEndian);
+                switch(access.Length)
+                {
+                    case 1:
+                        manager.Machine.SystemBus.WriteByte(access.Address, (byte)val, context: manager.Cpu);
+                        break;
+                    case 2:
+                        manager.Machine.SystemBus.WriteWord(access.Address, (ushort)val, context: manager.Cpu);
+                        break;
+                    case 4:
+                        manager.Machine.SystemBus.WriteDoubleWord(access.Address, (uint)val, context: manager.Cpu);
+                        break;
+                    case 8:
+                        manager.Machine.SystemBus.WriteQuadWord(access.Address, (ulong)val, context: manager.Cpu);
+                        break;
+                    default:
+                        manager.Machine.SystemBus.WriteBytes(data, access.Address, startingIndex, (long)access.Length, context: manager.Cpu);
+                        break;
+                }
                 startingIndex += (int)access.Length;
             }
 
