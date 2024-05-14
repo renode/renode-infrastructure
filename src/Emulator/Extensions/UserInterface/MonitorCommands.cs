@@ -889,7 +889,10 @@ namespace Antmicro.Renode.UserInterface
                         return enumValue;
                     }
                 }
-                throw new FormatException(String.Format("Enum value {0} is not defined for {1}!", value, type.Name));
+                throw new FormatException(String.Format(
+                    "Enum value {0} is not defined for {1}!\n\n{2}",
+                    value, type.Name, GetPossibleEnumValues(type)
+                ));
             }
             if(underlyingType != null)
             {
