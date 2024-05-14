@@ -874,22 +874,22 @@ namespace Antmicro.Renode.UserInterface
             }//intentionally no else (may be iconvertible or enum)
             if(type.IsEnum)
             {
-                var valueString = value as string;
-                if(valueString != null)
+                if(value is string valueString)
                 {
-                    if(!Enum.IsDefined(type, value))
+                    if(Enum.IsDefined(type, value))
                     {
-                        throw new FormatException(String.Format("Enum value {0} is not defined for {1}!", value, type.Name));
+                        return Enum.Parse(type, valueString);
                     }
-                    return Enum.Parse(type, valueString);
                 }
-                var val = Enum.ToObject(type, value);
-
-                if(!Enum.IsDefined(type, val) && !type.IsDefined(typeof(FlagsAttribute), false))
+                else
                 {
-                    throw new FormatException(String.Format("Enum value {0} is not defined for {1}!", value, type.Name));
+                    var enumValue = Enum.ToObject(type, value);
+                    if(Enum.IsDefined(type, enumValue) || type.IsDefined(typeof(FlagsAttribute), false))
+                    {
+                        return enumValue;
+                    }
                 }
-                return val;
+                throw new FormatException(String.Format("Enum value {0} is not defined for {1}!", value, type.Name));
             }
             if(underlyingType != null)
             {
