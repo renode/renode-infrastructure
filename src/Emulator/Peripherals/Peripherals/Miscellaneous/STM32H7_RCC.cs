@@ -117,6 +117,15 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 }
             };
 
+            for(var i = 0; i < 3; ++i)
+            {
+                registersMap.Add((long)Registers.PLL1FractionalDivider + i * 0x8, new DoubleWordRegister(this, 0x0)
+                    .WithReservedBits(0, 3)
+                    .WithValueField(3, 13, name: $"FRACN{i + 1}")
+                    .WithReservedBits(16, 16)
+                );
+            }
+
             registers = new DoubleWordRegisterCollection(this, registersMap);
         }
 
@@ -146,6 +155,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             ClockConfiguration = 0x10,
             PLLClockSourceSelect = 0x28,
             PLLConfigurationRegister = 0x2c,
+            PLL1DividersConfiguration = 0x30,
+            PLL1FractionalDivider = 0x34,
+            PLL2DividersConfiguration = 0x38,
+            PLL2FractionalDivider = 0x3C,
+            PLL3DividersConfiguration = 0x40,
+            PLL3FractionalDivider = 0x44,
             // ...
             BackupDomainControl = 0x70,
             ClockControlAndStatus = 0x74,
