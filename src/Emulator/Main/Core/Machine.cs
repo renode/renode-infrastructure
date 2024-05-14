@@ -1083,6 +1083,9 @@ namespace Antmicro.Renode.Core
             };
 
             ClockSource.AddClockEntry(new ClockEntry(delay.Ticks, (long)TimeInterval.TicksPerSecond, clockEntryHandler, this, name, workMode: WorkMode.OneShot));
+
+            // ask CPU to return to C# to recalculate internal timers and make the scheduled action trigger as soon as possible
+            (cpu as IControllableCPU)?.RequestReturn();
         }
 
         // This method will only be effective when called from the CPU thread with the pause guard held.
