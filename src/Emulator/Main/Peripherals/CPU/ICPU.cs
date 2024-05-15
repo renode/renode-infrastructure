@@ -28,7 +28,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         /// by the object.
         /// </summary>
         bool OnPossessedThread { get; }
-        ulong ExecutedInstructions {get;}
+        ulong ExecutedInstructions { get; }
         void SyncTime();
         event Action<HaltArguments> Halted;
         TimeHandle TimeHandle { get; }
