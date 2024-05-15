@@ -3181,10 +3181,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             InterruptDeactivate = 0x1000, // GICC_DIR
         }
 
+        // Those are used for both AArch32 and AArch64 registers. For AArch32,
+        // the encoding is slightly modified (see encode_as_aarch64_register
+        // in tlib for details) and the names are mostly the same except for
+        // the '_ELx' suffix.
         public enum CPUInterfaceSystemRegisters : long
         {
             // Enum values are created from op0, op1, CRn, CRm and op2 fields of the MRS instruction
-            SystemRegisterEnableEL3 = 0xF665, // ICC_SRE_EL3
+            SystemRegisterEnableEL3 = 0xF665, // ICC_SRE_EL3 / ICC_MSRE
             SystemRegisterEnableEL1 = 0xC665, // ICC_SRE_EL1
             PriorityMask = 0xC230, // ICC_PMR_EL1
             GroupEnable1 = 0xC667, // ICC_IGRPEN1_EL1
@@ -3200,7 +3204,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             PriorityBinaryPointGroup0 = 0xC643, // ICC_BPR0_EL1
             PriorityBinaryPointGroup1 = 0xC663, // ICC_BPR1_EL1
             ControlEL1 = 0xC664, // ICC_CTLR_EL1
-            ControlEL3 = 0xF664, // ICC_CTLR_EL3
+            ControlEL3 = 0xF664, // ICC_CTLR_EL3 / ICC_MCTLR
             InterruptDeactivate = 0xC659, // ICC_DIR_EL1
             InterruptEndGroup0 = 0xC641, // ICC_EOIR0_EL1
             InterruptEndGroup1 = 0xC661, // ICC_EOIR1_EL1
@@ -3209,7 +3213,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             InterruptAcknowledgeGroup0 = 0xC640, // ICC_IAR0_EL1
             InterruptAcknowledgeGroup1 = 0xC660, // ICC_IAR1_EL1
             GroupEnable0 = 0xC666, // ICC_IGRPEN0_EL1
-            GroupEnable1EL3 = 0xF667, // ICC_IGRPEN1_EL3
+            GroupEnable1EL3 = 0xF667, // ICC_IGRPEN1_EL3 / ICC_MGRPEN1
             InterruptAcknowladgeNonMaskable = 0xC64D, // ICC_NMIAR1_EL1
             RunningPriority = 0xC65B, // ICC_RPR_EL1
             SoftwareGeneratedInterruptGroup0Generate = 0xC65F, // ICC_SGI0R_EL1
