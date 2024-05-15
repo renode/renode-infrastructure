@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -37,7 +37,7 @@ namespace Antmicro.Renode.UserInterface.Commands
         {
             PrintCurrentLevels(writer);
         }
-      
+
         [Runnable]
         public void Run([Values(-1L, 0L, 1L, 2L, 3L)] DecimalIntegerToken level)
         {
