@@ -72,6 +72,7 @@
     <Compile Include="RiscV\VectorInstructionsOpcodes.cs" />
     <Compile Include="RiscV\RiscvOpcodesParser.cs" />
     <Compile Include="RiscV\Andes_AndeStarV5Extension.cs" />
+    <Compile Include="RiscV\CoreLocalInterruptController.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="RiscV\RiscV32Registers.tt">
