@@ -128,6 +128,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
+        public override string ToString()
+        {
+            return $"{base.ToString()} GIC redistributor, attached CPU: {cpu}";
+        }
+
         private bool IsByteAccessible(long offset)
         {
             const long maxByteOffset = 3;
