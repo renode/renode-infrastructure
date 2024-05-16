@@ -28,6 +28,12 @@ namespace Antmicro.Renode.UnitTests.Mocks
         {
         }
 
+        public override ExecutionResult ExecuteInstructions(ulong numberOfInstructionsToExecute, out ulong numberOfExecutedInstructions)
+        {
+            numberOfExecutedInstructions = 0;
+            return ExecutionResult.Interrupted;
+        }
+
         public override string Architecture => "empty";
 
         public override ulong ExecutedInstructions => 0;
@@ -41,12 +47,6 @@ namespace Antmicro.Renode.UnitTests.Mocks
             set
             {
             }
-        }
-
-        protected override ExecutionResult ExecuteInstructions(ulong numberOfInstructionsToExecute, out ulong numberOfExecutedInstructions)
-        {
-            numberOfExecutedInstructions = 0;
-            return ExecutionResult.Interrupted;
         }
     }
 }

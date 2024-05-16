@@ -2266,7 +2266,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             ExternalMmuFault = 0x10006,
         }
 
-        protected override ExecutionResult ExecuteInstructions(ulong numberOfInstructionsToExecute, out ulong numberOfExecutedInstructions)
+        public override ExecutionResult ExecuteInstructions(ulong numberOfInstructionsToExecute, out ulong numberOfExecutedInstructions)
         {
             ActivateNewHooks();
 

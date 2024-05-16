@@ -203,6 +203,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             // by default do nothing
         }
 
+        public abstract ExecutionResult ExecuteInstructions(ulong numberOfInstructionsToExecute, out ulong numberOfExecutedInstructions);
+
         public abstract string Architecture { get; }
 
         public Endianess Endianness { get; }
@@ -825,8 +827,6 @@ restart:
             get => skipInstructions;
             set => skipInstructions = value;
         }
-
-        protected abstract ExecutionResult ExecuteInstructions(ulong numberOfInstructionsToExecute, out ulong numberOfExecutedInstructions);
 
         protected bool InDebugMode => DebuggerConnected && ShouldEnterDebugMode && IsSingleStepMode;
         protected bool IsSingleStepMode => executionMode == ExecutionMode.SingleStepNonBlocking || executionMode == ExecutionMode.SingleStepBlocking;

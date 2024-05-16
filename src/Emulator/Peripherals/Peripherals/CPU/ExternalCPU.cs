@@ -72,24 +72,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             return 0;
         }
 
-        public override string Architecture => "Unknown";
-
-        public override RegisterValue PC
-        {
-            get
-            {
-                return GetRegisterValue32(PCRegisterId);
-            }
-
-            set
-            {
-                SetRegisterValue32(PCRegisterId, value);
-            }
-        }
-
-        public override ulong ExecutedInstructions => totalExecutedInstructions;
-
-        protected override ExecutionResult ExecuteInstructions(ulong numberOfInstructionsToExecute, out ulong numberOfExecutedInstructions)
+        public override ExecutionResult ExecuteInstructions(ulong numberOfInstructionsToExecute, out ulong numberOfExecutedInstructions)
         {
             instructionsExecutedThisRound = 0UL;
 
@@ -112,6 +95,23 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             return ExecutionResult.Ok;
         }
+
+        public override string Architecture => "Unknown";
+
+        public override RegisterValue PC
+        {
+            get
+            {
+                return GetRegisterValue32(PCRegisterId);
+            }
+
+            set
+            {
+                SetRegisterValue32(PCRegisterId, value);
+            }
+        }
+
+        public override ulong ExecutedInstructions => totalExecutedInstructions;
 
         private ulong instructionsExecutedThisRound;
         private ulong totalExecutedInstructions;
