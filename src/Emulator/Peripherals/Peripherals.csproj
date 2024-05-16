@@ -693,6 +693,7 @@
     <Compile Include="Peripherals\CAN\S32K3XX_FlexCAN\S32K3XX_FlexCAN_Structures.cs" />
     <Compile Include="Peripherals\CAN\S32K3XX_FlexCAN\S32K3XX_FlexCAN.cs" />
     <Compile Include="Peripherals\Miscellaneous\ZynqMP_IPI.cs" />
+    <Compile Include="Peripherals\Miscellaneous\ZynqMP_PlatformManagementUnit.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>

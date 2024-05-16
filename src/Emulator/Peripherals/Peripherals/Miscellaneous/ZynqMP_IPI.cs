@@ -8,14 +8,16 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.IRQControllers;
 using Antmicro.Renode.Peripherals.Memory;
+using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
-    public class ZynqMP_IPI : BasicDoubleWordPeripheral, IKnownSize, INumberedGPIOOutput
+    public class ZynqMP_IPI : BasicDoubleWordPeripheral, IKnownSize, INumberedGPIOOutput, IPeripheralRegister<ZynqMP_PlatformManagementUnit, NullRegistrationPoint>
     {
         public static long GetRegisterOffset(ChannelId channelId, RegisterOffset registerOffset)
         {
@@ -87,6 +89,23 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 gpio.Value.Unset();
             }
+        }
+
+        public void Register(ZynqMP_PlatformManagementUnit peripheral, NullRegistrationPoint registrationPoint)
+        {
+            if(pmu != null)
+            {
+                throw new RegistrationException("A PMU is already registered.");
+            }
+            pmu = peripheral;
+            pmu.RegisterIPI(this);
+            machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
+        }
+
+        public void Unregister(ZynqMP_PlatformManagementUnit peripheral)
+        {
+            pmu = null;
+            machine.UnregisterAsAChildOf(this, peripheral);
         }
 
         public long Size => 0x80000;
@@ -206,6 +225,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         private readonly Channel[] channels;
+
+        private ZynqMP_PlatformManagementUnit pmu;
 
         private const int NrOfChannels = 11;
 
