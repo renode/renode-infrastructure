@@ -22,9 +22,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 {
     public class ArmGicRedistributorRegistration : BusParametrizedRegistration
     {
-        public ArmGicRedistributorRegistration(ulong address, IARMSingleSecurityStateCPU cpu) : base(address, 0x20000, null)
+        public ArmGicRedistributorRegistration(IARMSingleSecurityStateCPU attachedCPU, ulong address, ICPU visibleTo = null) : base(address, 0x20000, visibleTo)
         {
-            this.cpu = cpu;
+            this.cpu = attachedCPU;
         }
 
         public override Action<long, byte> GetWriteByteMethod(IBusPeripheral peripheral)
