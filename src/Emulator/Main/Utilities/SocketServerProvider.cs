@@ -67,7 +67,7 @@ namespace Antmicro.Renode.Utilities
             }
             socket?.Close();
             stopRequested = true;
-            cancellationToken.Cancel();
+            cancellationToken?.Cancel();
 
             var currentThreadId = Thread.CurrentThread.ManagedThreadId;
             if(readerThread?.ManagedThreadId != currentThreadId)
