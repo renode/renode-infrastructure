@@ -7,7 +7,6 @@
 //
 using System;
 using System.Linq;
-using Antmicro.Renode.Core;
 using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Memory;
