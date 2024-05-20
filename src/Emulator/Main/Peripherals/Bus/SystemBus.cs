@@ -1990,8 +1990,6 @@ namespace Antmicro.Renode.Peripherals.Bus
         private const string NonExistingWrite = "Write{2} to non existing peripheral at 0x{0:X}, value 0x{1:X}.";
         private const string IOExceptionMessage = "I/O error while loading ELF: {0}.";
         private const string CantFindCpuIdMessage = "Can't verify current CPU in the given context.";
-        private const bool Overlap = true;
-        // TODO
 
         private int unexpectedReads;
         private int unexpectedWrites;
