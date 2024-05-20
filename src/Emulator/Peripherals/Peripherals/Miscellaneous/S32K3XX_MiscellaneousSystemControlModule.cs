@@ -1,21 +1,31 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class S32K3XX_MiscellaneousSystemControlModule : BasicDoubleWordPeripheral, IWordPeripheral, IKnownSize,
-        IProvidesRegisterCollection<WordRegisterCollection>
+        IProvidesRegisterCollection<WordRegisterCollection>, INumberedGPIOOutput
     {
         public S32K3XX_MiscellaneousSystemControlModule(IMachine machine) : base(machine)
         {
             wordRegisterCollection = new WordRegisterCollection(this);
+            var connections = new Dictionary<int, IGPIO>();
+            for(var i = 0; i < InterruptRouterRegisterCount; i++)
+            {
+                connections[i] = new GPIO();
+            }
+            Connections = new ReadOnlyDictionary<int, IGPIO>(connections);
             DefineRegisters();
         }
 
@@ -33,11 +43,23 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             base.Reset();
             wordRegisterCollection.Reset();
+            foreach(var gpio in Connections)
+            {
+                gpio.Value.Unset();
+            }
         }
 
         public long Size => 0x4000;
 
+        public IReadOnlyDictionary<int, IGPIO> Connections { get; }
+
         WordRegisterCollection IProvidesRegisterCollection<WordRegisterCollection>.RegistersCollection => wordRegisterCollection;
+
+        private void SetInterrupt(int target, int source, bool value)
+        {
+            this.Log(LogLevel.Debug, "Setting {0} from {1} to {2}", target, source, value);
+            Connections[(int)(target * ProcessorCount + source)].Set(value);
+        }
 
         private void DefineRegisters()
         {
@@ -92,15 +114,23 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 {
                     var cpuIndex = index / 4;
                     reg.WithReservedBits(4, 28)
-                        .WithTaggedFlag($"CP3ToCP{cpuIndex}", 3)
-                        .WithTaggedFlag($"CP2ToCP{cpuIndex}", 2)
-                        .WithTaggedFlag($"CP1ToCP{cpuIndex}", 1)
-                        .WithTaggedFlag($"CP0ToCP{cpuIndex}", 0);
+                        .WithFlags(0, 4,
+                            writeCallback: (j, _, value) => { if(value) SetInterrupt(cpuIndex, j, false); },
+                            valueProviderCallback: (j, _) => Connections[(int)(cpuIndex * ProcessorCount + j)].IsSet,
+                            name: "CPn_INT")
+                        ;
                 }
             );
-            Registers.InterruptRouterCP0InterruptGeneration0.DefineMany(asDoubleWordCollection, InterruptRouterRegisterCount, stepInBytes: interruptRegisterStep, setup: (reg, index) => reg
-                .WithReservedBits(1, 31)
-                .WithTaggedFlag($"InterruptEnable", 0)
+            Registers.InterruptRouterCP0InterruptGeneration0.DefineMany(asDoubleWordCollection, InterruptRouterRegisterCount, stepInBytes: interruptRegisterStep, setup: (reg, index) =>
+                {
+                    var targetIndex = index / 4;
+                    var sourceIndex = index % 4;
+                    reg.WithReservedBits(1, 31)
+                        .WithFlag(0,
+                            FieldMode.Write,
+                            writeCallback: (_, value) => SetInterrupt(targetIndex, sourceIndex, value),
+                            name: "Int_En");
+                }
             );
 
             Registers.InterruptRouterConfiguration.Define(asDoubleWordCollection)
