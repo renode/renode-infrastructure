@@ -34,16 +34,16 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 ulong startAddress, endAddress;
 
-                var accessMethods = globalPeripherals.FindAccessMethods(address, out startAddress, out endAddress);
+                var accessMethods = peripheralsCollectionByContext[null].FindAccessMethods(address, out startAddress, out endAddress);
                 if(accessMethods == null)
                 {
                     if(context != null)
                     {
-                        accessMethods = cpuLocalPeripherals[context].FindAccessMethods(address, out startAddress, out endAddress);
+                        accessMethods = peripheralsCollectionByContext[context].FindAccessMethods(address, out startAddress, out endAddress);
                     }
                     else if(TryGetCurrentCPU(out var currentCPU))
                     {
-                        accessMethods = cpuLocalPeripherals[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
+                        accessMethods = peripheralsCollectionByContext[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
                     }
                 }
                 if(accessMethods == null)
@@ -92,16 +92,16 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 ulong startAddress, endAddress;
 
-                var accessMethods = globalPeripherals.FindAccessMethods(address, out startAddress, out endAddress);
+                var accessMethods = peripheralsCollectionByContext[null].FindAccessMethods(address, out startAddress, out endAddress);
                 if(accessMethods == null)
                 {
                     if(context != null)
                     {
-                        accessMethods = cpuLocalPeripherals[context].FindAccessMethods(address, out startAddress, out endAddress);
+                        accessMethods = peripheralsCollectionByContext[context].FindAccessMethods(address, out startAddress, out endAddress);
                     }
                     else if(TryGetCurrentCPU(out var currentCPU))
                     {
-                        accessMethods = cpuLocalPeripherals[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
+                        accessMethods = peripheralsCollectionByContext[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
                     }
                 }
                 if(accessMethods == null)
@@ -152,16 +152,16 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 ulong startAddress, endAddress;
 
-                var accessMethods = globalPeripherals.FindAccessMethods(address, out startAddress, out endAddress);
+                var accessMethods = peripheralsCollectionByContext[null].FindAccessMethods(address, out startAddress, out endAddress);
                 if(accessMethods == null)
                 {
                     if(context != null)
                     {
-                        accessMethods = cpuLocalPeripherals[context].FindAccessMethods(address, out startAddress, out endAddress);
+                        accessMethods = peripheralsCollectionByContext[context].FindAccessMethods(address, out startAddress, out endAddress);
                     }
                     else if(TryGetCurrentCPU(out var currentCPU))
                     {
-                        accessMethods = cpuLocalPeripherals[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
+                        accessMethods = peripheralsCollectionByContext[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
                     }
                 }
                 if(accessMethods == null)
@@ -210,16 +210,16 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 ulong startAddress, endAddress;
 
-                var accessMethods = globalPeripherals.FindAccessMethods(address, out startAddress, out endAddress);
+                var accessMethods = peripheralsCollectionByContext[null].FindAccessMethods(address, out startAddress, out endAddress);
                 if(accessMethods == null)
                 {
                     if(context != null)
                     {
-                        accessMethods = cpuLocalPeripherals[context].FindAccessMethods(address, out startAddress, out endAddress);
+                        accessMethods = peripheralsCollectionByContext[context].FindAccessMethods(address, out startAddress, out endAddress);
                     }
                     else if(TryGetCurrentCPU(out var currentCPU))
                     {
-                        accessMethods = cpuLocalPeripherals[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
+                        accessMethods = peripheralsCollectionByContext[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
                     }
                 }
                 if(accessMethods == null)
@@ -270,16 +270,16 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 ulong startAddress, endAddress;
 
-                var accessMethods = globalPeripherals.FindAccessMethods(address, out startAddress, out endAddress);
+                var accessMethods = peripheralsCollectionByContext[null].FindAccessMethods(address, out startAddress, out endAddress);
                 if(accessMethods == null)
                 {
                     if(context != null)
                     {
-                        accessMethods = cpuLocalPeripherals[context].FindAccessMethods(address, out startAddress, out endAddress);
+                        accessMethods = peripheralsCollectionByContext[context].FindAccessMethods(address, out startAddress, out endAddress);
                     }
                     else if(TryGetCurrentCPU(out var currentCPU))
                     {
-                        accessMethods = cpuLocalPeripherals[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
+                        accessMethods = peripheralsCollectionByContext[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
                     }
                 }
                 if(accessMethods == null)
@@ -328,16 +328,16 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 ulong startAddress, endAddress;
 
-                var accessMethods = globalPeripherals.FindAccessMethods(address, out startAddress, out endAddress);
+                var accessMethods = peripheralsCollectionByContext[null].FindAccessMethods(address, out startAddress, out endAddress);
                 if(accessMethods == null)
                 {
                     if(context != null)
                     {
-                        accessMethods = cpuLocalPeripherals[context].FindAccessMethods(address, out startAddress, out endAddress);
+                        accessMethods = peripheralsCollectionByContext[context].FindAccessMethods(address, out startAddress, out endAddress);
                     }
                     else if(TryGetCurrentCPU(out var currentCPU))
                     {
-                        accessMethods = cpuLocalPeripherals[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
+                        accessMethods = peripheralsCollectionByContext[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
                     }
                 }
                 if(accessMethods == null)
@@ -388,16 +388,16 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 ulong startAddress, endAddress;
 
-                var accessMethods = globalPeripherals.FindAccessMethods(address, out startAddress, out endAddress);
+                var accessMethods = peripheralsCollectionByContext[null].FindAccessMethods(address, out startAddress, out endAddress);
                 if(accessMethods == null)
                 {
                     if(context != null)
                     {
-                        accessMethods = cpuLocalPeripherals[context].FindAccessMethods(address, out startAddress, out endAddress);
+                        accessMethods = peripheralsCollectionByContext[context].FindAccessMethods(address, out startAddress, out endAddress);
                     }
                     else if(TryGetCurrentCPU(out var currentCPU))
                     {
-                        accessMethods = cpuLocalPeripherals[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
+                        accessMethods = peripheralsCollectionByContext[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
                     }
                 }
                 if(accessMethods == null)
@@ -446,16 +446,16 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 ulong startAddress, endAddress;
 
-                var accessMethods = globalPeripherals.FindAccessMethods(address, out startAddress, out endAddress);
+                var accessMethods = peripheralsCollectionByContext[null].FindAccessMethods(address, out startAddress, out endAddress);
                 if(accessMethods == null)
                 {
                     if(context != null)
                     {
-                        accessMethods = cpuLocalPeripherals[context].FindAccessMethods(address, out startAddress, out endAddress);
+                        accessMethods = peripheralsCollectionByContext[context].FindAccessMethods(address, out startAddress, out endAddress);
                     }
                     else if(TryGetCurrentCPU(out var currentCPU))
                     {
-                        accessMethods = cpuLocalPeripherals[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
+                        accessMethods = peripheralsCollectionByContext[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
                     }
                 }
                 if(accessMethods == null)
