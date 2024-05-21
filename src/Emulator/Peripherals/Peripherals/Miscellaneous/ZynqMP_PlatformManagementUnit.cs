@@ -241,6 +241,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 {
                     case PmApi.GetApiVersion:
                         return HandleGetApiVersion();
+                    case PmApi.ForcePowerdown:
+                        return HandleForcePowerdown(message);
                     case PmApi.RequestWakeup:
                         return HandleRequestWakeup(message);
                     case PmApi.ResetAssert:
@@ -263,13 +265,55 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 return response;
             }
 
+            private IpiMessage HandleForcePowerdown(IpiMessage message)
+            {
+                var node = (Node)message.Payload[0];
+                var ack = (RequestAck)message.Payload[1];
+                var response = IpiMessage.CreateSuccessResponse();
+                var cpu = GetCpuFromNode(node);
+                if (cpu != null)
+                {
+                    cpu.IsHalted = true;
+                    cpu.Reset();
+                    try
+                    {
+                        return CreateAckResponse(response, ack);
+                    }
+                    catch (ArgumentOutOfRangeException)
+                    {
+                        pmu.Log(LogLevel.Warning, "Received invalid ack request with value {0}.", ack);
+                        return new IpiMessage();
+                    }
+                }
+
+                pmu.Log(LogLevel.Warning, "Received shutdown request for node with id {0} which is not implemented.", (uint)node);
+                return IpiMessage.CreateInvalidParamResponse();
+            }
+
+            private IpiMessage CreateAckResponse(IpiMessage response, RequestAck ack)
+            {
+                switch(ack)
+                {
+                    case RequestAck.AckNo:
+                        // AckNo means we shouldn't do anything so we return empty message
+                        return new IpiMessage();
+                    case RequestAck.AckBlocking:
+                        return response;
+                    case RequestAck.AckNonBlocking:
+                        pmu.Log(LogLevel.Warning, "Requested non blocking ACK which is not implemented.");
+                        return new IpiMessage();
+                    default:
+                        throw new ArgumentOutOfRangeException("RequestAck");
+                }
+            }
+
             private IpiMessage HandleRequestWakeup(IpiMessage message)
             {
                 var node = (Node)message.Payload[0];
                 var pc = ((ulong)message.Payload[2] << 32) | (ulong)message.Payload[1];
-                try
+                var cpu = GetCpuFromNode(node);
+                if (cpu != null)
                 {
-                    var cpu = GetCpuFromNode(node);
                     // First bit of new PC indicated whether we update PC
                     if ((pc & 1) == 1)
                     {
@@ -282,10 +326,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
                     return IpiMessage.CreateSuccessResponse();
                 } 
-                catch(ArgumentOutOfRangeException)
-                {
-                    pmu.Log(LogLevel.Warning, "Received wakeup request for node with id {0} which is not implemented.", (uint)node);
-                }
+
+                pmu.Log(LogLevel.Warning, "Received wakeup request for node with id {0} which is not implemented.", (uint)node);
                 return IpiMessage.CreateInvalidParamResponse();
             }
 
@@ -306,7 +348,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     case Node.RPU1:
                         return pmu.rpu1;
                     default:
-                        throw new ArgumentOutOfRangeException("node");
+                        return null;
                 }
             }
 
@@ -473,12 +515,20 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 PostSrc = 0x4
             }
 
+            private enum RequestAck
+            {
+                AckNo = 1,
+                AckBlocking = 2,
+                AckNonBlocking = 3
+            }
+
             // We only list API ids that we need.
             // This enum corresponds to XPm_ApiId enum in PMU FW source code.
             private enum PmApi
             {
                 ApiMin          = 0x0,
                 GetApiVersion   = 0x1,
+                ForcePowerdown  = 0x8,
                 RequestWakeup   = 0xa,
                 ResetAssert     = 0x11,
                 ResetGetStatus  = 0x12,
