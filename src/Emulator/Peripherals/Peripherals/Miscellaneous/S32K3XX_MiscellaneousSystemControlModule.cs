@@ -76,7 +76,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 {
                     var numberSize = index == 0 ? 3 : 2;
                     reg.WithReservedBits(numberSize, 32 - numberSize)
-                        .WithTag("ProcessorNumber", 0, numberSize);
+                        .WithValueField(0, numberSize,
+                            valueProviderCallback: _ => machine.GetSystemBus(this).GetCurrentCPU().MultiprocessingId,
+                            name: "ProcessorNumber");
                 }
             );
             Registers.ProcessorXRevision.DefineMany(asDoubleWordCollection, ProcessorConfigurationCount, stepInBytes: processorConfigurationSize, setup: (reg, index) => reg
