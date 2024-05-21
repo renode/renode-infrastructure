@@ -176,6 +176,10 @@ namespace Antmicro.Renode.Peripherals.Bus
                 }
                 registrationPoint = registrationPoints[0];
             }
+            if(IsAddressRangeLocked(registrationPoint.RegistrationPoint.Range, context))
+            {
+                throw new RecoverableException("Moving a peripheral to a locked address range is not supported");
+            }
             var newRegistrationPoint = peripheralsCollectionByContext[context].Move(registrationPoint, newAddress);
             Machine.ExchangeRegistrationPointForPeripheral(this, peripheral, registrationPoint.RegistrationPoint, newRegistrationPoint.RegistrationPoint);
             if(wasMapped)
@@ -1623,6 +1627,11 @@ namespace Antmicro.Renode.Peripherals.Bus
                 }
 
                 var registeredPeripheral = new BusRegistered<IBusPeripheral>(peripheral, registrationPoint);
+
+                if(IsAddressRangeLocked(registrationPoint.Range, context))
+                {
+                    throw new RegistrationException($"Given address {registrationPoint.Range} for peripheral {peripheral} is within an address range that is marked as locked");
+                }
 
                 // we also have to put missing methods
                 var absoluteAddressAware = peripheral as IAbsoluteAddressAware;
