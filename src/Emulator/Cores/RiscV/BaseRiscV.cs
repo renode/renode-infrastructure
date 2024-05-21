@@ -1032,14 +1032,20 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public enum StandardInstructionSetExtensions
         {
-            BA = 0x1 << AdditionalExtensionOffset,
-            BB = 0x2 << AdditionalExtensionOffset,
-            BC = 0x3 << AdditionalExtensionOffset,
-            BS = 0x4 << AdditionalExtensionOffset,
-            ICSR = 0x5 << AdditionalExtensionOffset,
-            IFENCEI = 0x6 << AdditionalExtensionOffset,
-            ZFH = 0x7 << AdditionalExtensionOffset,
-            SMEPMP = 0x8 << AdditionalExtensionOffset,
+            BA = 0,
+            BB = 1,
+            BC = 2,
+            BS = 3,
+            ICSR = 4,
+            IFENCEI = 5,
+            ZFH = 6,
+            ZVFH = 7,
+            SMEPMP = 8,
+            ZVE32X = 9,
+            ZVE32F = 10,
+            ZVE64X = 11,
+            ZVE64F = 12,
+            ZVE64D = 13,
         }
 
         public enum InterruptMode
