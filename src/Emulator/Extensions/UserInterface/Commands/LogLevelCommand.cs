@@ -11,6 +11,7 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals;
 using System.Linq;
+using System.Collections.Generic;
 
 namespace Antmicro.Renode.UserInterface.Commands
 {
@@ -41,70 +42,85 @@ namespace Antmicro.Renode.UserInterface.Commands
         [Runnable]
         public void Run([Values(-1L, 0L, 1L, 2L, 3L)] DecimalIntegerToken level)
         {
-            SetLogLevel((LogLevel)level.Value);
+            TrySetLogLevel((LogLevel)level.Value);
         }
 
         [Runnable]
         public void Run([Values("Noisy", "Debug", "Info", "Warning", "Error")] StringToken level)
         {
-            SetLogLevel(LogLevel.Parse(level.Value));
+            TrySetLogLevel(LogLevel.Parse(level.Value));
         }
 
         [Runnable]
-        public void Run(ICommandInteraction writer, [Values(-1L, 0L, 1L, 2L, 3L)] DecimalIntegerToken level, LiteralToken peripheralOrBackendName)
+        public void Run(ICommandInteraction writer, [Values(-1L, 0L, 1L, 2L, 3L)] DecimalIntegerToken level, LiteralToken emulationElementOrBackendName)
         {
-            if(!SetLogLevel((LogLevel)level.Value, null, peripheralOrBackendName.Value)
-                && !SetLogLevel((LogLevel)level.Value, peripheralOrBackendName.Value, null))
+            RunInner(writer, (LogLevel)level.Value, emulationElementOrBackendName.Value);
+        }
+
+        [Runnable]
+        public void Run(ICommandInteraction writer, [Values("Noisy", "Debug", "Info", "Warning", "Error")] StringToken level, LiteralToken emulationElementOrBackendName)
+        {
+            RunInner(writer, LogLevel.Parse(level.Value), emulationElementOrBackendName.Value);
+        }
+
+        [Runnable]
+        public void Run(ICommandInteraction writer, [Values(-1L, 0L, 1L, 2L, 3L)] DecimalIntegerToken level, LiteralToken backendName, LiteralToken emulationElementName)
+        {
+            RunInner(writer, (LogLevel)level.Value, backendName.Value, emulationElementName.Value);
+        }
+
+        [Runnable]
+        public void Run(ICommandInteraction writer, [Values("Noisy", "Debug", "Info", "Warning", "Error")] StringToken level, LiteralToken backendName, LiteralToken emulationElementName)
+        {
+            RunInner(writer, LogLevel.Parse(level.Value), backendName.Value, emulationElementName.Value);
+        }
+
+        private void RunInner(ICommandInteraction writer, LogLevel level, string emulationElementOrBackendName)
+        {
+            if(!TrySetLogLevel(level, null, emulationElementOrBackendName)
+                && !TrySetLogLevel(level, emulationElementOrBackendName, null))
             {
-                writer.WriteError(string.Format("Could not find emulation element or backend named: {0}", peripheralOrBackendName.Value));
+                writer.WriteError(string.Format("Could not find emulation element or backend named: {0}", emulationElementOrBackendName));
             }
         }
 
-        [Runnable]
-        public void Run(ICommandInteraction writer, [Values("Noisy", "Debug", "Info", "Warning", "Error")] StringToken level, LiteralToken peripheralOrBackendName)
+        private void RunInner(ICommandInteraction writer, LogLevel level, string backendName, string emulationElementName)
         {
-            var logLevel = LogLevel.Parse(level.Value);
-            if(!SetLogLevel(logLevel, null, peripheralOrBackendName.Value)
-                && !SetLogLevel(logLevel, peripheralOrBackendName.Value, null))
-            {
-                writer.WriteError(string.Format("Could not find emulation element or backend named: {0}", peripheralOrBackendName.Value));
-            }
-        }
-
-        [Runnable]
-        public void Run(ICommandInteraction writer, [Values(-1L, 0L, 1L, 2L, 3L)] DecimalIntegerToken level, LiteralToken backendName, LiteralToken peripheralName)
-        {
-            if(!SetLogLevel((LogLevel)level.Value, backendName.Value, peripheralName.Value))
+            if(!TrySetLogLevel(level, backendName, emulationElementName))
             {
                 writer.WriteError(string.Format("Could not find emulation element or backend"));
             }
         }
 
-        [Runnable]
-        public void Run(ICommandInteraction writer, [Values("Noisy", "Debug", "Info", "Warning", "Error")] StringToken level, LiteralToken backendName, LiteralToken peripheralName)
+        private bool TrySetLogLevel(LogLevel level, string backendName = null, string emulationElementName = null)
         {
-            if(!SetLogLevel(LogLevel.Parse(level.Value), backendName.Value, peripheralName.Value))
-            {
-                writer.WriteError(string.Format("Could not find emulation element or backend"));
-            }
-        }
+            IEnumerable<IEmulationElement> emulationElements = null;
+            var emulation = EmulationManager.Instance.CurrentEmulation;
 
-        private bool SetLogLevel(LogLevel level, string backendName = null, string peripheralName = null)
-        {
-            IEmulationElement emulationElement = null;
-            if(peripheralName != null && 
-                !EmulationManager.Instance.CurrentEmulation.TryGetEmulationElementByName(peripheralName, monitor.Machine, out emulationElement))
+            if(emulationElementName != null)
             {
-                return false;
-            }
-
-            int id = (emulationElement == null) ? -1 : EmulationManager.Instance.CurrentEmulation.CurrentLogger.GetOrCreateSourceId(emulationElement);
-            bool somethingWasSet = false;
-            foreach(var b in Logger.GetBackends())
-            {
-                if((backendName == null || b.Key == backendName) && b.Value.IsControllable)
+                if(!emulation.TryGetEmulationElementByName(emulationElementName, monitor.Machine, out var emulationElement))
                 {
-                    b.Value.SetLogLevel(level, id);
+                    return false;
+                }
+
+                emulationElements = (emulationElement is IMachine)
+                    ? (emulationElement as Machine).GetRegisteredPeripherals().Select(x => x.Peripheral).Cast<IEmulationElement>()
+                    : new[] { emulationElement };
+            }
+
+            var emulationElementsIds = (emulationElements == null)
+                ? new[] { -1 }
+                : emulationElements.Select(x => emulation.CurrentLogger.GetOrCreateSourceId(x)).ToArray();
+
+            bool somethingWasSet = false;
+            foreach(var b in Logger.GetBackends()
+                .Where(x => x.Value.IsControllable)
+                .Where(x => (backendName == null || x.Key == backendName)))
+            {
+                foreach(var emulationElementId in emulationElementsIds)
+                {
+                    b.Value.SetLogLevel(level, emulationElementId);
                     somethingWasSet = true;
                 }
             }
