@@ -1033,34 +1033,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
                 using(Machine.ObtainPausedState(internalPause: true))
                 {
-                    var cpusWithMappedMemory = idByCpu.Keys.OfType<ICPUWithMappedMemory>();
-                    if(cpusWithMappedMemory.Any())
-                    {
-                        var mappedInRange = GetMappedPeripherals(context).Where(x => x.RegistrationPoint.Range.Intersects(range));
-
-                        // Only allow including whole registration range of IMapped peripherals.
-                        var onlyPartiallyInRange = mappedInRange.Where(x => !range.Contains(x.RegistrationPoint.Range));
-                        if(onlyPartiallyInRange.Any())
-                        {
-                            throw new RecoverableException(
-                                $"Mapped peripherals registered at the given range {range} have to be fully included:\n"
-                                + $"* {string.Join("\n* ", onlyPartiallyInRange)}"
-                            );
-                        }
-
-                        foreach(var busRegistered in mappedInRange)
-                        {
-                            var registrationContext = busRegistered.RegistrationPoint.CPU;
-                            var registrationRange = busRegistered.RegistrationPoint.Range;
-                            foreach(var cpu in GetCPUsForContext<ICPUWithMappedMemory>(registrationContext))
-                            {
-                                // There's no need to remove mappings from `mappingsForPeripheral`.
-                                // They're only used when a new ICPUWithMappedMemory gets registered
-                                // which isn't possible after `mappingsRemoved` is set in `UnmapMemory`.
-                                cpu.SetMappedMemoryEnabled(registrationRange, enabled: !locked);
-                            }
-                        }
-                    }
+                    RelockRange(range, locked, context);
 
                     if(locked)
                     {
@@ -1630,7 +1603,11 @@ namespace Antmicro.Renode.Peripherals.Bus
 
                 if(IsAddressRangeLocked(registrationPoint.Range, context))
                 {
-                    throw new RegistrationException($"Given address {registrationPoint.Range} for peripheral {peripheral} is within an address range that is marked as locked");
+                    // If it's impossible to re-lock the range, the peripheral can't be registered
+                    if(!CanRangeBeLocked(registrationPoint.Range, context, out var _, out var __))
+                    {
+                        throw new RegistrationException($"Cannot register peripheral {peripheral} on locked range {registrationPoint.Range}");
+                    }
                 }
 
                 // we also have to put missing methods
@@ -1642,11 +1619,65 @@ namespace Antmicro.Renode.Peripherals.Bus
                 peripheralsCollectionByContext[context].Add(registrationPoint.Range.StartAddress, registrationPoint.Range.EndAddress + 1, registeredPeripheral, methods);
                 // let's add new mappings
                 AddMappingsForPeripheral(peripheral, registrationPoint, context);
+                // After adding new mappings, if the address range is locked, the mappings possibly have to be modified/unmapped on the CPU's side
+                // RelockRange to make this happen
+                if(IsAddressRangeLocked(registrationPoint.Range, context))
+                {
+                    // We've checked before if the range can be locked, so this should succeed
+                    RelockRange(registrationPoint.Range, true, context);
+                }
                 Machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
                 Machine.RegisterBusController(peripheral, this);
             }
 
             peripheralRegistered = true;
+        }
+
+        /// <summary>
+        /// This method can be used to re-trigger locking/unlocking actions on a range which is already registered as locked.
+        /// This is useful when adding or relocating peripherals to the locked range.
+        /// <summary>
+        /// <remarks>
+        /// Locking should almost always be done by calling <see cref="SetAddressRangeLocked"/> 
+        /// since this method doesn't update locked ranges and so should be used with caution.
+        /// </remarks>
+        private void RelockRange(Range range, bool locked, ICPU context)
+        {
+            using(Machine.ObtainPausedState(internalPause: true))
+            {
+                var cpusWithMappedMemory = idByCpu.Keys.OfType<ICPUWithMappedMemory>();
+                if(cpusWithMappedMemory.Any())
+                {
+                    if(!CanRangeBeLocked(range, context, out var mappedInRange, out var onlyPartiallyInRange))
+                    {
+                        throw new RecoverableException(
+                            $"Mapped peripherals registered at the given range {range} have to be fully included:\n"
+                            + $"* {string.Join("\n* ", onlyPartiallyInRange)}"
+                        );
+                    }
+
+                    foreach(var busRegistered in mappedInRange)
+                    {
+                        var registrationContext = busRegistered.RegistrationPoint.CPU;
+                        var registrationRange = busRegistered.RegistrationPoint.Range;
+                        foreach(var cpu in GetCPUsForContext<ICPUWithMappedMemory>(registrationContext))
+                        {
+                            // There's no need to remove mappings from `mappingsForPeripheral`.
+                            // They're only used when a new ICPUWithMappedMemory gets registered
+                            // which isn't possible after `mappingsRemoved` is set in `UnmapMemory`.
+                            cpu.SetMappedMemoryEnabled(registrationRange, enabled: !locked);
+                        }
+                    }
+                }
+            }
+        }
+
+        private bool CanRangeBeLocked(Range range, ICPU context, out IEnumerable<IBusRegistered<IMapped>> mappedInRange, out IEnumerable<IBusRegistered<IMapped>> onlyPartiallyInRange)
+        {
+            mappedInRange = GetMappedPeripherals(context).Where(x => x.RegistrationPoint.Range.Intersects(range));
+            // Only allow including whole registration range of IMapped peripherals.
+            onlyPartiallyInRange = mappedInRange.Where(x => !range.Contains(x.RegistrationPoint.Range));
+            return !onlyPartiallyInRange.Any();
         }
 
         private IEnumerable<PeripheralLookupResult> FindTargets(ulong address, ulong count, ICPU context = null)
