@@ -161,6 +161,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
             else
             {
+                if(this.supportsTwoSecurityStates)
+                {
+                    cpu.Log(LogLevel.Info, "CPU is attached to GIC supporting Security Extensions."
+                            + " This CPU doesn't implement Security Extensions so all its GIC accesses will be {0}. GIC's '{1}'"
+                            + " constructor argument can be set to 'false' to create GIC without support for Security Extensions.",
+                            cpu.SecurityState, nameof(supportsTwoSecurityStates));
+                }
                 cpuEntry = new CPUEntry(this, cpu, groups.Keys, cpuMappedConnections);
             }
             cpuEntry.PrivateInterruptChanged += OnPrivateInterrupt;
