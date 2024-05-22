@@ -76,9 +76,9 @@ namespace Antmicro.Renode.Peripherals.DMA
                 this.Log(LogLevel.Warning, "No DMA channel is programmed to handle request 0x{0:X}. Ignoring request", number);
             }
         }
-        
+
         public DoubleWordRegisterCollection RegistersCollection { get; }
-        
+
         public GPIO IRQ { get; } = new GPIO();
 
         protected abstract int MapPeripheralSelectToDMAChannel(int peripheralSelectIndex);
@@ -150,7 +150,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         private readonly IMachine machine;
         private readonly int channelCount;
-        
+
         protected class Channel
         {
             public Channel(RenesasDA_DMABase parent, int channelNumber)
