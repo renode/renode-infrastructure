@@ -14,6 +14,7 @@ using Antmicro.Renode.Utilities.Binding;
 using Antmicro.Renode.Peripherals.Memory;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Peripherals.IRQControllers;
+using Antmicro.Renode.Debugging;
 
 using Endianess = ELFSharp.ELF.Endianess;
 
@@ -168,27 +169,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             return true;
         }
 
-        public ExceptionLevel ExceptionLevel
-        {
-            get
-            {
-                lock(elAndSecurityLock)
-                {
-                    return exceptionLevel;
-                }
-            }
-        }
-
-        public SecurityState SecurityState
-        {
-            get
-            {
-                lock(elAndSecurityLock)
-                {
-                    return securityState;
-                }
-            }
-        }
+        public ExceptionLevel ExceptionLevel => exceptionLevel;
+        // ARMv8R AArch32 cores always execute in NonSecure mode ("Arm Architecture Reference Manual Supplement Armv8, for the Armv8-R AArch32 architecture profile" - A1.3.1)
+        // ARMv8R AArch64 cores always execute in Secure mode ("Arm Architecture Reference Manual Supplement Armv8, for R-profile AArch64 architecture" - C1.11 and A1.3)
+        // since at this moment we only have AArch32 core supporting this ISA, let's lock it in NonSecure state
+        public SecurityState SecurityState => SecurityState.NonSecure;
 
         public bool TrapGeneralExceptions => (GetSystemRegisterValue("hcr") & (1 << 27)) != 0;
         public bool FIQMaskOverride => (GetSystemRegisterValue("hcr") & 0b01000) != 0 || TrapGeneralExceptions;
@@ -277,11 +262,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         private void OnExecutionModeChanged(uint el, uint isSecure)
         {
-            lock(elAndSecurityLock)
-            {
-                exceptionLevel = (ExceptionLevel)el;
-                securityState = isSecure != 0 ? SecurityState.Secure : SecurityState.NonSecure;
-            }
+            exceptionLevel = (ExceptionLevel)el;
+            // ARMv8R cores cannot change security state (Architecture Manual mandates it)
+            DebugHelper.Assert((isSecure != 0 ? SecurityState.Secure : SecurityState.NonSecure) == SecurityState, $"{nameof(ARMv8R)} should not change its Security State.");
         }
 
         private void ValidateSystemRegisterAccess(string name, bool isWrite)
@@ -306,10 +289,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         private ExceptionLevel exceptionLevel;
-        private SecurityState securityState;
         private ARM_GenericTimer timer;
 
-        private readonly object elAndSecurityLock = new object();
         private readonly ARM_GenericInterruptController gic;
         private readonly ulong defaultHVBARValue;
         private readonly ulong defaultVBARValue;
