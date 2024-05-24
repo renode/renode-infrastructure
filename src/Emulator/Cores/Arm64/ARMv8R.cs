@@ -23,7 +23,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     public partial class ARMv8R : TranslationCPU, IARMSingleSecurityStateCPU, IPeripheralRegister<ARM_GenericTimer, NullRegistrationPoint>
     {
         public ARMv8R(string cpuType, IMachine machine, ARM_GenericInterruptController genericInterruptController, uint cpuId = 0, Endianess endianness = Endianess.LittleEndian, uint mpuRegionsCount = 16, ulong defaultHVBARValue = 0, ulong defaultVBARValue = 0, uint mpuHyperRegionsCount = 16)
-                : base(cpuId, cpuType, machine, endianness, CpuBitness.Bits64)
+                : base(cpuId, cpuType, machine, endianness, CpuBitness.Bits32)
         {
             Affinity = new Affinity(cpuId);
             this.defaultHVBARValue = defaultHVBARValue;
