@@ -27,7 +27,6 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         public override void Reset()
         {
-            isLocked = false;
             userModeAccessLocked = false;
             userModeAccessAddress = 0x0;
             userModeAccessData = 0x0;
@@ -42,19 +41,6 @@ namespace Antmicro.Renode.Peripherals.SPI
         public void WriteByte(long offset, byte value)
         {
             RegistersCollection.Write(offset, value);
-        }
-
-        public bool IsLocked
-        {
-            get => isLocked;
-            set
-            {
-                if(isLocked)
-                {
-                    return;
-                }
-                isLocked = value;
-            }
         }
 
         public long Size => 0x1000;
@@ -210,7 +196,6 @@ namespace Antmicro.Renode.Peripherals.SPI
         private uint userModeAccessAddress;
         private uint userModeAccessData;
         private bool userModeAccessLocked;
-        private bool isLocked;
         private bool use4ByteAddress;
 
         private enum Registers
