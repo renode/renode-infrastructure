@@ -19,9 +19,8 @@ namespace Antmicro.Renode.Peripherals.SPI
 {
     public class NPCX_Flash : ISPIPeripheral, IGPIOReceiver, IProvidesRegisterCollection<ByteRegisterCollection>
     {
-        public NPCX_Flash(NPCX_FIU fiu, MappedMemory memory)
+        public NPCX_Flash(MappedMemory memory)
         {
-            this.owner = fiu;
             this.memory = memory;
 
             addressBuffer = new List<byte>();
@@ -48,10 +47,10 @@ namespace Antmicro.Renode.Peripherals.SPI
                 switch(currentCommand.Value)
                 {
                     case Commands.WriteEnable:
-                        WriteEnabled = true;
+                        writeEnabled = true;
                         break;
                     case Commands.WriteDisable:
-                        WriteEnabled = false;
+                        writeEnabled = false;
                         break;
                 }
                 return returnValue;
@@ -76,7 +75,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                         break;
                     }
 
-                    if(!WriteEnabled)
+                    if(!writeEnabled)
                     {
                         this.ErrorLog("Attempted to perform a Block Erase operation while flash is in write-disabled state. Operation will be ignored");
                         break;
@@ -90,7 +89,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                     }
 
                     memory.SetRange(address, 64.KB(), 0xFF);
-                    WriteEnabled = false;
+                    writeEnabled = false;
                     break;
                 case Commands.PageProgram:
                     if(addressBuffer.Count < AddressByteCount)
@@ -103,7 +102,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                         break;
                     }
 
-                    if(!WriteEnabled)
+                    if(!writeEnabled)
                     {
                         this.ErrorLog("Attempted to perform a Page Program operation while flash is in write-disabled state. Operation will be ignored");
                         break;
@@ -139,10 +138,10 @@ namespace Antmicro.Renode.Peripherals.SPI
 
                     if(temporaryAddress > (uint)Registers.StatusRegister2)
                     {
-                        WriteEnabled = false;
+                        writeEnabled = false;
                     }
 
-                    if(!WriteEnabled)
+                    if(!writeEnabled)
                     {
                         this.ErrorLog("Attempted to perform a Write Status operation while flash is in write-disabled state. Operation will be ignored");
                         break;
@@ -172,7 +171,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             temporaryAddress = 0x0;
             if(resetWriteEnable)
             {
-                WriteEnabled = false;
+                writeEnabled = false;
             }
             resetWriteEnable = false;
         }
@@ -231,8 +230,8 @@ namespace Antmicro.Renode.Peripherals.SPI
             Registers.StatusRegister1.Define(this)
                 .WithTaggedFlag("BUSY", 0)
                 .WithFlag(1, name: "WEL (Write Enable Latch)",
-                    valueProviderCallback: _ => WriteEnabled,
-                    writeCallback: (_, value) => WriteEnabled = value)
+                    valueProviderCallback: _ => writeEnabled,
+                    writeCallback: (_, value) => writeEnabled = value)
                 .WithEnumField(2, 3, out blockProtectBits, name: "BP0-BP2 (Block Protect Bits)")
                 .WithFlag(5, out blockProtectBitsMSB, name: "BP3 (Block Protect Bits)")
                 .WithReservedBits(6, 1)
@@ -248,21 +247,6 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithReservedBits(6, 2);
         }
 
-        private bool WriteEnabled
-        {
-            get => writeEnabled;
-            set
-            {
-                if(owner.IsLocked)
-                {
-                    // Locking FIU disables the ability to enable writing to flash
-                    writeEnabled = false;
-                    return;
-                }
-                writeEnabled = value;
-            }
-        }
-
         private Commands? currentCommand;
 
         private bool writeEnabled;
@@ -270,7 +254,6 @@ namespace Antmicro.Renode.Peripherals.SPI
         private bool resetWriteEnable;
 
         private readonly List<byte> addressBuffer;
-        private readonly NPCX_FIU owner;
         private readonly MappedMemory memory;
 
         private const int PageProgramSize = 256;
