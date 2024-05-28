@@ -33,6 +33,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             writeEnabled = false;
             resetWriteEnable = false;
+            WriteProtect.Set();
             FinishTransmission();
         }
 
