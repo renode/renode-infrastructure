@@ -120,7 +120,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             gic = peripheral as ARM_GenericInterruptController;
             if(gic == null)
             {
-                throw new RegistrationException("RedistributorRegistration can only be attached to ARM_GenericInterruptController");
+                throw new RegistrationException($"RedistributorRegistration can only be attached to {nameof(ARM_GenericInterruptController)}");
             }
             if(!gic.TryGetCPUEntryForCPU(Cpu, out entry))
             {
