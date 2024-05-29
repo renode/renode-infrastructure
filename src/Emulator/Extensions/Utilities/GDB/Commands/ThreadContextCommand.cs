@@ -25,7 +25,7 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
                 return PacketData.ErrorReply(Error.OperationNotPermitted);
             }
 
-            manager.SelectCpuForDebugging((uint)cpuId);
+            manager.SelectCpuForDebugging(manager.ManagedCpus[cpuId]);
             return PacketData.Success;
         }
     }

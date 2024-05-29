@@ -2285,7 +2285,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             catch(CpuAbortException)
             {
                 this.NoisyLog("CPU abort detected, halting.");
-                InvokeHalted(new HaltArguments(HaltReason.Abort, Id));
+                InvokeHalted(new HaltArguments(HaltReason.Abort, this));
                 return ExecutionResult.Aborted;
             }
             finally

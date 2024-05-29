@@ -32,7 +32,7 @@ namespace Antmicro.Renode.Utilities.GDB
             terminal.ConnectionAccepted += delegate
             {
                 commandsManager.CanAttachCPU = false;
-                foreach(var cpu in commandsManager.ManagedCpus.Values)
+                foreach(var cpu in commandsManager.ManagedCpus)
                 {
                     cpu.Halted += OnHalted;
                     cpu.ExecutionMode = ExecutionMode.SingleStep;
@@ -45,7 +45,7 @@ namespace Antmicro.Renode.Utilities.GDB
             };
             terminal.ConnectionClosed += delegate
             {
-                foreach(var cpu in commandsManager.ManagedCpus.Values)
+                foreach(var cpu in commandsManager.ManagedCpus)
                 {
                     cpu.Halted -= OnHalted;
                     cpu.ExecutionMode = ExecutionMode.Continuous;
@@ -86,8 +86,8 @@ namespace Antmicro.Renode.Utilities.GDB
         {
             using(var ctx = commHandler.OpenContext())
             {
-                // GDB counts threads starting from `1`, while Renode counts them from `0` - hence the incrementation
-                var cpuId = args.CpuId + 1;
+                // If we got here, and the CPU doesn't support Gdb (ICpuSupportingGdb) something went seriously wrong - this is GdbStub after all
+                var cpuSupportingGdb = (ICpuSupportingGdb)args.Cpu;
                 switch(args.Reason)
                 {
                 case HaltReason.Breakpoint:
@@ -100,8 +100,8 @@ namespace Antmicro.Renode.Utilities.GDB
                     case BreakpointType.MemoryBreakpoint:
                         if(commandsManager.Machine.SystemBus.IsMultiCore)
                         {
-                            commandsManager.SelectCpuForDebugging(cpuId);
-                            ctx.Send(new Packet(PacketData.StopReply(args.BreakpointType.Value, cpuId, args.Address)));
+                            commandsManager.SelectCpuForDebugging(cpuSupportingGdb);
+                            ctx.Send(new Packet(PacketData.StopReply(args.BreakpointType.Value, commandsManager.ManagedCpus[cpuSupportingGdb], args.Address)));
                         }
                         else
                         {
@@ -122,8 +122,8 @@ namespace Antmicro.Renode.Utilities.GDB
                 case HaltReason.Step:
                     if(commandsManager.Machine.SystemBus.IsMultiCore)
                     {
-                        commandsManager.SelectCpuForDebugging(cpuId);
-                        ctx.Send(new Packet(PacketData.StopReply(TrapSignal, cpuId)));
+                        commandsManager.SelectCpuForDebugging(cpuSupportingGdb);
+                        ctx.Send(new Packet(PacketData.StopReply(TrapSignal, commandsManager.ManagedCpus[cpuSupportingGdb])));
                     }
                     else
                     {
@@ -157,7 +157,7 @@ namespace Antmicro.Renode.Utilities.GDB
                 {
                     commandsManager.Cpu.Log(LogLevel.Noisy, "GDB CTRL-C occured - pausing CPU");
                 }
-                foreach(var cpu in commandsManager.ManagedCpus.Values)
+                foreach(var cpu in commandsManager.ManagedCpus)
                 {
                     cpu.ExecutionMode = ExecutionMode.SingleStep;
                 }

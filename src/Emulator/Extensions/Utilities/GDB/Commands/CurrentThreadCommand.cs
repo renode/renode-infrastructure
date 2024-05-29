@@ -4,7 +4,6 @@
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
 //
-using System.Linq;
 using Antmicro.Renode.Utilities.GDB;
 
 namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
@@ -18,7 +17,7 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
         [Execute("qC")]
         public PacketData Execute()
         {
-            return new PacketData(string.Format("QC{0:x}", manager.ManagedCpus.Single(x => x.Value == manager.Cpu).Key));
+            return new PacketData(string.Format("QC{0:x}", manager.ManagedCpus[manager.Cpu]));
         }
     }
 }
