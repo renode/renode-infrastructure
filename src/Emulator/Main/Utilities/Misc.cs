@@ -573,6 +573,22 @@ namespace Antmicro.Renode.Utilities
             return (byte)(value & 0xFF);
         }
 
+        public static ulong BinaryToGray(ulong binaryEncoding)
+        {
+            return binaryEncoding ^ (binaryEncoding >> 1);
+        }
+
+        public static ulong GrayToBinary(ulong grayEncoding)
+        {
+            ulong binaryEncoding = grayEncoding;
+            while(grayEncoding > 0)
+            {
+                grayEncoding >>= 1;
+                binaryEncoding ^= grayEncoding;
+            }
+            return binaryEncoding;
+        }
+
         public static bool TryFromResourceToTemporaryFile(this Assembly assembly, string resourceName, out string outputFileFullPath, string nonstandardOutputFilename = null)
         {
             // `GetManifestResourceStream` is not supported by dynamic assemblies
