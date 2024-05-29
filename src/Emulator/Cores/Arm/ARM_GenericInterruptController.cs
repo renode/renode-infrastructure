@@ -319,7 +319,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 this.Log(LogLevel.Warning, "Generated interrupt isn't a Shared Peripheral Interrupt, interrupt identifier: {0}", irqId);
                 return;
             }
-            this.Log(LogLevel.Debug, "Setting signal of the interrupt with id {0} to {1}.", irqId, value);
+            this.Log(LogLevel.Debug, "Setting Shared Peripheral Interrupt #{0} signal to {1}", irqId, value);
             LockExecuteAndUpdate(() =>
                 sharedInterrupts[irqId].State.AssertAsPending(value)
             );
@@ -648,7 +648,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 this.Log(LogLevel.Warning, "Generated interrupt isn't a Private Peripheral Interrupt, interrupt identifier: {0}", irqId);
                 return;
             }
-            this.Log(LogLevel.Debug, "Setting signal of the interrupt with id {0} to {1} for {2}.", irqId, value, cpu.Name);
+            this.Log(LogLevel.Debug, "Setting Private Peripheral Interrupt #{0} signal to {1} for {2}", irqId, value, cpu.Name);
             LockExecuteAndUpdate(() =>
                 cpu.PrivatePeripheralInterrupts[irqId].State.AssertAsPending(value)
             );
@@ -702,7 +702,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
                 if(ShouldAssertSGI(requestingCPU, request, interrupt))
                 {
-                    this.Log(LogLevel.Noisy, "Setting signal of the interrupt with id {0} for {1}.", irqId, target.Name);
+                    this.Log(LogLevel.Noisy, "Setting Software Generated Interrupt #{0} signal for {1}", irqId, target.Name);
                     // SGIs are triggered by a register access so the method is already called inside a lock.
                     interrupt.State.AssertAsPending(true);
                 }
