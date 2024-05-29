@@ -142,16 +142,17 @@ namespace Antmicro.Renode.Testing
             matchEvent.Set();
         }
 
-        public TerminalTesterResult WaitFor(string pattern, TimeInterval? timeout = null, bool treatAsRegex = false, bool includeUnfinishedLine = false, bool pauseEmulation = false)
+        public TerminalTesterResult WaitFor(string pattern, TimeInterval? timeout = null, bool treatAsRegex = false, bool includeUnfinishedLine = false, bool pauseEmulation = false, bool matchNextLine = false)
         {
             var eventName = "Line containing{1} >>{0}<<".FormatWith(pattern, treatAsRegex ? " regex" : string.Empty);
 #if DEBUG_EVENTS
-            this.Log(LogLevel.Noisy, "Waiting for a line containing >>{0}<< (include unfinished line: {1}, with timeout {2}, regex {3}, pause on match {4}) ", pattern, includeUnfinishedLine, timeout ?? GlobalTimeout, treatAsRegex, pauseEmulation);
+            this.Log(LogLevel.Noisy, "Waiting for a line containing >>{0}<< (include unfinished line: {1}, with timeout {2}, regex {3}, pause on match {4}, match next line {5}) ",
+                pattern, includeUnfinishedLine, timeout ?? GlobalTimeout, treatAsRegex, pauseEmulation, matchNextLine);
 #endif
 
             var result = WaitForMatch(() =>
             {
-                var lineMatch = CheckFinishedLines(pattern, treatAsRegex, eventName);
+                var lineMatch = CheckFinishedLines(pattern, treatAsRegex, eventName, matchNextLine);
                 if(lineMatch != null)
                 {
                     return lineMatch;
@@ -356,23 +357,38 @@ namespace Antmicro.Renode.Testing
             return null;
         }
 
-        private TerminalTesterResult CheckFinishedLines(string pattern, bool regex, string eventName)
+        private TerminalTesterResult CheckFinishedLines(string pattern, bool regex, string eventName, bool matchFirstLine)
         {
             lock(lines)
             {
                 string[] matchGroups = null;
-                var index = regex
-                    ? lines.FindIndex(x =>
-                        {
-                            var match = Regex.Match(x.Content, pattern);
-                            if(match.Success)
-                            {
-                                matchGroups = GetMatchGroups(match);
-                            }
-                            return match.Success;
-                        })
-                    : lines.FindIndex(x => x.Content.Contains(pattern));
 
+                var matcher = !regex
+                    ? (Predicate<Line>)(x => x.Content.Contains(pattern))
+                    : (Predicate<Line>)(x =>
+                {
+                    var match = Regex.Match(x.Content, pattern);
+                    if(match.Success)
+                    {
+                        matchGroups = GetMatchGroups(match);
+                    }
+                    return match.Success;
+                });
+
+                if(matchFirstLine)
+                {
+                    if(lines.Count == 0)
+                    {
+                        return null;
+                    }
+                    if(matcher(lines.First()))
+                    {
+                        return HandleSuccess(eventName, matchingLineId: 0);
+                    }
+                    return null;
+                }
+
+                var index = lines.FindIndex(matcher);
                 if(index != -1)
                 {
                     return HandleSuccess(eventName, matchingLineId: index, matchGroups: matchGroups);
