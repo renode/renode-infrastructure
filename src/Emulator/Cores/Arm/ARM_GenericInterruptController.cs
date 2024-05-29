@@ -343,6 +343,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
+        public IEnumerable<ArmGicRedistributorRegistration> GetRedistributorRegistrations()
+        {
+            return this.GetMachine().GetSystemBus(this).GetRegistrationPoints(this).OfType<ArmGicRedistributorRegistration>();
+        }
+
         public void LockExecuteAndUpdate(Action action)
         {
             lock(locker)
@@ -655,13 +660,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             var irqId = request.InterruptId;
             DebugHelper.Assert(irqsDecoder.IsSoftwareGenerated(irqId), $"Invalid interrupt identifier ({irqId}), it doesn't indicate an SGI.");
             this.Log(LogLevel.Noisy, "The {0} requests an SGI with id {1}.", requestingCPU.Name, irqId);
-
-            if(ArchitectureVersionAtLeast3)
-            {
-                this.Log(LogLevel.Warning, "The GIC supports Software Generated Interrupts only for GICv2 or older.");
-                // GICv3 with disabled Affinity Routing uses the same mechanism of handling SGIs as GICv2.
-                // There is no return here to provide at least partial support of GICv3.
-            }
 
             var targetCPUs = new List<CPUEntry>();
             switch(request.TargetCPUsType)
@@ -1269,6 +1267,36 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         valueProviderCallback: _ => GetAskingCPUEntry().Groups.Virtual[GroupType.Group0].Enabled,
                         writeCallback: (_, val) => GetAskingCPUEntry().Groups.Virtual[GroupType.Group0].Enabled = val
                     )
+                },
+                {(long)CPUInterfaceSystemRegisters.SoftwareGeneratedInterruptGroup1Generate, new QuadWordRegister(this)
+                    .WithReservedBits(56, 8)
+                    .WithValueField(48, 8, out var affinity3, FieldMode.Write, name: "Affinity3")
+                    .WithValueField(44, 4, out var rangeSelector, FieldMode.Write, name: "Range Selector")
+                    .WithReservedBits(41, 3)
+                    .WithFlag(40, out var interruptRoutingMode, FieldMode.Write, name: "Interrupt Routing Mode")
+                    .WithValueField(32, 8, out var affinity2, FieldMode.Write, name: "Affinity2")
+                    .WithReservedBits(28, 4)
+                    .WithValueField(24, 4, out var interruptID, FieldMode.Write, name: "Interrupt ID")
+                    .WithValueField(16, 8, out var affinity1, FieldMode.Write, name: "Affinity1")
+                    .WithReservedBits(5, 11)
+                    .WithValueField(0, 5, out var targetList)
+                    .WithWriteCallback((_, newValue) =>
+                    {
+                        var targetType = interruptRoutingMode.Value ? SoftwareGeneratedInterruptRequest.TargetType.AllCPUs : SoftwareGeneratedInterruptRequest.TargetType.TargetList;
+
+                        if(targetType == SoftwareGeneratedInterruptRequest.TargetType.TargetList && targetList.Value != 0 &&
+                            (rangeSelector.Value > 0 || affinity3.Value > 0 || affinity2.Value > 0 || affinity1.Value > 0))
+                        {
+                            var affs0 = BitHelper.GetSetBits(targetList.Value).Select(n => 16 * (byte)rangeSelector.Value + n);
+
+                            this.Log(LogLevel.Warning, "No full support for affinity routing. Only first 16 cores in cluster 0 can be addressed for now. Ignoring SGI request");
+                            this.Log(LogLevel.Warning, "Ignored SGI with ID {0} for targets {1}.{2}.{3}.({4})", interruptID.Value, affinity3.Value, affinity2.Value, affinity1.Value, string.Join(", ", affs0.ToArray()));
+                            return;
+                        }
+
+                        var interrupt = new SoftwareGeneratedInterruptRequest(targetType, (uint)targetList.Value, GroupType.Group1, new InterruptId((uint)interruptID.Value));
+                        OnSoftwareGeneratedInterrupt(GetAskingCPUEntry(), interrupt);
+                    })
                 },
             };
 
@@ -2044,7 +2072,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
                 var interrupt = isVirtualized
                     ? RunningInterrupts.GetActiveVirtual(id)
-                    : gic.GetAllInterrupts(this).SingleOrDefault(x => ((uint)x.Identifier) == ((uint)id));
+                    : gic.GetAllInterrupts(this).SingleOrDefault(x => ((uint)x.Identifier) == ((uint)id) && x.State.Active);
                 if(interrupt == null)
                 {
                     logFailure("which is an invalid INTID");
@@ -2305,7 +2333,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 if(interrupt is SoftwareGeneratedInterrupt sgi)
                 {
-                    if(sgi.Requester != null && sgi.Requester != accessingCPU)
+                    if(sgi.Requester != null && sgi.Requester != accessingCPU && !gic.IsAffinityRoutingEnabled(sgi.Requester))
                     {
                         gic.Log(LogLevel.Warning, "{0}: Incorrect Processor Number passed for SGI ({1}), request ignored.", registerTypeName, interrupt.Identifier);
                         return false;
@@ -2343,8 +2371,15 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         .WithFlag(5, FieldMode.Read, name: "DPGSupport",
                             valueProviderCallback: _ => false
                         )
-                        .WithFlag(4, FieldMode.Read, name: "HighestRedistributorInSeries",
-                            valueProviderCallback: _ => true) // There is no multi core support yet, so the Redistributor instance always is the latest one
+                        .WithFlag(4, FieldMode.Read, name: "HighestRedistributorInSeries", valueProviderCallback: _ =>
+                        {
+                            var redistributorsNotLowerThanCurrent = gic.GetRedistributorRegistrations().OrderBy(redist => redist.Range.StartAddress).SkipWhile(x => x.Cpu != cpu);
+                            // there must exist a corresponding redistributor for this CPUEntry, as otherwise we wouldn't be able to access this register
+                            var currentRedistributor = redistributorsNotLowerThanCurrent.First();
+                            var nextRedistributor = redistributorsNotLowerThanCurrent.Skip(1).FirstOrDefault();
+                            // return true for the highest redistrubutor in the contiguous region
+                            return nextRedistributor == null || (nextRedistributor.Range.StartAddress - currentRedistributor.Range.EndAddress) > 1;
+                        })
                         .WithFlag(3, FieldMode.Read, name: "LocalitySpecificInterruptDirectInjectionSupport",
                             valueProviderCallback: _ => false
                         )
