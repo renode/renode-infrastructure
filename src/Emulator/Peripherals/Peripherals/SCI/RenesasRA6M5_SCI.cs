@@ -256,6 +256,40 @@ namespace Antmicro.Renode.Peripherals.SCI
 
         private void SetPeripheralMode()
         {
+            if(smartCardMode.Value)
+            {
+                peripheralMode = PeripheralMode.SmartCardInterface;
+                if(i2cMode.Value)
+                {
+                    this.Log(LogLevel.Warning,
+                        "The IICM flag in the {0} register (SIMR1) should be unset for Smart Card Interface mode; it's set",
+                        nameof(Registers.IICMode1)
+                    );
+                }
+                return;
+            }
+
+            if(i2cMode.Value)
+            {
+                peripheralMode = PeripheralMode.IIC;
+                if(nonSmartCommunicationMode.Value != CommunicationMode.AsynchOrSimpleIIC)
+                {
+                    this.Log(LogLevel.Warning,
+                        "The CM flag in the {0} register (SMR) should be unset ({1}) for Simple I2C mode; it's set ({2})",
+                        nameof(Registers.SerialModeNonSmartCard), CommunicationMode.AsynchOrSimpleIIC, CommunicationMode.SynchOrSimpleSPI
+                    );
+                }
+
+                if(dataTransferDirection.Value != DataTransferDirection.MSBFirst)
+                {
+                    this.Log(LogLevel.Warning,
+                        "The SDIR flag in the {0} should be set ({1}) for Simple I2Cmode; it's unset ({2})",
+                        nameof(Registers.SmartCardMode), DataTransferDirection.MSBFirst, DataTransferDirection.LSBFirst
+                    );
+                }
+                return;
+            }
+
             switch(nonSmartCommunicationMode.Value)
             {
                 case CommunicationMode.AsynchOrSimpleIIC:
@@ -452,11 +486,12 @@ namespace Antmicro.Renode.Peripherals.SCI
                 .WithFlag(0, out smartCardMode, name: "SMIF")
                 .WithReservedBits(1, 1)
                 .WithTaggedFlag("SINV", 2)
-                .WithTaggedFlag("SDIR", 3)
+                .WithEnumField(3, 1, out dataTransferDirection, name: "SDIR")
                 .WithTaggedFlag("CHR1", 4)
                 .WithReservedBits(5, 2)
                 .WithTaggedFlag("BCP2", 7)
-                .WithReservedBits(8, 8);
+                .WithReservedBits(8, 8)
+                .WithChangeCallback((_, __) => SetPeripheralMode());
 
             Registers.SerialExtendedMode.Define(this)
                 .WithTaggedFlag("ACS0", 0)
@@ -474,7 +509,7 @@ namespace Antmicro.Renode.Peripherals.SCI
                 .WithReservedBits(3, 13);
 
             Registers.IICMode1.Define(this)
-                .WithTaggedFlag("IICM", 0)
+                .WithFlag(0, out i2cMode, changeCallback: (_, __) => SetPeripheralMode(), name: "IICM")
                 .WithReservedBits(1, 2)
                 .WithTag("IICDL", 3, 5)
                 .WithReservedBits(8, 8);
@@ -959,9 +994,11 @@ namespace Antmicro.Renode.Peripherals.SCI
         private IFlagRegisterField smartCardMode;
         private IFlagRegisterField transmitFIFOEmpty;
         private IFlagRegisterField conditionCompletedFlag;
+        private IFlagRegisterField i2cMode;
         private IValueRegisterField receiveFIFOTriggerCount;
         private IValueRegisterField bitRate;
         private IValueRegisterField clockSource;
+        private IEnumRegisterField<DataTransferDirection> dataTransferDirection;
         private IEnumRegisterField<CommunicationMode> nonSmartCommunicationMode;
 
 
@@ -970,6 +1007,12 @@ namespace Antmicro.Renode.Peripherals.SCI
         private const int IICReadBufferCount = 24;
         // This byte is used to trigger reception on IIC bus. It should not be transmitted
         private const byte DummyTransmitByte = 0xFF;
+
+        private enum DataTransferDirection
+        {
+            LSBFirst = 0,
+            MSBFirst = 1,
+        }
 
         private enum IICCondition
         {
@@ -1002,6 +1045,7 @@ namespace Antmicro.Renode.Peripherals.SCI
             UART,
             SPI,
             IIC,
+            SmartCardInterface,
         }
 
         private enum Registers
