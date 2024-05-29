@@ -161,7 +161,7 @@ namespace Antmicro.Renode.Utilities.GDB
         }
 
         public IMachine Machine { get; }
-        public Dictionary<uint, ICpuSupportingGdb> ManagedCpus { get; set; }
+        public Dictionary<uint, ICpuSupportingGdb> ManagedCpus { get; }
         public bool CanAttachCPU { get; set; }
         public ICpuSupportingGdb Cpu
         {
