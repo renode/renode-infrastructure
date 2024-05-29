@@ -850,7 +850,6 @@ namespace Antmicro.Renode.Utilities
             return (ushort) (x >> 16);
         }
 
-
         public enum TransportLayerProtocol
         {
             ICMP = 0x1,
