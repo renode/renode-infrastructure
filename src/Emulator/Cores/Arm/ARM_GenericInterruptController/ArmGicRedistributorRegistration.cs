@@ -122,6 +122,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 throw new RegistrationException($"RedistributorRegistration can only be attached to {nameof(ARM_GenericInterruptController)}");
             }
+            if(!gic.ArchitectureVersionAtLeast3)
+            {
+                throw new RegistrationException($"RedistributorRegistration can only be attached to {nameof(ARM_GenericInterruptController)} version 3 and above");
+            }
             if(!gic.TryGetCPUEntryForCPU(Cpu, out entry))
             {
                 throw new RegistrationException($"Couldn't register redistributor for CPU {Cpu.Id} because the CPU isn't attached to this GIC");
