@@ -26,7 +26,7 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
             }
 
             manager.SelectCpuForDebugging((uint)cpuId);
-            return new PacketData("OK");
+            return PacketData.Success;
         }
     }
 }
