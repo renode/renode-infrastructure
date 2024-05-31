@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -32,25 +32,9 @@ namespace Antmicro.Renode.UserInterface.Commands
         }
 
         [Runnable]
-        public void Run(ICommandInteraction writer, PathToken pathToImage)
+        public void Run(ICommandInteraction writer, StringToken pathToImage)
         {
-            if(!File.Exists(pathToImage.Value))
-            {
-                writer.WriteError($"No such file {pathToImage.Value}");
-                return;
-            }
-
-
-            using(var file = new FileStream(pathToImage.Value, FileMode.Open))
-            {
-                if(!CheckFormat(file))
-                {
-                    writer.WriteError("Bad image format. Supported formats: jpeg, png");
-                    return;
-                }
-
-                writer.WriteRaw(InlineImage.Encode(file));
-            }
+            Run(writer, pathToImage.Value);
         }
 
         [Runnable]
@@ -76,6 +60,20 @@ namespace Antmicro.Renode.UserInterface.Commands
         public DisplayImageCommand(Monitor monitor)
             : base(monitor, "displayImage", "Displays image in Monitor")
         {
+        }
+
+        private void Run(ICommandInteraction writer, ReadFilePath pathToImage)
+        {
+            using(var file = new FileStream(pathToImage, FileMode.Open))
+            {
+                if(!CheckFormat(file))
+                {
+                    writer.WriteError("Bad image format. Supported formats: jpeg, png");
+                    return;
+                }
+
+                writer.WriteRaw(InlineImage.Encode(file));
+            }
         }
 
         private static bool CheckFormat(Stream file)

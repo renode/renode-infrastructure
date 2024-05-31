@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -24,13 +24,13 @@ namespace Antmicro.Renode.UserInterface.Commands
         }
 
         [Runnable]
-        public void Run(PathToken path)
+        public void Run(StringToken path)
         {
             InnerRun(path.Value, false);
         }
 
         [Runnable]
-        public void Run(PathToken path, BooleanToken token)
+        public void Run(StringToken path, BooleanToken token)
         {
             InnerRun(path.Value, token.Value);
         }
