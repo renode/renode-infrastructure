@@ -10,6 +10,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Migrant;
+using System.Linq;
 
 namespace Antmicro.Renode.Utilities.GDB
 {
@@ -81,6 +82,8 @@ namespace Antmicro.Renode.Utilities.GDB
         public int Port { get; private set; }
 
         public bool LogsEnabled { get; set; }
+
+        public IEnumerable<string> CpuGDBModels => commandsManager.ManagedCpus.Select(c => c.Model).Distinct();
 
         private void OnHalted(HaltArguments args)
         {

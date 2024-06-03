@@ -63,8 +63,8 @@ namespace Antmicro.Renode.Core
         void ScheduleAction(TimeInterval delay, Action<TimeInterval> action, string name = null);
         void SetLocalName(IPeripheral peripheral, string name);
         void Start();
-        void StartGdbServer(int port, bool autostartEmulation);
-        void StartGdbServer(int port, bool autostartEmulation = false, ICpuSupportingGdb cpu = null);
+        void StartGdbServer(int port, bool autostartEmulation = true, string cpuCluster = "");
+        void StartGdbServer(int port, bool autostartEmulation, ICpuSupportingGdb cpu);
         void StopGdbServer(int? port = null);
         string ToString();
         bool TryGetAnyName(IPeripheral peripheral, out string name);

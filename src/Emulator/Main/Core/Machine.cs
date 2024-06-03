@@ -950,51 +950,68 @@ namespace Antmicro.Renode.Core
             gdbStubs[port].LogsEnabled = enabled;
         }
 
-        public void StartGdbServer(int port, bool autostartEmulation)
+        public void StartGdbServer(int port, bool autostartEmulation = true, string cpuCluster = "")
         {
-            StartGdbServer(port, autostartEmulation, null);
-        }
-
-        public void StartGdbServer(int port, bool autostartEmulation = true, ICpuSupportingGdb cpu = null)
-        {
+            var cpus = SystemBus.GetCPUs().Cast<ICpuSupportingGdb>();
+            if(!cpus.Any())
+            {
+                throw new RecoverableException("Cannot start GDB server with no CPUs. Did you forget to load the platform description first?");
+            }
             try
             {
-                if(cpu == null)
+                // If all the CPUs are only of one architecture, implicitly allow to connect, without prompting about anything
+                if(cpus.Select(cpu => cpu.Model).Distinct().Count() <= 1)
                 {
-                    if(gdbStubs.ContainsKey(port))
+                    if(!String.IsNullOrEmpty(cpuCluster))
                     {
-                        throw new RecoverableException(string.Format("GDB server already started for this machine on port :{0}", port));
+                        this.Log(LogLevel.Warning, "{0} setting has no effect on non-heterogenous systems, and will be ignored", nameof(cpuCluster));
                     }
-                    var cpus = SystemBus.GetCPUs().Cast<ICpuSupportingGdb>();
-                    if(!cpus.Any())
-                    {
-                        throw new RecoverableException("Cannot start GDB server with no CPUs. Did you forget to load the platform description first?");
-                    }
-                    foreach(var c in cpus)
-                    {
-                        if(gdbStubs.Values.Any(x => x.IsCPUAttached(c)))
-                        {
-                            throw new RecoverableException("One or more CPUs already added to an existing GDB server");
-                        }
-                    }
-                    gdbStubs.Add(port, new GdbStub(this, cpus, port, autostartEmulation));
+                    AddCpusToGdbStub(port, autostartEmulation, cpus);
                     this.Log(LogLevel.Info, "GDB server with all CPUs started on port :{0}", port);
-                    return;
-                }
-                if(gdbStubs.Values.Any(x => x.IsCPUAttached(cpu)))
-                {
-                    throw new RecoverableException(string.Format("CPU is already attached to a stub"));
-                }
-                if(gdbStubs.ContainsKey(port))
-                {
-                    gdbStubs[port].AttachCPU(cpu);
-                    this.Log(LogLevel.Info, "CPU was added to GDB server running on port :{0}", port);
                 }
                 else
                 {
-                    gdbStubs.Add(port, new GdbStub(this, new[] { cpu }, port, autostartEmulation));
-                    this.Log(LogLevel.Info, "CPU was added to new GDB server created on port :{0}", port);
+                    // It's not recommended to connect GDB to all CPUs in heterogeneous platforms
+                    // but let's permit this, if the user insists, with a log
+                    if(cpuCluster.ToLowerInvariant() == "all")
+                    {
+                        this.Log(LogLevel.Info, "Starting GDB server for CPUs of different architectures. Make sure, that your debugger supports this configuration");
+                        AddCpusToGdbStub(port, autostartEmulation, cpus);
+                        return;
+                    }
+
+                    // Otherwise, simple clustering, based on architecture
+                    var cpusOfArch = cpus.Where(cpu => cpu.Model == cpuCluster);
+                    if(!cpusOfArch.Any())
+                    {
+                        var response = new StringBuilder();
+                        if(String.IsNullOrEmpty(cpuCluster))
+                        {
+                            response.AppendLine("CPUs of different architectures are present in this platform. Specify cluster of CPUs to debug, or \"all\" to connect to all CPUs.");
+                            response.AppendLine("NOTE: when selecting \"all\" make sure that your debugger can handle CPUs of different architectures.");
+                        }
+                        else
+                        {
+                            response.AppendFormat("No CPUs available or no cluster named: \"{0}\" exists.\n", cpuCluster);
+                        }
+                        response.Append("Available clusters are: ");
+                        response.Append(Misc.PrettyPrintCollection(cpus.Select(c => c.Model).Distinct().Append("all"), c => $"\"{c}\""));
+                        throw new RecoverableException(response.ToString());
+                    }
+                    AddCpusToGdbStub(port, autostartEmulation, cpusOfArch);
                 }
+            }
+            catch(SocketException e)
+            {
+                throw new RecoverableException(string.Format("Could not start GDB server: {0}", e.Message));
+            }
+        }
+
+        public void StartGdbServer(int port, bool autostartEmulation, ICpuSupportingGdb cpu)
+        {
+            try
+            {
+                AddCpusToGdbStub(port, autostartEmulation, new [] { cpu });
             }
             catch(SocketException e)
             {
@@ -1254,6 +1271,36 @@ namespace Antmicro.Renode.Core
         public const string SystemBusName = "sysbus";
         public const string UnnamedPeripheral = "[no-name]";
         public const string MachineKeyword = "machine";
+
+        private void CheckIsCpuAlreadyAttached(ICpuSupportingGdb cpu)
+        {
+            var owningStub = gdbStubs.Values.FirstOrDefault(x => x.IsCPUAttached(cpu));
+            if(owningStub != null)
+            {
+                throw new RecoverableException($"CPU: {cpu.GetName()} is already attached to an existing GDB server, running on port :{owningStub.Port}");
+            }
+        }
+
+        private void AddCpusToGdbStub(int port, bool autostartEmulation, IEnumerable<ICpuSupportingGdb> cpus)
+        {
+            foreach(var cpu in cpus)
+            {
+                CheckIsCpuAlreadyAttached(cpu);
+            }
+            if(gdbStubs.ContainsKey(port))
+            {
+                foreach(var cpu in cpus)
+                {
+                    gdbStubs[port].AttachCPU(cpu);
+                    this.Log(LogLevel.Info, "CPU: {0} was added to GDB server running on port :{1}", cpu.GetName(), port);
+                }
+            }
+            else
+            {
+                gdbStubs.Add(port, new GdbStub(this, cpus, port, autostartEmulation));
+                this.Log(LogLevel.Info, "CPUs: {0} were added to a new GDB server created on port :{1}", Misc.PrettyPrintCollection(cpus, c => $"\"{c.GetName()}\""), port);
+            }
+        }
 
         private void TryReduceBroadcastedDirtyAddresses(uint cpuId)
         {
