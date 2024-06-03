@@ -263,6 +263,9 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
             }
         }
 
+        private const int AllCores = PacketThreadId.All;
+        private const int AnyCore = PacketThreadId.Any;
+
         private struct Operation
         {
             public Operation(uint id, OperationType type) : this()
@@ -294,8 +297,5 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
             Step,
             None,
         }
-
-        private const int AllCores = -1;
-        private const int AnyCore = 0;
     }
 }
