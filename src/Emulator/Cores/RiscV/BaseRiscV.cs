@@ -838,7 +838,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             Priv1_09,
             Priv1_10,
-            Priv1_11
+            Priv1_11,
+            Priv1_12,
         }
 
         /* The enabled instruction sets are exposed via a register. Each instruction bit is represented
