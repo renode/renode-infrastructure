@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -134,22 +134,12 @@ namespace Antmicro.Renode.Peripherals.Timers
             return frequency;
         }
 
-        private void RequestReturnOnAllCPUs()
-        {
-            foreach(var cpu in machine.GetPeripheralsOfType<TranslationCPU>())
-            {
-                cpu.RequestReturn();
-            }
-        }
-
         private void UpdateTimerActiveStatus()
         {
             for(var i = 0 ; i < TimersCount; ++i)
             {
                 internalTimers[i].Enabled = timerEnabled[i].Value && globalTimerEnabled[i].Value;
             }
-
-            RequestReturnOnAllCPUs();
         }
 
         private void UpdateInterrupts()
@@ -263,13 +253,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                         writeCallback: (_, value) =>
                         {
                             UpdateTimerActiveStatus();
-                            if(value)
-                            {
-                                RequestReturnOnAllCPUs();
-                                // This is required as software could enable timer in the middle
-                                // of the translation block, which wouldn't update nearestLimitIn
-                                // and result in missed interrupt.
-                            }
                         })
                     .WithFlag(1, FieldMode.WriteOneToClear, name: $"TMR{index}CLR",
                         writeCallback: (_, value) => { if(value) internalTimers[index].Reset(); })

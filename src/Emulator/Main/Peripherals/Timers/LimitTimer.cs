@@ -10,6 +10,7 @@ using System;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -91,6 +92,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                 frequency = value;
                 var effectiveFrequency = frequency / Divider;
                 clockSource.ExchangeClockEntryWith(OnLimitReached, oldEntry => oldEntry.With(frequency: effectiveFrequency));
+
+                RequestReturnOnCurrentCpu();
             }
         }
 
@@ -108,6 +111,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
 
                 clockSource.ExchangeClockEntryWith(OnLimitReached, oldEntry => oldEntry.With(value: value));
+
+                RequestReturnOnCurrentCpu();
             }
         }
 
@@ -142,6 +147,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                 divider = value;
                 var effectiveFrequency = Frequency / divider;
                 clockSource.ExchangeClockEntryWith(OnLimitReached, oldEntry => oldEntry.With(frequency: effectiveFrequency));
+
+                RequestReturnOnCurrentCpu();
             }
         }
 
@@ -165,6 +172,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     throw new InvalidOperationException("Should not reach here.");
                 });
+
+                RequestReturnOnCurrentCpu();
             }
         }
 
@@ -181,6 +190,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                 clockSource.ExchangeClockEntryWith(OnLimitReached, oldEntry => oldEntry.With(enabled: value),
                     () => { throw new InvalidOperationException("Should not reach here."); });
                     // should not reach here - limit should already be set in ctor
+
+                RequestReturnOnCurrentCpu();
             }
         }
 
@@ -242,6 +253,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                     }
                     return oldEntry.With(value: oldEntry.Period);
             });
+
+            RequestReturnOnCurrentCpu();
         }
 
         public Direction Direction
@@ -257,6 +270,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                     {
                         throw new InvalidOperationException("Should not reach here.");
                     });
+
+                RequestReturnOnCurrentCpu();
             }
         }
 
@@ -307,6 +322,13 @@ namespace Antmicro.Renode.Peripherals.Timers
             rawInterrupt = false;
         }
 
+        private void RequestReturnOnCurrentCpu()
+        {
+            if(EmulationManager.Instance.CurrentEmulation.TryGetExecutionContext(out var machine, out var cpu))
+            {
+                (cpu as IControllableCPU)?.RequestReturn();
+            }
+        }
 
         private readonly long initialFrequency;
         private readonly WorkMode initialWorkMode;

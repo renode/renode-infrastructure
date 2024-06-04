@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -10,6 +10,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -64,6 +65,8 @@ namespace Antmicro.Renode.Peripherals.Timers
             set
             {
                 clockSource.ExchangeClockEntryWith(CompareReachedInternal, oldEntry => oldEntry.With(enabled: value));
+
+                RequestReturnOnCurrentCpu();
             }
         }
 
@@ -83,6 +86,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
                 frequency = value;
                 RecalculateFrequency();
+
+                RequestReturnOnCurrentCpu();
             }
         }
 
@@ -109,6 +114,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                     valueAccumulatedSoFar = value;
                     return entry.With(period: CalculatePeriod(), value: 0);
                 });
+
+                RequestReturnOnCurrentCpu();
             }
         }
 
@@ -130,6 +137,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                     valueAccumulatedSoFar += entry.Value;
                     return entry.With(period: CalculatePeriod(), value: 0);
                 });
+
+                RequestReturnOnCurrentCpu();
             }
         }
 
@@ -151,6 +160,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
                 divider = value;
                 RecalculateFrequency();
+
+                RequestReturnOnCurrentCpu();
             }
         }
 
@@ -168,6 +179,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
                 step = value;
                 clockSource.ExchangeClockEntryWith(CompareReachedInternal, oldEntry => oldEntry.With(step: step));
+
+                RequestReturnOnCurrentCpu();
             }
         }
 
@@ -234,6 +247,14 @@ namespace Antmicro.Renode.Peripherals.Timers
             valueAccumulatedSoFar = 0;
             compareValue = initialCompare;
             EventEnabled = initialEventEnabled;
+        }
+
+        private void RequestReturnOnCurrentCpu()
+        {
+            if(EmulationManager.Instance.CurrentEmulation.TryGetExecutionContext(out var machine, out var cpu))
+            {
+                (cpu as IControllableCPU)?.RequestReturn();
+            }
         }
 
         private ulong valueAccumulatedSoFar;

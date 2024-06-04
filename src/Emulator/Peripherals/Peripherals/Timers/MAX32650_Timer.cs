@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -69,19 +69,6 @@ namespace Antmicro.Renode.Peripherals.Timers
             IRQ.Set(interruptPending.Value);
         }
 
-        private void RequestReturnOnAllCPUs()
-        {
-            if(!Enabled)
-            {
-                return;
-            }
-
-            foreach(var cpu in machine.GetPeripheralsOfType<TranslationCPU>())
-            {
-                cpu.RequestReturn();
-            }
-        }
-
         private Dictionary<long, DoubleWordRegister> DefineRegisters()
         {
             return new Dictionary<long, DoubleWordRegister>()
@@ -90,10 +77,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithValueField(0, 32, name: "CNT.count",
                         valueProviderCallback: _ => (uint)Value,
                         changeCallback: (_, value) => Value = value)
-                        // As software should always disable timer before
-                        // modyfing this register, we don't have to call
-                        // RequestReturnOnAllCPUs as it will always be called
-                        // as a result of enabling timer.
                 },
                 {(long)Registers.Compare, new DoubleWordRegister(this)
                     .WithValueField(0, 32, name: "CMP.compare",
@@ -103,10 +86,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                             Limit = value;
                             Value = 1;
                         })
-                        // As software should always disable timer before
-                        // modyfing this register, we don't have to call
-                        // RequestReturnOnAllCPUs as it will always be called
-                        // as a result of enabling timer.
                 },
                 {(long)Registers.Interrupt, new DoubleWordRegister(this)
                     .WithFlag(0, out interruptPending, name: "INT.irq",
@@ -157,7 +136,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                     // We are using flag instead of tagged flag to hush down unnecessary log messages
                     .WithFlag(12, name: "CN.pwmckbd")
                     .WithReservedBits(13, 19)
-                    .WithChangeCallback((_, __) => RequestReturnOnAllCPUs())
                 }
             };
         }
