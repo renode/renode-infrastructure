@@ -637,6 +637,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         public byte DistributorVariant { get; set; } = DefaultVariantNumber;
         public byte DistributorRevision { get; set; } = DefaultRevisionNumber;
         public uint DistributorImplementer { get; set; } = DefaultImplementerIdentification;
+        public uint RedistributorProductIdentifier { get; set; } = DefaultRedistributorProductIdentifier;
+        public byte RedistributorVariant { get; set; } = DefaultVariantNumber;
+        public byte RedistributorRevision { get; set; } = DefaultRevisionNumber;
+        public uint RedistributorImplementer { get; set; } = DefaultImplementerIdentification;
 
         public event Action<IARMSingleSecurityStateCPU> CPUAttached;
 
@@ -1881,6 +1885,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private const ARM_GenericInterruptControllerVersion DefaultArchitectureVersion = ARM_GenericInterruptControllerVersion.GICv3;
         private const uint DefaultCPUInterfaceProductIdentifier = 0x0;
         private const uint DefaultDistributorProductIdentifier = 0x0;
+        private const uint DefaultRedistributorProductIdentifier = 0x0;
         private const byte DefaultVariantNumber = 0x0;
         private const byte DefaultRevisionNumber = 0x0;
         private const uint DefaultImplementerIdentification = 0x43B; // This value indicates the JEP106 code of the Arm as an implementer
@@ -2435,6 +2440,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                             valueProviderCallback: _ => false
                         )
                         .WithTaggedFlag("LocalitySpecificInterruptEnable", 0)
+                    },
+                    {(long)RedistributorRegisters.ImplementerIdentification, new DoubleWordRegister(this)
+                        .WithValueField(24, 8, FieldMode.Read, name: "ProductID", valueProviderCallback: _ => gic.RedistributorProductIdentifier)
+                        .WithReservedBits(20, 4)
+                        .WithValueField(16, 4, FieldMode.Read, name: "Variant", valueProviderCallback: _ => gic.RedistributorVariant)
+                        .WithValueField(12, 4, FieldMode.Read, name: "Revision", valueProviderCallback: _ => gic.RedistributorRevision)
+                        .WithValueField(0, 12, FieldMode.Read, name: "Implementer", valueProviderCallback: _ => gic.RedistributorImplementer)
                     },
                     {(long)RedistributorRegisters.Wake, new DoubleWordRegister(this, 0x1)
                         // "There is only one GICR_WAKER.Sleep and one GICR_WAKER.Quiescent bit that can be read and written through the GICR_WAKER register of any Redistributor."
