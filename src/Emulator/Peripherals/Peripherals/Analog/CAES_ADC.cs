@@ -71,7 +71,6 @@ namespace Antmicro.Renode.Peripherals.Analog
 
         private uint GetChannelVoltage(uint dataChannelId)
         {
-            EnsureChannelIsValid(dataChannelId);
             if(resdStream[dataChannelId] == null || resdStream[dataChannelId].TryGetCurrentSample(this, (sample) => sample.Voltage / 1000, out var voltage, out _) != RESDStreamStatus.OK)
             {
                 voltage = DefaultChannelVoltage;
@@ -92,7 +91,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         {
             if(channelIdx >= NumberOfDataChannels)
             {
-                this.Log(LogLevel.Warning, $"Invalid argument value: {channelIdx}. This peripheral implements only channels in range 0-{NumberOfDataChannels - 1}");
+                throw new RecoverableException($"Invalid argument value: {channelIdx}. This peripheral implements only channels in range 0-{NumberOfDataChannels - 1}");
             }
         }
 
