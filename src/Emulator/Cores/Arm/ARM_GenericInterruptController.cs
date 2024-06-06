@@ -675,15 +675,15 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     targetCPUs.AddRange(cpuEntries.Values.Where(cpu => cpu != requestingCPU));
                     break;
                 case SoftwareGeneratedInterruptRequest.TargetType.TargetList:
-                    foreach(var processorNumber in BitHelper.GetSetBits(request.TargetsList))
+                    foreach(var affinity in request.TargetsList)
                     {
-                        if(TryGetCPUEntry((uint)processorNumber, out var targetCPU))
+                        if(TryGetCPUEntry(affinity.AllLevels, out var targetCPU))
                         {
                             targetCPUs.Add(targetCPU);
                         }
                         else
                         {
-                            this.Log(LogLevel.Debug, "There is no target CPU with the Processor Number {0} for an SGI request.", processorNumber);
+                            this.Log(LogLevel.Debug, "There is no target CPU with the affinity {0} for an SGI request.", affinity);
                         }
                     }
                     break;
@@ -893,13 +893,20 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 {(long)DistributorRegisters.SoftwareGeneratedInterruptControl, new DoubleWordRegister(this)
                     .WithReservedBits(26, 6)
                     .WithEnumField<DoubleWordRegister, SoftwareGeneratedInterruptRequest.TargetType>(24, 2, out var type, FieldMode.Write, name: "TargetListFilter")
-                    .WithValueField(16, 8, out var list, FieldMode.Write, name: "TargetsList")
+                    .WithValueField(16, 8, out var targetList, FieldMode.Write, name: "TargetsList")
                     .WithFlag(15, out var group, FieldMode.Write, name: "GroupFilterSecureAccess")
                     .WithReservedBits(4, 10)
                     .WithValueField(0, 4, out var id, FieldMode.Write, name: "SoftwareGeneratedInterruptIdentifier")
-                    .WithWriteCallback((_, __) => OnSoftwareGeneratedInterrupt(GetAskingCPUEntry(),
-                        new SoftwareGeneratedInterruptRequest(type.Value, (uint)list.Value, group.Value ? GroupType.Group1 : GroupType.Group0, new InterruptId((uint)id.Value)))
-                    )
+                    .WithWriteCallback((_, __) =>
+                    {
+                        var list = new Affinity[]{};
+                        if(type.Value == SoftwareGeneratedInterruptRequest.TargetType.TargetList)
+                        {
+                            list = BitHelper.GetSetBits(targetList.Value).Select(n => new Affinity((byte)n)).ToArray();
+                        }
+                        var interrupt =  new SoftwareGeneratedInterruptRequest(type.Value, list, group.Value ? GroupType.Group1 : GroupType.Group0, new InterruptId((uint)id.Value));
+                        OnSoftwareGeneratedInterrupt(GetAskingCPUEntry(), interrupt);
+                    })
                 },
                 {PeripheralIdentificationOffset, new DoubleWordRegister(this)
                     .WithReservedBits(8, 24)
@@ -1288,17 +1295,17 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     {
                         var targetType = interruptRoutingMode.Value ? SoftwareGeneratedInterruptRequest.TargetType.AllCPUs : SoftwareGeneratedInterruptRequest.TargetType.TargetList;
 
-                        if(targetType == SoftwareGeneratedInterruptRequest.TargetType.TargetList && targetList.Value != 0 &&
-                            (rangeSelector.Value > 0 || affinity3.Value > 0 || affinity2.Value > 0 || affinity1.Value > 0))
+                        var list = new Affinity[]{};
+                        if(targetType == SoftwareGeneratedInterruptRequest.TargetType.TargetList)
                         {
-                            var affs0 = BitHelper.GetSetBits(targetList.Value).Select(n => 16 * (byte)rangeSelector.Value + n);
-
-                            this.Log(LogLevel.Warning, "No full support for affinity routing. Only first 16 cores in cluster 0 can be addressed for now. Ignoring SGI request");
-                            this.Log(LogLevel.Warning, "Ignored SGI with ID {0} for targets {1}.{2}.{3}.({4})", interruptID.Value, affinity3.Value, affinity2.Value, affinity1.Value, string.Join(", ", affs0.ToArray()));
-                            return;
+                            var range = 16 * (byte)rangeSelector.Value;
+                            var aff1 = (byte)affinity1.Value;
+                            var aff2 = (byte)affinity2.Value;
+                            var aff3 = (byte)affinity3.Value;
+                            list = BitHelper.GetSetBits(targetList.Value).Select(n => new Affinity((byte)(range + n), aff2, aff2, aff3)).ToArray();
                         }
 
-                        var interrupt = new SoftwareGeneratedInterruptRequest(targetType, (uint)targetList.Value, GroupType.Group1, new InterruptId((uint)interruptID.Value));
+                        var interrupt = new SoftwareGeneratedInterruptRequest(targetType, list, GroupType.Group1, new InterruptId((uint)interruptID.Value));
                         OnSoftwareGeneratedInterrupt(GetAskingCPUEntry(), interrupt);
                     })
                 },
@@ -3063,7 +3070,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public struct SoftwareGeneratedInterruptRequest
         {
-            public SoftwareGeneratedInterruptRequest(TargetType type, uint list, GroupType group, InterruptId id)
+            public SoftwareGeneratedInterruptRequest(TargetType type, Affinity[] list, GroupType group, InterruptId id)
             {
                 TargetCPUsType = type;
                 TargetsList = list;
@@ -3072,7 +3079,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
 
             public TargetType TargetCPUsType { get; }
-            public uint TargetsList { get; }
+            public Affinity[] TargetsList { get; }
             public GroupType TargetGroup { get; }
             public InterruptId InterruptId { get; }
 
