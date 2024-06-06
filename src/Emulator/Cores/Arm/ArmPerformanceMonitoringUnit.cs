@@ -173,6 +173,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
         }
 
+        private static void VerifyRegister(string register)
+        {
+            if(!ImplementedRegisters.Contains(register.ToUpperInvariant()))
+            {
+                throw new RecoverableException($"Invalid register: {register}. See \"ImplementedRegisters\" property for the list of registers");
+            }
+        }
+
         private void ValidateCounter(uint counter)
         {
             VerifyCPURegistered();
@@ -183,14 +191,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             if(counter >= supportedCounters)
             {
                 throw new RecoverableException($"Invalid counter: {counter}, select from 0 to {supportedCounters - 1}");
-            }
-        }
-
-        private static void VerifyRegister(string register)
-        {
-            if(!ImplementedRegisters.Contains(register.ToUpperInvariant()))
-            {
-                throw new RecoverableException($"Invalid register: {register}. See \"ImplementedRegisters\" property for the list of registers");
             }
         }
 
