@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -14,9 +14,9 @@ using Antmicro.Renode.Time;
 namespace Antmicro.Renode.Peripherals.Timers
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.DoubleWordToByte)]
-    public class NPCX_ITIM32 : BasicDoubleWordPeripheral, IKnownSize
+    public class NPCX_ITIM : BasicDoubleWordPeripheral, IKnownSize
     {
-        public NPCX_ITIM32(IMachine machine, long lfclkFrequency = DefaultLFCLKFrequency, long apb2Frequency = DefaultAPB2Frequency) : base(machine)
+        public NPCX_ITIM(IMachine machine, long lfclkFrequency = DefaultLFCLKFrequency, long apb2Frequency = DefaultAPB2Frequency) : base(machine)
         {
             this.lfclkFrequency = lfclkFrequency;
             this.apb2Frequency = apb2Frequency;
