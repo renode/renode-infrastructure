@@ -6,6 +6,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Core.Structure.Registers
@@ -102,7 +103,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
                     ulong binary = ToBinary(value);
                     if((binary >> width) > 0 && width < 64)
                     {
-                        throw new ArgumentException("Value exceeds the size of the field.");
+                        throw new ConstructionException("Value exceeds the size of the field.");
                     }
                     WriteFiltered(binary);
                 }
@@ -165,7 +166,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
             {
                 if(!fieldMode.IsReadable() && valueProviderCallback != null)
                 {
-                    throw new ArgumentException($"A write-only field cannot provide a value callback.");
+                    throw new ConstructionException($"A write-only field cannot provide a value callback.");
                 }
 
                 ReadCallback = readCallback;
@@ -198,7 +199,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
             {
                 if(!fieldMode.IsValid())
                 {
-                    throw new ArgumentException("Invalid {0} flags for register field: {1}.".FormatWith(fieldMode.GetType().Name, fieldMode.ToString()));
+                    throw new ConstructionException("Invalid {0} flags for register field: {1}.".FormatWith(fieldMode.GetType().Name, fieldMode.ToString()));
                 }
                 this.parent = parent;
                 this.position = position;

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -9,6 +9,7 @@ using System;
 using NUnit.Framework;
 using Antmicro.Renode.Core.Structure.Registers;
 using System.Collections.Generic;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.UnitTests
@@ -19,8 +20,8 @@ namespace Antmicro.Renode.UnitTests
         [Test]
         public void ShouldNotAcceptOutOfBoundsValues()
         {
-            Assert.Catch<ArgumentException>(() => enumRWField.Value = (TwoBitEnum)(1 << 2));
-            Assert.Catch<ArgumentException>(() => valueRWField.Value = (1 << 4));
+            Assert.Catch<ConstructionException>(() => enumRWField.Value = (TwoBitEnum)(1 << 2));
+            Assert.Catch<ConstructionException>(() => valueRWField.Value = (1 << 4));
         }
 
         [Test]
