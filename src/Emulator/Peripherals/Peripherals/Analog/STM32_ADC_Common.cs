@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -430,7 +430,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             if(hasChannelSequence)
             {
                 configurationRegister1
-                    .WithTaggedFlag("CHSELRMOD", 21);
+                    .WithFlag(21, name: "CHSELRMOD"); // no actual logic, but software expects to read the value back
             }
             else
             {
