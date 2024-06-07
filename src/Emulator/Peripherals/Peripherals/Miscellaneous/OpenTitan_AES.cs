@@ -32,7 +32,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             UpdateErrorAlert = new GPIO();
 
             key = new byte[InitialKeyShareLengthInBytes];
-            aes = new AesManaged();
             random = new PseudorandomNumberGenerator();
             Reset();
         }
@@ -316,7 +315,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private IEnumRegisterField<OperationMode> operationMode;
         private IEnumRegisterField<KeyLength> keyLength;
 
-        private readonly AesManaged aes;
+// > warning SYSLIB0021: 'AesManaged' is obsolete: 'Derived cryptographic types are obsolete. Use the Create method on the base type instead.'
+// Replacing with `Aes.Create` isn't straightforward as it breaks serialization on Windows. Let's just hush it.
+#pragma warning disable SYSLIB0021
+        private readonly AesManaged aes = new AesManaged();
+#pragma warning restore SYSLIB0021
+
         private readonly PseudorandomNumberGenerator random;
 
         private const int InitialKeyShareLengthInBytes = 32;
