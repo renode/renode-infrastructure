@@ -1,5 +1,6 @@
 //
 // Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2023 OS Systems
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -10,9 +11,9 @@ using Antmicro.Renode.Peripherals.DMA;
 
 namespace Antmicro.Renode.Peripherals.Analog
 {
-    public class STM32F0_ADC : STM32_ADC_Common
+    public class STM32L0_ADC : STM32_ADC_Common
     {
-        public STM32F0_ADC(IMachine machine, double referenceVoltage, uint externalEventFrequency, int dmaChannel = 0, IDMA dmaPeripheral = null)
+        public STM32L0_ADC(IMachine machine, double referenceVoltage, uint externalEventFrequency, int dmaChannel = 0, IDMA dmaPeripheral = null)
             : base(
                 machine,
                 referenceVoltage,
@@ -21,13 +22,13 @@ namespace Antmicro.Renode.Peripherals.Analog
                 dmaPeripheral,
                 // Base class configuration
                 watchdogCount: 1,
-                hasCalibration: false,
+                hasCalibration: true,
                 hasHighCalAddress: false,
-                channelCount: 19,
-                hasPrescaler: false,
-                hasVbatPin: true,
+                channelCount: 18,
+                hasPrescaler: true,
+                hasVbatPin: false,
                 hasChannelSequence: false,
-                hasPowerRegister: false
+                hasPowerRegister: true
             )
         {}
     }

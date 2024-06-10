@@ -377,7 +377,10 @@
     <Compile Include="Peripherals\Analog\CAES_ADC.cs" />
     <Compile Include="Peripherals\Analog\EOSS3_ADC.cs" />
     <Compile Include="Peripherals\Analog\STM32_ADC_Common.cs" />
+    <Compile Include="Peripherals\Analog\STM32C0_ADC.cs" />
     <Compile Include="Peripherals\Analog\STM32F0_ADC.cs" />
+    <Compile Include="Peripherals\Analog\STM32G0_ADC.cs" />
+    <Compile Include="Peripherals\Analog\STM32L0_ADC.cs" />
     <Compile Include="Peripherals\Analog\STM32WBA_ADC.cs" />
     <Compile Include="Peripherals\Analog\Xilinx_XADC.cs" />
     <Compile Include="Peripherals\Analog\STM32_ADC.cs" />
