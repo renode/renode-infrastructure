@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -151,11 +151,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 throw new RecoverableException("This feature is not yet available on the X86 platforms.");
             }
-            AttachedCPU.SetHookAtMemoryAccess((pc, operation, address) =>
+            AttachedCPU.SetHookAtMemoryAccess((pc, operation, address, value) =>
             {
                 if(operation != MemoryOperation.InsnFetch)
                 {
-                    currentAdditionalData.Enqueue(new MemoryAccessAdditionalData(pc, operation, address));
+                    currentAdditionalData.Enqueue(new MemoryAccessAdditionalData(pc, operation, address, value));
                 }
             });
         }

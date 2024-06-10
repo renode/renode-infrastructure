@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -41,15 +41,16 @@ namespace Antmicro.Renode.Peripherals.CPU
 
     public class MemoryAccessAdditionalData : AdditionalData
     {
-        public MemoryAccessAdditionalData(ulong pc, MemoryOperation operationType, ulong operationTarget) : base(pc, AdditionalDataType.MemoryAccess)
+        public MemoryAccessAdditionalData(ulong pc, MemoryOperation operationType, ulong operationTarget, ulong operationValue) : base(pc, AdditionalDataType.MemoryAccess)
         {
             this.OperationType = operationType;
             this.OperationTarget = operationTarget;
+            this.OperationValue = operationValue;
         }
 
         public override string GetStringRepresentation()
         {
-            return $"{OperationType} with address 0x{OperationTarget:X}";
+            return $"{OperationType} with address 0x{OperationTarget:X}, value 0x{OperationValue:X}";
         }
 
         public override byte[] GetBinaryRepresentation()
@@ -64,15 +65,25 @@ namespace Antmicro.Renode.Peripherals.CPU
               [6] = [operationTarget 23:16]
               [7] = [operationTarget 15:8]
               [8] = [operationTarget 7:0]
+              [9] = [operationValue 63:56]
+              [10] = [operationValue 55:48]
+              [11] = [operationValue 47:40]
+              [12] = [operationValue 39:32]
+              [13] = [operationValue 31:24]
+              [14] = [operationValue 23:16]
+              [15] = [operationValue 15:8]
+              [16] = [operationValue 7:0]
             */
-            var byteLength = sizeof(ulong) + 1;
+            var byteLength = sizeof(ulong) + sizeof(ulong) + 1;
             var output = new byte[byteLength];
             output[0] = (byte)OperationType;
             BitHelper.GetBytesFromValue(output, 1, OperationTarget, sizeof(ulong), true);
+            BitHelper.GetBytesFromValue(output, 9, OperationValue, sizeof(ulong), true);
             return output;
         }
 
         public ulong OperationTarget { get; }
+        public ulong OperationValue { get; }
         public MemoryOperation OperationType { get; }
     }
 

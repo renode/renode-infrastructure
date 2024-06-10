@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -178,7 +178,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private readonly int pcWidth;
 
         private const string FormatSignature = "ReTrace";
-        private const byte FormatVersion = 2;
+        private const byte FormatVersion = 3;
 
         private const int CacheSize = 100000;
         private const int BufferSize = 10000;
