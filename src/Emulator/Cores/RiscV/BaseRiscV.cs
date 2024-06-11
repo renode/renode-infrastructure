@@ -13,6 +13,7 @@ using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Peripherals.CFU;
 using Antmicro.Renode.Time;
@@ -20,10 +21,11 @@ using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Binding;
 using Antmicro.Migrant;
 using Endianess = ELFSharp.ELF.Endianess;
+using Antmicro.Renode.Peripherals.IRQControllers;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public abstract class BaseRiscV : TranslationCPU, IPeripheralContainer<ICFU, NumberRegistrationPoint<int>>, ICPUWithPostOpcodeExecutionHooks, ICPUWithPostGprAccessHooks, ICPUWithNMI
+    public abstract class BaseRiscV : TranslationCPU, IPeripheralContainer<ICFU, NumberRegistrationPoint<int>>, IPeripheralContainer<IIndirectCSRPeripheral, BusRangeRegistration>, ICPUWithPostOpcodeExecutionHooks, ICPUWithPostGprAccessHooks, ICPUWithNMI
     {
         protected BaseRiscV(IRiscVTimeProvider timeProvider, uint hartId, string cpuType, IMachine machine, PrivilegeArchitecture privilegeArchitecture, Endianess endianness, CpuBitness bitness, ulong? nmiVectorAddress = null, uint? nmiVectorLength = null, bool allowUnalignedAccesses = false, InterruptMode interruptMode = InterruptMode.Auto, uint minimalPmpNapotInBytes = 8)
                 : base(hartId, cpuType, machine, endianness, bitness)
@@ -34,6 +36,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             shouldEnterDebugMode = true;
             nonstandardCSR = new Dictionary<ulong, NonstandardCSR>();
             customInstructionsMapping = new Dictionary<ulong, Action<UInt64>>();
+            indirectCsrPeripherals = new Dictionary<BusRangeRegistration, IIndirectCSRPeripheral>();
             this.nmiVectorLength = nmiVectorLength;
             this.nmiVectorAddress = nmiVectorAddress;
 
@@ -63,6 +66,20 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
 
             TlibSetNapotGrain(minimalPmpNapotInBytes);
+
+            RegisterCSR(0x350, () => miselectValue, s => miselectValue = (uint)s, "miselect");
+            for(uint i = 0; i < 6; ++i)
+            {
+                var j = i;
+                RegisterCSR(0x351 + i, () => ReadIndirectCSR(miselectValue, j), v => WriteIndirectCSR(miselectValue, j, (uint)v), "mireg");
+            }
+
+            RegisterCSR(0x150, () => siselectValue, s => siselectValue = (uint)s, "siselect");
+            for(uint i = 0; i < 6; ++i)
+            {
+                var j = i;
+                RegisterCSR(0x151 + i, () => ReadIndirectCSR(siselectValue, j), v => WriteIndirectCSR(siselectValue, j, (uint)v), "sireg");
+            }
         }
 
         public void Register(ICFU cfu, NumberRegistrationPoint<int> registrationPoint)
@@ -106,6 +123,35 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public void Register(IIndirectCSRPeripheral peripheral, BusRangeRegistration registrationPoint)
+        {
+            machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
+            indirectCsrPeripherals.Add(registrationPoint, peripheral); // TODO overlap, etc
+        }
+
+        public void Unregister(IIndirectCSRPeripheral peripheral)
+        {
+            foreach(var point in GetRegistrationPoints(peripheral).ToList())
+            {
+                indirectCsrPeripherals.Remove(point);
+            }
+            machine.UnregisterAsAChildOf(this, peripheral);
+        }
+
+        public IEnumerable<BusRangeRegistration> GetRegistrationPoints(IIndirectCSRPeripheral peripheral)
+        {
+            return indirectCsrPeripherals.Where(p => p.Value == peripheral).Select(p => p.Key);
+        }
+
+        IEnumerable<IRegistered<IIndirectCSRPeripheral, BusRangeRegistration>> IPeripheralContainer<IIndirectCSRPeripheral, BusRangeRegistration>.Children
+        {
+            get
+            {
+                return indirectCsrPeripherals.Select(x => Registered.Create(x.Value, x.Key));
+            }
+        }
+
+
         public virtual void OnNMI(int number, bool value, ulong? mcause = null)
         {
             if(this.NMIVectorLength == null || this.NMIVectorAddress == null)
@@ -134,7 +180,11 @@ namespace Antmicro.Renode.Peripherals.CPU
                 return;
             }
 
-            TlibSetMipBit((uint)number, value ? 1u : 0u);
+            if(number != (int)IrqType.ClicInterrupt)
+            {
+                // The CLIC interrupt is a synthetic one not reflected in the mip CSR
+                TlibSetMipBit((uint)number, value ? 1u : 0u);
+            }
             base.OnGPIO(number, value);
         }
 
@@ -180,6 +230,15 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 throw new ConstructionException($"CSR limit exceeded. Cannot register CSR 0x{csr:X}");
             }
+        }
+
+        public void UnregisterCSR(ulong csr)
+        {
+            if(TlibUninstallCustomCSR(csr) == -1)
+            {
+                throw new ConstructionException($"Invalid CSR ID 0x{csr:X}, cannot unregister");
+            }
+            nonstandardCSR.Remove(csr);
         }
 
         public void SilenceUnsupportedInstructionSet(InstructionSet set, bool silent = true)
@@ -268,6 +327,20 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             postGprAccessHooks[registerIndex] = callback;
             TlibEnablePostGprAccessHookOn(registerIndex, value);
+        }
+
+        public void RegisterLocalInterruptController(CoreLocalInterruptController clic)
+        {
+            if(this.clic != null)
+            {
+                throw new ArgumentException($"{nameof(CoreLocalInterruptController)} is already registered");
+            }
+            this.clic = clic;
+        }
+
+        public void ClicInterrupt(int index, bool vectored, uint level, PrivilegeLevel mode)
+        {
+            TlibSetClicData(index, vectored ? 1u : 0, level, (uint)mode);
         }
 
         public CSRValidationLevel CSRValidation
@@ -421,6 +494,10 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         protected override Interrupt DecodeInterrupt(int number)
         {
+            if(number == 16)
+            {
+                return Interrupt.TargetExternal0;
+            }
             return Interrupt.Hard;
         }
 
@@ -602,6 +679,33 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        private IIndirectCSRPeripheral GetIndirectCsrPeripheral(uint iselect)
+        {
+            return indirectCsrPeripherals.SingleOrDefault(p => p.Key.Range.Contains(iselect)).Value;
+        }
+
+        private uint ReadIndirectCSR(uint iselect, uint ireg)
+        {
+            var peripheral = GetIndirectCsrPeripheral(iselect);
+            if(peripheral == null)
+            {
+                this.WarningLog("Unknown indirect CSR 0x{0:x}", iselect);
+                return 0;
+            }
+            return peripheral.ReadIndirectCSR(iselect - (uint)GetRegistrationPoints(peripheral).Single().Range.StartAddress, ireg); // FIXME
+        }
+
+        private void WriteIndirectCSR(uint iselect, uint ireg, uint value)
+        {
+            var peripheral = GetIndirectCsrPeripheral(iselect);
+            if(peripheral == null)
+            {
+                this.WarningLog("Unknown indirect CSR 0x{0:x}", iselect);
+                return;
+            }
+            peripheral.WriteIndirectCSR(iselect - (uint)GetRegistrationPoints(peripheral).Single().Range.StartAddress, ireg, value); // FIXME
+        }
+
         [Export]
         private ulong GetCPUTime()
         {
@@ -690,10 +794,20 @@ namespace Antmicro.Renode.Peripherals.CPU
             postGprAccessHooks[(int)registerIndex].Invoke(isWrite);
         }
 
+        [Export]
+        private void ClicClearEdgeInterrupt()
+        {
+            clic.ClearEdgeInterrupt();
+        }
+
         public readonly Dictionary<int, ICFU> ChildCollection;
 
         private ulong? nmiVectorAddress;
         private uint? nmiVectorLength;
+        private uint miselectValue;
+        private uint siselectValue;
+
+        private CoreLocalInterruptController clic;
 
         private bool pcWrittenFlag;
         private ulong resetVector = DefaultResetVector;
@@ -711,6 +825,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         private List<GDBFeatureDescriptor> gdbFeatures = new List<GDBFeatureDescriptor>();
 
         private readonly ArchitectureDecoder architectureDecoder;
+
+        private readonly Dictionary<BusRangeRegistration, IIndirectCSRPeripheral> indirectCsrPeripherals;
 
         [Constructor]
         private readonly List<Action<ulong>> postOpcodeExecutionHooks;
@@ -749,9 +865,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private FuncUInt64UInt64UInt64UInt64 TlibInstallCustomInstruction;
-        [Import(Name="tlib_install_custom_csr")]
 
+        [Import(Name="tlib_install_custom_csr")]
         private FuncInt32UInt64 TlibInstallCustomCSR;
+
+        [Import(Name="tlib_uninstall_custom_csr")]
+        private FuncInt32UInt64 TlibUninstallCustomCSR;
 
         [Import]
         private ActionUInt32UInt32 TlibMarkFeatureSilent;
@@ -803,6 +922,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private ActionUInt32UInt32 TlibEnablePostGprAccessHookOn;
+
+        [Import]
+        private ActionInt32UInt32UInt32UInt32 TlibSetClicData;
 
 #pragma warning restore 649
 
@@ -1080,7 +1202,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             UserExternalInterrupt = 0x8,
             SupervisorExternalInterrupt = 0x9,
             HypervisorExternalInterrupt = 0xa,
-            MachineExternalInterrupt = 0xb
+            MachineExternalInterrupt = 0xb,
+            ClicInterrupt = 0x10,
         }
     }
 }
