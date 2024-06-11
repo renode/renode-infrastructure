@@ -1000,6 +1000,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             var controlRegister = new DoubleWordRegister(this)
                 .WithFlag(31, FieldMode.Read, name: "RegisterWritePending", valueProviderCallback: _ => false);
+            var registersMap = new Dictionary<long, DoubleWordRegister>
+            {
+                {(long)DistributorRegisters.Control, controlRegister}
+            };
 
             if(accessForDisabledSecurity)
             {
@@ -1053,6 +1057,54 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         writeCallback: (_, val) => groups[GroupType.Group0].Enabled = val,
                         valueProviderCallback: _ => groups[GroupType.Group0].Enabled
                     );
+                registersMap.Add((long)DistributorRegisters.NonSecureAccessControl_0, new DoubleWordRegister(this)
+                    .WithEnumFields<DoubleWordRegister, NonSecureAccess>(0, 2, 16, name: "NS_access",
+                        writeCallback: (i, _, val) =>
+                        {
+                            var cpu = GetAskingCPUEntry();
+                            if(IsAffinityRoutingEnabled(cpu))
+                            {
+                                cpu.NonSecureSGIAccess[i] = val;
+                            }
+                        },
+                        valueProviderCallback: (i, _) =>
+                        {
+                            var cpu = GetAskingCPUEntry();
+                            return IsAffinityRoutingEnabled(cpu) ? (NonSecureAccess)0 : cpu.NonSecureSGIAccess[i];
+                        }
+                    )
+                    // Those could be emitted in valueProvider/writeCallback instead,
+                    // but we don't want to emit the same warning 16 times per access.
+                    .WithWriteCallback((_, __) =>
+                    {
+                        var cpu = GetAskingCPUEntry();
+                        if(IsAffinityRoutingEnabled(cpu))
+                        {
+                            this.Log(LogLevel.Warning, "Tried to write to GICD_NSACR0 when affinity routing is enabled. Access ignored, use GICR_NSACR instead.");
+                        }
+                    })
+                    .WithReadCallback((_, __) =>
+                    {
+                        var cpu = GetAskingCPUEntry();
+                        if(IsAffinityRoutingEnabled(cpu))
+                        {
+                            this.Log(LogLevel.Warning, "Tried to read from GICD_NSACR0 when affinity routing is enabled. Access ignored, use GICR_NSACR instead.");
+                        }
+                    })
+                );
+                // These registers do not support PPIs, therefore GICD_NSACR1 is RAZ/WI
+                registersMap.Add((long)DistributorRegisters.NonSecureAccessControl_0 + 4, new DoubleWordRegister(this)
+                    .WithValueFields(0, 2, 16, FieldMode.Read, name: "NS_access", valueProviderCallback: (_, __) => 0)
+                );
+                for(var j = 2; j < 64; ++j)
+                {
+                    var i = j;
+                    registersMap.Add((long)DistributorRegisters.NonSecureAccessControl_0 + 4 * i, new DoubleWordRegister(this)
+                        .WithValueFields(0, 2, 16, name: "NS_access", valueProviderCallback: (_, __) => 0)
+                        .WithReadCallback((_, __) => this.Log(LogLevel.Warning, "GICD_NSACR{0} is not implemented yet", i))
+                        .WithWriteCallback((_, __) => this.Log(LogLevel.Warning, "GICD_NSACR{0} is not implemented yet", i))
+                    );
+                }
             }
             else
             {
@@ -1073,10 +1125,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     );
             }
 
-            var registersMap = new Dictionary<long, DoubleWordRegister>
-            {
-                {(long)DistributorRegisters.Control, controlRegister}
-            };
             return registersMap;
         }
 
@@ -1943,6 +1991,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 {
                     interrupt.Reset();
                 }
+                for(var i = 0; i < NonSecureSGIAccess.Length; ++i)
+                {
+                    NonSecureSGIAccess[i] = NonSecureAccess.NotPermitted;
+                }
                 Groups.Reset();
                 redistributorQuadWordRegisters.Reset();
                 redistributorDoubleWordRegisters.Reset();
@@ -2284,6 +2336,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             public InterruptPriority PhysicalPriorityMask { get; set; }
             public RunningInterrupts RunningInterrupts { get; }
             public uint EOICount { get; private set; }
+            public NonSecureAccess[] NonSecureSGIAccess { get; } = new NonSecureAccess[InterruptsDecoder.SoftwareGeneratedCount];
 
             public const int EOICountWidth = 5;
             public const int EOICountMask = (1 << EOICountWidth) - 1;
@@ -3066,6 +3119,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             private readonly uint identifierBits;
 
             public const uint MaximumSharedPeripheralCount = 988;
+            public const uint SoftwareGeneratedCount = 16;
         }
 
         public struct SoftwareGeneratedInterruptRequest
@@ -3089,6 +3143,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 AllCPUs = 0b01,
                 Loopback = 0b10
             }
+        }
+
+        public enum NonSecureAccess
+        {
+            NotPermitted = 0b00,
+            SecureGroup0Permitted = 0b01,
+            BothGroupsPermitted = 0b10,
+            Reserved = 0b11,
         }
 
         public enum EndOfInterruptModes
