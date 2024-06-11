@@ -6,6 +6,7 @@
 //
 using System;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.Memory;
 
@@ -54,6 +55,24 @@ namespace Antmicro.Renode.Peripherals.SPI
             var start = topBottom.Value ? 0 : UnderlyingMemory.Size - protectedSize;
             lockedRange = new Range((ulong)start, (ulong)protectedSize);
         }
+
+        protected override void WriteToMemory(byte val)
+        {
+            if(currentOperation.ExecutionAddress + currentOperation.CommandBytesHandled > underlyingMemory.Size)
+            {
+                this.Log(LogLevel.Error, "Cannot write to address 0x{0:X} because it is bigger than configured memory size.", currentOperation.ExecutionAddress);
+                return;
+            }
+
+            var position = currentOperation.ExecutionAddress + currentOperation.CommandBytesHandled;
+            if(lockedRange.Contains((ulong)position))
+            {
+                this.Log(LogLevel.Error, "Cannot write to address 0x{0:X} because it is in the locked range", position);
+                return;
+            }
+            var currentVal = underlyingMemory.ReadByte(position);
+            underlyingMemory.WriteByte(position, (byte)(val & currentVal));
+        } 
 
         private readonly IFlagRegisterField topBottom;
 
