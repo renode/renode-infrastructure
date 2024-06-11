@@ -18,6 +18,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using Antmicro.Renode.Backends.Terminals;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.UART;
 using Antmicro.Renode.Time;
@@ -170,6 +171,39 @@ namespace Antmicro.Renode.Testing
             if(result == null)
             {
                 HandleFailure(eventName);
+            }
+            return result;
+        }
+
+        public TerminalTesterResult WaitFor(string[] patterns, TimeInterval? timeout = null, bool treatAsRegex = false, bool includeUnfinishedLine = false, bool pauseEmulation = false, bool matchFromNextLine = false)
+        {
+            if(patterns.Length == 0)
+            {
+                return HandleSuccess("Empty match", matchingLineId: NoLine);
+            }
+#if DEBUG_EVENTS
+            this.Log(LogLevel.Noisy, "Waiting for a multi-line match starting with >>{0}<< (include unfinished line: {1}, with timeout {2}, regex {3}, pause on match {4}, match from next line {5}) ",
+                patterns[0], includeUnfinishedLine, timeout ?? GlobalTimeout, treatAsRegex, pauseEmulation, matchFromNextLine);
+#endif
+            if(!matchFromNextLine)
+            {
+                if(includeUnfinishedLine && patterns.Length == 1)
+                {
+                    return WaitFor(patterns[0], timeout, treatAsRegex, true, pauseEmulation);
+                }
+                return WaitForMultilineMatch(patterns, timeout, treatAsRegex, includeUnfinishedLine, pauseEmulation);
+            }
+
+            TerminalTesterResult result = null;
+            for(var i = 0; i < patterns.Length; ++i)
+            {
+                result = WaitFor(patterns[i], timeout, treatAsRegex, includeUnfinishedLine && (i == patterns.Length - 1),
+                    pauseEmulation, true);
+
+                if(result == null)
+                {
+                   return null;
+                }
             }
             return result;
         }
@@ -355,6 +389,47 @@ namespace Antmicro.Renode.Testing
                 this.resultMatcher = null;
             }
             return null;
+        }
+
+        private TerminalTesterResult WaitForMultilineMatch(string[] patterns, TimeInterval? timeout = null, bool treatAsRegex = false, bool includeUnfinishedLine = false, bool pauseEmulation = false)
+        {
+            DebugHelper.Assert(patterns.Length > (includeUnfinishedLine ? 1 : 0));
+            var eventName = "Lines starting with{1} >>{0}<<".FormatWith(patterns[0], treatAsRegex ? " regex" : string.Empty);
+
+            var matcher = new MultilineMatcher(patterns, treatAsRegex, includeUnfinishedLine);
+            var onCandidate = false;
+            var lineIndexOffset = 0;
+
+            var result = WaitForMatch(() =>
+            {
+                for(var i = lineIndexOffset; i < lines.Count; ++i)
+                {
+                    onCandidate = false;
+                    if(matcher.FeedLine(lines[i]))
+                    {
+                        if(includeUnfinishedLine)
+                        {
+                            onCandidate = true;
+                            break;
+                        }
+                        return HandleSuccess(eventName, i);
+                    }
+                    lineIndexOffset += 1;
+                }
+
+                if(onCandidate && includeUnfinishedLine && matcher.CheckUnfinishedLine(currentLineBuffer.ToString()))
+                {
+                    return HandleSuccess(eventName, CurrentLine);
+                }
+
+                return null;
+            }, timeout ?? GlobalTimeout, pauseEmulation);
+
+            if(result == null)
+            {
+                HandleFailure(eventName);
+            }
+            return result;
         }
 
         private TerminalTesterResult CheckFinishedLines(string pattern, bool regex, string eventName, bool matchFirstLine)
@@ -627,6 +702,65 @@ namespace Antmicro.Renode.Testing
             public string Content { get; }
             public double VirtualTimestamp { get; }
             public DateTime HostTimestamp { get; }
+        }
+
+        private class MultilineMatcher
+        {
+            public MultilineMatcher(string[] patterns, bool regex, bool lastUnfinished)
+            {
+                if(regex)
+                {
+                    matchLine = patterns.Select(pattern =>
+                    {
+                        var matcher = new Regex(pattern);
+                        return (Predicate<string>)(x => matcher.Match(x).Success);
+                    }).ToArray();
+                }
+                else
+                {
+                    matchLine = patterns
+                        .Select(pattern => (Predicate<string>)(x => x.Contains(pattern)))
+                        .ToArray()
+                    ;
+                }
+
+                length = patterns.Length - (lastUnfinished ? 2 : 1);
+                candidates = new bool[length];
+            }
+
+            public bool FeedLine(Line line)
+            {
+                // Let lines[0] be the current `line` and lines[-n] be nth previous line.
+                // The value of candidates[(last + n) % length] is a conjunction for k=1..n of line[-k] matching pattern[k - 1]
+                if(candidates[last] && matchLine[length](line.Content))
+                {
+                    return true;
+                }
+
+                last = (last + 1) % length;
+                var l = last;
+                for(var i = 0; i < length; i++)
+                {
+                    var patternIndex = length - 1 - i;
+                    if(candidates[l] || patternIndex == 0)
+                    {
+                        candidates[l] = matchLine[patternIndex](line.Content);
+                    }
+                    l = (l + 1) % length;
+                }
+
+                return false;
+            }
+
+            public bool CheckUnfinishedLine(string line)
+            {
+                return matchLine[matchLine.Length - 1](line);
+            }
+
+            private int last;
+            private readonly Predicate<string>[] matchLine;
+            private readonly bool[] candidates;
+            private readonly int length;
         }
 
         private enum SGRDecodingState
