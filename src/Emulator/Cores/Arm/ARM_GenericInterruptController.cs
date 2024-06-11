@@ -2524,6 +2524,34 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         .WithWriteCallback((_, __) => { if(!gic.DisabledSecurity && !this.IsStateSecure) this.Log(LogLevel.Warning, "Writing to the GICR_WAKER register from wrong security state."); })
                         .WithReadCallback((_, __) => { if(!gic.DisabledSecurity && !this.IsStateSecure) this.Log(LogLevel.Warning, "Reading from the GICR_WAKER register from wrong security state."); })
                     },
+                    {(long)RedistributorRegisters.NonSecureAccessControl, new DoubleWordRegister(this)
+                        .WithEnumFields<DoubleWordRegister, NonSecureAccess>(0, 2, 16, name: "NS_access",
+                            writeCallback: (i, _, val) =>
+                            {
+                                if(!gic.IsAffinityRoutingEnabled(this))
+                                {
+                                    NonSecureSGIAccess[i] = val;
+                                }
+                            },
+                            valueProviderCallback: (i, _) => !gic.IsAffinityRoutingEnabled(this) ? (NonSecureAccess)0 : NonSecureSGIAccess[i]
+                        )
+                        // Those could be emitted in valueProvider/writeCallback instead,
+                        // but we don't want to emit the same warning 16 times per access.
+                        .WithWriteCallback((_, __) =>
+                        {
+                            if(!gic.IsAffinityRoutingEnabled(this))
+                            {
+                                this.Log(LogLevel.Warning, "Tried to write to GICR_NSACR when affinity routing is disabled. Access ignored, use GICD_NSACR0 instead.");
+                            }
+                        })
+                        .WithReadCallback((_, __) =>
+                        {
+                            if(!gic.IsAffinityRoutingEnabled(this))
+                            {
+                                this.Log(LogLevel.Warning, "Tried to read from GICR_NSACR when affinity routing is disabled. Access ignored, use GICD_NSACR0 instead.");
+                            }
+                        })
+                    },
                     {gic.PeripheralIdentificationOffset, new DoubleWordRegister(this)
                         .WithReservedBits(8, 24)
                         .WithEnumField<DoubleWordRegister, ARM_GenericInterruptControllerVersion>(4, 4, FieldMode.Read, name: "ArchitectureVersion",
