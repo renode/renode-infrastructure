@@ -620,6 +620,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
+        public bool AffinityRoutingEnabledBoth => DisabledSecurity || AffinityRoutingEnabledSecure && AffinityRoutingEnabledNonSecure;
+
         /// <summary>
         /// Setting this property to true will causes all interrupts to be reported to a core with lowest ID, which configuration allows it to take.
         ///
@@ -692,6 +694,62 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     return;
             }
 
+            if(IsAffinityRoutingEnabled(requestingCPU))
+            {
+                OnSGIAffinityRouting(requestingCPU, targetCPUs, request);
+            }
+            else
+            {
+                OnSGILegacyRouting(requestingCPU, targetCPUs, request);
+            }
+        }
+
+        private void OnSGIAffinityRouting(CPUEntry requestingCPU, List<CPUEntry> targetCPUs, SoftwareGeneratedInterruptRequest request)
+        {
+            var isOtherSecurityState = GroupTypeToIsStateSecure(request.TargetGroup) != requestingCPU.IsStateSecure;
+            if(isOtherSecurityState && !AffinityRoutingEnabledBoth)
+            {
+                this.Log(LogLevel.Debug, "Generating SGIs for the other Security state is only supported when affinity rouing is enabled for both Security states.");
+                return;
+            }
+            var irqId = request.InterruptId;
+            foreach(var target in targetCPUs)
+            {
+                var interrupt = target.SoftwareGeneratedInterruptsUnknownRequester[irqId];
+                this.Log(LogLevel.Noisy, "Trying to request interrupt for target {0}, interrupt group type {1}, request group {2}, access in {3} state.",
+                    target.Name, interrupt.Config.GroupType, request.TargetGroup, requestingCPU.IsStateSecure ? "secure" : "non-secure");
+
+                if(ShouldAssertSGIAffinityRouting(requestingCPU, request, interrupt, target.NonSecureSGIAccess[(uint)irqId]))
+                {
+                    this.Log(LogLevel.Noisy, "Setting Software Generated Interrupt #{0} signal for {1}", irqId, target.Name);
+                    // SGIs are triggered by a register access so the method is already called inside a lock.
+                    interrupt.State.AssertAsPending(true);
+                }
+                else
+                {
+                    this.Log(LogLevel.Noisy, "SGI #{0} not forwarded for {1}.", irqId, target.Name);
+                }
+            }
+        }
+
+        private bool ShouldAssertSGIAffinityRouting(CPUEntry requestingCPU, SoftwareGeneratedInterruptRequest request, SoftwareGeneratedInterrupt interrupt,
+            NonSecureAccess targetNonSecureAccess)
+        {
+            if(requestingCPU.IsStateSecure)
+            {
+                return request.TargetGroup == interrupt.Config.GroupType ||
+                    request.TargetGroup == GroupType.Group1Secure && interrupt.Config.GroupType == GroupType.Group0 && DisabledSecurity;
+            }
+            if(request.TargetGroup == interrupt.Config.GroupType || interrupt.Config.GroupType == GroupType.Group0)
+            {
+                return request.TargetGroup == GroupType.Group1NonSecure || DisabledSecurity || NonSecureAccessPermitsGroup(targetNonSecureAccess, request.TargetGroup);
+            }
+            return request.TargetGroup == GroupType.Group1NonSecure && interrupt.Config.GroupType == GroupType.Group1Secure && NonSecureAccessPermitsGroup(targetNonSecureAccess, request.TargetGroup);
+        }
+
+        private void OnSGILegacyRouting(CPUEntry requestingCPU, List<CPUEntry> targetCPUs, SoftwareGeneratedInterruptRequest request)
+        {
+            var irqId = request.InterruptId;
             foreach(var target in targetCPUs)
             {
                 if(!target.SoftwareGeneratedInterruptsLegacyRequester.TryGetValue(requestingCPU, out var interrupts))
@@ -704,7 +762,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 this.Log(LogLevel.Noisy, "Trying to request interrupt for target {0}, interrupt group type (GICD_IGROUPRn) {1}, request group (NSATT) {2}, access in {3} state.",
                     target.Name, interrupt.Config.GroupType, request.TargetGroup, requestingCPU.IsStateSecure ? "secure" : "non-secure");
 
-                if(ShouldAssertSGI(requestingCPU, request, interrupt))
+                if(ShouldAssertSGILegacyRouting(requestingCPU, request, interrupt))
                 {
                     this.Log(LogLevel.Noisy, "Setting Software Generated Interrupt #{0} signal for {1}", irqId, target.Name);
                     // SGIs are triggered by a register access so the method is already called inside a lock.
@@ -712,12 +770,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 }
                 else
                 {
-                    this.Log(LogLevel.Noisy, "SGI not forwarded.");
+                    this.Log(LogLevel.Noisy, "SGI #{0} not forwarded for {1}.", irqId, target.Name);
                 }
             }
         }
 
-        private bool ShouldAssertSGI(CPUEntry requestingCPU, SoftwareGeneratedInterruptRequest request, SoftwareGeneratedInterrupt interrupt)
+        private bool ShouldAssertSGILegacyRouting(CPUEntry requestingCPU, SoftwareGeneratedInterruptRequest request, SoftwareGeneratedInterrupt interrupt)
         {
             // See: "SGI generation when the GIC implements the Security Extensions" for the truth table
             // Without the Security Extension, this is irrelevant
@@ -737,6 +795,38 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
 
             return false;
+        }
+
+        private bool NonSecureAccessPermitsGroup(NonSecureAccess access, GroupType type)
+        {
+            // To maintain the principle that as the value increases additional accesses are permitted
+            // Arm strongly recommends that implementations treat the reserved value as 0b10.
+            // That's why we compare `access` using the >= operator.
+            switch(type)
+            {
+                case GroupType.Group1NonSecure:
+                    return true;
+                case GroupType.Group1Secure:
+                    return access >= NonSecureAccess.BothGroupsPermitted;
+                case GroupType.Group0:
+                    return access >= NonSecureAccess.SecureGroup0Permitted;
+                default:
+                    throw new ArgumentOutOfRangeException($"There is no valid GroupType for value: {type}.");
+            }
+        }
+
+        private bool GroupTypeToIsStateSecure(GroupType type)
+        {
+            switch(type)
+            {
+                case GroupType.Group0:
+                case GroupType.Group1Secure:
+                    return true;
+                case GroupType.Group1NonSecure:
+                    return false;
+                default:
+                    throw new ArgumentOutOfRangeException($"There is no valid GroupType for value: {type}.");
+            }
         }
 
         // The GIC uses the latest CPU state and the latest groups configuration to choose a correct interrupt signal to assert.
