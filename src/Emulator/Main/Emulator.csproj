@@ -615,6 +615,7 @@
     <Compile Include="Peripherals\UART\VirtualConsole.cs" />
     <Compile Include="Utilities\SimpleInstructionDecoder.cs" />
     <Compile Include="Peripherals\DefaultInterruptAttribute.cs" />
+    <Compile Include="Peripherals\NameAliasAttribute.cs" />
     <Compile Include="Peripherals\CPU\CPUState.cs" />
     <Compile Include="Peripherals\IEndiannessAware.cs" />
     <Compile Include="Utilities\SnapshotTracker.cs" />
