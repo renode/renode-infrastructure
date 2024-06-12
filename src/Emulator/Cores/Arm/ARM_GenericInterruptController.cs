@@ -829,6 +829,15 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
+        private GroupType GetGroup1ForSecurityState(bool isSecure)
+        {
+            return isSecure
+                // When System register access is not enabled for Secure EL1, or when GICD_CTLR.DS == 1,
+                // the Distributor treats Secure Group 1 interrupts as Group 0 interrupts
+                ? DisabledSecurity ? GroupType.Group0 : GroupType.Group1Secure
+                : GroupType.Group1NonSecure;
+        }
+
         // The GIC uses the latest CPU state and the latest groups configuration to choose a correct interrupt signal to assert.
         private void OnExecutionModeChanged(CPUEntry cpu)
         {
@@ -1417,36 +1426,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         writeCallback: (_, val) => GetAskingCPUEntry().Groups.Virtual[GroupType.Group0].Enabled = val
                     )
                 },
-                {(long)CPUInterfaceSystemRegisters.SoftwareGeneratedInterruptGroup1Generate, new QuadWordRegister(this)
-                    .WithReservedBits(56, 8)
-                    .WithValueField(48, 8, out var affinity3, FieldMode.Write, name: "Affinity3")
-                    .WithValueField(44, 4, out var rangeSelector, FieldMode.Write, name: "Range Selector")
-                    .WithReservedBits(41, 3)
-                    .WithFlag(40, out var interruptRoutingMode, FieldMode.Write, name: "Interrupt Routing Mode")
-                    .WithValueField(32, 8, out var affinity2, FieldMode.Write, name: "Affinity2")
-                    .WithReservedBits(28, 4)
-                    .WithValueField(24, 4, out var interruptID, FieldMode.Write, name: "Interrupt ID")
-                    .WithValueField(16, 8, out var affinity1, FieldMode.Write, name: "Affinity1")
-                    .WithReservedBits(5, 11)
-                    .WithValueField(0, 5, out var targetList)
-                    .WithWriteCallback((_, newValue) =>
-                    {
-                        var targetType = interruptRoutingMode.Value ? SoftwareGeneratedInterruptRequest.TargetType.AllCPUs : SoftwareGeneratedInterruptRequest.TargetType.TargetList;
-
-                        var list = new Affinity[]{};
-                        if(targetType == SoftwareGeneratedInterruptRequest.TargetType.TargetList)
-                        {
-                            var range = 16 * (byte)rangeSelector.Value;
-                            var aff1 = (byte)affinity1.Value;
-                            var aff2 = (byte)affinity2.Value;
-                            var aff3 = (byte)affinity3.Value;
-                            list = BitHelper.GetSetBits(targetList.Value).Select(n => new Affinity((byte)(range + n), aff2, aff2, aff3)).ToArray();
-                        }
-
-                        var interrupt = new SoftwareGeneratedInterruptRequest(targetType, list, GroupType.Group1, new InterruptId((uint)interruptID.Value));
-                        OnSoftwareGeneratedInterrupt(GetAskingCPUEntry(), interrupt);
-                    })
-                },
+                {(long)CPUInterfaceSystemRegisters.SoftwareGeneratedInterruptGroup1Generate, BuildSGIGenerateRegister(() => GetGroup1ForSecurityState(GetAskingCPUEntry().IsStateSecure))},
+                {(long)CPUInterfaceSystemRegisters.SoftwareGeneratedInterruptGroup1GenerateAlias, BuildSGIGenerateRegister(() => GetGroup1ForSecurityState(!GetAskingCPUEntry().IsStateSecure))},
+                {(long)CPUInterfaceSystemRegisters.SoftwareGeneratedInterruptGroup0Generate, BuildSGIGenerateRegister(() => GroupType.Group0)},
             };
 
             for(int j = 0; j < VirtualInterruptCount; ++j)
@@ -1658,6 +1640,39 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 },
             };
             return registersMap;
+        }
+
+        private QuadWordRegister BuildSGIGenerateRegister(Func<GroupType> getGroupType)
+        {
+            return new QuadWordRegister(this)
+                .WithReservedBits(56, 8)
+                .WithValueField(48, 8, out var affinity3, FieldMode.Write, name: "Affinity3")
+                .WithValueField(44, 4, out var rangeSelector, FieldMode.Write, name: "Range Selector")
+                .WithReservedBits(41, 3)
+                .WithFlag(40, out var interruptRoutingMode, FieldMode.Write, name: "Interrupt Routing Mode")
+                .WithValueField(32, 8, out var affinity2, FieldMode.Write, name: "Affinity2")
+                .WithReservedBits(28, 4)
+                .WithValueField(24, 4, out var interruptID, FieldMode.Write, name: "Interrupt ID")
+                .WithValueField(16, 8, out var affinity1, FieldMode.Write, name: "Affinity1")
+                .WithReservedBits(5, 11)
+                .WithValueField(0, 5, out var targetList)
+                .WithWriteCallback((_, newValue) =>
+                {
+                    var targetType = interruptRoutingMode.Value ? SoftwareGeneratedInterruptRequest.TargetType.AllCPUs : SoftwareGeneratedInterruptRequest.TargetType.TargetList;
+
+                    var list = new Affinity[]{};
+                    if(targetType == SoftwareGeneratedInterruptRequest.TargetType.TargetList)
+                    {
+                        var range = 16 * (byte)rangeSelector.Value;
+                        var aff1 = (byte)affinity1.Value;
+                        var aff2 = (byte)affinity2.Value;
+                        var aff3 = (byte)affinity3.Value;
+                        list = BitHelper.GetSetBits(targetList.Value).Select(n => new Affinity((byte)(range + n), aff2, aff2, aff3)).ToArray();
+                    }
+
+                    var interrupt = new SoftwareGeneratedInterruptRequest(targetType, list, getGroupType(), new InterruptId((uint)interruptID.Value));
+                    OnSoftwareGeneratedInterrupt(GetAskingCPUEntry(), interrupt);
+                });
         }
 
         private T BuildInterruptAcknowledgeRegister<T>(T register, int registerWidth, string name,
