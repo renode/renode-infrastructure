@@ -14,8 +14,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public class CV32E40P : RiscV32
     {
-        public CV32E40P(IMachine machine, IRiscVTimeProvider timeProvider = null, uint hartId = 0, PrivilegeArchitecture privilegeArchitecture = PrivilegeArchitecture.Priv1_11, Endianess endianness = Endianess.LittleEndian, string cpuType = "rv32imfc_zicsr_zifencei")
-            : base(machine, cpuType, timeProvider, hartId, privilegeArchitecture, endianness, allowUnalignedAccesses : true)
+        public CV32E40P(IMachine machine, IRiscVTimeProvider timeProvider = null, uint hartId = 0, [NameAlias("privilegeArchitecture")] PrivilegedArchitecture privilegedArchitecture = PrivilegedArchitecture.Priv1_11, Endianess endianness = Endianess.LittleEndian, string cpuType = "rv32imfc_zicsr_zifencei")
+            : base(machine, cpuType, timeProvider, hartId, privilegedArchitecture, endianness, allowUnalignedAccesses : true)
         {
             // enable all interrupt sources
             MIE = 0xffffffff;

@@ -25,12 +25,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public abstract class BaseRiscV : TranslationCPU, IPeripheralContainer<ICFU, NumberRegistrationPoint<int>>, ICPUWithPostOpcodeExecutionHooks, ICPUWithPostGprAccessHooks, ICPUWithNMI
     {
-        protected BaseRiscV(IRiscVTimeProvider timeProvider, uint hartId, string cpuType, IMachine machine, PrivilegeArchitecture privilegeArchitecture, Endianess endianness, CpuBitness bitness, ulong? nmiVectorAddress = null, uint? nmiVectorLength = null, bool allowUnalignedAccesses = false, InterruptMode interruptMode = InterruptMode.Auto, uint minimalPmpNapotInBytes = 8)
+        protected BaseRiscV(IRiscVTimeProvider timeProvider, uint hartId, string cpuType, IMachine machine, PrivilegedArchitecture privilegedArchitecture, Endianess endianness, CpuBitness bitness, ulong? nmiVectorAddress = null, uint? nmiVectorLength = null, bool allowUnalignedAccesses = false, InterruptMode interruptMode = InterruptMode.Auto, uint minimalPmpNapotInBytes = 8)
                 : base(hartId, cpuType, machine, endianness, bitness)
         {
             HartId = hartId;
             this.timeProvider = timeProvider;
-            this.privilegeArchitecture = privilegeArchitecture;
+            this.privilegedArchitecture = privilegedArchitecture;
             shouldEnterDebugMode = true;
             nonstandardCSR = new Dictionary<ulong, NonstandardCSR>();
             customInstructionsMapping = new Dictionary<ulong, Action<UInt64>>();
@@ -123,7 +123,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
 
             // we don't log warning when value is false to handle gpio initial reset
-            if(privilegeArchitecture >= PrivilegeArchitecture.Priv1_10 && IsValidInterruptOnlyInV1_09(number) && value)
+            if(privilegedArchitecture >= PrivilegedArchitecture.Priv1_10 && IsValidInterruptOnlyInV1_09(number) && value)
             {
                 this.Log(LogLevel.Warning, "Interrupt {0} not supported since Privileged ISA v1.10", (IrqType)number);
                 return;
@@ -539,7 +539,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 TlibAllowAdditionalFeature((uint)set);
             }
 
-            TlibSetPrivilegeArchitecture((int)privilegeArchitecture);
+            TlibSetPrivilegeArchitecture((int)privilegedArchitecture);
         }
 
         private bool TrySetVectorRegister(uint registerNumber, RegisterValue value)
@@ -700,7 +700,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private readonly IRiscVTimeProvider timeProvider;
 
-        private readonly PrivilegeArchitecture privilegeArchitecture;
+        private readonly PrivilegedArchitecture privilegedArchitecture;
 
         private readonly Dictionary<ulong, NonstandardCSR> nonstandardCSR;
 
@@ -834,7 +834,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             {15, "Store page fault"}
         };
 
-        public enum PrivilegeArchitecture
+        [NameAlias("PrivilegeArchitecture")]
+        public enum PrivilegedArchitecture
         {
             Priv1_09,
             Priv1_10,

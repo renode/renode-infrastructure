@@ -13,8 +13,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class RiscV64 : BaseRiscV
     {
-        public RiscV64(IMachine machine, string cpuType, IRiscVTimeProvider timeProvider = null, uint hartId = 0, PrivilegeArchitecture privilegeArchitecture = PrivilegeArchitecture.Priv1_11, Endianess endianness = Endianess.LittleEndian, ulong? nmiVectorAddress = null, uint? nmiVectorLength = null, bool allowUnalignedAccesses = false, InterruptMode interruptMode = InterruptMode.Auto)
-                : base(timeProvider, hartId, cpuType, machine, privilegeArchitecture, endianness, CpuBitness.Bits64, nmiVectorAddress, nmiVectorLength, allowUnalignedAccesses, interruptMode)
+        public RiscV64(IMachine machine, string cpuType, IRiscVTimeProvider timeProvider = null, uint hartId = 0, [NameAlias("privilegeArchitecture")] PrivilegedArchitecture privilegedArchitecture = PrivilegedArchitecture.Priv1_11, Endianess endianness = Endianess.LittleEndian, ulong? nmiVectorAddress = null, uint? nmiVectorLength = null, bool allowUnalignedAccesses = false, InterruptMode interruptMode = InterruptMode.Auto)
+                : base(timeProvider, hartId, cpuType, machine, privilegedArchitecture, endianness, CpuBitness.Bits64, nmiVectorAddress, nmiVectorLength, allowUnalignedAccesses, interruptMode)
         {
         }
 

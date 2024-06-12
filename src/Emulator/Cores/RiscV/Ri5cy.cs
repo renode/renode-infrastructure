@@ -12,7 +12,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class Ri5cy : RiscV32
     {
-        public Ri5cy(IMachine machine, IRiscVTimeProvider timeProvider = null, uint hartId = 0, PrivilegeArchitecture privilegeArchitecture = PrivilegeArchitecture.Priv1_10, Endianess endianness = Endianess.LittleEndian, string cpuType = "rv32imc") : base(machine, cpuType, timeProvider, hartId, privilegeArchitecture, endianness)
+        public Ri5cy(IMachine machine, IRiscVTimeProvider timeProvider = null, uint hartId = 0, [NameAlias("privilegeArchitecture")] PrivilegedArchitecture privilegedArchitecture = PrivilegedArchitecture.Priv1_10, Endianess endianness = Endianess.LittleEndian, string cpuType = "rv32imc") : base(machine, cpuType, timeProvider, hartId, privilegedArchitecture, endianness)
         {
             // enable all interrupt sources
             MIE = 0xffffffff;

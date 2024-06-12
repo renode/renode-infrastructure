@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     public class OpenTitan_BigNumberAcceleratorCore : RiscV32, IOpenTitan_BigNumberAcceleratorCore
     {
         public OpenTitan_BigNumberAcceleratorCore(OpenTitan_BigNumberAccelerator parent, OpenTitan_ScrambledMemory instructionsMemory, OpenTitan_ScrambledMemory dataMemory)
-            : base(timeProvider: null, cpuType: "rv32im_zicsr", machine: null, hartId: 0, privilegeArchitecture: PrivilegeArchitecture.Priv1_10, endianness: Endianess.LittleEndian)
+            : base(timeProvider: null, cpuType: "rv32im_zicsr", machine: null, hartId: 0, privilegedArchitecture: PrivilegedArchitecture.Priv1_10, endianness: Endianess.LittleEndian)
         {
             this.parent = parent;
             this.instructionsMemory = instructionsMemory;
