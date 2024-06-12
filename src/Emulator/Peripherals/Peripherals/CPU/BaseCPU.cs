@@ -262,7 +262,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                         if(started && !isPaused)
                         {
                             wasRunningWhenHalted = true;
-                            Pause(new HaltArguments(HaltReason.Pause, Id), checkPauseGuard: false);
+                            Pause(new HaltArguments(HaltReason.Pause, this), checkPauseGuard: false);
                         }
                     }
                     else
@@ -426,7 +426,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         protected override void OnPause()
         {
-            Pause(new HaltArguments(HaltReason.Pause, Id), checkPauseGuard: true);
+            Pause(new HaltArguments(HaltReason.Pause, this), checkPauseGuard: true);
         }
 
         protected virtual void RequestPause()
@@ -447,7 +447,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 this.NoisyLog("About to dispose CPU.");
             }
             started = false;
-            Pause(new HaltArguments(HaltReason.Abort, Id), checkPauseGuard: false);
+            Pause(new HaltArguments(HaltReason.Abort, this), checkPauseGuard: false);
         }
 
         protected void InvokeHalted(HaltArguments arguments)
@@ -487,7 +487,7 @@ restart:
                                     using(this.ObtainSinkInactiveState())
                                     {
                                         this.Log(LogLevel.Noisy, "Waiting for a step instruction (PC=0x{0:X8}).", PC.RawValue);
-                                        InvokeHalted(new HaltArguments(HaltReason.Step, Id));
+                                        InvokeHalted(new HaltArguments(HaltReason.Step, this));
                                         if(!singleStepSynchronizer.WaitForStepCommand())
                                         {
                                             this.Trace();

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -7,6 +7,7 @@
 using System;
 using System.Text;
 using Antmicro.Renode.Exceptions;
+using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Utilities.GDB.Commands
 {
@@ -37,9 +38,31 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
                 }
 
                 byte[] data;
+                ulong val;
                 try
                 {
-                    data = manager.Machine.SystemBus.ReadBytes(access.Address, (int)access.Length, context: manager.Cpu);
+                    switch(access.Length)
+                    {
+                        case 1:
+                            val = manager.Machine.SystemBus.ReadByte(access.Address, context: manager.Cpu);
+                            data = BytesFromValue(val, access.Length);
+                            break;
+                        case 2:
+                            val = manager.Machine.SystemBus.ReadWord(access.Address, context: manager.Cpu);
+                            data = BytesFromValue(val, access.Length);
+                            break;
+                        case 4:
+                            val = manager.Machine.SystemBus.ReadDoubleWord(access.Address, context: manager.Cpu);
+                            data = BytesFromValue(val, access.Length);
+                            break;
+                        case 8:
+                            val = manager.Machine.SystemBus.ReadQuadWord(access.Address, context: manager.Cpu);
+                            data = BytesFromValue(val, access.Length);
+                            break;
+                        default:
+                            data = manager.Machine.SystemBus.ReadBytes(access.Address, (int)access.Length, context: manager.Cpu);
+                            break;
+                    }
                 }
                 catch(RecoverableException)
                 {
@@ -53,6 +76,11 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             }
 
             return new PacketData(content.ToString());
+        }
+
+        private byte [] BytesFromValue(ulong val, ulong length)
+        {
+            return BitHelper.GetBytesFromValue(val, (int)length, manager.Cpu.Endianness == Endianess.LittleEndian);
         }
     }
 }

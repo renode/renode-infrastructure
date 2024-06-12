@@ -73,6 +73,7 @@ namespace Antmicro.Renode.Logging
 
         public static void Dispose()
         {
+            Flush();
             foreach(var backend in backends.Items)
             {
                 backend.Dispose();

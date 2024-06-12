@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Collections;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
@@ -30,7 +31,7 @@ namespace Antmicro.Renode.Utilities.GDB
             CanAttachCPU = true;
 
             commandsCache = new Dictionary<string, Command>();
-            ManagedCpus = new Dictionary<uint, ICpuSupportingGdb>();
+            ManagedCpus = new ManagedCpusDictionary();
             foreach(var cpu in cpus)
             {
                 if(!TryAddManagedCPU(cpu))
@@ -38,7 +39,7 @@ namespace Antmicro.Renode.Utilities.GDB
                     throw new RecoverableException($"Could not create GDB server for CPU: {cpu.GetName()}");
                 }
             }
-            selectedCpuNumber = ManagedCpus.OrderBy(x => x.Key).First().Key;
+            selectedCpu = ManagedCpus[PacketThreadId.Any];
         }
 
         public void AttachCPU(ICpuSupportingGdb cpu)
@@ -56,22 +57,16 @@ namespace Antmicro.Renode.Utilities.GDB
 
         public bool IsCPUAttached(ICpuSupportingGdb cpu)
         {
-            return ManagedCpus.ContainsValue(cpu);
+            return ManagedCpus.Contains(cpu);
         }
 
-        public void SelectCpuForDebugging(uint cpuNumber)
+        public void SelectCpuForDebugging(ICpuSupportingGdb cpu)
         {
-            if(cpuNumber == 0)
+            if(!ManagedCpus.Contains(cpu))
             {
-                // the documentation states that `0` indicates an arbitrary process or thread, so we will take the first one available
-                cpuNumber = ManagedCpus.OrderBy(x => x.Key).First().Key;
+                throw new RecoverableException($"Tried to set invalid CPU: {cpu.GetName()} for debugging, which isn't connected to the current {nameof(GdbStub)}");
             }
-            else if(!ManagedCpus.ContainsKey(cpuNumber))
-            {
-                Logger.Log(LogLevel.Error, "Tried to set invalid CPU number: {0}", cpuNumber);
-                return;
-            }
-            selectedCpuNumber = cpuNumber;
+            selectedCpu = cpu;
         }
 
         public void Register(Type t)
@@ -114,14 +109,14 @@ namespace Antmicro.Renode.Utilities.GDB
                 return unifiedFeatures;
             }
 
-            if(ManagedCpus.Count == 1)
+            if(ManagedCpus.Count() == 1)
             {
                 unifiedFeatures.AddRange(Cpu.GDBFeatures);
                 return unifiedFeatures;
             }
 
             var features = new Dictionary<string, List<GDBFeatureDescriptor>>();
-            foreach(var cpu in ManagedCpus.Values)
+            foreach(var cpu in ManagedCpus)
             {
                 foreach(var feature in cpu.GDBFeatures)
                 {
@@ -161,15 +156,9 @@ namespace Antmicro.Renode.Utilities.GDB
         }
 
         public IMachine Machine { get; }
-        public Dictionary<uint, ICpuSupportingGdb> ManagedCpus { get; set; }
+        public ManagedCpusDictionary ManagedCpus { get; }
         public bool CanAttachCPU { get; set; }
-        public ICpuSupportingGdb Cpu
-        {
-            get
-            {
-                return ManagedCpus[selectedCpuNumber];
-            }
-        }
+        public ICpuSupportingGdb Cpu => selectedCpu;
 
         private static GDBFeatureDescriptor UnifyFeature(List<GDBFeatureDescriptor> featureVariations)
         {
@@ -250,7 +239,7 @@ namespace Antmicro.Renode.Utilities.GDB
             {
                 return false;
             }
-            ManagedCpus.Add(cpu.Id + 1, cpu);
+            ManagedCpus.Add(cpu);
             return true;
         }
 
@@ -300,9 +289,59 @@ namespace Antmicro.Renode.Utilities.GDB
         private readonly Dictionary<int, GDBRegisterDescriptor[]> unifiedRegisters = new Dictionary<int, GDBRegisterDescriptor[]>();
 
         private readonly Dictionary<string,Command> commandsCache;
-        private uint selectedCpuNumber;
+        private ICpuSupportingGdb selectedCpu;
         [Constructor]
         private readonly List<string> mnemonicList;
+
+        public class ManagedCpusDictionary : IEnumerable<ICpuSupportingGdb>
+        {
+            /// <remarks> There is no check whatsoever to prevent inserting the same CPU twice here, with different unique ID </remarks>
+            public uint Add(ICpuSupportingGdb cpu)
+            {
+                // Thread id "0" might be interpreted as "any" thread by GDB, so start from 1
+                uint ctr = (uint)cpusToIds.Count + 1;
+                cpusToIds.Add(cpu, ctr);
+                idsToCpus.Add(ctr, cpu);
+                return ctr;
+            }
+
+            public IEnumerator<ICpuSupportingGdb> GetEnumerator()
+            {
+                return cpusToIds.Keys.GetEnumerator();
+            }
+
+            IEnumerator IEnumerable.GetEnumerator()
+            {
+                return this.GetEnumerator();
+            }
+
+            public ICpuSupportingGdb this[int idx]
+            {
+                get
+                {
+                    // There are two special cases here:
+                    // -1 means "all" - not supported right now
+                    // 0 means an arbitrary process or thread - so take the first one available
+                    switch(idx)
+                    {
+                        case PacketThreadId.All:
+                            throw new NotSupportedException("Selecting \"all\" CPUs is not supported");
+                        case PacketThreadId.Any:
+                            return idsToCpus.OrderBy(kv => kv.Key).First().Value;
+                        default:
+                            return idsToCpus[(uint)idx];
+                    }
+                }
+            }
+
+            public ICpuSupportingGdb this[uint idx] => this[(int)idx];
+            public uint this[ICpuSupportingGdb cpu] => cpusToIds[cpu];
+
+            public IEnumerable<uint> GdbCpuIds => idsToCpus.Keys;
+
+            private readonly Dictionary<uint, ICpuSupportingGdb> idsToCpus = new Dictionary<uint, ICpuSupportingGdb>();
+            private readonly Dictionary<ICpuSupportingGdb, uint> cpusToIds = new Dictionary<ICpuSupportingGdb, uint>();
+        }
 
         private class CommandDescriptor
         {

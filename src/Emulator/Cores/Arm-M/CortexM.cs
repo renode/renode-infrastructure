@@ -304,6 +304,15 @@ namespace Antmicro.Renode.Peripherals.CPU
             return base.BeforePCWrite(value);
         }
 
+        protected override void OnLeavingResetState()
+        {
+            if(State == CPUState.Running)
+            {
+                InitPCAndSP();
+            }
+            base.OnLeavingResetState();
+        }
+
         private void InitPCAndSP()
         {
             var firstNotNullSection = machine.SystemBus.GetLookup(this).FirstNotNullSectionAddress;

@@ -5,23 +5,26 @@
 //  Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Time;
+using Antmicro.Renode.Peripherals.Sensor;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.RESD;
 
 namespace Antmicro.Renode.Peripherals.Analog
 {
-    public class CAES_ADC : BasicDoubleWordPeripheral, IKnownSize
+    public class CAES_ADC : BasicDoubleWordPeripheral, IADC, IKnownSize
     {
         public CAES_ADC(IMachine machine, uint frequency = 50000000) : base(machine)
         {
             this.frequency = frequency;
             DefineRegisters();
+            rawVoltage = Enumerable.Repeat(DefaultChannelVoltage, ADCChannelCount).ToArray();
             resdStream = new RESDStream<VoltageSample>[NumberOfDataChannels];
             samplingTimer = new LimitTimer(
                 machine.ClockSource, frequency, this, "samplingClock",
@@ -58,9 +61,23 @@ namespace Antmicro.Renode.Peripherals.Analog
             IRQ.Unset();
         }
 
+        public void SetADCValue(int adcChannel, uint value)
+        {
+            EnsureChannelIsValid((uint)adcChannel);
+            rawVoltage[adcChannel] = value / VoltageSampleDivisor;
+        }
+
+        public uint GetADCValue(int adcChannel)
+        {
+            EnsureChannelIsValid((uint)adcChannel);
+            return rawVoltage[adcChannel] * VoltageSampleDivisor;
+        }
+
         public GPIO IRQ { get; } = new GPIO();
 
         public long Size => 0x1000;
+
+        public int ADCChannelCount => (int)NumberOfDataChannels;
 
         private void UpdateInterrupts()
         {
@@ -71,10 +88,13 @@ namespace Antmicro.Renode.Peripherals.Analog
 
         private uint GetChannelVoltage(uint dataChannelId)
         {
-            EnsureChannelIsValid(dataChannelId);
-            if(resdStream[dataChannelId] == null || resdStream[dataChannelId].TryGetCurrentSample(this, (sample) => sample.Voltage / 1000, out var voltage, out _) != RESDStreamStatus.OK)
+            if(resdStream[dataChannelId] == null || resdStream[dataChannelId].TryGetCurrentSample(this, (sample) => sample.Voltage / VoltageSampleDivisor, out var voltage, out _) != RESDStreamStatus.OK)
             {
-                voltage = DefaultChannelVoltage;
+                voltage = rawVoltage[dataChannelId];
+            }
+            else
+            {
+                rawVoltage[dataChannelId] = voltage;
             }
 
             voltage = (uint)((float)voltage * GetGain(channelGain[DataToConfigChannel(dataChannelId)].Value));
@@ -92,7 +112,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         {
             if(channelIdx >= NumberOfDataChannels)
             {
-                this.Log(LogLevel.Warning, $"Invalid argument value: {channelIdx}. This peripheral implements only channels in range 0-{NumberOfDataChannels - 1}");
+                throw new RecoverableException($"Invalid argument value: {channelIdx}. This peripheral implements only channels in range 0-{NumberOfDataChannels - 1}");
             }
         }
 
@@ -437,6 +457,8 @@ namespace Antmicro.Renode.Peripherals.Analog
         private IValueRegisterField oversamplingRate;
         private IValueRegisterField sequenceDelay;
 
+        private uint[] rawVoltage;
+
         private const uint MaxValue = 0xFFF;
         private const uint MaxVoltage = 1500;
         private const uint SequenceDelayDuration = 25;
@@ -454,6 +476,8 @@ namespace Antmicro.Renode.Peripherals.Analog
         private readonly LimitTimer samplingTimer;
         private readonly RESDStream<VoltageSample>[] resdStream;
         private readonly uint frequency;
+
+        private const uint VoltageSampleDivisor = 1000;
 
         private enum OscillatorDivider
         {

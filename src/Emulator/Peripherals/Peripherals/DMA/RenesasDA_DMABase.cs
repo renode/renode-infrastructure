@@ -76,9 +76,9 @@ namespace Antmicro.Renode.Peripherals.DMA
                 this.Log(LogLevel.Warning, "No DMA channel is programmed to handle request 0x{0:X}. Ignoring request", number);
             }
         }
-        
+
         public DoubleWordRegisterCollection RegistersCollection { get; }
-        
+
         public GPIO IRQ { get; } = new GPIO();
 
         protected abstract int MapPeripheralSelectToDMAChannel(int peripheralSelectIndex);
@@ -95,10 +95,16 @@ namespace Antmicro.Renode.Peripherals.DMA
                 long channelID = i;
                 long offset = 0x20 * i;
                 registerMap.Add(offset + (long)Registers.SourceAddress_0, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out channels[i].sourceAddress, name: $"DMA{i}_A_START")
+                    .WithValueField(0, 32,
+                        valueProviderCallback: (_) => channels[channelID].SourceAddress,
+                        writeCallback: (_, val) => { channels[channelID].SourceAddress = val; },
+                        name: $"DMA{i}_A_START")
                 );
                 registerMap.Add(offset + (long)Registers.DestinationAddress_0, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out channels[i].destinationAddress, name: $"DMA{i}_B_START")
+                    .WithValueField(0, 32,
+                        valueProviderCallback: (_) => channels[channelID].DestinationAddress,
+                        writeCallback: (_, val) => {channels[channelID].DestinationAddress = val; },
+                        name: $"DMA{i}_B_START")
                 );
                 registerMap.Add(offset + (long)Registers.InterruptLength_0, new DoubleWordRegister(this)
                     .WithValueField(0, 16, out channels[i].interruptLength, name: $"DMA{i}_INT")
@@ -150,7 +156,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         private readonly IMachine machine;
         private readonly int channelCount;
-        
+
         protected class Channel
         {
             public Channel(RenesasDA_DMABase parent, int channelNumber)
@@ -171,15 +177,23 @@ namespace Antmicro.Renode.Peripherals.DMA
                 // In normal mode, we are instantly coping requested data size,
                 // in peripheral trigger mode, peripheral should trigger DMA on each sample
                 var transactionLength = peripheralTriggered.Value ? (int)transferType : bytesToTransfer;
-                Request getDescriptorData = new Request(sourceAddress.Value, destinationAddress.Value,
+                Request getDescriptorData = new Request(sourceAddress, destinationAddress,
                     transactionLength, transferType, transferType, incrementSourceAddress.Value && !dmaInit.Value,
                     incrementDestinationAddress.Value);
 
-                parent.Log(LogLevel.Debug, "[Channel {0}] Starting transfer from 0x{1:X} to 0x{2:X}. Copy length: 0x{3:X}", channelNumber, sourceAddress.Value, destinationAddress.Value, transactionLength);
+                parent.Log(LogLevel.Debug, "[Channel {0}] Starting transfer from 0x{1:X} to 0x{2:X}. Copy length: 0x{3:X}; transferType = {4}, srcAddrIncr = {5} dstAddrIncr = {6}",
+                           channelNumber,
+                           sourceAddress,
+                           destinationAddress,
+                           transactionLength,
+                           transferType,
+                           (incrementSourceAddress.Value && !dmaInit.Value),
+                           incrementDestinationAddress.Value);
 
                 var response = engine.IssueCopy(getDescriptorData);
                 itemsAlreadyTransferred.Value += (ulong)transactionLength;
-                destinationAddress.Value = (ulong)response.WriteAddress;
+                sourceAddress = (ulong)response.ReadAddress;
+                destinationAddress = (ulong)response.WriteAddress;
                 if((interruptLength.Value * (ulong)transferType) < itemsAlreadyTransferred.Value)
                 {
                     parent.interruptsManager.SetInterrupt((Interrupt)channelNumber);
@@ -187,8 +201,13 @@ namespace Antmicro.Renode.Peripherals.DMA
 
                 if(peripheralTriggered.Value)
                 {
-                    if(((ulong)bytesToTransfer == itemsAlreadyTransferred.Value) && !circularMode.Value)
+                    if((ulong)bytesToTransfer == itemsAlreadyTransferred.Value)
                     {
+                        if(circularMode.Value)
+                        {
+                            CircularModeReset();
+                            return;
+                        }
                         this.parent.Log(LogLevel.Noisy, "Disabling DMA channel because all items were transferred and circular mode is off");
                         dmaEnabled.Value = false;
                     }
@@ -199,9 +218,36 @@ namespace Antmicro.Renode.Peripherals.DMA
                 }
             }
 
+            public ulong SourceAddress
+            {
+                get
+                {
+                    return sourceAddress;
+                }
+                set
+                {
+                    setSourceAddress = value;
+                    sourceAddress = value;
+                }
+            }
+
+            public ulong DestinationAddress
+            {
+                get
+                {
+                    return destinationAddress;
+                }
+                set
+                {
+                    setDestinationAddress = value;
+                    destinationAddress = value;
+                }
+            }
+
+            public ulong sourceAddress;
+            public ulong destinationAddress;
+
             public IFlagRegisterField dmaEnabled;
-            public IValueRegisterField sourceAddress;
-            public IValueRegisterField destinationAddress;
             public IValueRegisterField transferLength;
             public IValueRegisterField interruptLength;
             public IFlagRegisterField incrementSourceAddress;
@@ -211,6 +257,17 @@ namespace Antmicro.Renode.Peripherals.DMA
             public IFlagRegisterField circularMode;
             public IFlagRegisterField dmaInit;
             public TransferType transferType;
+
+            private void CircularModeReset()
+            {
+                sourceAddress = setSourceAddress;
+                destinationAddress = setDestinationAddress;
+                itemsAlreadyTransferred.Value = 0;
+            }
+
+            // For use in circular mode
+            private ulong setSourceAddress;
+            private ulong setDestinationAddress;
 
             private readonly int channelNumber;
             private readonly RenesasDA_DMABase parent;

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -187,7 +187,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             var adcReady = adcReadyFlag.Value && adcReadyInterruptEnable.Value;
             var analogWatchdog = analogWatchdogsInterruptEnable.Zip(analogWatchdogFlags, (enable, flag) =>
             {
-                return enable.Value && flag.Value;  
+                return enable.Value && flag.Value;
             }).Any(flag => flag);
             var endOfSampling = endOfSamplingFlag.Value && endOfSamplingInterruptEnable.Value;
             var endOfConversion = endOfConversionFlag.Value && endOfConversionInterruptEnable.Value;
@@ -331,7 +331,7 @@ namespace Antmicro.Renode.Peripherals.Analog
                 default:
                     throw new Exception("This should never have happend!");
             }
-                
+
             uint referencedValue = (uint)Math.Round((sampleInMilivolts / (referenceVoltage * 1000)) * ((1 << resolutionInBits) - 1));
             if(align.Value == Align.Left)
             {
@@ -399,11 +399,11 @@ namespace Antmicro.Renode.Peripherals.Analog
                 .WithEnumField<DoubleWordRegister, Align>(5, 1, out align, name: "ALIGN")
                 .WithTag("EXTSEL", 6, 2)
                 .WithReservedBits(9, 1)
-                .WithValueField(10, 2, writeCallback: (_, val) => 
-                    { 
+                .WithValueField(10, 2, writeCallback: (_, val) =>
+                    {
                         // On hardware it is possible to configure on which edge should the trigger fire
                         // This Peripheral mocks external trigger using `externalEventFrequency`, so we only distinguish between manual/external trigger
-                        externalTrigger = (val > 0); 
+                        externalTrigger = (val > 0);
                     }, name: "EXTEN")
                 .WithTaggedFlag("OVRMOD", 12)
                 .WithTaggedFlag("CONT", 13)
@@ -430,7 +430,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             if(hasChannelSequence)
             {
                 configurationRegister1
-                    .WithTaggedFlag("CHSELRMOD", 21);
+                    .WithFlag(21, name: "CHSELRMOD"); // no actual logic, but software expects to read the value back
             }
             else
             {
@@ -481,7 +481,7 @@ namespace Antmicro.Renode.Peripherals.Analog
                             {
                                 enabled = true;
                                 adcReadyFlag.Value = true;
-                                UpdateInterrupts(); 
+                                UpdateInterrupts();
                             }
                         }, name: "ADEN")
                     // Reading one from below field would mean that command is in progress. This is never the case in this model
@@ -511,7 +511,9 @@ namespace Antmicro.Renode.Peripherals.Analog
                                 sequenceInProgress = false;
                             }
                         }, name: "ADSTP")
-                    .WithReservedBits(5, 25)
+                    .WithReservedBits(5, 23)
+                    .WithFlag(28, name: "ADVREGEN") // no logic implemented, but software expects to read this flag back
+                    .WithReservedBits(29, 2)
                     .WithTaggedFlag("ADCAL", 31)
                 },
                 {(long)Registers.Configuration1, configurationRegister1},
@@ -587,7 +589,7 @@ namespace Antmicro.Renode.Peripherals.Analog
                     .WithTaggedFlag("DPD", 1) // Deep-power-down mode
                     .WithReservedBits(2, 30));
             }
-            
+
             return registers;
         }
 
@@ -597,11 +599,11 @@ namespace Antmicro.Renode.Peripherals.Analog
         private bool sequenceInProgress;
         private bool awaitingConversion;
         private bool[] channelSelected;
-        
+
         private IEnumRegisterField<Align> align;
         private IEnumRegisterField<Resolution> resolution;
         private IEnumRegisterField<ScanDirection> scanDirection;
-        
+
         private IFlagRegisterField dmaEnabled;
         private IFlagRegisterField analogWatchdogEnable;
         private IFlagRegisterField startFlag;
@@ -620,7 +622,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         private IFlagRegisterField endOfSamplingInterruptEnable;
         private IFlagRegisterField endOfSequenceInterruptEnable;
         private IFlagRegisterField analogWatchdogSingleChannel;
-        
+
         private IValueRegisterField data;
         // Watchdog 1 either watches all channels or a single channel
         private IValueRegisterField analogWatchdogChannel;

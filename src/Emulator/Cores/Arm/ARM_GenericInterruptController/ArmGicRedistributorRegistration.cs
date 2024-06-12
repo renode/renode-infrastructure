@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
     {
         public ArmGicRedistributorRegistration(IARMSingleSecurityStateCPU attachedCPU, ulong address, ICPU visibleTo = null) : base(address, 0x20000, visibleTo)
         {
-            this.cpu = attachedCPU;
+            Cpu = attachedCPU;
         }
 
         public override Action<long, byte> GetWriteByteMethod(IBusPeripheral peripheral)
@@ -120,17 +120,21 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             gic = peripheral as ARM_GenericInterruptController;
             if(gic == null)
             {
-                throw new RegistrationException("RedistributorRegistration can only be attached to ARM_GenericInterruptController");
+                throw new RegistrationException($"RedistributorRegistration can only be attached to {nameof(ARM_GenericInterruptController)}");
             }
-            if(!gic.TryGetCPUEntryForCPU(cpu, out entry))
+            if(!gic.ArchitectureVersionAtLeast3)
             {
-                throw new RegistrationException($"Couldn't register redistributor for CPU {cpu.Id} because the CPU isn't attached to this GIC");
+                throw new RegistrationException($"RedistributorRegistration can only be attached to {nameof(ARM_GenericInterruptController)} version 3 and above");
+            }
+            if(!gic.TryGetCPUEntryForCPU(Cpu, out entry))
+            {
+                throw new RegistrationException($"Couldn't register redistributor for CPU {Cpu.Id} because the CPU isn't attached to this GIC");
             }
         }
 
         public override string ToString()
         {
-            return $"{base.ToString()} GIC redistributor, attached CPU: {cpu}";
+            return $"{base.ToString()} GIC redistributor, attached CPU: {Cpu}";
         }
 
         private bool IsByteAccessible(long offset)
@@ -139,6 +143,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             return (long)ARM_GenericInterruptController.RedistributorRegisters.InterruptPriority_0 <= offset && offset <= (long)ARM_GenericInterruptController.RedistributorRegisters.InterruptPriority_7 + maxByteOffset;
         }
 
-        private readonly IARMSingleSecurityStateCPU cpu;
+        public IARMSingleSecurityStateCPU Cpu { get; }
     }
 }

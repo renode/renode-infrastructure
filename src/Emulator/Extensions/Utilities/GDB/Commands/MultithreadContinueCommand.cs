@@ -170,7 +170,7 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
             // ATM we support only all-stop mode, so if we receive a `step` request in the packet we skip the `continue` request,
             // but don't skip for synchronus execution, its needed in TryHandleBlockingExecution
             var skipContinue = !EmulationManager.Instance.CurrentEmulation.SingleStepBlocking && data.Contains('s') && data.Contains('c');
-            var cpuIdsToHandle = new HashSet<uint>(manager.ManagedCpus.Keys);
+            var gdbCpuIdsToHandle = new HashSet<uint>(manager.ManagedCpus.GdbCpuIds);
             foreach(var pair in data.Split(';'))
             {
                 // No id means that command should be applied to the rest of the threads
@@ -194,27 +194,27 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
 
                 if(coreId == AllCores)
                 {
-                    foreach(var id in cpuIdsToHandle)
+                    foreach(var id in gdbCpuIdsToHandle)
                     {
                         operationsList.Add(new Operation(id, type.Value));
                     }
-                    cpuIdsToHandle.Clear();
+                    gdbCpuIdsToHandle.Clear();
                 }
                 else if(coreId == AnyCore)
                 {
-                    if(cpuIdsToHandle.Count == 0)
+                    if(gdbCpuIdsToHandle.Count == 0)
                     {
                         manager.Cpu.Log(LogLevel.Error, "No CPUs available to execute \"{0}\" command.", pair);
                         return false;
                     }
-                    var firstAvailable = cpuIdsToHandle.First();
+                    var firstAvailable = gdbCpuIdsToHandle.First();
                     operationsList.Add(new Operation(firstAvailable, type.Value));
-                    cpuIdsToHandle.Remove(firstAvailable);
+                    gdbCpuIdsToHandle.Remove(firstAvailable);
                 }
                 else
                 {
                     // coreId has proper core id
-                    if(!cpuIdsToHandle.Remove((uint)coreId))
+                    if(!gdbCpuIdsToHandle.Remove((uint)coreId))
                     {
                         var index = operationsList.FindIndex(op => op.CoreId == (uint)coreId);
                         if(index != -1)
@@ -235,7 +235,7 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
                 manager.Cpu.Log(LogLevel.Error, "No actions specified.");
                 return false;
             }
-            foreach(var id in cpuIdsToHandle)
+            foreach(var id in gdbCpuIdsToHandle)
             {
                 operationsList.Add(new Operation(id, manager.ManagedCpus[id].ExecutionMode == ExecutionMode.Continuous ? OperationType.Continue : OperationType.None));
             }
@@ -262,6 +262,9 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
                     break;
             }
         }
+
+        private const int AllCores = PacketThreadId.All;
+        private const int AnyCore = PacketThreadId.Any;
 
         private struct Operation
         {
@@ -294,8 +297,5 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
             Step,
             None,
         }
-
-        private const int AllCores = -1;
-        private const int AnyCore = 0;
     }
 }
