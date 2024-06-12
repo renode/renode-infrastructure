@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -82,6 +82,10 @@ namespace Antmicro.Renode.Peripherals.CPU
         public override string GDBArchitecture { get { return "arm"; } }
 
         public override List<GDBFeatureDescriptor> GDBFeatures { get { return new List<GDBFeatureDescriptor>(); } }
+
+        public bool ImplementsPMSA => MemorySystemArchitecture == MemorySystemArchitectureType.Physical_PMSA;
+        public bool ImplementsVMSA => MemorySystemArchitecture == MemorySystemArchitectureType.Virtual_VMSA;
+        public abstract MemorySystemArchitectureType MemorySystemArchitecture { get; }
 
         public uint ModelID
         {
@@ -421,6 +425,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 cpu.SetEventFlag(flag);
             }
+        }
+
+        public enum MemorySystemArchitectureType
+        {
+            None,
+            Physical_PMSA,
+            Virtual_VMSA,
         }
 
         private enum SystemRegisterCheckReturnValue

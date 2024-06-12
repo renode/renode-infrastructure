@@ -30,6 +30,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public override MemorySystemArchitectureType MemorySystemArchitecture => MemorySystemArchitectureType.Physical_PMSA;
+
         // Currently unsupported
         public bool FIQMaskOverride => false;
         public bool IRQMaskOverride => false;

@@ -47,6 +47,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             machine.UnregisterAsAChildOf(this, peripheral);
         }
 
+        public override MemorySystemArchitectureType MemorySystemArchitecture => MemorySystemArchitectureType.Virtual_VMSA;
+
         // Currently unsupported
         public bool FIQMaskOverride => false;
         public bool IRQMaskOverride => false;
