@@ -1845,6 +1845,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private IEnumerable<DoubleWordRegister> BuildInterruptRegisters(InterruptId startId, InterruptId endId, int fieldsPerRegister,
             Action<DoubleWordRegister, Func<Interrupt>, InterruptId, int> fieldAction,
             Action<DoubleWordRegister, int> fieldPlaceholderAction,
+            // NOTE: Currently always null as we don't support registers like GICD_CPENDSGIRn which need this information
             CPUEntry sgiRequestingCPU
         )
         {
@@ -1870,6 +1871,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     {
                         if(sgiRequestingCPU == null)
                         {
+                            // NOTE: We're returning here from SoftwareGeneratedInterruptsUnknownRequester despite some of the registers operating on
+                            //       the LegacyRequester interrupts. This is fine, as all of those registers actually operate on InterruptConfig
+                            //       and that's shared between interrupts in UnknownRequester and LegacyRequester.
                             fieldAction(register, () => GetAskingCPUEntry().SoftwareGeneratedInterruptsUnknownRequester[irqId], irqId, inRegisterIndex);
                         }
                         else
