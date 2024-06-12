@@ -1750,6 +1750,14 @@ namespace Antmicro.Renode.Utilities
             yield return prefix;
         }
 
+        public static void AddIf<T>(this ICollection<T> collection, bool condition, T item)
+        {
+            if(condition)
+            {
+                collection.Add(item);
+            }
+        }
+
         public static DateTime UnixEpoch = new DateTime(1970, 1, 1);
     }
 
