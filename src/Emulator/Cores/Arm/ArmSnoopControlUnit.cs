@@ -6,10 +6,13 @@
 //
 using System;
 using System.Linq;
+using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
@@ -20,9 +23,27 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             this.signalsUnit = signalsUnit;
             this.smpMask = smpMask;
+            registeredCPUs = new List<ICPU>();
 
             DefineRegisters();
             Reset();
+        }
+
+        public void RegisterCPU(ICPU cpu)
+        {
+            if(registeredCPUs.Contains(cpu))
+            {
+                throw new RecoverableException($"CPU {cpu.Id} was already registered");
+            }
+            else if(registeredCPUs.Count >= MaximumCPUs)
+            {
+                throw new RecoverableException($"Number of registered CPUs cannot be greater than {MaximumCPUs}");
+            }
+            else
+            {
+                Logger.Log(LogLevel.Debug, "Registered CPU {0} at index {1}", cpu.Id, registeredCPUs.Count);
+                registeredCPUs.Add(cpu);
+            }
         }
 
         public void Pause()
@@ -33,7 +54,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         public override void Reset()
         {
             lockedCPUs = new bool[MaximumCPUs];
-            numberOfCPUs = -1;
             started = false;
 
             /* Do not reset FilteringStart/End properties - this is intentional
@@ -62,11 +82,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             if(machine.GetSystemBus(this).TryGetCurrentCPU(out var cpu))
             {
-                if(cpu.Id >= MaximumCPUs)
+                CheckRegisteredCPUs();
+                var idx = registeredCPUs.IndexOf(cpu);
+                if(idx == -1)
                 {
-                    Logger.Log(LogLevel.Error, "Locking access for CPU {0} is not supported: up to {1} CPUs are supported", cpu.Id, MaximumCPUs);
+                    Logger.Log(LogLevel.Error, "CPU {0} is not registered in Snoop Control Unit", cpu.Id);
                 }
-                else if(lockedCPUs[cpu.Id])
+                else if(lockedCPUs[idx])
                 {
                     Logger.Log(LogLevel.Warning, "Tried to write value {0} at offset {1}, but access for CPU {2} has been locked", value, offset, cpu.Id);
                     return;
@@ -175,24 +197,32 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private int CountCPUs()
         {
-            if(numberOfCPUs == -1)
+            CheckRegisteredCPUs();
+            return registeredCPUs.Count;
+        }
+
+        private void CheckRegisteredCPUs()
+        {
+            if(registeredCPUs.Count == 0)
             {
-                numberOfCPUs = sysbus.GetCPUs().Count();
+                var cpus = sysbus.GetCPUs();
+                var numberOfCPUs = cpus.Count();
 
                 // Cap Number of CPUs
                 if(numberOfCPUs > MaximumCPUs)
                 {
-                    Logger.Log(LogLevel.Error, "Number of CPUs: {0} is more than the maximum supported. Capping CPUs number to: {1}.", numberOfCPUs, MaximumCPUs);
+                    Logger.Log(LogLevel.Error, "Number of CPUs: {0} is more than the maximum supported. Capping CPUs number to: {1}. CPUs can be registered manually to overcome this warning.", numberOfCPUs, MaximumCPUs);
                     numberOfCPUs = MaximumCPUs;
                 }
+
+                registeredCPUs = cpus.OrderBy(x => x.Id).Take(numberOfCPUs).ToList();
             }
-            return numberOfCPUs;
         }
 
         private IFlagRegisterField addressFilteringEnabled;
         private IFlagRegisterField enabled;
+        private List<ICPU> registeredCPUs;
         private bool[] lockedCPUs;
-        private int numberOfCPUs;
         private bool started;
 
         private readonly ArmSignalsUnit signalsUnit;
