@@ -23,19 +23,21 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             RegistersCollection = new WordRegisterCollection(this, BuildRegisterMap());
 
-            periodicInterruptTimer = new LimitTimer(machine.ClockSource, DefaultFrequency, this, "PeriodicInterruptTimer", 0xFFFF, eventEnabled: true);
+            watchdog = new Watchdog(this, WatchdogCounterDefaultValue, WatchdogAlarmHandler);
+
+            periodicInterruptTimer = new LimitTimer(machine.ClockSource, DefaultFrequency, this, "PeriodicInterruptTimer", 0xFFFF1, eventEnabled: true, enabled: true, workMode: WorkMode.Periodic);
             periodicInterruptTimer.LimitReached += () =>
             {
                 IRQ.Blink();
                 terminalCountReached = true;
-                HandleWatchdogTickWith(TimerWatchdogTick);
+                if(!isCounterClockSource.Value)
+                {
+                    watchdog.Tick();
+                }
             };
 
-            watchdog = new Watchdog(this, 0xFF);
-            watchdog.LimitReached += WatchdogAlarmHandler;
-
             watchdogCounter = new LimitTimer(machine.ClockSource, DefaultFrequency, this, "WatchdogCounter", 0x1, eventEnabled: true);
-            watchdogCounter.LimitReached += () => HandleWatchdogTickWith(CounterWatchdogTick);
+            watchdogCounter.LimitReached += () => watchdog.Tick();
 
             IRQ = new GPIO();
             Reset();
@@ -55,11 +57,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             timerAndWatchdogPrescaler = DefaultDivider;
             watchdogPrescaler = DefaultDivider;
             terminalCountReached = false;
-            watchdogCounterPresetValue = WatchdogCounterMaxValue;
-
-            CounterWatchdogTick -= watchdog.Tick;
-            TimerWatchdogTick -= watchdog.Tick;
-            TimerWatchdogTick += watchdog.Tick;
+            watchdogCounterPresetValue = WatchdogCounterDefaultValue;
         }
 
         public ushort ReadWord(long offset)
@@ -78,44 +76,15 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public WordRegisterCollection RegistersCollection { get; }
 
-        public event Action CounterWatchdogTick;
-
-        public event Action TimerWatchdogTick;
-
         private Dictionary<long, WordRegister> BuildRegisterMap()
         {
             var registerMap = new Dictionary<long, WordRegister>
             {
                 {(long)Registers.TimerAndWatchdogConfiguration, new WordRegister(this)
                     .WithReservedBits(6, 10)
-                    .WithFlag(5, out watchdogTouchSelect,
-                        writeCallback: (_, val) =>
-                        {
-                            if(!val)
-                            {
-                                return;
-                            }
-                            watchdog.Value = watchdogCounterPresetValue;
-                        },
-                        name: "WDSDME (Watchdog Touch Select)")
+                    .WithFlag(5, out watchdogTouchSelect, name: "WDSDME (Watchdog Touch Select)")
                     .WithFlag(4, out isCounterClockSource,
-                        writeCallback: (_, val) =>
-                        {
-                            if(val)
-                            {
-                                CounterWatchdogTick += watchdog.Tick;
-                                watchdogCounter.Enabled = true;
-                                
-                                TimerWatchdogTick -= watchdog.Tick;
-                            }
-                            else
-                            {
-                                TimerWatchdogTick += watchdog.Tick;
-
-                                watchdogCounter.Enabled = false;
-                                CounterWatchdogTick -= watchdog.Tick;
-                            }
-                        },
+                        writeCallback: (_, val) => watchdogCounter.Enabled = val,
                         name: "WDCT0I (Watchdog Clock Select)")
                     .WithFlag(3, out lockWatchdog, FieldMode.Set, name: "LWDCNT (Lock Watchdog Counter)")
                     .WithFlag(2, out lockTimer, FieldMode.Set, name: "LTWDT0 (Lock T0 Timer)")
@@ -162,7 +131,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                                 this.Log(LogLevel.Warning, "Timer lock active: cannot reconfigure!");
                                 return;
                             }
-                            periodicInterruptTimer.Limit = val;
+                            periodicInterruptTimer.Limit = val + 1;
                         },
                         valueProviderCallback: _ =>
                         {
@@ -171,7 +140,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                                 this.Log(LogLevel.Warning, "Timer lock active: returning zero!");
                                 return 0;
                             }
-                            return periodicInterruptTimer.Limit;
+                            return periodicInterruptTimer.Limit - 1;
                         },
                         name: "T0_PRESET (T0 Counter Preset)")
                 },
@@ -180,7 +149,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithReservedBits(8, 8)
                     .WithTaggedFlag("TESDIS (Too Early Service Disable)", 7)
                     .WithReservedBits(6, 1)
-                    .WithFlag(5, FieldMode.Read, valueProviderCallback: _ => watchdogCounter.Enabled, name: "WD_RUN (Watchdog Run Status)")
+                    .WithFlag(5, FieldMode.Read, valueProviderCallback: _ => watchdog.Enabled, name: "WD_RUN (Watchdog Run Status)")
                     .WithFlag(4, out watchdogResetStatus, FieldMode.WriteOneToClear | FieldMode.Read, name: "WDRST_STS (Watchdog Reset Status)")
                     .WithTaggedFlag("WDLTD (Watchdog Last Touch Delay)", 3)
                     .WithReservedBits(2, 1)
@@ -203,7 +172,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                             {
                                 return;
                             }
-                            periodicInterruptTimer.Value = PeriodicInterruptTimerMaxValue;
+                            periodicInterruptTimer.ResetValue();
                         },
                         name: "RST (Reset)")
                 },
@@ -213,17 +182,17 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithValueField(0, 8,
                         writeCallback: (__, val) =>
                         {
-                            if(!watchdogCounter.Enabled)
+                            if(lockWatchdog.Value)
+                            {
+                                watchdog.Value = watchdogCounterPresetValue;
+                            }
+                            else
                             {
                                 watchdog.Value = val;
-                                watchdogCounter.Enabled = true;
                             }
-                            if(lockWatchdog.Value && !watchdogTouchSelect.Value)
-                            {
-                                this.Log(LogLevel.Warning, "Watchdog lock active: cannot reconfigure!");
-                                return;
-                            }
+
                             watchdogCounterPresetValue = (byte)val;
+                            watchdog.Enabled = true;
                         },
                         valueProviderCallback: _ =>
                         {
@@ -232,7 +201,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                                 this.Log(LogLevel.Warning, "Watchdog lock active: returning zero!");
                                 return 0;
                             }
-                            return (ulong)watchdog.Value;
+                            return watchdogCounterPresetValue;
                         },
                         name: "WD_PRESET (Watchdog Counter Preset)")
                 },
@@ -247,9 +216,9 @@ namespace Antmicro.Renode.Peripherals.Timers
                             var sequenceByte = HandleStopUnlockSequence((byte)val);
                             if(sequenceByte == StopUnlockSequence.ThirdByte)
                             {
-                                if(watchdogCounter.Enabled)
+                                if(watchdog.Enabled)
                                 {
-                                    watchdogCounter.Enabled = false;
+                                    watchdog.Enabled = false;
                                 }
                                 else
                                 {
@@ -332,14 +301,6 @@ namespace Antmicro.Renode.Peripherals.Timers
             return registerMap;
         }
 
-        private void HandleWatchdogTickWith(Action alarm)
-        {
-            if(alarm != null)
-            {
-                alarm();
-            }
-        }
-
         private void WatchdogAlarmHandler()
         {
             this.Log(LogLevel.Debug, "Watchdog reset triggered!");
@@ -388,32 +349,33 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private const int DefaultFrequency = 32768;
         private const int DefaultDivider = 1;
-        private const int WatchdogCounterMaxValue = 0xFF;
-        private const int PeriodicInterruptTimerMaxValue = 0xFFFF;
+        private const int WatchdogCounterDefaultValue = 0xF;
         private const int TouchValue = 0x5C;
 
         private class Watchdog
         {
-            public Watchdog(NPCX_TWD parent, ulong initialValue)
+            public Watchdog(NPCX_TWD parent, ulong initialValue, Action alarmHandler)
             {
                 this.parent = parent;
                 this.initialValue = initialValue;
-                this.dividerRestoreValue = 1;
+                this.alarmHandler = alarmHandler;
+                Divider = 1;
                 Reset();
             }
 
             public void Reset()
             {
-                isEnabled = false;
+                Enabled = false;
                 RestoreClock();
             }
 
             public void Tick()
             {
-                if(!isEnabled)
+                if(!Enabled)
                 {
                     return;
                 }
+
                 if(internalDivider > 0)
                 {
                     --internalDivider;
@@ -422,11 +384,12 @@ namespace Antmicro.Renode.Peripherals.Timers
                 --Value;
                 if(Value > 0 && internalDivider == 0)
                 {
-                    internalDivider = dividerRestoreValue;
+                    internalDivider = Divider;
                     return;
                 }
+
                 RestoreClock();
-                HandleAlarm();
+                alarmHandler();
             }
 
             public ulong Value
@@ -434,34 +397,27 @@ namespace Antmicro.Renode.Peripherals.Timers
                 get; set;
             }
 
-            public int Divider
+            public bool Enabled
             {
-                get => dividerRestoreValue;
-                set => dividerRestoreValue = value;
+                get; set;
             }
 
-            public event Action LimitReached;
-
-            private void HandleAlarm()
+            public int Divider
             {
-                var alarm = LimitReached;
-                if(alarm != null)
-                {
-                    alarm();
-                }
+                get; set;
             }
 
             private void RestoreClock()
             {
                 Value = initialValue;
-                internalDivider = dividerRestoreValue;
+                internalDivider = Divider;
             }
 
+            private readonly Action alarmHandler;
+            private readonly ulong initialValue;
+
             private NPCX_TWD parent;
-            private ulong initialValue;
             private int internalDivider;
-            private int dividerRestoreValue;
-            private bool isEnabled;
         }
 
         private enum StopUnlockSequence
