@@ -1785,10 +1785,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         protected virtual void BeforeSave(IntPtr statePtr)
         {
+            TlibBeforeSave(statePtr);
         }
 
         protected virtual void AfterLoad(IntPtr statePtr)
         {
+            TlibAfterLoad(statePtr);
         }
 
         [Export]
@@ -1996,6 +1998,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private Action TlibOnLeavingResetState;
+
+        [Import]
+        private ActionIntPtr TlibBeforeSave;
+
+        [Import]
+        private ActionIntPtr TlibAfterLoad;
 
 #pragma warning restore 649
 

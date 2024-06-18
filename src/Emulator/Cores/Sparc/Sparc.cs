@@ -229,18 +229,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        protected override void BeforeSave(IntPtr statePtr)
-        {
-            base.BeforeSave(statePtr);
-            TlibBeforeSave(statePtr);
-        }
-
-        protected override void AfterLoad(IntPtr statePtr)
-        {
-            base.AfterLoad(statePtr);
-            TlibAfterLoad(statePtr);
-        }
-
         private bool cpuIdinitialized = false;
         private bool entryPointInitialized;
         private bool isPowerDown;
@@ -259,12 +247,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private Action TlibSetWfi;
-
-        [Import]
-        private ActionIntPtr TlibBeforeSave;
-
-        [Import]
-        private ActionIntPtr TlibAfterLoad;
 
         #pragma warning restore 649
 
