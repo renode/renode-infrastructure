@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -244,7 +244,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                         {
                             // stop sequence: 87h, 61h, 63h
                             // unlock sequence is the same
-                            if(HandleStopUnlockSequence((byte)val) == StopUnlockSequence.ThirdByte)
+                            var sequenceByte = HandleStopUnlockSequence((byte)val);
+                            if(sequenceByte == StopUnlockSequence.ThirdByte)
                             {
                                 if(watchdogCounter.Enabled)
                                 {
@@ -263,7 +264,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                                 this.Log(LogLevel.Noisy, "Watchdog has been touched!");
                                 watchdog.Value = watchdogCounterPresetValue;
                             }
-                            else
+                            else if(sequenceByte == StopUnlockSequence.None)
                             {
                                 WatchdogAlarmHandler();
                             }
