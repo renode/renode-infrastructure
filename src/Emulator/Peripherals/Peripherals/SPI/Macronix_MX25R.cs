@@ -35,6 +35,16 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithReservedBits(10, 6);
         }
 
+        protected override void WriteToMemory(byte val)
+        {
+            if(!TryVerifyWriteToMemory(out var position))
+            {
+                return;
+            }
+            var currentVal = underlyingMemory.ReadByte(position);
+            underlyingMemory.WriteByte(position, (byte)(val & currentVal));
+        }
+
         private void UpdateLockedRange(uint blockProtectionValue)
         {
             if(blockProtectionValue == 0)
