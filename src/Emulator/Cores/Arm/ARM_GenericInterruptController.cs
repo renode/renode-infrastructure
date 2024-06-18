@@ -2335,8 +2335,24 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 {
                     if(sgi.Requester != null && sgi.Requester != accessingCPU && !gic.IsAffinityRoutingEnabled(sgi.Requester))
                     {
-                        gic.Log(LogLevel.Warning, "{0}: Incorrect Processor Number passed for SGI ({1}), request ignored.", registerTypeName, interrupt.Identifier);
-                        return false;
+                        var logMessage = "{0}: Incorrect Processor Number {1} passed for SGI ({2}), expected to be {3}.";
+                        if(gic.ArchitectureVersionAtLeast3)
+                        {
+                            logMessage += " Request will be ignored.";
+                        }
+                        gic.Log(LogLevel.Warning, logMessage, registerTypeName, accessingCPU.Affinity, interrupt.Identifier, sgi.Requester.Affinity);
+
+                        if(gic.ArchitectureVersionAtLeast3)
+                        {
+                            /*
+                             * The documentation is not clear what happens here, if we are in SMP system, and there is a CPUID mismatch
+                             * -> For GICv3 the whole field of INTID (bits 23:0) should be passed, which contains CPUID in bits 12:10 - so it's safe to abort if they mismatch
+                             * -> For GICv2 it's not clear, but "For every read of a valid Interrupt ID from the GICC_IAR, the connected processor must perform a matching write to the GICC_EOIR.
+                             *    The value written to the GICC_EOIR must be the interrupt ID read from the GICC_IAR."
+                             *    So we stay permissive, and still allow the request to go through
+                             */
+                            return false;
+                        }
                     }
                 }
                 else if(accessingCPU != null && accessingCPU.ProcessorNumber != 0)

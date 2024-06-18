@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -35,6 +35,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     .WithTaggedFlag("FCFTRIM", 6)
                     .WithTaggedFlag("LOCRE0", 7)
                 },
+                {(long)Registers.Control4, new ByteRegister(this)
+                    .WithTaggedFlag("SCFTRIM", 0)
+                    .WithTag("FCTRIM", 1, 4)
+                    .WithEnumField(5, 2, out encoding, name: "DRST_DRS")
+                    .WithTaggedFlag("DMX32", 7)
+                },                
                 {(long)Registers.Control5, new ByteRegister(this)
                     .WithTag("PRDIV0", 0, 5)
                     .WithTaggedFlag("PLLSTEN0", 5)
@@ -103,6 +109,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private readonly IEnumRegisterField<ClockSourceValues> clockSource;
         private readonly IEnumRegisterField<MCGPLLClockStatusValues> mcgPllStatus;
         private readonly IEnumRegisterField<PLLSelectValues> pllSelected;
+        private readonly IEnumRegisterField<EncodingValues> encoding;
 
         private enum Registers
         {
@@ -122,6 +129,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Status2 = 0x12,
             Test3 = 0x13,
             OSC_Control = 0x1000
+        }
+
+        private enum EncodingValues
+        {
+            LowRange = 0,
+            MidRange = 1,
+            MidHighRange = 2,
+            HighRange = 3
         }
 
         private enum ClockSourceValues

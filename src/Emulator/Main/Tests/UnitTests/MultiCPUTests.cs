@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -50,7 +50,7 @@ namespace Antmicro.Renode.UnitTests
                 var sysbus = machine.SystemBus;
                 cpuCount.Times(() => sysbus.Register(new ActivelyAskingCPU(machine, 0), new CPURegistrationPoint()));
                 var peripheral = new ActivelyAskedPeripheral();
-                sysbus.Register(peripheral, 0.To(1000));
+                sysbus.Register(peripheral, 0.By(1000));
                 machine.Start();
                 Thread.Sleep(1000);
                 machine.Pause();

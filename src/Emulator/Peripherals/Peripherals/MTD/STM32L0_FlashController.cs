@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -249,7 +249,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                 .WithValueField(0, 16, FieldMode.Read, valueProviderCallback: _ => (uint)(underlyingFlash.Size / 1024), name: "F_SIZE");
         }
 
-        private void EraseMemoryAccessHook(ulong pc, MemoryOperation operation, ulong address)
+        private void EraseMemoryAccessHook(ulong pc, MemoryOperation operation, ulong address, ulong value)
         {
             // Only write accesses can be used to erase
             if(operation != MemoryOperation.MemoryWrite && operation != MemoryOperation.MemoryIOWrite)
@@ -310,7 +310,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                 return;
             }
 
-            Action<ulong, MemoryOperation, ulong> hook = EraseMemoryAccessHook;
+            Action<ulong, MemoryOperation, ulong, ulong> hook = EraseMemoryAccessHook;
             cpu.SetHookAtMemoryAccess(enabled ? hook : null);
         }
 

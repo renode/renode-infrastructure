@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -10,13 +10,14 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Time;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.DoubleWordToByte)]
-    public class NPCX_ITIM32 : BasicDoubleWordPeripheral, IKnownSize
+    public class NPCX_ITIM : BasicDoubleWordPeripheral, IKnownSize
     {
-        public NPCX_ITIM32(IMachine machine, long lfclkFrequency = DefaultLFCLKFrequency, long apb2Frequency = DefaultAPB2Frequency) : base(machine)
+        public NPCX_ITIM(IMachine machine, long lfclkFrequency = DefaultLFCLKFrequency, long apb2Frequency = DefaultAPB2Frequency, bool is64Bit = false) : base(machine)
         {
             this.lfclkFrequency = lfclkFrequency;
             this.apb2Frequency = apb2Frequency;
@@ -29,7 +30,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             };
             IRQ = new GPIO();
 
-            DefineRegisters();
+            DefineRegisters(is64Bit);
         }
 
         public override void Reset()
@@ -37,13 +38,15 @@ namespace Antmicro.Renode.Peripherals.Timers
             base.Reset();
             timer.Reset();
             IRQ.Unset();
+            timerLimitLow = 0;
+            timerLimitHigh = 0;
         }
 
         public long Size => 0x1000;
 
         public GPIO IRQ { get; }
 
-        private void DefineRegisters()
+        private void DefineRegisters(bool is64Bit)
         {
             Registers.Prescaler.Define(this)
                 .WithValueField(0, 8, name: "PRE_8 (Prescaler Value)",
@@ -75,26 +78,24 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             Registers.Counter.Define(this)
                 .WithValueField(0, 32, name: "CNT_32 (32-Bit Counter Value)",
-                    valueProviderCallback: _ =>
-                    {
-                        if(timer.Enabled)
-                        {
-                            if(machine.GetSystemBus(this).TryGetCurrentCPU(out var cpu))
-                            {
-                                cpu.SyncTime();
-                            }
-                            return timer.Value;
-                        }
-                        else
-                        {
-                            return timer.Limit - 1;
-                        }
-                    },
+                    valueProviderCallback: _ => timer.Enabled ? GetTimerValue(true) : timerLimitLow,
                     writeCallback: (_, value) =>
                     {
-                        timer.Limit = value + 1;
-                        timer.ResetValue();
+                        timerLimitLow = (uint)value;
+                        UpdateTimerLimit();
                     });
+            
+            if(is64Bit)
+            {
+                Registers.CounterHigh.Define(this)
+                    .WithValueField(0, 32, name: "CNT_64H (64-Bit Counter High DWord Value)",
+                        valueProviderCallback: _ => timer.Enabled ? GetTimerValue(false) >> 32 : timerLimitHigh,
+                        writeCallback: (_, value) =>
+                        {
+                            timerLimitHigh = (uint)value;
+                            UpdateTimerLimit();
+                        });
+            }
         }
 
         private void UpdateInterrupts()
@@ -102,9 +103,29 @@ namespace Antmicro.Renode.Peripherals.Timers
             IRQ.Set(timeoutStatus.Value && (interruptEnabled.Value || wakeupEnabled.Value));
         }
 
+        private ulong GetTimerValue(bool syncTime)
+        {
+            if(syncTime && machine.GetSystemBus(this).TryGetCurrentCPU(out var cpu))
+            {
+                cpu.SyncTime();
+            }
+            return timer.Value;
+        }
+
+        private void UpdateTimerLimit()
+        {
+            ulong limit = (ulong)timerLimitHigh << 32 | timerLimitLow;
+            // To prevent overflow don't add 1 to the limit when a maximum value is requested
+            timer.Limit = checked(limit == ulong.MaxValue ? limit : limit + 1);
+            timer.ResetValue();
+        }
+
         private IFlagRegisterField timeoutStatus;
         private IFlagRegisterField interruptEnabled;
         private IFlagRegisterField wakeupEnabled;
+
+        private uint timerLimitLow;
+        private uint timerLimitHigh;
 
         private readonly LimitTimer timer;
         private readonly long lfclkFrequency;
@@ -115,9 +136,10 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private enum Registers
         {
-            Prescaler           = 0x1, // ITPRE32n
-            ControlAndStatus    = 0x4, // ITCTS32n
-            Counter             = 0x8, // ITCNT32n
+            Prescaler           = 0x1, // ITPRE32n or ITPRE64
+            ControlAndStatus    = 0x4, // ITCTS32n or ITCTS64
+            Counter             = 0x8, // ITCNT32n or ITCNT64L
+            CounterHigh         = 0xC, // ITCNT64H
         }
     }
 }

@@ -1,10 +1,10 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
+using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
@@ -108,7 +108,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             nonVolatileConfigurationRegister.Reset();
             enhancedVolatileConfigurationRegister.Reset();
             currentOperation = default(DecodedOperation);
-            lockedRange = Range.Empty;
+            lockedRange = null;
             FinishTransmission();
         }
 
@@ -185,7 +185,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
         }
 
-        protected Range lockedRange;
+        protected Range? lockedRange;
 
         protected readonly int sectorSize;
         protected readonly ByteRegister statusRegister;
@@ -586,7 +586,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private void EraseChip()
         {
             // Don't allow erasing the chip if range protection is enabled
-            if(lockedRange != Range.Empty)
+            if(lockedRange.HasValue)
             {
                 this.Log(LogLevel.Error, "Chip erase can only be performed when there is no locked range");
                 return;
@@ -619,7 +619,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             var position = segmentSize * (currentOperation.ExecutionAddress / segmentSize);
             var segmentToErase = new Range((ulong)position, (ulong)segmentSize);
             this.Log(LogLevel.Noisy, "Full segment to erase: {0}", segmentToErase);
-            foreach(var subrange in segmentToErase.Subtract(lockedRange))
+            foreach(var subrange in lockedRange.HasValue ? segmentToErase.Subtract(lockedRange.Value) : new List<Range>() { segmentToErase })
             {
                 this.Log(LogLevel.Noisy, "Erasing subrange {0}", subrange);
                 EraseRangeUnchecked(subrange);
@@ -635,7 +635,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
 
             var position = currentOperation.ExecutionAddress + currentOperation.CommandBytesHandled;
-            if(lockedRange.Contains((ulong)position))
+            if(lockedRange.HasValue && lockedRange.Value.Contains((ulong)position))
             {
                 this.Log(LogLevel.Error, "Cannot write to address 0x{0:X} because it is in the locked range", position);
                 return;

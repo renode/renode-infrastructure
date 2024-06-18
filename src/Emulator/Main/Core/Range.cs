@@ -9,25 +9,19 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Core
 {
     public struct Range
     {
-        public static bool TryCreate(ulong startAddress, ulong size, out Range range)
+        public Range(ulong startAddress, ulong size)
         {
-            range = default(Range);
-            range.StartAddress = startAddress;
-            range.EndAddress = startAddress + size - 1;
-            return true;
-        }
+            StartAddress = startAddress;
+            EndAddress = startAddress + size - 1;
 
-        public Range(ulong startAddress, ulong size):this()
-        {
-            if(!TryCreate(startAddress, size, out this))
-            {
-                throw new ArgumentException("Size has to be positive or zero.", "size");
-            }
+            // Check if overflow occurred.
+            CreationAssert(EndAddress >= StartAddress, startAddress, $"size is too large: 0x{size:X}");
         }
 
         /// <summary>
@@ -42,15 +36,6 @@ namespace Antmicro.Renode.Core
 
         public bool Contains(ulong address)
         {
-            // The empty range does not contain any addresses.
-            // Unfortunately, the empty range is indistinguishable from a
-            // 1-byte-long range starting at address 0, so such a range
-            // will be said not to contain address 0.
-            if(this == Empty)
-            {
-                return false;
-            }
-
             return address >= StartAddress && address <= EndAddress;
         }
 
@@ -68,16 +53,6 @@ namespace Antmicro.Renode.Core
 
         public bool Contains(Range range)
         {
-            // Every range contains the empty range.
-            // See `Contains` for a caveat about 1-byte ranges starting at
-            // address 0 - here it means that every range will be said to
-            // contain a 1-byte-long range starting at address 0.
-
-            if(range == Empty)
-            {
-                return true;
-            }
-
             return range.StartAddress >= StartAddress && range.EndAddress <= EndAddress;
         }
 
@@ -94,18 +69,17 @@ namespace Antmicro.Renode.Core
             }
             var startAddress = Math.Min(StartAddress, range.StartAddress);
             var endAddress = Math.Max(EndAddress, range.EndAddress);
-
-            // + 1 because the argument of `ulong.To` is the first byte after the Range ends.
-            return startAddress.To(endAddress + 1);
+            return startAddress.To(endAddress);
         }
 
-        public Range Intersect(Range range)
+        /// <returns>Intersection if ranges overlap, <c>null</c> otherwise.</returns>
+        public Range? Intersect(Range range)
         {
             var startAddress = Math.Max(StartAddress, range.StartAddress);
             var endAddress = Math.Min(EndAddress, range.EndAddress);
             if(startAddress > endAddress)
             {
-                return Range.Empty;
+                return null;
             }
             return new Range(startAddress, endAddress - startAddress + 1);
         }
@@ -161,7 +135,7 @@ namespace Antmicro.Renode.Core
 
         public bool Intersects(Range range)
         {
-            return Intersect(range) != Range.Empty;
+            return Intersect(range).HasValue;
         }
 
         public ulong StartAddress
@@ -241,7 +215,13 @@ namespace Antmicro.Renode.Core
             return range.ShiftBy(-minuend);
         }
 
-        public static Range Empty;
+        internal static void CreationAssert(bool condition, ulong startAddress, string reason)
+        {
+            if(!condition)
+            {
+                throw new RecoverableException($"Could not create range at 0x{startAddress:X}; {reason}");
+            }
+        }
     }
 
     public class MinimalRangesCollection : IEnumerable<Range>
@@ -365,19 +345,35 @@ namespace Antmicro.Renode.Core
             return new Range(startAddress, checked((ulong)size));
         }
 
-        public static Range To(this int startAddress, long endAddress)
+        /// <remarks>The returned `Range` contains <c>endAddress</c>.</remarks>
+        public static Range To(this int startAddress, ulong endAddress)
         {
-            return new Range(checked((ulong)startAddress), checked((ulong)(endAddress - startAddress)));
+            return checked((ulong)startAddress).To(endAddress);
         }
 
-        public static Range To(this long startAddress, long endAddress)
+        /// <remarks>The returned `Range` contains <c>endAddress</c>.</remarks>
+        public static Range To(this long startAddress, ulong endAddress)
         {
-            return new Range(checked((ulong)startAddress), checked((ulong)(endAddress - startAddress)));
+            return checked((ulong)startAddress).To(endAddress);
         }
 
+        /// <remarks>The returned `Range` contains <c>endAddress</c>.</remarks>
         public static Range To(this ulong startAddress, ulong endAddress)
         {
-            return new Range(startAddress, checked(endAddress - startAddress));
+            // Moving these to a `Range` constructor would be much better but we can't have
+            // a second constructor with two `ulong` arguments.
+            Range.CreationAssert(
+                startAddress != 0 || endAddress != ulong.MaxValue,
+                startAddress, "<0, 2^64-1> ranges aren't currently supported"
+            );
+
+            // The constructor would also throw but the message would be that size is too large
+            // if `startAddress` is higher than `endAddress` which can be misleading.
+            Range.CreationAssert(
+                startAddress <= endAddress,
+                startAddress, "the start address can't be higher than the end address"
+            );
+            return new Range(startAddress, checked(endAddress - startAddress + 1));
         }
     }
 }
