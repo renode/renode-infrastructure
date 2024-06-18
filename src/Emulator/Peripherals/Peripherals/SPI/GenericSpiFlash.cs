@@ -143,6 +143,31 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         public MappedMemory UnderlyingMemory => underlyingMemory;
 
+        protected virtual void WriteToMemory(byte val)
+        {
+            if(!TryVerifyWriteToMemory(out var position))
+            {
+                return;
+            }
+            underlyingMemory.WriteByte(position, val);
+        }
+
+        protected bool TryVerifyWriteToMemory(out long position)
+        {
+            position = currentOperation.ExecutionAddress + currentOperation.CommandBytesHandled;
+            if(position > underlyingMemory.Size)
+            {
+                this.Log(LogLevel.Error, "Cannot write to address 0x{0:X} because it is bigger than configured memory size.", currentOperation.ExecutionAddress);
+                return false;
+            }
+            if(lockedRange.HasValue && lockedRange.Value.Contains((ulong)position))
+            {
+                this.Log(LogLevel.Error, "Cannot write to address 0x{0:X} because it is in the locked range", position);
+                return false;
+            }
+            return true;
+        }
+
         protected virtual byte GetCapacityCode()
         {
             // capacity code:
@@ -190,6 +215,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         protected readonly int sectorSize;
         protected readonly ByteRegister statusRegister;
         protected readonly WordRegister configurationRegister;
+        protected readonly MappedMemory underlyingMemory;
 
         private void AccumulateAddressBytes(byte addressByte, DecodedOperation.OperationState nextState)
         {
@@ -626,24 +652,6 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
         }
 
-        private void WriteToMemory(byte val)
-        {
-            if(currentOperation.ExecutionAddress + currentOperation.CommandBytesHandled > underlyingMemory.Size)
-            {
-                this.Log(LogLevel.Error, "Cannot write to address 0x{0:X} because it is bigger than configured memory size.", currentOperation.ExecutionAddress);
-                return;
-            }
-
-            var position = currentOperation.ExecutionAddress + currentOperation.CommandBytesHandled;
-            if(lockedRange.HasValue && lockedRange.Value.Contains((ulong)position))
-            {
-                this.Log(LogLevel.Error, "Cannot write to address 0x{0:X} because it is in the locked range", position);
-                return;
-            }
-
-            underlyingMemory.WriteByte(position, val);
-        }
-
         private byte ReadFromMemory()
         {
             if(currentOperation.ExecutionAddress + currentOperation.CommandBytesHandled > underlyingMemory.Size)
@@ -670,7 +678,6 @@ namespace Antmicro.Renode.Peripherals.SPI
         private readonly ByteRegister volatileConfigurationRegister;
         private readonly ByteRegister enhancedVolatileConfigurationRegister;
         private readonly WordRegister nonVolatileConfigurationRegister;
-        private readonly MappedMemory underlyingMemory;
         private readonly byte manufacturerId;
         private readonly byte memoryType;
         private readonly byte capacityCode;
