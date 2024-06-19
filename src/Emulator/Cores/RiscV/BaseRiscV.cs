@@ -749,8 +749,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private FuncUInt64UInt64UInt64UInt64 TlibInstallCustomInstruction;
-        [Import(Name="tlib_install_custom_csr")]
 
+        [Import(Name="tlib_install_custom_csr")]
         private FuncInt32UInt64 TlibInstallCustomCSR;
 
         [Import]
