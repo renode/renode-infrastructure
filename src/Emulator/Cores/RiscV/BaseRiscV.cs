@@ -324,6 +324,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             this.clic = clic;
         }
 
+        public void ClicInterrupt(int index, bool vectored, int level, PrivilegeLevel mode)
+        {
+            TlibSetClicData(index, vectored ? 1u : 0, (uint)level, (uint)mode);
+        }
+
         public CSRValidationLevel CSRValidation
         {
             get => (CSRValidationLevel)TlibGetCsrValidationLevel();
@@ -771,6 +776,18 @@ namespace Antmicro.Renode.Peripherals.CPU
             postGprAccessHooks[(int)registerIndex].Invoke(isWrite);
         }
 
+        [Export]
+        private void ClicClearEdgeInterrupt()
+        {
+            clic.ClearEdgeInterrupt();
+        }
+
+        [Export]
+        private void ClicAcknowledgeInterrupt()
+        {
+            clic.AcknowledgeInterrupt();
+        }
+
         public readonly Dictionary<int, ICFU> ChildCollection;
 
         private ulong? nmiVectorAddress;
@@ -890,6 +907,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private ActionUInt32UInt32 TlibEnablePostGprAccessHookOn;
+
+        [Import]
+        private ActionInt32UInt32UInt32UInt32 TlibSetClicData;
 
 #pragma warning restore 649
 
