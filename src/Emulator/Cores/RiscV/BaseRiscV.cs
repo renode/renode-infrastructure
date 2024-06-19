@@ -65,6 +65,20 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
 
             TlibSetNapotGrain(minimalPmpNapotInBytes);
+
+            RegisterCSR((ulong)StandardCSR.Miselect, () => miselectValue, s => miselectValue = (uint)s, "miselect");
+            for(uint i = 0; i < 6; ++i)
+            {
+                var j = i;
+                RegisterCSR((ulong)StandardCSR.Mireg + i, () => ReadIndirectCSR(miselectValue, j), v => WriteIndirectCSR(miselectValue, j, (uint)v), $"mireg{i + 1}");
+            }
+
+            RegisterCSR((ulong)StandardCSR.Siselect, () => siselectValue, s => siselectValue = (uint)s, "siselect");
+            for(uint i = 0; i < 6; ++i)
+            {
+                var j = i;
+                RegisterCSR((ulong)StandardCSR.Sireg + i, () => ReadIndirectCSR(siselectValue, j), v => WriteIndirectCSR(siselectValue, j, (uint)v), $"sireg{i + 1}");
+            }
         }
 
         public void Register(ICFU cfu, NumberRegistrationPoint<int> registrationPoint)
@@ -751,6 +765,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private ulong? nmiVectorAddress;
         private uint? nmiVectorLength;
+        private uint miselectValue;
+        private uint siselectValue;
 
         private bool pcWrittenFlag;
         private ulong resetVector = DefaultResetVector;
@@ -1142,6 +1158,14 @@ namespace Antmicro.Renode.Peripherals.CPU
             SupervisorExternalInterrupt = 0x9,
             HypervisorExternalInterrupt = 0xa,
             MachineExternalInterrupt = 0xb
+        }
+
+        protected enum StandardCSR
+        {
+            Siselect = 0x150,
+            Sireg = 0x151, // sireg, sireg2, ..., sireg6 (0x156)
+            Miselect = 0x350,
+            Mireg = 0x351, // mireg, mireg2, ..., mireg6 (0x356)
         }
     }
 }
