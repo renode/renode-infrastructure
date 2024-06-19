@@ -13,6 +13,7 @@ using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Peripherals.CFU;
 using Antmicro.Renode.Time;
@@ -23,7 +24,7 @@ using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public abstract class BaseRiscV : TranslationCPU, IPeripheralContainer<ICFU, NumberRegistrationPoint<int>>, ICPUWithPostOpcodeExecutionHooks, ICPUWithPostGprAccessHooks, ICPUWithNMI
+    public abstract class BaseRiscV : TranslationCPU, IPeripheralContainer<ICFU, NumberRegistrationPoint<int>>, IPeripheralContainer<IIndirectCSRPeripheral, BusRangeRegistration>, ICPUWithPostOpcodeExecutionHooks, ICPUWithPostGprAccessHooks, ICPUWithNMI
     {
         protected BaseRiscV(IRiscVTimeProvider timeProvider, uint hartId, string cpuType, IMachine machine, PrivilegedArchitecture privilegedArchitecture, Endianess endianness, CpuBitness bitness, ulong? nmiVectorAddress = null, uint? nmiVectorLength = null, bool allowUnalignedAccesses = false, InterruptMode interruptMode = InterruptMode.Auto, uint minimalPmpNapotInBytes = 8)
                 : base(hartId, cpuType, machine, endianness, bitness)
@@ -34,6 +35,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             shouldEnterDebugMode = true;
             nonstandardCSR = new Dictionary<ulong, NonstandardCSR>();
             customInstructionsMapping = new Dictionary<ulong, Action<UInt64>>();
+            indirectCsrPeripherals = new Dictionary<BusRangeRegistration, IIndirectCSRPeripheral>();
             this.nmiVectorLength = nmiVectorLength;
             this.nmiVectorAddress = nmiVectorAddress;
 
@@ -103,6 +105,34 @@ namespace Antmicro.Renode.Peripherals.CPU
             get
             {
                 return ChildCollection.Select(x => Registered.Create(x.Value, new NumberRegistrationPoint<int>(x.Key)));
+            }
+        }
+
+        public void Register(IIndirectCSRPeripheral peripheral, BusRangeRegistration registrationPoint)
+        {
+            machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
+            indirectCsrPeripherals.Add(registrationPoint, peripheral);
+        }
+
+        public void Unregister(IIndirectCSRPeripheral peripheral)
+        {
+            foreach(var point in GetRegistrationPoints(peripheral).ToList())
+            {
+                indirectCsrPeripherals.Remove(point);
+            }
+            machine.UnregisterAsAChildOf(this, peripheral);
+        }
+
+        public IEnumerable<BusRangeRegistration> GetRegistrationPoints(IIndirectCSRPeripheral peripheral)
+        {
+            return indirectCsrPeripherals.Where(p => p.Value == peripheral).Select(p => p.Key);
+        }
+
+        IEnumerable<IRegistered<IIndirectCSRPeripheral, BusRangeRegistration>> IPeripheralContainer<IIndirectCSRPeripheral, BusRangeRegistration>.Children
+        {
+            get
+            {
+                return indirectCsrPeripherals.Select(x => Registered.Create(x.Value, x.Key));
             }
         }
 
@@ -602,6 +632,33 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        private IIndirectCSRPeripheral GetIndirectCsrPeripheral(uint iselect)
+        {
+            return indirectCsrPeripherals.SingleOrDefault(p => p.Key.Range.Contains(iselect)).Value;
+        }
+
+        private uint ReadIndirectCSR(uint iselect, uint ireg)
+        {
+            var peripheral = GetIndirectCsrPeripheral(iselect);
+            if(peripheral == null)
+            {
+                this.WarningLog("Unknown indirect CSR 0x{0:x}", iselect);
+                return 0;
+            }
+            return peripheral.ReadIndirectCSR(iselect - (uint)GetRegistrationPoints(peripheral).Single().Range.StartAddress, ireg);
+        }
+
+        private void WriteIndirectCSR(uint iselect, uint ireg, uint value)
+        {
+            var peripheral = GetIndirectCsrPeripheral(iselect);
+            if(peripheral == null)
+            {
+                this.WarningLog("Unknown indirect CSR 0x{0:x}", iselect);
+                return;
+            }
+            peripheral.WriteIndirectCSR(iselect - (uint)GetRegistrationPoints(peripheral).Single().Range.StartAddress, ireg, value);
+        }
+
         [Export]
         private ulong GetCPUTime()
         {
@@ -711,6 +768,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         private List<GDBFeatureDescriptor> gdbFeatures = new List<GDBFeatureDescriptor>();
 
         private readonly ArchitectureDecoder architectureDecoder;
+
+        private readonly Dictionary<BusRangeRegistration, IIndirectCSRPeripheral> indirectCsrPeripherals;
 
         [Constructor]
         private readonly List<Action<ulong>> postOpcodeExecutionHooks;
