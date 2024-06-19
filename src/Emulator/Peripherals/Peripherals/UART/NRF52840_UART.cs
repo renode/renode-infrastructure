@@ -298,7 +298,7 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             return new DoubleWordRegister(this)
                 .WithFlag(0,
-                        valueProviderCallback: _ => interruptManager.IsSet(interrupt),
+                        valueProviderCallback: _ => interruptManager.IsSet(interrupt) || interrupt == Interrupts.TransmitStopped,
                         writeCallback: (_, value) => interruptManager.SetInterrupt(interrupt, value),
                         name: name)
                 .WithReservedBits(1, 31);
@@ -412,36 +412,36 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             ClearToSend = 0,
             NotClearToSend = 1,
-            ReceiveReady = 2,
-            EndReceive = 4,
-            TransmitReady = 7,
-            EndTransmit = 8,
-            Error = 9,
-            ReceiveTimeout = 17,
-            ReceiveStarted = 19,
+            ReceiveReady = 4,
+            EndReceive = 19,
+            TransmitReady = 3,
+            EndTransmit = 26,
+            Error = 5,
+            ReceiveTimeout = 9,
+            ReceiveStarted = 31, // ???
             TransmitStarted = 20,
-            TransmitStopped = 22,
+            TransmitStopped = 12,
         }
 
         private enum Registers : long
         {
-            StartRx = 0x000,
-            StopRx = 0x004,
-            StartTx = 0x008,
-            StopTx = 0x00C,
-            Suspend = 0x01C, // no easyDMA
-            FlushRx = 0x02C, // easyDMA
+            StartRx = 0x028,
+            StopRx = 0x02C,
+            StartTx = 0x050,
+            StopTx = 0x054,
+            //Suspend = 0x01C, // no easyDMA
+            FlushRx = 0x01C, // easyDMA
             ClearToSend = 0x100,
             NotClearToSend = 0x104,
-            RxDReady = 0x108,
-            EndRx = 0x110, // easyDMA
-            TxDReady = 0x11C,
-            EndTx = 0x120, // easyDMA
-            ErrorDetected = 0x124,
-            RxTimeout = 0x144,
-            RxStarted = 0x14C, // easyDMA
-            TxStarted = 0x150, // easyDMA
-            TxStopped = 0x158, // easyDMA
+            RxDReady = 0x110,
+            EndRx = 0x14C, // easyDMA
+            TxDReady = 0x10C,
+            EndTx = 0x168, // easyDMA // EVENTS_DMA.TX.END
+            ErrorDetected = 0x114,
+            RxTimeout = 0x124,
+            RxStarted = 0x150, // easyDMA
+            TxStarted = 0x16C, // easyDMA
+            TxStopped = 0x130, // easyDMA
             Shortcuts = 0x200,
             InterruptEnable = 0x300, // easyDMA
             InterruptEnableSet = 0x304,
@@ -455,12 +455,12 @@ namespace Antmicro.Renode.Peripherals.UART
             RxD = 0x518, // no easyDMA
             TxD = 0x51C, // no easyDMA
             BaudRate = 0x524,
-            RxDPointer = 0x534, // easyDMA
-            RxDMaximumCount = 0x538, // easyDMA
-            RxDAmount = 0x53C, // easyDMA
-            TxDPointer = 0x544, // easyDMA
-            TxDMaximumCount = 0x548, // easyDMA
-            TxDAmount = 0x54C, // easyDMA
+            RxDPointer = 0x704, // easyDMA
+            RxDMaximumCount = 0x708, // easyDMA
+            RxDAmount = 0x70C, // easyDMA
+            TxDPointer = 0x73C, // easyDMA
+            TxDMaximumCount = 0x740, // easyDMA
+            TxDAmount = 0x744, // easyDMA
             Config = 0x56C
         }
 
