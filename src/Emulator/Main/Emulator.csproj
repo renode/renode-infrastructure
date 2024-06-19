@@ -629,6 +629,7 @@
     <Compile Include="Peripherals\CAN\SocketCAN.cs" />
     <Compile Include="Peripherals\Sensor\IMagneticSensor.cs" />
     <Compile Include="Peripherals\Sensor\IADC.cs" />
+    <Compile Include="Peripherals\Bus\IIndirectCSRPeripheral.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
