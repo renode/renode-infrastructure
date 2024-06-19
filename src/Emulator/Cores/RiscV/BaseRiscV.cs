@@ -324,6 +324,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             this.clic = clic;
         }
 
+        public void ClicPresentInterrupt(int index, bool vectored, int level, PrivilegeLevel mode)
+        {
+            TlibSetClicInterruptState(index, vectored ? 1u : 0, (uint)level, (uint)mode);
+        }
+
         public CSRValidationLevel CSRValidation
         {
             get => (CSRValidationLevel)TlibGetCsrValidationLevel();
@@ -771,6 +776,28 @@ namespace Antmicro.Renode.Peripherals.CPU
             postGprAccessHooks[(int)registerIndex].Invoke(isWrite);
         }
 
+        [Export]
+        private void ClicClearEdgeInterrupt()
+        {
+            if(clic == null)
+            {
+                this.ErrorLog("Attempting to clear CLIC edge interrupt, but there is no CLIC peripheral connected to this core.");
+                return;
+            }
+            clic.ClearEdgeInterrupt();
+        }
+
+        [Export]
+        private void ClicAcknowledgeInterrupt()
+        {
+            if(clic == null)
+            {
+                this.ErrorLog("Attempting to acknowledge CLIC interrupt, but there is no CLIC peripheral connected to this core.");
+                return;
+            }
+            clic.AcknowledgeInterrupt();
+        }
+
         public readonly Dictionary<int, ICFU> ChildCollection;
 
         private ulong? nmiVectorAddress;
@@ -890,6 +917,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private ActionUInt32UInt32 TlibEnablePostGprAccessHookOn;
+
+        [Import]
+        private ActionInt32UInt32UInt32UInt32 TlibSetClicInterruptState;
 
 #pragma warning restore 649
 

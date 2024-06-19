@@ -319,13 +319,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             if(bestInterrupt != NoInterrupt)
             {
                 var bestVectored = vectored[bestInterrupt].Value;
-                cpu.ClicInterrupt(bestInterrupt, bestVectored, bestLevel, bestPrivilege);
+                cpu.ClicPresentInterrupt(bestInterrupt, bestVectored, bestLevel, bestPrivilege);
                 this.DebugLog("Presenting interrupt #{0} to core, vectored {1} level {2} privilege {3}", bestInterrupt, bestVectored, bestLevel, bestPrivilege);
                 return true;
             }
             else
             {
-                cpu.ClicInterrupt(NoInterrupt, false, MinLevel, PrivilegeLevel.User);
+                cpu.ClicPresentInterrupt(NoInterrupt, false, MinLevel, PrivilegeLevel.User);
                 acknowledgedInterrupt = NoInterrupt;
                 return false;
             }
