@@ -14,6 +14,7 @@ using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.IRQControllers;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Peripherals.CFU;
 using Antmicro.Renode.Time;
@@ -312,6 +313,15 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             postGprAccessHooks[registerIndex] = callback;
             TlibEnablePostGprAccessHookOn(registerIndex, value);
+        }
+
+        public void RegisterLocalInterruptController(CoreLocalInterruptController clic)
+        {
+            if(this.clic != null)
+            {
+                throw new ArgumentException($"{nameof(CoreLocalInterruptController)} is already registered");
+            }
+            this.clic = clic;
         }
 
         public CSRValidationLevel CSRValidation
@@ -767,6 +777,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         private uint? nmiVectorLength;
         private uint miselectValue;
         private uint siselectValue;
+
+        private CoreLocalInterruptController clic;
 
         private bool pcWrittenFlag;
         private ulong resetVector = DefaultResetVector;
