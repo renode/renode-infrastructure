@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -58,6 +58,17 @@ namespace Antmicro.Renode.Time
             foreach(var h in All)
             {
                 h.Unlatch();
+            }
+
+            // After unlatch some handles might be disabled.
+            // Disabling not ready handles make them ready.
+            // We need to update list to reflect changes.
+            var currentNode = notReady.First;
+            while(currentNode != null)
+            {
+                var next = currentNode.Next;
+                UpdateHandle(currentNode);
+                currentNode = next;
             }
         }
 
