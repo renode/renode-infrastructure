@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -172,7 +172,7 @@ namespace Antmicro.Renode.Time
             this.Trace();
             lock(innerLock)
             {
-                Debug.Assert(isBlocking, "This handle should be blocking");
+                Debug.Assert(isBlocking || !enabled, "This handle should be blocking or disabled");
 
                 if(!waitsToBeUnblocked)
                 {
@@ -730,7 +730,7 @@ namespace Antmicro.Renode.Time
         /// <summary>
         /// This flag set guarantees the next call to <see cref="UnblockHandle"> to succeed.
         /// </summary>
-        public bool IsReadyToBeUnblocked => waitsToBeUnblocked;
+        public bool IsReadyToBeUnblocked => waitsToBeUnblocked || !enabled;
 
         /// <summary>
         /// Gets the flag indicating if this time handle is disposed and ready to be removed from its time source.
