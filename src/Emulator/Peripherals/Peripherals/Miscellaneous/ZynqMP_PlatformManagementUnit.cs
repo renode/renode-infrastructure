@@ -6,9 +6,8 @@
 //
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Logging;
 
@@ -24,6 +23,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             this.apu3 = apu3;
             this.rpu0 = rpu0;
             this.rpu1 = rpu1;
+            registeredPeripherals[apu0] = new HashSet<IPeripheral>();
+            registeredPeripherals[apu1] = new HashSet<IPeripheral>();
+            registeredPeripherals[apu2] = new HashSet<IPeripheral>();
+            registeredPeripherals[apu3] = new HashSet<IPeripheral>();
+            registeredPeripherals[rpu0] = new HashSet<IPeripheral>();
+            registeredPeripherals[rpu1] = new HashSet<IPeripheral>();
             powerManagement = new PowerManagementModule(this);
         }
 
@@ -43,6 +48,18 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         public void RegisterIPI(ZynqMP_IPI ipi)
         {
             this.ipi = ipi;
+        }
+
+        public void RegisterPeripheral(ICPU cpu, IPeripheral peripheral)
+        {
+            if(registeredPeripherals.ContainsKey(cpu))
+            {
+                registeredPeripherals[cpu].Add(peripheral);
+            }
+            else
+            {
+                throw new ConstructionException("Trying to register peripheral on invalid CPU.");
+            }
         }
 
         private void HandleInterruptOnIpi(PmuIpiChannel channel)
@@ -175,6 +192,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         private readonly PowerManagementModule powerManagement;
+        private readonly Dictionary<ICPU, ISet<IPeripheral>> registeredPeripherals = new Dictionary<ICPU, ISet<IPeripheral>>();
 
         private ZynqMP_IPI ipi;
         private ICPU apu0;
@@ -275,6 +293,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 {
                     cpu.IsHalted = true;
                     cpu.Reset();
+                    foreach(var peripheral in pmu.registeredPeripherals[cpu])
+                    {
+                        peripheral.Reset();
+                    }
+
                     try
                     {
                         return CreateAckResponse(response, ack);
