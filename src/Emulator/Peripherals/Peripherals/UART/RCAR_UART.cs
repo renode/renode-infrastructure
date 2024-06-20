@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Core;
+using Antmicro.Migrant;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.UART;
 
@@ -108,6 +109,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private readonly Queue<ushort> receiveQueue;
 
+        [field: Transient]
         public event Action<byte> CharReceived;
 
         public GPIO IRQ { get; }
