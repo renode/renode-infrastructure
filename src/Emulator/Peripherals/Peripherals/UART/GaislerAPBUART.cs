@@ -185,7 +185,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private readonly Queue<byte> receiveFifo = new Queue<byte>();
 
-        private const uint vendorID = 0x01;  // Aeroflex Gaisler
+        private const uint vendorID = 0x01; // Aeroflex Gaisler
         private const uint deviceID = 0x0c; // GRLIB APBUART
 
         private enum ParitySelect
