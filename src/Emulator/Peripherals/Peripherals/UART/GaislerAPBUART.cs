@@ -32,8 +32,14 @@ namespace Antmicro.Renode.Peripherals.UART
                 this.Log(LogLevel.Warning, "Received byte 0x{0:X}, but the receiver is not enabled, dropping.", value);
                 return;
             }
+
+            if(receiveFifo.Count >= fifoDepth)
+            {
+                this.Log(LogLevel.Warning, "Potential RX overrun detected");
+            }
+
             receiveFifo.Enqueue(value);
-            UpdateInterrupt();
+            UpdateInterrupt(rxFinished: true);
         }
 
         public override void Reset()
@@ -90,8 +96,9 @@ namespace Antmicro.Renode.Peripherals.UART
                             this.Log(LogLevel.Warning, "Tried to transmit byte 0x{0:X}, but the transmitter is not enabled. dropping.", value);
                             return;
                         }
+
                         CharReceived?.Invoke((byte)value);
-                        UpdateInterrupt();
+                        UpdateInterrupt(txFinished: true);
                     }, name: "DATA"
                 )
                 .WithReservedBits(8, 24)
@@ -99,18 +106,18 @@ namespace Antmicro.Renode.Peripherals.UART
 
             Registers.Status.Define(this, 0x86, name: "STATUS")
                 .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => receiveFifo.Count > 0, name: "DR")
-                .WithTaggedFlag("TS", 1)
-                .WithTaggedFlag("TE", 2)
+                .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => true, name: "TS")
+                .WithFlag(2, FieldMode.Read, valueProviderCallback: _ => true, name: "TE")
                 .WithTaggedFlag("BR", 3)
-                .WithTaggedFlag("OV", 4)
+                .WithFlag(4, valueProviderCallback: _ => false, name: "OV")
                 .WithTaggedFlag("PE", 5)
                 .WithTaggedFlag("FE", 6)
-                .WithTaggedFlag("TH", 7)
-                .WithTaggedFlag("RH", 8)
-                .WithTaggedFlag("TF", 9)
-                .WithTaggedFlag("RF", 10)
+                .WithFlag(7, FieldMode.Read, valueProviderCallback: _ => TxHalfEmpty, name: "TH")
+                .WithFlag(8, FieldMode.Read, valueProviderCallback: _ => RxHalfFull, name: "RH")
+                .WithFlag(9, FieldMode.Read, valueProviderCallback: _ => false, name: "TF")
+                .WithFlag(10, FieldMode.Read, valueProviderCallback: _ => receiveFifo.Count >= fifoDepth, name: "RF")
                 .WithReservedBits(11, 9)
-                .WithTag("TCNT", 20, 6)
+                .WithValueField(20, 6, FieldMode.Read, valueProviderCallback: _ => 0, name: "TCNT")
                 .WithValueField(26, 6, FieldMode.Read, valueProviderCallback: _ => (ulong) Math.Min(receiveFifo.Count, fifoDepth), name: "RCNT")
             ;
 
@@ -152,17 +159,25 @@ namespace Antmicro.Renode.Peripherals.UART
             ;
         }
 
-        private void UpdateInterrupt()
+        private void UpdateInterrupt(bool rxFinished = false, bool txFinished = false)
         {
-            if(receiveFifo.Count > 0 && receiverInterruptEnable.Value || transmitterInterruptEnable.Value)
+            var txFifoIrq = TxHalfEmpty && transmitterFifoInterruptEnable.Value && transmitterEnable.Value;
+            var rxFifoIrq = RxHalfFull && receiverFifoInterruptEnable.Value && receiverInterruptEnable.Value;
+            var irq = txFifoIrq || rxFifoIrq;
+            this.Log(LogLevel.Noisy, "IRQ {0} (tx fifo {1}, rx fifo {2})", irq, txFifoIrq, rxFifoIrq);
+            IRQ.Set(irq);
+
+            var rxIrq = rxFinished && receiverInterruptEnable.Value;
+            var txIrq = txFinished && (transmitterInterruptEnable.Value || transmitterShiftRegisterEmptyInterruptEnable.Value);
+            if(!irq && (rxIrq || txIrq))
             {
+                this.Log(LogLevel.Noisy, "IRQ blink (rx {0}, tx {1})", rxIrq, txIrq);
                 IRQ.Blink();
             }
-            else
-            {
-                IRQ.Set(transmitterFifoInterruptEnable.Value && transmitterEnable.Value);
-            }
         }
+
+        private bool TxHalfEmpty => true;
+        private bool RxHalfFull => receiveFifo.Count > (fifoDepth - 1) / 2;
 
         private IFlagRegisterField transmitterEnable;
         private IFlagRegisterField receiverEnable;
