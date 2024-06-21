@@ -98,7 +98,7 @@ namespace Antmicro.Renode.Peripherals.UART
             ;
 
             Registers.Status.Define(this, 0x86, name: "STATUS")
-                .WithFlag(0, out dataReady, FieldMode.Read, valueProviderCallback: _ => receiveFifo.Count > 0, name: "DR")
+                .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => receiveFifo.Count > 0, name: "DR")
                 .WithTaggedFlag("TS", 1)
                 .WithTaggedFlag("TE", 2)
                 .WithTaggedFlag("BR", 3)
@@ -114,7 +114,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithValueField(26, 6, FieldMode.Read, valueProviderCallback: _ => (ulong) Math.Min(receiveFifo.Count, fifoDepth), name: "RCNT")
             ;
 
-            Registers.Control.Define(this, 0x80000000, name: "CONTROL")
+            Registers.Control.Define(this, name: "CONTROL")
                 .WithFlag(0, out receiverEnable, name: "RE")
                 .WithFlag(1, out transmitterEnable, name: "TE")
                 .WithFlag(2, out receiverInterruptEnable, name: "RI", softResettable: false)
@@ -122,7 +122,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithEnumField(4, 1, out paritySelect, name: "PS", softResettable: false)
                 .WithFlag(5, out parityEnable, name: "PE", softResettable: false)
                 .WithTaggedFlag("FL", 6)
-                .WithFlag(7, out loopBack, name: "LB", softResettable: false)
+                .WithFlag(7, name: "LB", softResettable: false)
                 .WithFlag(8, name: "EC", valueProviderCallback: _ => false, writeCallback: (_, value) =>
                         {
                             if(value)
@@ -132,12 +132,12 @@ namespace Antmicro.Renode.Peripherals.UART
                         })
                 .WithFlag(9,  out transmitterFifoInterruptEnable, name: "TF", softResettable: false)
                 .WithFlag(10, out receiverFifoInterruptEnable, name: "RF", softResettable: false)
-                .WithFlag(11, out fifoDebugModeEnable, name: "DB", softResettable: false)
-                .WithFlag(12, out breakInterruptEnable, name: "BI", softResettable: false)
-                .WithFlag(13, out delayedInterruptEnable, name: "DI", softResettable: false)
+                .WithFlag(11, name: "DB", softResettable: false)
+                .WithFlag(12, name: "BI", softResettable: false)
+                .WithFlag(13, name: "DI", softResettable: false)
                 .WithFlag(14, out transmitterShiftRegisterEmptyInterruptEnable, name: "SI", softResettable: false)
                 .WithReservedBits(15, 16)
-                .WithTaggedFlag("FA", 31)
+                .WithFlag(31, FieldMode.Read, valueProviderCallback: _ => true, name: "FA")
                 .WithChangeCallback((_, __) => UpdateInterrupt())
             ;
 
@@ -164,15 +164,10 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
-        private IFlagRegisterField dataReady;
         private IFlagRegisterField transmitterEnable;
         private IFlagRegisterField receiverEnable;
-        private IFlagRegisterField loopBack;
         private IFlagRegisterField transmitterFifoInterruptEnable;
         private IFlagRegisterField receiverFifoInterruptEnable;
-        private IFlagRegisterField fifoDebugModeEnable;
-        private IFlagRegisterField breakInterruptEnable;
-        private IFlagRegisterField delayedInterruptEnable;
         private IFlagRegisterField transmitterShiftRegisterEmptyInterruptEnable;
         private IFlagRegisterField transmitterInterruptEnable;
         private IFlagRegisterField receiverInterruptEnable;
