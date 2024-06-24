@@ -298,6 +298,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 if(readWrapperType == ReadByte.Target.GetType().GetGenericTypeDefinition()
                     && writeWrapperType == WriteByte.Target.GetType().GetGenericTypeDefinition())
                 {
+                    UnwrapMethods();
                     continue;
                 }
 
