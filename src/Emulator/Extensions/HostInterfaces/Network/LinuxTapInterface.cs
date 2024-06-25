@@ -95,17 +95,20 @@ namespace Antmicro.Renode.HostInterfaces.Network
 
         public void Resume()
         {
-            if(active)
+            if(!active)
             {
-                lock(lockObject)
+                return;
+            }
+
+            lock(lockObject)
+            {
+                cts = new CancellationTokenSource();
+                thread = new Thread(() => TransmitLoop(cts.Token))
                 {
-                    cts = new CancellationTokenSource();
-                    thread = new Thread(() => TransmitLoop(cts.Token)) {
-                        Name = this.GetType().Name,
-                        IsBackground = true
-                    };
-                    thread.Start();
-                }
+                    Name = this.GetType().Name,
+                    IsBackground = true
+                };
+                thread.Start();
             }
         }
 
