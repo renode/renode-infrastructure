@@ -33,9 +33,9 @@ namespace Antmicro.Renode.Peripherals.UART
                 return;
             }
 
-            if(receiveFifo.Count >= fifoDepth)
+            if(receiveFifo.Count == fifoDepth)
             {
-                this.Log(LogLevel.Warning, "Potential RX overrun detected");
+                this.Log(LogLevel.Debug, "Received data that would overflow the FIFO capacity. Enqueuing anyway.");
             }
 
             receiveFifo.Enqueue(value);
