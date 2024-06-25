@@ -55,15 +55,18 @@ namespace Antmicro.Renode.HostInterfaces.Network
 
         public void Pause()
         {
-            if(active)
+            if(!active)
             {
-                lock(lockObject)
-                {
-                    var token = cts;
-                    token.Cancel();
-                    thread.Join();
-                    thread = null;         
-                }
+                return;
+            }
+
+            lock(lockObject)
+            {
+                var token = cts;
+                token.Cancel();
+                // we're not joining the read thread as it's canceled and will return after Read times out;
+                // we might end up with multiple TransmitLoop threads running at the same time as a result of a quick Pause/Resume actions,
+                // but only the last one will process data - the rest will terminate unconditionally after leaving the Read function call
             }
         }
 
