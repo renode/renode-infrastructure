@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -9,6 +9,7 @@
 using System;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Time;
+using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -16,17 +17,17 @@ namespace Antmicro.Renode.Peripherals.Timers
     {
         public LimitTimer(IClockSource clockSource, long frequency, IPeripheral owner, string localName, ulong limit = ulong.MaxValue, Direction direction = Direction.Descending, bool enabled = false, WorkMode workMode = WorkMode.Periodic, bool eventEnabled = false, bool autoUpdate = false, int divider = 1)
         {
-            if(limit == 0)
+            if(limit <= 0)
             {
-                throw new ArgumentException("Limit cannot be zero.");
+                throw new ConstructionException("Limit must be greater than 0");
             }
-            if(divider == 0)
+            if(divider <= 0)
             {
-                throw new ArgumentException("Divider cannot be zero.");
+                throw new ConstructionException("Divider must be greater than 0");
             }
-            if(frequency == 0)
+            if(frequency <= 0)
             {
-                throw new ArgumentException("Frequency cannot be zero.");
+                throw new ConstructionException("Frequency must be greater than 0");
             }
 
             irqSync = new object();
@@ -83,9 +84,9 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
             set
             {
-                if(value == 0)
+                if(value <= 0)
                 {
-                    throw new ArgumentException("Frequency cannot be zero.");
+                    throw new ArgumentException("Frequency must be greater than 0");
                 }
                 frequency = value;
                 var effectiveFrequency = frequency / Divider;
@@ -134,9 +135,9 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     return;
                 }
-                if(value == 0)
+                if(value <= 0)
                 {
-                    throw new ArgumentException("Divider cannot be zero.");
+                    throw new ArgumentException("Divider must be greater than 0");
                 }
                 divider = value;
                 var effectiveFrequency = Frequency / divider;
