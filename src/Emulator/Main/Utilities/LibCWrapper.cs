@@ -132,8 +132,12 @@ namespace Antmicro.Renode.Utilities
             do
             {
                 pollResult = Syscall.poll(new [] { pollData }, timeout);
+                if(shouldCancel())
+                {
+                    return null;
+                }
             }
-            while(UnixMarshal.ShouldRetrySyscall(pollResult) && !shouldCancel());
+            while(UnixMarshal.ShouldRetrySyscall(pollResult));
 
             if(pollResult > 0)
             {
