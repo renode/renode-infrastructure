@@ -230,7 +230,7 @@ namespace Antmicro.Renode.HostInterfaces.Network
                 }
                 try
                 {
-                    buffer = LibCWrapper.Read(stream.Handle, MTU, 1000, () => token.IsCancellationRequested);
+                    buffer = LibCWrapper.Read(stream.Handle, MTU, ReadTimeout, () => token.IsCancellationRequested);
                 }
                 catch(ArgumentException)
                 {
@@ -259,6 +259,7 @@ namespace Antmicro.Renode.HostInterfaces.Network
 
         private const int DeviceNameBufferSize = 8192;
         private const int MTU = 1522;
+        private const int ReadTimeout = 100; // in milliseconds
 
         [Transient]
         private bool active;
