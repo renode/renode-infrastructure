@@ -58,9 +58,45 @@ namespace Antmicro.Renode.UserInterface.Commands
         }
 
         [Runnable]
+        public void Run(ICommandInteraction writer, [Values(-1L, 0L, 1L, 2L, 3L)] DecimalIntegerToken level, StringToken emulationElementOrBackendName)
+        {
+            RunInner(writer, (LogLevel)level.Value, emulationElementOrBackendName.Value);
+        }
+
+        [Runnable]
+        public void Run(ICommandInteraction writer, [Values(-1L, 0L, 1L, 2L, 3L)] DecimalIntegerToken level, LiteralToken emulationElementOrBackendName, BooleanToken recursive)
+        {
+            RunInner(writer, (LogLevel)level.Value, emulationElementOrBackendName.Value, recursive.Value);
+        }
+
+        [Runnable]
+        public void Run(ICommandInteraction writer, [Values(-1L, 0L, 1L, 2L, 3L)] DecimalIntegerToken level, StringToken emulationElementOrBackendName, BooleanToken recursive)
+        {
+            RunInner(writer, (LogLevel)level.Value, emulationElementOrBackendName.Value, recursive.Value);
+        }
+
+        [Runnable]
         public void Run(ICommandInteraction writer, [Values("Noisy", "Debug", "Info", "Warning", "Error")] StringToken level, LiteralToken emulationElementOrBackendName)
         {
             RunInner(writer, LogLevel.Parse(level.Value), emulationElementOrBackendName.Value);
+        }
+
+        [Runnable]
+        public void Run(ICommandInteraction writer, [Values("Noisy", "Debug", "Info", "Warning", "Error")] StringToken level, StringToken emulationElementOrBackendName)
+        {
+            RunInner(writer, LogLevel.Parse(level.Value), emulationElementOrBackendName.Value);
+        }
+
+        [Runnable]
+        public void Run(ICommandInteraction writer, [Values("Noisy", "Debug", "Info", "Warning", "Error")] StringToken level, LiteralToken emulationElementOrBackendName, BooleanToken recursive)
+        {
+            RunInner(writer, LogLevel.Parse(level.Value), emulationElementOrBackendName.Value, recursive.Value);
+        }
+
+        [Runnable]
+        public void Run(ICommandInteraction writer, [Values("Noisy", "Debug", "Info", "Warning", "Error")] StringToken level, StringToken emulationElementOrBackendName, BooleanToken recursive)
+        {
+            RunInner(writer, LogLevel.Parse(level.Value), emulationElementOrBackendName.Value, recursive.Value);
         }
 
         [Runnable]
@@ -70,29 +106,65 @@ namespace Antmicro.Renode.UserInterface.Commands
         }
 
         [Runnable]
+        public void Run(ICommandInteraction writer, [Values(-1L, 0L, 1L, 2L, 3L)] DecimalIntegerToken level, LiteralToken backendName, StringToken emulationElementName)
+        {
+            RunInner(writer, (LogLevel)level.Value, backendName.Value, emulationElementName.Value);
+        }
+
+        [Runnable]
+        public void Run(ICommandInteraction writer, [Values(-1L, 0L, 1L, 2L, 3L)] DecimalIntegerToken level, LiteralToken backendName, LiteralToken emulationElementName, BooleanToken recursive)
+        {
+            RunInner(writer, (LogLevel)level.Value, backendName.Value, emulationElementName.Value, recursive.Value);
+        }
+
+        [Runnable]
+        public void Run(ICommandInteraction writer, [Values(-1L, 0L, 1L, 2L, 3L)] DecimalIntegerToken level, LiteralToken backendName, StringToken emulationElementName, BooleanToken recursive)
+        {
+            RunInner(writer, (LogLevel)level.Value, backendName.Value, emulationElementName.Value, recursive.Value);
+        }
+
+        [Runnable]
         public void Run(ICommandInteraction writer, [Values("Noisy", "Debug", "Info", "Warning", "Error")] StringToken level, LiteralToken backendName, LiteralToken emulationElementName)
         {
             RunInner(writer, LogLevel.Parse(level.Value), backendName.Value, emulationElementName.Value);
         }
 
-        private void RunInner(ICommandInteraction writer, LogLevel level, string emulationElementOrBackendName)
+        [Runnable]
+        public void Run(ICommandInteraction writer, [Values("Noisy", "Debug", "Info", "Warning", "Error")] StringToken level, LiteralToken backendName, StringToken emulationElementName)
         {
-            if(!TrySetLogLevel(level, null, emulationElementOrBackendName)
+            RunInner(writer, LogLevel.Parse(level.Value), backendName.Value, emulationElementName.Value);
+        }
+
+        [Runnable]
+        public void Run(ICommandInteraction writer, [Values("Noisy", "Debug", "Info", "Warning", "Error")] StringToken level, LiteralToken backendName, LiteralToken emulationElementName, BooleanToken recursive)
+        {
+            RunInner(writer, LogLevel.Parse(level.Value), backendName.Value, emulationElementName.Value, recursive.Value);
+        }
+
+        [Runnable]
+        public void Run(ICommandInteraction writer, [Values("Noisy", "Debug", "Info", "Warning", "Error")] StringToken level, LiteralToken backendName, StringToken emulationElementName, BooleanToken recursive)
+        {
+            RunInner(writer, LogLevel.Parse(level.Value), backendName.Value, emulationElementName.Value, recursive.Value);
+        }
+
+        private void RunInner(ICommandInteraction writer, LogLevel level, string emulationElementOrBackendName, bool recursive = true)
+        {
+            if(!TrySetLogLevel(level, null, emulationElementOrBackendName, recursive)
                 && !TrySetLogLevel(level, emulationElementOrBackendName, null))
             {
                 writer.WriteError(string.Format("Could not find emulation element or backend named: {0}", emulationElementOrBackendName));
             }
         }
 
-        private void RunInner(ICommandInteraction writer, LogLevel level, string backendName, string emulationElementName)
+        private void RunInner(ICommandInteraction writer, LogLevel level, string backendName, string emulationElementName, bool recursive = true)
         {
-            if(!TrySetLogLevel(level, backendName, emulationElementName))
+            if(!TrySetLogLevel(level, backendName, emulationElementName, recursive))
             {
                 writer.WriteError(string.Format("Could not find emulation element or backend"));
             }
         }
 
-        private bool TrySetLogLevel(LogLevel level, string backendName = null, string emulationElementName = null)
+        private bool TrySetLogLevel(LogLevel level, string backendName = null, string emulationElementName = null, bool recursive = true)
         {
             IEnumerable<IEmulationElement> emulationElements = null;
             var emulation = EmulationManager.Instance.CurrentEmulation;
@@ -104,7 +176,7 @@ namespace Antmicro.Renode.UserInterface.Commands
                     return false;
                 }
 
-                emulationElements = (emulationElement is IMachine)
+                emulationElements = ((emulationElement is IMachine) && recursive)
                     ? (emulationElement as Machine).GetRegisteredPeripherals().Select(x => x.Peripheral).Cast<IEmulationElement>()
                     : new[] { emulationElement };
             }
