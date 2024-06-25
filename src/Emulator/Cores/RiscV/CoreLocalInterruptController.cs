@@ -19,7 +19,6 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.IRQControllers
 {
-    [AllowedTranslations(AllowedTranslation.QuadWordToDoubleWord | AllowedTranslation.DoubleWordToByte | AllowedTranslation.WordToByte)]
     public class CoreLocalInterruptController : BasicBytePeripheral, IDoubleWordPeripheral, IIndirectCSRPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IGPIOReceiver
     {
         public CoreLocalInterruptController(IMachine machine, BaseRiscV cpu, uint numberOfInterrupts = 4096, uint numberOfTriggers = 32,
@@ -80,7 +79,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             base.Reset();
             machineLevelBits.Value = defaultMachineLevelBits;
-            supervisorLevelBits.Value = defaultSupervisorLevelBits;
+            if(!configurationHasNvbits)
+            {
+                supervisorLevelBits.Value = defaultSupervisorLevelBits;
+            }
             modeBits.Value = defaultModeBits;
             bestInterrupt = NoInterrupt;
             acknowledgedInterrupt = NoInterrupt;
@@ -263,7 +265,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
 
             var privilege = GetInterruptPrivilege(number);
-            var levelBits = (int)(privilege == PrivilegeLevel.Machine ? machineLevelBits.Value : supervisorLevelBits.Value);
+            var levelBits = (int)(privilege == PrivilegeLevel.Machine || configurationHasNvbits ? machineLevelBits.Value : supervisorLevelBits.Value);
             var priorityBits = InterruptInputControlBits - levelBits;
             // left-justify and append 1s to fill the unused bits on the right
             return (int)(BitHelper.GetValue(inputControl[number].Value, priorityBits, levelBits) << priorityBits) | ((1 << priorityBits) - 1);
@@ -277,7 +279,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
 
             var privilege = GetInterruptPrivilege(number);
-            var levelBits = (int)(privilege == PrivilegeLevel.Machine ? machineLevelBits.Value : supervisorLevelBits.Value);
+            var levelBits = (int)(privilege == PrivilegeLevel.Machine || configurationHasNvbits ? machineLevelBits.Value : supervisorLevelBits.Value);
             var priorityBits = InterruptInputControlBits - levelBits;
             return (int)(BitHelper.GetValue(inputControl[number].Value, 0, priorityBits) << levelBits) | ((1 << levelBits) - 1);
         }
@@ -343,24 +345,40 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         protected override void DefineRegisters()
         {
-            var configOffset = configurationHasNvbits ? 1 : 0;
-            Register.Configuration.Define32(this)
-                .If(configurationHasNvbits).Then(r => r.WithFlag(0, FieldMode.Read, valueProviderCallback: _ => true, name: "nvbits")).EndIf()
-                .WithValueField(configOffset + 0, 4, out machineLevelBits, name: "mnlbits")
-                .WithValueField(configOffset + 4, 2, out modeBits, name: "nmbits", changeCallback: (_, value) =>
-                {
-                    if(value == 3)
+            if(configurationHasNvbits)
+            {
+                Register.Configuration.Define8(this)
+                    .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => true, name: "nvbits")
+                    .WithValueField(1, 4, out machineLevelBits, name: "mnlbits")
+                    .WithValueField(5, 2, out modeBits, name: "nmbits", changeCallback: (_, value) =>
                     {
-                        this.WarningLog("A value of 3 for nmbits is reserved, forcing to 2");
-                        modeBits.Value = 2;
-                    }
-                })
-                .WithReservedBits(configOffset + 6, 10)
-                .WithValueField(configOffset + 16, 4, out supervisorLevelBits, name: "snlbits")
-                .WithReservedBits(configOffset + 20, 4)
-                .WithTag("unlbits", configOffset + 24, 4)
-                .WithReservedBits(configOffset + 28, configurationHasNvbits ? 3 : 4)
-            ;
+                        if(value == 3)
+                        {
+                            this.WarningLog("A value of 3 for nmbits is reserved, forcing to 2");
+                            modeBits.Value = 2;
+                        }
+                    })
+                    .WithReservedBits(7, 1);
+            }
+            else
+            {
+                Register.Configuration.Define32(this)
+                    .WithValueField(0, 4, out machineLevelBits, name: "mnlbits")
+                    .WithValueField(4, 2, out modeBits, name: "nmbits", changeCallback: (_, value) =>
+                    {
+                        if(value == 3)
+                        {
+                            this.WarningLog("A value of 3 for nmbits is reserved, forcing to 2");
+                            modeBits.Value = 2;
+                        }
+                    })
+                    .WithReservedBits(6, 10)
+                    .WithValueField(16, 4, out supervisorLevelBits, name: "snlbits")
+                    .WithReservedBits(20, 4)
+                    .WithTag("unlbits", 24, 4)
+                    .WithReservedBits(28, 4)
+                ;
+            }
 
             Register.Information.Define32(this)
                 .WithValueField(0, 13, FieldMode.Read, valueProviderCallback: _ => numberOfInterrupts, name: "num_interrupt")
