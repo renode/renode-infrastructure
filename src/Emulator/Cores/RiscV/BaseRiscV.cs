@@ -958,6 +958,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             Priv1_10,
             Priv1_11,
             Priv1_12,
+            /* Keep last.
+             * For features that are not yet part of a ratified privileged specification.
+             * As new specs become ratified, we should substitute uses of Unratified to the new spec value.
+             */
+            PrivUnratified
         }
 
         /* The enabled instruction sets are exposed via a register. Each instruction bit is represented
