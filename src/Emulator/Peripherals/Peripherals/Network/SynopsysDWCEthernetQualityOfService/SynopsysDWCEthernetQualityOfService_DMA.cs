@@ -108,8 +108,7 @@ namespace Antmicro.Renode.Peripherals.Network
                         {
                             if(startTx.Value)
                             {
-                                txDescriptorRingCurrent.Value = txDescriptorRingStart.Value;
-                                txFinishedRing = false;
+                                txFinishedRing = txDescriptorRingCurrent.Value == txDescriptorRingTail.Value;
                                 StartTx();
                             }
                         },
@@ -127,8 +126,7 @@ namespace Antmicro.Renode.Peripherals.Network
                         {
                             if(startRx.Value)
                             {
-                                rxDescriptorRingCurrent.Value = rxDescriptorRingStart.Value;
-                                rxFinishedRing = false;
+                                rxFinishedRing = rxDescriptorRingCurrent.Value == rxDescriptorRingTail.Value;
                                 StartRx();
                             }
                         },
@@ -148,10 +146,18 @@ namespace Antmicro.Renode.Peripherals.Network
                         .WithTaggedFlag("DMACRxCR.RPF (DMA Rx Channel Packet Flush)", 31)
                     },
                     {(long)RegistersDMAChannel.TxDescriptorListAddress  + offset, new DoubleWordRegister(parent)
-                        .WithValueField(0, 32, out txDescriptorRingStart, name: "DMACTxDLAR.TDESLA (Start of Transmit List)")
+                        .WithValueField(0, 32, out txDescriptorRingStart, writeCallback: (_, __) =>
+                        {
+                            txDescriptorRingCurrent.Value = txDescriptorRingStart.Value;
+                        },
+                        name: "DMACTxDLAR.TDESLA (Start of Transmit List)")
                     },
                     {(long)RegistersDMAChannel.RxDescriptorListAddress + offset, new DoubleWordRegister(parent)
-                        .WithValueField(0, 32, out rxDescriptorRingStart, name: "DMACRxDLAR.RDESLA (Start of Receive List)")
+                        .WithValueField(0, 32, out rxDescriptorRingStart, writeCallback: (_, __) =>
+                        {
+                            rxDescriptorRingCurrent.Value = rxDescriptorRingStart.Value;
+                        },
+                        name: "DMACRxDLAR.RDESLA (Start of Receive List)")
                     },
                     {(long)RegistersDMAChannel.TxDescriptorTailPointer + offset, new DoubleWordRegister(parent)
                         .WithValueField(0, 32, out txDescriptorRingTail, changeCallback: (previousValue, _) =>
@@ -162,6 +168,7 @@ namespace Antmicro.Renode.Peripherals.Network
                                 txFinishedRing &= !clearTxFinishedRing;
                                 StartTx();
                             }
+                            this.Log(LogLevel.Debug, "Transmit Tail register (DMACTxDTPR.TDT) set to: 0x{0:X}", txDescriptorRingTail.Value);
                         }, name: "DMACTxDTPR.TDT (Transmit Descriptor Tail Pointer)")
                     },
                     {(long)RegistersDMAChannel.RxDescriptorTailPointer + offset, new DoubleWordRegister(parent)
@@ -173,6 +180,7 @@ namespace Antmicro.Renode.Peripherals.Network
                                 rxFinishedRing &= !clearRxFinishedRing;
                                 StartRx();
                             }
+                            this.Log(LogLevel.Debug, "Receive Tail register (DMACRxDTPR.RDT) set to: 0x{0:X}", txDescriptorRingTail.Value);
                         }, name: "DMACRxDTPR.RDT (Receive Descriptor Tail Pointer)")
                     },
                     {(long)RegistersDMAChannel.TxDescriptorRingLength + offset, new DoubleWordRegister(parent)
