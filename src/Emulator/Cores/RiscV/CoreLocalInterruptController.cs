@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 {
     public class CoreLocalInterruptController : BasicBytePeripheral, IDoubleWordPeripheral, IIndirectCSRPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IGPIOReceiver
     {
-        public CoreLocalInterruptController(IMachine machine, BaseRiscV cpu, uint numberOfInterrupts = 4096, uint numberOfTriggers = 32,
+        public CoreLocalInterruptController(IMachine machine, BaseRiscV cpu, uint numberOfInterrupts = 4096,
             ulong machineLevelBits = 8, // MNLBITS
             ulong supervisorLevelBits = 8, // SNLBITS
             ulong modeBits = 2, // NMBITS
@@ -53,7 +53,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             this.cpu = cpu;
             this.numberOfInterrupts = numberOfInterrupts;
-            this.numberOfTriggers = numberOfTriggers;
+            // clicinttrig functionality is not implemented
+            this.numberOfTriggers = 0;
             defaultMachineLevelBits = machineLevelBits;
             defaultSupervisorLevelBits = supervisorLevelBits;
             defaultModeBits = modeBits;
