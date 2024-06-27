@@ -235,6 +235,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         public void AcknowledgeInterrupt()
         {
             acknowledgedInterrupt = bestInterrupt;
+            this.DebugLog("Acknowledged interrupt #{0}", acknowledgedInterrupt);
         }
 
         private PrivilegeLevel GetInterruptPrivilege(int number)
@@ -329,6 +330,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             else
             {
                 cpu.ClicPresentInterrupt(NoInterrupt, false, MinLevel, PrivilegeLevel.User);
+                this.DebugLog("Clearing current interrupt state - no interrupt pending");
                 acknowledgedInterrupt = NoInterrupt;
                 return false;
             }
