@@ -83,8 +83,6 @@ namespace Antmicro.Renode.Utilities.GDB
 
         public bool LogsEnabled { get; set; }
 
-        public IEnumerable<string> CpuGDBModels => commandsManager.ManagedCpus.Select(c => c.Model).Distinct();
-
         private void OnHalted(HaltArguments args)
         {
             using(var ctx = commHandler.OpenContext())
