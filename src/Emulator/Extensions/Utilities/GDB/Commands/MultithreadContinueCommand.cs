@@ -89,6 +89,8 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
             // this helps to keep control of the cores as none of them will successfully obtain a new time interval
             foreach(var operation in operations)
             {
+                // Switching the core into SingleStep will cause a spurious StopReply to be sent to Gdb
+                // TODO: this should be addressed
                 manager.ManagedCpus[operation.CoreId].ExecutionMode = ExecutionMode.SingleStep;
                 manager.ManagedCpus[operation.CoreId].TimeHandle.DelayGrant = true;
             }

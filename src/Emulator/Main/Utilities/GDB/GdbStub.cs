@@ -89,6 +89,10 @@ namespace Antmicro.Renode.Utilities.GDB
             {
                 // If we got here, and the CPU doesn't support Gdb (ICpuSupportingGdb) something went seriously wrong - this is GdbStub after all
                 var cpuSupportingGdb = (ICpuSupportingGdb)args.Cpu;
+
+                // We only should send one stop response to Gdb in all-stop mode
+                bool sendStopResponse = cpuSupportingGdb == stopReplyingCpu || stopReplyingCpu == null;
+
                 switch(args.Reason)
                 {
                 case HaltReason.Breakpoint:
@@ -119,7 +123,19 @@ namespace Antmicro.Renode.Utilities.GDB
                         // resulting in a desync (eg. breakpoints will not be triggered)
                         return;
                     }
-                    goto case HaltReason.Step;
+                    if(commandsManager.Machine.SystemBus.IsMultiCore)
+                    {
+                        if(sendStopResponse)
+                        {
+                            commandsManager.SelectCpuForDebugging(cpuSupportingGdb);
+                            ctx.Send(new Packet(PacketData.StopReply(InterruptSignal, commandsManager.ManagedCpus[cpuSupportingGdb])));
+                        }
+                    }
+                    else
+                    {
+                        ctx.Send(new Packet(PacketData.StopReply(InterruptSignal)));
+                    }
+                    return;
                 case HaltReason.Step:
                     if(commandsManager.Machine.SystemBus.IsMultiCore)
                     {
@@ -140,6 +156,8 @@ namespace Antmicro.Renode.Utilities.GDB
             }
         }
 
+        private ICpuSupportingGdb stopReplyingCpu;
+
         private void OnByteWritten(int b)
         {
             if(b == -1)
@@ -158,10 +176,15 @@ namespace Antmicro.Renode.Utilities.GDB
                 {
                     commandsManager.Cpu.Log(LogLevel.Noisy, "GDB CTRL-C occured - pausing CPU");
                 }
+
+                // This weird syntax ensures we have unpaused cores to report first, and only if there are none, we will fall-back to halted ones
+                stopReplyingCpu = commandsManager.ManagedCpus.OrderByDescending(cpu => !cpu.IsHalted).FirstOrDefault();
                 foreach(var cpu in commandsManager.ManagedCpus)
                 {
-                    cpu.ExecutionMode = ExecutionMode.SingleStep;
+                    // This call is synchronous, so it's safe to assume that `stopReplyingCpu` will still be valid
+                    cpu.Pause();
                 }
+                stopReplyingCpu = null;
                 return;
             }
 
@@ -233,6 +256,7 @@ namespace Antmicro.Renode.Utilities.GDB
         private readonly CommandsManager commandsManager;
         private readonly CommunicationHandler commHandler;
 
+        private const int InterruptSignal = 2;
         private const int TrapSignal = 5;
         private const int AbortSignal = 6;
 
