@@ -16,10 +16,10 @@ namespace Antmicro.Renode.Peripherals.CPU
             BreakpointType = breakpointType;
         }
 
-        public HaltReason Reason { get; private set; }
-        public ICPU Cpu { get; private set; }
-        public ulong? Address { get; private set; }
-        public BreakpointType? BreakpointType { get; private set; }
+        public HaltReason Reason { get; }
+        public ICPU Cpu { get; }
+        public ulong? Address { get; }
+        public BreakpointType? BreakpointType { get; }
     }
 }
 
