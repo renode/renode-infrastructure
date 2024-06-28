@@ -19,7 +19,7 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.IRQControllers
 {
-    public class CoreLocalInterruptController : BasicBytePeripheral, IDoubleWordPeripheral, IIndirectCSRPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IGPIOReceiver
+    public class CoreLocalInterruptController : IBytePeripheral, IDoubleWordPeripheral, IIndirectCSRPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IProvidesRegisterCollection<ByteRegisterCollection>, IGPIOReceiver
     {
         public CoreLocalInterruptController(IMachine machine, BaseRiscV cpu, uint numberOfInterrupts = 4096,
             ulong machineLevelBits = 8, // MNLBITS
@@ -29,8 +29,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             // as found in some hardware implementations
             bool configurationHasNvbits = true
             )
-            : base(machine)
         {
+            this.machine = machine;
+
             if(machineLevelBits > 8)
             {
                 throw new ConstructionException($"Invalid machineLevelBits: provided {machineLevelBits} is larger than the maximum 8.");
@@ -60,6 +61,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             defaultModeBits = modeBits;
             this.configurationHasNvbits = configurationHasNvbits;
 
+            ByteRegisters = new ByteRegisterCollection(this);
             DoubleWordRegisters = new DoubleWordRegisterCollection(this);
 
             interruptPending = new IFlagRegisterField[numberOfInterrupts];
@@ -76,9 +78,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             Reset();
         }
 
-        public override void Reset()
+        public void Reset()
         {
-            base.Reset();
+            DoubleWordRegisters.Reset();
+            ByteRegisters.Reset();
             machineLevelBits.Value = defaultMachineLevelBits;
             if(!configurationHasNvbits)
             {
@@ -88,6 +91,16 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             bestInterrupt = NoInterrupt;
             acknowledgedInterrupt = NoInterrupt;
             cpu.ClicPresentInterrupt(NoInterrupt, false, MinLevel, PrivilegeLevel.User);
+        }
+
+        public byte ReadByte(long offset)
+        {
+            return ByteRegisters.Read(offset);
+        }
+
+        public void WriteByte(long offset, byte value)
+        {
+            ByteRegisters.Write(offset, value);
         }
 
         public uint ReadDoubleWord(long offset)
@@ -346,11 +359,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             this.WarningLog("Unhandled write to register via indirect CSR access (iselect 0x{0:x}, ireg {1})", iselect, ireg);
         }
 
-        protected override void DefineRegisters()
+        protected void DefineRegisters()
         {
+            var this_dword = this as IProvidesRegisterCollection<DoubleWordRegisterCollection>;
+            var this_byte = this as IProvidesRegisterCollection<ByteRegisterCollection>;
             if(configurationHasNvbits)
             {
-                Register.Configuration.Define8(this)
+                Register.Configuration.Define8(this_byte)
                     .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => true, name: "nvbits")
                     .WithValueField(1, 4, out machineLevelBits, name: "mnlbits")
                     .WithValueField(5, 2, out modeBits, name: "nmbits", changeCallback: (_, value) =>
@@ -365,7 +380,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
             else
             {
-                Register.Configuration.Define32(this)
+                Register.Configuration.Define32(this_dword)
                     .WithValueField(0, 4, out machineLevelBits, name: "mnlbits")
                     .WithValueField(4, 2, out modeBits, name: "nmbits", changeCallback: (_, value) =>
                     {
@@ -383,7 +398,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 ;
             }
 
-            Register.Information.Define32(this)
+            Register.Information.Define32(this_dword)
                 .WithValueField(0, 13, FieldMode.Read, valueProviderCallback: _ => numberOfInterrupts, name: "num_interrupt")
                 .WithValueField(13, 8, FieldMode.Read, valueProviderCallback: _ => 0, name: "version")
                 .WithValueField(21, 4, FieldMode.Read, valueProviderCallback: _ => InterruptInputControlBits, name: "CLICINTCTLBITS")
@@ -391,7 +406,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 .WithReservedBits(31, 1)
             ;
 
-            Register.InterruptTrigger0.Define32Many(this, numberOfTriggers, (register, index) =>
+            Register.InterruptTrigger0.Define32Many(this_dword, numberOfTriggers, (register, index) =>
             {
                 register
                     .WithTag("interrupt_number", 0, 13)
@@ -401,7 +416,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 ;
             });
 
-            Register.InterruptPending0.Define8Many(this, numberOfInterrupts, (register, index) =>
+            Register.InterruptPending0.Define8Many(this_byte, numberOfInterrupts, (register, index) =>
             {
                 register
                     .WithFlag(0, out interruptPending[index], name: "pending", changeCallback: (oldValue, value) =>
@@ -419,7 +434,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 ;
             }, 4);
 
-            Register.InterruptEnable0.Define8Many(this, numberOfInterrupts, (register, index) =>
+            Register.InterruptEnable0.Define8Many(this_byte, numberOfInterrupts, (register, index) =>
             {
                 register
                     .WithFlag(0, out interruptEnable[index], name: "enable", changeCallback: (_, value) =>
@@ -431,7 +446,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 ;
             }, 4);
 
-            Register.InterruptAttribute0.Define8Many(this, numberOfInterrupts, (register, index) =>
+            Register.InterruptAttribute0.Define8Many(this_byte, numberOfInterrupts, (register, index) =>
             {
                 register
                     .WithFlag(0, out vectored[index], name: "shv")
@@ -447,7 +462,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 ;
             }, 4, resetValue: (byte)PrivilegeLevel.Machine << 6);
 
-            Register.InterruptInputControl0.Define8Many(this, numberOfInterrupts, (register, index) =>
+            Register.InterruptInputControl0.Define8Many(this_byte, numberOfInterrupts, (register, index) =>
             {
                 register
                     .WithValueField(0, InterruptInputControlBits, out inputControl[index], name: "input_control")
@@ -457,8 +472,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         }
 
         DoubleWordRegisterCollection IProvidesRegisterCollection<DoubleWordRegisterCollection>.RegistersCollection => DoubleWordRegisters;
+        ByteRegisterCollection IProvidesRegisterCollection<ByteRegisterCollection>.RegistersCollection => ByteRegisters;
 
         private DoubleWordRegisterCollection DoubleWordRegisters { get; }
+        private ByteRegisterCollection ByteRegisters { get; }
 
         private int bestInterrupt;
         private int acknowledgedInterrupt;
@@ -474,6 +491,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private IValueRegisterField supervisorLevelBits;
         private IValueRegisterField modeBits;
 
+        private readonly IMachine machine;
         private readonly BaseRiscV cpu;
         private readonly uint numberOfInterrupts;
         private readonly uint numberOfTriggers;
