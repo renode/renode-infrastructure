@@ -626,7 +626,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
         }
 
-        private void WriteToMemory(byte val)
+        protected virtual void WriteToMemory(byte val)
         {
             if(currentOperation.ExecutionAddress + currentOperation.CommandBytesHandled > underlyingMemory.Size)
             {
@@ -644,7 +644,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             underlyingMemory.WriteByte(position, val);
         }
 
-        private byte ReadFromMemory()
+        protected virtual byte ReadFromMemory()
         {
             if(currentOperation.ExecutionAddress + currentOperation.CommandBytesHandled > underlyingMemory.Size)
             {
@@ -659,7 +659,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         // The addressingMode field is 1-bit wide, so a conditional expression covers all possible cases
         private int NumberOfAddressBytes => addressingMode.Value == AddressingMode.ThreeByte ? 3 : 4;
 
-        private DecodedOperation currentOperation;
+        protected DecodedOperation currentOperation;
         private uint temporaryConfiguration; //this should be an ushort, but due to C# type promotions it's easier to use uint
 
         private readonly byte[] deviceData;
@@ -670,7 +670,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private readonly ByteRegister volatileConfigurationRegister;
         private readonly ByteRegister enhancedVolatileConfigurationRegister;
         private readonly WordRegister nonVolatileConfigurationRegister;
-        private readonly MappedMemory underlyingMemory;
+        protected readonly MappedMemory underlyingMemory;
         private readonly byte manufacturerId;
         private readonly byte memoryType;
         private readonly byte capacityCode;

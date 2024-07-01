@@ -5,6 +5,8 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.Memory;
 
@@ -24,20 +26,20 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithTaggedFlag("QE (Quad Enable)", 6)
                 .WithTaggedFlag("SRWD (Status register write protect)", 7);
 
-           configurationRegister
-               .WithReservedBits(0, 3)
-               .WithFlag(3, out topBottom, name: "TB (top/bottom selected)")
-               .WithReservedBits(4, 2)
-               .WithTaggedFlag("DC (Dummy Cycle)", 6)
-               .WithReservedBits(7, 1)
-               .WithReservedBits(8, 1)
-               .WithTaggedFlag("L/H Switch", 9)
-               .WithReservedBits(10, 6);
+            configurationRegister
+                .WithReservedBits(0, 3)
+                .WithFlag(3, out topBottom, name: "TB (top/bottom selected)")
+                .WithReservedBits(4, 2)
+                .WithTaggedFlag("DC (Dummy Cycle)", 6)
+                .WithReservedBits(7, 1)
+                .WithReservedBits(8, 1)
+                .WithTaggedFlag("L/H Switch", 9)
+                .WithReservedBits(10, 6);
         }
 
         private void UpdateLockedRange(uint blockProtectionValue)
         {
-            if(blockProtectionValue == 0)
+            if (blockProtectionValue == 0)
             {
                 lockedRange = null;
                 return;
@@ -52,6 +54,24 @@ namespace Antmicro.Renode.Peripherals.SPI
             var protectedSize = Math.Min(sectorSize * protectedSectorCount, UnderlyingMemory.Size);
             var start = topBottom.Value ? 0 : UnderlyingMemory.Size - protectedSize;
             lockedRange = new Range((ulong)start, (ulong)protectedSize);
+        }
+
+        protected override void WriteToMemory(byte val)
+        {
+            if (currentOperation.ExecutionAddress + currentOperation.CommandBytesHandled > underlyingMemory.Size)
+            {
+                this.Log(LogLevel.Error, "Cannot write to address 0x{0:X} because it is bigger than configured memory size.", currentOperation.ExecutionAddress);
+                return;
+            }
+
+            var position = currentOperation.ExecutionAddress + currentOperation.CommandBytesHandled;
+            if (lockedRange.HasValue && lockedRange.Value.Contains((ulong)position))
+            {
+                this.Log(LogLevel.Error, "Cannot write to address 0x{0:X} because it is in the locked range", position);
+                return;
+            }
+            var currentVal = underlyingMemory.ReadByte(position);
+            underlyingMemory.WriteByte(position, (byte)(val & currentVal));
         }
 
         private readonly IFlagRegisterField topBottom;
