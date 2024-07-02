@@ -44,6 +44,13 @@
     }
 
     var virtualRegisters = new HashSet<string> { "PC" };
+
+    var OVERRIDE = "";
+
+    if(OVERRIDE_DEFINITIONS)
+    {
+        OVERRIDE = "override ";
+    }
 #>
 /********************************************************
 *
@@ -72,7 +79,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         .Distinct()
         .ToArray();
 #>
-        public override void SetRegister(int register, RegisterValue value)
+        public <#=OVERRIDE#>void SetRegister(int register, RegisterValue value)
         {
             if(!mapping.TryGetValue((<#=CLASS_NAME#>Registers)register, out var r))
             {
@@ -131,7 +138,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 #>
         }
 
-        public override RegisterValue GetRegister(int register)
+        public <#=OVERRIDE#>RegisterValue GetRegister(int register)
         {
             if(!mapping.TryGetValue((<#=CLASS_NAME#>Registers)register, out var r))
             {
@@ -177,7 +184,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 #>
         }
 
-        public override IEnumerable<CPURegister> GetRegisters()
+        public <#=OVERRIDE#>IEnumerable<CPURegister> GetRegisters()
         {
 <#
     if(FALLBACK_REGISTERS != null)
@@ -246,7 +253,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     }
 #>
 
-        protected override void InitializeRegisters()
+        protected <#=OVERRIDE#>void InitializeRegisters()
         {
 <#
     if(REGISTERS_FROM_BASE_CLASS.Count > 0)
