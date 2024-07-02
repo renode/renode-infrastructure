@@ -1315,6 +1315,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             methods.Tag = tag;
 
             var customAccessMethods = new Dictionary<Tuple<BusAccess.Method, BusAccess.Operation>, MethodInfo>();
+            bool noRegion = true;
             foreach(var method in peripheral.GetType().GetMethods())
             {
                 Type signature = null;
@@ -1340,6 +1341,12 @@ namespace Antmicro.Renode.Peripherals.Bus
 
                 customAccessMethods[tuple] = method;
                 methods.SetMethod(method, peripheral, accessOperation, accessMethod);
+                noRegion = false;
+            }
+
+            if(noRegion)
+            {
+                throw new RegistrationException($"No region \"{tag}\" is available for {peripheral}.");
             }
 
             FillAccessMethodsWithDefaultMethods(peripheral, ref methods);
