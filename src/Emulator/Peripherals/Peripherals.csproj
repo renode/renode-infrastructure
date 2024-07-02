@@ -579,7 +579,7 @@
     <Compile Include="Peripherals\Sensors\AS6221.cs" />
     <Compile Include="Peripherals\Sensors\MAX77818.cs" />
     <Compile Include="Peripherals\I2C\LC709205F.cs" />
-    <Compile Include="Peripherals\CRC\STM32F0_CRC.cs" />
+    <Compile Include="Peripherals\CRC\STM32_CRCBase.cs" />
     <Compile Include="Peripherals\CRC\STM32F4_CRC.cs" />
     <Compile Include="Peripherals\MTD\STM32L0_FlashController.cs" />
     <Compile Include="Peripherals\MTD\STM32_FlashController.cs" />

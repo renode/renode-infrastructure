@@ -15,9 +15,9 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.CRC
 {
-    public class STM32F0_CRC : IBytePeripheral, IWordPeripheral, IDoubleWordPeripheral, IKnownSize
+    public class STM32_CRCBase : IBytePeripheral, IWordPeripheral, IDoubleWordPeripheral, IKnownSize
     {
-        public STM32F0_CRC(bool configurablePoly)
+        public STM32_CRCBase(bool configurablePoly)
         {
             this.configurablePoly = configurablePoly;
             var registersMap = new Dictionary<long, DoubleWordRegister>
