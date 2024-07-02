@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.CRC
 {
     public class STM32_CRCBase : IBytePeripheral, IWordPeripheral, IDoubleWordPeripheral, IKnownSize
     {
-        public STM32_CRCBase(bool configurablePoly)
+        public STM32_CRCBase(bool configurablePoly, IndependentDataWidth independentDataWidth)
         {
             this.configurablePoly = configurablePoly;
             var registersMap = new Dictionary<long, DoubleWordRegister>
@@ -31,10 +31,6 @@ namespace Antmicro.Renode.Peripherals.CRC
                         },
                         valueProviderCallback: _ => CRC.Value
                     )
-                },
-                {(long)Registers.IndependentData, new DoubleWordRegister(this)
-                    .WithTag("CRC_IDR", 0, 8)
-                    .WithReservedBits(8, 24)
                 },
                 {(long)Registers.Control, new DoubleWordRegister(this)
                     .WithFlag(0, FieldMode.Read | FieldMode.WriteOneToClear,
@@ -58,6 +54,20 @@ namespace Antmicro.Renode.Peripherals.CRC
                     .WithWriteCallback((_, __) => { crcConfigDirty = true; })
                 }
             };
+
+            if(independentDataWidth == IndependentDataWidth.Bits8)
+            {
+                registersMap.Add((long)Registers.IndependentData,
+                    new DoubleWordRegister(this)
+                        .WithTag("CRC_IDR", 0, 8)
+                        .WithReservedBits(8, 24));
+            }
+            else if(independentDataWidth == IndependentDataWidth.Bits32)
+            {
+                registersMap.Add((long)Registers.IndependentData,
+                    new DoubleWordRegister(this)
+                        .WithTag("CRC_IDR", 0, 32));
+            }
 
             registers = new DoubleWordRegisterCollection(this, registersMap);
         }
@@ -115,6 +125,12 @@ namespace Antmicro.Renode.Peripherals.CRC
         }
 
         public long Size => 0x400;
+
+        public enum IndependentDataWidth
+        {
+            Bits8 = 0,
+            Bits32 = 1
+        }
 
         private static int PolySizeToCRCWidth(PolySize poly)
         {
