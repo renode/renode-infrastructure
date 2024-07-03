@@ -24,15 +24,15 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithTaggedFlag("QE (Quad Enable)", 6)
                 .WithTaggedFlag("SRWD (Status register write protect)", 7);
 
-           configurationRegister
-               .WithReservedBits(0, 3)
-               .WithFlag(3, out topBottom, name: "TB (top/bottom selected)")
-               .WithReservedBits(4, 2)
-               .WithTaggedFlag("DC (Dummy Cycle)", 6)
-               .WithReservedBits(7, 1)
-               .WithReservedBits(8, 1)
-               .WithTaggedFlag("L/H Switch", 9)
-               .WithReservedBits(10, 6);
+            configurationRegister
+                .WithReservedBits(0, 3)
+                .WithFlag(3, out topBottom, name: "TB (top/bottom selected)")
+                .WithReservedBits(4, 2)
+                .WithTaggedFlag("DC (Dummy Cycle)", 6)
+                .WithReservedBits(7, 1)
+                .WithReservedBits(8, 1)
+                .WithTaggedFlag("L/H Switch", 9)
+                .WithReservedBits(10, 6);
         }
 
         private void UpdateLockedRange(uint blockProtectionValue)
