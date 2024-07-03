@@ -87,7 +87,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
             if(enable)
             { 
-                BuldMissingAccesses(endianess);
+                BuildMissingAccesses(endianess);
             }
             else
             {
@@ -104,7 +104,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             AllTranslationsEnabled = enable;
         }
 
-        private void BuldMissingAccesses(Endianess endianess)
+        private void BuildMissingAccesses(Endianess endianess)
         {
             DebugHelper.Assert(!(ReadByte.Target is HookWrapper));
 
