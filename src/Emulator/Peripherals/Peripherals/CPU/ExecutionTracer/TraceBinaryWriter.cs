@@ -180,7 +180,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private readonly int pcWidth;
 
         private const string FormatSignature = "ReTrace";
-        private const byte FormatVersion = 3;
+        private const byte FormatVersion = 4;
 
         private const int CacheSize = 100000;
         private const int BufferSize = 10000;

@@ -22,6 +22,8 @@ using Antmicro.Renode.Network;
 using System.Diagnostics;
 using Antmicro.Renode.Core.Structure.Registers;
 using System.Threading;
+using Antmicro.Renode.Peripherals.CPU;
+using Antmicro.Renode.Logging.Profiling;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -1755,6 +1757,23 @@ namespace Antmicro.Renode.Utilities
             if(condition)
             {
                 collection.Add(item);
+            }
+        }
+
+        public static MpuAccess MemoryOperationToMpuAccess(MemoryOperation operation)
+        {
+            switch(operation)
+            {
+                case MemoryOperation.InsnFetch:
+                    return MpuAccess.InstructionFetch;
+                case MemoryOperation.MemoryIOWrite:
+                case MemoryOperation.MemoryWrite:
+                    return MpuAccess.Write;
+                case MemoryOperation.MemoryIORead:
+                case MemoryOperation.MemoryRead:
+                    return MpuAccess.Read;
+                default:
+                    throw new ArgumentException("Invalid conversion from MemoryOperation to MpuAccess");
             }
         }
 

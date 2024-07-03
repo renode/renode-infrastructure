@@ -249,7 +249,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                 .WithValueField(0, 16, FieldMode.Read, valueProviderCallback: _ => (uint)(underlyingFlash.Size / 1024), name: "F_SIZE");
         }
 
-        private void EraseMemoryAccessHook(ulong pc, MemoryOperation operation, ulong address, ulong value)
+        private void EraseMemoryAccessHook(ulong pc, MemoryOperation operation, ulong virtualAddress, ulong physicalAddress, ulong value)
         {
             // Only write accesses can be used to erase
             if(operation != MemoryOperation.MemoryWrite && operation != MemoryOperation.MemoryIOWrite)
@@ -258,13 +258,13 @@ namespace Antmicro.Renode.Peripherals.MTD
             }
 
             // Only accesses to our underlying flash or EEPROM peripheral can be used to erase
-            var registered = machine.SystemBus.WhatIsAt(address);
+            var registered = machine.SystemBus.WhatIsAt(physicalAddress);
             if(registered == null)
             {
                 return;
             }
 
-            var offset = address - registered.RegistrationPoint.Range.StartAddress;
+            var offset = physicalAddress - registered.RegistrationPoint.Range.StartAddress;
             if(registered.Peripheral == underlyingFlash)
             {
                 // Program memory must be selected
@@ -310,7 +310,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                 return;
             }
 
-            Action<ulong, MemoryOperation, ulong, ulong> hook = EraseMemoryAccessHook;
+            Action<ulong, MemoryOperation, ulong, ulong, ulong> hook = EraseMemoryAccessHook;
             cpu.SetHookAtMemoryAccess(enabled ? hook : null);
         }
 

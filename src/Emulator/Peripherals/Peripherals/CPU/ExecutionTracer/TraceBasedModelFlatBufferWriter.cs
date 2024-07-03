@@ -142,7 +142,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 {
                     case AdditionalDataType.MemoryAccess:
                         var type = (additionalDataEntry as MemoryAccessAdditionalData).OperationType;
-                        var address = (additionalDataEntry as MemoryAccessAdditionalData).OperationTarget;
+                        var address = (additionalDataEntry as MemoryAccessAdditionalData).OperationTargetVirtual;
                         switch(type)
                         {
                             case MemoryOperation.MemoryWrite:

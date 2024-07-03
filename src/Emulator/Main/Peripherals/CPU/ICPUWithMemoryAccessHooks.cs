@@ -11,7 +11,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public interface ICPUWithMemoryAccessHooks : ICPU
     {
-        void SetHookAtMemoryAccess(Action<ulong, MemoryOperation, ulong, ulong> hook);
+        // The arguments to a hook have the following meaning:
+        // <ulong virtualPC, MemoryOperation operation, ulong virtualAddress, ulong physicalAddress, ulong value>
+        void SetHookAtMemoryAccess(Action<ulong, MemoryOperation, ulong, ulong, ulong> hook);
     }
 }
 

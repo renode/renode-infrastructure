@@ -502,7 +502,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public void SetHookAtMemoryAccess(Action<ulong, MemoryOperation, ulong, ulong> hook)
+        public void SetHookAtMemoryAccess(Action<ulong, MemoryOperation, ulong, ulong, ulong> hook)
         {
             TlibOnMemoryAccessEventEnabled(hook != null ? 1 : 0);
             memoryAccessHook = hook;
@@ -1013,9 +1013,15 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        private void OnMemoryAccess(ulong pc, uint operation, ulong address, ulong value)
+        private void OnMemoryAccess(ulong pc, uint operation, ulong virtualAddress, ulong value)
         {
-            memoryAccessHook?.Invoke(pc, (MemoryOperation)operation, address, value);
+            var physicalAddress = TranslateAddress(virtualAddress, Misc.MemoryOperationToMpuAccess((MemoryOperation)operation));
+            if(physicalAddress == ulong.MaxValue)
+            {
+                // Translation failed. Assume no translation.
+                physicalAddress = virtualAddress;
+            }
+            memoryAccessHook?.Invoke(pc, (MemoryOperation)operation, virtualAddress, physicalAddress, value);
         }
 
         [Export]
@@ -1418,7 +1424,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private Action<ulong> interruptBeginHook;
         private Action<ulong> interruptEndHook;
         private Action<ulong, AccessType, int> mmuFaultHook;
-        private Action<ulong, MemoryOperation, ulong, ulong> memoryAccessHook;
+        private Action<ulong, MemoryOperation, ulong, ulong, ulong> memoryAccessHook;
         private Action<bool> wfiStateChangeHook;
 
         private List<SegmentMapping> currentMappings;
@@ -2128,13 +2134,13 @@ namespace Antmicro.Renode.Peripherals.CPU
                 machine.Profiler.Log(new ExceptionEntry(exceptionIndex));
             });
 
-            SetHookAtMemoryAccess((_, operation, address, value) =>
+            SetHookAtMemoryAccess((_, operation, __, physicalAddress, value) =>
             {
                 switch(operation)
                 {
                     case MemoryOperation.MemoryIORead:
                     case MemoryOperation.MemoryIOWrite:
-                        machine.Profiler?.Log(new PeripheralEntry((byte)operation, address));
+                        machine.Profiler?.Log(new PeripheralEntry((byte)operation, physicalAddress));
                         break;
                     case MemoryOperation.MemoryRead:
                     case MemoryOperation.MemoryWrite:

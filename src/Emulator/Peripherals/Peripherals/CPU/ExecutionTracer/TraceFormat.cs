@@ -41,30 +41,38 @@ namespace Antmicro.Renode.Peripherals.CPU
 
     public class MemoryAccessAdditionalData : AdditionalData
     {
-        public MemoryAccessAdditionalData(ulong pc, MemoryOperation operationType, ulong operationTarget, ulong operationValue) : base(pc, AdditionalDataType.MemoryAccess)
+        public MemoryAccessAdditionalData(ulong pc, MemoryOperation operationType, ulong operationTargetVirtual, ulong operationTargetPhysical, ulong operationValue) : base(pc, AdditionalDataType.MemoryAccess)
         {
             this.OperationType = operationType;
-            this.OperationTarget = operationTarget;
+            this.OperationTargetVirtual = operationTargetVirtual;
+            this.OperationTargetPhysical = operationTargetPhysical;
             this.OperationValue = operationValue;
         }
 
         public override string GetStringRepresentation()
         {
-            return $"{OperationType} with address 0x{OperationTarget:X}, value 0x{OperationValue:X}";
+            if(OperationTargetVirtual == OperationTargetPhysical)
+            {
+                return $"{OperationType} with address 0x{OperationTargetVirtual:X}, value 0x{OperationValue:X}";
+            }
+            else
+            {
+                return $"{OperationType} with address 0x{OperationTargetVirtual:X} => 0x{OperationTargetPhysical:X}, value 0x{OperationValue:X}";
+            }
         }
 
         public override byte[] GetBinaryRepresentation()
         {
             /* 
               [0] = [operationType]
-              [1] = [operationTarget 63:56]
-              [2] = [operationTarget 55:48]
-              [3] = [operationTarget 47:40]
-              [4] = [operationTarget 39:32]
-              [5] = [operationTarget 31:24]
-              [6] = [operationTarget 23:16]
-              [7] = [operationTarget 15:8]
-              [8] = [operationTarget 7:0]
+              [1] = [operationTargetVirtual 63:56]
+              [2] = [operationTargetVirtual 55:48]
+              [3] = [operationTargetVirtual 47:40]
+              [4] = [operationTargetVirtual 39:32]
+              [5] = [operationTargetVirtual 31:24]
+              [6] = [operationTargetVirtual 23:16]
+              [7] = [operationTargetVirtual 15:8]
+              [8] = [operationTargetVirtual 7:0]
               [9] = [operationValue 63:56]
               [10] = [operationValue 55:48]
               [11] = [operationValue 47:40]
@@ -73,16 +81,27 @@ namespace Antmicro.Renode.Peripherals.CPU
               [14] = [operationValue 23:16]
               [15] = [operationValue 15:8]
               [16] = [operationValue 7:0]
+              [17] = [operationTargetPhysical 63:56]
+              [18] = [operationTargetPhysical 55:48]
+              [19] = [operationTargetPhysical 47:40]
+              [20] = [operationTargetPhysical 39:32]
+              [21] = [operationTargetPhysical 31:24]
+              [22] = [operationTargetPhysical 23:16]
+              [23] = [operationTargetPhysical 15:8]
+              [24] = [operationTargetPhysical 7:0]
             */
-            var byteLength = sizeof(ulong) + sizeof(ulong) + 1;
+            var byteLength = sizeof(ulong) + sizeof(ulong) + sizeof(ulong) + 1;
             var output = new byte[byteLength];
             output[0] = (byte)OperationType;
-            BitHelper.GetBytesFromValue(output, 1, OperationTarget, sizeof(ulong), true);
+            BitHelper.GetBytesFromValue(output, 1, OperationTargetVirtual, sizeof(ulong), true);
             BitHelper.GetBytesFromValue(output, 9, OperationValue, sizeof(ulong), true);
+            BitHelper.GetBytesFromValue(output, 17, OperationTargetPhysical, sizeof(ulong), true);
+
             return output;
         }
 
-        public ulong OperationTarget { get; }
+        public ulong OperationTargetVirtual { get; }
+        public ulong OperationTargetPhysical { get; }
         public ulong OperationValue { get; }
         public MemoryOperation OperationType { get; }
     }

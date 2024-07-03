@@ -151,11 +151,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 throw new RecoverableException("This feature is not yet available on the X86 platforms.");
             }
-            AttachedCPU.SetHookAtMemoryAccess((pc, operation, address, value) =>
+            AttachedCPU.SetHookAtMemoryAccess((pc, operation, virtualAddress, physicalAddress, value) =>
             {
                 if(operation != MemoryOperation.InsnFetch)
                 {
-                    currentAdditionalData.Enqueue(new MemoryAccessAdditionalData(pc, operation, address, value));
+                    currentAdditionalData.Enqueue(new MemoryAccessAdditionalData(pc, operation, virtualAddress, physicalAddress, value));
                 }
             });
         }
