@@ -186,16 +186,22 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
 
             var translatedAddress = AttachedCPU.TranslateAddress(pc, MpuAccess.InstructionFetch);
+            ulong pcPhysical;
             if(translatedAddress != ulong.MaxValue)
             {
-                pc = translatedAddress;
+                pcPhysical = translatedAddress;
+            }
+            else
+            {
+                pcPhysical = pc;
             }
 
             try
             {
                 blocks.Add(new Block
                 {
-                    FirstInstructionPC = pc,
+                    FirstInstructionPC = pcPhysical,
+                    FirstInstructionVirtualPC = pc,
                     InstructionsCount = instructionsInBlock,
                     DisassemblyFlags = AttachedCPU.CurrentBlockDisassemblyFlags,
                     AdditionalDataInTheBlock = currentAdditionalData,
@@ -226,6 +232,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         public struct Block
         {
             public ulong FirstInstructionPC;
+            public ulong FirstInstructionVirtualPC;
             public ulong InstructionsCount;
             public uint DisassemblyFlags;
             public Queue<AdditionalData> AdditionalDataInTheBlock;

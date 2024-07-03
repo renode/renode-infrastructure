@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -30,6 +30,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         public override void Write(ExecutionTracer.Block block)
         {
             var pc = block.FirstInstructionPC;
+            var pcVirtual = block.FirstInstructionVirtualPC;
             var counter = 0;
             var hasAdditionalData = block.AdditionalDataInTheBlock.TryDequeue(out var nextAdditionalData);
 
@@ -41,7 +42,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
 
                 var additionalData = new List<AdditionalData>();
-                while(hasAdditionalData && (nextAdditionalData.PC == result.PC))
+                while(hasAdditionalData && (nextAdditionalData.PC == pcVirtual))
                 {
                     additionalData.Add(nextAdditionalData);
                     hasAdditionalData = block.AdditionalDataInTheBlock.TryDequeue(out nextAdditionalData);
@@ -52,6 +53,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 instructionsBuffer.Add(new InstructionTrace(result, opcode, additionalData));
 
                 pc += (ulong)result.OpcodeSize;
+                pcVirtual += (ulong)result.OpcodeSize;
                 counter++;
             }
             FlushBuffer();

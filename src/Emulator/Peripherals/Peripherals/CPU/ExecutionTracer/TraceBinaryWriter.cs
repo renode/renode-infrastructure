@@ -53,6 +53,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         public override void Write(ExecutionTracer.Block block)
         {
             var pc = block.FirstInstructionPC;
+            var pcVirtual = block.FirstInstructionVirtualPC;
             var counter = 0u;
     
             var hasAdditionalData = block.AdditionalDataInTheBlock.TryDequeue(out var insnAdditionalData);
@@ -82,7 +83,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     WriteByteToBuffer((byte)opcode.Length);
                     WriteBytesToBuffer(opcode);
                 }
-                while(hasAdditionalData && insnAdditionalData.PC == pc)
+                while(hasAdditionalData && insnAdditionalData.PC == pcVirtual)
                 {
                     WriteByteToBuffer((byte)insnAdditionalData.Type);
                     WriteBytesToBuffer(insnAdditionalData.GetBinaryRepresentation());
@@ -91,6 +92,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 WriteByteToBuffer((byte)AdditionalDataType.None);
 
                 pc += (ulong)opcode.Length;
+                pcVirtual += (ulong)opcode.Length;
                 counter++;
 
                 if(bufferPosition >= BufferFlushLevel)

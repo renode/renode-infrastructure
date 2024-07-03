@@ -35,6 +35,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         public override void Write(ExecutionTracer.Block block)
         {
             var pc = block.FirstInstructionPC;
+            var pcVirtual = block.FirstInstructionVirtualPC;
             var counter = 0;
             var hasAdditionalData = block.AdditionalDataInTheBlock.TryDequeue(out var nextAdditionalData);
 
@@ -74,12 +75,13 @@ namespace Antmicro.Renode.Peripherals.CPU
                             }
                             break;
                     }
-                    while(hasAdditionalData && (nextAdditionalData.PC == result.PC))
+                    while(hasAdditionalData && (nextAdditionalData.PC == pcVirtual))
                     {
                         stringBuilder.AppendFormat("{0}\n", nextAdditionalData.GetStringRepresentation());
                         hasAdditionalData = block.AdditionalDataInTheBlock.TryDequeue(out nextAdditionalData);
                     }
                     pc += (ulong)result.OpcodeSize;
+                    pcVirtual += (ulong)result.OpcodeSize;
                     counter++;
                 }
                 FlushIfNecessary();
