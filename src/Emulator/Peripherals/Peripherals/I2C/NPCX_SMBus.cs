@@ -220,6 +220,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                 // * in FIFO mode, either RX or TX threshold happened, and their respective interrupts aren't enabled
                 .WithFlag(6, out readyForTransaction, name: "SDAST (SDA Status)")
                 .WithTaggedFlag("SLVSTP (Slave Stop)", 7)
+                .WithWriteCallback((_, __) => UpdateInterrupts());
             ;
 
             Registers.ControlStatus.Define(this)
@@ -403,6 +404,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                 .WithValueField(0, 6, out rxFIFOThreshold, name: "RX_THR (Rx-FIFO Threshold)")
                 .WithFlag(6, out rxFIFOThresholdInterrupt, name: "THR_RXIE (Threshold Rx-FIFO Interrupt Enable)")
                 .WithFlag(7, out lastPacket, name: "LAST_PEC (Last Byte or PEC Byte)")
+                .WithWriteCallback((_, __) => UpdateInterrupts());
             ;
         }
 
