@@ -1667,7 +1667,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         var aff1 = (byte)affinity1.Value;
                         var aff2 = (byte)affinity2.Value;
                         var aff3 = (byte)affinity3.Value;
-                        list = BitHelper.GetSetBits(targetList.Value).Select(n => new Affinity((byte)(range + n), aff2, aff2, aff3)).ToArray();
+                        list = BitHelper.GetSetBits(targetList.Value).Select(n => new Affinity((byte)(range + n), aff1, aff2, aff3)).ToArray();
                     }
 
                     var interrupt = new SoftwareGeneratedInterruptRequest(targetType, list, getGroupType(), new InterruptId((uint)interruptID.Value));
