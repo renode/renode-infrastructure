@@ -32,21 +32,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
             using(SetLocalContext(context))
             {
-                ulong startAddress, endAddress;
-
-                var accessMethods = peripheralsCollectionByContext[null].FindAccessMethods(address, out startAddress, out endAddress);
-                if(accessMethods == null)
-                {
-                    if(context != null)
-                    {
-                        accessMethods = peripheralsCollectionByContext[context].FindAccessMethods(address, out startAddress, out endAddress);
-                    }
-                    else if(TryGetCurrentCPU(out var currentCPU))
-                    {
-                        accessMethods = peripheralsCollectionByContext[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
-                    }
-                }
-                if(accessMethods == null)
+                if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress))
                 {
                     return (byte)ReportNonExistingRead(address, accessWidth);
                 }
@@ -90,21 +76,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
             using(SetLocalContext(context))
             {
-                ulong startAddress, endAddress;
-
-                var accessMethods = peripheralsCollectionByContext[null].FindAccessMethods(address, out startAddress, out endAddress);
-                if(accessMethods == null)
-                {
-                    if(context != null)
-                    {
-                        accessMethods = peripheralsCollectionByContext[context].FindAccessMethods(address, out startAddress, out endAddress);
-                    }
-                    else if(TryGetCurrentCPU(out var currentCPU))
-                    {
-                        accessMethods = peripheralsCollectionByContext[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
-                    }
-                }
-                if(accessMethods == null)
+                if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress))
                 {
                     ReportNonExistingWrite(address, value, accessWidth);
                     return;
@@ -150,21 +122,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
             using(SetLocalContext(context))
             {
-                ulong startAddress, endAddress;
-
-                var accessMethods = peripheralsCollectionByContext[null].FindAccessMethods(address, out startAddress, out endAddress);
-                if(accessMethods == null)
-                {
-                    if(context != null)
-                    {
-                        accessMethods = peripheralsCollectionByContext[context].FindAccessMethods(address, out startAddress, out endAddress);
-                    }
-                    else if(TryGetCurrentCPU(out var currentCPU))
-                    {
-                        accessMethods = peripheralsCollectionByContext[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
-                    }
-                }
-                if(accessMethods == null)
+                if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress))
                 {
                     return (ushort)ReportNonExistingRead(address, accessWidth);
                 }
@@ -208,21 +166,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
             using(SetLocalContext(context))
             {
-                ulong startAddress, endAddress;
-
-                var accessMethods = peripheralsCollectionByContext[null].FindAccessMethods(address, out startAddress, out endAddress);
-                if(accessMethods == null)
-                {
-                    if(context != null)
-                    {
-                        accessMethods = peripheralsCollectionByContext[context].FindAccessMethods(address, out startAddress, out endAddress);
-                    }
-                    else if(TryGetCurrentCPU(out var currentCPU))
-                    {
-                        accessMethods = peripheralsCollectionByContext[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
-                    }
-                }
-                if(accessMethods == null)
+                if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress))
                 {
                     ReportNonExistingWrite(address, value, accessWidth);
                     return;
@@ -268,21 +212,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
             using(SetLocalContext(context))
             {
-                ulong startAddress, endAddress;
-
-                var accessMethods = peripheralsCollectionByContext[null].FindAccessMethods(address, out startAddress, out endAddress);
-                if(accessMethods == null)
-                {
-                    if(context != null)
-                    {
-                        accessMethods = peripheralsCollectionByContext[context].FindAccessMethods(address, out startAddress, out endAddress);
-                    }
-                    else if(TryGetCurrentCPU(out var currentCPU))
-                    {
-                        accessMethods = peripheralsCollectionByContext[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
-                    }
-                }
-                if(accessMethods == null)
+                if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress))
                 {
                     return (uint)ReportNonExistingRead(address, accessWidth);
                 }
@@ -326,21 +256,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
             using(SetLocalContext(context))
             {
-                ulong startAddress, endAddress;
-
-                var accessMethods = peripheralsCollectionByContext[null].FindAccessMethods(address, out startAddress, out endAddress);
-                if(accessMethods == null)
-                {
-                    if(context != null)
-                    {
-                        accessMethods = peripheralsCollectionByContext[context].FindAccessMethods(address, out startAddress, out endAddress);
-                    }
-                    else if(TryGetCurrentCPU(out var currentCPU))
-                    {
-                        accessMethods = peripheralsCollectionByContext[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
-                    }
-                }
-                if(accessMethods == null)
+                if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress))
                 {
                     ReportNonExistingWrite(address, value, accessWidth);
                     return;
@@ -386,21 +302,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
             using(SetLocalContext(context))
             {
-                ulong startAddress, endAddress;
-
-                var accessMethods = peripheralsCollectionByContext[null].FindAccessMethods(address, out startAddress, out endAddress);
-                if(accessMethods == null)
-                {
-                    if(context != null)
-                    {
-                        accessMethods = peripheralsCollectionByContext[context].FindAccessMethods(address, out startAddress, out endAddress);
-                    }
-                    else if(TryGetCurrentCPU(out var currentCPU))
-                    {
-                        accessMethods = peripheralsCollectionByContext[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
-                    }
-                }
-                if(accessMethods == null)
+                if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress))
                 {
                     return (ulong)ReportNonExistingRead(address, accessWidth);
                 }
@@ -444,21 +346,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
             using(SetLocalContext(context))
             {
-                ulong startAddress, endAddress;
-
-                var accessMethods = peripheralsCollectionByContext[null].FindAccessMethods(address, out startAddress, out endAddress);
-                if(accessMethods == null)
-                {
-                    if(context != null)
-                    {
-                        accessMethods = peripheralsCollectionByContext[context].FindAccessMethods(address, out startAddress, out endAddress);
-                    }
-                    else if(TryGetCurrentCPU(out var currentCPU))
-                    {
-                        accessMethods = peripheralsCollectionByContext[currentCPU].FindAccessMethods(address, out startAddress, out endAddress);
-                    }
-                }
-                if(accessMethods == null)
+                if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress))
                 {
                     ReportNonExistingWrite(address, value, accessWidth);
                     return;
@@ -581,6 +469,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 return;
             }
         }
+
         public void ClearHookBeforePeripheralWrite<T>(IBusPeripheral peripheral)
         {
             SetHookBeforePeripheralWrite<T>(peripheral, null);
@@ -669,6 +558,20 @@ namespace Antmicro.Renode.Peripherals.Bus
                 }
                 return;
             }
+        }
+
+        private bool TryFindPeripheralAccessMethods(ulong address, ICPU context, out PeripheralAccessMethods accessMethods, out ulong startAddress)
+        {
+            if(context != null || TryGetCurrentCPU(out context))
+            {
+                accessMethods = peripheralsCollectionByContext[context].FindAccessMethods(address, out startAddress, out var _);
+                if(accessMethods != null)
+                {
+                    return true;
+                }
+            }
+            accessMethods = peripheralsCollectionByContext[null].FindAccessMethods(address, out startAddress, out _);
+            return accessMethods != null;
         }
     }
 }
