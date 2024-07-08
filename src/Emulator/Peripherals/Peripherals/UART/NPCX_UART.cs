@@ -40,9 +40,6 @@ namespace Antmicro.Renode.Peripherals.UART
             divisor = 1;
             rxFullLevelSelect = 1;
 
-            rxNonEmptyInterruptEnable = false;
-            rxFullLevelInterruptEnable = false;
-
             base.Reset();
             RegistersCollection.Reset();
             IRQ.Unset();
@@ -111,8 +108,8 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private void UpdateInterrupts()
         {
-            var rxNonEmpty = rxNonEmptyInterruptEnable && Count != 0;
-            var rxFullLevel = rxFullLevelInterruptEnable && RxFullLevelStatus;
+            var rxNonEmpty = rxNonEmptyInterruptEnable.Value && Count != 0;
+            var rxFullLevel = rxFullLevelInterruptEnable.Value && RxFullLevelStatus;
 
             var status = rxNonEmpty || rxFullLevel || transmitFifoEmptyInterruptEnable.Value || noTransmitInProgressInterruptEnable.Value;
             this.Log(LogLevel.Noisy, "IRQ set to {0}", status);
@@ -223,14 +220,8 @@ namespace Antmicro.Renode.Peripherals.UART
                 },
                 {(long)Registers.ReceiveControl, new ByteRegister(this)
                     .WithTaggedFlag("ERR_EN (Receive Error Interrupt Enable)", 7)
-                    .WithFlag(6, name: "RFIFO_NEMPTY_EN (Receive FIFO Not Empty Status Interrupt Enable)",
-                        valueProviderCallback: _ => rxNonEmptyInterruptEnable,
-                        writeCallback: (_, val) => rxNonEmptyInterruptEnable = val
-                    )
-                    .WithFlag(5, name: "RFULL_LEVEL_EN (Receive FIFO Full Level Status Interrupt Enable)",
-                        valueProviderCallback: _ => rxFullLevelInterruptEnable,
-                        writeCallback: (_, val) => rxFullLevelInterruptEnable = val
-                    )
+                    .WithFlag(6, out rxNonEmptyInterruptEnable, name: "RFIFO_NEMPTY_EN (Receive FIFO Not Empty Status Interrupt Enable)")
+                    .WithFlag(5, out rxFullLevelInterruptEnable, name: "RFULL_LEVEL_EN (Receive FIFO Full Level Status Interrupt Enable)")
                     .WithValueField(0, 5, name: "RFULL_LEVEL_SEL (Receive FIFO Full Level Select)",
                         valueProviderCallback: _ => (ulong)rxFullLevelSelect,
                         writeCallback: (_, val) => rxFullLevelSelect = (int)val
@@ -263,8 +254,8 @@ namespace Antmicro.Renode.Peripherals.UART
         private uint divisor;
         private int rxFullLevelSelect;
 
-        private bool rxNonEmptyInterruptEnable;
-        private bool rxFullLevelInterruptEnable;
+        private IFlagRegisterField rxNonEmptyInterruptEnable;
+        private IFlagRegisterField rxFullLevelInterruptEnable;
         private IFlagRegisterField noTransmitInProgressInterruptEnable;
         private IFlagRegisterField transmitFifoEmptyInterruptEnable;
 
