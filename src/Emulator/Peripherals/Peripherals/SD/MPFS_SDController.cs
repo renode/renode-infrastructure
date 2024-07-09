@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -292,6 +292,10 @@ namespace Antmicro.Renode.Peripherals.SD
                 .WithFlag(16, FieldMode.Read, name: "Card Inserted (CI)", valueProviderCallback: _ => RegisteredPeripheral != null)
                 .WithFlag(17, FieldMode.Read, name: "Card State Stable (CSS)", valueProviderCallback: _ => true)
                 .WithFlag(18, FieldMode.Read, name: "Card Detect Pin Level (CDSL)", valueProviderCallback: _ => RegisteredPeripheral != null)
+                .WithFlag(20, FieldMode.Read, name: "Line Signal Level (DATSL1 - DAT[0])", valueProviderCallback: _ => true)
+                .WithFlag(21, FieldMode.Read, name: "Line Signal Level (DATSL1 - DAT[1])", valueProviderCallback: _ => true)
+                .WithFlag(22, FieldMode.Read, name: "Line Signal Level (DATSL1 - DAT[2])", valueProviderCallback: _ => true)
+                .WithFlag(23, FieldMode.Read, name: "Line Signal Level (DATSL1 - DAT[3])", valueProviderCallback: _ => true)
             ;
 
             Registers.HostControl2_SRS11.Define(this)
