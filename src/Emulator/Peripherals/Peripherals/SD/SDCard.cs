@@ -80,6 +80,7 @@ namespace Antmicro.Renode.Peripherals.SD
             if(!highCapacityMode)
             {
                 cardSpecificDataGenerator = new VariableLengthValue(128)
+                    .DefineFragment(22, 4, (ulong)sdCapacityParameters.BlockSize, name: "max write data block length")
                     .DefineFragment(47, 3, (uint)sdCapacityParameters.Multiplier, name: "device size multiplier")
                     .DefineFragment(62, 12, (ulong)sdCapacityParameters.DeviceSize, name: "device size")
                     .DefineFragment(80, 4, (uint)sdCapacityParameters.BlockSize, name: "max read data block length")
@@ -96,6 +97,7 @@ namespace Antmicro.Renode.Peripherals.SD
             else
             {
                 cardSpecificDataGenerator = new VariableLengthValue(128)
+                    .DefineFragment(22, 4, (ulong)sdCapacityParameters.BlockSize, name: "max write data block length")
                     .DefineFragment(48, 22, (ulong)sdCapacityParameters.DeviceSize, name: "device size")
                     .DefineFragment(80, 4, (uint)sdCapacityParameters.BlockSize, name: "max read data block length")
                     .DefineFragment(84, 12, (uint)(
