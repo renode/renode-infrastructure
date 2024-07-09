@@ -330,6 +330,8 @@ namespace Antmicro.Renode.Peripherals.SD
                 .WithFlag(7, FieldMode.Read, valueProviderCallback: _ => true, name: "Timeout clock unit (TCU)")
                 .WithValueField(8, 8, FieldMode.Read, valueProviderCallback: _ => 1, name: "Base Clock Frequency For SD Clock (BCSDCLK)")
                 .WithFlag(24, FieldMode.Read, valueProviderCallback: _ => true, name: "Voltage Support 3.3V (VS33)")
+                .WithFlag(25, FieldMode.Read, valueProviderCallback: _ => true, name: "Voltage Support 3.0V (VS30)")
+                .WithFlag(26, FieldMode.Read, valueProviderCallback: _ => true, name: "Voltage Support 1.8V (VS18)")
             ;
 
             Registers.DmaSystemAddressLow_SRS22.Define(this)
