@@ -50,7 +50,6 @@ namespace Antmicro.Renode.Storage.VirtIO
                 Array.Copy(readData, 0, data, (int)readLen, toRead);
                 readLen += toRead;
 
-                BytesProcessed += Descriptor.Length;
                 var nextFlag = TrySetNextIndex();
                 parent.Log(LogLevel.Debug, "Next flag: {0}", nextFlag);
                 if(!nextFlag)
@@ -84,7 +83,7 @@ namespace Antmicro.Renode.Storage.VirtIO
                 Array.Copy(data, toWrite, dataLeft, 0, dataLeft.Length);
                 data = dataLeft;
 
-                BytesProcessed += Descriptor.Length;
+                BytesWritten += Descriptor.Length;
                 parent.Log(LogLevel.Debug, "Wrote {0} bytes", toWrite);
                 if(!TrySetNextIndex())
                 {
@@ -110,14 +109,14 @@ namespace Antmicro.Renode.Storage.VirtIO
             // Source: https://docs.oasis-open.org/virtio/virtio/v1.1/csprd01/virtio-v1.1-csprd01.html#x1-5300013
             while(AvailableIndexFromDriver < idx)
             {
-                BytesProcessed = 0;
+                BytesWritten = 0;
                 var descriptor = ReadDescriptorFromAvail();
                 DescriptorIndex = descriptor.Item1;
 
                 if(!parent.ProcessChain(this))
                 {
                     parent.Log(LogLevel.Error, "Error processing virtqueue requests");
-                    BytesProcessed = 0;
+                    BytesWritten = 0;
                     return;
                 }
                 WriteVirtqueueUsed(descriptor.Item1, descriptor.Item2);
@@ -137,7 +136,7 @@ namespace Antmicro.Renode.Storage.VirtIO
             UsedIndexForDriver++;
             parent.SystemBus.WriteWord(UsedAddress + (ulong)UsedAndAvailable.Flags, 0);
             parent.SystemBus.WriteDoubleWord(ringAddress + (ulong)UsedRing.Index, (uint)chainFirstIndex);
-            parent.SystemBus.WriteDoubleWord(ringAddress + (ulong)UsedRing.Length, (uint)BytesProcessed);
+            parent.SystemBus.WriteDoubleWord(ringAddress + (ulong)UsedRing.Length, (uint)BytesWritten);
             parent.SystemBus.WriteWord(UsedAddress + (ulong)UsedAndAvailable.Index, (ushort)UsedIndexForDriver);
             if(!noInterruptOnUsed)
             {
@@ -179,7 +178,7 @@ namespace Antmicro.Renode.Storage.VirtIO
         public bool IsReady { get; set; }
         public bool IsReset { get; set; }
         public DescriptorMetadata Descriptor { get; set; }
-        public int BytesProcessed { get; set; }
+        public int BytesWritten { get; set; }
 
         public readonly uint maxSize;
 
