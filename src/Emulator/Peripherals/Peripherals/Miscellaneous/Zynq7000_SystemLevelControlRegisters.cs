@@ -46,6 +46,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Registers.SDIORefClockControl.Define(this).WithValueField(0, 32, FieldMode.Read, valueProviderCallback: (_) => 0x00001E03);
             Registers.GigE0RefClockControl.Define(this).WithValueField(0, 32, FieldMode.Read, valueProviderCallback: (_) => 0x00003C01);
             Registers.CPUClockRatioModeSelect.Define(this).WithValueField(0, 32, FieldMode.Read, valueProviderCallback: (_) => 1);
+            Registers.UARTRefClockControl.Define(this).WithValueField(0, 32, FieldMode.Read, valueProviderCallback: (_) => 0x3F03);
 
             Registers.WriteProtectionLock.Define(this)
                 .WithReservedBits(16, 16)
