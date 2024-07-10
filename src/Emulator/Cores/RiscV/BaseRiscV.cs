@@ -27,8 +27,22 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public abstract class BaseRiscV : TranslationCPU, IPeripheralContainer<ICFU, NumberRegistrationPoint<int>>, IPeripheralContainer<IIndirectCSRPeripheral, BusRangeRegistration>, ICPUWithPostOpcodeExecutionHooks, ICPUWithPostGprAccessHooks, ICPUWithNMI
     {
-        protected BaseRiscV(IRiscVTimeProvider timeProvider, uint hartId, string cpuType, IMachine machine, PrivilegedArchitecture privilegedArchitecture, Endianess endianness, CpuBitness bitness, ulong? nmiVectorAddress = null, uint? nmiVectorLength = null, bool allowUnalignedAccesses = false, InterruptMode interruptMode = InterruptMode.Auto, uint minimalPmpNapotInBytes = 8)
-                : base(hartId, cpuType, machine, endianness, bitness)
+        protected BaseRiscV(
+            IRiscVTimeProvider timeProvider,
+            uint hartId,
+            string cpuType,
+            IMachine machine,
+            PrivilegedArchitecture privilegedArchitecture,
+            Endianess endianness,
+            CpuBitness bitness,
+            ulong? nmiVectorAddress = null,
+            uint? nmiVectorLength = null,
+            bool allowUnalignedAccesses = false,
+            InterruptMode interruptMode = InterruptMode.Auto,
+            uint minimalPmpNapotInBytes = 8,
+            PrivilegeLevels privilegeLevels = PrivilegeLevels.MachineSupervisorUser
+        )
+            : base(hartId, cpuType, machine, endianness, bitness)
         {
             HartId = hartId;
             this.timeProvider = timeProvider;
@@ -48,7 +62,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             postOpcodeExecutionHooks = new List<Action<ulong>>();
             postGprAccessHooks = new Action<bool>[NumberOfGeneralPurposeRegisters];
 
-            architectureDecoder = new ArchitectureDecoder(machine, this, cpuType);
+            architectureDecoder = new ArchitectureDecoder(machine, this, cpuType, privilegeLevels);
             EnableArchitectureVariants();
 
             UpdateNMIVector();
@@ -1003,6 +1017,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             Vectored = 2
         }
 
+        public enum PrivilegeLevels
+        {
+            Machine,
+            MachineUser,
+            MachineSupervisorUser,
+        }
+
         protected void BeforeVectorExtensionRegisterRead()
         {
             AssertVectorExtension();
@@ -1026,7 +1047,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private class ArchitectureDecoder
         {
-            public ArchitectureDecoder(IMachine machine, BaseRiscV parent, string architectureString)
+            public ArchitectureDecoder(IMachine machine, BaseRiscV parent, string architectureString, PrivilegeLevels privilegeLevels)
             {
                 this.parent = parent;
                 this.machine = machine;
@@ -1034,6 +1055,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 standardExtensions = new List<StandardInstructionSetExtensions>();
 
                 Decode(architectureString);
+                DecodePrivilegeLevels(privilegeLevels);
             }
 
             public IEnumerable<InstructionSet> InstructionSets
@@ -1074,11 +1096,15 @@ namespace Antmicro.Renode.Peripherals.CPU
                         case 'F': instructionSets.Add(InstructionSet.F); break;
                         case 'D': instructionSets.Add(InstructionSet.D); break;
                         case 'C': instructionSets.Add(InstructionSet.C); break;
-                        case 'S': instructionSets.Add(InstructionSet.S); break;
-                        case 'U': instructionSets.Add(InstructionSet.U); break;
                         case 'V': instructionSets.Add(InstructionSet.V); break;
                         case 'B': instructionSets.Add(InstructionSet.B); break;
                         case 'G': instructionSets.Add(InstructionSet.G); break;
+                        case 'S':
+                        case 'U':
+                            parent.WarningLog("Enabling privilege level extension '{0}' using 'cpuType' is not supported. " +
+                                "Privilege levels should be specified using the 'privilegeLevels' constructor parameter. " +
+                                "Extension will not be enabled", set);
+                            break;
                         default:
                             throw new ConstructionException($"Undefined instruction set: {set}.");
                     }
@@ -1119,6 +1145,24 @@ namespace Antmicro.Renode.Peripherals.CPU
                     {
                         throw new ConstructionException($"Undefined instruction set extension: {extension}.");
                     }
+                }
+            }
+
+            private void DecodePrivilegeLevels(PrivilegeLevels privilegeLevels)
+            {
+                switch(privilegeLevels)
+                {
+                    case PrivilegeLevels.Machine:
+                        break; // Nothing to do
+                    case PrivilegeLevels.MachineUser:
+                        instructionSets.Add(InstructionSet.U);
+                        break;
+                    case PrivilegeLevels.MachineSupervisorUser:
+                        instructionSets.Add(InstructionSet.S);
+                        instructionSets.Add(InstructionSet.U);
+                        break;
+                    default:
+                        throw new Exception("Unreachable");
                 }
             }
 
