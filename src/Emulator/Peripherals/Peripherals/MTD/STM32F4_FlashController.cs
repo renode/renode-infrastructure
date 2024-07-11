@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -111,13 +111,13 @@ namespace Antmicro.Renode.Peripherals.MTD
 
             Registers.Control.Define(this)
                 .WithTaggedFlag("PG", 0)
-                .WithTaggedFlag("SER", 1)
-                .WithTaggedFlag("MER", 2)
-                .WithTag("SNB", 3, 4)
+                .WithFlag(1, out var sectorErase, name: "SER")
+                .WithFlag(2, out var massErase, name: "MER")
+                .WithValueField(3, 4, out var sectorNumber, name: "SNB")
                 .WithReservedBits(7, 1)
                 .WithTag("PSIZE", 8, 2)
                 .WithReservedBits(10, 6)
-                .WithTaggedFlag("STRT", 16)
+                .WithFlag(16, out var startErase, name: "STRT", mode: FieldMode.Read | FieldMode.Set, valueProviderCallback: _ => false)
                 .WithReservedBits(17, 7)
                 .WithTaggedFlag("EOPIE", 24)
                 .WithTaggedFlag("ERRIE", 25)
@@ -129,7 +129,14 @@ namespace Antmicro.Renode.Peripherals.MTD
                         {
                             controlLock.Lock();
                         }
-                    });
+                    })
+                .WithChangeCallback((_, __) => 
+                {
+                    if(startErase.Value)
+                    {
+                        Erase(massErase.Value, sectorErase.Value, (uint)sectorNumber.Value);
+                    }
+                });
 
             Registers.OptionControl.Define(this, 0xFFFAAED)
                 .WithFlag(0, FieldMode.Read | FieldMode.Set, name: "OPTLOCK", valueProviderCallback: _ => optionControlLock.IsLocked,
@@ -175,11 +182,48 @@ namespace Antmicro.Renode.Peripherals.MTD
                 .WithReservedBits(16, 16);
         }
 
-        private readonly MappedMemory flash;
+        private void Erase(bool massErase, bool sectorErase, uint sectorNumber)
+        {
+            if(!massErase && !sectorErase)
+            {
+                this.Log(LogLevel.Warning, "Tried to erase flash, but MER and SER are reset. This should be forbidden, ignoring...");
+                return;
+            }
 
+            if(massErase)
+            {
+                PerformMassErase();
+            }
+            else
+            {
+                PerformSectorErase(sectorNumber);
+            }
+        }
+
+        private void PerformSectorErase(uint sectorNumber)
+        {
+            if(!Sectors.ContainsKey(sectorNumber))
+            {
+                this.Log(LogLevel.Warning, "Tried to erase sector {0}, which doesn't exist. Ignoring...", sectorNumber);
+                return;
+            }
+
+            this.Log(LogLevel.Noisy, "Erasing sector {0}, offset 0x{1:X}, size 0x{2:X}", sectorNumber, Sectors[sectorNumber].Offset, Sectors[sectorNumber].Size);
+            flash.WriteBytes(Sectors[sectorNumber].Offset, ErasePattern, Sectors[sectorNumber].Size);
+        }
+
+        private void PerformMassErase()
+        {
+            this.Log(LogLevel.Noisy, "Performing flash mass erase");
+            foreach(var sectorNumber in Sectors.Keys)
+            {
+                PerformSectorErase(sectorNumber);
+            }
+        }
+
+        private readonly MappedMemory flash;
         private readonly LockRegister controlLock;
         private readonly LockRegister optionControlLock;
-
         private readonly DoubleWordRegisterCollection optionBytesRegisters;
 
         private IValueRegisterField readProtectionRegister;
@@ -190,6 +234,30 @@ namespace Antmicro.Renode.Peripherals.MTD
 
         private static readonly uint[] ControlLockKey = {0x45670123, 0xCDEF89AB};
         private static readonly uint[] OptionLockKey = {0x8192A3B, 0x4C5D6E7F};
+        private static readonly byte[] ErasePattern = Enumerable.Repeat((byte)0xFF, MaxSectorSize).ToArray();
+        private static readonly Dictionary<uint, Sector> Sectors = new Dictionary<uint, Sector>()
+        {
+            { 0, new Sector { Offset = 0x00000000, Size = 0x4000 } },
+            { 1, new Sector { Offset = 0x00004000, Size = 0x4000 } },
+            { 2, new Sector { Offset = 0x00008000, Size = 0x4000 } },
+            { 3, new Sector { Offset = 0x0000C000, Size = 0x4000 } },
+            { 4, new Sector { Offset = 0x00010000, Size = 0x4000 } },
+            { 5, new Sector { Offset = 0x00020000, Size = 0x10000 } },
+            { 6, new Sector { Offset = 0x00040000, Size = 0x20000 } },
+            { 7, new Sector { Offset = 0x00060000, Size = 0x20000 } },
+            { 8, new Sector { Offset = 0x00080000, Size = 0x20000 } },
+            { 9, new Sector { Offset = 0x000A0000, Size = 0x20000 } },
+            { 10, new Sector { Offset = 0x000C0000, Size = 0x20000 } },
+            { 11, new Sector { Offset = 0x000E0000, Size = 0x20000 } },
+        };
+
+        private const int MaxSectorSize = 0x20000;
+
+        private class Sector
+        {
+            public uint Offset { get; set; }
+            public int Size { get; set; }
+        }
 
         private enum Registers
         {
