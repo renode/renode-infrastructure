@@ -58,10 +58,10 @@ namespace Antmicro.Renode.Core
             SetLocalName(SystemBus, SystemBusName);
             gdbStubs = new Dictionary<int, GdbStub>();
 
-            invalidatedAddressesById = new Dictionary<uint, List<long>>();
+            invalidatedAddressesByCpu = new Dictionary<ICPU, List<long>>();
             invalidatedAddressesByArchitecture = new Dictionary<string, List<long>>();
             invalidatedAddressesLock = new object();
-            firstUnbroadcastedDirtyAddressIndex = new Dictionary<uint, int>();
+            firstUnbroadcastedDirtyAddressIndex = new Dictionary<ICPU, int>();
 
             if(createLocalTimeSource)
             {
@@ -836,38 +836,38 @@ namespace Antmicro.Renode.Core
             }
         }
 
-        public long[] GetNewDirtyAddressesForCore(uint id)
+        public long[] GetNewDirtyAddressesForCore(ICPU cpu)
         {
-            if(!firstUnbroadcastedDirtyAddressIndex.ContainsKey(id))
+            if(!firstUnbroadcastedDirtyAddressIndex.ContainsKey(cpu))
             {
-                throw new RecoverableException($"No entries for a core with id {id}. Was the core registered properly?");
+                throw new RecoverableException($"No entries for a cpu: {cpu.GetName()}. Was the cpu registered properly?");
             }
 
             long[] newAddresses;
             lock(invalidatedAddressesLock)
             {
-                var firstUnsentIndex = firstUnbroadcastedDirtyAddressIndex[id];
-                var addressesCount = invalidatedAddressesById[id].Count - firstUnsentIndex;
-                newAddresses = invalidatedAddressesById[id].GetRange(firstUnsentIndex, addressesCount).ToArray();
-                firstUnbroadcastedDirtyAddressIndex[id] += addressesCount;
+                var firstUnsentIndex = firstUnbroadcastedDirtyAddressIndex[cpu];
+                var addressesCount = invalidatedAddressesByCpu[cpu].Count - firstUnsentIndex;
+                newAddresses = invalidatedAddressesByCpu[cpu].GetRange(firstUnsentIndex, addressesCount).ToArray();
+                firstUnbroadcastedDirtyAddressIndex[cpu] += addressesCount;
             }
             return newAddresses;
         }
 
-        public void AppendDirtyAddresses(uint cpuId, long[] addresses)
+        public void AppendDirtyAddresses(ICPU cpu, long[] addresses)
         {
-            if(!invalidatedAddressesById.ContainsKey(cpuId))
+            if(!invalidatedAddressesByCpu.ContainsKey(cpu))
             {
-                throw new RecoverableException($"Invalid cpuId: {cpuId}");
+                throw new RecoverableException($"Invalid cpu: {cpu.GetName()}");
             }
 
             lock(invalidatedAddressesLock)
             {
-                if(invalidatedAddressesById[cpuId].Count + addresses.Length > invalidatedAddressesById[cpuId].Capacity)
+                if(invalidatedAddressesByCpu[cpu].Count + addresses.Length > invalidatedAddressesByCpu[cpu].Capacity)
                 {
-                    TryReduceBroadcastedDirtyAddresses(cpuId);
+                    TryReduceBroadcastedDirtyAddresses(cpu);
                 }
-                invalidatedAddressesById[cpuId].AddRange(addresses);
+                invalidatedAddressesByCpu[cpu].AddRange(addresses);
             }
         }
 
@@ -1304,7 +1304,7 @@ namespace Antmicro.Renode.Core
             }
         }
 
-        private void TryReduceBroadcastedDirtyAddresses(uint cpuId)
+        private void TryReduceBroadcastedDirtyAddresses(ICPU cpu)
         {
             var firstUnread = firstUnbroadcastedDirtyAddressIndex.Values.Min();
             if(firstUnread == 0)
@@ -1312,7 +1312,7 @@ namespace Antmicro.Renode.Core
                 return;
             }
 
-            invalidatedAddressesById[cpuId].RemoveRange(0, (int)firstUnread);
+            invalidatedAddressesByCpu[cpu].RemoveRange(0, (int)firstUnread);
             foreach(var key in firstUnbroadcastedDirtyAddressIndex.Keys.ToArray())
             {
                 firstUnbroadcastedDirtyAddressIndex[key] -= firstUnread;
@@ -1358,7 +1358,7 @@ namespace Antmicro.Renode.Core
                     newInvalidatedAddressesList = new List<long>() { Capacity = InitialDirtyListLength };
                     invalidatedAddressesByArchitecture.Add(cpu.Architecture, newInvalidatedAddressesList);
                 }
-                invalidatedAddressesById[cpu.Id] = newInvalidatedAddressesList;
+                invalidatedAddressesByCpu[cpu] = newInvalidatedAddressesList;
             }
         }
 
@@ -1379,7 +1379,7 @@ namespace Antmicro.Renode.Core
                             throw new RecoverableException($"{cpu.Model ?? "Unknown model"}: CPU architecture not provided");
                         }
                         InitializeInvalidatedAddressesList(cpu);
-                        firstUnbroadcastedDirtyAddressIndex[cpu.Id] = 0;
+                        firstUnbroadcastedDirtyAddressIndex[cpu] = 0;
                     }
                     if(ownLife != null)
                     {
@@ -1722,8 +1722,8 @@ namespace Antmicro.Renode.Core
          *  Variables used for memory invalidation
          */
         private const int InitialDirtyListLength = 1 << 10;
-        private readonly Dictionary<uint, int> firstUnbroadcastedDirtyAddressIndex;
-        private readonly Dictionary<uint, List<long>> invalidatedAddressesById;
+        private readonly Dictionary<ICPU, int> firstUnbroadcastedDirtyAddressIndex;
+        private readonly Dictionary<ICPU, List<long>> invalidatedAddressesByCpu;
         private readonly Dictionary<string, List<long>> invalidatedAddressesByArchitecture;
         private readonly object invalidatedAddressesLock;
 

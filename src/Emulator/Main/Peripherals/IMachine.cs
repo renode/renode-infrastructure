@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Core
     public interface IMachine: IEmulationElement
     {
         void AddUserStateHook(Func<string, bool> predicate, Action<string> hook);
-        void AppendDirtyAddresses(uint cpuId, long[] addresses);
+        void AppendDirtyAddresses(ICPU cpu, long[] addresses);
         void AttachGPIO(IPeripheral source, int sourceNumber, IGPIOReceiver destination, int destinationNumber, int? localReceiverNumber = null);
         void AttachGPIO(IPeripheral source, IGPIOReceiver destination, int destinationNumber, int? localReceiverNumber = null);
         void AttachGPIO(IPeripheral source, string connectorName, IGPIOReceiver destination, int destinationNumber, int? localReceiverNumber = null);
@@ -33,7 +33,7 @@ namespace Antmicro.Renode.Core
         IEnumerable<IPeripheral> GetChildrenPeripherals(IPeripheral peripheral);
         string[,] GetClockSourceInfo();
         string GetLocalName(IPeripheral peripheral);
-        long[] GetNewDirtyAddressesForCore(uint id);
+        long[] GetNewDirtyAddressesForCore(ICPU cpu);
         IEnumerable<IPeripheral> GetParentPeripherals(IPeripheral peripheral);
         IEnumerable<IRegistrationPoint> GetPeripheralRegistrationPoints(IPeripheral parentPeripheral, IPeripheral childPeripheral);
         IEnumerable<T> GetPeripheralsOfType<T>();

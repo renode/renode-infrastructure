@@ -1037,7 +1037,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             var tempArray = new long[size];
             Marshal.Copy(arrayStart, tempArray, 0, size);
-            machine.AppendDirtyAddresses(Id, tempArray);
+            machine.AppendDirtyAddresses(this, tempArray);
         }
 
         [Transient]
@@ -1046,7 +1046,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         private IntPtr GetDirty(IntPtr size)
         {
-            var dirtyAddressesList = machine.GetNewDirtyAddressesForCore(Id); 
+            var dirtyAddressesList = machine.GetNewDirtyAddressesForCore(this); 
             var newAddressesCount = dirtyAddressesList.Length;
 
             if(newAddressesCount > 0)
