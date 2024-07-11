@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -14,9 +14,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public abstract class CPUCore : IdentifiableObject, IEmulationElement
     {
-        protected CPUCore(uint id)
+        protected CPUCore(uint cpuId)
         {
-            Id = id;
+            MultiprocessingId = cpuId;
         }
         
         public virtual void Start()
@@ -52,8 +52,15 @@ namespace Antmicro.Renode.Peripherals.CPU
                 OnPause();
             }
         }
-        
-        public uint Id { get; }
+
+        /// <summary>
+        /// An ID that can identify a CPU in a multicore environment. Its specific interpretation will depend on CPU architecture.
+        /// </summary>
+        /// <remarks>
+        /// This ID doesn't have to be either globally unique or sequential.
+        /// On certain heterogeneous systems, there might be processors with duplicate IDs, which can be valid, depending on the platform configuration.
+        /// </remarks>
+        public uint MultiprocessingId { get; }
         
         public bool IsStarted => started;
         

@@ -215,7 +215,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     numberOfCPUs = MaximumCPUs;
                 }
 
-                registeredCPUs = cpus.OrderBy(x => x.Id).Take(numberOfCPUs).ToList();
+                registeredCPUs = cpus.OrderBy(x => x.MultiprocessingId).Take(numberOfCPUs).ToList();
             }
         }
 

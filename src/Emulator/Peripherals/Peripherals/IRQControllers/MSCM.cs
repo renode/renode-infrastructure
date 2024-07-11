@@ -160,10 +160,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             switch(targetListField)
             {
             case 1:
-                cpuTargetList = 2 - askingCpu.Id;
+                cpuTargetList = 2 - askingCpu.MultiprocessingId;
                 break;
             case 2:
-                cpuTargetList = askingCpu.Id + 1;
+                cpuTargetList = askingCpu.MultiprocessingId + 1;
                 break;
             }
             lock(interProcessorInterrupts)

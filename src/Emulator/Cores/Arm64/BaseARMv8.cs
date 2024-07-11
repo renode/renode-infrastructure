@@ -85,7 +85,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             private void UnhaltCpu(uint cpuId)
             {
-                var cpu = machine.SystemBus.GetCPUs().Where(x => x.Id == cpuId).Single();
+                var cpu = machine.SystemBus.GetCPUs().Where(x => x.MultiprocessingId == cpuId).Single();
                 cpu.IsHalted = false;
             }
 

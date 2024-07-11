@@ -171,10 +171,10 @@ namespace Antmicro.Renode.Peripherals.Timers
             {
                 if(connectionsLocked)
                 {
-                    throw new RecoverableException($"CPU (connection #{cpu.Id}) attached to IRQ Controller after Global Timer's GPIO initialization");
+                    throw new RecoverableException($"CPU (connection #{cpu.MultiprocessingId}) attached to IRQ Controller after Global Timer's GPIO initialization");
                 }
-                var comparator = new PrivateComparator(machine.ClockSource, globalTimer, this, $"{cpu.Id}");
-                connections.Add((int)cpu.Id, comparator.IRQ);
+                var comparator = new PrivateComparator(machine.ClockSource, globalTimer, this, $"{cpu.MultiprocessingId}");
+                connections.Add((int)cpu.MultiprocessingId, comparator.IRQ);
                 comparators.Add(cpu, comparator);
             }
         }

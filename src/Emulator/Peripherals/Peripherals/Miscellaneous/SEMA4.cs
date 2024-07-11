@@ -194,7 +194,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     return;
                     // write that did not come from CPU
                 }
-                int id = (int)cpu.Id + 1;
+                int id = (int)cpu.MultiprocessingId + 1;
                 lock(this)
                 {
                     if(value == 0)
