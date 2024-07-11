@@ -125,7 +125,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
             if(!gic.TryGetCPUEntryForCPU(Cpu, out entry))
             {
-                throw new RegistrationException($"Couldn't register redistributor for CPU {Cpu.Id} because the CPU isn't attached to this GIC");
+                throw new RegistrationException($"Couldn't register redistributor for CPU because the CPU isn't attached to this GIC: {Cpu.GetName()}");
             }
         }
 

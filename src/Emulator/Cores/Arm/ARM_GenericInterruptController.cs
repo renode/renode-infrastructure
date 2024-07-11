@@ -1933,7 +1933,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             var armCPU = cpu as IARMSingleSecurityStateCPU;
             if(armCPU == null || !cpuEntries.ContainsKey(armCPU))
             {
-                throw new InvalidOperationException($"Non-Arm CPU or one that isn't attached to the GIC try to access the GIC, the id of the CPU: {cpu.Id}.");
+                throw new InvalidOperationException($"Non-Arm CPU or one that isn't attached to the GIC tried to access the GIC: {cpu.GetName()}");
             }
             return cpuEntries[armCPU];
         }

@@ -33,7 +33,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             if(registeredCPUs.Contains(cpu))
             {
-                throw new RecoverableException($"CPU {cpu.Id} was already registered");
+                throw new RecoverableException($"CPU: {cpu.GetName()} was already registered");
             }
             else if(registeredCPUs.Count >= MaximumCPUs)
             {
@@ -41,7 +41,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
             else
             {
-                Logger.Log(LogLevel.Debug, "Registered CPU {0} at index {1}", cpu.Id, registeredCPUs.Count);
+                Logger.Log(LogLevel.Debug, "Registered CPU {0} at index {1}", cpu.GetName(), registeredCPUs.Count);
                 registeredCPUs.Add(cpu);
             }
         }
@@ -86,11 +86,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 var idx = registeredCPUs.IndexOf(cpu);
                 if(idx == -1)
                 {
-                    Logger.Log(LogLevel.Error, "CPU {0} is not registered in Snoop Control Unit", cpu.Id);
+                    Logger.Log(LogLevel.Error, "CPU {0} is not registered in Snoop Control Unit", cpu.GetName());
                 }
                 else if(lockedCPUs[idx])
                 {
-                    Logger.Log(LogLevel.Warning, "Tried to write value {0} at offset {1}, but access for CPU {2} has been locked", value, offset, cpu.Id);
+                    Logger.Log(LogLevel.Warning, "Tried to write value {0} at offset {1}, but access for CPU {2} has been locked", value, offset, cpu.GetName());
                     return;
                 }
             }
