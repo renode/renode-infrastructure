@@ -60,7 +60,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             : base(id, cpuType, machine, endianness, bitness)
         {
             atomicId = -1;
-            translationCacheSync = new object();
             pauseGuard = new CpuThreadPauseGuard(this);
             decodedIrqs = new Dictionary<Interrupt, HashSet<int>>();
             hooks = new Dictionary<ulong, HookDescriptor>();
@@ -1302,14 +1301,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         
         [Transient]
         private string libraryFile;
-
-        private readonly object translationCacheSync;
-
-        [Transient]
-        // the reference here is necessary for the timer to not be garbage collected
-        #pragma warning disable 0414
-        private Timer currentTimer;
-        #pragma warning restore 0414
 
         [Transient]
         private SimpleMemoryManager memoryManager;
