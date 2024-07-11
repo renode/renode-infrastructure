@@ -30,7 +30,7 @@ namespace Antmicro.Renode.Logging.Profiling
 
             foreach(var cpu in cpus)
             {
-                buffer.AddRange(BitConverter.GetBytes(machine.SystemBus.GetCPUId(cpu.Peripheral as ICPU)));
+                buffer.AddRange(BitConverter.GetBytes(machine.SystemBus.GetCPUSlot(cpu.Peripheral as ICPU)));
                 buffer.AddRange(BitConverter.GetBytes(cpu.Name.Length));
                 buffer.AddRange(Encoding.ASCII.GetBytes(cpu.Name));
             }

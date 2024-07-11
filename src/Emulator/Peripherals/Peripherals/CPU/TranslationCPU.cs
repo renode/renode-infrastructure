@@ -179,7 +179,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override ulong ExecutedInstructions { get {return TlibGetTotalExecutedInstructions(); } }
 
-        public int Slot { get{if(!slot.HasValue) slot = machine.SystemBus.GetCPUId(this); return slot.Value;} private set {slot = value;} }
+        public int Slot { get{if(!slot.HasValue) slot = machine.SystemBus.GetCPUSlot(this); return slot.Value;} private set {slot = value;} }
         private int? slot;
 
         public override string ToString()

@@ -51,7 +51,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 machineName += ".";
             }
-            return "{0}{1}[{2}]".FormatWith(machineName, machine.GetLocalName(cpu), machine.SystemBus.GetCPUId(cpu));
+            return "{0}{1}[{2}]".FormatWith(machineName, machine.GetLocalName(cpu), machine.SystemBus.GetCPUSlot(cpu));
         }
     }
 }

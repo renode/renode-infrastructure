@@ -336,7 +336,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
-        public int GetCPUId(ICPU cpu)
+        public int GetCPUSlot(ICPU cpu)
         {
             lock(cpuSync)
             {
@@ -2265,7 +2265,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     return emptyDisposable;
                 }
                 var previousContext = context.Value;
-                context.Value = parent.GetCPUId(cpu);
+                context.Value = parent.GetCPUSlot(cpu);
                 return DisposableWrapper.New(() =>
                 {
                     context.Value = previousContext;

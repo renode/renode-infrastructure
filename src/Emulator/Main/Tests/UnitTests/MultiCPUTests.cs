@@ -35,7 +35,7 @@ namespace Antmicro.Renode.UnitTests
                 }
                 for(var i = 0; i < cpus.Length; i++)
                 {
-                    Assert.AreEqual(i, sysbus.GetCPUId(cpus[i]));
+                    Assert.AreEqual(i, sysbus.GetCPUSlot(cpus[i]));
                 }
             }
         }

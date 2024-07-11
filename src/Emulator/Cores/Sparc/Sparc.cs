@@ -197,7 +197,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             if(!cpuIdinitialized)
             {
-                int cpuid = machine.SystemBus.GetCPUId(this);
+                int cpuid = machine.SystemBus.GetCPUSlot(this);
                 // Only update ASR17 for slave cores 1-15
                 if(cpuid > 0 && cpuid < 16)
                 {

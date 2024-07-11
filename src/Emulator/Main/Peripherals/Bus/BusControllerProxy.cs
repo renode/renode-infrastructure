@@ -141,9 +141,9 @@ namespace Antmicro.Renode.Peripherals.Bus
             return ParentController.GetCPUs();
         }
 
-        public virtual int GetCPUId(ICPU cpu)
+        public virtual int GetCPUSlot(ICPU cpu)
         {
-            return ParentController.GetCPUId(cpu);
+            return ParentController.GetCPUSlot(cpu);
         }
 
         public virtual bool TryGetCurrentCPU(out ICPU cpu)

@@ -54,7 +54,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         bool IsPeripheralEnabled(IPeripheral peripheral);
 
         IEnumerable<ICPU> GetCPUs();
-        int GetCPUId(ICPU cpu);
+        int GetCPUSlot(ICPU cpu);
         ICPU GetCurrentCPU();
         IEnumerable<IBusRegistered<IBusPeripheral>> GetRegisteredPeripherals(ICPU context = null);
         bool TryGetCurrentCPU(out ICPU cpu);
