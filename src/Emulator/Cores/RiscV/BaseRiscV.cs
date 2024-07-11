@@ -1122,7 +1122,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
             }
 
-            private IList<StandardInstructionSetExtensions> standardExtensions;
+            private readonly IList<StandardInstructionSetExtensions> standardExtensions;
             private readonly IList<InstructionSet> instructionSets;
             private readonly BaseRiscV parent;
             private readonly IMachine machine;
