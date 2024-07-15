@@ -64,6 +64,7 @@ namespace Antmicro.Renode.HostInterfaces.Network
             {
                 var token = cts;
                 token.Cancel();
+                IsPaused = true;
                 // we're not joining the read thread as it's canceled and will return after Read times out;
                 // we might end up with multiple TransmitLoop threads running at the same time as a result of a quick Pause/Resume actions,
                 // but only the last one will process data - the rest will terminate unconditionally after leaving the Read function call
@@ -109,6 +110,7 @@ namespace Antmicro.Renode.HostInterfaces.Network
                     IsBackground = true
                 };
                 thread.Start();
+                IsPaused = false;
             }
         }
 
@@ -120,6 +122,7 @@ namespace Antmicro.Renode.HostInterfaces.Network
         public string InterfaceName { get; private set; }
         public event Action<EthernetFrame> FrameReady;
 
+        public bool IsPaused { get; private set; } = true;
 
         public MACAddress MAC
         {

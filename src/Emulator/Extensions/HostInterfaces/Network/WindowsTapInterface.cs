@@ -101,6 +101,8 @@ namespace Antmicro.Renode.HostInterfaces.Network
             Resume();
         }
 
+        public bool IsPaused => thread == null;
+
         public string InterfaceName { get; }
 
         public MACAddress MAC { get; set; }

@@ -14,6 +14,8 @@ namespace Antmicro.Renode.Peripherals
 		void Start();
 		void Pause();
 		void Resume();
+
+		bool IsPaused { get; }
 	}
 }
 

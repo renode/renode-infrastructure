@@ -83,6 +83,8 @@ namespace Antmicro.Renode.Tools.Network
             }
         }
 
+        public bool IsPaused => !started;
+
         public event Action<IExternal, ICAN, ICAN, byte[]> FrameTransmitted;
         public event Action<IExternal, ICAN, byte[]> FrameProcessed;
         public event Action<IExternal, ICAN, CANMessageFrame> FrameReceived;

@@ -173,6 +173,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => MasterFilteringEndRange & ~0xFFFFFUL);
         }
 
+        public bool IsPaused => false;
+
         public ulong MasterFilteringStartRange { get; set; }
         public ulong MasterFilteringEndRange { get; set; }
 

@@ -82,6 +82,8 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
+        public bool IsPaused => !started;
+
         private void HandleCharReceived(byte obj, I sender)
         {
             if(!started)

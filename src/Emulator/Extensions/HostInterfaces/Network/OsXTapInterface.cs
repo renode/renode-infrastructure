@@ -71,8 +71,13 @@ namespace Antmicro.Renode.HostInterfaces.Network
             {
                 return;
             }
-            cts.Cancel();
-            readerTask.Wait();
+
+            lock(lockObject)
+            {
+                cts.Cancel();
+                readerTask.Wait();
+                IsPaused = true;
+            }
         }
 
         public void Resume()
@@ -81,10 +86,15 @@ namespace Antmicro.Renode.HostInterfaces.Network
             {
                 return;
             }
-            cts = new CancellationTokenSource();
-            readerTask = Task.Run(ReadPacketAsync);
-            readerTask.ContinueWith(x => 
-                this.Log(LogLevel.Error, "Exception happened on reader task ({0}). Task stopped.", x.Exception.InnerException.GetType().Name), TaskContinuationOptions.OnlyOnFaulted);
+
+            lock(lockObject)
+            {
+                cts = new CancellationTokenSource();
+                readerTask = Task.Run(ReadPacketAsync);
+                readerTask.ContinueWith(x => 
+                    this.Log(LogLevel.Error, "Exception happened on reader task ({0}). Task stopped.", x.Exception.InnerException.GetType().Name), TaskContinuationOptions.OnlyOnFaulted);
+                IsPaused = false;
+            }
         }
 
         public void Dispose()
@@ -94,6 +104,8 @@ namespace Antmicro.Renode.HostInterfaces.Network
                 deviceFile.Close();
             }
         }
+
+        public bool IsPaused { get; private set; } = true;
 
         public event Action<EthernetFrame> FrameReady;
 
@@ -218,6 +230,7 @@ namespace Antmicro.Renode.HostInterfaces.Network
         private MACAddress macAddress;
 
         private readonly string originalInterfaceNameOrPath;
+        private readonly object lockObject = new object();
 
         private static readonly TimeSpan GracePeriod = TimeSpan.FromSeconds(1);
         private const int Mtu = 1522;

@@ -366,6 +366,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         public abstract ulong ExecutedInstructions { get; }
         public abstract RegisterValue PC { get; set; }
 
+        public bool IsPaused => isPaused;
+
         protected virtual void InnerPause(bool onCpuThread, bool checkPauseGuard)
         {
             RequestPause();

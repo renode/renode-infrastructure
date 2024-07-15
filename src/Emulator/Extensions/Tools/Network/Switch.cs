@@ -128,6 +128,8 @@ namespace Antmicro.Renode.Tools.Network
             started = true;
         }
 
+        public bool IsPaused => !started;
+
         public event Action<IExternal, IMACInterface, IMACInterface, byte[]> FrameTransmitted;
         public event Action<IExternal, IMACInterface, byte[]> FrameProcessed;
 

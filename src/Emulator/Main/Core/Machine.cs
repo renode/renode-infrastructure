@@ -423,7 +423,9 @@ namespace Antmicro.Renode.Core
             });
         }
 
-        public void Start()
+        /// <param name="startFilter">A function to test each own life whether it should be started along with the machine.
+        /// Useful when unpausing the machine but we don't want to unpause what's already been paused before.</param>
+        private void Start(Func<IHasOwnLife, bool> startFilter)
         {
             lock(pausingSync)
             {
@@ -437,8 +439,11 @@ namespace Antmicro.Renode.Core
                 }
                 foreach(var ownLife in ownLifes.OrderBy(x => x is ICPU ? 1 : 0))
                 {
-                    this.NoisyLog("Starting {0}.", GetNameForOwnLife(ownLife));
-                    ownLife.Start();
+                    if(startFilter(ownLife))
+                    {
+                        this.NoisyLog("Starting {0}.", GetNameForOwnLife(ownLife));
+                        ownLife.Start();
+                    }
                 }
                 (LocalTimeSource as SlaveTimeSource)?.Resume();
                 this.Log(LogLevel.Info, "Machine started.");
@@ -449,6 +454,11 @@ namespace Antmicro.Renode.Core
                     machineStarted(this, new MachineStateChangedEventArgs(MachineStateChangedEventArgs.State.Started));
                 }
             }
+        }
+
+        public void Start()
+        {
+            Start(_ => true);
         }
 
         public void Pause()
@@ -1752,10 +1762,11 @@ namespace Antmicro.Renode.Core
 
         private sealed class PausedState : IDisposable
         {
-            public PausedState(IMachine machine)
+            // PausedState is used only within Machine so we can take Machine as an argument, instead of IMachine.
+            public PausedState(Machine machine)
             {
                 this.machine = machine;
-                sync = new object();
+                sync = machine.pausingSync;
             }
 
             public PausedState Enter()
@@ -1787,6 +1798,7 @@ namespace Antmicro.Renode.Core
                         else
                         {
                             wasPaused = false;
+                            pausedLifes = machine.ownLifes.Where(ownLife => ownLife.IsPaused).ToArray();
                             machine.Pause();
                         }
                     }
@@ -1802,7 +1814,7 @@ namespace Antmicro.Renode.Core
                     {
                         if(!wasPaused)
                         {
-                            machine.Start();
+                            machine.Start(ownLife => !pausedLifes.Contains(ownLife));
                         }
                     }
                     if(currentLevel == 0)
@@ -1818,7 +1830,8 @@ namespace Antmicro.Renode.Core
             [Transient]
             private int currentLevel;
             private bool wasPaused;
-            private readonly IMachine machine;
+            private IHasOwnLife[] pausedLifes;
+            private readonly Machine machine;
             private readonly object sync;
         }
 
