@@ -32,12 +32,6 @@ namespace Antmicro.Renode.UI
         {
             AppDomain.CurrentDomain.UnhandledException += (sender, e) => CrashHandler.HandleCrash((Exception)e.ExceptionObject);
 
-            if(options.Version)
-            {
-                Console.Out.WriteLine(EmulationManager.Instance.LongVersionString);
-                return;
-            }
-
             if(options.KeepTemporaryFiles)
             {
                 EmulationManager.DisableEmulationFilesCleanup = true;
