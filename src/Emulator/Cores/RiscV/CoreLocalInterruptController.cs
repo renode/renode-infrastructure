@@ -25,6 +25,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             ulong machineLevelBits = 8, // MNLBITS
             ulong supervisorLevelBits = 8, // SNLBITS
             ulong modeBits = 2, // NMBITS
+            ulong interruptInputControlBits = 8, // CLICINTCTLBITS
             // add the nvbits field to the configuration register to match the legacy layout from the 2022-09-27 specification,
             // as found in some hardware implementations
             bool configurationHasNvbits = true
@@ -34,22 +35,27 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             if(machineLevelBits > 8)
             {
-                throw new ConstructionException($"Invalid machineLevelBits: provided {machineLevelBits} is larger than the maximum 8.");
+                throw new ConstructionException($"Invalid {nameof(machineLevelBits)}: provided {machineLevelBits} is larger than the maximum 8.");
             }
 
             if(supervisorLevelBits > 8)
             {
-                throw new ConstructionException($"Invalid supervisorLevelBits: provided {supervisorLevelBits} is larger than the maximum 8.");
+                throw new ConstructionException($"Invalid {nameof(supervisorLevelBits)}: provided {supervisorLevelBits} is larger than the maximum 8.");
             }
 
             if(modeBits > 2)
             {
-                throw new ConstructionException($"Invalid modeBits: provided {modeBits} is larger than the maximum 2.");
+                throw new ConstructionException($"Invalid {nameof(modeBits)}: provided {modeBits} is larger than the maximum 2.");
+            }
+
+            if(interruptInputControlBits > MaxInterruptInputControlBits)
+            {
+                throw new ConstructionException($"Invalid {nameof(interruptInputControlBits)}: provided {interruptInputControlBits} is larger than the maximum {MaxInterruptInputControlBits}.");
             }
 
             if(numberOfInterrupts < 2 || numberOfInterrupts > 4096)
             {
-                throw new ConstructionException($"Invalid numberOfInterrupts: provided {numberOfInterrupts} but must be between 2 and 4096.");
+                throw new ConstructionException($"Invalid {nameof(numberOfInterrupts)}: provided {numberOfInterrupts} but must be between 2 and 4096.");
             }
 
             this.cpu = cpu;
@@ -60,6 +66,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             defaultSupervisorLevelBits = supervisorLevelBits;
             defaultModeBits = modeBits;
             this.configurationHasNvbits = configurationHasNvbits;
+            this.interruptInputControlBits = interruptInputControlBits;
+            unimplementedInputControlBits = (int)MaxInterruptInputControlBits - (int)interruptInputControlBits;
 
             ByteRegisters = new ByteRegisterCollection(this);
             DoubleWordRegisters = new DoubleWordRegisterCollection(this);
@@ -70,7 +78,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             edgeTriggered = new IFlagRegisterField[numberOfInterrupts];
             negative = new IFlagRegisterField[numberOfInterrupts];
             mode = new IValueRegisterField[numberOfInterrupts];
-            inputControl = new IValueRegisterField[numberOfInterrupts];
+            inputControl = new ulong[numberOfInterrupts];
 
             cpu.RegisterLocalInterruptController(this);
 
@@ -281,9 +289,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             var privilege = GetInterruptPrivilege(number);
             var levelBits = (int)(privilege == PrivilegeLevel.Machine || configurationHasNvbits ? machineLevelBits.Value : supervisorLevelBits.Value);
-            var priorityBits = InterruptInputControlBits - levelBits;
+            var otherBits = (int)MaxInterruptInputControlBits - levelBits;
             // left-justify and append 1s to fill the unused bits on the right
-            return (int)(BitHelper.GetValue(inputControl[number].Value, priorityBits, levelBits) << priorityBits) | ((1 << priorityBits) - 1);
+            return (int)(BitHelper.GetValue(inputControl[number], otherBits, levelBits) << otherBits) | ((1 << otherBits) - 1);
         }
 
         private int GetInterruptPriority(int number)
@@ -295,8 +303,16 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             var privilege = GetInterruptPrivilege(number);
             var levelBits = (int)(privilege == PrivilegeLevel.Machine || configurationHasNvbits ? machineLevelBits.Value : supervisorLevelBits.Value);
-            var priorityBits = InterruptInputControlBits - levelBits;
-            return (int)(BitHelper.GetValue(inputControl[number].Value, 0, priorityBits) << levelBits) | ((1 << levelBits) - 1);
+            var priorityBits = (int)interruptInputControlBits - levelBits;
+            if(priorityBits <= 0)
+            {
+                // No priority bits are available. All interrupts will have the same priority.
+                // The spec doesn't define what the value should be; the below is consistent with the behavior 
+                // when priority bits are available. We assume all the unimplemented bits are 1
+                // and remaining bits are 0. This should not matter anyway, as all priorities are the same in this case.
+                return (1 << unimplementedInputControlBits) - 1;
+            }
+            return (int)(BitHelper.GetValue(inputControl[number], unimplementedInputControlBits, priorityBits) << unimplementedInputControlBits) | ((1 << unimplementedInputControlBits) - 1);
         }
 
         private bool UpdateInterrupt()
@@ -401,7 +417,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             Register.Information.Define32(this_dword)
                 .WithValueField(0, 13, FieldMode.Read, valueProviderCallback: _ => numberOfInterrupts, name: "num_interrupt")
                 .WithValueField(13, 8, FieldMode.Read, valueProviderCallback: _ => 0, name: "version")
-                .WithValueField(21, 4, FieldMode.Read, valueProviderCallback: _ => InterruptInputControlBits, name: "CLICINTCTLBITS")
+                .WithValueField(21, 4, FieldMode.Read, valueProviderCallback: _ => interruptInputControlBits, name: "CLICINTCTLBITS")
                 .WithValueField(25, 6, FieldMode.Read, valueProviderCallback: _ => numberOfTriggers, name: "num_trigger")
                 .WithReservedBits(31, 1)
             ;
@@ -465,7 +481,16 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             Register.InterruptInputControl0.Define8Many(this_byte, numberOfInterrupts, (register, index) =>
             {
                 register
-                    .WithValueField(0, InterruptInputControlBits, out inputControl[index], name: "input_control")
+                    .WithValueField(0, (int)MaxInterruptInputControlBits, name: "input_control",
+                        writeCallback: (_, val) =>
+                        {
+                            inputControl[index] = (ulong)((int)val | ((1 << unimplementedInputControlBits) - 1));
+                        },
+                        valueProviderCallback: _ =>
+                        {
+                            return inputControl[index];
+                        }
+                    )
                     .WithChangeCallback((_, __) => UpdateInterrupt());
                 ;
             }, 4);
@@ -486,7 +511,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private readonly IFlagRegisterField[] edgeTriggered;
         private readonly IFlagRegisterField[] negative;
         private readonly IValueRegisterField[] mode;
-        private readonly IValueRegisterField[] inputControl;
+        private readonly ulong[] inputControl;
         private IValueRegisterField machineLevelBits;
         private IValueRegisterField supervisorLevelBits;
         private IValueRegisterField modeBits;
@@ -498,9 +523,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private readonly ulong defaultMachineLevelBits;
         private readonly ulong defaultSupervisorLevelBits;
         private readonly ulong defaultModeBits;
+        private readonly ulong interruptInputControlBits; // CLICINTCTLBITS
+        private readonly int unimplementedInputControlBits;
         private readonly bool configurationHasNvbits;
 
-        private const int InterruptInputControlBits = 8; // CLICINTCTLBITS
+        private const ulong MaxInterruptInputControlBits = 8;
         private const int MinLevel = 0;
         private const int NoInterrupt = -1;
 
