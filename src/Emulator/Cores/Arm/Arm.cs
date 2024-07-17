@@ -175,21 +175,21 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             if(instruction.Opc1 == 4 && instruction.Opc2 == 0 && instruction.CRm == 0 && instruction.CRn == 15) // CBAR
             {
-                // scu
-                var scus = machine.GetPeripheralsOfType<ArmSnoopControlUnit>().ToArray();
-                switch(scus.Length)
+                // SCU's offset from CBAR is 0x0 so let's just return its address.
+                var scusRegistered = machine.SystemBus.Children.Where(registered => registered.Peripheral is ArmSnoopControlUnit);
+                switch(scusRegistered.Count())
                 {
                     case 0:
-                        this.Log(LogLevel.Warning, "Trying to read SCU address, but SCU was not found - returning 0x0.");
+                        this.Log(LogLevel.Warning, "Tried to establish CBAR from SCU address but found no SCU registered for this CPU, returning 0x0.");
                         return 0;
                     case 1:
-                        return (uint)((BusRangeRegistration)(machine.GetPeripheralRegistrationPoints(machine.SystemBus, scus[0]).Single())).Range.StartAddress;
+                        return checked((uint)scusRegistered.Single().RegistrationPoint.StartingPoint);
                     default:
-                        this.Log(LogLevel.Error, "Trying to read SCU address, but more than one instance was found. Aborting.");
+                        this.Log(LogLevel.Error, "Tried to establish CBAR from SCU address but found more than one SCU. Aborting.");
                         throw new CpuAbortException();
                 }
             }
-            this.Log(LogLevel.Warning, "Unknown CP15 32-bit read - {0} - returning 0x0", instruction);
+            this.Log(LogLevel.Warning, "Unknown CP15 32-bit read - {0}, returning 0x0", instruction);
             return 0;
         }
 
@@ -200,7 +200,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         protected virtual ulong Read64CP15Inner(Coprocessor64BitMoveInstruction instruction)
         {
-            this.Log(LogLevel.Warning, "Unknown CP15 64-bit read - {0} - returning 0x0", instruction);
+            this.Log(LogLevel.Warning, "Unknown CP15 64-bit read - {0}, returning 0x0", instruction);
             return 0;
         }
 
