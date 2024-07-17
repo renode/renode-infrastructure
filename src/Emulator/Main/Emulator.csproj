@@ -336,6 +336,7 @@
     <Compile Include="Peripherals\CPU\HaltReason.cs" />
     <Compile Include="Peripherals\IMemory.cs" />
     <Compile Include="Utilities\CachingFileFetcher.cs" />
+    <Compile Include="Core\PeripheralsAddedEventArgs.cs" />
     <Compile Include="Core\PeripheralsChangedEventArgs.cs" />
     <Compile Include="Core\MachineStateChangedEventArgs.cs" />
     <Compile Include="Peripherals\Bus\IMultibyteWritePeripheral.cs" />

@@ -194,7 +194,8 @@ namespace Antmicro.Renode.Core
         public void UnregisterFromParent(IPeripheral peripheral)
         {
             InnerUnregisterFromParent(peripheral);
-            OnMachinePeripheralsChanged(peripheral, PeripheralsChangedEventArgs.PeripheralChangeType.CompleteRemoval);
+            var operation = PeripheralsChangedEventArgs.PeripheralChangeType.CompleteRemoval;
+            PeripheralsChanged?.Invoke(this, PeripheralsChangedEventArgs.Create(peripheral, operation));
         }
 
         public IEnumerable<T> GetPeripheralsOfType<T>()
@@ -303,12 +304,8 @@ namespace Antmicro.Renode.Core
                 }
                 localNames[peripheral] = name;
             }
-
-            var pc = PeripheralsChanged;
-            if(pc != null)
-            {
-                pc(this, new PeripheralsChangedEventArgs(peripheral, PeripheralsChangedEventArgs.PeripheralChangeType.NameChanged));
-            }
+            var operation = PeripheralsChangedEventArgs.PeripheralChangeType.NameChanged;
+            PeripheralsChanged?.Invoke(this, PeripheralsChangedEventArgs.Create(peripheral, operation));
         }
 
         public IEnumerable<string> GetAllNames()
@@ -1403,17 +1400,8 @@ namespace Antmicro.Renode.Core
                 }
             }
 
-            OnMachinePeripheralsChanged(peripheral, PeripheralsChangedEventArgs.PeripheralChangeType.Addition);
+            PeripheralsChanged?.Invoke(this, PeripheralsAddedEventArgs.Create(peripheral, registrationPoint));
             EmulationManager.Instance.CurrentEmulation.BackendManager.TryCreateBackend(peripheral);
-        }
-
-        private void OnMachinePeripheralsChanged(IPeripheral peripheral, PeripheralsChangedEventArgs.PeripheralChangeType operation)
-        {
-            var mpc = PeripheralsChanged;
-            if(mpc != null)
-            {
-                mpc(this, new PeripheralsChangedEventArgs(peripheral, operation));
-            }
         }
 
         private bool TryFindSubnodeByName(MultiTreeNode<IPeripheral, IRegistrationPoint> from, string path, out MultiTreeNode<IPeripheral, IRegistrationPoint> subnode,
@@ -1689,7 +1677,8 @@ namespace Antmicro.Renode.Core
                 lock(collectionSync)
                 {
                     registeredPeripherals.GetNode(parent).ReplaceConnectionWay(oldPoint, newPoint);
-                    OnMachinePeripheralsChanged(child, PeripheralsChangedEventArgs.PeripheralChangeType.Moved);
+                    var operation = PeripheralsChangedEventArgs.PeripheralChangeType.Moved;
+                    PeripheralsChanged?.Invoke(this, PeripheralsChangedEventArgs.Create(child, operation));
                 }
             }
             finally
