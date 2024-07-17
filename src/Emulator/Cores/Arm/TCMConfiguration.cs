@@ -25,23 +25,16 @@ namespace Antmicro.Renode.Peripherals.CPU
         public static bool TryFindRegistrationAddress(IBusController sysbus, ICPU cpu, MappedMemory memory, out ulong address)
         {
             address = 0x0ul;
-            var registrationPoint = ((SystemBus)sysbus).GetRegistrationPoints(memory, cpu).OfType<IBusRegistration>().Where(x => x.CPU == cpu).SingleOrDefault();
-            if(registrationPoint == null)
+            var busRegistration = ((SystemBus)sysbus).GetRegistrationPoints(memory, cpu)
+                .OfType<IBusRegistration>()
+                .Where(x => x.CPU == cpu)
+                .SingleOrDefault();
+
+            if(busRegistration == default(IBusRegistration))
             {
                 return false;
             }
-            if(registrationPoint is BusRangeRegistration rangeRegistration)
-            {
-                address = rangeRegistration.Range.StartAddress;
-            }
-            else if(registrationPoint is BusPointRegistration pointRegistration)
-            {
-                address = pointRegistration.StartingPoint;
-            }
-            else
-            {
-                return false;
-            }
+            address = busRegistration.StartingPoint;
             return true;
         }
 
