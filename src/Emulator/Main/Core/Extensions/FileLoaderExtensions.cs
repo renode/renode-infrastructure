@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Core.Extensions
 {
     public static class FileLoaderExtensions
     {
-        public static void LoadBinary(this ICanLoadFiles loader, ReadFilePath fileName, ulong loadPoint, ICPU cpu = null)
+        public static void LoadBinary(this ICanLoadFiles loader, ReadFilePath fileName, ulong loadPoint, ICPU cpu = null, long offset = 0)
         {
             const int bufferSize = 100 * 1024;
             List<FileChunk> chunks = new List<FileChunk>();
@@ -29,6 +29,8 @@ namespace Antmicro.Renode.Core.Extensions
             {
                 using(var reader = new FileStream(fileName, FileMode.Open, FileAccess.Read))
                 {
+                    reader.Seek(offset, SeekOrigin.Current);
+
                     var buffer = new byte[bufferSize];
                     var bytesCount = reader.Read(buffer, 0, buffer.Length);
                     var addr = loadPoint;
