@@ -11,7 +11,7 @@ using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Peripherals.Bus
 {
-    public class BusPointRegistration : IPerCoreRegistration, IBusRegistration
+    public class BusPointRegistration : IBusRegistration
     {
         public BusPointRegistration(ulong address, ulong offset = 0, ICPU cpu = null)
         {

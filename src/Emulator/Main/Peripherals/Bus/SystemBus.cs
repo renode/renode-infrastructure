@@ -1248,7 +1248,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     mappingsForPeripheral.Remove(busRegistered.Peripheral);
                 }
             }
-            var perCoreRegistration = busRegistered.RegistrationPoint as IPerCoreRegistration;
+            var perCoreRegistration = busRegistered.RegistrationPoint as IBusRegistration;
             peripheralsCollectionByContext[perCoreRegistration.CPU].Remove(busRegistered.RegistrationPoint.Range.StartAddress, busRegistered.RegistrationPoint.Range.EndAddress);
         }
 
@@ -1264,7 +1264,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         /// <summary>
         /// This method will return all accessible peripherals for the given context.
-        /// This means all peripherals accessible only in the current context, and peripherals accessible globally (form any - `null` - context).
+        /// This means all peripherals accessible only in the current context, and peripherals accessible globally (from any - `null` - context).
         /// </summary>
         private IEnumerable<IBusRegistered<IBusPeripheral>> GetAccessiblePeripheralsForContext(ICPU context)
         {

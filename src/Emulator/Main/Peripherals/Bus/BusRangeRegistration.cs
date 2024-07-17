@@ -14,7 +14,7 @@ using Range = Antmicro.Renode.Core.Range;
 
 namespace Antmicro.Renode.Peripherals.Bus
 {
-    public class BusRangeRegistration : IPerCoreRegistration, IBusRegistration
+    public class BusRangeRegistration : IBusRegistration
     {
         public BusRangeRegistration(Range range, ulong offset = 0, ICPU cpu = null)
         {
