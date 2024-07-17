@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -118,6 +118,7 @@ namespace Antmicro.Renode.Utilities
             var result = new Dictionary<PeripheralTreeEntry, IEnumerable<IRegistrationPoint>>();
 
             var peripheralEntries = machine.GetRegisteredPeripherals().ToArray();
+            var sysbusEntry = peripheralEntries.First(x => x.Name == Machine.SystemBusName).Peripheral;
             foreach(var entryList in peripheralEntries.OrderBy(x => x.Name).GroupBy(x => x.Peripheral))
             {
                 var uniqueEntryList = entryList.DistinctBy(x => x.RegistrationPoint).ToArray();
@@ -125,6 +126,16 @@ namespace Antmicro.Renode.Utilities
                 if(entry != null)
                 {
                     result.Add(entry, uniqueEntryList.Select(x => x.RegistrationPoint).ToList());
+                }
+                // The peripherals command will not print the entry under sysbus if its first occurence in entryList is not directly a child of sysbus.
+                // This check prevents loosing sysbus registration info in peripherals command output.
+                if(entry.Parent != sysbusEntry)
+                {
+                    entry = uniqueEntryList.FirstOrDefault(x => x.Parent == sysbusEntry);
+                    if(entry != null)
+                    {
+                        result.Add(entry, uniqueEntryList.Where(x => x.Parent == sysbusEntry).Select(x => x.RegistrationPoint).ToList());
+                    }
                 }
             }
 
