@@ -56,8 +56,9 @@ namespace Antmicro.Renode.Peripherals.Bus
         }
 
         public ICPU CPU { get; }
-        public Range Range { get; set; }
         public ulong Offset { get; set; }
+        public Range Range { get; set; }
+        public ulong StartingPoint => Range.StartAddress;
 
         public override bool Equals(object obj)
         {
