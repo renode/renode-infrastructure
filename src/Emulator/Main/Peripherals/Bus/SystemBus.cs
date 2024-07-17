@@ -1154,6 +1154,10 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public ulong? LowestLoadedAddress { get; private set; }
 
+        /// <returns>
+        /// The returned <c>IEnumerable</c> always enumerates all peripherals registered globally
+        /// but also peripherals registered per CPU are enumerated if called in CPU context.
+        /// </returns>
         public IEnumerable<IRegistered<IBusPeripheral, BusRangeRegistration>> Children
         {
             get
