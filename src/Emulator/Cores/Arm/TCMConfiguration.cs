@@ -23,7 +23,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         public static bool TryFindRegistrationAddress(IBusController sysbus, ICPU cpu, MappedMemory memory, out ulong address)
-    	{
+        {
             address = 0x0ul;
             var registrationPoint = ((SystemBus)sysbus).GetRegistrationPoints(memory, cpu).OfType<IBusRegistration>().Where(x => x.CPU == cpu).SingleOrDefault();
             if(registrationPoint == null)
@@ -43,7 +43,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 return false;
             }
             return true;
-    	}
+        }
 
         public uint Address { get; }
         public ulong Size { get; }
