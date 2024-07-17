@@ -10,6 +10,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
@@ -96,7 +97,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 // Bit offset for this CPU in CPU-indexed signals.
                 var cpuIndex = registeredCPUs.Count;
-                registeredCPUs[cpu] = new RegisteredCPU(cpu, this, cpuIndex, signals[ArmSignals.PeripheralsBase].ResetValue);
+                registeredCPUs[cpu] = new RegisteredCPU(cpu, this, cpuIndex);
                 signals.SetCPUIndexedSignalsWidth(registeredCPUs.Count);
             }
             cpu.StateChanged += (_, oldState, __) => { if(oldState == CPUState.InReset) registeredCPUs[cpu].OnCPUOutOfReset(); };
@@ -220,56 +221,44 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private void OnMachinePeripheralsChanged(IMachine machine, PeripheralsChangedEventArgs args)
         {
-            if(args.Peripheral is ArmSnoopControlUnit snoopControlUnit
-                && args.Operation == PeripheralsChangedEventArgs.PeripheralChangeType.Addition)
+            if(args.Peripheral is ArmSnoopControlUnit
+                && args is PeripheralsAddedEventArgs addedArgs
+                && addedArgs.RegistrationPoint is IBusRegistration busRegistration)
             {
-                OnSnoopControlUnitAdded(snoopControlUnit);
+                var peripheralsBase = signals[ArmSignals.PeripheralsBase];
+                lock(peripheralsBase)
+                {
+                    OnSnoopControlUnitAdded(peripheralsBase, busRegistration.CPU, busRegistration.StartingPoint);
+                }
             }
         }
 
-        private void OnSnoopControlUnitAdded(ArmSnoopControlUnit snoopControlUnit)
+        private void OnSnoopControlUnitAdded(Signal<ArmSignals> peripheralsBase, ICPU context, ulong address)
         {
-            lock(signals[ArmSignals.PeripheralsBase])
+            if(context != null && !registeredCPUs.Keys.Contains(context))
             {
-                if(peripheralsBaseInitializedFromSCU)
-                {
-                    // Don't log anything, it might be called when adding new registration points for CPU contexts.
-                    return;
-                }
-                peripheralsBaseInitializedFromSCU = true;
+                this.DebugLog("Ignoring {0} registration for CPU unregistered in {1}: {2}",
+                    nameof(ArmSnoopControlUnit), nameof(ArmSignalsUnit), context
+                );
+                return;
             }
 
-            var scus = machine.GetSystemBus(snoopControlUnit).GetRegistrationPoints(snoopControlUnit);
-            if(!scus.Any())
-            {
-                throw new RecoverableException($"{this.GetName()}: Tried to register '{snoopControlUnit.GetName()}' but it has no registration points.");
-            }
-
-            if(scus.Count() > 1)
-            {
-                this.Log(LogLevel.Warning,
-                    "Multiple SnoopControlUnit registration points ({0})\n" +
-                    "using only the first one to calculate Peripherals Base Address.",
-                    string.Join(", ", scus));
-            }
-            var scuRegistrationPoint = scus.First();
-            var scuAddress = scuRegistrationPoint.Range.StartAddress;
-
-            // SnoopControlUnit's address depends directly on PeripheralsBase (offset = 0).
-            var peripheralsBase = signals[ArmSignals.PeripheralsBase];
-            peripheralsBase.SetFromAddress(AddressWidth, scuAddress);
+            // SnoopControlUnit's address indicates PeripheralsBase address cause its offset is 0x0.
+            peripheralsBase.SetFromAddress(AddressWidth, address);
             peripheralsBase.ResetValue = peripheralsBase.Value;
 
-            lock(registeredCPUs)
+            // Casting must be successful because `context` is in `registeredCPUs.Keys`.
+            var cpus = context == null ? registeredCPUs.Keys.ToArray() : new[] { (Arm)context };
+            foreach(var cpu in cpus)
             {
-                foreach(var registeredCPU in registeredCPUs.Values)
+                if(context == null && registeredCPUs[cpu].PeripheralsBaseAtLastReset.HasValue)
                 {
-                    registeredCPU.PeripheralsBaseAtLastReset = peripheralsBase.Value;
+                    // It must've been already set using CPU-specific registration point.
+                    continue;
                 }
+                registeredCPUs[cpu].PeripheralsBaseAtLastReset = peripheralsBase.Value;
             }
         }
-
-        private bool peripheralsBaseInitializedFromSCU;
 
         private readonly IMachine machine;
         private readonly Dictionary<Arm, RegisteredCPU> registeredCPUs = new Dictionary<Arm, RegisteredCPU>();
@@ -279,13 +268,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private class RegisteredCPU
         {
-            public RegisteredCPU(Arm cpu, ArmSignalsUnit signalsUnit, int index, ulong peripheralsBaseAtLastReset)
+            public RegisteredCPU(Arm cpu, ArmSignalsUnit signalsUnit, int index)
             {
                 this.cpu = cpu ?? throw new ArgumentNullException(nameof(cpu));
                 this.signalsUnit = signalsUnit;
 
                 Index = (byte)index;
-                PeripheralsBaseAtLastReset = peripheralsBaseAtLastReset;
             }
 
             public void FillConfigurationStateStruct(IntPtr allocatedStructPointer)
@@ -338,7 +326,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
 
             public byte Index { get; }
-            public ulong PeripheralsBaseAtLastReset { get; set; }
+
+            public ulong? PeripheralsBaseAtLastReset;
 
             private void MovePeripherals(ulong peripheralsBaseAddress)
             {
