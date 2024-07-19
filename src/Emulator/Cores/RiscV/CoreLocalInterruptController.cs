@@ -353,7 +353,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 var bestVectored = vectored[bestInterrupt].Value;
                 cpu.ClicPresentInterrupt(bestInterrupt, bestVectored, bestLevel, bestPrivilege);
-                this.DebugLog("Presenting interrupt #{0} to core, vectored {1} level {2} privilege {3}", bestInterrupt, bestVectored, bestLevel, bestPrivilege);
+                this.DebugLog("Presenting interrupt #{0} to core, vectored {1} level {2} priority {3} privilege {4}", bestInterrupt, bestVectored, bestLevel, bestPriority, bestPrivilege);
                 return true;
             }
             else
