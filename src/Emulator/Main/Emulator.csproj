@@ -435,6 +435,7 @@
     <Compile Include="Peripherals\IPhysicalLayer.cs" />
     <Compile Include="Logging\Backends\ConsoleBackend.cs" />
     <Compile Include="Logging\Backends\FileBackend.cs" />
+    <Compile Include="Logging\Backends\NetworkBackend.cs" />
     <Compile Include="Logging\Backends\LoggerBackend.cs" />
     <Compile Include="Logging\Backends\TextBackend.cs" />
     <Compile Include="Logging\Lucene\Direction.cs" />

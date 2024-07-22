@@ -92,6 +92,7 @@
     <Compile Include="UserInterface\Commands\MonitorPathCommand.cs" />
     <Compile Include="UserInterface\Commands\LogLevelCommand.cs" />
     <Compile Include="UserInterface\Commands\LoggerFileCommand.cs" />
+    <Compile Include="UserInterface\Commands\NetworkLoggerCommand.cs" />
     <Compile Include="UserInterface\Commands\PauseCommand.cs" />
     <Compile Include="UserInterface\Commands\StartCommand.cs" />
     <Compile Include="UserInterface\Commands\SetCommand.cs" />
