@@ -609,11 +609,9 @@ restart:
             {
                 this.Trace($"CPU thread body in progress; {instructionsLeftThisRound} instructions left...");
 
-                var instructionsToNearestLimit = InstructionsToNearestLimit();
-
                 // this puts a limit on instructions to execute in one round
                 // and makes timers update independent of the current quantum
-                var toExecute = Math.Min(instructionsToNearestLimit, instructionsLeftThisRound);
+                var toExecute = Math.Min(InstructionsToNearestLimit(), instructionsLeftThisRound);
 
                 if(skipInstructions > 0)
                 {
