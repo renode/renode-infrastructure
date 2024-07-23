@@ -1,10 +1,11 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
 using System.Collections.Generic;
 
 namespace Antmicro.Renode.Utilities
@@ -50,6 +51,7 @@ namespace Antmicro.Renode.Utilities
                     values.Remove(ordering.Last.Value);
                     ordering.RemoveLast();
                 }
+                OnChanged?.Invoke();
             }
         }
 
@@ -59,8 +61,11 @@ namespace Antmicro.Renode.Utilities
             {
                 values.Clear();
                 ordering.Clear();
+                OnChanged?.Invoke();
             }
         }
+
+        public event Action OnChanged;
 
         private readonly object locker;
         private readonly int limit;

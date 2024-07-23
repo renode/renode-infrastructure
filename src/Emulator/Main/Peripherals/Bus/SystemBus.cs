@@ -51,6 +51,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             idByCpu = new Dictionary<ICPU, int>();
             hooksOnRead = new Dictionary<ulong, List<BusHookHandler>>();
             hooksOnWrite = new Dictionary<ulong, List<BusHookHandler>>();
+            pcCache.OnChanged += HandleChangedSymbols;
             InitStructures();
             this.Log(LogLevel.Info, "System bus created.");
         }
@@ -367,6 +368,11 @@ namespace Antmicro.Renode.Peripherals.Bus
                 throw new RecoverableException(CantFindCpuIdMessage);
             }
             return id;
+        }
+
+        private void HandleChangedSymbols()
+        {
+            OnSymbolsChanged?.Invoke(Machine);
         }
 
         private IEnumerable<ICPU> GetCPUsForContext(ICPU context)
@@ -1173,6 +1179,8 @@ namespace Antmicro.Renode.Peripherals.Bus
         }
 
         public UnhandledAccessBehaviour UnhandledAccessBehaviour { get; set; }
+
+        public event Action<IMachine> OnSymbolsChanged;
 
         private SymbolLookup GetOrCreateLookup(ICPU context)
         {

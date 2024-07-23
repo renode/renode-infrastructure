@@ -400,5 +400,18 @@ namespace Antmicro.Renode.Peripherals.Bus
         {
             return true;
         }
+
+        event Action<IMachine> IBusController.OnSymbolsChanged
+        {
+            add
+            {
+                ParentController.OnSymbolsChanged += value;
+            }
+
+            remove
+            {
+                ParentController.OnSymbolsChanged -= value;
+            }
+        }
     }
 }

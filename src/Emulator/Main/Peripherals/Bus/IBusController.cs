@@ -96,6 +96,8 @@ namespace Antmicro.Renode.Peripherals.Bus
         bool IsMultiCore { get; }
 
         Endianess Endianess { get; }
+
+        event Action<IMachine> OnSymbolsChanged;
     }
 
     public static class BusControllerExtensions
