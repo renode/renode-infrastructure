@@ -81,6 +81,9 @@
     <Compile Remove="**/obj/**/*AssemblyInfo.cs"/>
     <Compile Remove="**/obj/**/*AssemblyAttributes.cs"/>
   </ItemGroup>
+  <ItemGroup Condition="$(CurrentPlatform) != 'Linux' Or $(Architecture) != 'i386'">
+    <Compile Remove="Emulator/Cores/X86KVM/*" />
+  </ItemGroup>
 
   <Target Name="PrepareEmbeddedResources" BeforeTargets="ResolveReferences" >
     <ItemGroup>
@@ -125,6 +128,9 @@
       </EmbeddedResource>
       <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/translate-sparc-be.so">
         <LogicalName>Antmicro.Renode.translate-sparc-be.so</LogicalName>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/kvm-$(Architecture).so" Condition="$(CurrentPlatform) == 'Linux' And $(Architecture) == 'i386'">
+          <LogicalName>Antmicro.Renode.kvm-$(Architecture).so</LogicalName>
       </EmbeddedResource>
     </ItemGroup>
   </Target>

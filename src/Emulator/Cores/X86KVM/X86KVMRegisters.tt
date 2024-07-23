@@ -1,0 +1,21 @@
+﻿<#
+//
+// Copyright (c) 2010-2025 Antmicro
+//
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
+//
+#>
+<#@ template language="C#" #>
+<#@ include file="../Common/RegisterTemplateDefinitions.tt" #>
+<#
+    CLASS_NAME = "X86KVM";
+    HEADER_FILE = "Emulator/Cores/virt/include/cpu_registers.h";
+    ACCESSOR_PREFIX = "kvm_";
+
+    PC_REGISTER = "EIP";
+    OVERRIDE_DEFINITIONS = false;
+
+    GENERAL_REGISTERS.AddRange(new[] { "EAX", "ECX", "EDX", "EBX", "ESP", "EBP", "ESI", "EDI", "EIP", "EFLAGS", "CS", "SS", "DS", "ES", "FS", "GS", "CR0", "CR1", "CR2", "CR3", "CR4" });
+#>
+<#@ include file="../Common/RegisterTemplate.tt" #>

@@ -81,6 +81,9 @@
       <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/translate-riscv64-le.so">
         <LogicalName>Antmicro.Renode.translate-riscv64-le.so</LogicalName>
       </EmbeddedResource>
+      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/kvm-$(Architecture).so" Condition="$(CurrentPlatform) == 'Linux' And $(Architecture) == 'i386'">
+          <LogicalName>Antmicro.Renode.kvm-$(Architecture).so</LogicalName>
+      </EmbeddedResource>
     </ItemGroup>
     <ItemGroup>
       <EmbeddedResource Include="Emulator/Cores/RiscV/opcodes/opcodes-custom">
@@ -304,6 +307,18 @@
     <None Include="Emulator/Cores/X86/X86_64Registers.tt">
       <Generator>TextTemplatingFileGenerator</Generator>
       <LastGenOutput>X86_64Registers.cs</LastGenOutput>
+    </None>
+  </ItemGroup>
+  <ItemGroup Condition="$(CurrentPlatform) == 'Linux' And $(Architecture) == 'i386'">
+    <Compile Include="Emulator/Cores/X86KVM/X86KVM.cs" />
+    <Compile Include="Emulator/Cores/X86KVM/X86KVMRegisters.cs">
+      <DependentUpon>X86KVMRegisters.tt</DependentUpon>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Emulator/Cores/X86KVM/X86KVMRegisters.tt" Condition="$(CurrentPlatform) == 'Linux' And $(Architecture) == 'i386'">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>X86KVMRegisters.cs</LastGenOutput>
     </None>
   </ItemGroup>
   <ItemGroup>
