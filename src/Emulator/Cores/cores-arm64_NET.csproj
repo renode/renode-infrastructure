@@ -12,6 +12,7 @@
   <Import Project="./cores.template_NET.csproj" />
 
   <ItemGroup>
+    <Compile Include="Arm64\BaseARMv8.cs" />
     <Compile Include="Arm64\ARMv8A.cs" />
     <Compile Include="Arm64\ARMv8ARegisters.cs">
       <DependentUpon>ARMv8ARegisters.tt</DependentUpon>

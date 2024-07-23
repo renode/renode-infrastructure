@@ -21,10 +21,10 @@ using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public partial class ARMv8A : TranslationCPU, IARMTwoSecurityStatesCPU, IPeripheralRegister<ARM_GenericTimer, NullRegistrationPoint>, ICPUWithAArch64Support
+    public partial class ARMv8A : BaseARMv8, IARMTwoSecurityStatesCPU, IPeripheralRegister<ARM_GenericTimer, NullRegistrationPoint>, ICPUWithAArch64Support
     {
         public ARMv8A(IMachine machine, string cpuType, ARM_GenericInterruptController genericInterruptController, uint cpuId = 0, Endianess endianness = Endianess.LittleEndian)
-                : base(cpuId, cpuType, machine, endianness, CpuBitness.Bits64)
+                : base(cpuId, cpuType, machine, endianness)
         {
             Affinity = new Affinity(cpuId);
             gic = genericInterruptController;

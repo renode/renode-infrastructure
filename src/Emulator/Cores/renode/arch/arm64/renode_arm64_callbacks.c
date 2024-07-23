@@ -18,3 +18,4 @@ EXTERNAL_AS(func_uint32_uint32, ReadSystemRegisterGenericTimer32, tlib_read_syst
 EXTERNAL_AS(action_uint32_uint32, WriteSystemRegisterGenericTimer32, tlib_write_system_register_generic_timer_32)
 
 EXTERNAL_AS(action_uint32_uint32, OnExecutionModeChanged, tlib_on_execution_mode_changed)
+EXTERNAL_AS(action, HandleSMCCall, tlib_handle_smc_call)
