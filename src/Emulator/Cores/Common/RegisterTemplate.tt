@@ -24,6 +24,11 @@
     {
         throw new ArgumentException("HEADER_FILE variable not set");
     }
+    if(ACCESSOR_PREFIX == null)
+    {
+        // Assume tlibs by default
+        ACCESSOR_PREFIX = "tlib_";
+    }
 
     RegistersEnumParser parser;
     var baseDirectoryPath = Directory.GetParent(BASE_PATH).Parent.Parent.Parent.FullName;
@@ -293,9 +298,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         // 649:  Field '...' is never assigned to, and will always have its default value null
         #pragma warning disable 649
 
-        [Import(Name = "tlib_set_register_value_<#=width#>")]
+        [Import(Name = "<#=ACCESSOR_PREFIX#>set_register_value_<#=width#>")]
         protected ActionInt32<#=RegisterTypeHelper.GetTypeName(width)#> SetRegisterValue<#=width#>;
-        [Import(Name = "tlib_get_register_value_<#=width#>")]
+        [Import(Name = "<#=ACCESSOR_PREFIX#>get_register_value_<#=width#>")]
         protected Func<#=RegisterTypeHelper.GetTypeName(width)#>Int32 GetRegisterValue<#=width#>;
 
         #pragma warning restore 649

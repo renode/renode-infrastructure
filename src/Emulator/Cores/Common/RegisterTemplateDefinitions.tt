@@ -11,6 +11,8 @@
 <#
     string CLASS_NAME = null;
     string HEADER_FILE = null;
+    string ACCESSOR_PREFIX = null;
+
     string PC_REGISTER = null;
     string FALLBACK_SET_REGISTER = null;
     string FALLBACK_GET_REGISTER = null;
