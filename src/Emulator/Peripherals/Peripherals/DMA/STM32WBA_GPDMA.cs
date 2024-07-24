@@ -258,7 +258,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     .WithFlag(11, out updateLinkTransferErrorInterruptEnable, name: "Update link transfer error interrupt enable (ULEIE)")
                     .WithFlag(12, out userSettingErrorInterruptEnable, name: "User setting error interrupt enable (USEIE)")
                     .WithFlag(13, out completedSuspensionInterruptEnable, name: "Completed suspension interrupt enable (SUSPIE)")
-                    .WithFlag(14, out dataTransferErrorInterruptEnable, name: "Trigger overrun interrupt enable (TOIE)")
+                    .WithFlag(14, out triggerOverrunInterruptEnable, name: "Trigger overrun interrupt enable (TOIE)")
                     .WithReservedBits(15, 1)
                     .WithTag("Link step mode (LSM)", 16, 1)
                     .WithTag("Linked list allocated port (LAP)", 17, 1)
