@@ -295,6 +295,7 @@
     <Compile Include="Peripherals\Sensors\SI70xx.cs" />
     <Compile Include="Peripherals\Sensors\SI7210.cs" />
     <Compile Include="Peripherals\CPU\TranslationCPU.cs" />
+    <Compile Include="Peripherals\CPU\SegmentMapping.cs" />
     <Compile Include="Peripherals\CPU\TranslationCPU_OpcodesCounting.cs" />
     <Compile Include="Peripherals\CPU\TranslationCPU_Profiler.cs" />
     <Compile Include="Peripherals\CPU\Cluster.cs" />

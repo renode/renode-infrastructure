@@ -1672,17 +1672,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             TargetExternal3 = 1 << 9,
         }
 
-        private class SegmentMapping
-        {
-            public IMappedSegment Segment { get; private set; }
-            public bool Touched { get; set; }
-
-            public SegmentMapping(IMappedSegment segment)
-            {
-                Segment = segment;
-            }
-        }
-
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
         private struct HostMemoryBlock
         {
