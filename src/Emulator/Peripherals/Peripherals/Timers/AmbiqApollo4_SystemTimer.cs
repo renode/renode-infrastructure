@@ -116,7 +116,18 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     register.WithValueField(0, 32, name: $"SCMPR{registerIndex}",
                         // SCMPR value written is relative to the current COUNTER (systemTimer's Value).
-                        writeCallback: (_, newValue) => compareRegisters[registerIndex].CompareValue = Value + (uint)newValue,
+                        writeCallback: (_, newValue) =>
+                        {
+                            // Ambiq HAL does a Compare delta adjustment:
+                            // on HW it takes 2 clock cycles for writes to this register to be effective
+                            // and the interrupt itself is delayed by 1.
+                            // Hence the timer incrementation.
+                            if((compareRegisters[registerIndex].CompareValue - (uint)newValue) > 3)
+                            {
+                                systemTimer.Increment(3);
+                            }
+                            compareRegisters[registerIndex].CompareValue = Value + (uint)newValue;
+                        },
                         valueProviderCallback: _ => compareRegisters[registerIndex].CompareValue);
                 }, stepInBytes: 4);
 
