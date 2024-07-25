@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using Antmicro.Migrant;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Time
 {
@@ -220,20 +221,28 @@ namespace Antmicro.Renode.Time
 
         private static bool HandleDirectionDescendingPositiveRatio(ref ClockEntry entry, TimeInterval time, ref TimeInterval nearestTickIn)
         {
-            var ticksByRatio = time.Ticks * (ulong)entry.Ratio;
-            var isReached = ticksByRatio >= entry.Value;
-            entry.ValueResiduum = 0;
+            var emulatorTicks = time.Ticks;
+            var entryTicks = emulatorTicks * entry.Ratio + entry.ValueResiduum;
+            var isReached = entryTicks.Integer >= entry.Value;
+            entry.ValueResiduum = entryTicks.Fractional;
             if(isReached)
             {
                 entry.Value = entry.Period;
+                entry.ValueResiduum = Fraction.Zero;
                 entry = entry.With(enabled: entry.Enabled & (entry.WorkMode != WorkMode.OneShot));
             }
             else
             {
-                entry.Value -= ticksByRatio;
+                entry.Value -= entryTicks.Integer;
             }
 
-            nearestTickIn = nearestTickIn.WithTicksMin((entry.Value - 1) / (ulong)entry.Ratio + 1);
+            var emulatorTicksToLimit = (entry.Value - entry.ValueResiduum) / entry.Ratio;
+            var wholeTicksToLimit = emulatorTicksToLimit.Integer;
+            if(wholeTicksToLimit < uint.MaxValue && emulatorTicksToLimit.Fractional.Numerator != 0)
+            {
+                wholeTicksToLimit += 1;
+            }
+            nearestTickIn = nearestTickIn.WithTicksMin(wholeTicksToLimit);
             return isReached;
         }
 
@@ -255,26 +264,37 @@ namespace Antmicro.Renode.Time
                 entry.Value -= ticksByRatio;
             }
 
-            nearestTickIn = nearestTickIn.WithTicksMin(entry.Value * ratio - entry.ValueResiduum);
+            if(entry.Value != 0)
+            {
+                nearestTickIn = nearestTickIn.WithTicksMin(entry.Value * ratio - entry.ValueResiduum);
+            }
             return isReached;
         }
 
         private static bool HandleDirectionAscendingPositiveRatio(ref ClockEntry entry, TimeInterval time, ref TimeInterval nearestTickIn)
         {
-            var flag = false;
-
-            entry.Value += time.Ticks * (ulong)entry.Ratio;
-            entry.ValueResiduum = 0;
+            var emulatorTicks = time.Ticks;
+            var entryTicks = emulatorTicks * entry.Ratio + entry.ValueResiduum;
+            var isReached = false;
+            entry.Value += entryTicks.Integer;
+            entry.ValueResiduum = entryTicks.Fractional;
 
             if(entry.Value >= entry.Period)
             {
-                flag = true;
+                isReached = true;
                 entry.Value = 0;
+                entry.ValueResiduum = Fraction.Zero;
                 entry = entry.With(enabled: entry.Enabled & (entry.WorkMode != WorkMode.OneShot));
             }
 
-            nearestTickIn = nearestTickIn.WithTicksMin((entry.Period - entry.Value - 1) / (ulong)entry.Ratio + 1);
-            return flag;
+            var emulatorTicksToLimit = (entry.Period - entry.Value - entry.ValueResiduum) / entry.Ratio;
+            var wholeTicksToLimit = emulatorTicksToLimit.Integer;
+            if(wholeTicksToLimit < uint.MaxValue && emulatorTicksToLimit.Fractional.Numerator != 0)
+            {
+                wholeTicksToLimit += 1;
+            }
+            nearestTickIn = nearestTickIn.WithTicksMin(wholeTicksToLimit);
+            return isReached;
         }
 
         private static bool HandleDirectionAscendingNegativeRatio(ref ClockEntry entry, TimeInterval time, ref TimeInterval nearestTickIn)
@@ -292,7 +312,11 @@ namespace Antmicro.Renode.Time
                 entry = entry.With(enabled: entry.Enabled & (entry.WorkMode != WorkMode.OneShot));
             }
 
-            nearestTickIn = nearestTickIn.WithTicksMin(((entry.Period - entry.Value) * ratio) - entry.ValueResiduum);
+            var min = ((entry.Period - entry.Value) * ratio) - entry.ValueResiduum;
+            if(min != 0)
+            {
+                nearestTickIn = nearestTickIn.WithTicksMin(min);
+            }
             return flag;
         }
 
