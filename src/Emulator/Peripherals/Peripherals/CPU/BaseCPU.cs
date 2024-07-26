@@ -657,7 +657,9 @@ restart:
                             // Don't fall behind realtime by sleeping
                             var intervalToSleep = TimeInterval.FromCPUCycles(instructionsToSkip, PerformanceInMips, out var cyclesResiduum).WithTicksMin(virtualTimeAhead.Ticks);
                             sleeper.Sleep(intervalToSleep.ToTimeSpan(out var nsResiduum), out var intervalSlept);
-                            instructionsToSkip = TimeInterval.FromTimeSpan(intervalSlept, nsResiduum).ToCPUCycles(PerformanceInMips, out var _) + cyclesResiduum;
+                            // If we have a CPU of less than 10 MIPS, it might be the case that the interval slept (which is in units of 100 ns)
+                            // is less than 1 instruction. Just round up it in this case.
+                            instructionsToSkip = Math.Max(TimeInterval.FromTimeSpan(intervalSlept, nsResiduum).ToCPUCycles(PerformanceInMips, out var _) + cyclesResiduum, 1);
                         }
 
                         ReportProgress(instructionsToSkip);
