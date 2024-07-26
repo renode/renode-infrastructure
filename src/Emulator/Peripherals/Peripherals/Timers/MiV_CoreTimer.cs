@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -17,6 +17,7 @@ namespace Antmicro.Renode.Peripherals.Timers
     {
         public MiV_CoreTimer(IMachine machine, long clockFrequency) : base(machine.ClockSource, clockFrequency, limit: uint.MaxValue, autoUpdate: true, eventEnabled: true)
         {
+            this.machine = machine;
             IRQ = new GPIO();
             LimitReached += delegate
             {
@@ -40,7 +41,13 @@ namespace Antmicro.Renode.Peripherals.Timers
                 },
 
                 {(long)Registers.Value, new DoubleWordRegister(this, 0xFFFFFFFF)
-                    .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => checked((uint)Value), name: "CurrentValue")},
+                    .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => {
+                        if(machine.SystemBus.TryGetCurrentCPU(out var cpu))
+                        {
+                            cpu.SyncTime();
+                        }
+                        return checked((uint)Value);
+                    }, name: "CurrentValue")},
 
                 {(long)Registers.Control, new DoubleWordRegister(this)
                     .WithFlag(0, writeCallback: (_, val) => Enabled = val, valueProviderCallback: _ => Enabled, name: "TimerEnable")
@@ -99,6 +106,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         public long Size => 0x1C;
 
         private readonly DoubleWordRegisterCollection registers;
+        private readonly IMachine machine;
 
         private enum Registers : long
         {
