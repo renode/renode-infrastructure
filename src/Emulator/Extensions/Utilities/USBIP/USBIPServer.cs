@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -383,19 +383,16 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
             var currentOffset = Packet.CalculateLength<USB.ConfigurationDescriptor>();
             for(var i = 0; i < interfaceDescriptors.Length; i++)
             {
-                interfaceDescriptors[i] = Packet.Decode<USB.InterfaceDescriptor>(recursiveBytes, currentOffset);
-                if(i != interfaceDescriptors.Length - 1)
+                // the second byte of each descriptor contains the type
+                while(recursiveBytes[currentOffset + 1] != (byte)DescriptorType.Interface)
                 {
-                    // skip until the next interface descriptor
-                    currentOffset += Packet.CalculateLength<USB.InterfaceDescriptor>();
-
-                    // the second byte of each descriptor contains the type
-                    while(recursiveBytes[currentOffset + 1] != (byte)DescriptorType.Interface)
-                    {
-                        // the first byte of each descriptor contains the length in bytes
-                        currentOffset += recursiveBytes[currentOffset];
-                    }
+                    // the first byte of each descriptor contains the length in bytes
+                    currentOffset += recursiveBytes[currentOffset];
                 }
+
+                interfaceDescriptors[i] = Packet.Decode<USB.InterfaceDescriptor>(recursiveBytes, currentOffset);
+                // skip until the next interface descriptor
+                currentOffset += Packet.CalculateLength<USB.InterfaceDescriptor>();
             }
 
             return result;
