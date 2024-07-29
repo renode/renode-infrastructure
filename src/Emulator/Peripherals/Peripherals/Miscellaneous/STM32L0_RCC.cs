@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -435,7 +435,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithTaggedFlag("PWRRST", 28)
                 .WithTaggedFlag("DACRST", 29)
                 .WithTaggedFlag("I2C3RST", 30)
-                .WithTaggedFlag("LPTIM1RST", 31)
+                .WithFlag(31, writeCallback: (_, value) =>
+                {
+                    if(value)
+                    {
+                        (lptimer as IPeripheral)?.Reset();
+                    }
+                }, name: "LPTIM1RST")
                 ;
 
             // Most clock enable bits are flags instead of tags to reduce the number of warnings in the log
