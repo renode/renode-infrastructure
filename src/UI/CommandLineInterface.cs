@@ -10,6 +10,7 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Logging.Backends;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.UserInterface;
+using Antmicro.Renode.UserInterface.Tokenizer;
 using Antmicro.Renode.Backends.Terminals;
 using AntShell;
 using AntShell.Terminal;
@@ -226,11 +227,22 @@ namespace Antmicro.Renode.UI
             monitor.Interaction = shell.Writer;
             monitor.MachineChanged += emu => shell.SetPrompt(emu != null ? new Prompt(string.Format("({0}) ", emu), ConsoleColor.DarkYellow) : null);
 
-            if(!string.IsNullOrEmpty(options.ScriptPath))
+            if(!string.IsNullOrEmpty(options.FilePath))
             {
-                shell.Started += s => s.InjectInput(string.Format("i {0}{1}\n",
-                    Uri.IsWellFormedUriString(options.ScriptPath, UriKind.Absolute) || Path.IsPathRooted(options.ScriptPath) ? "@" : "$CWD/",
-                    options.ScriptPath));
+                var filePath = string.Format("{0}{1}",
+                    Uri.IsWellFormedUriString(options.FilePath, UriKind.Absolute) || Path.IsPathRooted(options.FilePath) ? "@" : "$CWD/",
+                    options.FilePath);
+                String commandToInject;
+                switch(Path.GetExtension(new PathToken(filePath).Value))
+                {
+                    case ".save":
+                        commandToInject = string.Format("Load {0}\n", filePath);
+                        break;
+                    default:
+                        commandToInject = string.Format("i {0}\n", filePath);
+                        break;
+                }
+                shell.Started += s => s.InjectInput(commandToInject);
             }
             if(options.Execute != null)
             {

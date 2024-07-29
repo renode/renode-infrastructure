@@ -26,8 +26,8 @@ namespace Antmicro.Renode.UI
         [Name("disable-xwt"), Alias("disable-gui"), DefaultValue(false), Description("Disable XWT GUI support. It automatically sets HideMonitor.")]
         public bool DisableXwt { get; set; }
 
-        [Name("script"), PositionalArgument(0)]
-        public string ScriptPath { get; set; }
+        [Name("file-to-include / snapshot"), PositionalArgument(0)]
+        public string FilePath { get; set; }
 
         [Name("hide-monitor"), DefaultValue(false), Description("Do not show the Monitor window.")]
         public bool HideMonitor { get; set; }
