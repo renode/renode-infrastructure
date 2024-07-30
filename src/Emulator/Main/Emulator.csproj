@@ -633,6 +633,7 @@
     <Compile Include="Peripherals\Sensor\IMagneticSensor.cs" />
     <Compile Include="Peripherals\Sensor\IADC.cs" />
     <Compile Include="Peripherals\Bus\IIndirectCSRPeripheral.cs" />
+    <Compile Include="Utilities\Fraction.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
