@@ -33,7 +33,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTaggedFlag("CTRL_IRQ_RX_NEMPTY", 22) // fire IRQ if RX FIFO not empty
                 .WithTaggedFlag("CTRL_IRQ_RX_HALF", 23) // fire IRQ if RX FIFO at least half-full
                 .WithTaggedFlag("CTRL_IRQ_RX_FULL", 24) // fire IRQ if RX FIFO full
-                .WithTaggedFlag("CTRL_IRQ_RX_FULL", 25) // fire IRQ if TX FIFO empty
+                .WithTaggedFlag("CTRL_IRQ_TX_EMPTY", 25) // fire IRQ if TX FIFO empty
                 .WithTaggedFlag("CTRL_IRQ_TX_NHALF", 26) // fire IRQ if TX not at least half full
                 .WithReservedBits(27, 1) // Reserved read as zero
                 .WithTaggedFlag("CTRL_RX_CLR", 28) // Clear RX FIFO, flag auto-clears
