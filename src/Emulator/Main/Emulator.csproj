@@ -376,6 +376,7 @@
     <Compile Include="Backends\Terminals\BackendTerminal.cs" />
     <Compile Include="Peripherals\DMA\Place.cs" />
     <Compile Include="Plugins\PluginManager.cs" />
+    <Compile Include="Sockets\SocketsManager.cs" />
     <Compile Include="Peripherals\IAnalyzableBackend.cs" />
     <Compile Include="Peripherals\IAnalyzable.cs" />
     <Compile Include="Peripherals\IAnalyzableBackendAnalyzer.cs" />

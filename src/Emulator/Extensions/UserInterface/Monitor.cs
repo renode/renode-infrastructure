@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2022 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -9,6 +9,7 @@ using System;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Sockets;
 using Antmicro.Renode.Utilities;
 using System.IO;
 using System.Text;
@@ -208,6 +209,7 @@ namespace Antmicro.Renode.UserInterface
             BindStatic(EmulationToken, () => Emulation);
             BindStatic("plugins", () => TypeManager.Instance.PluginManager);
             BindStatic("EmulationManager", () => emulationManager);
+            BindStatic("sockets", () => SocketsManager.Instance);
 
             var includeCommand = new IncludeFileCommand(this, (x, y) => pythonRunner.TryExecutePythonScript(x, y), x => TryExecuteScript(x), (x, y) => TryCompilePlugin(x, y), (x,y) => TryLoadPlatform(x,y));
             Commands.Add(new HelpCommand(this, () =>
