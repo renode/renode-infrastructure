@@ -246,31 +246,6 @@ namespace Antmicro.Renode.Time
             return isReached;
         }
 
-        private static bool HandleDirectionDescendingNegativeRatio(ref ClockEntry entry, TimeInterval time, ref TimeInterval nearestTickIn)
-        {
-            var ratio = (ulong)(-entry.Ratio);
-            var ticksByRatio = (time.Ticks + entry.ValueResiduum) / ratio;
-            var isReached = ticksByRatio >= entry.Value;
-            entry.ValueResiduum = (time.Ticks + entry.ValueResiduum) % ratio;
-
-            if(isReached)
-            {
-                // TODO: maybe issue warning if its lower than zero
-                entry.Value = entry.Period;
-                entry = entry.With(enabled: entry.Enabled & (entry.WorkMode != WorkMode.OneShot));
-            }
-            else
-            {
-                entry.Value -= ticksByRatio;
-            }
-
-            if(entry.Value != 0)
-            {
-                nearestTickIn = nearestTickIn.WithTicksMin(entry.Value * ratio - entry.ValueResiduum);
-            }
-            return isReached;
-        }
-
         private static bool HandleDirectionAscendingPositiveRatio(ref ClockEntry entry, TimeInterval time, ref TimeInterval nearestTickIn)
         {
             var emulatorTicks = time.Ticks;
@@ -295,29 +270,6 @@ namespace Antmicro.Renode.Time
             }
             nearestTickIn = nearestTickIn.WithTicksMin(wholeTicksToLimit);
             return isReached;
-        }
-
-        private static bool HandleDirectionAscendingNegativeRatio(ref ClockEntry entry, TimeInterval time, ref TimeInterval nearestTickIn)
-        {
-            var flag = false;
-            ulong ratio = (ulong)(-entry.Ratio);
-
-            entry.Value += (time.Ticks + entry.ValueResiduum) / ratio;
-            entry.ValueResiduum = (time.Ticks + entry.ValueResiduum) % ratio;
-
-            if(entry.Value >= entry.Period)
-            {
-                flag = true;
-                entry.Value = 0;
-                entry = entry.With(enabled: entry.Enabled & (entry.WorkMode != WorkMode.OneShot));
-            }
-
-            var min = ((entry.Period - entry.Value) * ratio) - entry.ValueResiduum;
-            if(min != 0)
-            {
-                nearestTickIn = nearestTickIn.WithTicksMin(min);
-            }
-            return flag;
         }
 
         private void AdvanceInner(TimeInterval time, bool immediately)
@@ -423,25 +375,11 @@ namespace Antmicro.Renode.Time
         {
             if(clockEntries[clockEntryIndex].Direction == Direction.Descending)
             {
-                if(clockEntries[clockEntryIndex].Ratio > 0)
-                {
-                    clockEntriesUpdateHandlers[clockEntryIndex] = HandleDirectionDescendingPositiveRatio;
-                }
-                else
-                {
-                    clockEntriesUpdateHandlers[clockEntryIndex] = HandleDirectionDescendingNegativeRatio;
-                }
+                clockEntriesUpdateHandlers[clockEntryIndex] = HandleDirectionDescendingPositiveRatio;
             }
             else
             {
-                if(clockEntries[clockEntryIndex].Ratio > 0)
-                {
-                    clockEntriesUpdateHandlers[clockEntryIndex] = HandleDirectionAscendingPositiveRatio;
-                }
-                else
-                {
-                    clockEntriesUpdateHandlers[clockEntryIndex] = HandleDirectionAscendingNegativeRatio;
-                }
+                clockEntriesUpdateHandlers[clockEntryIndex] = HandleDirectionAscendingPositiveRatio;
             }
         }
 
