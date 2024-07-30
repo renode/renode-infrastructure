@@ -22,6 +22,7 @@
 
       <ProtoTarget>$(TargetArchitecture.ToLower())</ProtoTarget>
       <HostUpper>$(HostArchitecture.ToUpper())</HostUpper>
+      <CompilerName>$([System.IO.Path]::GetFileNameWithoutExtension('$(CompilerPath.ToLowerInvariant())'))</CompilerName>
 
       <ConfigName>$(ProtoTarget)-$(TargetWordSize)_$(TargetEndianess)</ConfigName>
       <OutputDirectory>bin/$(Configuration)/$(ConfigName)</OutputDirectory>
@@ -51,17 +52,17 @@
       <CompilationFlags Include="-O3" Condition=" $(Configuration) == 'Release'" />
       <!-- Partial Redundancy Elimination with GCC 12+ is breaking correctness of a simple exported tlib function
                (see arch/arm64/arch_exports.c). Let's disable it so that it doesn't break any other code. -->
-      <CompilationFlags Include="-fno-tree-pre" Condition=" $(Configuration) == 'Release' and $(CurrentPlatform) != 'OSX'" />
+      <CompilationFlags Include="-fno-tree-pre" Condition=" $(Configuration) == 'Release' and $(CompilerName) == 'gcc'" />
       <CompilationFlags Include="-Wall" />
       <CompilationFlags Include="-Wextra" />
       <CompilationFlags Include="-Wno-unused-parameter" />
       <CompilationFlags Include="-Wno-sign-compare" />
       <!-- Clang warns about "too many arguments in call" whenever a stub (arm64/stubs.h) is called with arguments.
                The stubs hackishly use the fact that a function defined without a "void" argument can be actually called with arguments.
-               There's no way to turn off these warnings so for now simply let's not convert warnings to errors on macOS for arm64.
+               There's no way to turn off these warnings so for now simply let's not convert warnings to errors when using clang to compile arm64.
 
                TODO: Remove the condition when we get rid of the stubs or when stubs are implemented in a different way. -->
-      <CompilationFlags Include="-Werror" Condition=" $(CurrentPlatform) != 'OSX' or $(TargetArchitecture) != 'arm64' " />
+      <CompilationFlags Include="-Werror" Condition=" $(CompilerName) != 'clang' or $(TargetArchitecture) != 'arm64' "/>
       <CompilationFlags Include="-DCONFIG_NEED_MMU" />
       <CompilationFlags Include="-DTCG_TARGET_$(HostUpper)" />
       <CompilationFlags Include="-DHOST_BITS_64" />
