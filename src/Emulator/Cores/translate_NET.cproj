@@ -46,7 +46,6 @@
       <CompilationFlags Include="-fno-omit-frame-pointer" Condition="$(TlibProfilingBuild) == 'true'" />
       <CompilationFlags Include="-fomit-frame-pointer" Condition="$(Configuration) == 'Release' and $(TlibProfilingBuild) != 'true'" />
 
-      <CompilationFlags Include="-shared" Condition=" $(CurrentPlatform) != 'OSX' " />
       <CompilationFlags Include="-fPIC" Condition=" $(OS) != 'Windows_NT'" />
       <CompilationFlags Include="-g3" Condition=" $(Configuration) == 'Debug' or $(TlibProfilingBuild) == 'true'" />
       <CompilationFlags Include="-O3" Condition=" $(Configuration) == 'Release'" />
