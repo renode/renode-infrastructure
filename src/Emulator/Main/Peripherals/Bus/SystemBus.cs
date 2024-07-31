@@ -104,8 +104,15 @@ namespace Antmicro.Renode.Peripherals.Bus
             var methods = PeripheralAccessMethods.CreateWithLock();
             if(registrationPoint is BusParametrizedRegistration parametrizedRegistrationPoint)
             {
-                parametrizedRegistrationPoint.FillAccessMethods(peripheral, ref methods);
-                FillAccessMethodsWithDefaultMethods(peripheral, ref methods);
+                parametrizedRegistrationPoint.RegisterForEachContext((contextRegistration) =>
+                {
+                    // Prepare accessor methods in the context of registration,
+                    // as it may want to fill them according to the CPU context.
+                    methods = PeripheralAccessMethods.CreateWithLock();
+                    contextRegistration.FillAccessMethods(peripheral, ref methods);
+                    FillAccessMethodsWithDefaultMethods(peripheral, ref methods);
+                    RegisterInner(peripheral, methods, contextRegistration, context: contextRegistration.CPU);
+                });
             }
             else if(registrationPoint is BusMultiRegistration multiRegistrationPoint)
             {
@@ -114,12 +121,13 @@ namespace Antmicro.Renode.Peripherals.Bus
                     throw new ConstructionException(string.Format("It is not allowed to register `{0}` peripheral using `{1}`", typeof(IMapped).Name, typeof(BusMultiRegistration).Name));
                 }
                 FillAccessMethodsWithTaggedMethods(peripheral, multiRegistrationPoint.ConnectionRegionName, ref methods);
+                multiRegistrationPoint.RegisterForEachContext((contextRegistration) => RegisterInner(peripheral, methods, contextRegistration, context: contextRegistration.CPU));
             }
             else
             {
                 FillAccessMethodsWithDefaultMethods(peripheral, ref methods);
+                registrationPoint.RegisterForEachContext((contextRegistration) => RegisterInner(peripheral, methods, contextRegistration, context: contextRegistration.CPU));
             }
-            RegisterInner(peripheral, methods, registrationPoint, context: registrationPoint.CPU);
         }
 
         public void Register(IBusPeripheral peripheral, BusMultiRegistration registrationPoint)
@@ -139,7 +147,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public void Register(IKnownSize peripheral, BusPointRegistration registrationPoint)
         {
-            Register(peripheral, new BusRangeRegistration(new Range(registrationPoint.StartingPoint, checked((ulong)peripheral.Size)), registrationPoint.Offset, registrationPoint.CPU));
+            Register(peripheral, new BusRangeRegistration(new Range(registrationPoint.StartingPoint, checked((ulong)peripheral.Size)), registrationPoint.Offset, registrationPoint.CPU, registrationPoint.Cluster));
         }
 
         public void Unregister(IKnownSize peripheral)
