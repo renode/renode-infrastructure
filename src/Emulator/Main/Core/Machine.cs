@@ -1004,15 +1004,20 @@ namespace Antmicro.Renode.Core
             }
         }
 
-        public void StartGdbServer(int port, bool autostartEmulation, ICpuSupportingGdb cpu)
+        // Name of the last parameter is kept as 'cpu' for backward compatibility.
+        public void StartGdbServer(int port, bool autostartEmulation, ICluster<ICpuSupportingGdb> cpu)
         {
-            try
+            var cluster = cpu;
+            foreach(var cpuSupportingGdb in cluster.Clustered)
             {
-                AddCpusToGdbStub(port, autostartEmulation, new [] { cpu });
-            }
-            catch(SocketException e)
-            {
-                throw new RecoverableException(string.Format("Could not start GDB server: {0}", e.Message));
+                try
+                {
+                    AddCpusToGdbStub(port, autostartEmulation, new [] { cpuSupportingGdb });
+                }
+                catch(SocketException e)
+                {
+                    throw new RecoverableException(string.Format("Could not start GDB server for {0}: {1}", cpuSupportingGdb.GetName(), e.Message));
+                }
             }
         }
 
