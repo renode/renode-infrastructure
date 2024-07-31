@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
+using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Core.Structure
@@ -16,6 +17,7 @@ namespace Antmicro.Renode.Core.Structure
     public interface IBusRegistration : IRegistrationPoint
     {
         ICPU CPU { get; }
+        ICluster<ICPU> Cluster { get; }
         ulong Offset { get; }
         ulong StartingPoint { get; }
     }

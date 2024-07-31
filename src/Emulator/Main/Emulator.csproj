@@ -195,6 +195,7 @@
     <Compile Include="Peripherals\Bus\PeripheralAccessMethods.cs" />
     <Compile Include="Peripherals\Bus\SymbolLookup.cs" />
     <Compile Include="Peripherals\IKnownSize.cs" />
+    <Compile Include="Peripherals\Bus\BusRegistration.cs" />
     <Compile Include="Peripherals\Bus\BusPointRegistration.cs" />
     <Compile Include="Peripherals\Bus\BusRangeRegistration.cs" />
     <Compile Include="Peripherals\Bus\BusParametrizedRegistration.cs" />

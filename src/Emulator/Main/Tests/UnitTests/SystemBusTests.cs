@@ -568,6 +568,11 @@ namespace Antmicro.Renode.UnitTests
                         parent.ByteWritten = true;
                     };
                 }
+
+                public override void RegisterForEachContext(Action<BusParametrizedRegistration> register)
+                {
+                    RegisterForEachContextInner(register, _ => new Registration(Range.StartAddress, Range.Size));
+                }
             }
         }
     }

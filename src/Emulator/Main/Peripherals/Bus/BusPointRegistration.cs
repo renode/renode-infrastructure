@@ -11,21 +11,18 @@ using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Peripherals.Bus
 {
-    public class BusPointRegistration : IBusRegistration
+    public class BusPointRegistration : BusRegistration
     {
-        public BusPointRegistration(ulong address, ulong offset = 0, ICPU cpu = null)
+        public BusPointRegistration(ulong address, ulong offset = 0, ICPU cpu = null, ICluster<ICPU> cluster = null) : base(address, offset, cpu, cluster)
         {
-            StartingPoint = address;
-            Offset = offset;
-            CPU = cpu;
         }
 
         public override string ToString()
         {
-            var result = StartingPoint.ToString();
+            var result = $"0x{StartingPoint:X}";
             if(Offset != 0)
             {
-                result += $" with offset {Offset}";
+                result += $" with offset 0x{Offset:X}";
             }
             if(CPU != null)
             {
@@ -34,7 +31,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             return result;
         }
 
-        public string PrettyString
+        public override string PrettyString
         {
             get
             {
@@ -47,10 +44,6 @@ namespace Antmicro.Renode.Peripherals.Bus
             return new BusPointRegistration(address);
         }
 
-        public ulong StartingPoint { get; set; }
-        public ulong Offset { get; set; }
-        public ICPU CPU { get; set; }
-
         public override bool Equals(object obj)
         {
             var other = obj as BusPointRegistration;
@@ -59,15 +52,20 @@ namespace Antmicro.Renode.Peripherals.Bus
             if(ReferenceEquals(this, obj))
                 return true;
 
-            return StartingPoint == other.StartingPoint && Offset == other.Offset && CPU == other.CPU;
+            return StartingPoint == other.StartingPoint && Offset == other.Offset && CPU == other.CPU && Cluster == other.Cluster;
         }
 
         public override int GetHashCode()
         {
             unchecked
             {
-                return 17 * StartingPoint.GetHashCode() + 23 * Offset.GetHashCode() + 101 * (CPU?.GetHashCode() ?? 0);
+                return 17 * StartingPoint.GetHashCode() + 23 * Offset.GetHashCode() + 101 * (CPU?.GetHashCode() ?? 0) + 397 * (Cluster?.GetHashCode() ?? 0);
             }
+        }
+
+        public void RegisterForEachContext(Action<BusPointRegistration> register)
+        {
+            RegisterForEachContextInner(register, cpu => new BusPointRegistration(StartingPoint, Offset, cpu));
         }
     }
 }

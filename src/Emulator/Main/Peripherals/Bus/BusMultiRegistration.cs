@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 {
     public class BusMultiRegistration : BusRangeRegistration
     {
-        public BusMultiRegistration(ulong address, ulong size, string region, ICPU cpu = null) : base(address, size, 0, cpu)
+        public BusMultiRegistration(ulong address, ulong size, string region, ICPU cpu = null, ICluster<ICPU> cluster = null) : base(address, size, 0, cpu, cluster)
         {
             if(string.IsNullOrWhiteSpace(region))
             {
@@ -50,7 +50,12 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 return 17 * base.GetHashCode() + 101 * ConnectionRegionName.GetHashCode();
             }
-        }        
+        }
+
+        public void RegisterForEachContext(Action<BusMultiRegistration> register)
+        {
+            RegisterForEachContextInner(register, cpu => new BusMultiRegistration(Range.StartAddress, Range.Size, ConnectionRegionName, cpu));
+        }
     }
 }
 

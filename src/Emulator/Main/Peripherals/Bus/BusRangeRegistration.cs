@@ -14,21 +14,19 @@ using Range = Antmicro.Renode.Core.Range;
 
 namespace Antmicro.Renode.Peripherals.Bus
 {
-    public class BusRangeRegistration : IBusRegistration
+    public class BusRangeRegistration : BusRegistration
     {
-        public BusRangeRegistration(Range range, ulong offset = 0, ICPU cpu = null)
+        public BusRangeRegistration(Range range, ulong offset = 0, ICPU cpu = null, ICluster<ICPU> cluster = null) : base(range.StartAddress, offset, cpu, cluster)
         {
             Range = range;
-            Offset = offset;
-            CPU = cpu;
         }
 
-        public BusRangeRegistration(ulong address, ulong size, ulong offset = 0, ICPU cpu = null) :
-            this(new Range(address, size), offset, cpu)
+        public BusRangeRegistration(ulong address, ulong size, ulong offset = 0, ICPU cpu = null, ICluster<ICPU> cluster = null) :
+            this(new Range(address, size), offset, cpu, cluster)
         {
         }
 
-        public virtual string PrettyString
+        public override string PrettyString
         {
             get
             {
@@ -41,7 +39,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             var result = Range.ToString();
             if(Offset != 0)
             {
-                result += $" with offset {Offset}";
+                result += $" with offset 0x{Offset:X}";
             }
             if(CPU != null)
             {
@@ -55,10 +53,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             return new BusRangeRegistration(range);
         }
 
-        public ICPU CPU { get; }
-        public ulong Offset { get; set; }
         public Range Range { get; set; }
-        public ulong StartingPoint => Range.StartAddress;
 
         public override bool Equals(object obj)
         {
@@ -67,15 +62,20 @@ namespace Antmicro.Renode.Peripherals.Bus
                 return false;
             if(ReferenceEquals(this, obj))
                 return true;
-            return Range == other.Range && Offset == other.Offset && CPU == other.CPU;
+            return Range == other.Range && Offset == other.Offset && CPU == other.CPU && Cluster == other.Cluster;
         }
 
         public override int GetHashCode()
         {
             unchecked
             {
-                return 17 * Range.GetHashCode() + 23 * Offset.GetHashCode() + 101 * (CPU?.GetHashCode() ?? 0);
+                return 17 * Range.GetHashCode() + 23 * Offset.GetHashCode() + 101 * (CPU?.GetHashCode() ?? 0) + 397 * (Cluster?.GetHashCode() ?? 0);
             }
+        }
+
+        public void RegisterForEachContext(Action<BusRangeRegistration> register)
+        {
+            RegisterForEachContextInner(register, cpu => new BusRangeRegistration(Range, Offset, cpu));
         }
     }
 }

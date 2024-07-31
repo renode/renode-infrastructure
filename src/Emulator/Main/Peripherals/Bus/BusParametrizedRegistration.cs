@@ -12,8 +12,8 @@ namespace Antmicro.Renode.Peripherals.Bus
 {
     public abstract class BusParametrizedRegistration : BusRangeRegistration
     {
-        public BusParametrizedRegistration(ulong address, ulong size, ICPU cpu)
-            : base(address, size, 0, cpu)
+        public BusParametrizedRegistration(ulong address, ulong size, ICPU cpu, ICluster<ICPU> cluster = null)
+            : base(address, size, 0, cpu, cluster)
         {
         }
 
@@ -73,5 +73,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         public virtual Action<long, ushort> GetWriteWordMethod(IBusPeripheral _) => null;
         public virtual Func<long, byte> GetReadByteMethod(IBusPeripheral _) => null;
         public virtual Action<long, byte> GetWriteByteMethod(IBusPeripheral _) => null;
+
+        public virtual void RegisterForEachContext(Action<BusParametrizedRegistration> register) { }
     }
 }
