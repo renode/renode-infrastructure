@@ -9,6 +9,7 @@ using Antmicro.Migrant;
 using System.IO;
 using System;
 using System.Collections.Generic;
+using System.IO.Compression;
 using System.Text;
 using Antmicro.Renode.Exceptions;
 using IronPython.Runtime;
@@ -95,7 +96,10 @@ namespace Antmicro.Renode.Core
 
         public void Load(ReadFilePath path)
         {
-            using(var stream = new FileStream(path, FileMode.Open, FileAccess.Read))
+            using(var fstream = new FileStream(path, FileMode.Open, FileAccess.Read))
+            using(var stream = path.ToString().EndsWith(".gz", StringComparison.InvariantCulture)
+                                ? (Stream) new GZipStream(fstream, CompressionMode.Decompress)
+                                : (Stream) fstream)
             {
                 var deserializationResult = serializer.TryDeserialize<string>(stream, out var version);
                 if(deserializationResult != DeserializationResult.OK)
@@ -110,7 +114,7 @@ namespace Antmicro.Renode.Core
                 }
 
                 CurrentEmulation = emulation;
-                CurrentEmulation.BlobManager.Load(stream);
+                CurrentEmulation.BlobManager.Load(stream, fstream.Name);
 
                 if(version != VersionString)
                 {

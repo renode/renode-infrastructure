@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Utilities
             providers = new List<IBlobProvider>();
         }
 
-        public void Load(FileStream stream)
+        public void Load(Stream stream, string streamName)
         {
             using (var reader = new PrimitiveReader(stream, false))
             {
@@ -28,7 +28,7 @@ namespace Antmicro.Renode.Utilities
                     var tempFile = TemporaryFilesManager.Instance.GetTemporaryFile();
                     if(ConfigurationManager.Instance.Get("file-system", "use-cow", false))
                     {
-                        FileCopier.Copy(stream.Name, tempFile, true);
+                        FileCopier.Copy(streamName, tempFile, true);
 
                         var size = reader.ReadInt64();
                         var localPosition = stream.Position;
