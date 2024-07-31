@@ -102,6 +102,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override MemorySystemArchitectureType MemorySystemArchitecture => NumberOfMPURegions > 0 ? MemorySystemArchitectureType.Physical_PMSA : MemorySystemArchitectureType.None;
 
+        public override uint ExceptionVectorAddress
+        {
+            get => VectorTableOffset;
+            set => VectorTableOffset = value;
+        }
+
         public uint VectorTableOffset
         {
             get

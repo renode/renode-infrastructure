@@ -8,6 +8,7 @@
 using System;
 using System.Linq;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities.Binding;
 using System.Collections.Generic;
@@ -86,6 +87,45 @@ namespace Antmicro.Renode.Peripherals.CPU
         public bool ImplementsPMSA => MemorySystemArchitecture == MemorySystemArchitectureType.Physical_PMSA;
         public bool ImplementsVMSA => MemorySystemArchitecture == MemorySystemArchitectureType.Virtual_VMSA;
         public abstract MemorySystemArchitectureType MemorySystemArchitecture { get; }
+
+        public virtual uint ExceptionVectorAddress
+        {
+            get => TlibGetExceptionVectorAddress();
+            set
+            {
+                // It's "arm-m" for CortexM.
+                DebugHelper.Assert(Architecture == "arm");
+
+                if(ExceptionVectorAddress == value)
+                {
+                    return;
+                }
+                TlibSetExceptionVectorAddress(value);
+
+                // On HW, in Arm CPUs, such a change is only possible in:
+                // * ARMv6K and ARMv7-A CPUs with Security Extensions using VBAR/MVBAR,
+                // * ARMv8-A and ARMv8-R CPUs using VBAR_EL{1..3},
+                // * Cortex-M CPUs using VTOR and
+                // * pre-ARMv8 CPUs using VINITHI signal to use Hivecs which uses 0xFFFF_0000.
+                //
+                // Cortex-M overrides this property so let's only make sure it isn't used there.
+                // ARMv8-A and ARMv8-R are handled by unrelated ARMv8A and ARMv8R classes.
+                //
+                // Let's allow this customization for all the remaining Arm CPUs with info log
+                // when changing to value other than 0x0 and 0xFFFF_0000 that it might not be
+                // supported on hardware.
+                var cpuSupportsVBAR = IsSystemRegisterAccessible("VBAR", isWrite: false);
+                const uint hivecsVectorAddress = 0xFFFF0000u;
+                if(!cpuSupportsVBAR && value != 0x0 && value != hivecsVectorAddress)
+                {
+                    this.Log(LogLevel.Info,
+                            "Successfully set {0} to 0x{1:X} on a CPU supporting neither VBAR nor VTOR; "
+                            + "such customization might not be possible on hardware.",
+                            nameof(ExceptionVectorAddress), value
+                    );
+                }
+            }
+        }
 
         public uint ModelID
         {
@@ -319,6 +359,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             TlibSetSystemRegister(name, value, 1u /* log_unhandled_access: true */);
         }
 
+        private bool IsSystemRegisterAccessible(string name, bool isWrite)
+        {
+            var result = TlibCheckSystemRegisterAccess(name, isWrite ? 1u : 0u);
+            return (SystemRegisterCheckReturnValue)result == SystemRegisterCheckReturnValue.AccessValid;
+        }
+
         private void ValidateSystemRegisterAccess(string name, bool isWrite)
         {
             switch((SystemRegisterCheckReturnValue)TlibCheckSystemRegisterAccess(name, isWrite ? 1u : 0u))
@@ -493,6 +539,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         public ActionUInt32 TlibPmuSetDebug;
+
+        [Import]
+        public FuncUInt32 TlibGetExceptionVectorAddress;
+
+        [Import]
+        public ActionUInt32 TlibSetExceptionVectorAddress;
 
 #pragma warning restore 649
 
