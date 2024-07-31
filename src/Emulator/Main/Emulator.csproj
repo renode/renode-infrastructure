@@ -153,6 +153,7 @@
     <Compile Include="Peripherals\BasicWordPeripheral.cs" />
     <Compile Include="Peripherals\BasicDoubleWordPeripheral.cs" />
     <Compile Include="Peripherals\IPeripheral.cs" />
+    <Compile Include="Peripherals\ICluster.cs" />
     <Compile Include="Utilities\Misc.cs" />
     <Compile Include="Utilities\VideoCapturer.cs" />
     <Compile Include="Core\GPIOAttribute.cs" />

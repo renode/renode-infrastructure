@@ -49,7 +49,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
     }
 
-    public abstract partial class TranslationCPU : BaseCPU, IGPIOReceiver, ICpuSupportingGdb, ICPUWithExternalMmu, ICPUWithMMU, INativeUnwindable, IDisassemblable, ICPUWithMetrics, ICPUWithMappedMemory, ICPUWithRegisters, ICPUWithMemoryAccessHooks, IControllableCPU
+    /// <summary>
+    /// <see cref="TranslationCPU"/> implements <see cref="ICluster{T}"/> interface
+    /// to seamlessly handle either cluster or CPU as a parameter to different methods.
+    /// </summary>
+    public abstract partial class TranslationCPU : BaseCPU, ICluster<TranslationCPU>, IGPIOReceiver, ICpuSupportingGdb, ICPUWithExternalMmu, ICPUWithMMU, INativeUnwindable, IDisassemblable, ICPUWithMetrics, ICPUWithMappedMemory, ICPUWithRegisters, ICPUWithMemoryAccessHooks, IControllableCPU
     {
         protected TranslationCPU(string cpuType, IMachine machine, Endianess endianness, CpuBitness bitness = CpuBitness.Bits32)
         : this(0, cpuType, machine, endianness, bitness)
@@ -68,7 +72,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             Init();
             InitDisas();
             externalMmuWindowsCount = TlibGetMmuWindowsCount();
+            Clustered = new TranslationCPU[] { this };
         }
+
+        public new IEnumerable<ICluster<TranslationCPU>> Clusters { get; } = new List<ICluster<TranslationCPU>>(0);
+
+        public new IEnumerable<TranslationCPU> Clustered { get; }
 
         public abstract string GDBArchitecture { get; }
 

@@ -294,6 +294,7 @@
     <Compile Include="Peripherals\CPU\TranslationCPU.cs" />
     <Compile Include="Peripherals\CPU\TranslationCPU_OpcodesCounting.cs" />
     <Compile Include="Peripherals\CPU\TranslationCPU_Profiler.cs" />
+    <Compile Include="Peripherals\CPU\Cluster.cs" />
     <Compile Include="Peripherals\CPU\GuestProfiling\BaseProfiler.cs" />
     <Compile Include="Peripherals\CPU\GuestProfiling\CollapsedStackProfiler.cs" />
     <Compile Include="Peripherals\CPU\GuestProfiling\PerfettoProfiler.cs" />

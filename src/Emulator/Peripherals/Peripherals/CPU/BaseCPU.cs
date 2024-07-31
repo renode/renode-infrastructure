@@ -35,7 +35,11 @@ using Machine = Antmicro.Renode.Core.Machine;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public abstract class BaseCPU : CPUCore, ICPU, IDisposable, ITimeSink, IInitableCPU
+    /// <summary>
+    /// <see cref="BaseCPU"/> implements <see cref="ICluster{T}"/> interface
+    /// to seamlessly handle either cluster or CPU as a parameter to different methods.
+    /// </summary>
+    public abstract class BaseCPU : CPUCore, ICluster<BaseCPU>, ICPU, IDisposable, ITimeSink, IInitableCPU
     {
         protected BaseCPU(uint id, string cpuType, IMachine machine, Endianess endianness, CpuBitness bitness = CpuBitness.Bits32)
             : base(id)
@@ -54,6 +58,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             singleStepSynchronizer = new Synchronizer();
             EmulationManager.Instance.CurrentEmulation.SingleStepBlockingChanged += () => UpdateHaltedState();
+
+            Clustered = new BaseCPU[] { this };
         }
 
         public string[,] GetRegistersValues()
@@ -206,6 +212,10 @@ namespace Antmicro.Renode.Peripherals.CPU
         public Endianess Endianness { get; }
 
         public IBusController Bus => machine.SystemBus;
+
+        public IEnumerable<ICluster<BaseCPU>> Clusters { get; } = new List<ICluster<BaseCPU>>(0);
+
+        public IEnumerable<BaseCPU> Clustered { get; }
 
         public string Model { get; }
 
