@@ -654,49 +654,20 @@ namespace Antmicro.Renode.Peripherals.Bus
             pcCache.Invalidate();
         }
 
-        public void LoadELF(ReadFilePath fileName, bool useVirtualAddress = false, bool allowLoadsOnlyToMemory = true, IInitableCPU cpu = null)
+        // Name of the last parameter is kept as 'cpu' for backward compatibility.
+        public void LoadELF(ReadFilePath fileName, bool useVirtualAddress = false, bool allowLoadsOnlyToMemory = true, ICluster<IInitableCPU> cpu = null)
         {
-            if(!Machine.IsPaused)
+            var cluster = cpu;
+            if(cluster == null)
             {
-                throw new RecoverableException("Cannot load ELF on an unpaused machine.");
+                LoadELFInner(fileName, useVirtualAddress, allowLoadsOnlyToMemory);
             }
-            this.DebugLog("Loading ELF {0}.", fileName);
-            using(var elf = GetELFFromFile(fileName))
+            else
             {
-                var segmentsToLoad = elf.Segments.Where(x => x.Type == SegmentType.Load);
-                if(!segmentsToLoad.Any())
+                foreach(var cpuInitable in cluster.Clustered)
                 {
-                    throw new RecoverableException($"ELF '{fileName}' has no loadable segments.");
+                    LoadELFInner(fileName, useVirtualAddress, allowLoadsOnlyToMemory, cpuInitable);
                 }
-
-                foreach (var s in segmentsToLoad)
-                {
-                    var contents = s.GetContents();
-                    var loadAddress = useVirtualAddress ? s.GetSegmentAddress() : s.GetSegmentPhysicalAddress();
-                    this.Log(LogLevel.Info,
-                        "Loading segment of {0} bytes length at 0x{1:X}.",
-                        s.GetSegmentSize(),
-                        loadAddress
-                    );
-                    this.WriteBytes(contents, loadAddress, allowLoadsOnlyToMemory, cpu);
-                    UpdateLowestLoadedAddress(loadAddress);
-                    this.DebugLog("Segment loaded.");
-                }
-                GetOrCreateLookup(cpu).LoadELF(elf, useVirtualAddress);
-                pcCache.Invalidate();
-
-                if(cpu != null)
-                {
-                    cpu.InitFromElf(elf);
-                }
-                else
-                {
-                    foreach(var c in GetCPUs().OfType<IInitableCPU>())
-                    {
-                        c.InitFromElf(elf);
-                    }
-                }
-                AddFingerprint(fileName);
             }
         }
 
@@ -1228,6 +1199,52 @@ namespace Antmicro.Renode.Peripherals.Bus
             else
             {
                 localLookups.Remove(context);
+            }
+        }
+
+        private void LoadELFInner(ReadFilePath fileName, bool useVirtualAddress = false, bool allowLoadsOnlyToMemory = true, IInitableCPU cpu = null)
+        {
+            if(!Machine.IsPaused)
+            {
+                throw new RecoverableException("Cannot load ELF on an unpaused machine.");
+            }
+            this.DebugLog("Loading ELF {0}.", fileName);
+            using(var elf = GetELFFromFile(fileName))
+            {
+                var segmentsToLoad = elf.Segments.Where(x => x.Type == SegmentType.Load);
+                if(!segmentsToLoad.Any())
+                {
+                    throw new RecoverableException($"ELF '{fileName}' has no loadable segments.");
+                }
+
+                foreach (var s in segmentsToLoad)
+                {
+                    var contents = s.GetContents();
+                    var loadAddress = useVirtualAddress ? s.GetSegmentAddress() : s.GetSegmentPhysicalAddress();
+                    this.Log(LogLevel.Info,
+                        "Loading segment of {0} bytes length at 0x{1:X}.",
+                        s.GetSegmentSize(),
+                        loadAddress
+                    );
+                    this.WriteBytes(contents, loadAddress, allowLoadsOnlyToMemory, cpu);
+                    UpdateLowestLoadedAddress(loadAddress);
+                    this.DebugLog("Segment loaded.");
+                }
+                GetOrCreateLookup(cpu).LoadELF(elf, useVirtualAddress);
+                pcCache.Invalidate();
+
+                if(cpu != null)
+                {
+                    cpu.InitFromElf(elf);
+                }
+                else
+                {
+                    foreach(var c in GetCPUs().OfType<IInitableCPU>())
+                    {
+                        c.InitFromElf(elf);
+                    }
+                }
+                AddFingerprint(fileName);
             }
         }
 

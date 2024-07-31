@@ -84,7 +84,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         void ApplySVD(string path);
 
         void LoadUImage(ReadFilePath fileName, IInitableCPU cpu = null);
-        void LoadELF(ReadFilePath fileName, bool useVirtualAddress = false, bool allowLoadsOnlyToMemory = true, IInitableCPU cpu = null);
+        void LoadELF(ReadFilePath fileName, bool useVirtualAddress = false, bool allowLoadsOnlyToMemory = true, ICluster<IInitableCPU> cpu = null);
 
         SymbolLookup GetLookup(ICPU context = null);
 
