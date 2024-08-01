@@ -521,7 +521,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 {
                     this.NoisyLog("Waking up from deep sleep");
                 }
-                systick.Enabled |= value;
+                systick.Enabled |= value && systick.Limit != 0;
             }
         }
 
