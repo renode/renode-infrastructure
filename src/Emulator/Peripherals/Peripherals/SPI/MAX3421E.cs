@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -425,7 +425,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 USBEndpoint endpoint = null;
                 if(ep != 0)
                 {
-                    endpoint = device.USBCore.GetEndpoint((int)ep);
+                    endpoint = device.USBCore.GetEndpoint((int)ep, outnin ? Direction.HostToDevice : Direction.DeviceToHost);
                     if(endpoint == null)
                     {
                         this.Log(LogLevel.Error, "Tried to access a non-existing EP #{0}", ep);

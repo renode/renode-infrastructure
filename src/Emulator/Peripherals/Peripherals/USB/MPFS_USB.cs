@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -433,7 +433,7 @@ namespace Antmicro.Renode.Peripherals.USB
                                 return;
                             }
 
-                            var endpoint = peripheral.USBCore.GetEndpoint((int)receiveTargetEndpointNumber[endpointId].Value);
+                            var endpoint = peripheral.USBCore.GetEndpoint((int)receiveTargetEndpointNumber[endpointId].Value, Direction.DeviceToHost);
                             if(endpoint == null)
                             {
                                 this.Log(LogLevel.Warning, "Trying to read from a non-existing endpoint #{0}", receiveTargetEndpointNumber[endpointId].Value);
@@ -498,7 +498,7 @@ namespace Antmicro.Renode.Peripherals.USB
                             }
 
                             var mappedEndpointId = (int)transmitTargetEndpointNumber[endpointId].Value;
-                            var endpoint = peripheral.USBCore.GetEndpoint(mappedEndpointId);
+                            var endpoint = peripheral.USBCore.GetEndpoint(mappedEndpointId, Direction.HostToDevice);
                             if(endpoint == null)
                             {
                                 this.Log(LogLevel.Warning, "Trying to write to a non-existing endpoint #{0}", mappedEndpointId);

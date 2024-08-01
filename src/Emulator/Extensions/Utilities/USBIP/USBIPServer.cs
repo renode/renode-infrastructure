@@ -248,7 +248,7 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
                     }
                     else
                     {
-                        var ep = device.USBCore.GetEndpoint((int)urbHeader.EndpointNumber);
+                        var ep = device.USBCore.GetEndpoint((int)urbHeader.EndpointNumber, urbHeader.Direction == URBDirection.Out ? Direction.HostToDevice : Direction.DeviceToHost);
                         if(ep == null)
                         {
                             this.Log(LogLevel.Warning, "URB command directed to a non-existing endpoint 0x{0:X}", urbHeader.EndpointNumber);

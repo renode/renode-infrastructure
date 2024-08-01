@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -78,7 +78,7 @@ namespace Antmicro.Renode.Core.USB
             SelectedConfiguration = null;
         }
 
-        public USBEndpoint GetEndpoint(int endpointNumber)
+        public USBEndpoint GetEndpoint(int endpointNumber, Direction direction)
         {
             if(SelectedConfiguration == null)
             {
@@ -87,7 +87,7 @@ namespace Antmicro.Renode.Core.USB
 
             foreach(var iface in SelectedConfiguration.Interfaces)
             {
-                var ep = iface.Endpoints.FirstOrDefault(x => x.Identifier == endpointNumber);
+                var ep = iface.Endpoints.FirstOrDefault(x => x.Identifier == endpointNumber && x.Direction == direction);
                 if(ep != null)
                 {
                    return ep;
