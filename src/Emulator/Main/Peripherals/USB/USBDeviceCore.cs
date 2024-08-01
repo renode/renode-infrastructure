@@ -78,7 +78,7 @@ namespace Antmicro.Renode.Core.USB
             SelectedConfiguration = null;
         }
 
-        public USBEndpoint GetEndpoint(int endpointNumber)
+        public USBEndpoint GetEndpoint(int endpointNumber, Direction direction)
         {
             if(SelectedConfiguration == null)
             {
@@ -87,7 +87,7 @@ namespace Antmicro.Renode.Core.USB
 
             foreach(var iface in SelectedConfiguration.Interfaces)
             {
-                var ep = iface.Endpoints.FirstOrDefault(x => x.Identifier == endpointNumber);
+                var ep = iface.Endpoints.FirstOrDefault(x => x.Identifier == endpointNumber && x.Direction == direction);
                 if(ep != null)
                 {
                    return ep;
