@@ -240,10 +240,10 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
                         var additionalData = (additionalDataCount > 0)
                             ? buffer.Skip(buffer.Count - additionalDataCount).Take(additionalDataCount).ToArray()
                             : null;
-
+                        var replyHeader = urbHeader;
                         device.USBCore.HandleSetupPacket(setupPacket, additionalData: additionalData, resultCallback: response =>
                         {
-                            SendResponse(GenerateURBReply(urbHeader, packet, response));
+                            SendResponse(GenerateURBReply(replyHeader, packet, response));
                         });
                     }
                     else
