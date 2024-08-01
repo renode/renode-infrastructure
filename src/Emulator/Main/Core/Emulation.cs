@@ -154,6 +154,11 @@ namespace Antmicro.Renode.Core
 
         public HostMachine HostMachine { get; private set; }
 
+        public bool TryGetMachine(string key, out IMachine machine)
+        {
+            return machs.TryGetValue(key, out machine);
+        }
+
         public bool TryGetMachineName(IMachine machine, out string name)
         {
             return machs.TryGetValue(machine, out name);
