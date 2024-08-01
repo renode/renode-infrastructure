@@ -1047,7 +1047,11 @@ namespace Antmicro.Renode.Core
 
         public override string ToString()
         {
-            return EmulationManager.Instance.CurrentEmulation[this];
+            if(EmulationManager.Instance.CurrentEmulation.TryGetMachineName(this, out var machineName))
+            {
+                return machineName;
+            }
+            return "Unregistered machine";
         }
 
         public void EnableProfiler(string outputPath = null)
