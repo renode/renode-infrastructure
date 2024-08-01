@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -103,7 +103,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 .WithReservedBits(12, 19)
                 .WithFlag(31, name: "CTRL.rst_flag",
                     valueProviderCallback: _ => systemReset,
-                    writeCallback: (_, value) => systemReset = value)
+                    changeCallback: (_, value) => systemReset = value)
             ;
 
             Registers.Reset.Define(this)
