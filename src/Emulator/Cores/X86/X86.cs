@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -8,6 +8,7 @@
 using Endianess = ELFSharp.ELF.Endianess;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Utilities.Binding;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.IRQControllers;
 using System.Collections.Generic;
 
@@ -21,6 +22,18 @@ namespace Antmicro.Renode.Peripherals.CPU
         public X86(string cpuType, IMachine machine, LAPIC lapic): base(cpuType, machine, endianness)
         {
             this.lapic = lapic;
+        }
+
+        public void SetDescriptor(SegmentDescriptor descriptor, uint selector, uint baseAddress, uint limit, uint flags)
+        {
+            switch(descriptor)
+            {
+                case SegmentDescriptor.CS:
+                    TlibSetCsDescriptor(selector, baseAddress, limit, flags);
+                    break;
+                default:
+                    throw new RecoverableException($"Setting the {descriptor} descriptor is not implemented, ignoring");
+            }
         }
 
         public override string Architecture { get { return "i386"; } }
@@ -103,6 +116,14 @@ namespace Antmicro.Renode.Peripherals.CPU
             return this.ExecutedInstructions;
         }
 
+        // 649:  Field '...' is never assigned to, and will always have its default value null
+#pragma warning disable 649
+
+        [Import]
+        private ActionUInt32UInt32UInt32UInt32 TlibSetCsDescriptor;
+
+#pragma warning restore 649
+
         private readonly LAPIC lapic;
 
         private readonly Dictionary<ulong, string> ExceptionDescriptionsMap = new Dictionary<ulong, string>
@@ -129,6 +150,16 @@ namespace Antmicro.Renode.Peripherals.CPU
         };
 
         private const uint IoPortBaseAddress = 0xE0000000;
+
+        public enum SegmentDescriptor
+        {
+            CS,
+            SS,
+            DS,
+            ES,
+            FS,
+            GS
+        }
     }
 }
 
