@@ -643,7 +643,7 @@
     <Compile Include="Peripherals\GPIOPort\RenesasRA_GPIO.cs" />
     <Compile Include="Peripherals\IRQControllers\RenesasRA_ICU.cs" />
     <Compile Include="Peripherals\UART\BCM2711_AUX_UART.cs" />
-    <Compile Include="Peripherals\UART\Kinetis_LPUART.cs" />
+    <Compile Include="Peripherals\UART\NXP_LPUART.cs" />
     <Compile Include="Peripherals\UART\XMC4XXX_UART.cs" />
     <Compile Include="Peripherals\UART\SmartbondUART.cs" />
     <Compile Include="Peripherals\GPIOPort\RenesasRA_GPIOMisc.cs" />

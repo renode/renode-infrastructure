@@ -15,9 +15,9 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
-    public class Kinetis_LPUART : UARTBase, IUARTWithBufferState, ILINController, IBytePeripheral, IDoubleWordPeripheral, IKnownSize
+    public class NXP_LPUART : UARTBase, IUARTWithBufferState, ILINController, IBytePeripheral, IDoubleWordPeripheral, IKnownSize
     {
-        public Kinetis_LPUART(IMachine machine, long frequency = 8000000, bool hasGlobalRegisters = true, bool hasFifoRegisters = true, uint fifoSize = DefaultFIFOSize) : base(machine)
+        public NXP_LPUART(IMachine machine, long frequency = 8000000, bool hasGlobalRegisters = true, bool hasFifoRegisters = true, uint fifoSize = DefaultFIFOSize) : base(machine)
         {
             this.frequency = frequency;
             this.hasGlobalRegisters = hasGlobalRegisters;
