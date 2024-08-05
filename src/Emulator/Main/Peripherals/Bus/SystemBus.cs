@@ -244,7 +244,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         {
             using(Machine.ObtainPausedState(true))
             {
-                Machine.UnregisterAsAChildOf(this, cpu);
+                Machine.UnregisterFromParent(cpu);
                 lock(cpuSync)
                 {
                     var id = idByCpu[cpu];
