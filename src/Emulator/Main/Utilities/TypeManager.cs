@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -664,7 +664,7 @@ namespace Antmicro.Renode.Utilities
 
         private bool IsInterestingType(TypeReference type)
         {
-            return type.Namespace.StartsWith("Antmicro.Renode");
+            return interestingNamespacePrefixes.Any(x => type.Namespace.StartsWith(x));
         }
 
         private AssemblyDescription GetAssemblyDescription(string fullName, string path)
@@ -726,6 +726,12 @@ namespace Antmicro.Renode.Utilities
         private readonly List<PluginDescriptor> foundPlugins;
 
         private readonly bool isBundled;
+
+        private static string[] interestingNamespacePrefixes = new []
+        {
+            "Antmicro.Renode",
+            "NetMQ"
+        };
 
         // This list filters out assemblies that are known not to be interesting for TypeManager.
         // It has to be manualy catered for, but it shaves about 400ms from the startup time on mono and 2s on NET.
