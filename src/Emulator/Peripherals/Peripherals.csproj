@@ -588,6 +588,7 @@
     <Compile Include="Peripherals\Miscellaneous\NRF52840_EGU.cs" />
     <Compile Include="Peripherals\Timers\AmbiqApollo4_Timer.cs" />
     <Compile Include="Peripherals\Miscellaneous\STM32H7_RCC.cs" />
+    <Compile Include="Peripherals\Miscellaneous\STM32H7_PWR.cs" />
     <Compile Include="Peripherals\Timers\STM32L0_LpTimer.cs" />
     <Compile Include="Peripherals\Miscellaneous\OpenTitan_SystemResetControl.cs" />
     <Compile Include="Peripherals\DMA\EFR32MG12_LDMA.cs" />
