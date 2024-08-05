@@ -638,7 +638,7 @@ restart:
 
                     result = ExecuteInstructions(toExecute, out var executed);
                     this.Trace($"CPU executed {executed} instructions and returned {result}");
-                    machine.Profiler?.Log(new InstructionEntry((byte)MultiprocessingId, ExecutedInstructions));
+                    machine.Profiler?.Log(new InstructionEntry(machine.SystemBus.GetCPUSlot(this), ExecutedInstructions));
                     ReportProgress(executed);
                 }
                 if(ExecutionFinished(result))

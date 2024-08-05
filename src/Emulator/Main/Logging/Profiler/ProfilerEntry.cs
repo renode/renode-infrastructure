@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -33,13 +33,13 @@ namespace Antmicro.Renode.Logging.Profiling
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public class InstructionEntry : BaseEntry
     {
-        public InstructionEntry(byte cpuId, ulong executedInstructions) : base(ProfilerEntryType.ExecutedInstructions)
+        public InstructionEntry(int cpuSlot, ulong executedInstructions) : base(ProfilerEntryType.ExecutedInstructions)
         {
-            CpuId = cpuId;
+            CpuSlot = cpuSlot;
             ExecutedInstructions = executedInstructions;
         }
 
-        private byte CpuId { get; }
+        private int CpuSlot { get; }
         private ulong ExecutedInstructions { get; }
     }
 
