@@ -458,6 +458,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             started = false;
             Pause(new HaltArguments(HaltReason.Abort, this), checkPauseGuard: false);
+            singleStepSynchronizer.Enabled = false;
         }
 
         protected void InvokeHalted(HaltArguments arguments)
