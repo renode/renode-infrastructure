@@ -8,6 +8,7 @@
 
 using System;
 using System.Collections.Generic;
+using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
@@ -139,13 +140,6 @@ namespace Antmicro.Renode.Peripherals.CRC
             Bits32 = 32, 
         }
 
-        public enum STM32Series
-        {
-            STM32F0,
-            STM32F4,
-            STM32WBA,
-        }
-
         private static int PolySizeToCRCWidth(PolySize poly)
         {
             switch(poly)
@@ -238,7 +232,7 @@ namespace Antmicro.Renode.Peripherals.CRC
         private readonly Dictionary<STM32Series, STM32Config> setupConfig = new Dictionary<STM32Series, STM32Config> ()
         {
             {
-                STM32Series.STM32F0,
+                STM32Series.F0,
                 new STM32Config()
                 {
                     configurablePoly = false,
@@ -249,7 +243,7 @@ namespace Antmicro.Renode.Peripherals.CRC
                 }
             },
             {
-                STM32Series.STM32F4,
+                STM32Series.F4,
                 new STM32Config()
                 {
                     configurablePoly = false,
@@ -260,7 +254,7 @@ namespace Antmicro.Renode.Peripherals.CRC
                 }
             },
             {
-                STM32Series.STM32WBA,
+                STM32Series.WBA,
                 new STM32Config()
                 {
                     configurablePoly = true,
