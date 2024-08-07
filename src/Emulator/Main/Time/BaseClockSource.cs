@@ -21,6 +21,7 @@ namespace Antmicro.Renode.Time
             this.skipAdvancesHigherThanNearestLimit = skipAdvancesHigherThanNearestLimit;
             clockEntries = new List<ClockEntry>();
             clockEntriesUpdateHandlers = new List<UpdateHandlerDelegate>();
+            unaccountedTimes = new List<TimeInterval>();
             toNotify = new List<Action>();
             nearestLimitIn = TimeInterval.Maximal;
             sync = new object();
@@ -79,6 +80,7 @@ namespace Antmicro.Renode.Time
                 UpdateLimits();
                 clockEntries.Add(entry);
                 clockEntriesUpdateHandlers.Add(null);
+                unaccountedTimes.Add(TimeInterval.Empty);
                 UpdateUpdateHandler(clockEntries.Count - 1);
                 UpdateLimits();
             }
@@ -99,6 +101,7 @@ namespace Antmicro.Renode.Time
                     {
                         clockEntries.Add(factoryIfNonExistent());
                         clockEntriesUpdateHandlers.Add(null);
+                        unaccountedTimes.Add(TimeInterval.Empty);
                         UpdateUpdateHandler(clockEntries.Count - 1);
                     }
                     else
@@ -119,12 +122,58 @@ namespace Antmicro.Renode.Time
         {
             lock(sync)
             {
-                UpdateLimits();
-                var result = clockEntries.FirstOrDefault(x => x.Handler == handler);
-                if(result.Handler == null)
+                var i = clockEntries.IndexOf(x => x.Handler == handler);
+                if(i == -1)
                 {
                     throw new KeyNotFoundException();
                 }
+                var result = clockEntries[i];
+
+                // Perform a full update of the clock entry we're getting
+                if(!result.Enabled)
+                {
+                    return result;
+                }
+                if(updateAlreadyInProgress.Value)
+                {
+                    return result;
+                }
+                updateAlreadyInProgress.Value = true;
+                try
+                {
+                    var updateHandler = clockEntriesUpdateHandlers[i];
+                    if(updateHandler(ref result, elapsed + unaccountedTimes[i], ref nearestLimitIn))
+                    {
+                        result.Handler();
+                    }
+                    // This elapsed time is now accounted for this entry so clear it
+                    unaccountedTimes[i] = TimeInterval.Empty;
+                }
+                finally
+                {
+                    updateAlreadyInProgress.Value = false;
+                }
+                clockEntries[i] = result;
+
+                // Clear elapsed and deposit it as unaccounted time on all other enabled clock entries
+                var triggerFullUpdate = false;
+                for(int j = 0; j < clockEntries.Count; ++j)
+                {
+                    if(i != j && clockEntries[j].Enabled)
+                    {
+                        unaccountedTimes[j] += elapsed;
+                        triggerFullUpdate |= unaccountedTimes[j] >= nearestLimitIn;
+                    }
+                }
+                elapsed = TimeInterval.Empty;
+
+                if(triggerFullUpdate)
+                {
+                    UpdateLimits();
+                    // unaccountedTimes cleared by Update
+                    result = clockEntries[i];
+                }
+
                 return result;
             }
         }
@@ -166,6 +215,7 @@ namespace Antmicro.Renode.Time
                 UpdateLimits();
                 clockEntries.RemoveAt(indexToRemove);
                 clockEntriesUpdateHandlers.RemoveAt(indexToRemove);
+                unaccountedTimes.RemoveAt(indexToRemove);
                 UpdateLimits();
             }
             NotifyNumberOfEntriesChanged(oldCount, clockEntries.Count);
@@ -190,6 +240,7 @@ namespace Antmicro.Renode.Time
                 result = clockEntries.ToArray();
                 clockEntries.Clear();
                 clockEntriesUpdateHandlers.Clear();
+                unaccountedTimes.Clear();
             }
             NotifyNumberOfEntriesChanged(oldCount, 0);
             return result;
@@ -345,11 +396,12 @@ namespace Antmicro.Renode.Time
                         {
                             continue;
                         }
-                        if(updateHandler(ref clockEntry, time, ref nearestLimitIn) && !alreadyRunHandlers.Contains(clockEntry.Handler))
+                        if(updateHandler(ref clockEntry, time + unaccountedTimes[i], ref nearestLimitIn) && !alreadyRunHandlers.Contains(clockEntry.Handler))
                         {
                             toNotify.Add(clockEntry.Handler);
                         }
                         clockEntries[i] = clockEntry;
+                        unaccountedTimes[i] = TimeInterval.Empty;
                     }
                 }
                 try
@@ -395,6 +447,7 @@ namespace Antmicro.Renode.Time
         private readonly List<Action> toNotify;
         private readonly List<ClockEntry> clockEntries;
         private readonly List<UpdateHandlerDelegate> clockEntriesUpdateHandlers;
+        private readonly List<TimeInterval> unaccountedTimes;
         private readonly object sync;
 
         private delegate bool UpdateHandlerDelegate(ref ClockEntry entry, TimeInterval time, ref TimeInterval nearestTickIn);
