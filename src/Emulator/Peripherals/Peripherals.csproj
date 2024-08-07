@@ -232,6 +232,7 @@
     <Compile Include="Peripherals\Timers\CC2538SleepTimer.cs" />
     <Compile Include="Peripherals\USBDeprecated\Ulpi.cs" />
     <Compile Include="Peripherals\SD\SunxiMMC.cs" />
+    <Compile Include="Peripherals\SD\STM32SDMMC.cs" />
     <Compile Include="Peripherals\Timers\SunxiHighSpeedTimer.cs" />
     <Compile Include="Peripherals\SD\MMCController.cs" />
     <Compile Include="Peripherals\SD\SDCard.cs" />
