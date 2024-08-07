@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Core
             EndAddress = startAddress + size - 1;
 
             // Check if overflow occurred.
-            CreationAssert(EndAddress >= StartAddress, startAddress, $"size is too large: 0x{size:X}");
+            CreationAssert(EndAddress >= StartAddress, startAddress, () => $"size is too large: 0x{size:X}");
         }
 
         /// <summary>
@@ -215,11 +215,11 @@ namespace Antmicro.Renode.Core
             return range.ShiftBy(-minuend);
         }
 
-        internal static void CreationAssert(bool condition, ulong startAddress, string reason)
+        internal static void CreationAssert(bool condition, ulong startAddress, Func<string> reason)
         {
             if(!condition)
             {
-                throw new RecoverableException($"Could not create range at 0x{startAddress:X}; {reason}");
+                throw new RecoverableException($"Could not create range at 0x{startAddress:X}; {reason()}");
             }
         }
     }
@@ -364,14 +364,14 @@ namespace Antmicro.Renode.Core
             // a second constructor with two `ulong` arguments.
             Range.CreationAssert(
                 startAddress != 0 || endAddress != ulong.MaxValue,
-                startAddress, "<0, 2^64-1> ranges aren't currently supported"
+                startAddress, () => "<0, 2^64-1> ranges aren't currently supported"
             );
 
             // The constructor would also throw but the message would be that size is too large
             // if `startAddress` is higher than `endAddress` which can be misleading.
             Range.CreationAssert(
                 startAddress <= endAddress,
-                startAddress, "the start address can't be higher than the end address"
+                startAddress, () => "the start address can't be higher than the end address"
             );
             return new Range(startAddress, checked(endAddress - startAddress + 1));
         }
