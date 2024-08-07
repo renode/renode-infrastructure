@@ -90,7 +90,12 @@ namespace Antmicro.Renode.Peripherals.DMA
                                 }
 
                                 this.DebugLog("DMA Channel {0} {1}", channelIdx, value ? "enabled" : "disabled");
-                                context.TryPerformCopy();
+                                if(context.Direction == DMAChannelContext.TransferDirection.ToPeripheral)
+                                {
+                                    // Only process the DMA transfer request for ToPeripheral channels
+                                    // as FromPeripheral transfers have to be explicitly requested by the peripheral
+                                    context.TryPerformCopy();
+                                }
                             })
                     .WithTag("MPD (MDMA Power-Down)", 1, 1)
                     .WithReservedBits(2, 6)
@@ -114,6 +119,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                                     value = MaxTransferCount;
                                 }
                                 context.TransferCount = (ushort)value;
+                                context.CurrentTransferCount = (ushort)value;
                             })
                     .WithReservedBits(13, 19);
 
@@ -236,14 +242,13 @@ namespace Antmicro.Renode.Peripherals.DMA
                     // GPIO mechanism
                     request = new Request(
                         new Place(SourceAddress),
-                        new Place(DestinationAddress + CurrentTransferCount),
+                        new Place(DestinationAddress + (uint)(TransferCount - CurrentTransferCount)),
                         1, TransferType.Byte, TransferType.Byte,
                         incrementReadAddress: false,
                         incrementWriteAddress: false
                     );
 
-                    TransferCount--;
-                    CurrentTransferCount++;
+                    CurrentTransferCount--;
                     break;
                 case TransferDirection.ToPeripheral:
                     request = new Request(
@@ -254,17 +259,16 @@ namespace Antmicro.Renode.Peripherals.DMA
                         incrementWriteAddress: false
                     );
 
-                    TransferCount = 0;
+                    CurrentTransferCount = 0;
                     break;
                 default:
                     throw new Exception($"Invalid {nameof(TransferDirection)} value: {Direction}");
                 }
 
                 engine.IssueCopy(request);
-                if(TransferCount == 0)
+                if(CurrentTransferCount == 0)
                 {
                     Enabled.Value = false;
-                    CurrentTransferCount = 0;
                     IsFinished.Value = true;
                     owner.UpdateInterrupt();
                 }
