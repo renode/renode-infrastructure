@@ -113,6 +113,11 @@ namespace Antmicro.Renode.Utilities
             sysbus.WriteBytes(fdtBlob, address, true, context);
         }
 
+        public static void WriteASCIIString(this IBusController sysbus, ulong address, string stringToLoad, ICPU context = null)
+        {
+            sysbus.WriteBytes(Encoding.ASCII.GetBytes(stringToLoad), address, true, context);
+        }
+
         public static Dictionary<PeripheralTreeEntry, IEnumerable<IRegistrationPoint>> GetPeripheralsWithAllRegistrationPoints(this IMachine machine)
         {
             var result = new Dictionary<PeripheralTreeEntry, IEnumerable<IRegistrationPoint>>();
