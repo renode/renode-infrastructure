@@ -346,6 +346,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             private void HandleWriteToDisableMask(ChannelId channelId)
             {
                 maskField.Value |= channelId;
+                // It's not a documented behavior, but Linux running OpenAMP depends on it
+                ipi.ClearInterrupt(id, channelId);
             }
 
             private readonly ZynqMP_IPI ipi;
