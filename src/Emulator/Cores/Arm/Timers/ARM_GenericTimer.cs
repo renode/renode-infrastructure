@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -15,7 +15,10 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class ARM_GenericTimer : IPeripheral
     {
-        public ARM_GenericTimer(IMachine machine, ulong frequency)
+        // defaultCounterFrequencyRegister is the value that CNTFRQ will be set to at reset.
+        // It can be used to configure the value configured by an earlier-stage bootloader not
+        // run under Renode in the platform file.
+        public ARM_GenericTimer(IMachine machine, ulong frequency, uint defaultCounterFrequencyRegister = 0)
         {
             if(frequency > long.MaxValue)
             {
@@ -23,6 +26,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
 
             Frequency = (long)frequency;
+            this.defaultCounterFrequencyRegister = defaultCounterFrequencyRegister;
             clockSource = machine.ClockSource;
 
             // The names used are based on Generic Timer documentation: https://developer.arm.com/documentation/102379/0101/The-processor-timers
@@ -96,7 +100,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             nonSecureEL2PhysicalTimer.Reset();
             nonSecureEL2VirtualTimer.Reset();
 
-            CounterFrequencyRegister = 0;
+            CounterFrequencyRegister = defaultCounterFrequencyRegister;
             registersAArch64.Reset();
             doubleWordRegistersAArch32.Reset();
             quadWordRegistersAArch32.Reset();
@@ -363,6 +367,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         private readonly DoubleWordRegisterCollection doubleWordRegistersAArch32;
         private readonly QuadWordRegisterCollection quadWordRegistersAArch32;
         private readonly IClockSource clockSource;
+        private readonly uint defaultCounterFrequencyRegister;
 
         private enum RegistersAArch64
         {
