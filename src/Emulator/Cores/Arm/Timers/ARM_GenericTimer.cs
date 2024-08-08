@@ -39,6 +39,8 @@ namespace Antmicro.Renode.Peripherals.Timers
             registersAArch64 = new QuadWordRegisterCollection(this, BuildRegisterAArch64Map());
             doubleWordRegistersAArch32 = new DoubleWordRegisterCollection(this, BuildDoubleWordRegisterAArch32Map());
             quadWordRegistersAArch32 = new QuadWordRegisterCollection(this, BuildQuadWordRegisterAArch32Map());
+
+            Reset();
         }
 
         public void WriteRegisterAArch64(uint offset, ulong value)
