@@ -364,9 +364,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void MapMemory(IMappedSegment segment)
         {
-            if(segment.StartingOffset > bitness.GetMaxAddress() || segment.Size > bitness.GetMaxAddress())
+            if(segment.StartingOffset > bitness.GetMaxAddress() || segment.StartingOffset + segment.Size - 1 > bitness.GetMaxAddress())
             {
-                throw new RecoverableException("Could not map memory segment: starting offset or size are too high");
+                throw new RecoverableException("Could not map memory segment: it does not fit into address space");
             }
 
             using(machine?.ObtainPausedState(true))
