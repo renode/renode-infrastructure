@@ -236,6 +236,7 @@ namespace Antmicro.Renode.UI
                 switch(Path.GetExtension(new PathToken(filePath).Value))
                 {
                     case ".save":
+                    case ".gz":
                         commandToInject = string.Format("Load {0}\n", filePath);
                         break;
                     default:
