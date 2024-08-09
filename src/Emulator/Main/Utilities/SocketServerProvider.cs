@@ -206,10 +206,10 @@ namespace Antmicro.Renode.Utilities
                     if(emitConfigBytes)
                     {
                         var initBytes = new byte[] {
-                            255, 253, 000, // IAC DO    BINARY
-                            255, 251, 001, // IAC WILL  ECHO
-                            255, 251, 003, // IAC WILL  SUPPRESS_GO_AHEAD
-                            255, 252, 034, // IAC WONT  LINEMODE
+                            255, 253,   0, // IAC DO    BINARY
+                            255, 251,   1, // IAC WILL  ECHO
+                            255, 251,   3, // IAC WILL  SUPPRESS_GO_AHEAD
+                            255, 252,  34, // IAC WONT  LINEMODE
                         };
                         stream.Write(initBytes, 0, initBytes.Length);
                         // we expect 9 bytes as a result of sending
