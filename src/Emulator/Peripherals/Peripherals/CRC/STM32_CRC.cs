@@ -196,7 +196,14 @@ namespace Antmicro.Renode.Peripherals.CRC
 
         private void ReloadCRCConfig()
         {
-            var config = new CRCConfig((uint)polynomial.Value, PolySizeToCRCWidth(polySize.Value), reflectInput: false, reflectOutput: reverseOutputData.Value, init: (uint)initialValue.Value, xorOutput: 0x0);
+            var config = new CRCConfig(
+                (uint)polynomial.Value,
+                PolySizeToCRCWidth(polySize?.Value ?? PolySize.CRC32), 
+                reflectInput: false,
+                reflectOutput: reverseOutputData?.Value ?? false,
+                init: (uint)initialValue.Value,
+                xorOutput: 0x0
+            );
             if(crc == null || !config.Equals(crc.Config))
             {
                 crc = new CRCEngine(config);
