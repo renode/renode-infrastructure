@@ -36,6 +36,21 @@ namespace Antmicro.Renode.Core
             RebuildInstance();
         }
 
+        private EmulationManager()
+        {
+            var serializerMode = ConfigurationManager.Instance.Get("general", "serialization-mode", Antmicro.Migrant.Customization.Method.Generated);
+            
+            var settings = new Antmicro.Migrant.Customization.Settings(serializerMode, serializerMode,
+                Antmicro.Migrant.Customization.VersionToleranceLevel.AllowGuidChange, disableTypeStamping: true);
+            serializer = new Serializer(settings);
+            serializer.ForObject<PythonDictionary>().SetSurrogate(x => new PythonDictionarySurrogate(x));
+            serializer.ForSurrogate<PythonDictionarySurrogate>().SetObject(x => x.Restore());
+            currentEmulation = new Emulation();
+            ProgressMonitor = new ProgressMonitor();
+            stopwatch = new Stopwatch();
+            currentEmulationLock = new object();
+        }
+
         [HideInMonitor]
         public static void RebuildInstance()
         {
@@ -101,24 +116,24 @@ namespace Antmicro.Renode.Core
                                 ? (Stream) new GZipStream(fstream, CompressionMode.Decompress)
                                 : (Stream) fstream)
             {
-                var deserializationResult = serializer.TryDeserialize<string>(stream, out var version);
+                var deserializationResult = serializer.TryDeserialize<SnapshotMetadata>(stream, out var metadata);
                 if(deserializationResult != DeserializationResult.OK)
                 {
-                    throw new RecoverableException($"There was an error when deserializing the emulation: {deserializationResult}\n Underlying exception: {serializer.LastException.Message}\n{serializer.LastException.StackTrace}");
+                    throw new RecoverableException($"There was an error when deserializing the emulation: {deserializationResult}\n Could not read snapshot metadata - unable to determine Renode version used in the snapshot.\n Underlying exception: {serializer.LastException.Message}\n{serializer.LastException.StackTrace}");
                 }
 
                 deserializationResult = serializer.TryDeserialize<Emulation>(stream, out var emulation);
                 if(deserializationResult != DeserializationResult.OK)
                 {
-                    throw new RecoverableException($"There was an error when deserializing the emulation: {deserializationResult}\n Underlying exception: {serializer.LastException.Message}\n{serializer.LastException.StackTrace}");
+                    throw new RecoverableException($"There was an error when deserializing the emulation: {deserializationResult}\n Snapshot created with {metadata.VersionString} running on {metadata.Runner}\n Underlying exception: {serializer.LastException.Message}\n{serializer.LastException.StackTrace}");
                 }
 
                 CurrentEmulation = emulation;
                 CurrentEmulation.BlobManager.Load(stream, fstream.Name);
 
-                if(version != VersionString)
+                if(metadata.VersionString != VersionString)
                 {
-                    Logger.Log(LogLevel.Warning, "Version of deserialized emulation ({0}) does not match current one {1}. Things may go awry!", version, VersionString);
+                    Logger.Log(LogLevel.Warning, "Version of deserialized emulation ({0}) does not match current one {1}. Things may go awry!", metadata.VersionString, VersionString);
                 }
             }
         }
@@ -134,7 +149,7 @@ namespace Antmicro.Renode.Core
                         try
                         {
                             CurrentEmulation.SnapshotTracker.Save(CurrentEmulation.MasterTimeSource.ElapsedVirtualTime, path);
-                            serializer.Serialize(VersionString, stream);
+                            serializer.Serialize(new SnapshotMetadata(VersionString), stream);
                             serializer.Serialize(CurrentEmulation, stream);
                             CurrentEmulation.BlobManager.Save(stream);
                         }
@@ -258,6 +273,13 @@ namespace Antmicro.Renode.Core
 
         public static bool DisableEmulationFilesCleanup = false;
 
+        private int stopwatchCounter;
+        private Stopwatch stopwatch;
+        private readonly Serializer serializer;
+        private Emulation currentEmulation;
+        private readonly object currentEmulationLock;
+        private string profilerPathPrefix;
+
         private static bool TryFindPath(object obj, Dictionary<object, IEnumerable<object>> parents, Type finalType, out List<object> resultPath)
         {
             return TryFindPathInnerRecursive(obj, parents, new List<object>(), finalType, out resultPath);
@@ -296,21 +318,6 @@ namespace Antmicro.Renode.Core
             }
         }
 
-        private EmulationManager()
-        {
-            var serializerMode = ConfigurationManager.Instance.Get("general", "serialization-mode", Antmicro.Migrant.Customization.Method.Generated);
-            
-            var settings = new Antmicro.Migrant.Customization.Settings(serializerMode, serializerMode,
-                Antmicro.Migrant.Customization.VersionToleranceLevel.AllowGuidChange, disableTypeStamping: true);
-            serializer = new Serializer(settings);
-            serializer.ForObject<PythonDictionary>().SetSurrogate(x => new PythonDictionarySurrogate(x));
-            serializer.ForSurrogate<PythonDictionarySurrogate>().SetObject(x => x.Restore());
-            currentEmulation = new Emulation();
-            ProgressMonitor = new ProgressMonitor();
-            stopwatch = new Stopwatch();
-            currentEmulationLock = new object();
-        }
-
         private void InvokeEmulationChanged()
         {
             var emulationChanged = EmulationChanged;
@@ -326,13 +333,6 @@ namespace Antmicro.Renode.Core
             machine.EnableProfiler(profilerPath);
         }
 
-        private int stopwatchCounter;
-        private Stopwatch stopwatch;
-        private readonly Serializer serializer;
-        private Emulation currentEmulation;
-        private readonly object currentEmulationLock;
-        private string profilerPathPrefix;
-
         /// <summary>
         /// Represents external world time domain.
         /// </summary>
@@ -344,4 +344,3 @@ namespace Antmicro.Renode.Core
         }
     }
 }
-
