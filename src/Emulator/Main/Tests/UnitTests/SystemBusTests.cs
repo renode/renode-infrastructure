@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -191,7 +191,7 @@ namespace Antmicro.Renode.UnitTests
             Assert.AreEqual(false, peripheral.DoubleWordRead);
             Assert.AreEqual(false, peripheral.DoubleWordWritten);
 
-            sysbus.ReadDoubleWord(210);
+            sysbus.ReadDoubleWord(310);
 
             Assert.AreEqual(true, peripheral.ByteRead1);
             Assert.AreEqual(true, peripheral.ByteRead2);
@@ -200,7 +200,7 @@ namespace Antmicro.Renode.UnitTests
             Assert.AreEqual(true, peripheral.DoubleWordRead);
             Assert.AreEqual(false, peripheral.DoubleWordWritten);
 
-            sysbus.WriteDoubleWord(210, 0);
+            sysbus.WriteDoubleWord(310, 0);
 
             Assert.AreEqual(true, peripheral.ByteRead1);
             Assert.AreEqual(true, peripheral.ByteRead2);
