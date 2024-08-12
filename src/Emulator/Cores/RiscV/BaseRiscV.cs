@@ -265,6 +265,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             // we know that the size is correct so the below method will alwyas succeed
             Misc.TryParseBitPattern(pattern, out var bitPattern, out var bitMask);
 
+            CheckCustomInstructionLengthPattern(bitPattern, pattern.Length);
+
             var length = (ulong)pattern.Length / 8;
             var id = TlibInstallCustomInstruction(bitMask, bitPattern, length);
             if(id == 0)
@@ -578,6 +580,32 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         protected abstract byte MostSignificantBit { get; }
+
+        private static void ReportInvalidCustomInstructionFormat(ulong pattern, int bitsLength, string format)
+        {
+            throw new RecoverableException($"Pattern 0x{pattern:X} is invalid for {bitsLength} bits long instruction. Expected instruction in format: {format}");
+        }
+
+        // These patterns are defined in RISC-V User-Level ISA V2.2, section 1.2 Instruction Length Encoding
+        // there are more, but we support only 16, 32 and 64 bit long custom instructions
+        private static void CheckCustomInstructionLengthPattern(ulong pattern, int bitLength)
+        {
+            if(bitLength == 16 && ((pattern & 0b11) == 0b11))
+            {
+                ReportInvalidCustomInstructionFormat(pattern, bitLength, "AA".PadLeft(bitLength, 'x') + ", AA != 11");
+            }
+            else if(bitLength == 32 && (
+                ((pattern & 0b11) != 0b11) ||
+                ((pattern & 0b11100) == 0b11100))
+            )
+            {
+                ReportInvalidCustomInstructionFormat(pattern, bitLength, "BBB11".PadLeft(bitLength, 'x') + ", BBB != 111");
+            }
+            else if(bitLength == 64 && ((pattern & 0b1111111) != 0b0111111))
+            {
+                ReportInvalidCustomInstructionFormat(pattern, bitLength, "0111111".PadLeft(bitLength, 'x'));
+            }
+        }
 
         private void EnableArchitectureVariants()
         {
