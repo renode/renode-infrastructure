@@ -24,6 +24,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         public STM32_Timer(IMachine machine, long frequency, uint initialLimit) : base(machine.ClockSource, frequency, limit: initialLimit, direction: Direction.Ascending, enabled: false, autoUpdate: false)
         {
             this.machine = machine;
+            sysbus = machine.GetSystemBus(this);
             IRQ = new GPIO();
             connections = Enumerable.Range(0, NumberOfCCChannels).ToDictionary(i => i, _ => (IGPIO)new GPIO());
             this.initialLimit = initialLimit;
@@ -323,7 +324,16 @@ namespace Antmicro.Renode.Peripherals.Timers
                 },
                 
                 {(long)Registers.Counter, new DoubleWordRegister(this)
-                    .WithValueField(0, timerCounterLengthInBits, writeCallback: (_, val) => Value = val, valueProviderCallback: _ => (uint)Value, name: "Counter value (CNT)")
+                    .WithValueField(0, timerCounterLengthInBits,
+                        writeCallback: (_, val) => Value = val,
+                        valueProviderCallback: _ =>
+                        {
+                            if(sysbus.TryGetCurrentCPU(out var cpu))
+                            {
+                                cpu.SyncTime();
+                            }
+                            return (uint)Value;
+                        }, name: "Counter value (CNT)")
                     .WithReservedBits(timerCounterLengthInBits, 32 - timerCounterLengthInBits)
                     .WithWriteCallback((_, val) =>
                     {
@@ -559,6 +569,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         private readonly IEnumRegisterField<OutputCompareMode>[] outputCompareModes = new IEnumRegisterField<OutputCompareMode>[NumberOfCCChannels];
         private readonly LimitTimer[] ccTimers = new LimitTimer[NumberOfCCChannels];
         private readonly IMachine machine;
+        private readonly IBusController sysbus;
         private readonly Dictionary<int, IGPIO> connections;
 
         private const int NumberOfCCChannels = 4;
