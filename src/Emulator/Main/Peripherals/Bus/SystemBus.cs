@@ -1349,6 +1349,15 @@ namespace Antmicro.Renode.Peripherals.Bus
                 throw new RegistrationException($"No region \"{tag}\" is available for {peripheral}.");
             }
 
+            foreach(var tuple in customAccessMethods)
+            {
+                var complementingOperation = BusAccess.GetComplementingOperation(tuple.Key.Item2);
+                if(!customAccessMethods.ContainsKey(Tuple.Create(tuple.Key.Item1, complementingOperation)))
+                {
+                    throw new RegistrationException($"{complementingOperation}{tuple.Key.Item1} is not specified for {tag}");
+                }
+            }
+
             FillAccessMethodsWithDefaultMethods(peripheral, ref methods);
         }
 

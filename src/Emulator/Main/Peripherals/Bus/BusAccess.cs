@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -85,6 +85,11 @@ namespace Antmicro.Renode.Peripherals.Bus
         public static Method GetMethodFromSignature(Type t)
         {
             return accessMethods[t];
+        }
+
+        public static Operation GetComplementingOperation(Operation operation)
+        {
+            return operation == Operation.Read ? Operation.Write : Operation.Read;
         }
 
         public static Type[] Delegates { get; private set; }
