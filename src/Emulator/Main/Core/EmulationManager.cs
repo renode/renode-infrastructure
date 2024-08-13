@@ -131,13 +131,13 @@ namespace Antmicro.Renode.Core
                 }
             }
 
-            RecoverableException CreateException(DeserializationResult result, SnapshotMetadata? metadata = null)
+            RecoverableException CreateException(DeserializationResult result, SnapshotMetadata metadata = null)
             {
                 var versionInfo = result == DeserializationResult.MetadataCorrupted
                     ? $"Could not read snapshot metadata - unable to determine Renode version used in the snapshot."
-                    : metadata.Value.Runner == null 
-                        ? $"Snapshot created with {metadata.Value.VersionString}"
-                        : $"Snapshot created with {metadata.Value.VersionString} running on {metadata.Value.Runner}";
+                    : metadata.Runner == null 
+                        ? $"Snapshot created with {metadata.VersionString}"
+                        : $"Snapshot created with {metadata.VersionString} running on {metadata.Runner}";
 
                 return new RecoverableException($"There was an error when deserializing the emulation: {result}\n {versionInfo}\n Underlying exception: {serializer.LastException.Message}\n{serializer.LastException.StackTrace}"); 
             }

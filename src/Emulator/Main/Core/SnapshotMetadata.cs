@@ -9,7 +9,7 @@ using System;
 
 namespace Antmicro.Renode.Core
 {
-    public readonly struct SnapshotMetadata
+    public class SnapshotMetadata
     {
         public SnapshotMetadata(string versionString)
         {
