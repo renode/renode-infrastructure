@@ -22,8 +22,10 @@ namespace Antmicro.Renode.Core
 #if MONO
                 var getDisplayName = Type.GetType("Mono.Runtime").GetMethod("GetDisplayName", BindingFlags.NonPublic | BindingFlags.Static);
                 return $"Mono {(string)getDisplayName?.Invoke(null, null) ?? "(unknown version)"}";
-#else
+#elif NET || NET47_OR_GREATER
                 return RuntimeInformation.FrameworkDescription;
+#else
+                return $".NET Framework {Environment.Version}";
 #endif
             }
         }
