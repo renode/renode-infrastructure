@@ -102,7 +102,7 @@
       <!-- On Windows: link MinGW's pthread library statically -->
       <LinkFlags Include="-static -lwinpthread -dynamic" Condition="$(OS) == 'Windows_NT'" />
       <LinkFlags Include="-lpthread" Condition="$(OS) != 'Windows_NT'" />
-      <LinkFlags Include="$(MSBuildProjectDirectory)/../../../../../lib/resources/libraries/libopenlibm-Linux.a" Condition="$(TargetArchitecture) == 'i386' and $(CurrentPlatform) == 'Linux'" />
+      <LinkFlags Include="$(MSBuildProjectDirectory)/../../../../../lib/resources/libraries/libopenlibm-Linux.a" Condition="$(EmulatedTarget) == 'i386' and $(CurrentPlatform) == 'Linux'" />
       <LinkFlags Include="-shared" />
       <LinkFlags Include="-z defs" Condition="$(CurrentPlatform) == 'Linux'" />
       <LinkFlags Include="-Wl,-undefined,error" Condition="$(CurrentPlatform) != 'Linux'" />
