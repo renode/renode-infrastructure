@@ -92,6 +92,15 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 }, name: "TASK_LFCLKSTART")
                 .WithReservedBits(1, 31);
 
+            Registers.StopLFCLK.Define(this)
+                .WithFlag(0, FieldMode.Write, writeCallback: (_, value) =>
+                {
+                    lfclkStarted = false;
+                    lfclkEventGenerated.Value = false;
+                    Update();
+                }, name: "TASK_LFCLKSTOP")
+                .WithReservedBits(1, 31);
+
             Registers.EnableInterrupt.Define(this)
                 .WithFlag(0, out hfclkStartedEventEnabled, FieldMode.Read | FieldMode.Set, name: "HFCLKSTARTED")
                 .WithFlag(1, out lfclkStartedEventEnabled, FieldMode.Read | FieldMode.Set, name: "LFCLKSTARTED")
