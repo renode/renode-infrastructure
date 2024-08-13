@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Core
         public SnapshotMetadata(string versionString)
         {
             VersionString = versionString;
-            Runner = Type.GetType("Mono.Runtime") != null ? "Mono" : ".NET";
+            Runner = RuntimeInfo.Version;
         }
 
         public string VersionString { get; }

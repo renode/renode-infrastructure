@@ -32,6 +32,9 @@
   <PropertyGroup Condition=" $(GUI_DISABLED) == 'true' ">
     <DefineConstants>$(DefineConstants);GUI_DISABLED</DefineConstants>
   </PropertyGroup>
+  <PropertyGroup Condition="$(CurrentPlatform) != 'Windows'">
+    <DefineConstants>$(DefineConstants);MONO</DefineConstants>
+  </PropertyGroup>
   <Import Project="$(MSBuildBinPath)/Microsoft.CSharp.targets" />
   <Import Project="$(MSBuildProjectDirectory)/BuildAdditionalProjects-UI.csproj.targets" Condition="Exists('$(MSBuildProjectDirectory)/BuildAdditionalProjects-UI.csproj.targets')" />
   <Target Name="_PrepareProperties" BeforeTargets="Build">
@@ -1902,6 +1905,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/I2C/PCA9548.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/I2C/TCA6416.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/SPI/ZynqMP_GQSPI.cs" />
+    <Compile Include="Emulator/Main/Core/RuntimeInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Emulator/Main/Peripherals/Bus/SystemBusGenerated.tt">
