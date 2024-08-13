@@ -231,8 +231,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                 {
                 case TransferDirection.FromPeripheral:
                     // FromPeripheral transfers are performed 1 byte at a time, since from the perspective of the MDMA
-                    // device there is no way to tell if the peripheral's recieve buffer contains valid data.
-                    // The peripheral should notify the MDMA that data has been placed into the recieve buffer via Renode's
+                    // device there is no way to tell if the peripheral's receive buffer contains valid data.
+                    // The peripheral should notify the MDMA that data has been placed into the receive buffer via Renode's
                     // GPIO mechanism
                     request = new Request(
                         new Place(SourceAddress),
