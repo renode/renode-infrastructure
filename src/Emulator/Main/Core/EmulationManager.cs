@@ -116,21 +116,7 @@ namespace Antmicro.Renode.Core
                                 ? (Stream) new GZipStream(fstream, CompressionMode.Decompress)
                                 : (Stream) fstream)
             {
-                var deserializationResult = serializer.TryDeserialize<SnapshotMetadata>(stream, out var metadata);
-                if(deserializationResult != DeserializationResult.OK)
-                {
-                    // Fallback: try deserializing versionString like in older snapshots
-                    stream.Seek(0, SeekOrigin.Begin);
-                    deserializationResult = serializer.TryDeserialize<string>(stream, out var versionString);
-                    if(deserializationResult != DeserializationResult.OK)
-                    {
-                        throw CreateException(deserializationResult);
-                    }
-
-                    metadata = new SnapshotMetadata(versionString, null);
-                }
-
-                deserializationResult = serializer.TryDeserialize<Emulation>(stream, out var emulation);
+                var deserializationResult = serializer.TryDeserialize<Emulation, SnapshotMetadata>(stream, out var emulation, out var metadata);
                 if(deserializationResult != DeserializationResult.OK)
                 {
                     throw CreateException(deserializationResult, metadata); 
@@ -147,7 +133,7 @@ namespace Antmicro.Renode.Core
 
             RecoverableException CreateException(DeserializationResult result, SnapshotMetadata? metadata = null)
             {
-                var versionInfo = metadata == null
+                var versionInfo = result == DeserializationResult.MetadataCorrupted
                     ? $"Could not read snapshot metadata - unable to determine Renode version used in the snapshot."
                     : metadata.Value.Runner == null 
                         ? $"Snapshot created with {metadata.Value.VersionString}"
@@ -168,8 +154,7 @@ namespace Antmicro.Renode.Core
                         try
                         {
                             CurrentEmulation.SnapshotTracker.Save(CurrentEmulation.MasterTimeSource.ElapsedVirtualTime, path);
-                            serializer.Serialize(new SnapshotMetadata(VersionString), stream);
-                            serializer.Serialize(CurrentEmulation, stream);
+                            serializer.Serialize(CurrentEmulation, stream, new SnapshotMetadata(VersionString));
                             CurrentEmulation.BlobManager.Save(stream);
                         }
                         catch(InvalidOperationException e)
