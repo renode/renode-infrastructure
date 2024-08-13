@@ -119,7 +119,37 @@ namespace Antmicro.Renode.Core
                 var deserializationResult = serializer.TryDeserialize<Emulation, SnapshotMetadata>(stream, out var emulation, out var metadata);
                 if(deserializationResult != DeserializationResult.OK)
                 {
-                    throw CreateException(deserializationResult, metadata); 
+                    // If metadata was loaded successfully, we know the emulation has to be corrupted
+                    if(metadata != null)
+                    {
+                        throw CreateException(deserializationResult, serializer.LastException, metadata); 
+                    }
+
+                    // If metadata wasn't loaded successfully, either the metadata could be corrupted or we're loading a save with the old format
+
+                    // Fallback for older saves: try deserializing the version string, ignoring metadata, then load the emulation
+                    stream.Seek(0, SeekOrigin.Begin);
+                    deserializationResult = serializer.TryDeserialize<string>(stream, out var versionString);
+                    if(deserializationResult == DeserializationResult.OK)
+                    {
+                        metadata = new SnapshotMetadata(versionString, null);
+                    }
+                    else
+                    {
+                        // If metadata can't be loaded either as SnapshotMetadata or a version string, we deem it corrupted
+                        throw CreateException(DeserializationResult.MetadataCorrupted, serializer.LastException, metadata); 
+                    }
+
+                    // We must be loading a save file in the old format now
+                    // If deserializing the emulation fails, we know it's corrupted
+                    deserializationResult = serializer.TryDeserialize(stream, out emulation);
+                    if(deserializationResult != DeserializationResult.OK)
+                    {
+                        throw CreateException(deserializationResult, serializer.LastException, metadata); 
+                    }
+
+                    // Old format save file should have loaded successfully at this point
+                    Logger.Log(LogLevel.Warning, "Loading save file with missing metadata produced by older version ({0})", metadata.VersionString);
                 }
 
                 CurrentEmulation = emulation;
@@ -131,15 +161,15 @@ namespace Antmicro.Renode.Core
                 }
             }
 
-            RecoverableException CreateException(DeserializationResult result, SnapshotMetadata metadata = null)
+            RecoverableException CreateException(DeserializationResult result, Exception exception, SnapshotMetadata metadata = null)
             {
                 var versionInfo = result == DeserializationResult.MetadataCorrupted
                     ? $"Could not read snapshot metadata - unable to determine Renode version used in the snapshot."
-                    : metadata.Runner == null 
-                        ? $"Snapshot created with {metadata.VersionString}"
-                        : $"Snapshot created with {metadata.VersionString} running on {metadata.Runner}";
+                    : metadata?.Runner == null 
+                        ? $"Snapshot created with {metadata?.VersionString}"
+                        : $"Snapshot created with {metadata?.VersionString} running on {metadata?.Runner}";
 
-                return new RecoverableException($"There was an error when deserializing the emulation: {result}\n {versionInfo}\n Underlying exception: {serializer.LastException.Message}\n{serializer.LastException.StackTrace}"); 
+                return new RecoverableException($"There was an error when deserializing the emulation: {result}\n {versionInfo}\n Underlying exception: {exception.Message}\n{exception.StackTrace}"); 
             }
         }
 
