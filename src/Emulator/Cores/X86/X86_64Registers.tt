@@ -1,0 +1,23 @@
+﻿<#
+//
+// Copyright (c) 2010-2024 Antmicro
+//
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
+//
+#>
+<#@ template language="C#" #>
+<#@ include file="../Common/RegisterTemplateDefinitions.tt" #>
+<#
+    CLASS_NAME = "X86_64";
+    HEADER_FILE = "Emulator/Cores/tlib/arch/i386/cpu_registers.h";
+
+    DEFINES.Add("TARGET_X86_64");
+
+    PC_REGISTER = "RIP";
+
+    GENERAL_REGISTERS.AddRange(new[] { "RAX", "RBX", "RCX", "RDX", "RSI", "RDI", "RBP", "RSP",
+    "R8", "R9", "R10", "R11", "R12", "R13", "R14", "R15", "RIP", "EFLAGS",
+    "CS", "SS", "DS", "ES", "FS", "GS", "ST0", "ST1", "ST2", "ST3", "ST4", "ST5", "ST6", "ST7" });
+#>
+<#@ include file="../Common/RegisterTemplate.tt" #>
