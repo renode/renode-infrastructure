@@ -17,6 +17,12 @@ namespace Antmicro.Renode.Core
             Runner = RuntimeInfo.Version;
         }
 
+        public SnapshotMetadata(string versionString, string runner)
+        {
+            VersionString = versionString;
+            Runner = runner;
+        }
+
         public string VersionString { get; }
         public string Runner { get; }
     }

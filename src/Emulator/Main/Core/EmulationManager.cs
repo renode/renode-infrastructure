@@ -119,13 +119,21 @@ namespace Antmicro.Renode.Core
                 var deserializationResult = serializer.TryDeserialize<SnapshotMetadata>(stream, out var metadata);
                 if(deserializationResult != DeserializationResult.OK)
                 {
-                    throw new RecoverableException($"There was an error when deserializing the emulation: {deserializationResult}\n Could not read snapshot metadata - unable to determine Renode version used in the snapshot.\n Underlying exception: {serializer.LastException.Message}\n{serializer.LastException.StackTrace}");
+                    // Fallback: try deserializing versionString like in older snapshots
+                    stream.Seek(0, SeekOrigin.Begin);
+                    deserializationResult = serializer.TryDeserialize<string>(stream, out var versionString);
+                    if(deserializationResult != DeserializationResult.OK)
+                    {
+                        throw CreateException(deserializationResult);
+                    }
+
+                    metadata = new SnapshotMetadata(versionString, null);
                 }
 
                 deserializationResult = serializer.TryDeserialize<Emulation>(stream, out var emulation);
                 if(deserializationResult != DeserializationResult.OK)
                 {
-                    throw new RecoverableException($"There was an error when deserializing the emulation: {deserializationResult}\n Snapshot created with {metadata.VersionString} running on {metadata.Runner}\n Underlying exception: {serializer.LastException.Message}\n{serializer.LastException.StackTrace}");
+                    throw CreateException(deserializationResult, metadata); 
                 }
 
                 CurrentEmulation = emulation;
@@ -135,6 +143,17 @@ namespace Antmicro.Renode.Core
                 {
                     Logger.Log(LogLevel.Warning, "Version of deserialized emulation ({0}) does not match current one {1}. Things may go awry!", metadata.VersionString, VersionString);
                 }
+            }
+
+            RecoverableException CreateException(DeserializationResult result, SnapshotMetadata? metadata = null)
+            {
+                var versionInfo = metadata == null
+                    ? $"Could not read snapshot metadata - unable to determine Renode version used in the snapshot."
+                    : metadata.Value.Runner == null 
+                        ? $"Snapshot created with {metadata.Value.VersionString}"
+                        : $"Snapshot created with {metadata.Value.VersionString} running on {metadata.Value.Runner}";
+
+                return new RecoverableException($"There was an error when deserializing the emulation: {result}\n {versionInfo}\n Underlying exception: {serializer.LastException.Message}\n{serializer.LastException.StackTrace}"); 
             }
         }
 
