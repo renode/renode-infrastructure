@@ -713,6 +713,7 @@
     <Compile Include="Peripherals\Mocks\MockWordPeripheralWithoutTranslations.cs" />
     <Compile Include="Peripherals\Mocks\MockBytePeripheralWithoutTranslations.cs" />
     <Compile Include="Peripherals\Bus\ARM_NetworkInterconnect.cs" />
+    <Compile Include="Peripherals\Mocks\MockDoubleWordPeripheralWithOnlyRegionReadMethod.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
