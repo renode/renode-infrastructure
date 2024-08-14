@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -68,9 +68,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Registers.StartHFXO.Define(this)
                 .WithFlag(0, FieldMode.Write, writeCallback: (_, value) =>
                 {
-                        hfclkStarted = true;
-                        hfclkEventGenerated.Value = true;
-                        Update();
+                    hfclkStarted = true;
+                    hfclkEventGenerated.Value = true;
+                    Update();
                 }, name: "TASK_HFCLKSTART")
                 .WithReservedBits(1, 31);
 
@@ -86,9 +86,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Registers.StartLFCLK.Define(this)
                 .WithFlag(0, FieldMode.Write, writeCallback: (_, value) =>
                 {
-                        lfclkStarted = true;
-                        lfclkEventGenerated.Value = true;
-                        Update();
+                    lfclkStarted = true;
+                    lfclkEventGenerated.Value = true;
+                    Update();
                 }, name: "TASK_LFCLKSTART")
                 .WithReservedBits(1, 31);
 
