@@ -122,7 +122,7 @@ namespace Antmicro.Renode.Core
                     // If metadata was loaded successfully, we know the emulation has to be corrupted
                     if(metadata != null)
                     {
-                        throw CreateException(deserializationResult, serializer.LastException, metadata); 
+                        throw CreateLoadException(deserializationResult, serializer.LastException, metadata); 
                     }
 
                     // If metadata wasn't loaded successfully, either the metadata could be corrupted or we're loading a save with the old format
@@ -137,7 +137,7 @@ namespace Antmicro.Renode.Core
                     else
                     {
                         // If metadata can't be loaded either as SnapshotMetadata or a version string, we deem it corrupted
-                        throw CreateException(DeserializationResult.MetadataCorrupted, serializer.LastException, metadata); 
+                        throw CreateLoadException(DeserializationResult.MetadataCorrupted, serializer.LastException, metadata); 
                     }
 
                     // We must be loading a save file in the old format now
@@ -145,7 +145,7 @@ namespace Antmicro.Renode.Core
                     deserializationResult = serializer.TryDeserialize(stream, out emulation);
                     if(deserializationResult != DeserializationResult.OK)
                     {
-                        throw CreateException(deserializationResult, serializer.LastException, metadata); 
+                        throw CreateLoadException(deserializationResult, serializer.LastException, metadata); 
                     }
 
                     // Old format save file should have loaded successfully at this point
@@ -159,17 +159,6 @@ namespace Antmicro.Renode.Core
                 {
                     Logger.Log(LogLevel.Warning, "Version of deserialized emulation ({0}) does not match current one {1}. Things may go awry!", metadata.VersionString, VersionString);
                 }
-            }
-
-            RecoverableException CreateException(DeserializationResult result, Exception exception, SnapshotMetadata metadata = null)
-            {
-                var versionInfo = result == DeserializationResult.MetadataCorrupted
-                    ? $"Could not read snapshot metadata - unable to determine Renode version used in the snapshot."
-                    : metadata?.Runner == null 
-                        ? $"Snapshot created with {metadata?.VersionString}"
-                        : $"Snapshot created with {metadata?.VersionString} running on {metadata?.Runner}";
-
-                return new RecoverableException($"There was an error when deserializing the emulation: {result}\n {versionInfo}\n Underlying exception: {exception.Message}\n{exception.StackTrace}"); 
             }
         }
 
@@ -300,7 +289,7 @@ namespace Antmicro.Renode.Core
 
             }
         }
-        
+
         public SimpleFileCache CompiledFilesCache { get; } = new SimpleFileCache("compiler-cache", !Emulator.InCIMode && ConfigurationManager.Instance.Get("general", "compiler-cache-enabled", false));
 
         public event Action EmulationChanged;
@@ -365,6 +354,17 @@ namespace Antmicro.Renode.Core
         {
             var profilerPath = new SequencedFilePath($"{profilerPathPrefix}-{CurrentEmulation[machine]}");
             machine.EnableProfiler(profilerPath);
+        }
+
+        private RecoverableException CreateLoadException(DeserializationResult result, Exception exception, SnapshotMetadata metadata = null)
+        {
+            var versionInfo = result == DeserializationResult.MetadataCorrupted
+                ? $"Could not read snapshot metadata - unable to determine Renode version used in the snapshot."
+                : metadata?.Runner == null 
+                    ? $"Snapshot created with {metadata?.VersionString}"
+                    : $"Snapshot created with {metadata?.VersionString} running on {metadata?.Runner}";
+
+            return new RecoverableException($"There was an error when deserializing the emulation: {result}\n {versionInfo}\n Underlying exception: {exception.Message}\n{exception.StackTrace}"); 
         }
 
         /// <summary>
