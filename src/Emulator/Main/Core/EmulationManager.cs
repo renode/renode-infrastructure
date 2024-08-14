@@ -123,7 +123,7 @@ namespace Antmicro.Renode.Core
                     // If metadata was loaded successfully, we know the emulation has to be corrupted
                     if(metadata != null)
                     {
-                        throw CreateLoadException(deserializationResult, serializer.LastException, metadata); 
+                        throw CreateLoadException(deserializationResult, metadata); 
                     }
 
                     // If metadata wasn't loaded successfully, either the metadata could be corrupted or we're loading a save with the old format
@@ -138,7 +138,7 @@ namespace Antmicro.Renode.Core
                     else
                     {
                         // If metadata can't be loaded either as a metadata string or a version string, we deem it corrupted
-                        throw CreateLoadException(DeserializationResult.MetadataCorrupted, serializer.LastException, metadata); 
+                        throw CreateLoadException(DeserializationResult.MetadataCorrupted, metadata); 
                     }
 
                     // We must be loading a save file in the old format now
@@ -146,7 +146,7 @@ namespace Antmicro.Renode.Core
                     deserializationResult = serializer.TryDeserialize(stream, out emulation);
                     if(deserializationResult != DeserializationResult.OK)
                     {
-                        throw CreateLoadException(deserializationResult, serializer.LastException, metadata); 
+                        throw CreateLoadException(deserializationResult, metadata); 
                     }
 
                     // Old format save file should have loaded successfully at this point
@@ -359,13 +359,15 @@ namespace Antmicro.Renode.Core
             machine.EnableProfiler(profilerPath);
         }
 
-        private RecoverableException CreateLoadException(DeserializationResult result, Exception exception, string metadata = null)
+        private RecoverableException CreateLoadException(DeserializationResult result, string metadata = null)
         {
-            var versionInfo = result == DeserializationResult.MetadataCorrupted
-                ? $"Could not read snapshot metadata - unable to determine Renode version used in the snapshot."
-                : $"Snapshot created with {metadata}";
+            var errorMessage = result == DeserializationResult.MetadataCorrupted
+                ? $"The snapshot cannot be loaded as its metadata is corrupted."
+                : metadata != null
+                    ? $"This snapshot is incompatible as it was created with {metadata}. Try loading it in that version instead."
+                    : $"This snapshot was created with an earlier version of Renode and is incompatible with this one.";
 
-            return new RecoverableException($"There was an error when deserializing the emulation: {result}\n {versionInfo}\n Underlying exception: {exception.Message}\n{exception.StackTrace}"); 
+            return new RecoverableException(errorMessage); 
         }
 
         /// <summary>
