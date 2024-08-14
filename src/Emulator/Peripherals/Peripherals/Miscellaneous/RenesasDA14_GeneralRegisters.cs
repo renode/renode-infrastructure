@@ -144,7 +144,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                                 this.Log(LogLevel.Error, "Tried to initialize remapping of {0} to 0x0, but it is currently unsupported. Ignoring this operation", remapAddress.ToString());
                                 return;
                             }
-                            // we need to cast to ICPUWithRegisters to access SetRegisterUnsafe
+                            // we need to cast to ICPUWithRegisters to access SetRegister
                             ICPUWithRegisters cpuWithRegisters = cpu as ICPUWithRegisters;
                             if(cpuWithRegisters == null)
                             {
@@ -165,9 +165,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                                 const int PCValueInELF = 0x4;
                                 const int SPValueInELF = 0x0;
                                 cpuWithRegisters.PC = systemBus.ReadDoubleWord(PCValueInELF);
-                                cpuWithRegisters.SetRegisterUnsafe(SP, systemBus.ReadDoubleWord(SPValueInELF));
+                                cpuWithRegisters.SetRegister(SP, systemBus.ReadDoubleWord(SPValueInELF));
                                 cpuWithRegisters.Log(LogLevel.Info, "Succesfully remapped eflash to address 0x0. Restarting machine.");
-                                cpuWithRegisters.Log(LogLevel.Info, "PC set to 0x{0:X}, SP set to 0x{1:X}", cpuWithRegisters.PC.RawValue, cpuWithRegisters.GetRegisterUnsafe(SP).RawValue);
+                                cpuWithRegisters.Log(LogLevel.Info, "PC set to 0x{0:X}, SP set to 0x{1:X}", cpuWithRegisters.PC.RawValue, cpuWithRegisters.GetRegister(SP).RawValue);
                                 cpuWithRegisters.IsHalted = false;
                             });
                         })

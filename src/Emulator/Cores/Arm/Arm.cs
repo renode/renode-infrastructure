@@ -408,7 +408,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private uint DoSemihosting()
         {
             var uart = semihostingUart;
-            //this.Log(LogLevel.Error, "Semihosing, r0={0:X}, r1={1:X} ({2:X})", this.GetRegisterUnsafe(0), this.GetRegisterUnsafe(1), this.TranslateAddress(this.GetRegisterUnsafe(1)));
+            //this.Log(LogLevel.Error, "Semihosing, r0={0:X}, r1={1:X} ({2:X})", this.GetRegister(0), this.GetRegister(1), this.TranslateAddress(this.GetRegister(1)));
 
             uint operation = R[0];
             uint r1 = R[1];

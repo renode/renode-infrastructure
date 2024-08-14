@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -23,7 +23,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             foreach(var i in manager.Cpu.GetRegisters().Where(x => x.IsGeneral))
             {
                 var start = registers.Length;
-                var value = manager.Cpu.GetRegisterUnsafe(i.Index);
+                var value = manager.Cpu.GetRegister(i.Index);
                 foreach(var b in value.GetBytes(manager.Cpu.Endianness))
                 {
                     registers.AppendFormat("{0:x2}", b);

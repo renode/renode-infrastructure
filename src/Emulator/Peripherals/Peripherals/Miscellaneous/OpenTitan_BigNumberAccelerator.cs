@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     {
         ExecutionResult ExecuteInstructions(int instructionCount, out ulong executedInstructions);
         void Reset();
-        RegisterValue GetRegisterUnsafe(int id);
+        RegisterValue GetRegister(int id);
         BigInteger GetWideRegister(int number, bool special);
         string FixedRandomPattern { get; set; }
         string KeyShare0 { get; set; }
@@ -124,7 +124,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public ulong GetCoreRegister(int number)
         {
-            return this.core.GetRegisterUnsafe(number);
+            return this.core.GetRegister(number);
         }
 
         public string GetWideRegister(int number, bool special)

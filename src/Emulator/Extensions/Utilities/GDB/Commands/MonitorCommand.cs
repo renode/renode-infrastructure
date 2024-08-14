@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -79,7 +79,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
                     foreach(var i in manager.Cpu.GetRegisters().Where(x => x.IsGeneral).Select(x => x.Index))
                     {
                         inputBuilder.AppendFormat("({0}) r{0} (/32): 0x", i);
-                        var value = manager.Cpu.GetRegisterUnsafe(i);
+                        var value = manager.Cpu.GetRegister(i);
                         // We always use big-endian GetBytes because we want 0x12345678 to become [0x12, 0x34, 0x56, 0x78]
                         // GetBytes also returns an array of the right length and appropriately padded with zeros.
                         foreach(var b in value.GetBytes(Endianess.BigEndian))

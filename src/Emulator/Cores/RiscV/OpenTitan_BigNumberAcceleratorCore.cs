@@ -294,7 +294,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     ThrowError(CoreError.CallStack);
                     return;
                 }
-                x1Stack.Push(this.GetRegisterUnsafe(1));
+                x1Stack.Push(this.GetRegister(1));
             }
             else
             {
@@ -305,7 +305,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     return;
                 }
 
-                this.SetRegisterUnsafe(1, x1Stack.Pop());
+                this.SetRegister(1, x1Stack.Pop());
             }
         }
 
@@ -432,7 +432,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             var grs = (int)BitHelper.GetValue(opcode, 15, 5);
 
             var bodySize = (uint)BitHelper.GetValue(opcode, 20, 12) + 1;
-            var numberOfIterations = (uint)this.GetRegisterUnsafe(grs).RawValue;
+            var numberOfIterations = (uint)this.GetRegister(grs).RawValue;
 
             InnerLoopHandler(bodySize, numberOfIterations);
         }
@@ -761,8 +761,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             ParseSTypeFields(opcode, out var _, out var grs, out var grd, out var __, out var ___, out var incrementRd);
             var incrementRs = BitHelper.IsBitSet(opcode, 9);
 
-            var grsVal = (int)this.GetRegisterUnsafe(grs).RawValue;
-            var grdVal = (int)this.GetRegisterUnsafe(grd).RawValue;
+            var grsVal = (int)this.GetRegister(grs).RawValue;
+            var grdVal = (int)this.GetRegister(grd).RawValue;
 
             if((incrementRs && incrementRd) || grdVal > 31 || grsVal > 31)
             {
@@ -772,11 +772,11 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             if(incrementRd)
             {
-                this.SetRegisterUnsafe(grd, grdVal + 1);
+                this.SetRegister(grd, grdVal + 1);
             }
             else if(incrementRs)
             {
-                this.SetRegisterUnsafe(grs, grsVal + 1);
+                this.SetRegister(grs, grsVal + 1);
             }
 
             wideDataRegisters[grdVal].SetTo(wideDataRegisters[grsVal].AsBigInteger);
@@ -787,8 +787,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             ParseSTypeFields(opcode, out var f3, out var grs1, out var grd, out var offset, out var incrementRs1, out var incrementRd);
 
             var isLoad = (f3 == 0b100);
-            var grs1Val = (int)this.GetRegisterUnsafe(grs1).RawValue;
-            var grdVal = (int)this.GetRegisterUnsafe(grd).RawValue;
+            var grs1Val = (int)this.GetRegister(grs1).RawValue;
+            var grdVal = (int)this.GetRegister(grd).RawValue;
             var addr = (long)(grs1Val + offset);
 
             if((incrementRs1 && incrementRd) || grdVal > 31)
@@ -799,11 +799,11 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             if(incrementRd)
             {
-                this.SetRegisterUnsafe(grd, grdVal + 1);
+                this.SetRegister(grd, grdVal + 1);
             }
             if(incrementRs1)
             {
-                this.SetRegisterUnsafe(grs1, grs1Val + 32);
+                this.SetRegister(grs1, grs1Val + 32);
             }
 
             if(isLoad)

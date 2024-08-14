@@ -118,15 +118,15 @@ namespace Antmicro.Renode.Peripherals.CPU
             var rs1 = (int)BitHelper.GetValue(opcode, 15, 5);
             var rs2 = (int)BitHelper.GetValue(opcode, 20, 5);
 
-            var rDValue = (long)GetRegisterUnsafe(rD).RawValue;
-            var rs1Value = (long)GetRegisterUnsafe(rs1).RawValue;
-            var rs2Value = (long)GetRegisterUnsafe(rs2).RawValue;
+            var rDValue = (long)GetRegister(rD).RawValue;
+            var rs1Value = (long)GetRegister(rs1).RawValue;
+            var rs2Value = (long)GetRegister(rs2).RawValue;
 
             var result = (ulong)(operationAdd
                 ? rDValue + rs1Value * rs2Value
                 : rDValue - rs1Value * rs2Value);
 
-            SetRegisterUnsafe(rD, result);
+            SetRegister(rD, result);
         }
 
         private void LoadRegisterImmediate(ulong opcode, Width width, BitExtension extension, string log)
@@ -138,9 +138,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             var imm = (int)BitHelper.SignExtend((uint)BitHelper.GetValue(opcode, 20, 12), 12);
             var rD = (int)BitHelper.GetValue(opcode, 7, 5);
             var rs1 = (int)BitHelper.GetValue(opcode, 15, 5);
-            var rs1Value = (long)GetRegisterUnsafe(rs1).RawValue;
-            SetRegisterUnsafe(rD, GetMemValue(width, extension, (ulong)rs1Value));
-            SetRegisterUnsafe(rs1, (ulong)(rs1Value + imm));
+            var rs1Value = (long)GetRegister(rs1).RawValue;
+            SetRegister(rD, GetMemValue(width, extension, (ulong)rs1Value));
+            SetRegister(rs1, (ulong)(rs1Value + imm));
         }
 
         private void LoadRegisterRegister(ulong opcode, Width width, BitExtension extension, string log, bool postIncrement = false)
@@ -153,13 +153,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             // rD = Sext/Zext(Mem8/16/32(rs1 + rs2))
             var rD = (int)BitHelper.GetValue(opcode, 7, 5);
             var rs1 = (int)BitHelper.GetValue(opcode, 15, 5);
-            var rs1Value = GetRegisterUnsafe(rs1).RawValue;
+            var rs1Value = GetRegister(rs1).RawValue;
             var rs2 = (int)BitHelper.GetValue(opcode, 20, 5);
-            var rs2Value = GetRegisterUnsafe(rs2).RawValue;
-            SetRegisterUnsafe(rD, GetMemValue(width, extension, postIncrement ? rs1Value : rs1Value + rs2Value));
+            var rs2Value = GetRegister(rs2).RawValue;
+            SetRegister(rD, GetMemValue(width, extension, postIncrement ? rs1Value : rs1Value + rs2Value));
             if(postIncrement)
             {
-                SetRegisterUnsafe(rs1, rs1Value + rs2Value);
+                SetRegister(rs1, rs1Value + rs2Value);
             }
         }
 
@@ -171,10 +171,10 @@ namespace Antmicro.Renode.Peripherals.CPU
             var imm = (int)BitHelper.SignExtend((uint)((BitHelper.GetValue(opcode, 25, 7) << 5) | BitHelper.GetValue(opcode, 7, 5)), 12);
             var rs2 = (int)BitHelper.GetValue(opcode, 20, 5);
             var rs1 = (int)BitHelper.GetValue(opcode, 15, 5);
-            var rs2Value = GetRegisterUnsafe(rs2).RawValue;
-            var rs1Value = (long)GetRegisterUnsafe(rs1).RawValue;
+            var rs2Value = GetRegister(rs2).RawValue;
+            var rs1Value = (long)GetRegister(rs1).RawValue;
             SetMemValue(width, rs2Value, (ulong)rs1Value);
-            SetRegisterUnsafe(rs1, (ulong)(rs1Value + imm));
+            SetRegister(rs1, (ulong)(rs1Value + imm));
         }
 
         private void StoreRegisterRegister(ulong opcode, Width width, string log, bool postIncrement = false)
@@ -188,13 +188,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             var rs2 = (int)BitHelper.GetValue(opcode, 20, 5);
             var rs3 = (int)BitHelper.GetValue(opcode, 7, 5);
             var rs1 = (int)BitHelper.GetValue(opcode, 15, 5);
-            var rs1Value = GetRegisterUnsafe(rs1).RawValue;
-            var rs3Value = GetRegisterUnsafe(rs3).RawValue;
-            var rs2Value = GetRegisterUnsafe(rs2).RawValue;
+            var rs1Value = GetRegister(rs1).RawValue;
+            var rs3Value = GetRegister(rs3).RawValue;
+            var rs2Value = GetRegister(rs2).RawValue;
             SetMemValue(width, rs2Value, postIncrement ? rs1Value : rs1Value + rs3Value);
             if(postIncrement)
             {
-                SetRegisterUnsafe(rs1, rs1Value + rs3Value);
+                SetRegister(rs1, rs1Value + rs3Value);
             }
         }
 
@@ -203,9 +203,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             this.Log(LogLevel.Noisy, "({0}) at PC=0x{1:X}", log, PC.RawValue);
             var rD = (int)BitHelper.GetValue(opcode, 7, 5);
             var rs1 = (int)BitHelper.GetValue(opcode, 15, 5);
-            var rs1Value = GetRegisterUnsafe(rs1).RawValue;
+            var rs1Value = GetRegister(rs1).RawValue;
             var rs2 = (int)BitHelper.GetValue(opcode, 20, 5);
-            var rs2Value = GetRegisterUnsafe(rs2).RawValue;
+            var rs2Value = GetRegister(rs2).RawValue;
             var result = 0UL;
             if(type == ComparisonType.Min && sign == Sign.Signed)
             {
@@ -227,7 +227,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 this.Log(LogLevel.Error, "Could not execute compare instruction: {0}", log);
             }
-            SetRegisterUnsafe(rD, result);
+            SetRegister(rD, result);
         }
 
         private void ManipulateBitsInRegister(ulong opcode, Source source, Operation operation, Width width, Sign sign, string log)
@@ -237,15 +237,15 @@ namespace Antmicro.Renode.Peripherals.CPU
             var rs1 = (int)BitHelper.GetValue(opcode, 15, 5);
             var is2 = (int)BitHelper.GetValue(opcode, 20, 5);
             var is3 = (int)BitHelper.GetValue(opcode, 25, 5);
-            var rs1Value = GetRegisterUnsafe(rs1).RawValue;
+            var rs1Value = GetRegister(rs1).RawValue;
             if(source == Source.Register)
             {
                 var rs2 = (int)BitHelper.GetValue(opcode, 20, 5);
-                var rs2Value = GetRegisterUnsafe(rs2).RawValue;
+                var rs2Value = GetRegister(rs2).RawValue;
                 is2 = (int)BitHelper.GetValue(rs2Value, 0, 5);
                 is3 = (int)BitHelper.GetValue(rs2Value, 5, 5);
             }
-            var rDValue = GetRegisterUnsafe(rD).RawValue;
+            var rDValue = GetRegister(rD).RawValue;
             if(is2 + is3 > 32)
             {
                 this.Log(LogLevel.Error, "Sum of operands Is3 an Is2 is equal to {0} but should not be larger than 32", is2 + is3);
@@ -282,19 +282,19 @@ namespace Antmicro.Renode.Peripherals.CPU
                     this.Log(LogLevel.Error, "Encountered an unexpected option: {0}", sign);
                     break;
             }
-            SetRegisterUnsafe(rD, result);
+            SetRegister(rD, result);
         }
 
         private void BranchIf(ulong opcode, Equality equality, string log)
         {
             this.Log(LogLevel.Noisy, "({0}) at PC={1:X}", log, PC.RawValue);
             var rs1 = (int)BitHelper.GetValue(opcode, 15, 5);
-            var rs1Value = (long)GetRegisterUnsafe(rs1).RawValue;
+            var rs1Value = (long)GetRegister(rs1).RawValue;
             var imm5 = (int)BitHelper.SignExtend((uint)BitHelper.GetValue(opcode, 20, 5), 5);
             if((equality == Equality.NotEqual && rs1Value != imm5) || (equality == Equality.Equal && rs1Value == imm5))
             {
                 var imm12 = (int)BitHelper.SignExtend((uint)((BitHelper.GetValue(opcode, 31, 1) << 11) | (BitHelper.GetValue(opcode, 7, 1) << 10) | (BitHelper.GetValue(opcode, 25, 6) << 4) | BitHelper.GetValue(opcode, 8, 4)), 12);
-                var newPC = (uint)((uint)GetRegisterUnsafe((int)RiscV32Registers.PC).RawValue + (imm12 << 1));
+                var newPC = (uint)((uint)GetRegister((int)RiscV32Registers.PC).RawValue + (imm12 << 1));
                 PC = newPC;
             }
         }

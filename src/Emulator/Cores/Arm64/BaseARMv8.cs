@@ -56,31 +56,31 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             public void HandleCall()
             {
-                var x0 = (uint)parent.GetRegisterUnsafe((int)ARMv8ARegisters.X0);
-                var x1 = (uint)parent.GetRegisterUnsafe((int)ARMv8ARegisters.X1);
+                var x0 = (uint)parent.GetRegister((int)ARMv8ARegisters.X0);
+                var x1 = (uint)parent.GetRegister((int)ARMv8ARegisters.X1);
 
                 switch((Function)x0)
                 {
                     case Function.PSCIVersion:
                         GetPSCIVersion();
-                        parent.SetRegisterUnsafe((int)ARMv8ARegisters.X0, PSCICallResultSuccess);
+                        parent.SetRegister((int)ARMv8ARegisters.X0, PSCICallResultSuccess);
                         break;
                     case Function.CPUOn:
                         UnhaltCpu(x1);
                         break;
                     default:
                         parent.Log(LogLevel.Error, "Encountered an unexpected PSCI call request: 0x{0:X}", x0);
-                        parent.SetRegisterUnsafe((int)ARMv8ARegisters.X0, PSCICallResultNotSupported);
+                        parent.SetRegister((int)ARMv8ARegisters.X0, PSCICallResultNotSupported);
                         return;
                 }
 
                 // Set return code to success
-                parent.SetRegisterUnsafe((int)ARMv8ARegisters.X0, PSCICallResultSuccess);
+                parent.SetRegister((int)ARMv8ARegisters.X0, PSCICallResultSuccess);
             }
 
             private void GetPSCIVersion()
             {
-                parent.SetRegisterUnsafe((int)ARMv8ARegisters.X1, PSCIVersion);
+                parent.SetRegister((int)ARMv8ARegisters.X1, PSCIVersion);
             }
 
             private void UnhaltCpu(uint cpuId)

@@ -171,8 +171,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             // 0x7057 it the fixed part of the vcfg opcodes
             cpuWithPostOpcodeExecutionHooks.AddPostOpcodeExecutionHook(0x7057, 0x7057, (pc) =>
             {
-                var vl = AttachedCPU.GetRegisterUnsafe(RiscVVlRegisterIndex);
-                var vtype = AttachedCPU.GetRegisterUnsafe(RiscVVtypeRegisterIndex);
+                var vl = AttachedCPU.GetRegister(RiscVVlRegisterIndex);
+                var vtype = AttachedCPU.GetRegister(RiscVVtypeRegisterIndex);
                 currentAdditionalData.Enqueue(new RiscVVectorConfigurationData(pc, vl.RawValue, vtype.RawValue));
             });
         }

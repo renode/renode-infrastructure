@@ -62,7 +62,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             var rd = (int)BitHelper.GetValue(opcode, 7, 5);
             var imm = GetImmediate(opcode, extractor, immediateBits);
-            var memoryOffset = imm + cpu.GetRegisterUnsafe(MemoryOperationsImpliedRegister).RawValue;
+            var memoryOffset = imm + cpu.GetRegister(MemoryOperationsImpliedRegister).RawValue;
 
             int valueBits;
             ulong data;
@@ -87,11 +87,11 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             if(extendSign)
             {
-                cpu.SetRegisterUnsafe(rd, BitHelper.SignExtend(data, valueBits));
+                cpu.SetRegister(rd, BitHelper.SignExtend(data, valueBits));
             }
             else
             {
-                cpu.SetRegisterUnsafe(rd, data);
+                cpu.SetRegister(rd, data);
             }
         }
 
@@ -99,9 +99,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             var rs2 = (int)BitHelper.GetValue(opcode, 20, 5);
             var imm = GetImmediate(opcode, extractor, immediateBits);
-            var memoryOffset = imm + cpu.GetRegisterUnsafe(MemoryOperationsImpliedRegister).RawValue;
+            var memoryOffset = imm + cpu.GetRegister(MemoryOperationsImpliedRegister).RawValue;
 
-            var regValue = cpu.GetRegisterUnsafe(rs2).RawValue;
+            var regValue = cpu.GetRegister(rs2).RawValue;
 
             switch(width)
             {
@@ -124,9 +124,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             var rd = (int)BitHelper.GetValue(opcode, 7, 5);
             var imm = GetImmediate(opcode, LoadExtractorByte, 18);
-            var value = imm + cpu.GetRegisterUnsafe(MemoryOperationsImpliedRegister).RawValue;
+            var value = imm + cpu.GetRegister(MemoryOperationsImpliedRegister).RawValue;
 
-            cpu.SetRegisterUnsafe(rd, value);
+            cpu.SetRegister(rd, value);
         }
 
         private ulong LoadExtractorByte(ulong opcode)
