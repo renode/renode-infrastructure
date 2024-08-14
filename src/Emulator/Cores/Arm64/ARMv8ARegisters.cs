@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class ARMv8A
     {
-        public override void SetRegisterUnsafe(int register, RegisterValue value)
+        public override void SetRegister(int register, RegisterValue value)
         {
             if(!mapping.TryGetValue((ARMv8ARegisters)register, out var r))
             {
@@ -41,7 +41,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public override RegisterValue GetRegisterUnsafe(int register)
+        public override RegisterValue GetRegister(int register)
         {
             if(!mapping.TryGetValue((ARMv8ARegisters)register, out var r))
             {
@@ -180,8 +180,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             };
             X = new RegistersGroup(
                 indexValueMapX.Keys,
-                i => GetRegisterUnsafe((int)indexValueMapX[i]),
-                (i, v) => SetRegisterUnsafe((int)indexValueMapX[i], v));
+                i => GetRegister((int)indexValueMapX[i]),
+                (i, v) => SetRegister((int)indexValueMapX[i], v));
 
             var indexValueMapR = new Dictionary<int, ARMv8ARegisters>
             {
@@ -204,8 +204,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             };
             R = new RegistersGroup(
                 indexValueMapR.Keys,
-                i => GetRegisterUnsafe((int)indexValueMapR[i]),
-                (i, v) => SetRegisterUnsafe((int)indexValueMapR[i], v));
+                i => GetRegister((int)indexValueMapR[i]),
+                (i, v) => SetRegister((int)indexValueMapR[i], v));
 
         }
 

@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class Xtensa
     {
-        public override void SetRegisterUnsafe(int register, RegisterValue value)
+        public override void SetRegister(int register, RegisterValue value)
         {
             if(!mapping.TryGetValue((XtensaRegisters)register, out var r))
             {
@@ -31,7 +31,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             SetRegisterValue32(r.Index, checked((UInt32)value));
         }
 
-        public override RegisterValue GetRegisterUnsafe(int register)
+        public override RegisterValue GetRegister(int register)
         {
             if(!mapping.TryGetValue((XtensaRegisters)register, out var r))
             {
@@ -445,8 +445,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             };
             AR = new RegistersGroup(
                 indexValueMapAR.Keys,
-                i => GetRegisterUnsafe((int)indexValueMapAR[i]),
-                (i, v) => SetRegisterUnsafe((int)indexValueMapAR[i], v));
+                i => GetRegister((int)indexValueMapAR[i]),
+                (i, v) => SetRegister((int)indexValueMapAR[i], v));
 
             var indexValueMapCONFIGID = new Dictionary<int, XtensaRegisters>
             {
@@ -455,8 +455,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             };
             CONFIGID = new RegistersGroup(
                 indexValueMapCONFIGID.Keys,
-                i => GetRegisterUnsafe((int)indexValueMapCONFIGID[i]),
-                (i, v) => SetRegisterUnsafe((int)indexValueMapCONFIGID[i], v));
+                i => GetRegister((int)indexValueMapCONFIGID[i]),
+                (i, v) => SetRegister((int)indexValueMapCONFIGID[i], v));
 
             var indexValueMapSCOMPARE = new Dictionary<int, XtensaRegisters>
             {
@@ -464,8 +464,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             };
             SCOMPARE = new RegistersGroup(
                 indexValueMapSCOMPARE.Keys,
-                i => GetRegisterUnsafe((int)indexValueMapSCOMPARE[i]),
-                (i, v) => SetRegisterUnsafe((int)indexValueMapSCOMPARE[i], v));
+                i => GetRegister((int)indexValueMapSCOMPARE[i]),
+                (i, v) => SetRegister((int)indexValueMapSCOMPARE[i], v));
 
             var indexValueMapIBREAKA = new Dictionary<int, XtensaRegisters>
             {
@@ -474,8 +474,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             };
             IBREAKA = new RegistersGroup(
                 indexValueMapIBREAKA.Keys,
-                i => GetRegisterUnsafe((int)indexValueMapIBREAKA[i]),
-                (i, v) => SetRegisterUnsafe((int)indexValueMapIBREAKA[i], v));
+                i => GetRegister((int)indexValueMapIBREAKA[i]),
+                (i, v) => SetRegister((int)indexValueMapIBREAKA[i], v));
 
             var indexValueMapDBREAKA = new Dictionary<int, XtensaRegisters>
             {
@@ -484,8 +484,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             };
             DBREAKA = new RegistersGroup(
                 indexValueMapDBREAKA.Keys,
-                i => GetRegisterUnsafe((int)indexValueMapDBREAKA[i]),
-                (i, v) => SetRegisterUnsafe((int)indexValueMapDBREAKA[i], v));
+                i => GetRegister((int)indexValueMapDBREAKA[i]),
+                (i, v) => SetRegister((int)indexValueMapDBREAKA[i], v));
 
             var indexValueMapDBREAKC = new Dictionary<int, XtensaRegisters>
             {
@@ -494,8 +494,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             };
             DBREAKC = new RegistersGroup(
                 indexValueMapDBREAKC.Keys,
-                i => GetRegisterUnsafe((int)indexValueMapDBREAKC[i]),
-                (i, v) => SetRegisterUnsafe((int)indexValueMapDBREAKC[i], v));
+                i => GetRegister((int)indexValueMapDBREAKC[i]),
+                (i, v) => SetRegister((int)indexValueMapDBREAKC[i], v));
 
             var indexValueMapEPC = new Dictionary<int, XtensaRegisters>
             {
@@ -509,8 +509,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             };
             EPC = new RegistersGroup(
                 indexValueMapEPC.Keys,
-                i => GetRegisterUnsafe((int)indexValueMapEPC[i]),
-                (i, v) => SetRegisterUnsafe((int)indexValueMapEPC[i], v));
+                i => GetRegister((int)indexValueMapEPC[i]),
+                (i, v) => SetRegister((int)indexValueMapEPC[i], v));
 
             var indexValueMapEPS = new Dictionary<int, XtensaRegisters>
             {
@@ -523,8 +523,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             };
             EPS = new RegistersGroup(
                 indexValueMapEPS.Keys,
-                i => GetRegisterUnsafe((int)indexValueMapEPS[i]),
-                (i, v) => SetRegisterUnsafe((int)indexValueMapEPS[i], v));
+                i => GetRegister((int)indexValueMapEPS[i]),
+                (i, v) => SetRegister((int)indexValueMapEPS[i], v));
 
             var indexValueMapEXCSAVE = new Dictionary<int, XtensaRegisters>
             {
@@ -538,8 +538,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             };
             EXCSAVE = new RegistersGroup(
                 indexValueMapEXCSAVE.Keys,
-                i => GetRegisterUnsafe((int)indexValueMapEXCSAVE[i]),
-                (i, v) => SetRegisterUnsafe((int)indexValueMapEXCSAVE[i], v));
+                i => GetRegister((int)indexValueMapEXCSAVE[i]),
+                (i, v) => SetRegister((int)indexValueMapEXCSAVE[i], v));
 
             var indexValueMapCCOMPARE = new Dictionary<int, XtensaRegisters>
             {
@@ -549,8 +549,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             };
             CCOMPARE = new RegistersGroup(
                 indexValueMapCCOMPARE.Keys,
-                i => GetRegisterUnsafe((int)indexValueMapCCOMPARE[i]),
-                (i, v) => SetRegisterUnsafe((int)indexValueMapCCOMPARE[i], v));
+                i => GetRegister((int)indexValueMapCCOMPARE[i]),
+                (i, v) => SetRegister((int)indexValueMapCCOMPARE[i], v));
 
             var indexValueMapMISC = new Dictionary<int, XtensaRegisters>
             {
@@ -559,8 +559,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             };
             MISC = new RegistersGroup(
                 indexValueMapMISC.Keys,
-                i => GetRegisterUnsafe((int)indexValueMapMISC[i]),
-                (i, v) => SetRegisterUnsafe((int)indexValueMapMISC[i], v));
+                i => GetRegister((int)indexValueMapMISC[i]),
+                (i, v) => SetRegister((int)indexValueMapMISC[i], v));
 
             var indexValueMapA = new Dictionary<int, XtensaRegisters>
             {
@@ -583,8 +583,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             };
             A = new RegistersGroup(
                 indexValueMapA.Keys,
-                i => GetRegisterUnsafe((int)indexValueMapA[i]),
-                (i, v) => SetRegisterUnsafe((int)indexValueMapA[i], v));
+                i => GetRegister((int)indexValueMapA[i]),
+                (i, v) => SetRegister((int)indexValueMapA[i], v));
 
         }
 

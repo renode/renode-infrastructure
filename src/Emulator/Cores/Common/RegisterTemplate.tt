@@ -1,6 +1,6 @@
 ﻿<#
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -71,7 +71,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         .Distinct()
         .ToArray();
 #>
-        public override void SetRegisterUnsafe(int register, RegisterValue value)
+        public override void SetRegister(int register, RegisterValue value)
         {
             if(!mapping.TryGetValue((<#=CLASS_NAME#>Registers)register, out var r))
             {
@@ -130,7 +130,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 #>
         }
 
-        public override RegisterValue GetRegisterUnsafe(int register)
+        public override RegisterValue GetRegister(int register)
         {
             if(!mapping.TryGetValue((<#=CLASS_NAME#>Registers)register, out var r))
             {
@@ -269,8 +269,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             };
             <#=registerGroup.Name#> = new RegistersGroup(
                 indexValueMap<#=registerGroup.Name#>.Keys,
-                i => GetRegisterUnsafe((int)indexValueMap<#=registerGroup.Name#>[i]),
-                (i, v) => SetRegisterUnsafe((int)indexValueMap<#=registerGroup.Name#>[i], v));
+                i => GetRegister((int)indexValueMap<#=registerGroup.Name#>[i]),
+                (i, v) => SetRegister((int)indexValueMap<#=registerGroup.Name#>[i], v));
 
 <#
     }

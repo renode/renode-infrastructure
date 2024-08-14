@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class Sparc
     {
-        public override void SetRegisterUnsafe(int register, RegisterValue value)
+        public override void SetRegister(int register, RegisterValue value)
         {
             if(!mapping.TryGetValue((SparcRegisters)register, out var r))
             {
@@ -27,7 +27,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             SetRegisterValue32(r.Index, checked((UInt32)value));
         }
 
-        public override RegisterValue GetRegisterUnsafe(int register)
+        public override RegisterValue GetRegister(int register)
         {
             if(!mapping.TryGetValue((SparcRegisters)register, out var r))
             {
@@ -180,8 +180,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             };
             R = new RegistersGroup(
                 indexValueMapR.Keys,
-                i => GetRegisterUnsafe((int)indexValueMapR[i]),
-                (i, v) => SetRegisterUnsafe((int)indexValueMapR[i], v));
+                i => GetRegister((int)indexValueMapR[i]),
+                (i, v) => SetRegister((int)indexValueMapR[i], v));
 
             var indexValueMapASR = new Dictionary<int, SparcRegisters>
             {
@@ -204,8 +204,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             };
             ASR = new RegistersGroup(
                 indexValueMapASR.Keys,
-                i => GetRegisterUnsafe((int)indexValueMapASR[i]),
-                (i, v) => SetRegisterUnsafe((int)indexValueMapASR[i], v));
+                i => GetRegister((int)indexValueMapASR[i]),
+                (i, v) => SetRegister((int)indexValueMapASR[i], v));
 
         }
 

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -16,6 +16,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public interface ICPUWithRegisters : ICPU
     {
+        void SetRegister(int register, RegisterValue value);
+        RegisterValue GetRegister(int register);
         void SetRegisterUnsafe(int register, RegisterValue value);
         RegisterValue GetRegisterUnsafe(int register);
         IEnumerable<CPURegister> GetRegisters();

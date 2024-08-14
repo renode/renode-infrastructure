@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class RiscV64
     {
-        public override void SetRegisterUnsafe(int register, RegisterValue value)
+        public override void SetRegister(int register, RegisterValue value)
         {
             if(!mapping.TryGetValue((RiscV64Registers)register, out var r))
             {
@@ -35,7 +35,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             SetRegisterValue64(r.Index, checked((UInt64)value));
         }
 
-        public override RegisterValue GetRegisterUnsafe(int register)
+        public override RegisterValue GetRegister(int register)
         {
             if(!mapping.TryGetValue((RiscV64Registers)register, out var r))
             {
@@ -547,8 +547,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             };
             X = new RegistersGroup(
                 indexValueMapX.Keys,
-                i => GetRegisterUnsafe((int)indexValueMapX[i]),
-                (i, v) => SetRegisterUnsafe((int)indexValueMapX[i], v));
+                i => GetRegister((int)indexValueMapX[i]),
+                (i, v) => SetRegister((int)indexValueMapX[i], v));
 
             var indexValueMapT = new Dictionary<int, RiscV64Registers>
             {
@@ -562,8 +562,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             };
             T = new RegistersGroup(
                 indexValueMapT.Keys,
-                i => GetRegisterUnsafe((int)indexValueMapT[i]),
-                (i, v) => SetRegisterUnsafe((int)indexValueMapT[i], v));
+                i => GetRegister((int)indexValueMapT[i]),
+                (i, v) => SetRegister((int)indexValueMapT[i], v));
 
             var indexValueMapS = new Dictionary<int, RiscV64Registers>
             {
@@ -582,8 +582,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             };
             S = new RegistersGroup(
                 indexValueMapS.Keys,
-                i => GetRegisterUnsafe((int)indexValueMapS[i]),
-                (i, v) => SetRegisterUnsafe((int)indexValueMapS[i], v));
+                i => GetRegister((int)indexValueMapS[i]),
+                (i, v) => SetRegister((int)indexValueMapS[i], v));
 
             var indexValueMapA = new Dictionary<int, RiscV64Registers>
             {
@@ -598,8 +598,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             };
             A = new RegistersGroup(
                 indexValueMapA.Keys,
-                i => GetRegisterUnsafe((int)indexValueMapA[i]),
-                (i, v) => SetRegisterUnsafe((int)indexValueMapA[i], v));
+                i => GetRegister((int)indexValueMapA[i]),
+                (i, v) => SetRegister((int)indexValueMapA[i], v));
 
             var indexValueMapF = new Dictionary<int, RiscV64Registers>
             {
@@ -638,8 +638,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             };
             F = new RegistersGroup(
                 indexValueMapF.Keys,
-                i => GetRegisterUnsafe((int)indexValueMapF[i]),
-                (i, v) => SetRegisterUnsafe((int)indexValueMapF[i], v));
+                i => GetRegister((int)indexValueMapF[i]),
+                (i, v) => SetRegister((int)indexValueMapF[i], v));
 
         }
 

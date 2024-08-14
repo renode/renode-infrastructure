@@ -711,9 +711,23 @@ namespace Antmicro.Renode.Peripherals.CPU
             return $"Undecoded {exceptionIndex}";
         }
 
-        public abstract void SetRegisterUnsafe(int register, RegisterValue value);
+        public abstract void SetRegister(int register, RegisterValue value);
 
-        public abstract RegisterValue GetRegisterUnsafe(int register);
+        public void SetRegisterUnsafe(int register, RegisterValue value)
+        {
+            // This is obsolete API, left here only for compatibility
+            this.Log(LogLevel.Warning, "Using `SetRegisterUnsafe` API is obsolete. Please change to `SetRegister`.");
+            SetRegister(register, value);
+        }
+
+        public abstract RegisterValue GetRegister(int register);
+
+        public RegisterValue GetRegisterUnsafe(int register)
+        {
+            // This is obsolete API, left here only for compatibility
+            this.Log(LogLevel.Warning, "Using `GetRegisterUnsafe` API is obsolete. Please change to `GetRegister`.");
+            return GetRegister(register);
+        }
 
         public abstract IEnumerable<CPURegister> GetRegisters();
 
