@@ -89,7 +89,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private bool RxLevelInterruptStatus
         {
-            get => true && GetRxFifoTriggerLevelStatus();
+            get => rxFifoLevelInterruptEnable.Value && GetRxFifoTriggerLevelStatus();
         }
 
         private void DefineRegisters()
