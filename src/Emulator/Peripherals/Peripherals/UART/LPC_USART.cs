@@ -254,8 +254,8 @@ namespace Antmicro.Renode.Peripherals.UART
             Registers.FifoInterruptEnable.Define(this)
                 .WithTaggedFlag("TXERR", 0)
                 .WithTaggedFlag("RXERR", 1)
-                .WithFlag(2, out txFifoLevelInterruptEnable, name: "TXLVL")
-                .WithFlag(3, out rxFifoLevelInterruptEnable, name: "RXLVL")
+                .WithFlag(2, out txFifoLevelInterruptEnable, FieldMode.Read | FieldMode.Set, name: "TXLVL")
+                .WithFlag(3, out rxFifoLevelInterruptEnable, FieldMode.Read | FieldMode.Set, name: "RXLVL")
                 .WithReservedBits(4, 28)
                 .WithWriteCallback((_, __) => UpdateInterrupts());
 
