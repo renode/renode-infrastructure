@@ -359,13 +359,13 @@ namespace Antmicro.Renode.Core
             machine.EnableProfiler(profilerPath);
         }
 
-        private RecoverableException CreateLoadException(DeserializationResult result, string metadata = null)
+        private RecoverableException CreateLoadException(DeserializationResult result, string metadata)
         {
             var errorMessage = result == DeserializationResult.MetadataCorrupted
                 ? $"The snapshot cannot be loaded as its metadata is corrupted."
-                : metadata != null
-                    ? $"This snapshot is incompatible as it was created with {metadata}. Try loading it in that version instead."
-                    : $"This snapshot was created with an earlier version of Renode and is incompatible with this one.";
+                : metadata == MetadataString
+                    ? $"The snapshot cannot be loaded as the emulation state is corrupted."
+                    : $"This snapshot is incompatible as it was created with {metadata}. Try loading it in that version instead.";
 
             return new RecoverableException(errorMessage); 
         }
