@@ -24,7 +24,7 @@ namespace Antmicro.Renode.EventRecording
         {
             this.machine = machine;
             this.stream = stream;
-            deserializer = new Serializer(new Settings(useBuffering: false, disableTypeStamping: true)).ObtainOpenStreamDeserializer(stream);
+            deserializer = new Serializer(new Settings(useBuffering: false, disableTypeStamping: true)).ObtainOpenStreamDeserializer(stream, out _, ignoreMetadata: true);
             handlersCache = new Dictionary<NameAndHandler, Delegate>();
             entries = deserializer.DeserializeMany<IRecordEntry>().GetEnumerator();
             if(!entries.MoveNext())
@@ -120,4 +120,3 @@ namespace Antmicro.Renode.EventRecording
         }
     }
 }
-
