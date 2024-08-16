@@ -10,6 +10,7 @@ using System;
 using System.IO;
 using Mono.Unix;
 using System.Net.Sockets;
+using Antmicro.Renode.Sockets;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Utilities;
@@ -58,8 +59,7 @@ namespace Antmicro.Renode.Peripherals.Storage
             }
 
             this.Log(LogLevel.Debug, "Looking for UDS socket in path: {0}", Path.GetFullPath(fsSocketPath));
-            fsSocket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.IP);
-            fsSocket.Connect(new UnixEndPoint(fsSocketPath));
+            fsSocket = SocketsManager.Instance.AcquireSocket(this, AddressFamily.Unix, SocketType.Stream, ProtocolType.IP, new UnixEndPoint(fsSocketPath), asClient: true);
 
             StoreTag(tag, this.tag);
 

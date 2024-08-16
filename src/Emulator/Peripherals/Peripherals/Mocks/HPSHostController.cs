@@ -13,8 +13,8 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.I2C;
+using Antmicro.Renode.Sockets;
 using Antmicro.Renode.Time;
-using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.Utilities;
 #if !PLATFORM_WINDOWS
 using Mono.Unix;
@@ -403,14 +403,12 @@ namespace Antmicro.Renode.Extensions.Mocks
             {
                 File.Delete(path);
             }
-            var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-            socket.Bind(new UnixEndPoint(path));
-            socket.Listen(0);
-            this.Log(LogLevel.Info, "Server started waiting for client to connect on {0}", path);
+            this.Log(LogLevel.Info, "Server starting at{0}", path);
+            var socket = SocketsManager.Instance.AcquireSocket(this, AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified, new UnixEndPoint(path));
+            this.Log(LogLevel.Info, "Connection established");
 
             currentSlave.Read(0);
             var connection = socket.Accept();
-            this.Log(LogLevel.Info, "Connection established");
 
             var commandBuffer = new byte[(int)NumberOfBytes.MessageType];
             var prevWrite = false;

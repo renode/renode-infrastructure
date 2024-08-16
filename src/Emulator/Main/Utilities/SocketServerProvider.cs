@@ -15,6 +15,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Sockets;
 using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Utilities
@@ -31,22 +32,7 @@ namespace Antmicro.Renode.Utilities
 
         public void Start(int port)
         {
-            server = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-
-            // Opt out of optimizing TCP traffic by combining multiple smaller
-            // packets into larger ones. The default behavior caused massive
-            // delays in outgoing GDBStub communication.
-            server.NoDelay = true;
-
-            try
-            {
-                server.Bind(new IPEndPoint(IPAddress.Any, port));
-            }
-            catch(Exception e)
-            {
-                throw new RecoverableException(e);
-            }
-            server.Listen(1);
+            server = SocketsManager.Instance.AcquireSocket(null ,AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp, new IPEndPoint(IPAddress.Any, port), listeningBacklog: 1); 
 
             listenerThread = new Thread(ListenerThreadBody)
             {
@@ -62,8 +48,10 @@ namespace Antmicro.Renode.Utilities
         {
             if(server != null)
             {
-                server.Close();
-                server.Dispose();
+                if(!SocketsManager.Instance.TryDropSocket(server))
+                {
+                    Logger.LogAs(this, LogLevel.Debug, "Failed to drop socket from the manager");
+                }
             }
             socket?.Close();
             stopRequested = true;
