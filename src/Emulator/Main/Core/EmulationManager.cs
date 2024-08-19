@@ -118,12 +118,14 @@ namespace Antmicro.Renode.Core
                                 : (Stream) fstream)
             {
                 var deserializationResult = serializer.TryDeserialize<Emulation>(stream, out var emulation, out var metadata);
+                var metadataStringFromFile = metadata == null ? null : Encoding.UTF8.GetString(metadata);
+
                 if(deserializationResult != DeserializationResult.OK)
                 {
                     // If metadata was loaded successfully, we know the emulation has to be corrupted
-                    if(metadata != null)
+                    if(metadataStringFromFile != null)
                     {
-                        throw CreateLoadException(deserializationResult, metadata); 
+                        throw CreateLoadException(deserializationResult, metadataStringFromFile); 
                     }
 
                     // If metadata wasn't loaded successfully, either the metadata could be corrupted or we're loading a save with the old format
@@ -133,12 +135,12 @@ namespace Antmicro.Renode.Core
                     deserializationResult = serializer.TryDeserialize<string>(stream, out var versionString);
                     if(deserializationResult == DeserializationResult.OK)
                     {
-                        metadata = versionString;
+                        metadataStringFromFile = versionString;
                     }
                     else
                     {
                         // If metadata can't be loaded either as a metadata string or a version string, we deem it corrupted
-                        throw CreateLoadException(DeserializationResult.MetadataCorrupted, metadata); 
+                        throw CreateLoadException(DeserializationResult.MetadataCorrupted, metadataStringFromFile); 
                     }
 
                     // We must be loading a save file in the old format now
@@ -146,19 +148,19 @@ namespace Antmicro.Renode.Core
                     deserializationResult = serializer.TryDeserialize(stream, out emulation);
                     if(deserializationResult != DeserializationResult.OK)
                     {
-                        throw CreateLoadException(deserializationResult, metadata); 
+                        throw CreateLoadException(deserializationResult, metadataStringFromFile); 
                     }
 
                     // Old format save file should have loaded successfully at this point
-                    Logger.Log(LogLevel.Warning, "Loading old format save file produced by version ({0})", metadata);
+                    Logger.Log(LogLevel.Warning, "Loading old format save file produced by version ({0})", metadataStringFromFile);
                 }
 
                 CurrentEmulation = emulation;
                 CurrentEmulation.BlobManager.Load(stream, fstream.Name);
 
-                if(metadata != MetadataString)
+                if(metadataStringFromFile != MetadataString)
                 {
-                    Logger.Log(LogLevel.Warning, "Version of deserialized emulation ({0}) does not match current one ({1}). Things may go awry!", metadata, MetadataString);
+                    Logger.Log(LogLevel.Warning, "Version of deserialized emulation ({0}) does not match current one ({1}). Things may go awry!", metadataStringFromFile, MetadataString);
                 }
             }
         }
@@ -174,7 +176,7 @@ namespace Antmicro.Renode.Core
                         try
                         {
                             CurrentEmulation.SnapshotTracker.Save(CurrentEmulation.MasterTimeSource.ElapsedVirtualTime, path);
-                            serializer.Serialize(CurrentEmulation, stream, MetadataString);
+                            serializer.Serialize(CurrentEmulation, stream, Encoding.UTF8.GetBytes(MetadataString));
                             CurrentEmulation.BlobManager.Save(stream);
                         }
                         catch(InvalidOperationException e)
