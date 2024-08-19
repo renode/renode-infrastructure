@@ -543,10 +543,13 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
 
         private enum USBSpeed
         {
-            Low = 0,
-            Full = 1,
-            High = 2,
-            Super = 3
+            Unknown = 0,
+            Low = 1,
+            Full = 2,
+            High = 3,
+            Wireless = 4,
+            Super = 5,
+            SuperPlus = 6,
         }
 
         private enum State
