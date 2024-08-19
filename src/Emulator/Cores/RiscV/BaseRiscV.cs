@@ -40,6 +40,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             bool allowUnalignedAccesses = false,
             InterruptMode interruptMode = InterruptMode.Auto,
             uint minimalPmpNapotInBytes = 8,
+            uint pmpNumberOfAddrBits = 32,
             PrivilegeLevels privilegeLevels = PrivilegeLevels.MachineSupervisorUser
         )
             : base(hartId, cpuType, machine, endianness, bitness)
@@ -79,6 +80,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 throw new ConstructionException(string.Format("Unsupported interrupt mode: 0x{0:X}", interruptMode));
             }
 
+            TlibSetPmpaddrBits(pmpNumberOfAddrBits);
             TlibSetNapotGrain(minimalPmpNapotInBytes);
 
             RegisterCSR((ulong)StandardCSR.Miselect, () => miselectValue, s => miselectValue = (uint)s, "miselect");
@@ -902,6 +904,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private ActionUInt32 TlibSetNapotGrain;
+
+        [Import]
+        private ActionUInt32 TlibSetPmpaddrBits;
 
         [Import]
         private FuncUInt64UInt64UInt64UInt64 TlibInstallCustomInstruction;

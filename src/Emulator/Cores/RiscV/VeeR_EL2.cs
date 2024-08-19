@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     {
         public VeeR_EL2(IMachine machine, IRiscVTimeProvider timeProvider = null, uint hartId = 0, PrivilegedArchitecture privilegedArchitecture = PrivilegedArchitecture.Priv1_12,
             Endianess endianness = Endianess.LittleEndian, string cpuType = "rv32imc_zicsr_zifencei_zba_zbb_zbc_zbs", PrivilegeLevels privilegeLevels = PrivilegeLevels.MachineUser)
-            : base(machine, cpuType, timeProvider, hartId, privilegedArchitecture, endianness, allowUnalignedAccesses: true, privilegeLevels: privilegeLevels)
+            : base(machine, cpuType, timeProvider, hartId, privilegedArchitecture, endianness, allowUnalignedAccesses: true, privilegeLevels: privilegeLevels, pmpNumberOfAddrBits: 30)
         {
             RegisterCustomCSRs();
         }

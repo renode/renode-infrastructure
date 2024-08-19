@@ -23,11 +23,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             ulong? nmiVectorAddress = null,
             uint? nmiVectorLength = null,
             bool allowUnalignedAccesses = false,
+            uint pmpNumberOfAddrBits = 54,
             InterruptMode interruptMode = InterruptMode.Auto,
             PrivilegeLevels privilegeLevels = PrivilegeLevels.MachineSupervisorUser
         )
             : base(timeProvider, hartId, cpuType, machine, privilegedArchitecture, endianness, CpuBitness.Bits64, nmiVectorAddress, nmiVectorLength,
-                    allowUnalignedAccesses, interruptMode, privilegeLevels: privilegeLevels)
+                    allowUnalignedAccesses, interruptMode, privilegeLevels: privilegeLevels, pmpNumberOfAddrBits: pmpNumberOfAddrBits)
         {
         }
 
