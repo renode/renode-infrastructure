@@ -31,7 +31,7 @@ namespace Antmicro.Renode.Peripherals.Storage
 
         public void Dispose()
         {
-            fsSocket.Close();
+            fsSocket?.Close();
         }
 
         public void Create(string fsSocketPath, string tag = "dummyfs",
@@ -79,6 +79,10 @@ namespace Antmicro.Renode.Peripherals.Storage
 
         public override bool ProcessChain(Virtqueue vqueue)
         {
+            if(fsSocket == null)
+            {
+                return false;
+            }
             // Read request from buffers //
             if(!vqueue.TryReadFromBuffers(FuseInHdrLen, out var fuseInHdr))
             {
