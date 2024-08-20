@@ -22,17 +22,18 @@ namespace Antmicro.Renode.Utilities
 {
     public class SocketServerProvider : IDisposable
     {
-        public SocketServerProvider(bool emitConfigBytes = true, bool flushOnConnect = false)
+        public SocketServerProvider(bool emitConfigBytes = true, bool flushOnConnect = false, string serverName = "")
         {
             queue = new ConcurrentQueue<byte[]>();
             enqueuedEvent = new AutoResetEvent(false);
             this.emitConfigBytes = emitConfigBytes;
             this.flushOnConnect = flushOnConnect;
+            this.serverName = serverName;
         }
 
         public void Start(int port)
         {
-            server = SocketsManager.Instance.AcquireSocket(null ,AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp, new IPEndPoint(IPAddress.Any, port), listeningBacklog: 1); 
+            server = SocketsManager.Instance.AcquireSocket(null ,AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp, new IPEndPoint(IPAddress.Any, port), listeningBacklog: 1, nameAppendix: this.serverName);
 
             listenerThread = new Thread(ListenerThreadBody)
             {
@@ -267,6 +268,7 @@ namespace Antmicro.Renode.Utilities
         private AutoResetEvent enqueuedEvent;
         private bool emitConfigBytes;
         private bool flushOnConnect;
+        private readonly string serverName;
         private volatile bool stopRequested;
         private Thread listenerThread;
         private Thread readerThread;

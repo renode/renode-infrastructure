@@ -54,7 +54,7 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
         {
             this.port = port;
 
-            server = new SocketServerProvider(false);
+            server = new SocketServerProvider(false, serverName: "USBIP");
             server.DataReceived += HandleIncomingData;
             server.ConnectionClosed += Reset;
 

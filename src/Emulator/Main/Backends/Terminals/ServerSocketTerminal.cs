@@ -26,7 +26,7 @@ namespace Antmicro.Renode.Backends.Terminals
     {
         public ServerSocketTerminal(int port, bool emitConfigBytes = true, bool flushOnConnect = false)
         {
-            server = new SocketServerProvider(emitConfigBytes, flushOnConnect);
+            server = new SocketServerProvider(emitConfigBytes, flushOnConnect, serverName: "Terminal");
             server.DataReceived += b => CallCharReceived((byte)b);
 
             server.Start(port);

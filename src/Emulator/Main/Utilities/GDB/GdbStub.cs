@@ -28,7 +28,7 @@ namespace Antmicro.Renode.Utilities.GDB
             commandsManager = new CommandsManager(machine, cpus);
             TypeManager.Instance.AutoLoadedType += commandsManager.Register;
 
-            terminal = new SocketServerProvider(false);
+            terminal = new SocketServerProvider(false, serverName: "GDB");
             terminal.DataReceived += OnByteWritten;
             terminal.ConnectionAccepted += delegate
             {
