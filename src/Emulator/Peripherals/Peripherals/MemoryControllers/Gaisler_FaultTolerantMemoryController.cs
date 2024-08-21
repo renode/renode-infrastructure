@@ -15,10 +15,11 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Memory;
 using Antmicro.Renode.Peripherals.MTD;
+using static Antmicro.Renode.Peripherals.Bus.GaislerAPBPlugAndPlayRecord;
 
 namespace Antmicro.Renode.Peripherals.MemoryControllers
 {
-    public class Gaisler_FaultTolerantMemoryController : BasicDoubleWordPeripheral, IKnownSize,
+    public class Gaisler_FaultTolerantMemoryController : BasicDoubleWordPeripheral, IKnownSize, IGaislerAPB,
         IPeripheralContainer<MappedMemory, NullRegistrationPoint>, IPeripheralContainer<AMDCFIFlash, NullRegistrationPoint>
     {
         public Gaisler_FaultTolerantMemoryController(IMachine machine) : base(machine)
@@ -178,10 +179,21 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             isWriteEnabled = enable;
         }
 
+        public uint GetVendorID() => VendorID;
+
+        public uint GetDeviceID() => DeviceID;
+
+        public uint GetInterruptNumber() => 0;
+
+        public SpaceType GetSpaceType() => SpaceType.APBIOSpace;
+
         private ulong? promAddress;
         private bool isWriteEnabled;
         private MappedMemory prom;
         private AMDCFIFlash flash;
+
+        private const uint VendorID = 0x01;  // Frontgrade Gaisler
+        private const uint DeviceID = 0x054; // FTMCTRL
 
         private enum Registers : uint
         {
