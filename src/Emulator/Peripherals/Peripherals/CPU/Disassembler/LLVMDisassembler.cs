@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -129,6 +129,7 @@ namespace Antmicro.Renode.Disassembler.LLVM
         private static readonly Dictionary<string, string> ModelTranslations = new Dictionary<string, string>
         {
             { "x86"       , "i386"       },
+            { "x86_64"    , "x86-64"     },
             // this case is included because of #3250
             { "arm926"    , "arm926ej-s" },
             // see: https://reviews.llvm.org/D12692
@@ -149,7 +150,8 @@ namespace Antmicro.Renode.Disassembler.LLVM
             { "ppc",    "ppc"       },
             { "ppc64",  "ppc64le"   },
             { "sparc",  "sparc"     },
-            { "i386",   "i386"      }
+            { "i386",   "i386"      },
+            { "x86_64", "x86_64"    }
         };
 
         private readonly Dictionary<string, IDisassembler> cache;
@@ -179,6 +181,7 @@ namespace Antmicro.Renode.Disassembler.LLVM
                 case "ppc64le":
                 case "sparc":
                 case "i386":
+                case "x86_64":
                     HexFormatter = FormatHexForx86;
                     break;
                 case "riscv64":
