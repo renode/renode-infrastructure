@@ -1039,6 +1039,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             ICSR = 0x5 << AdditionalExtensionOffset,
             IFENCEI = 0x6 << AdditionalExtensionOffset,
             ZFH = 0x7 << AdditionalExtensionOffset,
+            SMEPMP = 0x8 << AdditionalExtensionOffset,
         }
 
         public enum InterruptMode
@@ -1161,6 +1162,16 @@ namespace Antmicro.Renode.Peripherals.CPU
                             case "FH": standardExtensions.Add(StandardInstructionSetExtensions.ZFH); break;
                             default:
                                 throw new ConstructionException($"Undefined instruction set standard extension: {set}.");
+                        }
+                    }
+                    // supervisor extensions
+                    else if(extension.StartsWith("S"))
+                    {
+                        switch(extension.Substring(1))
+                        {
+                            case "MEPMP": standardExtensions.Add(StandardInstructionSetExtensions.SMEPMP); break;
+                            default:
+                                throw new ConstructionException($"Undefined supervisor instruction set extension: {extension}.");
                         }
                     }
                     // custom extesions
