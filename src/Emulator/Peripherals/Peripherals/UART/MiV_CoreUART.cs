@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -11,6 +11,7 @@ using Antmicro.Renode.Core;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
+    [AllowedTranslations(AllowedTranslation.DoubleWordToByte | AllowedTranslation.WordToByte)]
     public class MiV_CoreUART : UARTBase, IBytePeripheral, IKnownSize
     {
         public MiV_CoreUART(IMachine machine, ulong clockFrequency) : base(machine)
