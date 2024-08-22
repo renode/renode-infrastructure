@@ -654,7 +654,7 @@ restart:
                         var instructionsToSkip = Math.Min(InstructionsToNearestLimit(), instructionsLeftThisRound);
 
                         virtualTimeAhead = machine.LocalTimeSource.ElapsedVirtualHostTimeDifference;
-                        if(!machine.LocalTimeSource.AdvanceImmediately && virtualTimeAhead.Ticks > 0)
+                        if(!machine.LocalTimeSource.AdvanceImmediately && virtualTimeAhead.Ticks > 0 && instructionsToSkip > 0)
                         {
                             // Don't fall behind realtime by sleeping
                             var intervalToSleep = TimeInterval.FromCPUCycles(instructionsToSkip, PerformanceInMips, out var cyclesResiduum).WithTicksMin(virtualTimeAhead.Ticks);
