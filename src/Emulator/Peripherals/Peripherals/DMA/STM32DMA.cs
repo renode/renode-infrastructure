@@ -282,7 +282,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             public void DoTransfer()
             {
-                var request = CreateRequest();
+                var request = CreateRequest(numberOfData * (int)memoryTransferType);
                 if(request.Size > 0)
                 {
                     lock(parent.streamFinished)
@@ -306,7 +306,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     lock(parent.streamFinished)
                     {
                         parent.engine.IssueCopy(request);
-                        if(transferredSize == numberOfData)
+                        if(transferredSize == numberOfData * (int)memoryTransferType)
                         {
                             transferredSize = 0;
                             parent.streamFinished[streamNo] = true;
