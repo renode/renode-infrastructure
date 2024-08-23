@@ -118,7 +118,19 @@ namespace Antmicro.Renode.Core
                                 : (Stream) fstream)
             {
                 var deserializationResult = serializer.TryDeserialize<Emulation>(stream, out var emulation, out var metadata);
-                var metadataStringFromFile = metadata == null ? null : Encoding.UTF8.GetString(metadata);
+                string metadataStringFromFile = null;
+
+                try
+                {
+                    if(metadata != null)
+                    {
+                        metadataStringFromFile = Encoding.UTF8.GetString(metadata);
+                    }
+                }
+                catch(Exception) // Metadata is not a valid UTF-8 byte sequence
+                {
+                    throw CreateLoadException(DeserializationResult.MetadataCorrupted, metadataStringFromFile);
+                }
 
                 if(deserializationResult != DeserializationResult.OK)
                 {
