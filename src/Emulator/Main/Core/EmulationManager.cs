@@ -135,12 +135,11 @@ namespace Antmicro.Renode.Core
                 if(deserializationResult != DeserializationResult.OK)
                 {
                     // If metadata was loaded successfully, we know the emulation has to be corrupted
+                    // If it wasn't, either the metadata could be corrupted or we're loading a save with the old format
                     if(metadataStringFromFile != null)
                     {
                         throw CreateLoadException(deserializationResult, metadataStringFromFile); 
                     }
-
-                    // If metadata wasn't loaded successfully, either the metadata could be corrupted or we're loading a save with the old format
 
                     // Fallback for older saves: try deserializing the version string, ignoring metadata, then load the emulation
                     stream.Seek(0, SeekOrigin.Begin);
