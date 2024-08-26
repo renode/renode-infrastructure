@@ -134,36 +134,7 @@ namespace Antmicro.Renode.Core
 
                 if(deserializationResult != DeserializationResult.OK)
                 {
-                    // If metadata was loaded successfully, we know the emulation has to be corrupted
-                    // If it wasn't, either the metadata could be corrupted or we're loading a save with the old format
-                    if(metadataStringFromFile != null)
-                    {
-                        throw CreateLoadException(deserializationResult, metadataStringFromFile); 
-                    }
-
-                    // Fallback for older saves: try deserializing the version string, ignoring metadata, then load the emulation
-                    stream.Seek(0, SeekOrigin.Begin);
-                    deserializationResult = serializer.TryDeserialize<string>(stream, out var versionString);
-                    if(deserializationResult == DeserializationResult.OK)
-                    {
-                        metadataStringFromFile = versionString;
-                    }
-                    else
-                    {
-                        // If metadata can't be loaded either as a metadata string or a version string, we deem it corrupted
-                        throw CreateLoadException(DeserializationResult.MetadataCorrupted, metadataStringFromFile); 
-                    }
-
-                    // We must be loading a save file in the old format now
-                    // If deserializing the emulation fails, we know it's corrupted
-                    deserializationResult = serializer.TryDeserialize(stream, out emulation);
-                    if(deserializationResult != DeserializationResult.OK)
-                    {
-                        throw CreateLoadException(deserializationResult, metadataStringFromFile); 
-                    }
-
-                    // Old format save file should have loaded successfully at this point
-                    Logger.Log(LogLevel.Warning, "Loading old format save file produced by version ({0})", metadataStringFromFile);
+                    throw CreateLoadException(deserializationResult, metadataStringFromFile); 
                 }
 
                 CurrentEmulation = emulation;
