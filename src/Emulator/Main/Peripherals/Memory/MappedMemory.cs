@@ -16,6 +16,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using Antmicro.Migrant;
 using Antmicro.Renode.Logging;
+using System.IO;
+using System.IO.MemoryMappedFiles;
 using System.Threading.Tasks;
 using System.Threading;
 using LZ4;
@@ -51,7 +53,7 @@ namespace Antmicro.Renode.Peripherals.Memory
         }
 #endif
 
-        public MappedMemory(IMachine machine, long size, int? segmentSize = null)
+        public MappedMemory(IMachine machine, long size, int? segmentSize = null, string sharedMemory = null)
         {
             if(size == 0)
             {
@@ -68,6 +70,7 @@ namespace Antmicro.Renode.Peripherals.Memory
             this.machine = machine;
             this.size = size;
             SegmentSize = segmentSize.Value;
+            this.sharedMemory = sharedMemory;
             Init();
         }
 
@@ -82,6 +85,14 @@ namespace Antmicro.Renode.Peripherals.Memory
         }
 
         public int SegmentSize { get; private set; }
+
+        public bool UsingSharedMemory
+        {
+            get
+            {
+                return sharedMemory != null;
+            }
+        }
 
         public IEnumerable<IMappedSegment> MappedSegments
         {
@@ -353,10 +364,13 @@ namespace Antmicro.Renode.Peripherals.Memory
             CheckSegmentNo(segmentNo);
             if(segments[segmentNo] == IntPtr.Zero)
             {
-                var allocSeg = AllocateSegment();
+                var allocSeg = AllocateSegment(segmentNo);
                 var originalPointer = (long)allocSeg;
                 var alignedPointer = (IntPtr)((originalPointer + Alignment) & ~(Alignment - 1));
                 segments[segmentNo] = alignedPointer;
+                if (UsingSharedMemory) {
+                    sharedSegments[segmentNo].AlignmentOffset = (ulong)alignedPointer - (ulong)allocSeg;
+                }
                 this.NoisyLog(string.Format("Segment no {1} allocated at 0x{0:X} (aligned to 0x{2:X}).",
                     allocSeg.ToInt64(), segmentNo, alignedPointer.ToInt64()));
                 originalPointers[segmentNo] = allocSeg;
@@ -493,6 +507,22 @@ namespace Antmicro.Renode.Peripherals.Memory
             this.NoisyLog("Memory serialization ended in {0}s.", Misc.NormalizeDecimal(globalStopwatch.Elapsed.TotalSeconds));
         }
 
+        public string GetSegmentPath (int segmentNo)
+        {
+            if (segmentNo >= 0 && segmentNo < sharedSegments.Length) {
+                return sharedSegments[segmentNo].MMFPath;
+            }
+            return "";
+        }
+
+        public ulong GetSegmentAlignmentOffset (int segmentNo)
+        {
+            if (segmentNo >= 0 && segmentNo < sharedSegments.Length) {
+                return sharedSegments[segmentNo].AlignmentOffset;
+            }
+            return 0UL;
+        }
+
         /// <summary>
         /// This constructor is only to be used with serialization. Deserializer has to invoke Load method after such
         /// construction.
@@ -524,7 +554,14 @@ namespace Antmicro.Renode.Peripherals.Memory
                     var segment = originalPointers[i];
                     if(segments[i] != IntPtr.Zero)
                     {
-                        Marshal.FreeHGlobal(segment);
+                        if (UsingSharedMemory)
+                        {
+                            sharedSegments[i].Free (this);
+                        }
+                        else
+                        {
+                            Marshal.FreeHGlobal(segment);
+                        }
                         this.NoisyLog("Segment {0} freed.", i);
                     }
                 }
@@ -573,6 +610,11 @@ namespace Antmicro.Renode.Peripherals.Memory
                 sizeOfLast = (uint)SegmentSize;
             }
             describedSegments[last] = new MappedSegment(this, last, sizeOfLast);
+            sharedSegments = new SharedSegment[segmentsNo];
+            for(var i = 0; i < sharedSegments.Length; i++)
+            {
+                sharedSegments[i] = new SharedSegment (sharedMemory);
+            }
         }
 
         private int GetSegmentNo(long offset)
@@ -595,10 +637,17 @@ namespace Antmicro.Renode.Peripherals.Memory
             return segmentNo;
         }
 
-        private IntPtr AllocateSegment()
+        private IntPtr AllocateSegment(int segmentNo)
         {
             this.NoisyLog("Allocating segment of size {0}.", SegmentSize);
-            return Marshal.AllocHGlobal(SegmentSize + Alignment);
+            if (UsingSharedMemory)
+            {
+                return sharedSegments[segmentNo].Allocate(SegmentSize + Alignment);
+            }
+            else
+            {
+                return Marshal.AllocHGlobal(SegmentSize + Alignment);
+            }
         }
 
         private void InvalidateMemoryFragment(long start, int length)
@@ -652,10 +701,12 @@ namespace Antmicro.Renode.Peripherals.Memory
 
         private readonly bool emptyCtorUsed;
         private IntPtr[] segments;
+        private SharedSegment[] sharedSegments;
         private IntPtr[] originalPointers;
         private IMappedSegment[] describedSegments;
         private bool disposed;
         private long size;
+        private string sharedMemory;
         private List<long> registrationPointsCached;
         private readonly IMachine machine;
 
@@ -711,6 +762,71 @@ namespace Antmicro.Renode.Peripherals.Memory
             private readonly MappedMemory parent;
             private readonly int index;
             private readonly uint size;
+        }
+
+        private class SharedSegment
+        {
+            public SharedSegment (string sharedMemory)
+            {
+                this.sharedMemory = sharedMemory;
+            }
+
+            private string MMFFileName {
+                get
+                {
+                    return "renode-sharedSegment-" + guid.Value.ToString();
+                }
+            }
+
+            public string MMFPath {
+                get
+                {
+                    return Path.Combine (sharedMemory, MMFFileName);
+                }
+            }
+
+            public ulong AlignmentOffset { get; set; }
+
+            public unsafe IntPtr Allocate (int bytes)
+            {
+                if (Directory.Exists (sharedMemory)) {
+                    guid = Guid.NewGuid(); // generate a Guid to be used in a unique filename for this segment
+                    mmf = MemoryMappedFile.CreateFromFile (MMFPath, FileMode.CreateNew, MMFFileName, bytes);
+                    mmva = mmf.CreateViewAccessor();
+                    byte* ptr = null;
+                    mmva.SafeMemoryMappedViewHandle.AcquirePointer (ref ptr);
+                    return (IntPtr)ptr;
+                } else {
+                    throw new InvalidOperationException(string.Format("Directory {0} not found", sharedMemory));
+                    return (IntPtr)0;
+                }
+            }
+
+            public void Free (MappedMemory mem)
+            {
+                if (!disposed && guid != null)
+                {
+                    if (mmva != null) mmva.SafeMemoryMappedViewHandle.ReleasePointer();
+                    try
+                    {
+                        File.Delete (MMFPath);
+                    }
+                    catch
+                    {
+                        mem.Log(LogLevel.Warning, "Failed to delete temporary file {0}", MMFPath);
+                    }
+                    guid = null;
+                    mmva = null;
+                    mmf = null;
+                    disposed = true;
+                }
+            }
+
+            private string sharedMemory;
+            private Nullable<Guid> guid;
+            private MemoryMappedFile mmf;
+            private MemoryMappedViewAccessor mmva;
+            private bool disposed;
         }
     }
 }
