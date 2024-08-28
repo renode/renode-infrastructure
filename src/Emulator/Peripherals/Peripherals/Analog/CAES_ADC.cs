@@ -64,13 +64,13 @@ namespace Antmicro.Renode.Peripherals.Analog
         public void SetADCValue(int adcChannel, uint value)
         {
             EnsureChannelIsValid((uint)adcChannel);
-            rawVoltage[adcChannel] = value / VoltageSampleDivisor;
+            rawVoltage[adcChannel] = value;
         }
 
         public uint GetADCValue(int adcChannel)
         {
             EnsureChannelIsValid((uint)adcChannel);
-            return rawVoltage[adcChannel] * VoltageSampleDivisor;
+            return rawVoltage[adcChannel];
         }
 
         public GPIO IRQ { get; } = new GPIO();
@@ -88,7 +88,7 @@ namespace Antmicro.Renode.Peripherals.Analog
 
         private uint GetChannelVoltage(uint dataChannelId)
         {
-            if(resdStream[dataChannelId] == null || resdStream[dataChannelId].TryGetCurrentSample(this, (sample) => sample.Voltage / VoltageSampleDivisor, out var voltage, out _) != RESDStreamStatus.OK)
+            if(resdStream[dataChannelId] == null || resdStream[dataChannelId].TryGetCurrentSample(this, (sample) => sample.Voltage, out var voltage, out _) != RESDStreamStatus.OK)
             {
                 voltage = rawVoltage[dataChannelId];
             }
@@ -101,7 +101,7 @@ namespace Antmicro.Renode.Peripherals.Analog
 
             if(voltage > MaxVoltage)
             {
-                this.Log(LogLevel.Warning, "The maximum allowed input voltage is {0}mV. Provided value: {1}mV", MaxVoltage, voltage);
+                this.Log(LogLevel.Warning, "The maximum allowed input voltage is {0}μV. Provided value: {1}μV", MaxVoltage, voltage);
                 return MaxVoltage;
             }
 
@@ -121,12 +121,12 @@ namespace Antmicro.Renode.Peripherals.Analog
             // The most significant bit needs to be flipped in single-ended
             // conversion due to the fact that the positive voltage range is
             // mapped to a signed integer format
-            return (uint)(voltage * MaxValue / MaxVoltage) ^ 0x800;
+            return (uint)((ulong)voltage * MaxValue / MaxVoltage) ^ 0x800;
         }
 
         private uint GetDifferentialValue(uint voltagePositive, uint voltageNegative)
         {
-            return (uint)((voltagePositive - voltageNegative + MaxVoltage) * MaxValue / (2 * MaxVoltage));
+            return (uint)(((ulong)voltagePositive - voltageNegative + MaxVoltage) * MaxValue / (2 * MaxVoltage));
         }
 
         private void StartConversion()
@@ -460,7 +460,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         private uint[] rawVoltage;
 
         private const uint MaxValue = 0xFFF;
-        private const uint MaxVoltage = 1500;
+        private const uint MaxVoltage = 1500000; // [μV]
         private const uint SequenceDelayDuration = 25;
         private const uint NumberOfDataChannels = 18;
         private const uint NumberOfConfigChannels = 25;
@@ -476,8 +476,6 @@ namespace Antmicro.Renode.Peripherals.Analog
         private readonly LimitTimer samplingTimer;
         private readonly RESDStream<VoltageSample>[] resdStream;
         private readonly uint frequency;
-
-        private const uint VoltageSampleDivisor = 1000;
 
         private enum OscillatorDivider
         {
