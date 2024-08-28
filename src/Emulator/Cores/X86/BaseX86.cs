@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     [GPIO(NumberOfInputs = 1)]
     public abstract class BaseX86 : TranslationCPU
     {
-        public BaseX86(string cpuType, IMachine machine, LAPIC lapic): base(cpuType, machine, Endianess.LittleEndian)
+        public BaseX86(string cpuType, IMachine machine, LAPIC lapic, CpuBitness bitness): base(cpuType, machine, Endianess.LittleEndian, bitness)
         {
             this.lapic = lapic;
         }
