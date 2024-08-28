@@ -15,11 +15,9 @@ using System.Collections.Generic;
 namespace Antmicro.Renode.Peripherals.CPU
 {
     [GPIO(NumberOfInputs = 1)]
-    public partial class X86 : TranslationCPU
+    public abstract class BaseX86 : TranslationCPU
     {
-        const Endianess endianness = Endianess.LittleEndian;
-
-        public X86(string cpuType, IMachine machine, LAPIC lapic): base(cpuType, machine, endianness)
+        public BaseX86(string cpuType, IMachine machine, LAPIC lapic): base(cpuType, machine, Endianess.LittleEndian)
         {
             this.lapic = lapic;
         }
@@ -32,15 +30,9 @@ namespace Antmicro.Renode.Peripherals.CPU
                     TlibSetCsDescriptor(selector, baseAddress, limit, flags);
                     break;
                 default:
-                    throw new RecoverableException($"Setting the {descriptor} descriptor is not implemented, ignoring");
+                    throw new RecoverableException($"Setting the {descriptor} descriptor is not implemented");
             }
         }
-
-        public override string Architecture { get { return "i386"; } }
-
-        public override string GDBArchitecture { get { return Architecture; } }
-
-        public override List<GDBFeatureDescriptor> GDBFeatures { get { return new List<GDBFeatureDescriptor>(); } }
 
         public bool HltAsNop
         { 
@@ -162,4 +154,3 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
     }
 }
-

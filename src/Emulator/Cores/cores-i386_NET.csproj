@@ -11,7 +11,7 @@
   <Import Project="./cores.template_NET.csproj" />
 
   <ItemGroup>
-    <Compile Include="X86\X86.cs" />
+    <Compile Include="X86\BaseX86.cs" />
     <Compile Include="X86\X86Registers.cs">
       <DependentUpon>X86Registers.tt</DependentUpon>
     </Compile>
