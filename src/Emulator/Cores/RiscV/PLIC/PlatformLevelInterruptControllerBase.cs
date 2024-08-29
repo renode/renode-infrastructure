@@ -29,6 +29,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers.PLIC
             }
             Connections = connections;
 
+            this.prioritiesEnabled = prioritiesEnabled;
+
             irqSources = new IrqSource[numberOfSources];
             for(var i = 0u; i < numberOfSources; i++)
             {
@@ -179,6 +181,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers.PLIC
         }
 
         protected DoubleWordRegisterCollection registers;
+
+        protected readonly bool prioritiesEnabled;
 
         protected readonly IrqSource[] irqSources;
         protected readonly IrqContext[] irqContexts;
