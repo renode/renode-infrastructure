@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2021 Google LLC
 //
 // This file is licensed under the MIT License.
@@ -105,23 +105,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             // source with ID 0 is reserved and represents no interrupt
             return number != 0 && base.IsIrqSourceAvailable(number);
-        }
-
-        protected void AddContextPriorityThresholdRegister(Dictionary<long, DoubleWordRegister> registersMap, long offset, uint hartId)
-        {
-            this.Log(LogLevel.Noisy, "Adding Context {0} threshold priority register address 0x{1:X}", hartId, offset);
-            registersMap.Add(offset, new DoubleWordRegister(this)
-                .WithValueField(0, 32,
-                    valueProviderCallback: _ =>
-                    {
-                        // TODO: implement
-                        return 0;
-                    },
-                    writeCallback: (_, value) =>
-                    {
-                        // TODO: implement
-                        this.Log(LogLevel.Noisy, "Setting priority threshold for Context {0} not supported", hartId);
-                    }));
         }
 
         protected void AddContextSoftwareInterruptRegister(Dictionary<long, DoubleWordRegister> registersMap, long offset, uint hartId)

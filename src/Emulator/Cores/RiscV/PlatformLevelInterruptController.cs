@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -60,6 +60,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 AddContextEnablesRegister(registersMap, (long)Registers.Context0Enables + i * ContextEnablesWidth, i, numberOfSources);
                 AddContextClaimCompleteRegister(registersMap, (long)Registers.Context0ClaimComplete + i * ContextClaimWidth, i);
+                AddContextPriorityThresholdRegister(registersMap, (long)Registers.Context0PriorityThreshold + i * ContextClaimWidth, i);
             }
 
             registers = new DoubleWordRegisterCollection(this, registersMap);
