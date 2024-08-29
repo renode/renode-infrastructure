@@ -46,14 +46,15 @@ namespace Antmicro.Renode.Peripherals.Storage
                 .WithReservedBits(16, 16);
 
             MMIORegisters.Status.Define(this)
-                .WithFlag(0, out deviceStatusAcknowledge, name: "status_acknowledge", writeCallback: (_, val) => { if(!val) Reset(); })
+                .WithFlag(0, out deviceStatusAcknowledge, name: "status_acknowledge")
                 .WithFlag(1, out deviceStatusDriver, name: "status_driver")
                 .WithFlag(2, out deviceStatusDriverOk, name: "status_driver_ok")
                 .WithFlag(3, out deviceStatusFeaturesOk, name: "status_features_ok")
                 .WithReservedBits(4, 2)
                 .WithFlag(6, out deviceStatusNeedsReset, name: "status_device_needs_reset")
                 .WithFlag(7, out deviceStatusFailed, name: "status_failed")
-                .WithReservedBits(8, 24);
+                .WithReservedBits(8, 24)
+                .WithWriteCallback((_, val) => { if(val == 0) Reset(); });
 
             // Feature bits
             // Reading from this register returns 32 consecutive flag bits, the least signifi-
@@ -176,7 +177,7 @@ namespace Antmicro.Renode.Peripherals.Storage
 
             MMIORegisters.QueueDriverHigh.Define(this)
                 .WithValueField(0, 32, FieldMode.Write, name: "queue_driver_high", writeCallback: (_, val) =>
-                    Virtqueues[QueueSel].AvailableAddress = BitHelper.SetBitsFrom((ulong)val << 32, Virtqueues[QueueSel].AvailableAddress, 0, 32)); 
+                    Virtqueues[QueueSel].AvailableAddress = BitHelper.SetBitsFrom((ulong)val << 32, Virtqueues[QueueSel].AvailableAddress, 0, 32));
 
             MMIORegisters.QueueDeviceLow.Define(this)
                 .WithValueField(0, 32, FieldMode.Write, name: "queue_device_low", writeCallback: (_, val) =>
