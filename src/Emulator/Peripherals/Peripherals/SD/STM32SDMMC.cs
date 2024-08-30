@@ -331,7 +331,6 @@ namespace Antmicro.Renode.Peripherals.SD
 
         private IEnumRegisterField<SDCardCommand> commandIndex;
         private IValueRegisterField[] responseFields;
-        private IPhysicalLayer<byte> phy;
         private IFlagRegisterField isDmaEnabled;
         private bool dataEndFlag;
         private bool rxFifoHalfFullFlag;
@@ -340,7 +339,6 @@ namespace Antmicro.Renode.Peripherals.SD
         private IFlagRegisterField rxFifoHalfFullItEnabled;
         private IFlagRegisterField txFifoHalfEmptyItEnabled;
         private ulong writeDataAmount;
-        private readonly IBusController sysbus;
 
         private const ulong CardState = 4 << 9;  /* HACK:  card state: transfer (otherwise it stucks here: https://github.com/zephyrproject-rtos/zephyr/blob/c008cbab1a05316139de191b0553ab6ccc0073ad/drivers/disk/sdmmc_stm32.c#L386) */
         private const ulong DmaReadChunk = 4;
