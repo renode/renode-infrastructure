@@ -73,7 +73,10 @@
       <Project>{4C636FAF-4650-4088-8EA8-2FCCC225E9CF}</Project>
       <Name>Extensions</Name>
     </ProjectReference>
-    <ProjectReference Include=".\cores-i386.csproj"/>
+    <ProjectReference Include=".\cores-i386.csproj">
+      <Project>{53222114-707C-4EFD-8289-2728351FB7E9}</Project>
+      <Name>cores-i386</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System" />
