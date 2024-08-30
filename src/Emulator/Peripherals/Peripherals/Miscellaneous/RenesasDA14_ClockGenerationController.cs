@@ -13,10 +13,11 @@ using Antmicro.Renode.Peripherals.Memory;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
+    // XTAL32M registers are in the RenesasDA14_XTAL32MRegisters model.
     [AllowedTranslations(AllowedTranslation.WordToDoubleWord | AllowedTranslation.ByteToDoubleWord)]
-    public class RenesasDA14_GeneralRegisters : IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
+    public class RenesasDA14_ClockGenerationController : IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
     {
-        public RenesasDA14_GeneralRegisters(IMachine machine, RenesasDA14_XTAL32MRegisters xtal32m, MappedMemory rom, MappedMemory eflashDataText)
+        public RenesasDA14_ClockGenerationController(IMachine machine, RenesasDA14_XTAL32MRegisters xtal32m, MappedMemory rom, MappedMemory eflashDataText)
         {
             this.machine = machine;
             this.xtal32m = xtal32m;
