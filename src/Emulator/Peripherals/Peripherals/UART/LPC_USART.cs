@@ -346,7 +346,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 case 0b0001:
                     return Count == (int)FifoCount.OneEntry;
                 case 0b1111:
-                    return Count == (int)FifoCount.NoLongerFull;
+                    return Count <= (int)FifoCount.NoLongerFull;
                 default:
                     this.Log(LogLevel.Warning, "Encountered unexpected TX FIFO trigger level point.");
                     return false;
@@ -358,9 +358,9 @@ namespace Antmicro.Renode.Peripherals.UART
             switch(rxFifoLevelTriggerPoint.Value)
             {
                 case 0b0000:
-                    return Count == (int)FifoCount.OneEntry;
+                    return Count >= (int)FifoCount.OneEntry;
                 case 0b0001:
-                    return Count == (int)FifoCount.TwoEntries;
+                    return Count >= (int)FifoCount.TwoEntries;
                 case 0b1111:
                     return Count == (int)FifoCount.Full;
                 default:
