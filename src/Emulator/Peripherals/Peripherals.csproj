@@ -719,6 +719,7 @@
     <Compile Include="Peripherals\Bus\ARM_NetworkInterconnect.cs" />
     <Compile Include="Peripherals\Mocks\MockDoubleWordPeripheralWithOnlyRegionReadMethod.cs" />
     <Compile Include="Peripherals\Miscellaneous\LPC_Clock0.cs" />
+    <Compile Include="Peripherals\CPU\LLVMArchitectureMapping.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>

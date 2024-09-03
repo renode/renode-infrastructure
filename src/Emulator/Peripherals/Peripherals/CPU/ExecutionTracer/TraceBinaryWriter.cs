@@ -39,7 +39,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             stream.WriteByte((byte)(IncludeOpcode ? 1 : 0));
             if(IncludeOpcode)
             {
-                AttachedCPU.Disassembler.GetTripleAndModelKey(0, out var triple, out var model);
+                LLVMArchitectureMapping.GetTripleAndModelKey(AttachedCPU, 0, out var triple, out var model);
                 var tripleAndModelString = $"{triple} {model}";
                 usesThumbFlag = tripleAndModelString.Contains("armv7a");
                 var byteCount = Encoding.ASCII.GetByteCount(tripleAndModelString);
