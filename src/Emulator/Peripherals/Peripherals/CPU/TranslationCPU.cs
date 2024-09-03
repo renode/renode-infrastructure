@@ -1037,12 +1037,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         private void OnMemoryAccess(ulong pc, uint operation, ulong virtualAddress, ulong value)
         {
-            var physicalAddress = TranslateAddress(virtualAddress, Misc.MemoryOperationToMpuAccess((MemoryOperation)operation));
-            if(physicalAddress == ulong.MaxValue)
-            {
-                // Translation failed. Assume no translation.
-                physicalAddress = virtualAddress;
-            }
+            // We don't care if translation fails here (the address is unchanged in this case)
+            TryTranslateAddress(virtualAddress, Misc.MemoryOperationToMpuAccess((MemoryOperation)operation), out var physicalAddress);
             memoryAccessHook?.Invoke(pc, (MemoryOperation)operation, virtualAddress, physicalAddress, value);
         }
 
@@ -1716,9 +1712,40 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        /// <summary>
+        /// Translates a logical (virtual) address to a physical address for the specified access type.
+        /// </summary>
+        /// <param name="logicalAddress">The logical (virtual) address to be translated.</param>
+        /// <param name="accessType">The type of access (read, write, fetch), represented as an <see cref="MpuAccess"/> value.</param>
+        /// <returns>
+        /// The translated physical address if the translation was successful; otherwise, <c>ulong.MaxValue</c>.
+        /// </returns>
         public ulong TranslateAddress(ulong logicalAddress, MpuAccess accessType)
         {
             return TlibTranslateToPhysicalAddress(logicalAddress, (uint)accessType);
+        }
+
+        /// <summary>
+        /// Attempts to translate a logical (virtual) address to a physical address for the specified access type.
+        /// </summary>
+        /// <param name="logicalAddress">The logical (virtual) address to be translated.</param>
+        /// <param name="accessType">The type of access (read, write, fetch), represented as an <see cref="MpuAccess"/> value.</param>
+        /// <param name="physicalAddress">At return, contains the translated physical address if the translation is successful.
+        /// If there is no page table entry for the requested logical address, this output will contain the original logical address.
+        /// </param>
+        /// <returns>
+        /// <c>true</c> if the translation was successful; otherwise, <c>false</c>. In this case the result is the original address.
+        /// </returns>
+        public bool TryTranslateAddress(ulong logicalAddress, MpuAccess accessType, out ulong physicalAddress)
+        {
+            var result = TranslateAddress(logicalAddress, accessType);
+            if(result == ulong.MaxValue) // No translation
+            {
+                physicalAddress = logicalAddress;
+                return false;
+            }
+            physicalAddress = result;
+            return true;
         }
 
         public void NativeUnwind()
@@ -2049,11 +2076,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 addr = PC;
             }
 
-            var translatedAddr = TranslateAddress(addr, MpuAccess.InstructionFetch);
-            if(translatedAddr != ulong.MaxValue)
-            {
-                addr = translatedAddr;
-            }
+            // We don't care if translation fails here (the address is unchanged in this case)
+            TryTranslateAddress(addr, MpuAccess.InstructionFetch, out addr);
 
             var opcodes = Bus.ReadBytes(addr, (int)blockSize, true, context: this);
             Disassembler.DisassembleBlock(addr, opcodes, flags, out var result);

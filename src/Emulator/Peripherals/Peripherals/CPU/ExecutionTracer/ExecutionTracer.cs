@@ -185,16 +185,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 return;
             }
 
-            var translatedAddress = AttachedCPU.TranslateAddress(pc, MpuAccess.InstructionFetch);
-            ulong pcPhysical;
-            if(translatedAddress != ulong.MaxValue)
-            {
-                pcPhysical = translatedAddress;
-            }
-            else
-            {
-                pcPhysical = pc;
-            }
+            // We don't care if translation fails here (the address is unchanged in this case)
+            AttachedCPU.TryTranslateAddress(pc, MpuAccess.InstructionFetch, out var pcPhysical);
 
             try
             {

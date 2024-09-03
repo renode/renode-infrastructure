@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -12,6 +12,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     public interface ICPUWithMMU
     {
         ulong TranslateAddress(ulong logicalAddress, MpuAccess accessType);
+        bool TryTranslateAddress(ulong logicalAddress, MpuAccess accessType, out ulong physicalAddress);
         uint PageSize { get; }
     }
     
