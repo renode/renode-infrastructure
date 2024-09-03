@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -8,19 +8,17 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.Memory;
-using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class MPFS_SystemServices : IDoubleWordPeripheral, IKnownSize, IProvidesRegisterCollection<DoubleWordRegisterCollection>
     {
-        public MPFS_SystemServices(IMachine machine, MappedMemory flashMemory)
+        public MPFS_SystemServices(IMachine machine, IMultibyteWritePeripheral flashMemory, IDoubleWordPeripheral mailboxMemory)
         {
             sysbus = machine.GetSystemBus(this);
-            this.flashMemory = flashMemory;
-            mailbox = new Mailbox(MailboxSize);
+            flash = flashMemory;
+            mailbox = mailboxMemory;
             registers = new DoubleWordRegisterCollection(this);
             IRQ = new GPIO();
             DefineRegisters();
@@ -28,32 +26,22 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public uint ReadDoubleWord(long offset)
         {
-            if(offset >= MailboxOffset)
-            {
-                return mailbox.ReadDoubleWord(offset - MailboxOffset);
-            }
             return registers.Read(offset);
         }
 
         public void WriteDoubleWord(long offset, uint value)
         {
-            if(offset >= MailboxOffset)
-            {
-                mailbox.WriteDoubleWord(offset - MailboxOffset, value);
-                return;
-            }
             registers.Write(offset, value);
         }
 
         public void Reset()
         {
-            mailbox.Reset();
             registers.Reset();
         }
 
         public GPIO IRQ { get; }
 
-        public long Size => 0x1000;
+        public long Size => 0x100;
 
         public ulong SerialNumberLower { get; set; }
 
@@ -114,10 +102,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private void GenerateSerialNumber(uint offset)
         {
             // the Serial Number is a 128bit value
-            mailbox.WriteBytes(offset, BitHelper.GetBytesFromValue((uint)SerialNumberLower, sizeof(uint)));
-            mailbox.WriteBytes(offset + 4, BitHelper.GetBytesFromValue((uint)(SerialNumberLower >> 32), sizeof(uint)));
-            mailbox.WriteBytes(offset + 8, BitHelper.GetBytesFromValue((uint)SerialNumberUpper, sizeof(uint)));
-            mailbox.WriteBytes(offset + 12, BitHelper.GetBytesFromValue((uint)(SerialNumberUpper >> 32), sizeof(uint)));
+            mailbox.WriteDoubleWord(offset, (uint)SerialNumberLower);
+            mailbox.WriteDoubleWord(offset + 4, (uint)(SerialNumberLower >> 32));
+            mailbox.WriteDoubleWord(offset + 8, (uint)SerialNumberUpper);
+            mailbox.WriteDoubleWord(offset + 12, (uint)(SerialNumberUpper >> 32));
         }
 
         private void CopyData(uint offset)
@@ -127,7 +115,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             var srcAddr = mailbox.ReadDoubleWord(offset + 8);
             var nBytes = mailbox.ReadDoubleWord(offset + 12);
 
-            var bytes = flashMemory.ReadBytes(srcAddr, (int)nBytes);
+            var bytes = flash.ReadBytes(srcAddr, (int)nBytes);
             sysbus.WriteBytes(bytes, (((ulong)destAddrUpper) << 32) | destAddrLower);
         }
 
@@ -136,67 +124,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private IValueRegisterField command;
         private IValueRegisterField commandOffset;
 
-        private readonly Mailbox mailbox;
+        private readonly IMultibyteWritePeripheral flash;
+        private readonly IDoubleWordPeripheral mailbox;
         private readonly IBusController sysbus;
-        private readonly MappedMemory flashMemory;
         private readonly DoubleWordRegisterCollection registers;
-
-        // the address of the mailbox is 0x37020800UL in the driver, hence the offset
-        private const uint MailboxOffset = 0x800;
-        private const uint MailboxSize = 2048;
-
-        private class Mailbox
-        {
-            public Mailbox(uint size)
-            {
-                mailboxMemory = new byte[size];
-            }
-
-            public uint ReadDoubleWord(long offset)
-            {
-                var result = 0u;
-                for(var i = sizeof(uint) - 1; i >= 0; --i)
-                {
-                    result |= (uint)(ReadByte(offset) << (i * 8));
-                    ++offset;
-                }
-                return result;
-            }
-
-            public void WriteDoubleWord(long offset, uint value)
-            {
-                WriteBytes(offset, BitHelper.GetBytesFromValue(value, sizeof(uint)));
-            }
-
-            public byte ReadByte(long offset)
-            {
-                return mailboxMemory[offset];
-            }
-
-            public void WriteByte(long offset, byte value)
-            {
-                mailboxMemory[offset] = value;
-            }
-
-            public void WriteBytes(long offset, byte[] bytes)
-            {
-                foreach(var b in bytes)
-                {
-                    WriteByte(offset, b);
-                    ++offset;
-                }
-            }
-
-            public void Reset()
-            {
-                for(var i = 0; i < mailboxMemory.Length; ++i)
-                {
-                    mailboxMemory[i] = 0;
-                }
-            }
-
-            private readonly byte[] mailboxMemory;
-        }
 
         private enum Registers
         {
