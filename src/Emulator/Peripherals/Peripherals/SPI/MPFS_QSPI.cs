@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -12,16 +12,23 @@ using Antmicro.Renode.Core.Structure.Registers;
 using System.Collections.Generic;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Peripherals.SPI
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class MPFS_QSPI: NullRegistrationPointPeripheralContainer<Micron_MT25Q>, IDoubleWordPeripheral, IKnownSize
     {
-        public MPFS_QSPI(IMachine machine) : base(machine)
+        public MPFS_QSPI(IMachine machine, uint size) : base(machine)
         {
             locker = new object();
             IRQ = new GPIO();
+
+            if(size < MinimumSize)
+            {
+                throw new ConstructionException($"The {nameof(size)} argument can't be lower than {MinimumSize}.");
+            }
+            Size = size;
 
             var registerMap = new Dictionary<long, DoubleWordRegister>
             {
@@ -187,9 +194,8 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
         }
 
-        public GPIO IRQ { get; set; }
-
-        public long Size => 0x1000000;
+        public GPIO IRQ { get; }
+        public long Size { get; }
 
         private void TryReceive(byte data)
         {
@@ -357,6 +363,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         //Registers are aliased every 256 bytes
         private const int RegisterAliasSize = 256;
+        private const uint MinimumSize = (uint)Registers.FramesUpper + 4;
         private object locker;
 
         private enum XIPAddressBytes
