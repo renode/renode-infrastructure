@@ -28,7 +28,6 @@ using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Binding;
 using ELFSharp.ELF;
 using Machine = Antmicro.Renode.Core.Machine;
-using Antmicro.Renode.Disassembler.LLVM;
 
 using Range = Antmicro.Renode.Core.Range;
 

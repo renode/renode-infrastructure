@@ -12,10 +12,8 @@ using System.Text;
 using System.Collections.Generic;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Peripherals.CPU.Disassembler;
-using Antmicro.Renode.Peripherals.CPU;
 
-namespace Antmicro.Renode.Disassembler.LLVM
+namespace Antmicro.Renode.Peripherals.CPU.Disassembler
 {
     public class LLVMDisassembler : IDisassembler
     {
