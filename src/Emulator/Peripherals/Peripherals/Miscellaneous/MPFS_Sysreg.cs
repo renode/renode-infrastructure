@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -128,7 +128,64 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     .WithTag("CFM", 29, 1)
                     .WithTag("SGMII", 30, 1)
                     .WithReservedBits(31, 1)
-                }
+                },
+                {(long)Registers.ClockConfigCr, new DoubleWordRegister(this, 0x10)
+                    .WithTag("ClockConfig", 0, 32)
+                },
+                {(long)Registers.EnvmCr, new DoubleWordRegister(this, 0xFF)
+                    .WithTag("Envm", 0, 32)
+                },
+                {(long)Registers.RtcClockCr, new DoubleWordRegister(this, 0x1064)
+                    .WithTag("RtcClock", 0, 32)
+                },
+                {(long)Registers.PllStatusSr, new DoubleWordRegister(this, 0x707)
+                    .WithTag("PllStatus", 0, 32)
+                },
+                {(long)Registers.EdacSr, new DoubleWordRegister(this)
+                    .WithTag("Edac", 0, 32)
+                },
+                {(long)Registers.EdacIntenCr, new DoubleWordRegister(this)
+                    .WithTag("EdacInten", 0, 32)
+                },
+                {(long)Registers.EdacCntMmc, new DoubleWordRegister(this)
+                    .WithTag("EdacCntMmc", 0, 32)
+                },
+                {(long)Registers.EdacCntDdrc, new DoubleWordRegister(this)
+                    .WithTag("EdacCntDrdc", 0, 32)
+                },
+                {(long)Registers.EdacCntMac0, new DoubleWordRegister(this)
+                    .WithTag("EdacCntMac0", 0, 32)
+                },
+                {(long)Registers.EdacCntMac1, new DoubleWordRegister(this)
+                    .WithTag("EdacCntMac1", 0, 32)
+                },
+                {(long)Registers.EdacCntUsb, new DoubleWordRegister(this)
+                    .WithTag("EdacCntUsb", 0, 32)
+                },
+                {(long)Registers.EdacCntCan0, new DoubleWordRegister(this)
+                    .WithTag("EdacCntCan0", 0, 32)
+                },
+                {(long)Registers.EdacCntCan1, new DoubleWordRegister(this)
+                    .WithTag("EdacCntCan1", 0, 32)
+                },
+                {(long)Registers.MaintenanceIntSr, new DoubleWordRegister(this)
+                    .WithTag("MaintenanceInt", 0, 32)
+                },
+                {(long)Registers.MiscSr, new DoubleWordRegister(this)
+                    .WithTag("Misc", 0, 32)
+                },
+                {(long)Registers.DLLStatusSr, new DoubleWordRegister(this)
+                    .WithTag("DLLStatus", 0, 32)
+                },
+                {(long)Registers.BootFailC, new DoubleWordRegister(this)
+                    .WithTag("BootFail", 0, 32)
+                },
+                {(long)Registers.DeviceStatus, new DoubleWordRegister(this, 0x1F09)
+                    .WithTag("Devicestatus", 0, 32)
+                },
+                {(long)Registers.MpuViolationSr, new DoubleWordRegister(this)
+                    .WithTag("MpuViolation", 0, 32)
+                },
             };
             registers = new DoubleWordRegisterCollection(this, registersMap);
         }
@@ -281,6 +338,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             PllStatusSr = 0x14C,
             CfmTimerCr = 0x150,
             MiscSr = 0x154,
+            DLLStatusSr = 0x15C,
             RamLightsleepCr = 0x168,
             RamDeepsleepCr = 0x16C,
             RamShutdownCr = 0x170,
