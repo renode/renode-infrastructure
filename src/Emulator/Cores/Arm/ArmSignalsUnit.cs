@@ -314,7 +314,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     PeripheralsBaseAtLastReset = peripheralsBase;
                     var pFilterStart = signalsUnit.GetAddress(ArmSignals.PeripheralFilterStart);
                     var pFilterEnd = signalsUnit.GetAddress(ArmSignals.PeripheralFilterEnd);
-                    if(peripheralsBaseAddress < pFilterStart || peripheralsBaseAddress > pFilterEnd)
+
+                    // The signals are just uninitialized if pFilterEnd is 0 so let's not log warnings then.
+                    if(pFilterEnd != 0 && (peripheralsBaseAddress < pFilterStart || peripheralsBaseAddress > pFilterEnd))
                     {
                         signalsUnit.Log(LogLevel.Warning, "{0} address 0x{1:X} should be between {2} address (0x{3:X}) and {4} address (0x{5:X})",
                             Enum.GetName(typeof(ArmSignals), ArmSignals.PeripheralsBase), peripheralsBaseAddress,
