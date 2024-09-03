@@ -622,11 +622,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 AssertAddressWidth(addressWidth, Width);
 
-                if((address & BitHelper.CalculateMask(Width, 0)) != 0)
+                var offset = addressWidth - Width;
+                if((address & BitHelper.CalculateMask(offset, 0)) != 0)
                 {
                     Log(LogLevel.Warning, $"{Width}-bit value shouldn't be created from 0x{address:X} address");
                 }
-                var offset = addressWidth - Width;
                 Value = address >> offset;
             }
 
