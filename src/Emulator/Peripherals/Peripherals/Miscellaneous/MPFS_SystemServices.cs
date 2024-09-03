@@ -5,6 +5,7 @@
 //  Full license text is available in 'licenses/MIT.txt'.
 //
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Extensions;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
@@ -14,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class MPFS_SystemServices : IDoubleWordPeripheral, IKnownSize, IProvidesRegisterCollection<DoubleWordRegisterCollection>
     {
-        public MPFS_SystemServices(IMachine machine, IMultibyteWritePeripheral flashMemory, IDoubleWordPeripheral mailboxMemory)
+        public MPFS_SystemServices(IMachine machine, IMultibyteWritePeripheral flashMemory, IQuadWordPeripheral mailboxMemory)
         {
             sysbus = machine.GetSystemBus(this);
             flash = flashMemory;
@@ -102,21 +103,17 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private void GenerateSerialNumber(uint offset)
         {
             // the Serial Number is a 128bit value
-            mailbox.WriteDoubleWord(offset, (uint)SerialNumberLower);
-            mailbox.WriteDoubleWord(offset + 4, (uint)(SerialNumberLower >> 32));
-            mailbox.WriteDoubleWord(offset + 8, (uint)SerialNumberUpper);
-            mailbox.WriteDoubleWord(offset + 12, (uint)(SerialNumberUpper >> 32));
+            mailbox.WriteQuadWord(offset, SerialNumberLower);
+            mailbox.WriteQuadWord(offset + 8, SerialNumberUpper);
         }
 
         private void CopyData(uint offset)
         {
-            var destAddrLower = mailbox.ReadDoubleWord(offset + 0);
-            var destAddrUpper = mailbox.ReadDoubleWord(offset + 4);
-            var srcAddr = mailbox.ReadDoubleWord(offset + 8);
-            var nBytes = mailbox.ReadDoubleWord(offset + 12);
-
+            var destAddr = mailbox.ReadQuadWord(offset);
+            var srcAddr = mailbox.ReadDoubleWordUsingQuadWord(offset + 8);
+            var nBytes = mailbox.ReadDoubleWordUsingQuadWord(offset + 12);
             var bytes = flash.ReadBytes(srcAddr, (int)nBytes);
-            sysbus.WriteBytes(bytes, (((ulong)destAddrUpper) << 32) | destAddrLower);
+            sysbus.WriteBytes(bytes, destAddr);
         }
 
         private RequestResult status;
@@ -125,7 +122,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private IValueRegisterField commandOffset;
 
         private readonly IMultibyteWritePeripheral flash;
-        private readonly IDoubleWordPeripheral mailbox;
+        private readonly IQuadWordPeripheral mailbox;
         private readonly IBusController sysbus;
         private readonly DoubleWordRegisterCollection registers;
 

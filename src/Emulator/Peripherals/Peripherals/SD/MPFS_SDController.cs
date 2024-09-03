@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Extensions;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
@@ -17,8 +18,8 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.SD
 {
-    [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
-    public class MPFS_SDController : NullRegistrationPointPeripheralContainer<SDCard>, IPeripheralContainer<IPhysicalLayer<byte>, NullRegistrationPoint>, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize, IDisposable
+    public class MPFS_SDController : NullRegistrationPointPeripheralContainer<SDCard>, IPeripheralContainer<IPhysicalLayer<byte>, NullRegistrationPoint>, IKnownSize, IDisposable,
+        IDoubleWordPeripheral, IWordPeripheral, IBytePeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IProvidesRegisterCollection<ByteRegisterCollection>
     {
         public MPFS_SDController(IMachine machine) : base(machine)
         {
@@ -29,17 +30,60 @@ namespace Antmicro.Renode.Peripherals.SD
             internalBuffer = new Queue<byte>();
 
             RegistersCollection = new DoubleWordRegisterCollection(this);
+            ByteRegistersCollection = new ByteRegisterCollection(this);
             InitializeRegisters();
         }
 
         public uint ReadDoubleWord(long offset)
         {
-            return RegistersCollection.Read(offset);
+            if(RegistersCollection.TryRead(offset, out var result))
+            {
+                return result;
+            }
+
+            return this.ReadDoubleWordUsingByte(offset);
         }
 
         public void WriteDoubleWord(long offset, uint value)
         {
-            RegistersCollection.Write(offset, value);
+            if(RegistersCollection.TryWrite(offset, value))
+            {
+                return;
+            }
+
+            this.WriteDoubleWordUsingByte(offset, value);
+        }
+
+        public ushort ReadWord(long offset)
+        {
+            if(ByteRegistersCollection.TryRead(offset, out byte low))
+            {
+                ushort high =  ByteRegistersCollection.Read(offset + 1);
+                return (ushort) ((high << 8) + low);
+            };
+
+            return this.ReadWordUsingDoubleWord(offset);
+        }
+
+        public void WriteWord(long offset, ushort value)
+        {
+            if(ByteRegistersCollection.TryWrite(offset, (byte) value))
+            {
+                ByteRegistersCollection.Write(offset+1, (byte) (value >> 8));
+                return;
+            };
+
+            this.WriteWordUsingDoubleWord(offset, value);
+        }
+
+        public byte ReadByte(long offset)
+        {
+            return ByteRegistersCollection.Read(offset);
+        }
+
+        public void WriteByte(long offset, byte value)
+        {
+            ByteRegistersCollection.Write(offset, value);
         }
 
         public override void Reset()
@@ -90,6 +134,9 @@ namespace Antmicro.Renode.Peripherals.SD
         public long Size => 0x2000;
 
         public DoubleWordRegisterCollection RegistersCollection { get; }
+        public ByteRegisterCollection ByteRegistersCollection { get; }
+        DoubleWordRegisterCollection IProvidesRegisterCollection<DoubleWordRegisterCollection>.RegistersCollection => RegistersCollection;
+        ByteRegisterCollection IProvidesRegisterCollection<ByteRegisterCollection>.RegistersCollection => ByteRegistersCollection;
 
         IEnumerable<IRegistered<IPhysicalLayer<byte>, NullRegistrationPoint>> IPeripheralContainer<IPhysicalLayer<byte>, NullRegistrationPoint>.Children => phy != null
             ? new [] { Registered.Create(phy, NullRegistrationPoint.Instance) }
@@ -99,7 +146,7 @@ namespace Antmicro.Renode.Peripherals.SD
         {
             var responseFields = new IValueRegisterField[4];
 
-            Registers.PhySettings_HRS04.Define(this)
+            Registers.PhySettings_HRS04.Define32(this)
                 .WithValueField(0, 6, out addressField, name: "UHS-I Delay Address Pointer (USI_ADDR)")
                 .WithReservedBits(6, 2)
                 .WithValueField(8, 8, out writeDataField, name: "UHS-I Settings Write Data (UIS_WDATA)")
@@ -145,25 +192,18 @@ namespace Antmicro.Renode.Peripherals.SD
                 })
             ;
 
-            Registers.BlockSizeBlockCount_SRS01.Define(this)
+            Registers.BlockSizeBlockCount_SRS01.Define32(this)
                 .WithValueField(0, 12, out blockSizeField, name: "Transfer Block Size (TBS)")
                 .WithValueField(16, 16, out blockCountField, name: "Block Count For Current Transfer (BCCT)")
             ;
 
-            Registers.Argument1_SRS02.Define(this)
+            Registers.Argument1_SRS02.Define32(this)
                 .WithValueField(0, 32, out var commandArgument1Field, name: "Command Argument 1 (ARG1)")
             ;
 
-            Registers.CommandTransferMode_SRS03.Define(this)
-                .WithFlag(0, out isDmaEnabled, name: "DMA Enable")
-                .WithTag("Block Count Enable (BCE)", 1, 1)
-                .WithTag(" Auto CMD Enable (ACE)", 2, 2)
-                .WithTag("Data Transfer Direction Select (DTDS)", 4, 1)
-                .WithEnumField(16, 2, out responseTypeSelectField, name: "Response Type Select (RTS)")
-                .WithTag("Command CRC Check Enable (CRCCE)", 19, 1)
-                .WithTag("Command Index Check Enable (CICE)", 20, 1)
-                .WithTag("Data Present Select (DPS)", 21, 1)
-                .WithEnumField(24, 6, out commandIndex, name: "Command Index (CI)")
+            ByteRegisters.CommandTransferMode_SRS03_3.Define8(this)
+                .WithEnumField(0, 6, out commandIndex, name: "Command Index (CI)")
+                .WithReservedBits(6, 2)
                 .WithWriteCallback((_, val) =>
                 {
                     var sdCard = RegisteredPeripheral;
@@ -174,7 +214,8 @@ namespace Antmicro.Renode.Peripherals.SD
                     }
 
                     var commandResult = sdCard.HandleCommand((uint)commandIndex.Value, (uint)commandArgument1Field.Value);
-                    switch(responseTypeSelectField.Value)
+                    var responseType = responseTypeSelectField.Value;
+                    switch(responseType)
                     {
                         case ResponseType.NoResponse:
                             if(commandResult.Length != 0)
@@ -227,26 +268,54 @@ namespace Antmicro.Renode.Peripherals.SD
                     irqManager.SetInterrupt(Interrupts.BufferWriteReady, irqManager.IsEnabled(Interrupts.BufferWriteReady));
                     irqManager.SetInterrupt(Interrupts.BufferReadReady, irqManager.IsEnabled(Interrupts.BufferReadReady));
                     irqManager.SetInterrupt(Interrupts.CommandComplete, irqManager.IsEnabled(Interrupts.CommandComplete));
+                    if(responseType == ResponseType.Response48BitsWithBusy)
+                    {
+                        irqManager.SetInterrupt(Interrupts.TransferComplete, irqManager.IsEnabled(Interrupts.TransferComplete));
+                    }
                 })
             ;
 
-            Registers.Response1_SRS04.Define(this)
+            ByteRegisters.CommandTransferMode_SRS03_2.Define8(this)
+                .WithEnumField(0, 2, out responseTypeSelectField, name: "Response Type Select (RTS)")
+                .WithReservedBits(2, 1)
+                .WithTag("Command CRC Check Enable (CRCCE)", 3, 1)
+                .WithTag("Command Index Check Enable (CICE)", 4, 1)
+                .WithEnumField(5, 1, out dataPresentSelect, name: "Data Present Select (DPS)")
+                .WithTag("Command Type (CT)", 6, 2)
+            ;
+
+            ByteRegisters.CommandTransferMode_SRS03_1.Define8(this)
+                .WithTag("Response Interrupt Disable (RID)", 0, 1)
+                .WithReservedBits(1, 7)
+            ;
+
+            ByteRegisters.CommandTransferMode_SRS03_0.Define8(this)
+                .WithFlag(0, out isDmaEnabled, name: "DMA Enable")
+                .WithTag("Block Count Enable (BCE)", 1, 1)
+                .WithTag("Auto CMD Enable (ACE)", 2, 2)
+                .WithEnumField(4, 1, out dataTransferDirectionSelect, name: "Data Transfer Direction Select (DTDS)")
+                .WithTag("Multi/Single Block Select (MSBS)", 5, 1)
+                .WithTag("Response Type R1/R5 (RECT)", 6, 1)
+                .WithTag("Response Error Check Enable (RECE)", 7, 1)
+            ;
+
+            Registers.Response1_SRS04.Define32(this)
                 .WithValueField(0, 32, out responseFields[0], FieldMode.Read, name: "Response Register #1 (RESP1)")
             ;
 
-            Registers.Response2_SRS05.Define(this)
+            Registers.Response2_SRS05.Define32(this)
                 .WithValueField(0, 32, out responseFields[1], FieldMode.Read, name: "Response Register #2 (RESP2)")
             ;
 
-            Registers.Response3_SRS06.Define(this)
+            Registers.Response3_SRS06.Define32(this)
                 .WithValueField(0, 32, out responseFields[2], FieldMode.Read, name: "Response Register #3 (RESP3)")
             ;
 
-            Registers.Response4_SRS07.Define(this)
+            Registers.Response4_SRS07.Define32(this)
                 .WithValueField(0, 32, out responseFields[3], FieldMode.Read, name: "Response Register #4 (RESP4)")
             ;
 
-            Registers.DataBuffer_SRS08.Define(this).WithValueField(0, 32, name: "Buffer Data Port (BDP)",
+            Registers.DataBuffer_SRS08.Define32(this).WithValueField(0, 32, name: "Buffer Data Port (BDP)",
                 valueProviderCallback: _ =>
                 {
                     var sdCard = RegisteredPeripheral;
@@ -257,8 +326,7 @@ namespace Antmicro.Renode.Peripherals.SD
                     }
                     if(isDmaEnabled.Value)
                     {
-                        this.Log(LogLevel.Warning, "Tried to read data in DMA mode from register that does not support it");
-                        return 0;
+                        this.Log(LogLevel.Debug, "Reading data in DMA mode from register that does not support it");
                     }
                     if(!internalBuffer.Any())
                     {
@@ -283,7 +351,7 @@ namespace Antmicro.Renode.Peripherals.SD
                 })
             ;
 
-            Registers.PresentState_SRS09.Define(this)
+            Registers.PresentState_SRS09.Define32(this)
                 .WithFlag(0, FieldMode.Read, name: "Command Inhibit CMD (CICMD)")
                 .WithFlag(1, FieldMode.Read, name: "Command Inhibit DAT (CIDAT)") // as sending a command is instantienous those two bits will probably always be 0
                                                                                   // ...
@@ -298,7 +366,7 @@ namespace Antmicro.Renode.Peripherals.SD
                 .WithFlag(23, FieldMode.Read, name: "Line Signal Level (DATSL1 - DAT[3])", valueProviderCallback: _ => true)
             ;
 
-            Registers.HostControl2_SRS11.Define(this)
+            Registers.HostControl2_SRS11.Define32(this)
                 .WithFlag(1, FieldMode.Read, name: "Internal Clock Stable (ICS)", valueProviderCallback: _ => true)
                 .WithTag("Software Reset For CMD Line (SRCMD)", 25, 1)
                 .WithTag("Software Reset For DAT Line (SRDAT)", 26, 1)
@@ -324,21 +392,42 @@ namespace Antmicro.Renode.Peripherals.SD
                 }))
             ;
 
-            Registers.Capabilities_SRS16.Define(this)
+            Registers.Capabilities1_SRS16.Define32(this)
                 // these fields must return non-zero values in order for u-boot to boot
                 .WithValueField(0, 6, FieldMode.Read, valueProviderCallback: _ => 4, name: "Timeout clock frequency (TCS)")
                 .WithFlag(7, FieldMode.Read, valueProviderCallback: _ => true, name: "Timeout clock unit (TCU)")
                 .WithValueField(8, 8, FieldMode.Read, valueProviderCallback: _ => 1, name: "Base Clock Frequency For SD Clock (BCSDCLK)")
+                .WithFlag(19, FieldMode.Read, valueProviderCallback: _ => false, name: "ADMA1 Support")
+                .WithFlag(22, FieldMode.Read, valueProviderCallback: _ => true, name: "SDMA Support")
                 .WithFlag(24, FieldMode.Read, valueProviderCallback: _ => true, name: "Voltage Support 3.3V (VS33)")
                 .WithFlag(25, FieldMode.Read, valueProviderCallback: _ => true, name: "Voltage Support 3.0V (VS30)")
                 .WithFlag(26, FieldMode.Read, valueProviderCallback: _ => true, name: "Voltage Support 1.8V (VS18)")
+                .WithFlag(28, FieldMode.Read, valueProviderCallback: _ => true, name: "64-bit DMA Support")
+            ;
+            Registers.SDMASystemAddressArgument2_SRS00.Define32(this)
+                .WithValueField(0, 32, name: "SDMA Address",
+                    valueProviderCallback: _ =>
+                    {
+                        if(dmaSystemAddressHigh.Value != 0)
+                        {
+                            this.Log(LogLevel.Warning, "DMA System address 2 is nonzero: {0} ", dmaSystemAddressHigh.Value);
+                        }
+                        return dmaSystemAddressLow.Value;
+                    },
+                    writeCallback: (_, val) =>
+                    {
+                        dmaSystemAddressHigh.Value = 0;
+                        dmaSystemAddressLow.Value = val;
+                    }
+                )
+
             ;
 
-            Registers.DmaSystemAddressLow_SRS22.Define(this)
+            Registers.DmaSystemAddressLow_SRS22.Define32(this)
                 .WithValueField(0, 32, out dmaSystemAddressLow, name: "ADMA/SDMA System Address 1")
             ;
 
-            Registers.DmaSystemAddressHigh_SRS23.Define(this)
+            Registers.DmaSystemAddressHigh_SRS23.Define32(this)
                 .WithValueField(0, 32, out dmaSystemAddressHigh, name: "ADMA/SDMA System Address 2")
             ;
         }
@@ -349,21 +438,29 @@ namespace Antmicro.Renode.Peripherals.SD
             {
                 case SDCardCommand.CheckSwitchableFunction:
                     internalBuffer.EnqueueRange(sdCard.ReadSwitchFunctionStatusRegister());
-                    break;
+                    return;
                 case SDCardCommand.SendInterfaceConditionCommand:
                     internalBuffer.EnqueueRange(sdCard.ReadExtendedCardSpecificDataRegister());
+                    return;
+            }
+
+            // early exit if no data is present
+            if(dataPresentSelect.Value != DataPresentSelect.DataPresent)
+            {
+                return;
+            }
+
+            var bytesCount = (uint)(blockCountField.Value * blockSizeField.Value);
+            switch(dataTransferDirectionSelect.Value)
+            {
+                case DataTransferDirectionSelect.Read:
+                    ReadCard(sdCard, bytesCount);
                     break;
-                case SDCardCommand.ReadSingleBlock:
-                    ReadCard(sdCard, (uint)blockSizeField.Value);
+                case DataTransferDirectionSelect.Write:
+                    WriteCard(sdCard, bytesCount);
                     break;
-                case SDCardCommand.ReadMultipleBlocks:
-                    ReadCard(sdCard, (uint)(blockCountField.Value * blockSizeField.Value));
-                    break;
-                case SDCardCommand.WriteSingleBlock:
-                    WriteCard(sdCard, (uint)blockSizeField.Value);
-                    break;
-                case SDCardCommand.WriteMultipleBlocks:
-                    WriteCard(sdCard, (uint)(blockCountField.Value * blockSizeField.Value));
+                default:
+                    this.Log(LogLevel.Warning, "Invalid data transfer direction {};", dataTransferDirectionSelect.Value);
                     break;
             }
         }
@@ -373,16 +470,15 @@ namespace Antmicro.Renode.Peripherals.SD
             var data = sdCard.ReadData(size);
             if(isDmaEnabled.Value)
             {
+                internalBuffer.Clear();
+                bytesRead = 0;
                 sysbus.WriteBytes(data, ((ulong)dmaSystemAddressHigh.Value << 32) | dmaSystemAddressLow.Value);
                 Machine.LocalTimeSource.ExecuteInNearestSyncedState(_ =>
                 {
                     irqManager.SetInterrupt(Interrupts.TransferComplete, irqManager.IsEnabled(Interrupts.TransferComplete));
                 });
             }
-            else
-            {
-                internalBuffer.EnqueueRange(data);
-            }
+            internalBuffer.EnqueueRange(data);
         }
 
         private void WriteBuffer(SDCard sdCard, byte[] data)
@@ -425,7 +521,7 @@ namespace Antmicro.Renode.Peripherals.SD
             var internalBytes = internalBuffer.DequeueRange(4);
             bytesRead += (uint)internalBytes.Length;
             irqManager.SetInterrupt(Interrupts.BufferReadReady, irqManager.IsEnabled(Interrupts.BufferReadReady));
-            if(bytesRead == (blockCountField.Value * blockSizeField.Value)|| !internalBuffer.Any())
+            if(bytesRead >= (blockCountField.Value * blockSizeField.Value) || !internalBuffer.Any())
             {
                 irqManager.SetInterrupt(Interrupts.TransferComplete, irqManager.IsEnabled(Interrupts.TransferComplete));
                 bytesRead = 0;
@@ -444,6 +540,8 @@ namespace Antmicro.Renode.Peripherals.SD
         private IValueRegisterField writeDataField;
         private IValueRegisterField dmaSystemAddressLow;
         private IValueRegisterField dmaSystemAddressHigh;
+        private IEnumRegisterField<DataPresentSelect> dataPresentSelect;
+        private IEnumRegisterField<DataTransferDirectionSelect> dataTransferDirectionSelect;
         private IEnumRegisterField<SDCardCommand> commandIndex;
         private IEnumRegisterField<ResponseType> responseTypeSelectField;
 
@@ -456,8 +554,23 @@ namespace Antmicro.Renode.Peripherals.SD
 
         private enum Registers
         {
+            GeneralInformation_HRS00 = 0x000,
+            DebounceSetting_HRS01 = 0x004,
+            BusSetting_HRS02 = 0x008,
+            AXIEErrorResponses_HRS03 = 0x00C,
             PhySettings_HRS04 = 0x10,
             EMMCControl_HRS06 = 0x18,
+            IODelayInformation_HRS07 = 0x01C,
+            HostCapability_HRS30 = 0x078,
+            HostControllerVersion_HRS31 = 0x07C,
+            FSMMonitor_HRS32 = 0x080,
+            TuneStatus0_HRS33 = 0x084,
+            TuneStatus1_HRS34 = 0x088,
+            TuneDebug_HRS35 = 0x08C,
+            BootStatus_HRS36 = 0x090,
+            ReadBlockGapCoefficientInterfaceModeSelect_HRS37 = 0x094,
+            ReadBlockGapCoefficient_HRS38 = 0x098,
+            HostControllerVersion_SlotInterruptStatus_CRS63 = 0x0FC,
             SDMASystemAddressArgument2_SRS00 = 0x200,
             BlockSizeBlockCount_SRS01 = 0x204,
             Argument1_SRS02 = 0x208,
@@ -473,9 +586,61 @@ namespace Antmicro.Renode.Peripherals.SD
             ErrorNormalInterruptStatus_SRS12 = 0x230,
             ErrorNormalStatusEnable_SRS13 = 0x234,
             ErrorNormalSignalEnable_SRS14 = 0x238,
-            Capabilities_SRS16 = 0x240,
+            HostControl2_SRS15 = 0x23C,
+            Capabilities1_SRS16 = 0x240,
+            Capabilities2_SRS17 = 0x244,
+            Capabilities3_SRS18 = 0x248,
+            Capabilities4_SRS19 = 0x24C,
+            ForceEvent_SRS20 = 0x250,
+            ADMAErrorStatus_SRS21 = 0x254,
             DmaSystemAddressLow_SRS22 = 0x258,
-            DmaSystemAddressHigh_SRS23 = 0x25C
+            DmaSystemAddressHigh_SRS23 = 0x25C,
+            PresetValue_DefaultSpeed_SRS24 = 0x260,
+            PresetValue_HighSpeedAndSDR12_SRS25 = 0x264,
+            PresetValue_SDR25AndSDR50_SRS26 = 0x268,
+            PresetValue_SDR104AndDDR50_SRS27 = 0x26C,
+            PresetValue_UHSII_SRS29 = 0x274,
+            CommandQueuingVersion_CQRS00 = 0x400,
+            CommandQueuingCapabilities_CQRS01 = 0x404,
+            CommandQueuingConfiguration_CQRS02 = 0x408,
+            CommandQueuingControl_CQRS03 = 0x40C,
+            CommandQueuingInterruptStatus_CQRS04 = 0x410,
+            CommandQueuingInterruptStatusEnable_CQRS05 = 0x414,
+            CommandQueuingInterruptSignalEnable_CQRS06 = 0x418,
+            InterruptCoalescing_CQRS07 = 0x41C,
+            CommandQueuingTaskDescriptorListBaseAddress_CQRS08 = 0x420,
+            CommandQueuingTaskDescriptorListBaseAddressUpper32Bits_CQRS09 = 0x424,
+            CommandQueuingTaskDoorbell_CQRS10 = 0x428,
+            TaskCompleteNotification_CQRS11 = 0x42C,
+            DeviceQueueStatus_CQRS12 = 0x430,
+            DevicePendingTasks_CQRS13 = 0x434,
+            TaskClear_CQRS14 = 0x438,
+            SendStatusConfiguration1_CQRS16 = 0x440,
+            SendStatusConfiguration2_CQRS17 = 0x444,
+            CommandResponseForDirect_CommandTask_CQRS18 = 0x448,
+            ResponseModeErrorMask_CQRS20 = 0x450,
+            TaskErrorInformation_CQRS21 = 0x454,
+            CommandResponseIndex_CQRS22 = 0x458,
+            CommandResponseArgument_CQRS23 = 0x45C
+        }
+
+        private enum ByteRegisters {
+            CommandTransferMode_SRS03_0 = 0x20C,
+            CommandTransferMode_SRS03_1 = 0x20D,
+            CommandTransferMode_SRS03_2 = 0x20E,
+            CommandTransferMode_SRS03_3 = 0x20F
+        }
+
+        private enum DataPresentSelect
+        {
+            NoDataPresent = 0,
+            DataPresent = 1
+        }
+
+        private enum DataTransferDirectionSelect
+        {
+            Write = 0,
+            Read = 1
         }
 
         private enum ResponseType
