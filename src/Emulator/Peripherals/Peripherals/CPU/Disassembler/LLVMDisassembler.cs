@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
 {
     public class LLVMDisassembler : IDisassembler
     {
-        public LLVMDisassembler(IDisassemblable cpu)
+        public LLVMDisassembler(ICPU cpu)
         {
             if(!LLVMArchitectureMapping.IsSupported(cpu))
             {
@@ -92,7 +92,7 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
         }
 
         private readonly Dictionary<string, IDisassembler> cache;
-        private readonly IDisassemblable cpu;
+        private readonly ICPU cpu;
         
         private class LLVMDisasWrapper : IDisposable, IDisassembler
         {

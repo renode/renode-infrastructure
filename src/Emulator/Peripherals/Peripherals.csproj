@@ -308,7 +308,6 @@
     <Compile Include="Peripherals\CPU\ExternalCPU.cs" />
     <Compile Include="Peripherals\CPU\Synchronizer.cs" />
     <Compile Include="Peripherals\CPU\Disassembler\IDisassembler.cs" />
-    <Compile Include="Peripherals\CPU\Disassembler\IDisassemblable.cs" />
     <Compile Include="Peripherals\CPU\Registers\IRegisters.cs" />
     <Compile Include="Peripherals\CPU\Registers\RegistersGroup.cs" />
     <Compile Include="Peripherals\UART\SemihostingUart.cs" />

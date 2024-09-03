@@ -53,7 +53,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     /// <see cref="TranslationCPU"/> implements <see cref="ICluster{T}"/> interface
     /// to seamlessly handle either cluster or CPU as a parameter to different methods.
     /// </summary>
-    public abstract partial class TranslationCPU : BaseCPU, ICluster<TranslationCPU>, IGPIOReceiver, ICpuSupportingGdb, ICPUWithExternalMmu, ICPUWithMMU, INativeUnwindable, IDisassemblable, ICPUWithMetrics, ICPUWithMappedMemory, ICPUWithRegisters, ICPUWithMemoryAccessHooks, IControllableCPU
+    public abstract partial class TranslationCPU : BaseCPU, ICluster<TranslationCPU>, IGPIOReceiver, ICpuSupportingGdb, ICPUWithExternalMmu, ICPUWithMMU, INativeUnwindable, ICPUWithMetrics, ICPUWithMappedMemory, ICPUWithRegisters, ICPUWithMemoryAccessHooks, IControllableCPU
     {
         protected TranslationCPU(string cpuType, IMachine machine, Endianess endianness, CpuBitness bitness = CpuBitness.Bits32)
         : this(0, cpuType, machine, endianness, bitness)
@@ -1691,8 +1691,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             public IntPtr HostPointer;
         }
 
-        #region IDisassemblable implementation
-
         private bool logTranslatedBlocks;
         public bool LogTranslatedBlocks
         {
@@ -1774,8 +1772,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             dirtyAddressesPtr = IntPtr.Zero;
         }
-
-        #endregion
 
         public uint PageSize
         {
