@@ -143,7 +143,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithReservedBits(0, 1)
                 .WithTaggedFlag("RXIDLE", 1)
                 .WithReservedBits(2, 1)
-                .WithTaggedFlag("TXIDLE", 3)
+                .WithFlag(3, FieldMode.Read, name: "TXIDLE", valueProviderCallback: _ => true)
                 .WithFlag(4, FieldMode.Read, name: "CTS - Clear To Send", valueProviderCallback: _ => true)
                 .WithTaggedFlag("DELTACTS", 5)
                 .WithTaggedFlag("TXDISSTAT", 6)
