@@ -213,8 +213,8 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithReservedBits(8, 24);
 
             Registers.FifoConfiguration.Define(this)
-                .WithTaggedFlag("ENABLETX", 0)
                 .WithTaggedFlag("ENABLERX", 1)
+                .WithFlag(0, out txFifoEnabled, name: "ENABLETX")
                 .WithReservedBits(2, 2)
                 .WithTag("SIZE", 4, 2)
                 .WithReservedBits(6, 6)
@@ -296,7 +296,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithValueField(0, 8, FieldMode.Write, name: "TXDATA",
                     writeCallback: (_, val) =>
                     {
-                        if(transmitDisable.Value)
+                        if(transmitDisable.Value || !txFifoEnabled.Value)
                         {
                             return;
                         }
@@ -388,6 +388,7 @@ namespace Antmicro.Renode.Peripherals.UART
         private IFlagRegisterField rxFifoLevelInterruptEnable;
         private IFlagRegisterField txFifoLevelTriggerEnable;
         private IFlagRegisterField rxFifoLevelTriggerEnable;
+        private IFlagRegisterField txFifoEnabled;
         private IValueRegisterField txFifoLevelTriggerPoint;
         private IValueRegisterField rxFifoLevelTriggerPoint;
         private IValueRegisterField baudDivider;
