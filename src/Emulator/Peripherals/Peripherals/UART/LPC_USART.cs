@@ -225,7 +225,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTaggedFlag("WAKETX", 14)
                 .WithTaggedFlag("WAKERX", 15)
                 .WithTaggedFlag("EMPTYTX", 16)
-                .WithTaggedFlag("EMPTYRX", 17)
+                .WithFlag(17, FieldMode.WriteOneToClear, name: "EMPTYRX", writeCallback: (_, val) => HandleClearRxQueue(val))
                 .WithTaggedFlag("POPDBG", 18)
                 .WithReservedBits(19, 13);
 
@@ -376,6 +376,15 @@ namespace Antmicro.Renode.Peripherals.UART
             var status = TxLevelInterruptStatus || RxLevelInterruptStatus;
             this.Log(LogLevel.Noisy, "IRQ set to {0}.", status);
             IRQ.Set(status);
+        }
+
+        private void HandleClearRxQueue(bool value)
+        {
+            if(value)
+            {
+                ClearBuffer();
+                UpdateInterrupts();
+            }
         }
 
         private bool stopBits;
