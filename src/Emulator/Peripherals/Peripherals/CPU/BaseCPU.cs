@@ -688,8 +688,10 @@ restart:
 
             // If AdvanceImmediately is not enabled, and virtual time has surpassed host time,
             // sleep to make up the difference.
+            // However, if pause was requested, we want to exit as soon as possible without sleeping,
+            // because it was requested from interactive context (e.g. "pause" monitor command).
             virtualTimeAhead = machine.LocalTimeSource.ElapsedVirtualHostTimeDifference;
-            if(!machine.LocalTimeSource.AdvanceImmediately && virtualTimeAhead.Ticks > 0)
+            if(!machine.LocalTimeSource.AdvanceImmediately && virtualTimeAhead.Ticks > 0 && !isPaused)
             {
                 // Ignore the return value, if the sleep is interrupted we'll make up any extra
                 // remaining difference next time. Preserve the interrupt request so that if this
