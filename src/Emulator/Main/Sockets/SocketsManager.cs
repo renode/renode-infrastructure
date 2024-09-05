@@ -79,6 +79,10 @@ namespace Antmicro.Renode.Sockets
                 }
                 ownerName = String.Format("{0}{1}{2}", name, name.Length == 0 ? "" : ":", nameAppendix);
                 socket = new Socket(addressFamily, socketType, protocolType);
+                if(protocolType == ProtocolType.Tcp)
+                {
+                    socket.NoDelay = noDelay;
+                }
                 this.endpoint = endpoint.ToString();
                 try
                 {
