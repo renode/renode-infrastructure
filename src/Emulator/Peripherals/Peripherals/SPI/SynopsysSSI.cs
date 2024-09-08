@@ -49,7 +49,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private void DefineRegisters()
         {
-            Register.Control0.Define(this)
+            Registers.Control0.Define(this)
                 .WithTag("Data Frame Size", 0, 5)
                 .WithReservedBits(5, 1)
                 .WithTag("Frame Format", 6, 2)
@@ -67,50 +67,50 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithReservedBits(25, 6)
             ;
 
-            Register.Control1.Define(this)
+            Registers.Control1.Define(this)
                 .WithTag("Number of Data Frames", 0, 16)
                 .WithReservedBits(16, 16)
             ;
 
-            Register.SSIEnable.Define(this)
+            Registers.SSIEnable.Define(this)
                 .WithTaggedFlag("SSI Enable", 0)
                 .WithReservedBits(1, 31)
             ;
 
-            Register.MicrowireControl.Define(this)
+            Registers.MicrowireControl.Define(this)
                 .WithTaggedFlag("Microwire Transfer Mode", 0)
                 .WithTaggedFlag("Microwire Control", 1)
                 .WithTaggedFlag("Microwire Handshaking", 2)
                 .WithReservedBits(3, 29)
             ;
 
-            Register.SlaveEnable.Define(this)
+            Registers.SlaveEnable.Define(this)
                 .WithTaggedFlags("Slave Select Enable", 0, 32)
             ;
 
-            Register.BaudRateSelect.Define(this)
+            Registers.BaudRateSelect.Define(this)
                 .WithTag("SSI Clock Divider", 0, 16)
                 .WithReservedBits(16, 16)
             ;
 
-            Register.TransmitFIFOThreshold.Define(this)
+            Registers.TransmitFIFOThreshold.Define(this)
                 .WithTag("Transmit FIFO Threshold", 0, 16)
                 .WithTag("Transfer start FIFO level", 16, 16)
             ;
 
-            Register.ReceiveFIFOThreshold.Define(this)
+            Registers.ReceiveFIFOThreshold.Define(this)
                 .WithTag("Receive FIFO Threshold", 0, 32)
             ;
 
-            Register.TransmitFIFOLevel.Define(this)
+            Registers.TransmitFIFOLevel.Define(this)
                 .WithTag("Transmit FIFO Level", 0, 32)
             ;
 
-            Register.ReceiveFIFOLevel.Define(this)
+            Registers.ReceiveFIFOLevel.Define(this)
                 .WithTag("Receive FIFO Level", 0, 32)
             ;
 
-            Register.Status.Define(this)
+            Registers.Status.Define(this)
                 .WithTaggedFlag("SSI Busy", 0)
                 .WithTaggedFlag("Transmit FIFO Not Full", 1)
                 .WithTaggedFlag("Transmit FIFO Empty", 2)
@@ -121,7 +121,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithReservedBits(7, 26)
             ;
 
-            Register.InterruptMask.Define(this)
+            Registers.InterruptMask.Define(this)
                 .WithTaggedFlag("Transmit FIFO Empty Interrupt Mask", 0)
                 .WithTaggedFlag("Transmit FIFO Overflow Interrupt Mask", 1)
                 .WithTaggedFlag("Receive FIFO Underflow Interrupt Mask", 2)
@@ -132,7 +132,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithReservedBits(7, 26)
             ;
 
-            Register.InterruptStatus.Define(this)
+            Registers.InterruptStatus.Define(this)
                 .WithTaggedFlag("Transmit FIFO Empty Interrupt Status", 0)
                 .WithTaggedFlag("Transmit FIFO Overflow Interrupt Status", 1)
                 .WithTaggedFlag("Receive FIFO Underflow Interrupt Status", 2)
@@ -143,7 +143,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithReservedBits(7, 26)
             ;
 
-            Register.RawInterruptStatus.Define(this)
+            Registers.RawInterruptStatus.Define(this)
                 .WithTaggedFlag("Transmit FIFO Empty Raw Interrupt Status", 0)
                 .WithTaggedFlag("Transmit FIFO Overflow Raw Interrupt Status", 1)
                 .WithTaggedFlag("Receive FIFO Underflow Raw Interrupt Status", 2)
@@ -154,66 +154,66 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithReservedBits(7, 26)
             ;
 
-            Register.TransmitFIFOOverflowInterruptClear.Define(this)
+            Registers.TransmitFIFOOverflowInterruptClear.Define(this)
                 .WithTaggedFlag("Clear Transmit FIFO Overflow Interrupt", 0)
                 .WithReservedBits(1, 31)
             ;
 
-            Register.ReceiveFIFOOverflowInterruptClear.Define(this)
+            Registers.ReceiveFIFOOverflowInterruptClear.Define(this)
                 .WithTaggedFlag("Clear Receive FIFO Overflow Interrupt", 0)
                 .WithReservedBits(1, 31)
             ;
 
-            Register.ReceiveFIFOUnderflowInterruptClear.Define(this)
+            Registers.ReceiveFIFOUnderflowInterruptClear.Define(this)
                 .WithTaggedFlag("Clear Receive FIFO Underflow Interrupt", 0)
                 .WithReservedBits(1, 31)
             ;
 
-            Register.MultiMasterInterruptClear.Define(this)
+            Registers.MultiMasterInterruptClear.Define(this)
                 .WithTaggedFlag("Clear Multi-Master Contention Interrupt", 0)
                 .WithReservedBits(1, 31)
             ;
 
-            Register.InterruptClear.Define(this)
+            Registers.InterruptClear.Define(this)
                 .WithTaggedFlag("Clear Interrupts", 0)
                 .WithReservedBits(1, 31)
             ;
 
-            Register.DMAControl.Define(this)
+            Registers.DMAControl.Define(this)
                 .WithTaggedFlag("Receive DMA Enable", 0)
                 .WithTaggedFlag("Transmit DMA Enable", 1)
                 .WithReservedBits(2, 30)
             ;
 
-            Register.DMATransmitDataLevel.Define(this)
+            Registers.DMATransmitDataLevel.Define(this)
                 .WithTag("Transmit Data Level", 0, 32)
             ;
 
-            Register.DMAReceiveDataLevel.Define(this)
+            Registers.DMAReceiveDataLevel.Define(this)
                 .WithTag("Receive Data Level", 0, 32)
             ;
 
-            Register.Identification.Define(this)
+            Registers.Identification.Define(this)
                 .WithTag("Identification Code", 0, 32)
             ;
 
-            Register.VersionID.Define(this)
+            Registers.VersionID.Define(this)
                 .WithTag("Synopsys Component Version", 0, 32)
             ;
 
-            Register.Data_0.DefineMany(this, 36,
+            Registers.Data_0.DefineMany(this, 36,
                 (register, registerIndex) => 
                     register.WithTag($"Data {registerIndex}", 0, 32)
             );
 
-            Register.RXSampleDelay.Define(this)
+            Registers.RXSampleDelay.Define(this)
                 .WithTag("Receive Data (rxd) Sample Delay", 0, 8)
                 .WithReservedBits(8, 8)
                 .WithTaggedFlag("Receive Data (rxd) Sampling Edge", 16)
                 .WithReservedBits(17, 15)
             ;
 
-            Register.SPIControl.Define(this)
+            Registers.SPIControl.Define(this)
                 .WithTag("Transfer format", 0, 2)
                 .WithTag("Length of Address", 2, 4)
                 .WithReservedBits(6, 1)
@@ -237,27 +237,27 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithReservedBits(31, 1)
             ;
 
-            Register.TransmitDriveEdge.Define(this)
+            Registers.TransmitDriveEdge.Define(this)
                 .WithTag("TXD Drive Edge", 0, 8)
                 .WithReservedBits(8, 24)
             ;
 
-            Register.XIPModeBits.Define(this)
+            Registers.XIPModeBits.Define(this)
                 .WithTag("XIP Mode Bits To Send", 0, 16)
                 .WithReservedBits(16, 16)
             ;
 
-            Register.XIPINCRTransferOpcode.Define(this)
+            Registers.XIPINCRTransferOpcode.Define(this)
                 .WithTag("XIP INCR Transfer Opcode", 0, 16)
                 .WithReservedBits(16, 16)
             ;
 
-            Register.XIPWRAPTransferOpcode.Define(this)
+            Registers.XIPWRAPTransferOpcode.Define(this)
                 .WithTag("XIP WRAP Transfer Opcode", 0, 16)
                 .WithReservedBits(16, 16)
             ;
 
-            Register.XIPControl.Define(this)
+            Registers.XIPControl.Define(this)
                 .WithTag("SPI Frame Format", 0, 2)
                 .WithTag("Address and Instruction Transfer Format", 2, 2)
                 .WithTag("Length of Address", 4, 4)
@@ -280,22 +280,22 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithReservedBits(30, 2)
             ;
 
-            Register.XIPSlaveEnable.Define(this)
+            Registers.XIPSlaveEnable.Define(this)
                 .WithTaggedFlags("Slave Select Enable", 0, 32)
             ;
 
-            Register.XIPReceiveFifoOverflowInterruptClear.Define(this)
+            Registers.XIPReceiveFifoOverflowInterruptClear.Define(this)
                 .WithTaggedFlag("Clear XIP Receive FIFO Overflow Interrupt", 0)
                 .WithReservedBits(1, 31)
             ;
 
-            Register.XIPTimeOut.Define(this)
+            Registers.XIPTimeOut.Define(this)
                 .WithTag("XIP Time Out", 0, 8)
                 .WithReservedBits(9, 23)
             ;
         }
 
-        private enum Register : long
+        private enum Registers : long
         {
             Control0 = 0x0, // CTRLR0
             Control1 = 0x4, // CTRLR1
