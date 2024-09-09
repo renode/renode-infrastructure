@@ -21,7 +21,7 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
-    public class ArmSignalsUnit : IPeripheral
+    public class ArmSignalsUnit : IPeripheral, ISignalsUnit
     {
         public ArmSignalsUnit(IMachine machine)
         {
@@ -77,12 +77,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             return signal.IsEnabled();
         }
 
-        public bool IsSignalEnabledForCPU(string name, Arm cpu)
+        public bool IsSignalEnabledForCPU(string name, ICPU cpu)
         {
             return IsSignalEnabledForCPU(signals.Parse(name), cpu);
         }
 
-        public bool IsSignalEnabledForCPU(ArmSignals armSignal, Arm cpu)
+        public bool IsSignalEnabledForCPU(ArmSignals armSignal, ICPU cpu)
         {
             var signal = signals[armSignal];
             AssertSignalCPUIndexed(signal, inSetMethod: false);
@@ -155,12 +155,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             signal.SetState(checked((byte)index), state);
         }
 
-        public void SetSignalStateForCPU(string name, bool state, Arm cpu)
+        public void SetSignalStateForCPU(string name, bool state, ICPU cpu)
         {
             SetSignalStateForCPU(signals.Parse(name), state, cpu);
         }
 
-        public void SetSignalStateForCPU(ArmSignals armSignal, bool state, Arm cpu)
+        public void SetSignalStateForCPU(ArmSignals armSignal, bool state, ICPU cpu)
         {
             var signal = signals[armSignal];
             AssertSignalCPUIndexed(signal, inSetMethod: true);
@@ -191,7 +191,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
         }
 
-        private RegisteredCPU GetRegisteredCPU(Arm cpu)
+        private RegisteredCPU GetRegisteredCPU(ICPU cpu)
         {
             if(!registeredCPUs.TryGetValue(cpu, out var registeredCPU))
             {
@@ -261,7 +261,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         private readonly IMachine machine;
-        private readonly Dictionary<Arm, RegisteredCPU> registeredCPUs = new Dictionary<Arm, RegisteredCPU>();
+        private readonly Dictionary<ICPU, RegisteredCPU> registeredCPUs = new Dictionary<ICPU, RegisteredCPU>();
         private readonly SignalsDictionary<ArmSignals> signals = new SignalsDictionary<ArmSignals>();
 
         private const int PeripheralsBaseBits = 19;
