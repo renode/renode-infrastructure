@@ -1802,8 +1802,24 @@ namespace Antmicro.Renode.Peripherals.CPU
             TlibSetBlockBeginHookPresent((blockBeginInternalHook != null || blockBeginUserHook != null || IsSingleStepMode || isAnyInactiveHook) ? 1u : 0u);
         }
 
+        public void EnableReadCache(ulong accessAddress, ulong lowerAccessCount, ulong upperAccessCount = 0)
+        {
+            if(lowerAccessCount == 0)
+            {
+                throw new RecoverableException("Lower access count to address cannot be zero!");
+            }
+            if((upperAccessCount != 0) && ((upperAccessCount <= lowerAccessCount)))
+            {
+                throw new RecoverableException("Upper access count to address has to be bigger than lower access count!");
+            }
+            TlibEnableReadCache(accessAddress, lowerAccessCount, upperAccessCount);
+        }
+
         // 649:  Field '...' is never assigned to, and will always have its default value null
 #pragma warning disable 649
+
+        [Import]
+        private ActionUInt64UInt64UInt64 TlibEnableReadCache;
 
         [Import]
         private ActionUInt32 TlibSetChainingEnabled;
