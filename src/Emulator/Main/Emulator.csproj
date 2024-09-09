@@ -319,6 +319,7 @@
     <Compile Include="Peripherals\CPU\ICPUWithPostGprAccessHooks.cs" />
     <Compile Include="Peripherals\CPU\IInitableCPU.cs" />
     <Compile Include="Peripherals\CPU\IControllableCPU.cs" />
+    <Compile Include="Peripherals\CPU\ISignalsUnit.cs" />
     <Compile Include="Peripherals\CPU\CPURegister.cs" />
     <Compile Include="Utilities\ConfigurationManager.cs" />
     <Compile Include="Testing\LEDTester.cs" />
