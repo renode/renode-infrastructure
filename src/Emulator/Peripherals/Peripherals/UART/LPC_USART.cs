@@ -82,8 +82,6 @@ namespace Antmicro.Renode.Peripherals.UART
             UpdateInterrupts();
         }
 
-        protected override bool IsReceiveEnabled => rxFifoEnabled.Value;
-
         private bool TxLevelInterruptStatus
         {
             get => txFifoLevelInterruptEnable.Value && GetTxFifoTriggerLevelStatus();
@@ -215,8 +213,8 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithReservedBits(8, 24);
 
             Registers.FifoConfiguration.Define(this)
-                .WithFlag(0, out txFifoEnabled, name: "ENABLETX")
-                .WithFlag(1, out rxFifoEnabled, name: "ENABLERX")
+                .WithFlag(0, name: "ENABLETX")
+                .WithFlag(1, name: "ENABLERX")
                 .WithReservedBits(2, 2)
                 .WithTag("SIZE", 4, 2)
                 .WithReservedBits(6, 6)
@@ -298,7 +296,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithValueField(0, 8, FieldMode.Write, name: "TXDATA",
                     writeCallback: (_, val) =>
                     {
-                        if(transmitDisable.Value || !txFifoEnabled.Value)
+                        if(transmitDisable.Value)
                         {
                             return;
                         }
@@ -399,8 +397,6 @@ namespace Antmicro.Renode.Peripherals.UART
         private IFlagRegisterField rxFifoLevelInterruptEnable;
         private IFlagRegisterField txFifoLevelTriggerEnable;
         private IFlagRegisterField rxFifoLevelTriggerEnable;
-        private IFlagRegisterField txFifoEnabled;
-        private IFlagRegisterField rxFifoEnabled;
         private IValueRegisterField txFifoLevelTriggerPoint;
         private IValueRegisterField rxFifoLevelTriggerPoint;
         private IValueRegisterField baudDivider;
