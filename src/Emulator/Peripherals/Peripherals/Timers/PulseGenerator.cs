@@ -15,22 +15,25 @@ namespace Antmicro.Renode.Peripherals.Timers
         public PulseGenerator(IMachine machine, long frequency, ulong onTicks, ulong offTicks, bool startState = false)
         {
             this.startState = startState;
+            this.onTicks = onTicks;
+            this.offTicks = offTicks;
             Connections = new Dictionary<int, IGPIO> { [0] = Output };
-            timer = new LimitTimer(machine.ClockSource, frequency, this, nameof(timer), limit: startState ? offTicks : onTicks, enabled: true, eventEnabled: true, autoUpdate: true);
+            timer = new LimitTimer(machine.ClockSource, frequency, this, nameof(timer), enabled: true, eventEnabled: true, autoUpdate: true);
             timer.LimitReached += () =>
             {
-                var irq = timer.Limit == onTicks == startState;
-                timer.Limit = timer.Limit == onTicks ? offTicks : onTicks;
-                Output.Set(irq);
-                this.DebugLog("Output set to {0}", irq);
+                timer.Limit = state ? offTicks : onTicks;
+                state = !state;
+                Output.Set(state);
+                this.DebugLog("Output set to {0}", state);
             };
             Reset();
         }
 
         public void Reset()
         {
-            timer.Reset();
-            Output.Set(startState);
+            timer.Limit = !startState ? offTicks : onTicks;
+            state = startState;
+            Output.Set(state);
         }
 
         public GPIO Output { get; } = new GPIO();
@@ -49,7 +52,11 @@ namespace Antmicro.Renode.Peripherals.Timers
             set { timer.Frequency = value; }
         }
 
+        private bool state;
+
         private readonly bool startState;
+        private readonly ulong onTicks;
+        private readonly ulong offTicks;
         private readonly LimitTimer timer;
     }
 }
