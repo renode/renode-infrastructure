@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-    <UsingTask AssemblyFile="$(MSBuildProjectDirectory)/../../../../../lib/cctask/CCTask/bin/Release/CCTask.dll" TaskName="CCompilerTask" />
-    <UsingTask AssemblyFile="$(MSBuildProjectDirectory)/../../../../../lib/cctask/CCTask/bin/Release/CCTask.dll" TaskName="CLinkerTask" />
 
   <Target Name="VerifyProperties">
     <Error Text="The compiler must be explicitly provided when compiling on macOS." Condition="$(CompilerPath) == '' and $(CurrentPlatform) == 'OSX'"/>
@@ -157,12 +155,9 @@
   </Target>
 
   <Target Name="Compile" DependsOnTargets="_PrepareInputsAndOutputsForCompilation;GenerateFlags;CompileTcg;CompileSoftFloat" Inputs="@(InputFiles)" Outputs="@(ObjectFiles)" >
-    <CCompilerTask CompilerPath="$(CompilerPath)" Parallel="true" Sources="@(SourceFiles)" Flags="@(CompilationFlags)" ObjectFilesDirectory="$(ObjectFilesDirectory)" />
   </Target>
 
   <Target Name="Link" DependsOnTargets="Compile" Inputs="@(ObjectFiles)" Outputs="$(SoFileLocation)/$(LibraryPath)">
-      <MakeDir Directories="$(SoFileLocation)" />
-      <CLinkerTask LinkerPath="$(LinkerPath)" ObjectFiles="@(ObjectFiles)" Flags="@(LinkFlags)" Output="$(SoFileLocation)/$(LibraryPath)" />
   </Target>
 
   <Target Name="Build" DependsOnTargets="Link">

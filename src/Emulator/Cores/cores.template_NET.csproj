@@ -29,8 +29,11 @@
 
   <Target Name="PrepareEmbeddedResources" BeforeTargets="ResolveReferences" DependsOnTargets="CompileTranslationLib">
     <ItemGroup>
-      <EmbeddedResource Include="@(TranslationLibraries)">
-        <LogicalName>Antmicro.Renode.%(Filename)%(Extension)</LogicalName>
+      <EmbeddedResource Include="..\Cores\bin\$(Configuration)\lib\translate-$(Architecture)-le.so" Condition=" '%(Endianess.Identity)' == 'le' ">
+        <LogicalName>Antmicro.Renode.translate-$(Architecture)-le.so</LogicalName>
+      </EmbeddedResource>
+      <EmbeddedResource Include="..\Cores\bin\$(Configuration)\lib\translate-$(Architecture)-be.so" Condition=" '%(Endianess.Identity)' == 'be' ">
+        <LogicalName>Antmicro.Renode.translate-$(Architecture)-be.so</LogicalName>
       </EmbeddedResource>
     </ItemGroup>
   </Target>

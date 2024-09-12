@@ -1,6 +1,4 @@
 <Project DefaultTargets="Build">
-  <UsingTask AssemblyFile="$(MSBuildProjectDirectory)/../../../../../lib/cctask/CCTask/bin/Release/net6.0/CCTask.dll" TaskName="CCompilerTask" />
-  <UsingTask AssemblyFile="$(MSBuildProjectDirectory)/../../../../../lib/cctask/CCTask/bin/Release/net6.0/CCTask.dll" TaskName="CLinkerTask" />
 
   <Target Name="VerifyProperties">
     <Error Text="The compiler must be explicitly provided when compiling on macOS." Condition="$(CompilerPath) == '' and $(CurrentPlatform) == 'OSX'" />
@@ -130,7 +128,6 @@
   </Target>
 
   <Target Name="Compile" DependsOnTargets="PrepareCompilation" Inputs="@(InputFiles)" Outputs="@(ObjectFiles)">
-    <CCompilerTask CompilerPath="$(CompilerPath)" Parallel="true" Sources="@(SourceFiles)" Flags="@(CompilationFlags)" ObjectFilesDirectory="$(ObjectFilesDirectory)" />
   </Target>
 
   <Target Name="PrepareDependencies" DependsOnTargets="VerifyProperties">
@@ -161,8 +158,6 @@
   </Target>
 
   <Target Name="Build" DependsOnTargets="Compile;PrepareBuild" Inputs="@(ObjectFiles)" Outputs="$(OutputLibrary)">
-    <MakeDir Directories="$(OutputDirectory)" />
-    <CLinkerTask LinkerPath="$(LinkerPath)" ObjectFiles="@(ObjectFiles)" Flags="@(LinkFlags)" Output="$(OutputLibrary)" />
   </Target>
 
   <Target Name="Clean">

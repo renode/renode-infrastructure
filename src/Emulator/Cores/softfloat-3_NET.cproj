@@ -1,5 +1,4 @@
 <Project DefaultTargets="Build">
-  <UsingTask AssemblyFile="$(MSBuildProjectDirectory)/../../../../../lib/cctask/CCTask/bin/Release/net6.0/CCTask.dll" TaskName="CCompilerTask" />
 
   <PropertyGroup>
     <SoftFloatDirectory>tlib/softfloat-3</SoftFloatDirectory>
@@ -45,13 +44,8 @@
   </Target>
 
   <Target Name="Compile" Inputs="@(InputFiles)" Outputs="@(ObjectFiles)" DependsOnTargets="VerifyProperties">
-    <CCompilerTask CompilerPath="$(CompilerPath)" Parallel="true" Sources="@(CSources)" Flags="@(CompilationFlags)" ObjectFilesDirectory="$(OutputDirectory)" />
   </Target>
 
   <Target Name="Build" Inputs="@(ObjectFiles)" Outputs="$(OutputArchive)" DependsOnTargets="Compile">
-    <PropertyGroup>
-      <ObjectFilesString>@(ObjectFiles->'%(Identity)', ' ')</ObjectFilesString>
-    </PropertyGroup>
-    <Exec Command="$(ArPath) rcs $(OutputArchive) $(ObjectFilesString)" />
   </Target>
 </Project>
