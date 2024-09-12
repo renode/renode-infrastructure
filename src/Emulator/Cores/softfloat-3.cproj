@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <UsingTask AssemblyFile="$(MSBuildProjectDirectory)/../../../../../lib/cctask/CCTask/bin/Release/CCTask.dll" TaskName="CCompilerTask"/>
 
   <PropertyGroup>
     <SoftFloatDirectory>tlib/softfloat-3</SoftFloatDirectory>
@@ -48,16 +47,9 @@
   </Target>
 
   <Target Name="Compile" Inputs="@(InputFiles)" Outputs="@(ObjectFiles)" DependsOnTargets="_VerifyProperties">
-    <CCompilerTask CompilerPath="$(CompilerPath)" Parallel="true" Sources="@(CSources)" Flags="@(CompilationFlags)" ObjectFilesDirectory="$(ObjectFilesDirectory)"/>
   </Target>
 
   <Target Name="Build" Inputs="@(ObjectFiles)" Outputs="$(SoftFloatOutput)" DependsOnTargets="Compile">
-    <Message Text="Calling ar"/>
-    <PropertyGroup>
-      <ObjectFilesString>@(ObjectFiles->'%(Identity)', ' ')</ObjectFilesString>
-    </PropertyGroup>
-    <MakeDir Directories="$(OutputDirectory)"/>
-    <Exec Command="$(ArPath) rcs $(SoftFloatOutput) $(ObjectFilesString)" Condition=" !Exists('$(SoftFloatOutput)') Or '$(ObjectFilesString)' != '' "/>
   </Target>
 
   <Target Name="Clean">
