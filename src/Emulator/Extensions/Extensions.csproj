@@ -192,6 +192,7 @@
     </Compile>
     <Compile Include="UserInterface\Commands\ResdCommand.cs" />
     <Compile Include="Hooks\WFIPythonEngine.cs" />
+    <Compile Include="Analyzers\SocketUartAnalyzer.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Hooks\RegisterCollectionHookExtensions.tt">
