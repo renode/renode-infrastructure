@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -91,6 +91,8 @@ namespace Antmicro.Renode.Utilities
         public int BufferSize { get; set; } = 1;
 
         public bool IsAnythingReceiving => DataReceived != null && DataBlockReceived != null;
+
+        public int? Port => (server?.LocalEndPoint as IPEndPoint)?.Port;
 
         public event Action ConnectionClosed;
         public event Action<Stream> ConnectionAccepted;
