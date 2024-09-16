@@ -959,7 +959,7 @@ namespace Antmicro.Renode.Core
 
         public void StartGdbServer(int port, bool autostartEmulation = true, string cpuCluster = "")
         {
-            var cpus = SystemBus.GetCPUs().Cast<ICpuSupportingGdb>();
+            var cpus = SystemBus.GetCPUs().OfType<ICpuSupportingGdb>();
             if(!cpus.Any())
             {
                 throw new RecoverableException("Cannot start GDB server with no CPUs. Did you forget to load the platform description first?");
