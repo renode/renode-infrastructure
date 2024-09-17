@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
-    <UsingTask AssemblyFile="$(MSBuildProjectDirectory)/../../../../../lib/cctask/CCTask/bin/Release/CCTask.dll" TaskName="EnvironmentTask" />
 
     <Target Name="_PrepareProperties" DependsOnTargets="SetEndianess">
         <Error Text="Configuration not provided" Condition=" $(Configuration) == '' " />
@@ -18,21 +17,7 @@
         </ItemGroup>
     </Target>
 
-    <Target Name="CompileTranslationLib" DependsOnTargets="_PrepareProperties" BeforeTargets="PrepareEmbeddedResources">
-        <!-- Due to a bug in some versions of xbuild we set default value of $(TargetWordSize) and $(TargetInsnStartExtraWords)
-             before passing it to 'translate.cproj' as it is impossible to overwrite them later. -->
-        <PropertyGroup>
-            <TargetWordSize Condition=" $(TargetWordSize) == '' ">32</TargetWordSize>
-            <TargetInsnStartExtraWords Condition=" $(TargetInsnStartExtraWords) == '' ">0</TargetInsnStartExtraWords>
-        </PropertyGroup>
-        <MSBuild
-            Projects="./translate.cproj"
-            Targets="VerifyProperties;GenerateFlags;Compile;Link;Build"
-            Properties="AdditionalCompilationFlags=$(AdditionalCompilationFlags);HostArchitecture=i386;HostEndianess=le;TargetEndianess=%(Endianess.Identity);TargetArchitecture=$(Architecture);EmulatedTarget=$(EmulatedTarget);Configuration=$(Configuration);TargetWordSize=$(TargetWordSize);TargetInsnStartExtraWords=$(TargetInsnStartExtraWords);CompilerPath=$(CompilerPath);LinkerPath=$(LinkerPath);ArPath=$(ArPath);CurrentPlatform=$(CurrentPlatform)" />
-    </Target>
-
     <Target Name="ActualClean" DependsOnTargets="_PrepareProperties">
-        <MSBuild Projects="translate.cproj" Targets="Clean" />
     </Target>
 
     <!-- It is intended to have 'Clean' and 'ActualClean' targets separated.
