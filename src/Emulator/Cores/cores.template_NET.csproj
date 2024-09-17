@@ -1,6 +1,4 @@
 <Project DefaultTargets="Build">
-  <UsingTask AssemblyFile="$(MSBuildProjectDirectory)/../../../../../lib/cctask/CCTask/bin/Release/net6.0/CCTask.dll" TaskName="EnvironmentTask" />
-
   <PropertyGroup>
     <TargetFrameworks Condition="$(OS) != 'Windows_NT'">net6.0</TargetFrameworks>
     <TargetFrameworks Condition="$(OS) == 'Windows_NT'">net6.0-windows10.0.17763.0</TargetFrameworks>
@@ -15,19 +13,7 @@
     <Error Text="Configuration not provided" Condition=" $(Configuration) == '' " />
   </Target>
 
-  <Target Name="CompileTranslationLib" DependsOnTargets="VerifyProperties">
-    <!-- Due to a bug in some versions of xbuild we set default value of $(TargetWordSize) and $(TargetInsnStartExtraWords)
-             before passing it to 'translate.cproj' as it is impossible to overwrite them later. -->
-    <PropertyGroup>
-      <TargetWordSize Condition=" $(TargetWordSize) == '' ">32</TargetWordSize>
-      <TargetInsnStartExtraWords Condition=" $(TargetInsnStartExtraWords) == '' ">0</TargetInsnStartExtraWords>
-    </PropertyGroup>
-    <MSBuild Projects="./translate_NET.cproj" Properties="AdditionalCompilationFlags=$(AdditionalCompilationFlags);HostArchitecture=i386;HostEndianess=le;TargetEndianess=%(Endianess.Identity);TargetArchitecture=$(Architecture);EmulatedTarget=$(EmulatedTarget);Configuration=$(Configuration);TargetWordSize=$(TargetWordSize);TargetInsnStartExtraWords=$(TargetInsnStartExtraWords);CompilerPath=$(CompilerPath);LinkerPath=$(LinkerPath);ArPath=$(ArPath);CurrentPlatform=$(CurrentPlatform)">
-      <Output TaskParameter="TargetOutputs" ItemName="TranslationLibraries" />
-    </MSBuild>
-  </Target>
-
-  <Target Name="PrepareEmbeddedResources" BeforeTargets="ResolveReferences" DependsOnTargets="CompileTranslationLib">
+  <Target Name="PrepareEmbeddedResources" BeforeTargets="ResolveReferences" >
     <ItemGroup>
       <EmbeddedResource Include="..\Cores\bin\$(Configuration)\lib\translate-$(Architecture)-le.so" Condition=" '%(Endianess.Identity)' == 'le' ">
         <LogicalName>Antmicro.Renode.translate-$(Architecture)-le.so</LogicalName>
@@ -39,7 +25,6 @@
   </Target>
 
   <Target Name="ActualClean" DependsOnTargets="_PrepareProperties">
-    <MSBuild Projects="translate_NET.cproj" Targets="Clean" />
   </Target>
 
   <!-- It is intended to have 'Clean' and 'ActualClean' targets separated.
