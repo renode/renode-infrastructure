@@ -725,6 +725,7 @@
     <Compile Include="Peripherals\Analog\STM32F3_ADC.cs" />
     <Compile Include="Peripherals\CPU\MSP430X\MSP430X.cs" />
     <Compile Include="Peripherals\Timers\SAMD21_Timer.cs" />
+    <Compile Include="Peripherals\Timers\SAMD21_RTC.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
