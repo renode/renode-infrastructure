@@ -6,6 +6,9 @@ project (renode-cores)
 # Contains definitions that are used both here and in tlib
 include (tlib/shared.cmake)
 
+add_definitions (
+    -DTLIB_LIB_TYPE=OBJECT
+)
 add_subdirectory(tlib)
 
 add_definitions (
