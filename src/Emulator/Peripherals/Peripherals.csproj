@@ -726,6 +726,7 @@
     <Compile Include="Peripherals\CPU\MSP430X\MSP430X.cs" />
     <Compile Include="Peripherals\Timers\SAMD21_Timer.cs" />
     <Compile Include="Peripherals\Timers\SAMD21_RTC.cs" />
+    <Compile Include="Peripherals\GPIOPort\SAMD21_GPIO.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
