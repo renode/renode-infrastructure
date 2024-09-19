@@ -616,7 +616,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             public virtual void Reset()
             {
-                Value = ResetValue;
+                value = ResetValue;
             }
 
             /// <summary>Top <c>Value</c> bits will be set from the address bits up to <c>Width</c>.</summary>
