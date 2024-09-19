@@ -90,13 +90,9 @@ namespace Antmicro.Renode.Peripherals.Bus
                 }
             }
 
-            public IBusRegistered<IBusPeripheral> Move(IBusRegistered<IBusPeripheral> registeredPeripheral, ulong newStart)
+            public void Move(IBusRegistered<IBusPeripheral> registeredPeripheral, BusRangeRegistration newRegistration)
             {
-                var start = registeredPeripheral.RegistrationPoint.Range.StartAddress;
-                var size = registeredPeripheral.RegistrationPoint.Range.Size;
-                var cpu = registeredPeripheral.RegistrationPoint.CPU;
-                var newRegistrationPoint = new BusRangeRegistration(newStart, size, cpu: cpu);
-                var newRegisteredPeripheral = new BusRegistered<IBusPeripheral>(registeredPeripheral.Peripheral, newRegistrationPoint);
+                var newRegisteredPeripheral = new BusRegistered<IBusPeripheral>(registeredPeripheral.Peripheral, newRegistration);
                 lock(sync)
                 {
                     var block = blocks.FirstOrDefault(x => x.Peripheral == registeredPeripheral);
@@ -119,9 +115,10 @@ namespace Antmicro.Renode.Peripherals.Bus
                     }
                     InvalidateLastBlock();
 
+                    var newStart = newRegistration.StartingPoint;
+                    var size = newRegistration.Range.Size;
                     Add(newStart, newStart + size, newRegisteredPeripheral, block.AccessMethods);
                 }
-                return newRegisteredPeripheral;
             }
 
             public void Remove(IPeripheral peripheral)

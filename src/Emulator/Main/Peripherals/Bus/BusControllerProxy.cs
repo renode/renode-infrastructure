@@ -281,9 +281,9 @@ namespace Antmicro.Renode.Peripherals.Bus
             ParentController.EnableAllTranslations(busPeripheral, enable);
         }
 
-        public void MoveRegistrationWithinContext(IBusPeripheral peripheral, ulong newAddress, ICPU context, Func<IEnumerable<IBusRegistered<IBusPeripheral>>, IBusRegistered<IBusPeripheral>> selector = null)
+        public void MoveRegistrationWithinContext(IBusPeripheral peripheral, BusRangeRegistration newRegistration, ICPU context, Func<IEnumerable<IBusRegistered<IBusPeripheral>>, IBusRegistered<IBusPeripheral>> selector = null)
         {
-            ParentController.MoveRegistrationWithinContext(peripheral, newAddress, context, selector);
+            ParentController.MoveRegistrationWithinContext(peripheral, newRegistration, context, selector);
         }
 
         void IPeripheralRegister<IBusPeripheral, BusMultiRegistration>.Unregister(IBusPeripheral peripheral)

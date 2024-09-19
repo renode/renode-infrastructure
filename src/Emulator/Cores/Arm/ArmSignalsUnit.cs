@@ -353,24 +353,24 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 var registrationPoint = busRegistered.RegistrationPoint;
                 var size = registrationPoint.Range.Size;
 
-                var newRegistrationPoint = registrationPoint is BusMultiRegistration
+                var newRegistration = registrationPoint is BusMultiRegistration
                     ? new BusMultiRegistration(newAddress, size, region, cpu)
                     : new BusRangeRegistration(newAddress, size, cpu: cpu);
 
                 if(registrationPoint.CPU == cpu)
                 {
-                    if(registrationPoint is BusMultiRegistration multi)
+                    if(newRegistration is BusMultiRegistration newMultiRP)
                     {
-                        SystemBus.MoveBusMultiRegistrationWithinContext(peripheral, newAddress, cpu, region);
+                        SystemBus.MoveBusMultiRegistrationWithinContext(peripheral, newMultiRP, cpu);
                     }
                     else
                     {
-                        SystemBus.MoveRegistrationWithinContext(peripheral, newAddress, cpu);
+                        SystemBus.MoveRegistrationWithinContext(peripheral, newRegistration, cpu);
                     }
                 }
                 else
                 {
-                    SystemBus.Register(peripheral, newRegistrationPoint);
+                    SystemBus.Register(peripheral, newRegistration);
                 }
             }
 

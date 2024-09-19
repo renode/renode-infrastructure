@@ -60,7 +60,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         bool TryGetCurrentCPU(out ICPU cpu);
 
         void UnregisterFromAddress(ulong address, ICPU context = null);
-        void MoveRegistrationWithinContext(IBusPeripheral peripheral, ulong newAddress, ICPU context, Func<IEnumerable<IBusRegistered<IBusPeripheral>>, IBusRegistered<IBusPeripheral>> selector = null);
+        void MoveRegistrationWithinContext(IBusPeripheral peripheral, BusRangeRegistration newRegistration, ICPU context, Func<IEnumerable<IBusRegistered<IBusPeripheral>>, IBusRegistered<IBusPeripheral>> selector = null);
 
         void AddWatchpointHook(ulong address, SysbusAccessWidth width, Access access, BusHookDelegate hook);
         void RemoveWatchpointHook(ulong address, BusHookDelegate hook);
@@ -112,9 +112,10 @@ namespace Antmicro.Renode.Peripherals.Bus
             bus.SetPeripheralEnabled(peripheral, false);
         }
 
-        public static void MoveBusMultiRegistrationWithinContext(this IBusController bus, IBusPeripheral peripheral, ulong newAddress, ICPU cpu, string regionName)
+        public static void MoveBusMultiRegistrationWithinContext(this IBusController bus, IBusPeripheral peripheral, BusMultiRegistration newRegistration, ICPU cpu)
         {
-            bus.MoveRegistrationWithinContext(peripheral, newAddress, cpu,
+            var regionName = newRegistration.ConnectionRegionName;
+            bus.MoveRegistrationWithinContext(peripheral, newRegistration, cpu,
                 selector: busRegisteredEnumerable =>
                 {
                     return busRegisteredEnumerable.Where(
