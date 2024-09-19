@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Timers;
 
@@ -31,6 +32,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             //
             // Keep in mind that most of these registers do not affect other
             // peripherals or their clocks.
+
+            // nRF52840 documentation doesn't acknowledge hfclk192, but for USB pullup to happen
+            // under Zephyr, those flags and IRQ have to be handled.
             IRQ = new GPIO();
             DefineRegisters();
         }
@@ -49,8 +53,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private void Update()
         {
-            IRQ.Set((lfclkEventGenerated.Value && lfclkStartedEventEnabled.Value)
-                    || (hfclkEventGenerated.Value && hfclkStartedEventEnabled.Value));
+            bool irq = (lfclkEventGenerated.Value && lfclkStartedEventEnabled.Value)
+                    || (hfclkEventGenerated.Value && hfclkStartedEventEnabled.Value)
+                    || (hfclk192mStartedEventEnabled.Value && hfclk192mStarted);
+            this.Log(LogLevel.Noisy, "Setting IRQ: {0}", irq);
+            IRQ.Set(irq);
         }
 
         private void DefineRegisters()
@@ -91,6 +98,32 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     Update();
                 }, name: "TASK_LFCLKSTART")
                 .WithReservedBits(1, 31);
+            
+            Registers.StartHfClock192M.Define(this)
+                .WithFlag(0, FieldMode.Write, writeCallback: (_, value) =>
+                {
+                        hfclk192mStarted = true;
+                        Update();
+                }, name: "TASKS_HFCLK192MSTART")
+                .WithReservedBits(1, 31);
+
+            Registers.PowerUsbRegisterStatus.Define(this)
+                .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => true, name: "VBUSDETECT")
+                .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => true, name: "OUTPUTRDY")
+                .WithReservedBits(2, 30);
+
+            Registers.PowerUSBUsbRemovedEvent.Define(this)
+                .WithFlag(0, valueProviderCallback: _ => false, name: "EVENTS_USBDETECTED")
+                .WithReservedBits(1, 31);
+
+            Registers.PowerUSBDetectedEvent.Define(this)
+                .WithFlag(0, 
+                    valueProviderCallback: _ => true, name: "EVENTS_USBREMOVED")
+                .WithReservedBits(1, 31);
+
+            Registers.PowerUSBPowerReadyEvent.Define(this)
+                .WithFlag(0, valueProviderCallback: _ => true, name: "EVENTS_USBPWRRDY")
+                .WithReservedBits(1, 31);
 
             Registers.StopLFCLK.Define(this)
                 .WithFlag(0, FieldMode.Write, writeCallback: (_, value) =>
@@ -100,14 +133,16 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     Update();
                 }, name: "TASK_LFCLKSTOP")
                 .WithReservedBits(1, 31);
-
             Registers.EnableInterrupt.Define(this)
                 .WithFlag(0, out hfclkStartedEventEnabled, FieldMode.Read | FieldMode.Set, name: "HFCLKSTARTED")
                 .WithFlag(1, out lfclkStartedEventEnabled, FieldMode.Read | FieldMode.Set, name: "LFCLKSTARTED")
                 .WithReservedBits(2, 1)
                 .WithTaggedFlag("DONE", 3)
                 .WithTaggedFlag("CTTO", 4)
-                .WithReservedBits(5, 5)
+                .WithReservedBits(5, 2)
+                .WithTaggedFlag("DONE (nRF5340)", 7) // nRF5340, but also nRF52840 USB
+                .WithFlag(8, out hfclk192mAudioStartedEventEnabled, FieldMode.Read | FieldMode.Set, name: "HFCLKAUDIOSTARTED") // nRF5340, but also nRF52840 with USB
+                .WithFlag(9, out hfclk192mStartedEventEnabled, FieldMode.Read | FieldMode.Set, name: "HFCLK192MSTARTED") // nRF5340, but also nRF52840 with USB
                 .WithTaggedFlag("CTSTARTED", 10)
                 .WithTaggedFlag("CTSTOPPED", 11)
                 .WithReservedBits(12, 20)
@@ -123,7 +158,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(2, 1)
                 .WithTaggedFlag("DONE", 3)
                 .WithTaggedFlag("CTTO", 4)
-                .WithReservedBits(5, 5)
+                .WithReservedBits(5, 2)
+                .WithTaggedFlag("DONE (nRF540)", 7) // nRF5340, but also nRF52840 USB
+                .WithFlag(8,
+                    writeCallback: (_, value) => hfclk192mAudioStartedEventEnabled.Value &= !value,
+                    valueProviderCallback: _ => hfclk192mAudioStartedEventEnabled.Value, name: "HFCLKAUDIOSTARTED") // nRF5340, but also nRF52840 with USB
+                .WithFlag(9,
+                    writeCallback: (_, value) => hfclk192mStartedEventEnabled.Value &= !value,
+                    valueProviderCallback: _ => hfclk192mStartedEventEnabled.Value, name: "HFCLK192MSTARTED") // nRF5340, but also nRF52840 with USB
                 .WithTaggedFlag("CTSTARTED", 10)
                 .WithTaggedFlag("CTSTOPPED", 11)
                 .WithReservedBits(12, 20)
@@ -148,14 +190,21 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(2, 14)
                 .WithFlag(16, FieldMode.Read, valueProviderCallback: _ => lfclkStarted, name: "STATE")
                 .WithReservedBits(17, 15);
+
+            Registers.PowerUSBMainRegisterStatus.Define(this)
+                .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => true, name: "MAINREGSTATUS")
+                .WithReservedBits(1, 31);
         }
 
         private bool lfclkStarted;
         private bool hfclkStarted;
+        private bool hfclk192mStarted;
         private IFlagRegisterField lfclkStartedEventEnabled;
         private IFlagRegisterField lfclkEventGenerated;
         private IFlagRegisterField hfclkStartedEventEnabled;
         private IFlagRegisterField hfclkEventGenerated;
+        private IFlagRegisterField hfclk192mStartedEventEnabled;
+        private IFlagRegisterField hfclk192mAudioStartedEventEnabled;
 
         private enum Registers
         {
@@ -166,10 +215,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             StartLFRCCallibration = 0x10,
             StartCallibrationTimer = 0x14,
             StopCallibrationTimer = 0x18,
+            StartHfClock192M = 0x20, // nRF5340
             HFXOCrystalOscillatorStarted = 0x100,
             LFCLKStarted = 0x104,
             CalibrationOfLFRCCompleted = 0x10C,
             CalibrationTimerTimeout = 0x110,
+            PowerUSBDetectedEvent = 0x11C, // POWER peripheral
+            PowerUSBUsbRemovedEvent = 0x120, // POWER peripheral
+            PowerUSBPowerReadyEvent = 0x124, // POWER peripheral
             CalibrationTimerStarted = 0x128,
             CalibrationTimerStopped = 0x12C,
             EnableInterrupt = 0x304,
@@ -179,11 +232,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             LFCLKStartTriggered = 0x414,
             LFCLKStatus = 0x418,
             LFCLKClockSourceCopy = 0x41C,
+            PowerUsbRegisterStatus = 0x438,
             LFCLKClockSource = 0x518,
             HFXODebounceTime = 0x528,
             CallibrationTimerInterval = 0x538,
             TraceConfig = 0x55C,
-            LFRCModeConfiguration = 0x5B4
+            LFRCModeConfiguration = 0x5B4,
+            PowerUSBMainRegisterStatus = 0x640
         }
     }
 }
