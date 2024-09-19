@@ -658,7 +658,7 @@ namespace Antmicro.Renode.Peripherals.SCI
                     .WithFlag(0, name: "FM",
                         writeCallback: (_, val) => fifoMode = val,
                         valueProviderCallback: _ => fifoMode)
-                    .WithFlag(1, name: "RFRST",
+                    .WithFlag(1, FieldMode.Read | FieldMode.WriteOneToClear, name: "RFRST",
                         writeCallback: (_, __) =>
                         {
                             if(fifoMode)
