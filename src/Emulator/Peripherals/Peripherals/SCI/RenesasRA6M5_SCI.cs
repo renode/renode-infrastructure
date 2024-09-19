@@ -593,6 +593,7 @@ namespace Antmicro.Renode.Peripherals.SCI
 
             if(enableFIFO)
             {
+                // TransmitFIFODataLowByte (below) is an 8-bits wide window of this register
                 Registers.TransmitFIFOData.DefineConditional(this, () => fifoMode, 0xff)
                     .WithValueField(0, 9, FieldMode.Write, name: "TDAT",
                         writeCallback: (_, val) =>
@@ -604,6 +605,17 @@ namespace Antmicro.Renode.Peripherals.SCI
                         })
                     .WithTaggedFlag("MPBT", 9)
                     .WithReservedBits(10, 6);
+
+                // this is the upper 8-bits of transmitFIFOData register
+                Registers.TransmitFIFODataLowByte.DefineConditional(this, () => fifoMode, 0xff)
+                    .WithValueField(0, 8, FieldMode.Write, name: "TDATL",
+                        writeCallback: (_, val) =>
+                        {
+                            TransmitUARTData((byte)val);
+                            transmitFIFOEmpty.Value = true;
+                            UpdateInterrupts();
+                        })
+                    .WithReservedBits(9, 7);
             }
 
             Registers.ReceiveDataNonManchesterMode.DefineConditional(this, () => !manchesterMode && !fifoMode)
@@ -1072,6 +1084,7 @@ namespace Antmicro.Renode.Peripherals.SCI
             TransmitDataNonManchesterMode = 0xE,  // TDRHL
             TransmitDataManchesterMode = 0xE,  // TDRHL_MAN
             TransmitFIFOData = 0xE,  // FTDRHL
+            TransmitFIFODataLowByte = 0xF,  // FTDRL
             ReceiveDataNonManchesterMode = 0x10,  // RDRHL
             ReceiveDataManchesterMode = 0x10,  // RDRHL_MAN
             ReceiveFIFOData = 0x10,  // FRDRHL
