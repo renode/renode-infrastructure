@@ -72,7 +72,7 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
         private IDisassembler GetDisassembler(uint flags)
         {
             LLVMArchitectureMapping.GetTripleAndModelKey(cpu, flags, out var triple, out var model);
-            var key = $"{triple} {model}";
+            var key = $"{triple} {model} {flags}";
             if(!cache.ContainsKey(key))
             {
                 IDisassembler disas = new LLVMDisasWrapper(model, triple, flags);
