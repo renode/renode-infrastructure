@@ -1,9 +1,0 @@
-<Project DefaultTargets="Build">
-<PropertyGroup>
-  <CompilerPath Condition=" '$(CompilerPath)' == '' ">gcc</CompilerPath>
-  <LinkerPath Condition=" '$(LinkerPath)' == '' ">gcc</LinkerPath>
-  <ArPath Condition=" '$(ArPath)' == '' ">ar</ArPath>
-  <CurrentPlatform>Windows</CurrentPlatform>
-  <DefineConstants>$(DefineConstants);PLATFORM_WINDOWS</DefineConstants>
-</PropertyGroup>
-</Project>
