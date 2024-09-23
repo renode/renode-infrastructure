@@ -236,7 +236,7 @@ namespace Antmicro.Renode.Core.USB
 
         public IReadOnlyCollection<USBConfiguration> Configurations => configurations;
 
-        public USBConfiguration SelectedConfiguration { get; private set; }
+        public USBConfiguration SelectedConfiguration { get; set; }
         public byte Address { get; set; }
 
         public USBProtocol CompatibleProtocolVersion { get; }
