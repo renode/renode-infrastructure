@@ -35,7 +35,6 @@ file (GLOB SOURCES
     "renode/*.c"
     "renode/arch/${TARGET_ACTUAL_ARCH}/*.c"
 )
-message ("${SOURCES}")
 # several tlib and tcg headers are needed by Cores/renode
 include_directories (
     tlib/arch/${TARGET_ACTUAL_ARCH}
