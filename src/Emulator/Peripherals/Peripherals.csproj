@@ -410,6 +410,7 @@
     <Compile Include="Peripherals\ATAPI\CDROM.cs" />
     <Compile Include="Peripherals\Miscellaneous\STM32F4_RCC.cs" />
     <Compile Include="Peripherals\Miscellaneous\NRF_CLOCK.cs" />
+    <Compile Include="Peripherals\Miscellaneous\NRF_USBREG.cs" />
     <Compile Include="Peripherals\Miscellaneous\NRF52840_ECB.cs" />
     <Compile Include="Peripherals\Miscellaneous\NRF52840_PPI.cs" />
     <Compile Include="Peripherals\Miscellaneous\NRF52840_RNG.cs" />
