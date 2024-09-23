@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Core.USB
 
     public class USBConnector : IExternal, IConnectable<IUSBDevice>, IUSBDevice
     {
-        public void RegisterInController(SimpleContainer<IUSBDevice> controller, int address = 1)
+        public void RegisterInController(SimpleContainerBase<IUSBDevice> controller, int address = 1)
         {
             controller.Register(dev, new NumberRegistrationPoint<int>(address));
         }
