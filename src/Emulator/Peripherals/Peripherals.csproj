@@ -415,6 +415,7 @@
     <Compile Include="Peripherals\Miscellaneous\NRF52840_ECB.cs" />
     <Compile Include="Peripherals\Miscellaneous\NRF52840_PPI.cs" />
     <Compile Include="Peripherals\USB\NRF_USBD.cs" />
+    <Compile Include="Peripherals\USB\CDCToUARTConverter.cs" />
     <Compile Include="Peripherals\Miscellaneous\NRF52840_RNG.cs" />
     <Compile Include="Peripherals\Miscellaneous\INRFEventProvider.cs" />
     <Compile Include="Peripherals\Timers\NRF52840_RTC.cs" />
