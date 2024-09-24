@@ -47,7 +47,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup Condition="$(OS) != 'Windows_NT'">
-    <PackageReference Include="Mono.Posix.NETStandard" Version="1.0.0" />
+    <PackageReference Include="Mono.Posix" Version="7.1.0-final.1.21458.1" />
   </ItemGroup>
   <ItemGroup Condition=" $(CurrentPlatform) != Windows And $(GUI_DISABLED) != 'true' ">
     <PackageReference Include="GdkSharp" Version="3.24.24.34" />
