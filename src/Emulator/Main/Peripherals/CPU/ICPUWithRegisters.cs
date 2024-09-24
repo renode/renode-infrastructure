@@ -21,8 +21,6 @@ namespace Antmicro.Renode.Peripherals.CPU
     {
         void SetRegister(int register, RegisterValue value);
         RegisterValue GetRegister(int register);
-        void SetRegisterUnsafe(int register, RegisterValue value);
-        RegisterValue GetRegisterUnsafe(int register);
         IEnumerable<CPURegister> GetRegisters();
     }
 
