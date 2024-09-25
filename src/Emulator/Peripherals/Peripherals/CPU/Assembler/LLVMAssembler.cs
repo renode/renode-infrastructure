@@ -28,7 +28,17 @@ namespace Antmicro.Renode.Peripherals.CPU.Assembler
             // We need to initialize the architecture to be used before trying to assemble.
             // It's OK and cheap to initialize it multiple times, as this only sets a few pointers.
             init_llvm_architecture(triple);
-            var ok = llvm_asm(triple, model, flags, code, pc, out var output, out var outLen);
+            bool ok;
+            IntPtr output;
+            IntPtr outLen;
+            try
+            {
+                ok = llvm_asm(triple, model, flags, code, pc, out output, out outLen);
+            }
+            catch(EntryPointNotFoundException e)
+            {
+                throw new RecoverableException("Old version of libllvm-disas is in use, assembly is not available: ", e);
+            }
             if(!ok)
             {
                 var error = Marshal.PtrToStringAnsi(output);
