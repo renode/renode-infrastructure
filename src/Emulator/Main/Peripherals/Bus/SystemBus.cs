@@ -517,6 +517,12 @@ namespace Antmicro.Renode.Peripherals.Bus
                 .FirstOrDefault(x => x.RegistrationPoint.Range.Contains(address));
         }
 
+        public bool IsMemory(ulong address, ICPU context = null)
+        {
+            return GetAccessiblePeripheralsForContext(context)
+                .Any(x => x.Peripheral is IMemory && x.RegistrationPoint.Range.Contains(address));
+        }
+
         public IEnumerable<IBusRegistered<IMapped>> GetMappedPeripherals(ICPU context = null)
         {
             return GetAccessiblePeripheralsForContext(context)

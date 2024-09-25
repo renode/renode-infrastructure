@@ -341,6 +341,11 @@ namespace Antmicro.Renode.Peripherals.Bus
             return ParentController.FindMemory(address, context);
         }
 
+        public virtual bool IsMemory(ulong address, ICPU context = null)
+        {
+            return ParentController.IsMemory(address, context);
+        }
+
         public virtual void LoadFileChunks(string path, IEnumerable<FileChunk> chunks, ICPU cpu)
         {
             ParentController.LoadFileChunks(path, chunks, cpu);

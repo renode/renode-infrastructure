@@ -80,6 +80,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         void MapMemory(IMappedSegment segment, IBusPeripheral owner, bool relative = true, ICPUWithMappedMemory context = null);
         IBusRegistered<MappedMemory> FindMemory(ulong address, ICPU context = null);
+        bool IsMemory(ulong address, ICPU context = null);
 
         void Tag(Range range, string tag, ulong defaultValue = 0, bool pausing = false);
 
