@@ -189,11 +189,21 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 throw new RecoverableException("Moving a peripheral to a locked address range is not supported");
             }
+            UnregisterAccessFlags(busRegistered.RegistrationPoint, context);
             peripheralsCollectionByContext[context].Move(busRegistered, newRegistration);
             Machine.ExchangeRegistrationPointForPeripheral(this, peripheral, busRegistered.RegistrationPoint, newRegistration);
             if(wasMapped)
             {
                 AddMappingsForPeripheral(peripheral, newRegistration, context);
+            }
+
+            if(peripheral is ArrayMemory)
+            {
+                foreach(var cpu in GetCPUsForContext<ICPUWithMappedMemory>(context))
+                {
+                    var range = newRegistration.Range;
+                    cpu.RegisterAccessFlags(range.StartAddress, range.Size, isIoMemory: true);
+                }
             }
         }
 
@@ -370,6 +380,11 @@ namespace Antmicro.Renode.Peripherals.Bus
             return id;
         }
 
+        public IEnumerable<ICPU> GetAllContextKeys()
+        {
+            return peripheralsCollectionByContext.GetAllContextKeys();
+        }
+
         private void HandleChangedSymbols()
         {
             OnSymbolsChanged?.Invoke(Machine);
@@ -528,6 +543,12 @@ namespace Antmicro.Renode.Peripherals.Bus
             return GetAccessiblePeripheralsForContext(context)
                 .Where(x => x.Peripheral is IMapped)
                 .Convert<IBusPeripheral, IMapped>();
+        }
+
+        public IEnumerable<IBusRegistered<IBusPeripheral>> GetRegistrationsForPeripheralType<T>(ICPU context = null)
+        {
+            return GetAccessiblePeripheralsForContext(context)
+                .Where(x => x.Peripheral is T);
         }
 
         public IEnumerable<IBusRegistered<IBusPeripheral>> GetRegisteredPeripherals(ICPU context = null)
@@ -1834,6 +1855,15 @@ namespace Antmicro.Renode.Peripherals.Bus
             var segments = mappedPeripheral.MappedSegments;
             var mappings = segments.Select(x => FromRegistrationPointToSegmentWrapper(x, registrationPoint, cpuWithMappedMemory)).Where(x => x != null);
             AddMappings(mappings, mappedPeripheral);
+        }
+
+        private void UnregisterAccessFlags(BusRangeRegistration registrationPoint, ICPU context)
+        {
+            foreach(var cpu in GetCPUsForContext<ICPUWithMappedMemory>(context))
+            {
+                var range = registrationPoint.Range;
+                cpu.RegisterAccessFlags(range.StartAddress, range.Size);
+            }
         }
 
         private bool RemoveMappingsForPeripheral(IBusPeripheral peripheral)

@@ -12,9 +12,7 @@ using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities.Binding;
 using System.Collections.Generic;
-using Antmicro.Renode.Time;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.Memory;
 using Antmicro.Renode.Peripherals.UART;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
@@ -315,7 +313,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             TlibSetSevOnPending(value ? 1 : 0);
         }
 
-        public void RegisterTCMRegion(MappedMemory memory, uint interfaceIndex, uint regionIndex)
+        public void RegisterTCMRegion(IMemory memory, uint interfaceIndex, uint regionIndex)
         {
             Action<IMachine, MachineStateChangedEventArgs> hook = null;
             hook = (_, args) =>
@@ -381,7 +379,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        private bool TryRegisterTCMRegion(MappedMemory memory, uint interfaceIndex, uint regionIndex)
+        private bool TryRegisterTCMRegion(IMemory memory, uint interfaceIndex, uint regionIndex)
         {
             ulong address;
             if(!TCMConfiguration.TryFindRegistrationAddress((SystemBus)machine.SystemBus, this, memory, out address))

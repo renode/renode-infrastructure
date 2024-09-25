@@ -378,6 +378,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             this.NoisyLog("Registered memory at 0x{0:X}, size 0x{1:X}.", segment.StartingOffset, segment.Size);
         }
 
+        public void RegisterAccessFlags(ulong startAddress, ulong size, bool isIoMemory = false)
+        {
+            TlibRegisterAccessFlagsForRange(startAddress, size, isIoMemory ? 1u : 0u);
+        }
+
         public void SetMappedMemoryEnabled(Range range, bool enabled)
         {
             using(machine?.ObtainPausedState(true))
@@ -1849,6 +1854,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private ActionUInt64UInt64 TlibUnmapRange;
+
+        [Import]
+        private ActionUInt64UInt64UInt32 TlibRegisterAccessFlagsForRange;
 
         [Import]
         private FuncUInt32UInt64UInt64 TlibIsRangeMapped;

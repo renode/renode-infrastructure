@@ -14,6 +14,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     public interface ICPUWithMappedMemory: ICPU
     {
         void MapMemory(IMappedSegment segment);
+        void RegisterAccessFlags(ulong startAddress, ulong size, bool isIoMemory = false);
         void SetMappedMemoryEnabled(Range range, bool enabled);
         void UnmapMemory(Range range);
         void SetPageAccessViaIo(ulong address);

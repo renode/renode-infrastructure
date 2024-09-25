@@ -8,7 +8,6 @@
 using System.Linq;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.Memory;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -22,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             RegionIndex = regionIndex;
         }
 
-        public static bool TryFindRegistrationAddress(IBusController sysbus, ICPU cpu, MappedMemory memory, out ulong address)
+        public static bool TryFindRegistrationAddress(IBusController sysbus, ICPU cpu, IMemory memory, out ulong address)
         {
             address = 0x0ul;
             var busRegistration = ((SystemBus)sysbus).GetRegistrationPoints(memory, cpu)

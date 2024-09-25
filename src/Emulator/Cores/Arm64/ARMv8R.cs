@@ -11,7 +11,6 @@ using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities.Binding;
-using Antmicro.Renode.Peripherals.Memory;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Peripherals.IRQControllers;
 using Antmicro.Renode.Debugging;
@@ -130,7 +129,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public void RegisterTCMRegion(MappedMemory memory, uint regionIndex)
+        public void RegisterTCMRegion(IMemory memory, uint regionIndex)
         {
             if(!machine.IsPaused)
             {
@@ -154,7 +153,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        private bool TryRegisterTCMRegion(MappedMemory memory, uint regionIndex)
+        private bool TryRegisterTCMRegion(IMemory memory, uint regionIndex)
         {
             ulong address;
             if(!TCMConfiguration.TryFindRegistrationAddress(machine.SystemBus, this, memory, out address))

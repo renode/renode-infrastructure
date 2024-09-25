@@ -56,7 +56,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
         }
 
-        public ZynqMP_IPI(IMachine machine, MappedMemory mailbox) : base(machine)
+        public ZynqMP_IPI(IMachine machine, IMemory mailbox) : base(machine)
         {
             this.mailbox = mailbox;
             var innerConnections = new Dictionary<int, IGPIO>();
@@ -112,7 +112,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public IReadOnlyDictionary<int, IGPIO> Connections { get; }
 
-        public readonly MappedMemory mailbox;
+        public readonly IMemory mailbox;
 
         private static Registers GetRegisterFromChannelIdAndRegisterOffset(ChannelId channelId, RegisterOffset registerOffset)
         {
