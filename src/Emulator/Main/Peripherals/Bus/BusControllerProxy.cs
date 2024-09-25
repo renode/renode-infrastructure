@@ -346,6 +346,11 @@ namespace Antmicro.Renode.Peripherals.Bus
             return ParentController.FindMemory(address, context);
         }
 
+        public virtual bool IsMemory(ulong address, ICPU context = null)
+        {
+            return ParentController.IsMemory(address, context);
+        }
+
         public virtual void LoadELF(ReadFilePath fileName, bool useVirtualAddress = false, bool allowLoadsOnlyToMemory = true, ICluster<IInitableCPU> cpu = null)
         {
             ParentController.LoadELF(fileName, useVirtualAddress, allowLoadsOnlyToMemory, cpu);

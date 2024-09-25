@@ -471,6 +471,7 @@
     <Compile Include="Peripherals\Video\AutoRepaintingVideo.cs" />
     <Compile Include="Peripherals\Python\PythonPeripheral.cs" />
     <Compile Include="Peripherals\Memory\MappedMemory.cs" />
+    <Compile Include="Peripherals\Memory\ArrayMemory.cs" />
     <Compile Include="Peripherals\Input\IPS2Peripheral.cs" />
     <Compile Include="Peripherals\Input\IPS2Controller.cs" />
     <Compile Include="Peripherals\Network\EthernetPhysicalLayer.cs" />
