@@ -12,6 +12,7 @@ using System.Text;
 using System.Collections.Generic;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.CPU.Disassembler
 {
@@ -105,6 +106,11 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
                 catch(DllNotFoundException)
                 {
                     throw new RecoverableException("Could not find libllvm-disas. Please check in current output directory.");
+                }
+                catch(EntryPointNotFoundException)
+                {
+                    context = llvm_create_disasm_cpu(triple, cpu);
+                    Logger.Warning("Old version of libllvm-disas is in use, unable to specify disassembly flags");
                 }
                 if(context == IntPtr.Zero)
                 {
@@ -250,6 +256,10 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
 
             [DllImport("libllvm-disas")]
             private static extern IntPtr llvm_create_disasm_cpu_with_flags(string tripleName, string cpu, uint flags);
+
+            // Fallback in case a new version of Renode is used with an old version of libllvm-disas
+            [DllImport("libllvm-disas")]
+            private static extern IntPtr llvm_create_disasm_cpu(string tripleName, string cpu);
 
             [DllImport("libllvm-disas")]
             private static extern void llvm_disasm_dispose(IntPtr disasm);
