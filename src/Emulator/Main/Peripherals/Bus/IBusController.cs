@@ -56,7 +56,9 @@ namespace Antmicro.Renode.Peripherals.Bus
         IEnumerable<ICPU> GetCPUs();
         int GetCPUSlot(ICPU cpu);
         ICPU GetCurrentCPU();
+        IEnumerable<ICPU> GetAllContextKeys();
         IEnumerable<IBusRegistered<IBusPeripheral>> GetRegisteredPeripherals(ICPU context = null);
+        IEnumerable<IBusRegistered<IBusPeripheral>> GetRegistrationsForPeripheralType<T>(ICPU context = null);
         bool TryGetCurrentCPU(out ICPU cpu);
 
         void UnregisterFromAddress(ulong address, ICPU context = null);

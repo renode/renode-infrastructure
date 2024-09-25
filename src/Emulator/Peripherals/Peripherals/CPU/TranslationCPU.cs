@@ -378,6 +378,19 @@ namespace Antmicro.Renode.Peripherals.CPU
             this.NoisyLog("Registered memory at 0x{0:X}, size 0x{1:X}.", segment.StartingOffset, segment.Size);
         }
 
+        //TODO: this should handle dirty flags as well
+        public void RegisterAccessFlags(ulong startAddress, ulong size, bool isIoAccessedMemory = false)
+        {
+            var pageSize = PageSize;
+
+            uint flags = 0;
+            if(isIoAccessedMemory)
+            {
+                flags |= (uint)AccessFlags.IoAccessedMemory;
+            }
+            TlibRegisterAccessFlagsForRange(startAddress, size, flags);
+        }
+
         public void SetMappedMemoryEnabled(Range range, bool enabled)
         {
             using(machine?.ObtainPausedState(true))
@@ -1864,6 +1877,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         private ActionUInt64UInt64 TlibUnmapRange;
 
         [Import]
+        private ActionUInt64UInt64UInt32 TlibRegisterAccessFlagsForRange;
+
+        [Import]
         private FuncUInt32UInt64UInt64 TlibIsRangeMapped;
 
         [Import]
@@ -2304,6 +2320,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             StoppedAtWatchpoint = 0x10004,
             ReturnRequested = 0x10005,
             ExternalMmuFault = 0x10006,
+        }
+
+        private enum AccessFlags: uint
+        {
+            IoAccessedMemory = 2,
         }
 
         public override ExecutionResult ExecuteInstructions(ulong numberOfInstructionsToExecute, out ulong numberOfExecutedInstructions)

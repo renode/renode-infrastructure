@@ -141,6 +141,11 @@ namespace Antmicro.Renode.Peripherals.Bus
             return ParentController.GetCPUs();
         }
 
+        public IEnumerable<ICPU> GetAllContextKeys()
+        {
+            return ParentController.GetAllContextKeys();
+        }
+
         public virtual int GetCPUSlot(ICPU cpu)
         {
             return ParentController.GetCPUSlot(cpu);
@@ -159,6 +164,11 @@ namespace Antmicro.Renode.Peripherals.Bus
         public virtual IEnumerable<IBusRegistered<IBusPeripheral>> GetRegisteredPeripherals(ICPU context = null)
         {
             return ParentController.GetRegisteredPeripherals(context);
+        }
+
+        public IEnumerable<IBusRegistered<IBusPeripheral>> GetRegistrationsForPeripheralType<T>(ICPU context = null)
+        {
+            return ParentController.GetRegistrationsForPeripheralType<T>(context);
         }
 
         public virtual IEnumerable<BusRangeRegistration> GetRegistrationPoints(IBusPeripheral peripheral)

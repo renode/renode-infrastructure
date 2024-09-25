@@ -1677,6 +1677,31 @@ namespace Antmicro.Renode.Core
                     cpu.SetBroadcastDirty(true);
                 }
             }
+
+            // Register io_executable flags for all ArrayMemory peripherals
+            foreach(var context in SystemBus.GetAllContextKeys())
+            {
+                foreach(var registration in SystemBus.GetRegistrationsForPeripheralType<Peripherals.Memory.ArrayMemory>(context))
+                {
+                    var range = registration.RegistrationPoint.Range;
+                    var perCore = registration.RegistrationPoint.CPU;
+                    if(perCore == null)
+                    {
+                        cpus = SystemBus.GetCPUs().OfType<ICPUWithMappedMemory>().ToArray();
+                        foreach(var cpu in cpus)
+                        {
+                            cpu.RegisterAccessFlags(range.StartAddress, range.Size, isIoMemory: true);
+                        }
+                    }
+                    else
+                    {
+                        if(perCore is ICPUWithMappedMemory cpuWithMappedMemory)
+                        {
+                            cpuWithMappedMemory.RegisterAccessFlags(range.StartAddress, range.Size, isIoMemory: true);
+                        }
+                    }
+                }
+            }
         }
 
         public void ExchangeRegistrationPointForPeripheral(IPeripheral parent, IPeripheral child, IRegistrationPoint oldPoint, IRegistrationPoint newPoint)
