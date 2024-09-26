@@ -16,10 +16,22 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.I2C
 {
-    public class RenesasDA_I2C : SimpleContainer<II2CPeripheral>, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
+    /// <summary>
+    /// This peripheral implements <see cref="IWordPeripheral"/> and <see cref="IBytePeripheral"/>
+    /// for the sake of correct handling of DMA access to <see cref="Registers.DataCommand"/> register.
+    /// Enabling automatic access translation using attributes
+    /// <see cref="AllowedTranslationsAttribute.ByteToDoubleWord"/> and <see cref="AllowedTranslationsAttribute.WordToDoubleWord"/>
+    /// wouldn't ensure correct operation, because there is an implicit double word read of an old register value for every translated write access.
+    /// Reading from <see cref="data"/> field of <see cref="Registers.DataCommand"/> register
+    /// triggers side effect that results in dequeuing single byte from receive FIFO.
+    /// Therefore for widths other than double word, we handle accesses to that register manually.
+    /// It ensures correct operation for e.g. DMA transfers.
+    /// </summary>
+    public class RenesasDA_I2C : SimpleContainer<II2CPeripheral>, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IWordPeripheral, IBytePeripheral, IKnownSize
     {
-        public RenesasDA_I2C(IMachine machine) : base(machine)
+        public RenesasDA_I2C(IMachine machine, IGPIOReceiver dma) : base(machine)
         {
+            this.dma = dma;
             txFifo = new Queue<byte>();
             transmission = new Queue<byte>();
             rxFifo = new Queue<byte>();
@@ -50,6 +62,59 @@ namespace Antmicro.Renode.Peripherals.I2C
         public void WriteDoubleWord(long offset, uint value)
         {
             RegistersCollection.Write(offset, value);
+        }
+
+        public ushort ReadWord(long offset)
+        {
+            if(offset == (long)Registers.DataCommand)
+            {
+                return (ushort)RegistersCollection.Read(offset);
+            }
+            this.Log(LogLevel.Warning, "Unsupported read word access to offset {0:X}", offset);
+            return 0;
+        }
+
+        public void WriteWord(long offset, ushort value)
+        {
+            if(offset == (long)Registers.DataCommand)
+            {
+                RegistersCollection.Write(offset, value);
+            }
+            else
+            {
+                this.Log(LogLevel.Warning, "Unsupported write word access to offset {0:X}", offset);
+            }
+        }
+
+        public byte ReadByte(long offset)
+        {
+            switch(offset)
+            {
+                case (long)Registers.DataCommand:
+                    return ReadData();
+                case (long)Registers.DataCommand + 1:
+                    return dataCommandOffset1Shadow.Read();
+                default:
+                    this.Log(LogLevel.Warning, "Unsupported read byte access to offset {0:X}", offset);
+                    return 0;
+            }
+        }
+
+        public void WriteByte(long offset, byte value)
+        {
+            switch(offset)
+            {
+                case (long)Registers.DataCommand:
+                    data.Value = value;
+                    WriteCommand();
+                    break;
+                case (long)Registers.DataCommand + 1:
+                    dataCommandOffset1Shadow.Write(0, value);
+                    break;
+                default:
+                    this.Log(LogLevel.Warning, "Unsupported write byte access to offset {0:X}", offset);
+                    break;
+            }
         }
 
         public DoubleWordRegisterCollection RegistersCollection { get; }
@@ -90,7 +155,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                 .WithFlag(4, out use10BitTargetAddressing, name: "I2C_10BITADDR_MASTER",
                     changeCallback: (_, previousValue) => HandleTargetAddressChange(previousUse10Bit: previousValue)
                 )
-                .WithFlag(5, out var restartEnabled, name: "I2C_RESTART_EN")
+                .WithFlag(5, out restartEnabled, name: "I2C_RESTART_EN")
                 .WithTaggedFlag("I2C_SLAVE_DISABLE", 6)
                 .WithTaggedFlag("I2C_STOP_DET_IFADDRESSED", 7)
                 .WithTaggedFlag("I2C_TX_EMPTY_CTRL", 8)
@@ -140,64 +205,18 @@ namespace Antmicro.Renode.Peripherals.I2C
             ;
 
             Registers.DataCommand.Define(this)
-                .WithValueField(0, 8, out var data, name: "I2C_DAT",
-                    valueProviderCallback: _ =>
-                    {
-                        if(!controllerEnabled.Value)
-                        {
-                            this.Log(LogLevel.Debug, "Attempted read from FIFO, but controller is not enabled");
-                            return 0x0;
-                        }
-                        if(!masterEnabled.Value)
-                        {
-                            this.Log(LogLevel.Debug, "Attempted read from FIFO, but master mode is not enabled");
-                            return 0x0;
-                        }
-                        return HandleReadFromReceiveFIFO();
-                    }
-                )
-                .WithEnumField<DoubleWordRegister, Command>(8, 1, out var command, FieldMode.Write, name: "I2C_CMD")
-                .WithFlag(9, out var finishTransmission, FieldMode.Write, name: "I2C_STOP")
-                .WithFlag(10, out var restartTransmission, FieldMode.Write, name: "I2C_RESTART")
+                .WithValueField(0, 8, out data, valueProviderCallback: _ => ReadData(), name: "I2C_DAT")
+                .WithEnumField<DoubleWordRegister, Command>(8, 1, out command, FieldMode.Write, name: "I2C_CMD")
+                .WithFlag(9, out stop, FieldMode.Write, name: "I2C_STOP")
+                .WithFlag(10, out restart, FieldMode.Write, name: "I2C_RESTART")
                 .WithReservedBits(11, 21)
-                .WithReadCallback((_, __) => UpdateInterrupts())
-                .WithWriteCallback((_, __) =>
-                {
-                    if(!controllerEnabled.Value)
-                    {
-                        this.Log(LogLevel.Debug, "Attempted to preform action, but controller is not enabled");
-                        return;
-                    }
-                    if(!masterEnabled.Value)
-                    {
-                        this.Log(LogLevel.Debug, "Attempted perform a {0}, but master mode is not enabled", command.Value);
-                        return;
-                    }
-
-                    switch(command.Value)
-                    {
-                        case Command.Write:
-                            if(restartTransmission.Value && restartEnabled.Value)
-                            {
-                                PerformTransmission();
-                            }
-                            HandleWriteToTransmitFIFO((byte)data.Value);
-                            if(finishTransmission.Value)
-                            {
-                                PerformTransmission();
-                                SendFinishTransmission();
-                            }
-                            break;
-                        case Command.Read:
-                            PerformTransmission();
-                            bytesToReceive = checked(bytesToReceive + 1);
-                            break;
-                        default:
-                            throw new Exception("Unreachable");
-                    }
-                    UpdateInterrupts();
-                })
+                .WithWriteCallback((_, __) => WriteCommand())
             ;
+
+            dataCommandOffset1Shadow = new ByteRegister(this)
+                .WithEnumField<ByteRegister, Command>(0, 1, FieldMode.Write, writeCallback: (_, value) => command.Value = value, name: "I2C_CMD")
+                .WithFlag(1, FieldMode.Write, writeCallback: (_, value) => stop.Value = value, name: "I2C_STOP")
+                .WithFlag(2, FieldMode.Write, writeCallback: (_, value) => restart.Value = value, name: "I2C_RESTART");
 
             Registers.StandardSpeedSCLHighCount.Define(this, 0x00000091)
                 .WithValueField(0, 16, out standardSpeedClockHighCount, name: "IC_SS_SCL_HCNT",
@@ -335,7 +354,9 @@ namespace Antmicro.Renode.Peripherals.I2C
                 .WithFlag(8, FieldMode.Read, name: "R_ACTIVITY",
                     valueProviderCallback: _ => activityDetected.Value
                 )
-                .WithTaggedFlag("R_STOP_DET", 9)
+                .WithFlag(9, FieldMode.Read, name: "R_STOP_DET",
+                    valueProviderCallback: _ => stopDetected.Value
+                )
                 .WithTaggedFlag("R_START_DET", 10)
                 .WithTaggedFlag("R_GEN_CALL", 11)
                 .WithTaggedFlag("R_RESTART_DET", 12)
@@ -356,7 +377,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                 .WithFlag(6, out txAbortMask, name: "M_TX_ABRT")
                 .WithTaggedFlag("M_RX_DONE", 7)
                 .WithFlag(8, out activityDetectedMask, name: "M_ACTIVITY")
-                .WithTaggedFlag("M_STOP_DET", 9)
+                .WithFlag(9, out stopDetectedMask, name: "M_STOP_DET")
                 .WithTaggedFlag("M_START_DET", 10)
                 .WithTaggedFlag("M_GEN_CALL", 11)
                 .WithTaggedFlag("M_RESTART_DET", 12)
@@ -380,7 +401,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                 .WithFlag(6, out txAbort, FieldMode.Read, name: "TX_ABRT")
                 .WithTaggedFlag("RX_DONE", 7)
                 .WithFlag(8, out activityDetected, FieldMode.Read, name: "ACTIVITY")
-                .WithTaggedFlag("STOP_DET", 9)
+                .WithFlag(9, out stopDetected, FieldMode.Read, name: "STOP_DET")
                 .WithTaggedFlag("START_DET", 10)
                 .WithTaggedFlag("GEN_CALL", 11)
                 .WithTaggedFlag("RESTART_DET", 12)
@@ -430,6 +451,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                         txOverflow.Value = false;
                         txAbort.Value = false;
                         activityDetected.Value = false;
+                        stopDetected.Value = false;
                         UpdateInterrupts();
                     }
                 )
@@ -497,6 +519,12 @@ namespace Antmicro.Renode.Peripherals.I2C
             Registers.ClearSTOP_DETInterrupt.Define(this)
                 .WithTaggedFlag("CLR_STOP_DET", 0)
                 .WithReservedBits(1, 31)
+                .WithReadCallback((_, __) =>
+                    {
+                        stopDetected.Value = false;
+                        UpdateInterrupts();
+                    }
+                )
             ;
 
             Registers.ClearSTART_DETInterrupt.Define(this)
@@ -516,9 +544,9 @@ namespace Antmicro.Renode.Peripherals.I2C
                     writeCallback: (_, value) => { if(value && controllerEnabled.Value) AbortTransmission(); }
                 )
                 .WithFlag(2, out txBlocked, name: "I2C_TX_CMD_BLOCK",
-                    changeCallback: (_, __) =>
+                    changeCallback: (_, newValue) =>
                     {
-                        if(!txBlocked.Value)
+                        if(!newValue)
                         {
                             transmission.EnqueueRange(txFifo);
                             txFifo.Clear();
@@ -552,7 +580,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                     valueProviderCallback: _ => false
                 )
                 .WithFlag(7, FieldMode.Read, name: "MST_HOLD_TX_FIFO_EMPTY",
-                    valueProviderCallback: _ => transmission.Count != 0
+                    valueProviderCallback: _ => txFifo.Count == 0 && !stop.Value
                 )
                 .WithFlag(8, FieldMode.Read, name: "MST_HOLD_RX_FIFO_FULL",
                     valueProviderCallback: _ => rxFifo.Count > FifoSize
@@ -616,18 +644,19 @@ namespace Antmicro.Renode.Peripherals.I2C
             ;
 
             Registers.DMAControl.Define(this)
-                .WithTaggedFlag("RDMAE", 0)
-                .WithTaggedFlag("TDMAE", 1)
+                .WithFlag(0, out dmaReceiveEnabled, name: "RDMAE")
+                .WithFlag(1, out dmaTransmitEnabled, name: "TDMAE")
                 .WithReservedBits(2, 30)
+                .WithWriteCallback((_, __) => CheckDMATriggers())
             ;
 
             Registers.DMATransmitDataLevel.Define(this)
-                .WithTag("DMATDL", 0, 5)
+                .WithValueField(0, 5, out transmitDataLevel, name: "DMATDL")
                 .WithReservedBits(5, 27)
             ;
 
             Registers.ReceiveDataLevel.Define(this)
-                .WithTag("DMARDL", 0, 5)
+                .WithValueField(0, 5, out receiveDataLevel, name: "DMARDL")
                 .WithReservedBits(5, 27)
             ;
 
@@ -696,8 +725,28 @@ namespace Antmicro.Renode.Peripherals.I2C
             irq |= TxEmpty && txEmptyMask.Value;
             irq |= txAbort.Value && txAbortMask.Value;
             irq |= activityDetected.Value && activityDetectedMask.Value;
+            irq |= stopDetected.Value && stopDetectedMask.Value;
             this.Log(LogLevel.Debug, "IRQ {0}", irq ? "set" : "unset");
             IRQ.Set(irq);
+        }
+
+        private void CheckDMATriggers()
+        {
+            if(dmaTransmitEnabled.Value && txFifo.Count <= (int)transmitDataLevel.Value && !dmaTxInProgress)
+            {
+                // Trigger DMA TX transfer
+                dmaTxInProgress = true;
+                dma.OnGPIO(DmaTxRequest, true);
+                dmaTxInProgress = false;
+            }
+
+            if(dmaReceiveEnabled.Value && rxFifo.Count >= (int)receiveDataLevel.Value + 1 && !dmaRxInProgress)
+            {
+                // Trigger DMA RX transfer
+                dmaRxInProgress = true;
+                dma.OnGPIO(DmaRxRequest, true);
+                dmaRxInProgress = false;
+            }
         }
 
         private void AbortTransmission()
@@ -705,6 +754,95 @@ namespace Antmicro.Renode.Peripherals.I2C
             txFifo.Clear();
             txAbort.Value = true;
             UpdateInterrupts();
+        }
+
+        private byte ReadData()
+        {
+            if(!controllerEnabled.Value)
+            {
+                this.Log(LogLevel.Debug, "Attempted read from FIFO, but controller is not enabled");
+                return 0x0;
+            }
+            if(!masterEnabled.Value)
+            {
+                this.Log(LogLevel.Debug, "Attempted read from FIFO, but master mode is not enabled");
+                return 0x0;
+            }
+            var dataByte = HandleReadFromReceiveFIFO();
+            UpdateInterrupts();
+            return dataByte;
+        }
+
+        private void WriteCommand()
+        {
+            if(!controllerEnabled.Value)
+            {
+                this.Log(LogLevel.Debug, "Attempted to perform a {0}, but controller is not enabled", command.Value);
+                return;
+            }
+            if(!masterEnabled.Value)
+            {
+                this.Log(LogLevel.Debug, "Attempted to perform a {0}, but master mode is not enabled", command.Value);
+                return;
+            }
+
+            switch(command.Value)
+            {
+                case Command.Write:
+                    if(restart.Value)
+                    {
+                        PerformTransmission();
+                        if(!restartEnabled.Value)
+                        {
+                            // Restart capability is not enabled.
+                            // Finish current transmission before starting the new one.
+                            SendFinishTransmission();
+                        }
+                    }
+                    // On hardware, the data byte would be transmitted on bus immediately when bus bandwidth allows it.
+                    // As a kind of emulation's optimization, we handle it at a higher transaction level.
+                    // We buffer bytes for transmission until STOP or RESTART condtion,
+                    // then we perform a batch transmission to I2C peripheral.
+                    HandleWriteToTransmitFIFO((byte)data.Value);
+                    if(stop.Value)
+                    {
+                        PerformTransmission();
+                        SendFinishTransmission();
+                        stopDetected.Value = true;
+                    }
+                    break;
+                case Command.Read:
+                    // Flush an ongoing transfer in the opposite direction (TX).
+                    // If there was no ongoing TX transfer, this is no-op.
+                    // If there was an ongoing TX transfer, I2C peripheral should see all queued data until now.
+                    PerformTransmission();
+                    if(restart.Value)
+                    {
+                        PerformReception();
+                        if(!restartEnabled.Value)
+                        {
+                            // Restart capability is not enabled.
+                            // Finish current transmission before starting the new one.
+                            SendFinishTransmission();
+                        }
+                    }
+                    // We just increment an internal counter, but do not perform the actual reception.
+                    // It is a kind of emulation's optimization to not transfer byte by byte.
+                    // Instead track the number of bytes belonging to a transaction
+                    // and perform a batch reception on STOP or RESTART condition.
+                    bytesToReceive = checked(bytesToReceive + 1);
+                    if(stop.Value)
+                    {
+                        PerformReception();
+                        SendFinishTransmission();
+                        stopDetected.Value = true;
+                    }
+                    break;
+                default:
+                    throw new Exception("Unreachable");
+            }
+            UpdateInterrupts();
+            CheckDMATriggers();
         }
 
         private byte HandleReadFromReceiveFIFO()
@@ -852,28 +990,45 @@ namespace Antmicro.Renode.Peripherals.I2C
         private IFlagRegisterField txEmptyMask;
         private IFlagRegisterField txAbortMask;
         private IFlagRegisterField activityDetectedMask;
+        private IFlagRegisterField stopDetectedMask;
         private IFlagRegisterField rxUnderflow;
         private IFlagRegisterField txOverflow;
         private IFlagRegisterField txAbort;
         private IFlagRegisterField activityDetected;
+        private IFlagRegisterField stopDetected;
         private IValueRegisterField rxFifoThreshold;
         private IValueRegisterField txFifoThreshold;
         private IFlagRegisterField controllerEnabled;
         private IFlagRegisterField txBlocked;
+        private IFlagRegisterField dmaReceiveEnabled;
+        private IFlagRegisterField dmaTransmitEnabled;
         private IValueRegisterField fastSpeedSpikeLength;
         private IValueRegisterField highSpeedSpikeLength;
+        private IValueRegisterField transmitDataLevel;
+        private IValueRegisterField receiveDataLevel;
+        private IValueRegisterField data;
+        private IEnumRegisterField<Command> command;
+        private IFlagRegisterField stop;
+        private IFlagRegisterField restart;
+        private IFlagRegisterField restartEnabled;
 
+        private ByteRegister dataCommandOffset1Shadow;
+        private bool dmaRxInProgress;
+        private bool dmaTxInProgress;
         private int bytesToReceive;
 
         private readonly Queue<byte> txFifo;
         private readonly Queue<byte> transmission;
         private readonly Queue<byte> rxFifo;
+        private readonly IGPIOReceiver dma;
 
         private const uint ClockHighMinCount = 6;
         private const uint StandardSpeedClockHighMaxCount = 65525;
         private const uint ClockLowMinCount = 8;
         private const uint MinSpikeLength = 1;
         private const int FifoSize = 32;
+        private const int DmaRxRequest = 6;
+        private const int DmaTxRequest = 7;
 
         private enum Registers
         {
