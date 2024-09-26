@@ -41,7 +41,12 @@ namespace Antmicro.Renode.Peripherals.USB
 
         public override void Unregister(IUSBDevice peripheral)
         {
-            devices.Remove(peripheral);
+            bool found = devices.TryGetValue(peripheral, out var address);
+            if(found)
+            {
+                devices.Remove(peripheral);
+                ChildCollection.Remove(address);
+            }
         }
 
         protected virtual void DeviceEnumerated(IUSBDevice device)
@@ -120,7 +125,10 @@ namespace Antmicro.Renode.Peripherals.USB
                 {
                     return false;
                 }
-
+                // Add to child collection. It's not yet fully connected (not in devices)
+                // When the enumeration fails, or device is needed before enumeration (e.g CDC ACM UART)
+                // then we can still access the device and it doesn't get lost.
+                ChildCollection.Add(addressCounter, peripheral);
                 // Initialize device with it's first configuration
                 // Note: Delay here is necessary, as if we start to do anything before
                 // the USB device gets to pullup, then we'll stall endpoints 
