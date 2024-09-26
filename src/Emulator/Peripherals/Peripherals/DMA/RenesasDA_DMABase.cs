@@ -34,6 +34,10 @@ namespace Antmicro.Renode.Peripherals.DMA
         {
             RegistersCollection.Reset();
             interruptsManager.Reset();
+            foreach(var channel in channels)
+            {
+                channel.Reset();
+            }
         }
 
         public uint ReadDoubleWord(long offset)
@@ -46,11 +50,18 @@ namespace Antmicro.Renode.Peripherals.DMA
             RegistersCollection.Write(offset, mask);
         }
 
+        /*
+         GPIO number is used to identify a peripheral that requested DMA transfer and its direction (rx/tx).
+        */
         public void OnGPIO(int number, bool value)
         {
-            if(number < 0 && number >= channelCount)
+            var peripheralSource = number / 2;
+            var oddChannel = number % 2;
+
+            // See Table 528: DMA_REQ_MUX_REG.
+            if(peripheralSource < 0 || peripheralSource >= 16)
             {
-                this.ErrorLog("Invalid channel number: {0}. Expected value between 0 and {1}", number, channelCount - 1);
+                this.ErrorLog("DMA request from unknown source: {0}. Allowed values are in the range 0-15", peripheralSource);
                 return;
             }
 
@@ -60,10 +71,10 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
             // Documentation 35.21
             // DMA_REQ_MUX_REG - Select which combination of peripherals are mapped on the DMA channels.
-            var index = Array.FindIndex(peripheralSelect, val => (int)val.Value == number);
+            var index = Array.FindIndex(peripheralSelect, val => (int)val.Value == peripheralSource);
             if(index != -1)
             {
-                var channelID = MapPeripheralSelectToDMAChannel(index);
+                var channelID = index * 2 + oddChannel;
                 if(!channels[channelID].dmaEnabled.Value)
                 {
                     this.Log(LogLevel.Warning, "Channel {0} isn't enabled. Ignoring request", channelID);
@@ -80,8 +91,6 @@ namespace Antmicro.Renode.Peripherals.DMA
         public DoubleWordRegisterCollection RegistersCollection { get; }
 
         public GPIO IRQ { get; } = new GPIO();
-
-        protected abstract int MapPeripheralSelectToDMAChannel(int peripheralSelectIndex);
 
         protected readonly Channel[] channels;
         protected readonly InterruptManager<Interrupt> interruptsManager;
@@ -140,7 +149,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     .WithTaggedFlag("DMA_IDLE", 10)
                     .WithFlag(11, out channels[i].dmaInit, name: "DMA_INIT")
                     .WithTaggedFlag("REQ_SENSE", 12)
-                    .WithTag("BURST_MODE", 13, 2)
+                    .WithEnumField(13, 2, out channels[i].burstMode, name: "BURST_MODE")
                     .WithTaggedFlag("BUS_ERROR_DETECT", 15)
                     .WithTaggedFlag("DMA_EXCLUSIVE_ACCESS", 16)
                     .WithReservedBits(17, 15)
@@ -166,17 +175,33 @@ namespace Antmicro.Renode.Peripherals.DMA
                 engine = new DmaEngine(parent.machine.GetSystemBus(parent));
             }
 
+            public void Reset()
+            {
+                transferCompleted = false;
+            }
+
             public void DoTransfer()
             {
+                // Table 497: DMA0_IDX_REG
+                // When the transfer is completed and circular mode is not set,
+                // itemsAlreadyTransferred is automatically reset to 0 upon starting a new transfer.
+                if(transferCompleted && !circularMode.Value)
+                {
+                    transferCompleted = false;
+                    itemsAlreadyTransferred.Value = 0;
+                }
+
                 var bytesToTransfer = (int)(transferLength.Value + 1) * (int)transferType;
                 if((ulong)bytesToTransfer == itemsAlreadyTransferred.Value)
                 {
                     parent.Log(LogLevel.Noisy, "All requested data are already transfered. Skipping this transfer.");
                     return;
                 }
-                // In normal mode, we are instantly coping requested data size,
+
+                // In normal mode, we are instantly copying requested data size,
                 // in peripheral trigger mode, peripheral should trigger DMA on each sample
-                var transactionLength = peripheralTriggered.Value ? (int)transferType : bytesToTransfer;
+                // unless burst mode is selected which requests a few samples at once.
+                var transactionLength = peripheralTriggered.Value ? (int)transferType * GetBurstCount(burstMode.Value) : bytesToTransfer;
                 Request getDescriptorData = new Request(sourceAddress, destinationAddress,
                     transactionLength, transferType, transferType, incrementSourceAddress.Value && !dmaInit.Value,
                     incrementDestinationAddress.Value);
@@ -199,22 +224,23 @@ namespace Antmicro.Renode.Peripherals.DMA
                     parent.interruptsManager.SetInterrupt((Interrupt)channelNumber);
                 }
 
-                if(peripheralTriggered.Value)
+                if((ulong)bytesToTransfer == itemsAlreadyTransferred.Value)
                 {
-                    if((ulong)bytesToTransfer == itemsAlreadyTransferred.Value)
+                    // Keep internal information about transfer state
+                    // to know if transfer continues or starts from begin.
+                    // Used for tracking peripheral triggered requests.
+                    transferCompleted = true;
+                }
+
+                if(peripheralTriggered.Value && transferCompleted)
+                {
+                    if(circularMode.Value)
                     {
-                        if(circularMode.Value)
-                        {
-                            CircularModeReset();
-                            return;
-                        }
-                        this.parent.Log(LogLevel.Noisy, "Disabling DMA channel because all items were transferred and circular mode is off");
-                        dmaEnabled.Value = false;
+                        CircularModeReset();
+                        return;
                     }
-                    if(((ulong)bytesToTransfer == itemsAlreadyTransferred.Value) && circularMode.Value)
-                    {
-                        itemsAlreadyTransferred.Value = 0;
-                    }
+                    this.parent.Log(LogLevel.Noisy, "Disabling DMA channel because all items were transferred and circular mode is off");
+                    dmaEnabled.Value = false;
                 }
             }
 
@@ -256,6 +282,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             public IFlagRegisterField peripheralTriggered;
             public IFlagRegisterField circularMode;
             public IFlagRegisterField dmaInit;
+            public IEnumRegisterField<BurstMode> burstMode;
             public TransferType transferType;
 
             private void CircularModeReset()
@@ -265,13 +292,36 @@ namespace Antmicro.Renode.Peripherals.DMA
                 itemsAlreadyTransferred.Value = 0;
             }
 
+            private int GetBurstCount(BurstMode mode)
+            {
+                switch(mode)
+                {
+                    case BurstMode.Disabled: return 1;
+                    case BurstMode.Four: return 4;
+                    case BurstMode.Eight: return 8;
+                    default:
+                        parent.WarningLog("Invalid selection of burst mode: {0}", mode);
+                        return 0;
+                }
+            }
+
             // For use in circular mode
             private ulong setSourceAddress;
             private ulong setDestinationAddress;
 
+            private bool transferCompleted;
+
             private readonly int channelNumber;
             private readonly RenesasDA_DMABase parent;
             private readonly DmaEngine engine;
+
+            public enum BurstMode
+            {
+                Disabled = 0,
+                Four = 1,
+                Eight = 2,
+                Reserved = 3
+            }
         }
 
         protected enum Interrupt

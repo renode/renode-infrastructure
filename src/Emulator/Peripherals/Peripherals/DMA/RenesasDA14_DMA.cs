@@ -35,11 +35,6 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         public long Size => 0x118;
 
-        protected override int MapPeripheralSelectToDMAChannel(int peripheralSelectIndex)
-        {
-            return (peripheralSelectIndex * 2) + 1;
-        }
-
         private const int ChannelCount = 6;
 
         private enum Registers
