@@ -41,7 +41,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 countFlag = true;
                 if(eventEnabled)
                 {
-                    SetPendingIRQ(15);
+                    SetPendingIRQ((int)SystemException.SysTick);
                 }
             };
             RegisterCollection = new DoubleWordRegisterCollection(this);
@@ -161,12 +161,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     return 0;
                 }
                 return cpu.FPDSCR;
-            case Registers.InterruptControlState:
-                lock(irqs)
-                {
-                    var activeIRQ = activeIRQs.Count == 0 ? 0 : activeIRQs.Peek();
-                    return (uint)activeIRQ;
-                }
             case Registers.SysTickControl:
                 var currentCountFlag = countFlag ? 1u << 16 : 0;
                 countFlag = false;
@@ -252,16 +246,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             case Registers.SysTickValue:
                 systick.Value = systick.Limit;
                 break;
-            case Registers.InterruptControlState:
-                if((value & (1u << 28)) != 0)
-                {
-                    SetPendingIRQ(14);
-                }
-                if((value & (1u << 31)) != 0)
-                {
-                    SetPendingIRQ(2);
-                }
-                break;
             case Registers.VectorTableOffset:
                 cpu.VectorTableOffset = value & 0xFFFFFF80;
                 break;
@@ -294,11 +278,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     // otherwise, we would be instantly waken up.
                     // This SysTick IRQ status isn't restored on exit from deep-sleep,
                     // system needs to account for this.
-                    var sysTickIRQ = irqs[15];
+                    var sysTickIRQ = irqs[(int)SystemException.SysTick];
                     if((sysTickIRQ & IRQState.Pending) > 0)
                     {
                         sysTickIRQ &= ~IRQState.Pending;
-                        pendingIRQs.Remove(15);
+                        pendingIRQs.Remove((int)SystemException.SysTick);
                         // call 'FindPendingInterrupt' to update 'maskedInterruptPresent'
                         // this variable is used to wake up CPU in tlib
                         FindPendingInterrupt();
@@ -330,8 +314,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 this.DebugLog("Priority of IRQ 11 set to 0x{0:X}.", (byte)(value >> 24));
                 break;
             case Registers.SystemHandlerPriority3:
-                priorities[14] = (byte)(value >> 16);
-                priorities[15] = (byte)(value >> 24);
+                priorities[(int)SystemException.PendSV] = (byte)(value >> 16);
+                priorities[(int)SystemException.SysTick] = (byte)(value >> 24);
                 this.DebugLog("Priority of IRQs 14, 15 set to 0x{0:X}, 0x{1:X} respectively.", (byte)(value >> 16), (byte)(value >> 24));
                 break;
             case Registers.CoprocessorAccessControl:
@@ -537,6 +521,59 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private void DefineRegisters()
         {
+            Registers.InterruptControlState.Define(RegisterCollection)
+                .WithTag("VECTACTIVE", 0, 9)
+                .WithReservedBits(9, 2)
+                .WithTaggedFlag("RETTOBASE", 11)
+                .WithValueField(12, 9, FieldMode.Read, valueProviderCallback: _ => (uint)FindPendingInterrupt(), name: "VECTPENDING")
+                .WithReservedBits(21, 1)
+                .WithTaggedFlag("ISRPENDING", 22)
+                .WithTaggedFlag("ISRPREEMPT", 23)
+                .WithTaggedFlag("STTNS", 24)
+                .WithFlag(25, FieldMode.WriteOneToClear, writeCallback: (_, value) =>
+                {
+                    if(value)
+                    {
+                        ClearPending((int)SystemException.SysTick);
+                    }
+                }, name: "PENDSTCLR")
+                .WithFlag(26, writeCallback: (_, value) =>
+                {
+                    if(value)
+                    {
+                        SetPendingIRQ((int)SystemException.SysTick);
+                    }
+                }, valueProviderCallback: _ => irqs[(int)SystemException.SysTick].HasFlag(IRQState.Pending), name: "PENDSTSET")
+                .WithFlag(27, FieldMode.WriteOneToClear, writeCallback: (_, value) =>
+                {
+                    if(value)
+                    {
+                        ClearPending((int)SystemException.PendSV);
+                    }
+                }, name: "PENDSVCLR")
+                .WithFlag(28, writeCallback: (_, value) =>
+                {
+                    if(value)
+                    {
+                        SetPendingIRQ((int)SystemException.PendSV);
+                    }
+                }, valueProviderCallback: _ => irqs[(int)SystemException.PendSV].HasFlag(IRQState.Pending), name: "PENDSVSET")
+                .WithReservedBits(29, 1)
+                .WithFlag(30, FieldMode.WriteOneToClear, writeCallback: (_, value) =>
+                {
+                    if(value)
+                    {
+                        ClearPending((int)SystemException.NMI);
+                    }
+                }, name: "PENDNMICLR")
+                .WithFlag(31, writeCallback: (_, value) =>
+                {
+                    if(value)
+                    {
+                        SetPendingIRQ((int)SystemException.NMI);
+                    }
+                }, valueProviderCallback: _ => irqs[(int)SystemException.NMI].HasFlag(IRQState.Pending), name: "PENDNMISET");
+
             Registers.SystemHandlerControlAndState.Define(RegisterCollection)
                 .WithTaggedFlag("MEMFAULTACT (Memory Manage Active)", 0)
                 .WithTaggedFlag("BUSFAULTACT (Bus Fault Active)", 1)
@@ -900,6 +937,23 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
+        private void ClearPending(int i)
+        {
+            lock(irqs)
+            {
+                if((irqs[i] & IRQState.Running) == 0)
+                {
+                    this.DebugLog("Cleared pending IRQ {0}.", i);
+                    irqs[i] &= ~IRQState.Pending;
+                    pendingIRQs.Remove(i);
+                }
+                else
+                {
+                    this.DebugLog("Not clearing pending IRQ {0} as it is currently running.", i);
+                }
+            }
+        }
+
         private void SetOrClearPendingInterrupt(int offset, uint value, bool set)
         {
             lock(irqs)
@@ -918,16 +972,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                             }
                             else
                             {
-                                if((irqs[i] & IRQState.Running) == 0)
-                                {
-                                    this.DebugLog("Cleared pending IRQ {0}.", i);
-                                    irqs[i] &= ~IRQState.Pending;
-                                    pendingIRQs.Remove(i);
-                                }
-                                else
-                                {
-                                    this.DebugLog("Not clearing pending IRQ {0} as it is currently running.", i);
-                                }
+                                ClearPending(i);
                             }
                         }
                         mask <<= 1;
@@ -1164,6 +1209,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             PMSAv7,
             PMSAv8
+        }
+
+        private enum SystemException
+        {
+            NMI = 2,
+            PendSV = 14,
+            SysTick = 15
         }
 
         // bit [16] DC / Cache enable. This is a global enable bit for data and unified caches.
