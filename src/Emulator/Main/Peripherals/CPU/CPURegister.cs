@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -66,10 +66,10 @@ namespace Antmicro.Renode.Peripherals.CPU
             return result;
         }
 
-        public int Index { get; private set; }
-        public bool IsGeneral { get; private set; }
-        public int Width { get; private set; }
-        public bool IsReadonly { get; private set; }
+        public int Index { get; }
+        public bool IsGeneral { get; }
+        public int Width { get; }
+        public bool IsReadonly { get; }
 
         // this is to support monitor output
         public override string ToString()
