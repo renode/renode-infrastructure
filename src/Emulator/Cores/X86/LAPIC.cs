@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 {
     public sealed class LAPIC : IDoubleWordPeripheral, IIRQController, IKnownSize
     {
-        public LAPIC(IMachine machine)
+        public LAPIC(IMachine machine, int id = 0)
         {
             // frequency guessed from driver and zephyr code
             localTimer = new LimitTimer(machine.ClockSource, 32000000, this, nameof(localTimer), direction: Direction.Descending, workMode: WorkMode.OneShot, eventEnabled: true, divider: 2);
@@ -37,8 +37,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 }
             };
             IRQ = new GPIO();
+            ID = id;
             DefineRegisters();
             Reset();
+            this.machine = machine;
         }
 
         public void OnGPIO(int number, bool value)
@@ -142,10 +144,16 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public GPIO IRQ { get; private set; }
 
+        public int ID { get; }
+
         private void DefineRegisters()
         {
             var addresses = new Dictionary<long, DoubleWordRegister>
             {
+                {(long)Registers.LocalAPICId, new DoubleWordRegister(this)
+                                .WithReservedBits(0, 24)
+                                .WithValueField(24, 8, FieldMode.Read, valueProviderCallback: _ => (ulong)this.ID)
+                },
                 {(long)Registers.LocalAPICVersion, new DoubleWordRegister(this, Version + (MaxLVTEntry << 16))
                                 .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ => Version)
                                 .WithValueField(16, 8, FieldMode.Read, valueProviderCallback: _ => MaxLVTEntry)
