@@ -304,8 +304,15 @@ namespace Antmicro.Renode.Peripherals.CPU
         .GroupBy(x => x.Value)
         .OrderBy(x => x.Key))
     {
+        var firstName = register.First().Name;
+        var id = register.Key;
+        var width = register.Select(x => x.Width).First();
+        var isGeneral = register.Any(x => GENERAL_REGISTERS.Contains(x.Name)) ? "true" : "false";
+        var isReadonly = register.Any(x => UNSETTABLE_REGISTERS.Contains(x.Name)) ? "true" : "false";
+        var names = String.Join(", ", register.Select(x => $"\"{x.Name}\""));
+        var aliases = $"new [] {{ {names} }}";
 #>
-            { <#=CLASS_NAME#>Registers.<#=register.First().Name#>,  new CPURegister(<#=register.Key#>, <#=register.Select(x => x.Width).First()#>, isGeneral: <#= register.Any(x => GENERAL_REGISTERS.Contains(x.Name)) ? "true" : "false" #>, isReadonly: <#= register.Any(x => UNSETTABLE_REGISTERS.Contains(x.Name)) ? "true" : "false" #>) },
+            { <#=CLASS_NAME#>Registers.<#=firstName#>,  new CPURegister(<#=id#>, <#=width#>, isGeneral: <#=isGeneral#>, isReadonly: <#=isReadonly#>, aliases: <#=aliases#>) },
 <#
     }
 #>
