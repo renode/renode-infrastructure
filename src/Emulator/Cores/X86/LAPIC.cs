@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Peripherals.Timers;
@@ -170,6 +171,45 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                                 .WithTag("Spurious Vector, older bits", 4, 4)
                                 .WithFlag(8, out lapicEnabled, changeCallback: ApicEnabledChanged, name: "APIC S/W enable/disable")
                 },
+                {(long)Registers.InterruptCommandLo, new DoubleWordRegister(this)
+                                .WithTag("Vector", 0, 8)
+                                .WithValueField(8, 3, out var deliveryMode, name: "Delivery Mode")
+                                .WithTaggedFlag("Destination Mode", 11)
+                                .WithReservedBits(12, 2)
+                                .WithTaggedFlag("Level", 14)
+                                .WithTaggedFlag("Trigger Mode", 15)
+                                .WithReservedBits(16, 2)
+                                .WithTag("Destination Shorthand", 18, 2)
+                                .WithReservedBits(20, 12)
+                                .WithWriteCallback((_,__) =>
+                                {
+                                    switch((LocalVectorTableDeliveryMode)deliveryMode.Value)
+                                    {
+                                        case LocalVectorTableDeliveryMode.SIPI:
+                                            // Find the CPU of LAPIC with specified ID
+                                            var cpu = machine.SystemBus.GetCPUs().OfType<BaseX86>()
+                                                .FirstOrDefault(x => (ulong)x.Lapic.ID == destination.Value);
+
+                                            if(cpu == null)
+                                            {
+                                                this.WarningLog("There is no cpu having LAPIC with id {0}. Not sending IPI", destination.Value);
+                                            }
+                                            else
+                                            {
+                                                this.InfoLog("Unhalting cpu having LAPIC with id {0}", destination.Value);
+                                                cpu.IsHalted = false;
+                                            }
+                                            break;
+
+                                        default:
+                                            this.WarningLog("Received unsupported delivery mode value: {0}", deliveryMode.Value);
+                                            break;
+                                    }
+                                })
+                },
+                {(long)Registers.InterruptCommandHi, new DoubleWordRegister(this)
+                                .WithValueField(0, 32, out destination, name: "Destination Field")
+                },
                 {(long)Registers.LocalVectorTablePerformanceMonitorCounters, new DoubleWordRegister(this, 0x10000)
                                 .WithTag("Vector", 0, 8)
                                 .WithTag("Delivery Mode", 8, 3)
@@ -329,9 +369,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private DoubleWordRegisterCollection registers;
         private IFlagRegisterField localTimerMasked;
         private IValueRegisterField localTimerVector;
+        private IValueRegisterField destination;
         private IFlagRegisterField lapicEnabled;
 
         private readonly object sync = new object();
+        private readonly IMachine machine;
 
         private IRQState[] interrupts = new IRQState[availableVectors];
         private Stack<int> activeIrqs = new Stack<int>();
@@ -355,6 +397,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             SMI = 2,
             NMI = 4,
             INIT = 5,
+            SIPI = 6,
             ExtINT = 7
             //other values are reserved
         }
