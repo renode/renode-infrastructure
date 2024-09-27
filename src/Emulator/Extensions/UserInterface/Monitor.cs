@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -228,7 +228,6 @@ namespace Antmicro.Renode.UserInterface
             Commands.Add(new QuitCommand(this, x => currentMachine = x, () => Quitted));
             Commands.Add(new PeripheralsCommand(this, () => currentMachine));
             Commands.Add(new MonitorPathCommand(this, monitorPath));
-            Commands.Add(new UsingCommand(this, () => usings));
             Commands.Add(new StartCommand(this, includeCommand));
             Commands.Add(new SetCommand(this, "set", "VARIABLE", (x, y) => SetVariable(x, y, variables), (x, y) => EnableStringEater(x, y, VariableType.Variable),
                 DisableStringEater, () => stringEaterMode, GetVariableName));
