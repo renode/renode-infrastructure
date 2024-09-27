@@ -62,46 +62,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             Clustered = new BaseCPU[] { this };
         }
 
-        public string[,] GetRegistersValues()
-        {
-            var result = new Dictionary<string, ulong>();
-            var properties = GetType().GetProperties();
-
-            //uint may be marked with [Register]
-            var registerInfos = properties.Where(x => x.CanRead && x.GetCustomAttributes(false).Any(y => y is RegisterAttribute));
-            foreach(var registerInfo in registerInfos)
-            {
-                try
-                {
-                    result.Add(registerInfo.Name, (ulong)((dynamic)registerInfo.GetGetMethod().Invoke(this, null)));
-                }
-                catch(TargetInvocationException ex)
-                {
-                    if(!(ex.InnerException is RegisterValueUnavailableException))
-                    {
-                        // Something actually went wrong, unwrap exception
-                        ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
-                    }
-                    // Otherwise value is not available, ignore
-                }
-            }
-
-            //every field that is IRegister, contains properties interpreted as registers.
-            var compoundRegisters = properties.Where(x => typeof(IRegisters).IsAssignableFrom(x.PropertyType));
-            foreach(var register in compoundRegisters)
-            {
-                var compoundRegister = (IRegisters)register.GetGetMethod().Invoke(this, null);
-                foreach(var key in compoundRegister.Keys)
-                {
-                    result.Add("{0}{1}".FormatWith(register.Name, key), (ulong)(((dynamic)compoundRegister)[key]));
-                }
-
-            }
-            var table = new Table().AddRow("Name", "Value");
-            table.AddRows(result, x => x.Key, x => "0x{0:X}".FormatWith(x.Value));
-            return table.ToArray();
-        }
-
         public virtual void InitFromElf(IELF elf)
         {
             if(elf.GetBitness() > (int)bitness)
