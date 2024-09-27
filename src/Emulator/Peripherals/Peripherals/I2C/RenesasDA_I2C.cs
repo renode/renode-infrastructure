@@ -29,7 +29,7 @@ namespace Antmicro.Renode.Peripherals.I2C
     /// </summary>
     public class RenesasDA_I2C : SimpleContainer<II2CPeripheral>, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IWordPeripheral, IBytePeripheral, IKnownSize
     {
-        public RenesasDA_I2C(IMachine machine, IGPIOReceiver dma) : base(machine)
+        public RenesasDA_I2C(IMachine machine, IGPIOReceiver dma = null) : base(machine)
         {
             this.dma = dma;
             txFifo = new Queue<byte>();
@@ -734,6 +734,11 @@ namespace Antmicro.Renode.Peripherals.I2C
         {
             if(dmaTransmitEnabled.Value && txFifo.Count <= (int)transmitDataLevel.Value && !dmaTxInProgress)
             {
+                if(dma == null)
+                {
+                    this.Log(LogLevel.Warning, "DMA TX trigger activated, but no DMA module is available. Make sure to pass reference to it to the constructor.");
+                    return;
+                }
                 // Trigger DMA TX transfer
                 dmaTxInProgress = true;
                 dma.OnGPIO(DmaTxRequest, true);
@@ -742,6 +747,11 @@ namespace Antmicro.Renode.Peripherals.I2C
 
             if(dmaReceiveEnabled.Value && rxFifo.Count >= (int)receiveDataLevel.Value + 1 && !dmaRxInProgress)
             {
+                if(dma == null)
+                {
+                    this.Log(LogLevel.Warning, "DMA RX trigger activated, but no DMA module is available. Make sure to pass reference to it to the constructor.");
+                    return;
+                }
                 // Trigger DMA RX transfer
                 dmaRxInProgress = true;
                 dma.OnGPIO(DmaRxRequest, true);
