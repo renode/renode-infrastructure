@@ -25,6 +25,7 @@ namespace Antmicro.Renode.Peripherals.Analog
                 channelCount: 19,
                 hasPrescaler: false,
                 hasVbatPin: true,
+                hasChannelSelect: true,
                 hasChannelSequence: true,
                 hasPowerRegister: false
             )

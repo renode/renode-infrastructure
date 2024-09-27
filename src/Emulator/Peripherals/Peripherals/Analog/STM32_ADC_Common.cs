@@ -41,16 +41,18 @@ namespace Antmicro.Renode.Peripherals.Analog
     //                          but only scanning sequentially either forwards or backwards.
     //    *hasPowerRegister --- Specifies whether this ADC has a separate register for power managment.
     //                          If false, that means the model exposes features like auto-off in one of the configuration registers.
+    //    *hasChannelSelect --- Specifies whether this ADC has channel selection register.
+    //                          If false, third watchdog threshold configuration register will live under this register's offset.
     //
     // * - Feature is either partially implemented, or not at all.
     public abstract class STM32_ADC_Common : IKnownSize, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IDoubleWordPeripheral
     {
         public STM32_ADC_Common(IMachine machine, double referenceVoltage, uint externalEventFrequency, int dmaChannel = 0, IDMA dmaPeripheral = null,
             int? watchdogCount = null, bool? hasCalibration = null, int? channelCount = null, bool? hasPrescaler = null,
-            bool? hasVbatPin = null, bool? hasChannelSequence = null, bool? hasPowerRegister = null)
+            bool? hasVbatPin = null, bool? hasChannelSequence = null, bool? hasPowerRegister = null, bool? hasChannelSelect = null)
         {
             if(!watchdogCount.HasValue || !hasCalibration.HasValue || !channelCount.HasValue || !hasPrescaler.HasValue ||
-                !hasVbatPin.HasValue || !hasChannelSequence.HasValue || !hasPowerRegister.HasValue)
+                !hasVbatPin.HasValue || !hasChannelSequence.HasValue || !hasPowerRegister.HasValue || !hasChannelSelect.HasValue)
             {
                 throw new ConstructionException("Missing configuration options");
             }
@@ -79,6 +81,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             bool powerRegister = hasPowerRegister.Value;
             ChannelCount = channelCount.Value;
             WatchdogCount = watchdogCount.Value;
+            this.hasChannelSelect = hasChannelSelect.Value;
 
             if(WatchdogCount < 1 || WatchdogCount > 3)
             {
@@ -157,6 +160,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             enabled = false;
             externalTrigger = false;
             sequenceInProgress = false;
+            sequenceCounter = 0;
             samplingThread.Stop();
         }
 
@@ -208,7 +212,15 @@ namespace Antmicro.Renode.Peripherals.Analog
                 this.Log(LogLevel.Warning, "Issued a start event before the last sequence finished");
                 return;
             }
-            currentChannel = (scanDirection.Value == ScanDirection.Ascending) ? 0 : ChannelCount - 1;
+            if(hasChannelSelect)
+            {
+                currentChannel = (scanDirection.Value == ScanDirection.Ascending) ? 0 : ChannelCount - 1;
+            }
+            else
+            {
+                sequenceCounter = (scanDirection.Value == ScanDirection.Ascending) ? 0 : (int)regularSequenceLength.Value;
+                currentChannel = (int)regularSequence[sequenceCounter].Value;
+            }
             sequenceInProgress = true;
             startFlag.Value = true;
             SampleNextChannel();
@@ -248,13 +260,24 @@ namespace Antmicro.Renode.Peripherals.Analog
             if(!enabled)
             {
                 currentChannel = 0;
+                sequenceCounter = 0;
                 sequenceInProgress = false;
                 return;
             }
 
-            while(currentChannel < ChannelCount && currentChannel >= 0)
+            Func<bool> iterationFinished = null;
+            if(hasChannelSelect)
             {
-                if(!channelSelected[currentChannel])
+                iterationFinished = () => currentChannel >= ChannelCount;
+            }
+            else
+            {
+                iterationFinished = () => sequenceCounter > (int)regularSequenceLength.Value;
+            }
+
+            while(!iterationFinished() && currentChannel >= 0)
+            {
+                if(hasChannelSelect && !channelSelected[currentChannel])
                 {
                     SwitchToNextChannel();
                     continue;
@@ -289,6 +312,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             this.Log(LogLevel.Debug, "No more channels enabled");
             endOfSequenceFlag.Value = true;
             sequenceInProgress = false;
+            sequenceCounter  = 0;
             UpdateInterrupts();
             startFlag.Value = false;
 
@@ -301,7 +325,20 @@ namespace Antmicro.Renode.Peripherals.Analog
 
         private void SwitchToNextChannel()
         {
-            currentChannel = (scanDirection.Value == ScanDirection.Ascending) ? currentChannel + 1 : currentChannel - 1;
+            if(hasChannelSelect)
+            {
+                currentChannel = (scanDirection.Value == ScanDirection.Ascending) ? currentChannel + 1 : currentChannel - 1;
+            }
+            else
+            {
+                sequenceCounter = (scanDirection.Value == ScanDirection.Ascending) ? sequenceCounter + 1 : sequenceCounter - 1;
+                // NOTE: Sequence finishes when `sequenceCounter` is either greater than `regularSequenceLength` or less than `0`.
+                // In both of those cases, we assume that at this point `currentChannel` will contain invalid value.
+                if(sequenceCounter >= 0 && sequenceCounter <= (int)regularSequenceLength.Value)
+                {
+                    currentChannel = (int)regularSequence[sequenceCounter].Value;
+                }
+            }
         }
 
         private uint GetSampleFromChannel(int channelNumber)
@@ -427,15 +464,37 @@ namespace Antmicro.Renode.Peripherals.Analog
                     .WithReservedBits(15, 1);
             }
 
+            var regularSequence1 = new DoubleWordRegister(this);
+
             if(hasChannelSequence)
             {
-                configurationRegister1
-                    .WithFlag(21, name: "CHSELRMOD"); // no actual logic, but software expects to read the value back
+                if(hasChannelSelect)
+                {
+                    configurationRegister1
+                        .WithFlag(21, name: "CHSELRMOD"); // no actual logic, but software expects to read the value back
+                }
+                else
+                {
+                    regularSequence1
+                        .WithValueField(0, 4, out regularSequenceLength)
+                        .WithReservedBits(28, 4);
+
+                    for(var i = 0; i < 4; ++i)
+                    {
+                        var j = i;
+                        regularSequence1
+                            .WithReservedBits(4 + 6 * i, 2)
+                            .WithValueField(6 + 6 * i, 4, out regularSequence[j]);
+                    }
+                }
             }
             else
             {
                 configurationRegister1
                     .WithReservedBits(21, 1);
+
+                regularSequence1
+                    .WithReservedBits(0, 32);
             }
 
             var configurationRegister2 = new DoubleWordRegister(this)
@@ -522,12 +581,7 @@ namespace Antmicro.Renode.Peripherals.Analog
                     .WithTag("SMP", 0, 3)
                     .WithReservedBits(3, 29)
                 },
-                {(long)Registers.ChannelSelection, new DoubleWordRegister(this)
-                    .WithFlags(0, ChannelCount,
-                           valueProviderCallback: (id, __) => channelSelected[id],
-                           writeCallback: (id, _, val) => { this.Log(LogLevel.Debug, "Channel {0} enable set as {1}", id, val); channelSelected[id] = val; })
-                    .WithReservedBits(ChannelCount, 32 - ChannelCount)
-                },
+                {(long)Registers.RegularSequence1, regularSequence1},
                 {(long)Registers.DataRegister, new DoubleWordRegister(this)
                     .WithValueField(0, 16, out data, FieldMode.Read, readCallback: (_, __) =>
                         {
@@ -544,6 +598,16 @@ namespace Antmicro.Renode.Peripherals.Analog
             };
 
             // Optional registers
+            if(hasChannelSelect)
+            {
+                registers.Add((long)Registers.ChannelSelection, new DoubleWordRegister(this)
+                    .WithFlags(0, ChannelCount,
+                           valueProviderCallback: (id, __) => channelSelected[id],
+                           writeCallback: (id, _, val) => { this.Log(LogLevel.Debug, "Channel {0} enable set as {1}", id, val); channelSelected[id] = val; })
+                    .WithReservedBits(ChannelCount, 32 - ChannelCount)
+                );
+            }
+
             if(WatchdogCount >= 1)
             {
                 registers.Add((long)Registers.Watchdog1Threshold, new DoubleWordRegister(this)
@@ -565,7 +629,8 @@ namespace Antmicro.Renode.Peripherals.Analog
             }
             if(WatchdogCount == 3)
             {
-                registers.Add((long)Registers.Watchdog3Threshold, new DoubleWordRegister(this)
+                // NOTE: If given implementation doesn't have channel selection, the third Watchdog Threshold will be under ChannelSelection offset
+                registers.Add(hasChannelSelect ? (long)Registers.Watchdog3Threshold : (long)Registers.ChannelSelection, new DoubleWordRegister(this)
                     .WithValueField(0, 12, out analogWatchdogLowValues[2], name: "LT")
                     .WithReservedBits(12, 4)
                     .WithValueField(16, 12, out analogWatchdogHighValues[2], name: "HT")
@@ -594,6 +659,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         }
 
         private int currentChannel;
+        private int sequenceCounter;
         private bool enabled;
         private bool externalTrigger;
         private bool sequenceInProgress;
@@ -632,8 +698,12 @@ namespace Antmicro.Renode.Peripherals.Analog
         private IValueRegisterField[] analogWatchdogHighValues;
         private IValueRegisterField[] analogWatchdogLowValues;
 
+        private IValueRegisterField regularSequenceLength;
+        private IValueRegisterField[] regularSequence = new IValueRegisterField[MaximumSequenceLength];
+
         private readonly IDMA dma;
         private readonly int dmaChannel;
+        private readonly bool hasChannelSelect;
         private readonly uint externalEventFrequency;
         private readonly double referenceVoltage;
         private readonly IManagedThread samplingThread;
@@ -643,6 +713,8 @@ namespace Antmicro.Renode.Peripherals.Analog
 
         private readonly int ChannelCount;
         private readonly int WatchdogCount;
+
+        private const int MaximumSequenceLength = 16;
 
         private enum Resolution
         {
@@ -677,6 +749,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             Watchdog2Threshold     = 0x24, // ADC_AWD2TR
             ChannelSelection       = 0x28, // ADC_CHSELR
             Watchdog3Threshold     = 0x2C, // ADC_AWD3TR
+            RegularSequence1       = 0x30, // ADC_SQR1
             // Gap intended
             DataRegister           = 0x40, // ADC_DR
             // Gap intended

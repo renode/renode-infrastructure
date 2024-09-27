@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -25,6 +25,7 @@ namespace Antmicro.Renode.Peripherals.Analog
                 channelCount: 14,
                 hasPrescaler: true,
                 hasVbatPin: false,
+                hasChannelSelect: true,
                 hasChannelSequence: true,
                 hasPowerRegister: true
             )
