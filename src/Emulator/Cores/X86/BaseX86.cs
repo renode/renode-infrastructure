@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     {
         public BaseX86(string cpuType, IMachine machine, LAPIC lapic, CpuBitness bitness): base(cpuType, machine, Endianess.LittleEndian, bitness)
         {
-            this.lapic = lapic;
+            Lapic = lapic;
         }
 
         public void SetDescriptor(SegmentDescriptor descriptor, uint selector, uint baseAddress, uint limit, uint flags)
@@ -42,6 +42,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 neverWaitForInterrupt = value;
             }
         }
+
+        public LAPIC Lapic { get; }
 
         protected override Interrupt DecodeInterrupt(int number)
         {
@@ -99,7 +101,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         private int GetPendingInterrupt()
         {
-            return lapic.GetPendingInterrupt();
+            return Lapic.GetPendingInterrupt();
         }
 
         [Export]
@@ -115,8 +117,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         private ActionUInt32UInt32UInt32UInt32 TlibSetCsDescriptor;
 
 #pragma warning restore 649
-
-        private readonly LAPIC lapic;
 
         private readonly Dictionary<ulong, string> ExceptionDescriptionsMap = new Dictionary<ulong, string>
         {
