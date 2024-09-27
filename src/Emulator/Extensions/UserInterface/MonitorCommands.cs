@@ -32,7 +32,7 @@ namespace Antmicro.Renode.UserInterface
     {
         public event Action Quitted;
 
-        private readonly List<string> usings = new List<string>();
+        private readonly List<string> usings = new List<string>() { "sysbus." };
 
         public enum NumberModes
         {
