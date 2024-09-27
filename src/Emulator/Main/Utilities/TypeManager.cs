@@ -606,7 +606,7 @@ namespace Antmicro.Renode.Utilities
                 }
                 if(assemblyFromTypeName.ContainsKey(fullName))
                 {
-                    throw new InvalidOperationException("Tried to load assembly that has been already loaded. Aborting operation.");
+                    throw new InvalidOperationException($"Tried to load assembly '{fullName}' that has been already loaded. Aborting operation.");
                 }
                 assemblyFromTypeName.Add(fullName, newAssemblyDescription);
                 if(extractedMethods != null)
