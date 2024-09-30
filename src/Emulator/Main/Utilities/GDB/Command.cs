@@ -117,7 +117,11 @@ namespace Antmicro.Renode.Utilities.GDB
             var cpu = manager.Cpu as ICPUWithMMU;
             if(cpu == null)
             {
-                return null;
+                // NOTE: If given CPU doesn't support MMU, we just assume 1:1 translation
+                return new List<MemoryFragment>()
+                {
+                    new MemoryFragment(address, length)
+                };
             }
                 
             var pageSize = (ulong)cpu.PageSize;
