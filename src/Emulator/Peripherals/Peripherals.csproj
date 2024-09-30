@@ -721,6 +721,7 @@
     <Compile Include="Peripherals\CPU\LLVMArchitectureMapping.cs" />
     <Compile Include="Peripherals\CPU\Assembler\IAssembler.cs" />
     <Compile Include="Peripherals\CPU\Assembler\LLVMAssembler.cs" />
+    <Compile Include="Peripherals\Analog\STM32F3_ADC.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
