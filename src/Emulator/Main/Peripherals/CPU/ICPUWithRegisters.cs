@@ -29,6 +29,11 @@ namespace Antmicro.Renode.Peripherals.CPU
     public static class ICPUWithRegistersExtensions
     {
         // this is to support Python integration
+        public static ulong GetRegisterUlong(this ICPUWithRegisters cpu, int register)
+        {
+            return cpu.GetRegister(register).RawValue;
+        }
+
         public static void SetRegisterUlong(this ICPUWithRegisters cpu, int register, ulong value)
         {
             cpu.SetRegister(register, value);
