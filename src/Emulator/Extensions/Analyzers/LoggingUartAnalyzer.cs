@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -41,10 +41,7 @@ namespace Antmicro.Renode.Analyzers
             uart = backend.UART;
 
             // let's find out to which machine this uart belongs
-            if(!EmulationManager.Instance.CurrentEmulation.TryGetMachineForPeripheral(uart, out machine))
-            {
-                throw new RecoverableException("Given uart does not belong to any machine.");
-            }
+            machine = uart.GetMachine();
         }
 
         public override void Show()
