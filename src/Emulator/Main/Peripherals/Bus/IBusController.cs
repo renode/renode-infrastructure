@@ -132,6 +132,24 @@ namespace Antmicro.Renode.Peripherals.Bus
             bus.ZeroRange(from.By(size), context);
         }
 
+        public static ulong GetSymbolAddress(this IBusController bus, string symbolName, int index, ICPU context = null)
+        {
+            if(!bus.TryGetAllSymbolAddresses(symbolName, out var addressesEnumerable, context))
+            {
+                throw new RecoverableException($"Could not find any address for symbol: {symbolName}");
+            }
+            var addresses = addressesEnumerable.ToArray();
+            if(index < 0 || index >= addresses.Length)
+            {
+                var msg = (addresses.Length == 1)
+                    ? "there is only one address"
+                    : "there are only {addresses.Length} addresses";
+
+                throw new RecoverableException($"Wrong index {index}: {msg} (0-based index) for '{symbolName}'");
+            }
+            return addresses[index];
+        }
+
         public static ulong GetSymbolAddress(this IBusController bus, string symbolName, ICPU context = null)
         {
             if(!bus.TryGetAllSymbolAddresses(symbolName, out var addressesEnumerable, context))
