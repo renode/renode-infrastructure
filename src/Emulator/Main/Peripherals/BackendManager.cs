@@ -112,6 +112,7 @@ namespace Antmicro.Renode.Peripherals
 
             analyzer = CreateAndAttach(analyzerType, backend);
             activeAnalyzers.Add(analyzer);
+            PeripheralBackendAnalyzerCreated?.Invoke(analyzer);
             return true;
         }
 
@@ -129,6 +130,7 @@ namespace Antmicro.Renode.Peripherals
             {
                 analyzer = CreateAndAttach(analyzerType, backend);
                 activeAnalyzers.Add(analyzer);
+                PeripheralBackendAnalyzerCreated?.Invoke(analyzer);
                 return true;
             }
 
@@ -166,6 +168,8 @@ namespace Antmicro.Renode.Peripherals
                 activeAnalyzers.Remove(rem);
             }
         }
+
+        public event Action<IAnalyzableBackendAnalyzer> PeripheralBackendAnalyzerCreated;
 
         private IAnalyzableBackendAnalyzer CreateAndAttach(Type analyzerType, object backend)
         {
