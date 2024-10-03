@@ -23,12 +23,4 @@
       </EmbeddedResource>
     </ItemGroup>
   </Target>
-
-  <Target Name="ActualClean" DependsOnTargets="_PrepareProperties">
-  </Target>
-
-  <!-- It is intended to have 'Clean' and 'ActualClean' targets separated.
-         Thanks to this multiple calling of 'Clean' from MSBuild task will not cause
-         'ActualClean' to run more than once. -->
-  <Target Name="Clean" DependsOnTargets="ActualClean" />
 </Project>
