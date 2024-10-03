@@ -4,7 +4,7 @@ include (ExternalProject)
 project (renode-cores)
 
 # Contains definitions that are used both here and in tlib
-include (tlib/shared.cmake)
+include (tlib/common.cmake)
 
 add_definitions (
     -DTLIB_LIB_TYPE=OBJECT
