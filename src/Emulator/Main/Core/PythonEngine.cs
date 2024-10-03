@@ -52,7 +52,8 @@ namespace Antmicro.Renode.Core
             "clr.ImportExtensions(Antmicro.Renode.Peripherals.CPU.ICPUWithRegistersExtensions)",
             "import Antmicro.Renode.Core.Extensions.FileLoaderExtensions",
             "clr.ImportExtensions(Antmicro.Renode.Core.Extensions.FileLoaderExtensions)",
-            "import Antmicro.Renode.Logging.LogLevel as LogLevel"
+            "import Antmicro.Renode.Logging.LogLevel as LogLevel",
+            "clr.ImportExtensions(Antmicro.Renode.Peripherals.Bus.BusControllerExtensions)",
         };
 
         protected virtual string[] ReservedVariables
