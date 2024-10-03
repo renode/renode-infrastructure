@@ -27,7 +27,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             if(!ModelTranslations.TryGetValue(cpu.Model, out model))
             {
-                model = cpu.Model;
+                model = cpu.Model.ToLower();
             }
 
             if(model == "cortex-r52")
