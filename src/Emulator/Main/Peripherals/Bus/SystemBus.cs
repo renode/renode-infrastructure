@@ -761,17 +761,6 @@ namespace Antmicro.Renode.Peripherals.Bus
             return symbolAddresses;
         }
 
-        public ulong GetSymbolAddress(string symbolName, ICPU context = null)
-        {
-            var addresses = GetAllSymbolAddresses(symbolName, context).ToArray();
-            if(addresses.Length > 1)
-            {
-                throw new RecoverableException(string.Format("Ambiguous symbol name: `{0}`. Use GetAllSymbolAddresses to get all possible addresses.", symbolName));
-            }
-            return addresses[0];
-
-        }
-
         public string FindSymbolAt(ulong offset, ICPU context = null)
         {
             if(!TryFindSymbolAt(offset, out var name, out var _, context))

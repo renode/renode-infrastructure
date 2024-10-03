@@ -336,11 +336,6 @@ namespace Antmicro.Renode.Peripherals.Bus
             ParentController.UnregisterFromAddress(address, context);
         }
 
-        public virtual ulong GetSymbolAddress(string symbolName, ICPU context = null)
-        {
-            return ParentController.GetSymbolAddress(symbolName, context);
-        }
-
         public virtual IBusRegistered<MappedMemory> FindMemory(ulong address, ICPU context = null)
         {
             return ParentController.FindMemory(address, context);
@@ -384,6 +379,11 @@ namespace Antmicro.Renode.Peripherals.Bus
         public virtual SymbolLookup GetLookup(ICPU context = null)
         {
             return ParentController.GetLookup(context);
+        }
+
+        public virtual bool TryGetAllSymbolAddresses(string symbolName, out IEnumerable<ulong> symbolAddresses, ICPU context = null)
+        {
+            return ParentController.TryGetAllSymbolAddresses(symbolName, out symbolAddresses, context);
         }
 
         public virtual IMachine Machine => ParentController.Machine;

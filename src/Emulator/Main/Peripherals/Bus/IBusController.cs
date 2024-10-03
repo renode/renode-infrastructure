@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Peripherals.CPU;
@@ -72,7 +73,8 @@ namespace Antmicro.Renode.Peripherals.Bus
         void ClearHookAfterPeripheralRead<T>(IBusPeripheral peripheral);
 
         string FindSymbolAt(ulong offset, ICPU context = null);
-        ulong GetSymbolAddress(string symbolName, ICPU context = null);
+
+        bool TryGetAllSymbolAddresses(string symbolName, out IEnumerable<ulong> symbolAddresses, ICPU context = null);
         bool TryFindSymbolAt(ulong offset, out string name, out Symbol symbol, ICPU context = null);
         string DecorateWithCPUNameAndPC(string str);
 
@@ -128,6 +130,20 @@ namespace Antmicro.Renode.Peripherals.Bus
         public static void ZeroRange(this IBusController bus, long from, long size, ICPU context = null)
         {
             bus.ZeroRange(from.By(size), context);
+        }
+
+        public static ulong GetSymbolAddress(this IBusController bus, string symbolName, ICPU context = null)
+        {
+            if(!bus.TryGetAllSymbolAddresses(symbolName, out var addressesEnumerable, context))
+            {
+                throw new RecoverableException($"Could not find any address for symbol: {symbolName}");
+            }
+            var addresses = addressesEnumerable.ToArray();
+            if(addresses.Length != 1)
+            {
+                throw new RecoverableException($"Found {addresses.Length} possible addresses for the symbol. Select which one you're interested in by providing a 0-based index or use the `GetAllSymbolAddresses` method");
+            }
+            return addresses[0];
         }
     }
 }
