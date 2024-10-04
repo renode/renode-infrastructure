@@ -730,7 +730,7 @@ namespace Antmicro.Renode.Utilities
         private static string[] interestingNamespacePrefixes = new []
         {
             "Antmicro.Renode",
-            "NetMQ"
+            "NetMQ",
         };
 
         // This list filters out assemblies that are known not to be interesting for TypeManager.
