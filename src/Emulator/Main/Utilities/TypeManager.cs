@@ -769,6 +769,7 @@ namespace Antmicro.Renode.Utilities
             "Mono.Cecil.Mdb.dll",
             "Mono.Cecil.Pdb.dll",
             "Mono.Cecil.Rocks.dll",
+            "NaCl.dll",
             "Newtonsoft.Json.dll",
             "Nini.dll",
             "NuGet.Frameworks.dll",
