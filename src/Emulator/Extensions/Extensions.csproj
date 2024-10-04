@@ -119,6 +119,8 @@
     <Compile Include="UserInterface\Commands\VerboseCommand.cs" />
     <Compile Include="Hooks\CpuHooksExtensions.cs" />
     <Compile Include="Hooks\BlockPythonEngine.cs" />
+    <Compile Include="Hooks\PSCIPythonEngine.cs" />
+    <Compile Include="Hooks\PSCIHookExtensions.cs" />
     <Compile Include="UserInterface\Exceptions\ParametersMismatchException.cs" />
     <Compile Include="UserInterface\Commands\ShowBackendAnalyzerCommand.cs" />
     <Compile Include="UserInterface\Commands\AnalyzersCommand.cs" />

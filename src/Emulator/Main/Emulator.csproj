@@ -312,6 +312,7 @@
     <Compile Include="Peripherals\CPU\ICPUWithMetrics.cs" />
     <Compile Include="Peripherals\CPU\ICPUWithNMI.cs" />
     <Compile Include="Peripherals\CPU\ICPUWithExternalMmu.cs" />
+    <Compile Include="Peripherals\CPU\ICPUWithPSCI.cs" />
     <Compile Include="Peripherals\CPU\ICPUWithMappedMemory.cs" />
     <Compile Include="Peripherals\CPU\ICPUWithRegisters.cs" />
     <Compile Include="Peripherals\CPU\ICPUWithOpcodeHooks.cs" />

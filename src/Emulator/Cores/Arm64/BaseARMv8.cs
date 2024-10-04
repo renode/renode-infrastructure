@@ -4,9 +4,13 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
 using System.Linq;
+using System.Collections.Generic;
 
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Hooks;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities.Binding;
 
@@ -14,11 +18,11 @@ using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public abstract class BaseARMv8 : TranslationCPU
+    public abstract class BaseARMv8 : TranslationCPU, ICPUWithPSCI
     {
         public BaseARMv8(uint cpuId, string cpuType, IMachine machine, Endianess endianness = Endianess.LittleEndian) : base(cpuId, cpuType, machine, endianness, CpuBitness.Bits64)
         {
-            psciCallsHandler = new PSCICallsHandler(this, machine);
+            this.customFunctionHandlers = new Dictionary<ulong, Action>();
         }
 
         public bool StubPSCICalls
@@ -34,74 +38,72 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public void AddCustomPSCIStub(ulong functionIdentifier, Action stub)
+        {
+            try
+            {
+                customFunctionHandlers.Add(functionIdentifier, stub);
+            }
+            catch(ArgumentException)
+            {
+                throw new RecoverableException(string.Format("There's already a handler for a function: 0x{0:X}", functionIdentifier));
+            }
+            this.Log(LogLevel.Debug, "Adding a handler for function: 0x{0:X}", functionIdentifier);
+        }
+
         [Export]
         private void HandleSMCCall()
         {
-            psciCallsHandler.HandleCall();
+            var x0 = (uint)GetRegister((int)ARMv8ARegisters.X0);
+            var x1 = (ulong)GetRegister((int)ARMv8ARegisters.X1);
+
+            if(customFunctionHandlers.TryGetValue(x0, out var handler))
+            {
+                handler();
+                return;
+            }
+
+            switch((Function)x0)
+            {
+                case Function.PSCIVersion:
+                    GetPSCIVersion();
+                    break;
+                case Function.CPUOn:
+                    UnhaltCpu((uint)x1);
+                    break;
+                default:
+                    this.Log(LogLevel.Error, "Encountered an unexpected PSCI call request: 0x{0:X}", x0);
+                    SetRegister((int)ARMv8ARegisters.X0, PSCICallResultNotSupported);
+                    return;
+            }
+
+            // Set return code to success
+            SetRegister((int)ARMv8ARegisters.X0, PSCICallResultSuccess);
+        }
+
+        private void GetPSCIVersion()
+        {
+            SetRegister((int)ARMv8ARegisters.X1, PSCIVersion);
+        }
+
+        private void UnhaltCpu(uint cpuId)
+        {
+            var cpu = machine.SystemBus.GetCPUs().Where(x => x.MultiprocessingId == cpuId).Single();
+            cpu.IsHalted = false;
         }
 
         private bool stubPSCICalls;
+        private readonly Dictionary<ulong, Action> customFunctionHandlers;
+        private const int PSCICallResultSuccess = 0;
+        private const int PSCICallResultNotSupported = -1;
+        private const int PSCIVersion = 2;
 
-        private readonly PSCICallsHandler psciCallsHandler;
-
-        private class PSCICallsHandler
+        // Currently we support only a subset of available functions and return codes.
+        // Full list can be found here: https://github.com/zephyrproject-rtos/zephyr/blob/main/drivers/pm_cpu_ops/pm_cpu_ops_psci.h
+        private enum Function : uint
         {
-            // Currently we support only a subset of available functions and return codes.
-            // Full list can be found here: https://github.com/zephyrproject-rtos/zephyr/blob/main/drivers/pm_cpu_ops/pm_cpu_ops_psci.h
-            public PSCICallsHandler(TranslationCPU parent, IMachine machine)
-            {
-                this.parent = parent;
-                this.machine = machine;
-            }
-
-            public void HandleCall()
-            {
-                var x0 = (uint)parent.GetRegister((int)ARMv8ARegisters.X0);
-                var x1 = (uint)parent.GetRegister((int)ARMv8ARegisters.X1);
-
-                switch((Function)x0)
-                {
-                    case Function.PSCIVersion:
-                        GetPSCIVersion();
-                        parent.SetRegister((int)ARMv8ARegisters.X0, PSCICallResultSuccess);
-                        break;
-                    case Function.CPUOn:
-                        UnhaltCpu(x1);
-                        break;
-                    default:
-                        parent.Log(LogLevel.Error, "Encountered an unexpected PSCI call request: 0x{0:X}", x0);
-                        parent.SetRegister((int)ARMv8ARegisters.X0, PSCICallResultNotSupported);
-                        return;
-                }
-
-                // Set return code to success
-                parent.SetRegister((int)ARMv8ARegisters.X0, PSCICallResultSuccess);
-            }
-
-            private void GetPSCIVersion()
-            {
-                parent.SetRegister((int)ARMv8ARegisters.X1, PSCIVersion);
-            }
-
-            private void UnhaltCpu(uint cpuId)
-            {
-                var cpu = machine.SystemBus.GetCPUs().Where(x => x.MultiprocessingId == cpuId).Single();
-                cpu.IsHalted = false;
-            }
-
-            private const int PSCICallResultSuccess = 0;
-            private const int PSCICallResultNotSupported = -1;
-
-            private const int PSCIVersion = 2;
-
-            private readonly TranslationCPU parent;
-            private readonly IMachine machine;
-
-            private enum Function : uint
-            {
-                PSCIVersion = 0x84000000,
-                CPUOn = 0xC4000003,
-            }
+            PSCIVersion = 0x84000000,
+            CPUOn = 0xC4000003,
         }
 
 #pragma warning disable 649
