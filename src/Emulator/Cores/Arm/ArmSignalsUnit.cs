@@ -277,6 +277,18 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             switch(type)
             {
             case UnitType.CortexR5:
+                // Cortex-R5 AHB/AXI peripheral interface signals, Virtual AXI has only base and size.
+                signals.InitSignal(this, "INITPPH", ArmSignals.AHBInitEnabled, cpuIndexedSignal: true);
+                signals.InitSignal(this, "INITPPX", ArmSignals.AXIInitEnabled, cpuIndexedSignal: true);
+
+                // Currently both CPUs share the same base and size values (R5 can only be dual-core).
+                signals.InitSignal(this, "PPHBASE", ArmSignals.AHBBaseAddress, width: 20);
+                signals.InitSignal(this, "PPXBASE", ArmSignals.AXIBaseAddress, width: 20);
+                signals.InitSignal(this, "PPVBASE", ArmSignals.VirtualAXIBaseAddress, width: 20);
+
+                signals.InitSignal(this, "PPHSIZE", ArmSignals.AHBSize, width: 5);
+                signals.InitSignal(this, "PPXSIZE", ArmSignals.AXISize, width: 5);
+                signals.InitSignal(this, "PPVSIZE", ArmSignals.VirtualAXISize, width: 5);
                 break;
             case UnitType.CortexR8:
                 signals.InitSignal(this, "MFILTEREN", ArmSignals.MasterFilterEnable, width: 1);
@@ -435,6 +447,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 switch(signalsUnit.unitType)
                 {
                 case UnitType.CortexR5:
+                    state.AHBRegionRegister = GetBusRegionRegister(ArmSignals.AHBBaseAddress, ArmSignals.AHBSize, ArmSignals.AHBInitEnabled);
+                    state.AXIRegionRegister = GetBusRegionRegister(ArmSignals.AXIBaseAddress, ArmSignals.AXISize, ArmSignals.AXIInitEnabled);
+                    state.VirtualAXIRegionRegister = GetBusRegionRegister(ArmSignals.VirtualAXIBaseAddress, ArmSignals.VirtualAXISize, initSignal: null);
                     break;
                 case UnitType.CortexR8:
                     state.PeripheralsBase = (uint)signalsUnit.GetSignal(ArmSignals.PeripheralsBase);
@@ -492,6 +507,18 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             public byte Index { get; }
 
             public ulong? PeripheralsBaseAtLastReset;
+
+            private uint GetBusRegionRegister(ArmSignals baseSignal, ArmSignals sizeSignal, ArmSignals? initSignal)
+            {
+                var value = 0u;
+                BitHelper.SetMaskedValue(ref value, (uint)signalsUnit.GetSignal(baseSignal), 12, 20);
+                BitHelper.SetMaskedValue(ref value, (uint)signalsUnit.GetSignal(sizeSignal), 2, 5);
+                if(initSignal != null)
+                {
+                    BitHelper.SetBit(ref value, 0, signalsUnit.IsSignalEnabledForCPU(initSignal.Value, cpu));
+                }
+                return value;
+            }
 
             private void MovePeripherals(ulong peripheralsBaseAddress)
             {
@@ -591,6 +618,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     switch(unitType)
                     {
                     case UnitType.CortexR5:
+                        mask |= 1u << (int)SignalsEnumSharedWithTlib.AHBRegionRegister;
+                        mask |= 1u << (int)SignalsEnumSharedWithTlib.AXIRegionRegister;
+                        mask |= 1u << (int)SignalsEnumSharedWithTlib.VirtualAXIRegionRegister;
                         break;
                     case UnitType.CortexR8:
                         mask |= 1u << (int)SignalsEnumSharedWithTlib.PeripheralsBase;
@@ -609,6 +639,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     HighExceptionVectors,
                     InitializeInstructionTCM,
                     PeripheralsBase,
+                    AHBRegionRegister,
+                    AXIRegionRegister,
+                    VirtualAXIRegionRegister,
                 }
             }
 
@@ -626,6 +659,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 public uint HighExceptionVectors;
                 public uint InitializeInstructionTCM;
                 public uint PeripheralsBase;
+
+                public uint AHBRegionRegister;
+                public uint AXIRegionRegister;
+                public uint VirtualAXIRegionRegister;
             }
 
             private enum PeriphbaseOffsets : ulong
@@ -925,5 +962,17 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         PeripheralsBase,
         PeripheralFilterEnd,
         PeripheralFilterStart,
+
+        // Cortex-R5 AHB/AXI peripheral interface region signals based on:
+        //   https://developer.arm.com/documentation/ddi0460/d/Signal-Descriptions/Configuration-signals
+        // There's no "enabled out-of-reset" signal for virtual AXI peripheral interface
+        AHBBaseAddress,
+        AHBInitEnabled,
+        AHBSize,
+        AXIBaseAddress,
+        AXIInitEnabled,
+        AXISize,
+        VirtualAXIBaseAddress,
+        VirtualAXISize,
     }
 }
