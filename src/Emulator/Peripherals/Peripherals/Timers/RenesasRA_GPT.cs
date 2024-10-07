@@ -353,7 +353,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             statusRegister
                 .WithFlag(6, FieldMode.Read | FieldMode.WriteZeroToClear, name: "TCFPO (Overflow Flag)",
                     valueProviderCallback: _ => channel.Overflow,
-                    writeCallback: (_, __) => channel.ClearOverflow()
+                    writeCallback: (_, __) => channel.Overflow = false
                 )
                 .WithFlag(7, name: "TCFPU (Underflow Flag)")
                 .WithReservedBits(8, 7)
@@ -472,23 +472,11 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             public void Reset()
             {
-                overflow = false;
+                Overflow = false;
                 timer.Reset();
                 Cycle = MaxLimit;
                 Direction = Direction.DownCounting;
                 Mode = Mode.SawWave;
-            }
-
-            public void ClearOverflow()
-            {
-                overflow = false;
-                UpdateInterrupts();
-            }
-
-            public void UpdateInterrupts()
-            {
-                IRQ[OvfInterruptIndex].Set(overflow);
-                IRQ[UdfInterruptIndex].Set(underflow);
             }
 
             public Mode Mode
@@ -554,31 +542,22 @@ namespace Antmicro.Renode.Peripherals.Timers
                     var newValue = value & MaxLimit;
                     if(newValue >= Cycle)
                     {
-                        overflow = true;
+                        Overflow = true;
+                        IRQ[OvfInterruptIndex].Blink();
                         timer.Reset();
                     }
                     else
                     {
-                        overflow = false;
+                        Overflow = false;
                         timer.Value = newValue;
                     }
-                    UpdateInterrupts();
                 }
             }
 
             public GPIO[] IRQ { get; }
 
-            public bool Overflow
-            {
-                get => overflow;
-                set
-                {
-                    if(AssertFalse("Overflow Flag", value))
-                    {
-                        overflow = value;
-                    }
-                }
-            }
+            public bool Overflow { get; set; }
+            public bool Underflow { get; set; }
 
             public const long InterruptCount = 9;
 
@@ -586,31 +565,20 @@ namespace Antmicro.Renode.Peripherals.Timers
             {
                 if(direction == Direction.UpCounting)
                 {
-                    overflow = true;
+                    Overflow = true;
+                    IRQ[OvfInterruptIndex].Blink();
                 }
                 else
                 {
-                    underflow = true;
+                    Underflow = true;
+                    IRQ[UdfInterruptIndex].Blink();
                 }
-                UpdateInterrupts();
-            }
-
-            private bool AssertFalse(string flag, bool value)
-            {
-                if(value)
-                {
-                    this.parent.Log(LogLevel.Warning, "GPT{0}: Writing 1 to {1} is forbidden", index, flag);
-                    return true;
-                }
-                return false;
             }
 
             private ulong MaxLimit => (1ul << width) - 1ul;
 
             private Mode mode;
             private Direction direction;
-            private bool overflow;
-            private bool underflow;
 
             private readonly LimitTimer timer;
             private readonly RenesasRA_GPT parent;
