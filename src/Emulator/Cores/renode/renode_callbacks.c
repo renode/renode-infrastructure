@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under MIT License.
@@ -7,11 +7,8 @@
 //
 
 #include <stdlib.h>
-#include "cpu.h"
 #include "renode_imports.h"
 #include "../tlib/include/unwind.h"
-
-extern CPUState *cpu;
 
 typedef void (*translation_block_find_slow_handler)(uint64_t pc);
 translation_block_find_slow_handler on_translation_block_find_slow;
