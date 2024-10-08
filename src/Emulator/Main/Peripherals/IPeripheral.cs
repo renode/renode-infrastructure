@@ -5,13 +5,14 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Core;
-using System.Linq;
-using System.Collections.Generic;
 using System;
-using Antmicro.Renode.UserInterface;
-using Antmicro.Renode.Peripherals.Bus;
+using System.Collections.Generic;
+using System.Linq;
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
+using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.UserInterface;
+
 using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals
