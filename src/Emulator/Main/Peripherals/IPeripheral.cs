@@ -50,14 +50,9 @@ namespace Antmicro.Renode.Peripherals
 
         public static bool TryGetMachine(this IPeripheral @this, out IMachine machine)
         {
-            return EmulationManager.Instance.CurrentEmulation.TryGetMachineForPeripheral(@this, out machine);
-        }
-
-        public static IMachine GetMachine(this IPeripheral @this)
-        {
-            if(@this.TryGetMachine(out var machine))
+            if(EmulationManager.Instance.CurrentEmulation.TryGetMachineForPeripheral(@this, out machine))
             {
-                return machine;
+                return true;
             }
 
             // let's try a fallback:
@@ -71,7 +66,8 @@ namespace Antmicro.Renode.Peripherals
                     var allMachines = simpleContainer.ChildCollection.Select(x => x.Value.GetMachine()).Distinct().ToArray();
                     if(allMachines.Length == 1)
                     {
-                        return allMachines[0];
+                        machine = allMachines[0];
+                        return true;
                     }
                 }
                 catch(Exception)
@@ -80,7 +76,15 @@ namespace Antmicro.Renode.Peripherals
                     // do nothing, we'll throw in a second anyway
                 }
             }
+            return false;
+        }
 
+        public static IMachine GetMachine(this IPeripheral @this)
+        {
+            if(@this.TryGetMachine(out var machine))
+            {
+                return machine;
+            }
             throw new ArgumentException($"Couldn't find machine for a given peripheral of type {@this.GetType().FullName}.");
         }
 
