@@ -101,7 +101,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 // Bit offset for this CPU in CPU-indexed signals.
                 var cpuIndex = registeredCPUs.Count;
                 registeredCPUs[cpu] = new RegisteredCPU(machine, cpu, this, cpuIndex);
-                signals.SetCPUIndexedSignalsWidth(registeredCPUs.Count);
+                signals.SetCPUIndexedSignalsWidth((uint)registeredCPUs.Count);
             }
 
             cpu.StateChanged += (_, oldState, __) => {
@@ -186,7 +186,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             signal.SetState(cpuIndex, state);
         }
 
-        public int AddressWidth { get; } = 32;
+        public uint AddressWidth { get; } = 32;
 
         private void AssertSignalCPUIndexed(Signal<ArmSignals> signal, bool inSetMethod)
         {
@@ -555,7 +555,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 }
             }
 
-            public void InitSignal(IEmulationElement parent, string name, TEnum signal, int width = 0,
+            public void InitSignal(IEmulationElement parent, string name, TEnum signal, uint width = 0,
                 ulong resetValue = 0x0, Func<ulong, ulong> getter = null, Action<ulong, ulong> setter = null,
                 bool callSetterAtInitAndReset = false, bool cpuIndexedSignal = false)
             {
@@ -613,7 +613,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 }
             }
 
-            public void SetCPUIndexedSignalsWidth(int width)
+            public void SetCPUIndexedSignalsWidth(uint width)
             {
                 foreach(var signal in cpuIndexedSignals)
                 {
@@ -631,7 +631,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private class Signal<TEnum>
             where TEnum: struct
         {
-            public Signal(IEmulationElement parent, TEnum signal, int width, ulong resetValue = 0x0)
+            public Signal(IEmulationElement parent, TEnum signal, uint width, ulong resetValue = 0x0)
             {
                 if(!typeof(TEnum).IsEnum)  // System.Enum as a constraint isn't available in C# 7.2.
                 {
@@ -653,12 +653,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
 
             /// <returns>Top <c>Value</c> bits shifted as top bits up to <c>addressWidth</c>.</returns>
-            public ulong GetAddress(int addressWidth)
+            public ulong GetAddress(uint addressWidth)
             {
                 AssertAddressWidth(addressWidth, Width);
 
                 var offset = addressWidth - Width;
-                return Value << offset;
+                return Value << (int)offset;
             }
 
             public bool IsEnabled()
@@ -690,16 +690,16 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
 
             /// <summary>Top <c>Value</c> bits will be set from the address bits up to <c>Width</c>.</summary>
-            public void SetFromAddress(int addressWidth, ulong address)
+            public void SetFromAddress(uint addressWidth, ulong address)
             {
                 AssertAddressWidth(addressWidth, Width);
 
                 var offset = addressWidth - Width;
-                if((address & BitHelper.CalculateMask(offset, 0)) != 0)
+                if((address & BitHelper.CalculateMask((int)offset, 0)) != 0)
                 {
                     Log(LogLevel.Warning, $"{Width}-bit value shouldn't be created from 0x{address:X} address");
                 }
-                Value = address >> offset;
+                Value = address >> (int)offset;
             }
 
             public void SetState(byte index, bool state)
@@ -712,7 +712,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             public string Name { get; }
             public ulong ResetValue { get => resetValue; set => SetValue(ref resetValue, value); }
             public virtual ulong Value { get => value; set => SetValue(ref this.value, value); }
-            public int Width
+            public uint Width
             {
                 get => width;
                 set
@@ -724,7 +724,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 }
             }
 
-            private static void AssertAddressWidth(int addressWidth, int valueWidth)
+            private static void AssertAddressWidth(uint addressWidth, uint valueWidth)
             {
                 if(addressWidth < valueWidth)
                 {
@@ -734,7 +734,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             private void SetValue(ref ulong destination, ulong value)
             {
-                destination = BitHelper.GetMaskedValue(value, 0, Width);
+                destination = BitHelper.GetMaskedValue(value, 0, (int)Width);
                 if(destination != value)
                 {
                     Log(LogLevel.Warning, "Tried to set {0}-bit signal to 0x{1:X}, it will be set to 0x{2:X}", Width, value, destination);
@@ -743,7 +743,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             private ulong resetValue;
             private ulong value;
-            private int width;
+            private uint width;
 
             private readonly IEmulationElement parent;
         }
@@ -751,7 +751,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private class SignalWithImmediateEffect<TEnum> : Signal<TEnum>
             where TEnum: struct
         {
-            public static SignalWithImmediateEffect<TEnum> CreateInput(IEmulationElement parent, TEnum signal, int width,
+            public static SignalWithImmediateEffect<TEnum> CreateInput(IEmulationElement parent, TEnum signal, uint width,
                             Action<ulong, ulong> setter, bool callSetterAtInitAndReset = false, ulong resetValue = 0)
             {
                 if(setter == null)
@@ -761,7 +761,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 return new SignalWithImmediateEffect<TEnum>(parent, signal, width, null, setter, callSetterAtInitAndReset, resetValue);
             }
 
-            public static SignalWithImmediateEffect<TEnum> CreateOutput(IEmulationElement parent, TEnum signal, int width, Func<ulong, ulong> getter)
+            public static SignalWithImmediateEffect<TEnum> CreateOutput(IEmulationElement parent, TEnum signal, uint width, Func<ulong, ulong> getter)
             {
                 if(getter == null)
                 {
@@ -770,7 +770,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 return new SignalWithImmediateEffect<TEnum>(parent, signal, width, getter);
             }
 
-            private SignalWithImmediateEffect(IEmulationElement parent, TEnum signal, int width, Func<ulong, ulong> getter = null,
+            private SignalWithImmediateEffect(IEmulationElement parent, TEnum signal, uint width, Func<ulong, ulong> getter = null,
                             Action<ulong, ulong> setter = null, bool callSetterAtInitAndReset = false, ulong resetValue = 0)
                             : base(parent, signal, width, resetValue)
             {
