@@ -599,7 +599,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     var allNames = signalNames.Keys.Select(_name => $"{_name} ({signalNames[_name]})");
                     throw new RecoverableException(
                         $"No such signal: '{name}'\n" +
-                        $"Available signals are:\n * { string.Join("\n * ", allNames) }"
+                        $"Available signals are:\n * {string.Join("\n * ", allNames)}"
                         );
                 }
                 return signal;
