@@ -81,9 +81,9 @@ namespace Antmicro.Renode.Peripherals.Bus
             parent.Log(LogLevel.Info, "Loaded SVD: {0}. Name: {1}. Description: {2}.", path, device.Name, device.Description);
         }
 
-        public bool TryReadAccess(ulong offset, out ulong value, SysbusAccessWidth type)
+        public bool TryReadAccess(ulong offset, out ulong value, SysbusAccessWidth width)
         {
-            var bytesToRead = CheckAndGetWidth(type);
+            var bytesToRead = CheckAndGetWidth(width);
             var weHaveIt = false;
             value = 0;
 
@@ -93,16 +93,16 @@ namespace Antmicro.Renode.Peripherals.Bus
                 if(tmpRegister.HasReadAccess)
                 {
                     value = tmpRegister.ResetValue;
-                    LogReadSuccess(value, tmpRegister.Peripheral.Name, tmpRegister.Name, offset);
+                    LogReadSuccess(value, tmpRegister.Peripheral.Name, tmpRegister.Name, offset, width);
                 }
                 else
                 {
-                    LogReadFail(tmpRegister.Peripheral.Name, tmpRegister.Name, offset);
+                    LogReadFail(tmpRegister.Peripheral.Name, tmpRegister.Name, offset, width);
                 }
             }
             else
             {
-                value = AssembleValueFromRegisters(offset, bytesToRead, ref weHaveIt);
+                value = AssembleValueFromRegisters(offset, width, ref weHaveIt);
             }
             return weHaveIt;
         }
@@ -114,22 +114,18 @@ namespace Antmicro.Renode.Peripherals.Bus
             if(HitInTheRegisterDictionary(out var tmpRegister, offset, bytesToWrite))
             {
                 weHaveIt = true;
-                if(tmpRegister.HasWriteAccess)
+                if(tmpRegister.HasWriteAccess || tmpRegister.HasWriteOnceAccess)
                 {
-                    LogWriteSuccess(value, tmpRegister.Peripheral.Name, tmpRegister.Name, offset);
-                }
-                else if(tmpRegister.HasWriteOnceAccess)
-                {
-                    LogWriteSuccess(value, tmpRegister.Peripheral.Name, tmpRegister.Name, offset, true);
+                    LogWriteSuccess(value, tmpRegister.Peripheral.Name, tmpRegister.Name, offset, width, tmpRegister.HasWriteOnceAccess);
                 }
                 else
                 {
-                    LogWriteFail(value, tmpRegister.Peripheral.Name, tmpRegister.Name, offset);
+                    LogWriteFail(value, tmpRegister.Peripheral.Name, tmpRegister.Name, offset, width);
                 }
             }
             else
             {
-                LogWriteRequests(value, offset, bytesToWrite, ref weHaveIt);
+                LogWriteRequests(value, offset, width, ref weHaveIt);
             }
             return weHaveIt;
         }
@@ -139,8 +135,9 @@ namespace Antmicro.Renode.Peripherals.Bus
             return registerDictionary.TryGetValue(offset, out tmpRegister) && tmpRegister.Address == offset && tmpRegister.SizeInBytes == countOfBytes;
         }
 
-        private void LogWriteRequests(ulong value, ulong offset, int sizeInBytes, ref bool weHaveIt)
+        private void LogWriteRequests(ulong value, ulong offset, SysbusAccessWidth width, ref bool weHaveIt)
         {
+            var sizeInBytes = (int)width;
             for(var i = 0; i < sizeInBytes; i++)
             {
                 var tmpOffset = offset + (ulong)i;
@@ -152,19 +149,20 @@ namespace Antmicro.Renode.Peripherals.Bus
                     if(register.HasWriteAccess || register.HasWriteOnceAccess)
                     {
                         weHaveIt = true;
-                        LogWriteSuccess(tmpValue, register.Peripheral.Name, register.Name, tmpOffset, register.Access == PermittedAccess.WriteOnce ? true : false, offset, value);
+                        LogWriteSuccess(tmpValue, register.Peripheral.Name, register.Name, tmpOffset, width, register.Access == PermittedAccess.WriteOnce, offset, value);
                     }
                     else
                     {
-                        LogWriteFail(tmpValue, register.Peripheral.Name, register.Name, tmpOffset, offset, value);
+                        LogWriteFail(tmpValue, register.Peripheral.Name, register.Name, tmpOffset, width, offset, value);
                     }
                     i += howManyTimes - 1;
                 }
             }
         }
 
-        private ulong AssembleValueFromRegisters(ulong offset, int sizeInBytes, ref bool weHaveIt)
+        private ulong AssembleValueFromRegisters(ulong offset, SysbusAccessWidth width, ref bool weHaveIt)
         {
+            var sizeInBytes = (int)width;
             var result = 0ul;
             for(var i = 0; i < sizeInBytes; i++)
             {
@@ -177,12 +175,12 @@ namespace Antmicro.Renode.Peripherals.Bus
                     if(register.HasReadAccess)
                     {
                         weHaveIt = true;
-                        LogReadSuccess(tmpValue, register.Peripheral.Name, register.Name, tmpOffset, offset);
+                        LogReadSuccess(tmpValue, register.Peripheral.Name, register.Name, tmpOffset, width, offset);
                         result += tmpValue << (8 * i);
                     }
                     else
                     {
-                        LogReadFail(register.Peripheral.Name, register.Name, tmpOffset, offset);
+                        LogReadFail(register.Peripheral.Name, register.Name, tmpOffset, width, offset);
                     }
                     i += howManyTimes - 1;
                 }
@@ -218,9 +216,9 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
-        private void LogReadSuccess(ulong value, string peripheralName, string name, ulong offset, ulong? originalOffset = null)
+        private void LogReadSuccess(ulong value, string peripheralName, string name, ulong offset, SysbusAccessWidth width, ulong? originalOffset = null)
         {
-            var formatString = "Read from an unimplemented register {1}:{2} (0x{3:X}){4}, returning a value from SVD: 0x{0:X}";
+            var formatString = "Read{5} from an unimplemented register {1}:{2} (0x{3:X}){4}, returning a value from SVD: 0x{0:X}";
             formatString = currentSystemBus.DecorateWithCPUNameAndPC(formatString);
 
             var originalReadIndication = String.Empty;
@@ -235,13 +233,14 @@ namespace Antmicro.Renode.Peripherals.Bus
                 peripheralName,
                 name,
                 offset,
-                originalReadIndication
+                originalReadIndication,
+                width
             );
         }
 
-        private void LogWriteSuccess(ulong value, string peripheralName, string name, ulong offset, bool writeOnce = false, ulong? originalOffset = null, ulong? originalValue = null)
+        private void LogWriteSuccess(ulong value, string peripheralName, string name, ulong offset, SysbusAccessWidth width, bool writeOnce = false, ulong? originalOffset = null, ulong? originalValue = null)
         {
-            var formatString = "Write of value 0x{0:X} to an unimplemented{5} register {1}:{2} (0x{3:X}){4} generated from SVD";
+            var formatString = "Write{6} of value 0x{0:X} to an unimplemented{5} register {1}:{2} (0x{3:X}){4} generated from SVD";
             formatString = currentSystemBus.DecorateWithCPUNameAndPC(formatString);
 
             var originalWriteIndication = String.Empty;
@@ -262,13 +261,14 @@ namespace Antmicro.Renode.Peripherals.Bus
                 name,
                 offset,
                 originalWriteIndication,
-                writeOnceIndication
+                writeOnceIndication,
+                width
             );
         }
 
-        private void LogReadFail(string peripheralName, string name, ulong offset, ulong? originalOffset = null)
+        private void LogReadFail(string peripheralName, string name, ulong offset, SysbusAccessWidth width, ulong? originalOffset = null)
         {
-            var formatString = "Invalid read from an unimplemented write-only register {0}:{1} (0x{2:X}){3}, returning a value from SVD: 0x0";
+            var formatString = "Invalid Read{4} from an unimplemented write-only register {0}:{1} (0x{2:X}){3}, returning a value from SVD: 0x0";
             formatString = currentSystemBus.DecorateWithCPUNameAndPC(formatString);
 
             var originalReadIndication = String.Empty;
@@ -282,13 +282,14 @@ namespace Antmicro.Renode.Peripherals.Bus
                 peripheralName,
                 name,
                 offset,
-                originalReadIndication
+                originalReadIndication,
+                width
             );
         }
 
-        private void LogWriteFail(ulong value, string peripheralName, string name, ulong offset, ulong? originalOffset = null, ulong? originalValue = null)
+        private void LogWriteFail(ulong value, string peripheralName, string name, ulong offset, SysbusAccessWidth width, ulong? originalOffset = null, ulong? originalValue = null)
         {
-            var formatString = "Invalid write of value 0x{0:X} to an unimplemented read-only register {1}:{2} (0x{3:X}){4} generated from SVD";
+            var formatString = "Invalid Write{5} of value 0x{0:X} to an unimplemented read-only register {1}:{2} (0x{3:X}){4} generated from SVD";
             formatString = currentSystemBus.DecorateWithCPUNameAndPC(formatString);
 
             var originalWriteIndication = String.Empty;
@@ -303,7 +304,8 @@ namespace Antmicro.Renode.Peripherals.Bus
                 peripheralName,
                 name,
                 offset,
-                originalWriteIndication
+                originalWriteIndication,
+                width
             );
         }
 
