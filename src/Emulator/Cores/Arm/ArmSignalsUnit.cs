@@ -187,6 +187,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         public uint AddressWidth { get; } = 32;
+        public IEnumerable<ICPU> RegisteredCPUs => registeredCPUs.Keys;
 
         private void AssertSignalCPUIndexed(Signal<ArmSignals> signal, bool inSetMethod)
         {
