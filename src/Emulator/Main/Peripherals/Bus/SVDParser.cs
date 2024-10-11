@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -220,7 +220,9 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         private void LogReadSuccess(ulong value, string peripheralName, string name, ulong offset, ulong? originalOffset = null)
         {
-            var formatString = "Read from an unimplemented register {1}:{2} (0x{3:X}){4}, returning a value from SVD: 0x{0:X}.";
+            var formatString = "Read from an unimplemented register {1}:{2} (0x{3:X}){4}, returning a value from SVD: 0x{0:X}";
+            formatString = currentSystemBus.DecorateWithCPUNameAndPC(formatString);
+
             var originalReadIndication = String.Empty;
             if(originalOffset.HasValue)
             {
@@ -239,7 +241,9 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         private void LogWriteSuccess(ulong value, string peripheralName, string name, ulong offset, bool writeOnce = false, ulong? originalOffset = null, ulong? originalValue = null)
         {
-            var formatString = "Write of value 0x{0:X} to an unimplemented{5} register {1}:{2} (0x{3:X}){4} generated from SVD.";
+            var formatString = "Write of value 0x{0:X} to an unimplemented{5} register {1}:{2} (0x{3:X}){4} generated from SVD";
+            formatString = currentSystemBus.DecorateWithCPUNameAndPC(formatString);
+
             var originalWriteIndication = String.Empty;
             var writeOnceIndication = String.Empty;
             if(originalValue.HasValue)
@@ -264,7 +268,9 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         private void LogReadFail(string peripheralName, string name, ulong offset, ulong? originalOffset = null)
         {
-            var formatString = "Invalid read from an unimplemented write-only register {0}:{1} (0x{2:X}){3}, returning a value from SVD: 0x0.";
+            var formatString = "Invalid read from an unimplemented write-only register {0}:{1} (0x{2:X}){3}, returning a value from SVD: 0x0";
+            formatString = currentSystemBus.DecorateWithCPUNameAndPC(formatString);
+
             var originalReadIndication = String.Empty;
             if(originalOffset.HasValue)
             {
@@ -282,7 +288,9 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         private void LogWriteFail(ulong value, string peripheralName, string name, ulong offset, ulong? originalOffset = null, ulong? originalValue = null)
         {
-            var formatString = "Invalid write of value 0x{0:X} to an unimplemented read-only register {1}:{2} (0x{3:X}){4} generated from SVD.";
+            var formatString = "Invalid write of value 0x{0:X} to an unimplemented read-only register {1}:{2} (0x{3:X}){4} generated from SVD";
+            formatString = currentSystemBus.DecorateWithCPUNameAndPC(formatString);
+
             var originalWriteIndication = String.Empty;
             if(originalValue.HasValue)
             {
