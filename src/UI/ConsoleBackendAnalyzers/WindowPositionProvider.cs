@@ -40,8 +40,11 @@ namespace Antmicro.Renode.UI
 #else
             nextPosition = new Point(0, 0);
 #endif
-            var x = ConfigurationManager.Instance.Get("termsharp", "window-offset-x", 30, i => i >= 0);
-            var y = ConfigurationManager.Instance.Get("termsharp", "window-offset-y", 50, i => i >= 0);
+            nextPosition.X += ConfigurationManager.Instance.Get("termsharp", "window-initial-offset-x", 0);
+            nextPosition.Y += ConfigurationManager.Instance.Get("termsharp", "window-initial-offset-y", 0);
+
+            var x = ConfigurationManager.Instance.Get("termsharp", "window-next-offset-x", 30, i => i >= 0);
+            var y = ConfigurationManager.Instance.Get("termsharp", "window-next-offset-y", 50, i => i >= 0);
             offset = new Point(x, y);
             innerLock = new object();
         }
