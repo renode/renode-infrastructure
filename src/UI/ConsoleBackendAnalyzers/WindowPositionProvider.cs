@@ -8,6 +8,7 @@
 #if PLATFORM_WINDOWS
 using System.Windows;
 #endif
+using Xwt;
 using Antmicro.Renode.Utilities;
 using Point = Xwt.Point;
 
@@ -26,11 +27,30 @@ namespace Antmicro.Renode.UI
         {
             lock(innerLock)
             {
+                nextPosition = SnapToViewport(nextPosition);
                 var result = nextPosition;
                 nextPosition.X += offset.X;
                 nextPosition.Y += offset.Y;
                 return result;
             }
+        }
+
+        private Point SnapToViewport(Point position)
+        {
+            if(!ConfigurationManager.Instance.Get("termsharp", "window-allow-outside-viewport", false))
+            {
+                var currentScreen = Desktop.GetScreenAtLocation(position) ?? Desktop.PrimaryScreen;
+                if(!currentScreen.VisibleBounds.Contains(position))
+                {
+                    position.X = currentScreen.VisibleBounds.X;
+                    position.Y = currentScreen.VisibleBounds.Y;
+#if PLATFORM_WINDOWS
+                    position.X += SystemParameters.BorderWidth;
+                    position.Y += SystemParameters.WindowCaptionHeight + SystemParameters.ResizeFrameHorizontalBorderHeight;
+#endif
+                }
+            }
+            return position;
         }
 
         private WindowPositionProvider()
