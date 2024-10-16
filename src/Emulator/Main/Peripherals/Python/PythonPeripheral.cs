@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -186,6 +186,7 @@ namespace Antmicro.Renode.Peripherals.Python
             pythonRunner.Request.value = 0;
             pythonRunner.Request.type = PeripheralPythonEngine.PythonRequest.RequestType.READ;
             pythonRunner.Request.offset = offset;
+            pythonRunner.Request.counter = requestCounter++;
             Execute();
         }
 
@@ -196,6 +197,7 @@ namespace Antmicro.Renode.Peripherals.Python
             pythonRunner.Request.value = value;
             pythonRunner.Request.type = PeripheralPythonEngine.PythonRequest.RequestType.WRITE;
             pythonRunner.Request.offset = offset;
+            pythonRunner.Request.counter = requestCounter++;
             Execute();
         }
 
@@ -205,6 +207,7 @@ namespace Antmicro.Renode.Peripherals.Python
         }
 
         private bool inited;
+        private ulong requestCounter;
 
         private readonly PeripheralPythonEngine pythonRunner;
         private readonly bool initable;

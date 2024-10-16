@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -130,6 +130,7 @@ namespace Antmicro.Renode.Peripherals.Python
             public RequestType type { get; set; }
             public long offset { get; set; }
             public ulong absolute { get; set; }
+            public ulong counter { get; set; }
 
             public bool isInit
             {
