@@ -180,26 +180,29 @@ namespace Antmicro.Renode.Peripherals.Bus
 
             public PeripheralAccessMethods FindAccessMethods(ulong address, out ulong startAddress, out ulong endAddress)
             {
-                // no need to lock here yet, cause last block is in the thread local storage
-                var lastBlock = lastBlockStorage.Value;
-#if DEBUG
-                Interlocked.Increment(ref queryCount);
-#endif
-                if (address >= lastBlock.Start && address < lastBlock.End)
-                {
-#if DEBUG
-                    Interlocked.Increment(ref lastPeripheralCount);
-#endif
-                    startAddress = lastBlock.Start;
-                    endAddress = lastBlock.End;
-                    return lastBlock.AccessMethods;
-                }
+            /* We need to disable any caching here, as it is hashed by the page index.
+               Having more than one peripheral on some page would mean we always get the first accessed peripheral rather than the correct one.
+            */
+//                // no need to lock here yet, cause last block is in the thread local storage
+//                 var lastBlock = lastBlockStorage.Value;
+// #if DEBUG
+//                 Interlocked.Increment(ref queryCount);
+// #endif
+//                 if (address >= lastBlock.Start && address < lastBlock.End)
+//                 {
+// #if DEBUG
+//                     Interlocked.Increment(ref lastPeripheralCount);
+// #endif
+//                     startAddress = lastBlock.Start;
+//                     endAddress = lastBlock.End;
+//                     return lastBlock.AccessMethods;
+//                 }
                 lock(sync)
                 {
                     // let's try dictionary
                     Block block;
-                    if(!shortBlocks.TryGetValue(address & ~PageAlign, out block))
-                    {
+                    // if(!shortBlocks.TryGetValue(address & ~PageAlign, out block))
+                    // {
                         // binary search - our last resort
                         var index = BinarySearch(address);
                         if(index == -1)
@@ -208,17 +211,17 @@ namespace Antmicro.Renode.Peripherals.Bus
                             endAddress = 0;
                             return null;
                         }
-#if DEBUG
-                        Interlocked.Increment(ref binarySearchCount);
-#endif
+// #if DEBUG
+//                         Interlocked.Increment(ref binarySearchCount);
+// #endif
                         block = blocks[index];
-                    }
-#if DEBUG
-                    else
-                    {
-                        Interlocked.Increment(ref dictionaryCount);
-                    }
-#endif
+                    // }
+// #if DEBUG
+                    // else
+                    // {
+                    //     Interlocked.Increment(ref dictionaryCount);
+                    // }
+// #endif
                     startAddress = block.Start;
                     endAddress = block.End;
                     lastBlockStorage.Value = block;
