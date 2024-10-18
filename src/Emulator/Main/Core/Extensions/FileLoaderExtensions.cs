@@ -11,9 +11,11 @@ using System.IO;
 using System.Linq;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Utilities;
+using ELFSharp.ELF.Segments;
 
 namespace Antmicro.Renode.Core.Extensions
 {
@@ -363,6 +365,54 @@ namespace Antmicro.Renode.Core.Extensions
 
             chunks = SortAndJoinConsecutiveFileChunks(chunks);
             loader.LoadFileChunks(fileName, chunks, cpu);
+        }
+
+        // Name of the last parameter is kept as 'cpu' for backward compatibility.
+        public static void LoadELF(this IBusController loader, ReadFilePath fileName, bool useVirtualAddress = false, bool allowLoadsOnlyToMemory = true, ICluster<IInitableCPU> cpu = null)
+        {
+            if(!loader.Machine.IsPaused)
+            {
+                throw new RecoverableException("Cannot load ELF on an unpaused machine.");
+            }
+            Logger.LogAs(loader, LogLevel.Debug, "Loading ELF file {0}.", fileName);
+
+            using(var elf = ELFUtils.LoadELF(fileName))
+            {
+                var segmentsToLoad = elf.Segments.Where(x => x.Type == SegmentType.Load);
+                if(!segmentsToLoad.Any())
+                {
+                    throw new RecoverableException($"ELF '{fileName}' has no loadable segments.");
+                }
+
+                List<FileChunk> chunks = new List<FileChunk>();
+                foreach(var s in segmentsToLoad)
+                {
+                    var contents = s.GetContents();
+                    var loadAddress = useVirtualAddress ? s.GetSegmentAddress() : s.GetSegmentPhysicalAddress();
+                    chunks.Add(new FileChunk() { Data = contents, OffsetToLoad = loadAddress});
+                }
+
+                // If cluster is passed as parameter, we setup ELF locally so it only affects cpus in cluster.
+                // Otherwise, we initialize all cpus on sysbus and load symbols to global lookup.
+                if(cpu != null)
+                {
+                    foreach(var initableCpu in cpu.Clustered)
+                    {
+                        loader.LoadFileChunks(fileName, chunks, initableCpu);
+                        loader.LoadSymbolsFrom(elf, useVirtualAddress, context: initableCpu);
+                        initableCpu.InitFromElf(elf);
+                    }
+                }
+                else
+                {
+                    loader.LoadFileChunks(fileName, chunks, null);
+                    loader.LoadSymbolsFrom(elf, useVirtualAddress);
+                    foreach(var initableCpu in loader.GetCPUs().OfType<IInitableCPU>())
+                    {
+                        initableCpu.InitFromElf(elf);
+                    }
+                }
+            }
         }
 
         private static List<FileChunk> SortAndJoinConsecutiveFileChunks(List<FileChunk> chunks)

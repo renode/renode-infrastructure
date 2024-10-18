@@ -341,11 +341,6 @@ namespace Antmicro.Renode.Peripherals.Bus
             return ParentController.FindMemory(address, context);
         }
 
-        public virtual void LoadELF(ReadFilePath fileName, bool useVirtualAddress = false, bool allowLoadsOnlyToMemory = true, ICluster<IInitableCPU> cpu = null)
-        {
-            ParentController.LoadELF(fileName, useVirtualAddress, allowLoadsOnlyToMemory, cpu);
-        }
-
         public virtual void LoadFileChunks(string path, IEnumerable<FileChunk> chunks, ICPU cpu)
         {
             ParentController.LoadFileChunks(path, chunks, cpu);

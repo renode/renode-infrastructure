@@ -87,7 +87,6 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         void LoadSymbolsFrom(IELF elf, bool useVirtualAddress = false, ulong? textAddress = null, ICPU context = null);
         void LoadUImage(ReadFilePath fileName, IInitableCPU cpu = null);
-        void LoadELF(ReadFilePath fileName, bool useVirtualAddress = false, bool allowLoadsOnlyToMemory = true, ICluster<IInitableCPU> cpu = null);
 
         SymbolLookup GetLookup(ICPU context = null);
 
