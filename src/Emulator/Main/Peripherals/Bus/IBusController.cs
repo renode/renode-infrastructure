@@ -85,6 +85,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         void ApplySVD(string path);
 
+        void LoadSymbolsFrom(IELF elf, bool useVirtualAddress = false, ulong? textAddress = null, ICPU context = null);
         void LoadUImage(ReadFilePath fileName, IInitableCPU cpu = null);
         void LoadELF(ReadFilePath fileName, bool useVirtualAddress = false, bool allowLoadsOnlyToMemory = true, ICluster<IInitableCPU> cpu = null);
 
@@ -162,6 +163,17 @@ namespace Antmicro.Renode.Peripherals.Bus
                 throw new RecoverableException($"Found {addresses.Length} possible addresses for the symbol. Select which one you're interested in by providing a 0-based index or use the `GetAllSymbolAddresses` method");
             }
             return addresses[0];
+        }
+
+        // Specifying `textAddress` will override the address of the program text - the symbols will be applied
+        // as if the first loaded segment started at the specified address. This is equivalent to the ADDR parameter
+        // to GDB's add-symbol-file.
+        public static void LoadSymbolsFrom(this IBusController bus, ReadFilePath fileName, bool useVirtualAddress = false, ulong? textAddress = null, ICPU context = null)
+        {
+            using(var elf = ELFUtils.LoadELF(fileName))
+            {
+                bus.LoadSymbolsFrom(elf, useVirtualAddress, textAddress, context);
+            }
         }
     }
 }

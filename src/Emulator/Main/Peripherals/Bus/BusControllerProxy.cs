@@ -361,6 +361,11 @@ namespace Antmicro.Renode.Peripherals.Bus
             ParentController.ApplySVD(path);
         }
 
+        public void LoadSymbolsFrom(IELF elf, bool useVirtualAddress = false, ulong? textAddress = null, ICPU context = null)
+        {
+            ParentController.LoadSymbolsFrom(elf, useVirtualAddress, textAddress, context);
+        }
+
         public virtual void LoadUImage(ReadFilePath fileName, IInitableCPU cpu = null)
         {
             ParentController.LoadUImage(fileName, cpu);
