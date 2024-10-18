@@ -79,7 +79,7 @@ namespace Antmicro.Renode.Core.Extensions
                         if(line[0] != ':'
                             || !int.TryParse(line.Substring(1, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var length)
                             || !ulong.TryParse(line.Substring(3, 4), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var address)
-                            || !byte.TryParse(line.Substring(7, 2), NumberStyles.HexNumber,CultureInfo.InvariantCulture, out var type))
+                            || !byte.TryParse(line.Substring(7, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var type))
                         {
                             throw new RecoverableException($"Parsing error at line #{lineNum}: {line}. Could not parse header");
                         }
