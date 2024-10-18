@@ -46,6 +46,7 @@ namespace Antmicro.Renode.Core.Extensions
                 throw new RecoverableException(string.Format("Exception while loading file {0}: {1}", fileName, e.Message));
             }
 
+            chunks = SortAndJoinConsecutiveFileChunks(chunks);
             loader.LoadFileChunks(fileName, chunks, cpu);
         }
 
@@ -158,6 +159,7 @@ namespace Antmicro.Renode.Core.Extensions
                 throw new RecoverableException($"Exception while loading file {fileName}: {(e.Message)}");
             }
 
+            chunks = SortAndJoinConsecutiveFileChunks(chunks);
             loader.LoadFileChunks(fileName, chunks, cpu);
         }
 
@@ -366,7 +368,44 @@ namespace Antmicro.Renode.Core.Extensions
 
             Logger.Log(LogLevel.Debug, "S-record loader: Loaded {0} data records", chunks.Count);
 
+            chunks = SortAndJoinConsecutiveFileChunks(chunks);
             loader.LoadFileChunks(fileName, chunks, cpu);
+        }
+
+        private static List<FileChunk> SortAndJoinConsecutiveFileChunks(List<FileChunk> chunks)
+        {
+            if(chunks.Count == 0)
+            {
+                return chunks;
+            }
+
+            chunks.Sort((lhs, rhs) => lhs.OffsetToLoad.CompareTo(rhs.OffsetToLoad));
+
+            List<FileChunk> joinedChunks = new List<FileChunk>();
+            var nextOffset = chunks[0].OffsetToLoad;
+            var firstChunkIdx = 0;
+
+            for(var chunkIdx = 0; chunkIdx < chunks.Count; ++chunkIdx)
+            {
+                var chunk = chunks[chunkIdx];
+                if(chunk.OffsetToLoad != nextOffset)
+                {
+                    joinedChunks.Add(JoinFileChunks(chunks.GetRange(firstChunkIdx, chunkIdx - firstChunkIdx)));
+                    firstChunkIdx = chunkIdx;
+                }
+                var chunkSize = chunk.Data.Count();
+                nextOffset = chunk.OffsetToLoad + (ulong)chunkSize;
+            }
+            joinedChunks.Add(JoinFileChunks(chunks.GetRange(firstChunkIdx, chunks.Count - firstChunkIdx)));
+
+            return joinedChunks;
+        }
+
+        private static FileChunk JoinFileChunks(List<FileChunk> chunks)
+        {
+            var loadOffset = chunks[0].OffsetToLoad;
+            var data = chunks.SelectMany(chunk => chunk.Data);
+            return new FileChunk() { Data = data, OffsetToLoad = loadOffset };
         }
 
         private const char SRecStartOfRecord = 'S';
