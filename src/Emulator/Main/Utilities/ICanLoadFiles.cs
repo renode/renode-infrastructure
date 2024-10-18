@@ -1,9 +1,10 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU;
 using System;
@@ -27,6 +28,13 @@ namespace Antmicro.Renode.Utilities
 
             foreach(FileChunk chunk in chunks)
             {
+                Logger.LogAs(
+                    peripheral,
+                    LogLevel.Info,
+                    "Loading block of {0} bytes length at 0x{1:X}.",
+                    chunk.Data.Count(),
+                    chunk.OffsetToLoad
+                );
                 var chunkData = chunk.Data.ToArray();
                 peripheral.WriteBytes((long)chunk.OffsetToLoad, chunkData, 0, chunkData.Length, context: cpu);
                 minAddr = Math.Min(minAddr, chunk.OffsetToLoad);
