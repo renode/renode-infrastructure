@@ -24,6 +24,7 @@ namespace Antmicro.Renode.Core.Extensions
             const int bufferSize = 100 * 1024;
             List<FileChunk> chunks = new List<FileChunk>();
 
+            Logger.LogAs(loader, LogLevel.Debug, "Loading binary file {0}.", fileName);
             try
             {
                 using(var reader = new FileStream(fileName, FileMode.Open, FileAccess.Read))
@@ -59,6 +60,7 @@ namespace Antmicro.Renode.Core.Extensions
             bool endOfFileReached = false;
             List<FileChunk> chunks = new List<FileChunk>();
 
+            Logger.LogAs(loader, LogLevel.Debug, "Loading HEX file {0}.", fileName);
             try
             {
                 using(var file = new System.IO.StreamReader(fileName))
@@ -173,11 +175,11 @@ namespace Antmicro.Renode.Core.Extensions
             List<FileChunk> chunks = new List<FileChunk>();
             Range? currentSegmentInfo = null;
 
+            Logger.LogAs(loader, LogLevel.Debug, "Loading S-record file {0}.", fileName);
             try
             {
                 using(var file = new System.IO.StreamReader(fileName))
                 {
-                    Logger.Log(LogLevel.Debug, "S-record loader: Loading {0}", fileName);
                     while((line = file.ReadLine()) != null)
                     {
                         if(endOfFileReached)
@@ -285,7 +287,6 @@ namespace Antmicro.Renode.Core.Extensions
                                 {
                                     throw new RecoverableException($"Invalid Header record at line #{lineNum}:\n\"{line}\"");
                                 }
-                                Logger.Log(LogLevel.Info, "S-record loader: Header: \"{0}\"", System.Text.Encoding.ASCII.GetString(data.ToArray()));
                                 break;
                             case SRecPurpose.Data:
                                 if(!currentSegmentInfo.HasValue)
@@ -298,10 +299,8 @@ namespace Antmicro.Renode.Core.Extensions
                                 }
                                 else
                                 {
-                                    Logger.Log(LogLevel.Info, "S-record loader: Parsed segment of {0} bytes length at 0x{1:X}", currentSegmentInfo.Value.Size, currentSegmentInfo.Value.StartAddress);
                                     currentSegmentInfo = address.By(dataLength);
                                 }
-
                                 chunks.Add(new FileChunk() { Data = data.ToArray(), OffsetToLoad = address });
                                 break;
                             case SRecPurpose.Count:
@@ -313,7 +312,6 @@ namespace Antmicro.Renode.Core.Extensions
                                 {
                                     throw new RecoverableException($"Data record count mismatch error (calculated: {chunks.Count}, given: {address}) at line #{lineNum}:\n\"{line}\"");
                                 }
-                                Logger.Log(LogLevel.Debug, "S-record loader: Loaded {0} data records", chunks.Count);
                                 break;
                             case SRecPurpose.Termination:
                                 if(dataLength != 0)
@@ -360,13 +358,6 @@ namespace Antmicro.Renode.Core.Extensions
                 Logger.Log(LogLevel.Warning, "S-record loader: Attempted to load empty file {0}", fileName);
                 return;
             }
-
-            if(currentSegmentInfo.HasValue)
-            {
-                Logger.Log(LogLevel.Info, "S-record loader: Parsed segment of {0} bytes length at 0x{1:X}", currentSegmentInfo.Value.Size, currentSegmentInfo.Value.StartAddress);
-            }
-
-            Logger.Log(LogLevel.Debug, "S-record loader: Loaded {0} data records", chunks.Count);
 
             chunks = SortAndJoinConsecutiveFileChunks(chunks);
             loader.LoadFileChunks(fileName, chunks, cpu);
