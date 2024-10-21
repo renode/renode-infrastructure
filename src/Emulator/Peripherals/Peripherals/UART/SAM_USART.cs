@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -13,181 +13,28 @@ using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
-    public class SAM_USART : UARTBase, IDoubleWordPeripheral, IKnownSize
+    public class SAM_USART : UARTBase, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
     {
         public SAM_USART(IMachine machine) : base(machine)
         {
-            var registersMap = new Dictionary<long, DoubleWordRegister>
-            {
-                {(long)Registers.Control, new DoubleWordRegister(this)
-                    .WithFlag(2, out var resetReceiver, FieldMode.Write, name: "RSTRX")
-                    .WithFlag(3, out var resetTransmitter, FieldMode.Write, name: "RSTTX")
-
-                    .WithFlag(4, out var enableReceiver, FieldMode.Write, name: "RXEN")
-                    .WithFlag(5, out var disableReceiver, FieldMode.Write, name: "RXDIS")
-
-                    .WithFlag(6, out var enableTransmitter, FieldMode.Write, name: "TXEN")
-                    .WithFlag(7, out var disableTransmitter, FieldMode.Write, name: "TXDIS")
-
-                    .WithWriteCallback((_, __) =>
-                    {
-                        if(resetReceiver.Value)
-                        {
-                            /* Clear FIFO */
-                            ClearBuffer();
-                            receiverEnabled = false;
-                        }
-
-                        /* Determine what to do with the Receiver */
-                        if(disableReceiver.Value)
-                        {
-                            receiverEnabled = false;
-                        }
-                        else if(enableReceiver.Value)
-                        {
-                            receiverEnabled = true;
-                        }
-
-                        /* Determine what to do with the Transmitter */
-                        if(disableTransmitter.Value || (resetTransmitter.Value && !enableTransmitter.Value))
-                        {
-                            transmitterEnabled = false;
-                        }
-                        else if(enableTransmitter.Value)
-                        {
-                            transmitterEnabled = true;
-                        }
-                    })
-                },
-
-                {(long)Registers.Mode, new DoubleWordRegister(this)
-                    .WithValueField(0, 4, valueProviderCallback: _ => 0, writeCallback: (_, value) =>
-                    {
-                        if(value != 0)
-                        {
-                            this.Log(LogLevel.Warning, "Trying to configure the device to an unsupported mode!");
-                        }
-                    }, name: "USART_MODE")
-                    .WithTag("USCLKS", 4, 2)
-                    .WithTag("CHRL", 6, 2)
-                    .WithTaggedFlag("SYNC", 8)
-
-                    .WithEnumField(9, 3, out parityType, name: "PAR")
-                    .WithEnumField(12, 2, out numberOfStopBits, name: "NBSTOP")
-
-                    .WithTag("CHMODE", 14, 2)
-                    .WithTaggedFlag("MSBF", 16)
-                    .WithTaggedFlag("MODE9", 17)
-                    .WithTaggedFlag("CLKO", 18)
-                    .WithTaggedFlag("OVER", 19)
-                    .WithTaggedFlag("INACK", 20)
-                    .WithTaggedFlag("DSNACK", 21)
-                    .WithTaggedFlag("VAR_SYNC", 22)
-                    .WithTaggedFlag("INVDATA", 23)
-                    .WithTag("MAX_ITERATION", 24, 3)
-                    .WithReservedBits(27, 1)
-                    .WithTaggedFlag("FILTER", 28)
-                    .WithTaggedFlag("MAN", 29)
-                    .WithTaggedFlag("MODSYNC", 30)
-                    .WithTaggedFlag("ONEBIT", 31)
-                },
-
-                {(long)Registers.ChannelStatus, new DoubleWordRegister(this)
-                    .WithFlag(0, out receiverReady, FieldMode.Read, name: "RXRDY")
-                    .WithFlag(1, FieldMode.Read, valueProviderCallback: _ =>
-                    {
-                        return transmitterEnabled;
-                    }, name: "TXRDY")
-                },
-
-                {(long)Registers.InterruptEnable, new DoubleWordRegister(this)
-                    .WithFlag(0, FieldMode.Write, writeCallback: (_, value) =>
-                    {
-                        if(value)
-                        {
-                            receiverReadyIrqEnabled.Value = true;
-                        }
-                    }, name: "IER_RXRDY")
-                    .WithFlag(1, FieldMode.Write, writeCallback: (_, value) =>
-                    {
-                        if(value)
-                        {
-                            transmitterReadyIrqEnabled.Value = true;
-                        }
-                    }, name: "IER_TXRDY")
-                    .WithWriteCallback((_, __) => UpdateInterrupts())
-                },
-
-                {(long)Registers.InterruptDisable, new DoubleWordRegister(this)
-                    .WithFlag(0, FieldMode.Write, writeCallback: (_, value) =>
-                    {
-                        if(value)
-                        {
-                            receiverReadyIrqEnabled.Value = false;
-                        }
-                    }, name: "IDR_RXRDY")
-                    .WithFlag(1, FieldMode.Write, writeCallback: (_, value) =>
-                    {
-                        if(value)
-                        {
-                            transmitterReadyIrqEnabled.Value = false;
-                        }
-                    }, name: "IDR_TXRDY")
-                    .WithWriteCallback((_, __) => UpdateInterrupts())
-                },
-
-                {(long)Registers.InterruptMask, new DoubleWordRegister(this)
-                    .WithFlag(0, out receiverReadyIrqEnabled, FieldMode.Read, name: "IMR_RXRDY")
-                    .WithFlag(1, out transmitterReadyIrqEnabled, FieldMode.Read, name: "IMR_TXRDY")
-                },
-
-                {(long)Registers.ReceiveHolding, new DoubleWordRegister(this)
-                    .WithValueField(0, 9, FieldMode.Read, valueProviderCallback: _ =>
-                    {
-                        if(!receiverEnabled)
-                        {
-                            return 0;
-                        }
-
-                        if(!TryGetCharacter(out var character))
-                        {
-                            this.Log(LogLevel.Warning, "Trying to read data from empty receive fifo");
-                        }
-                        if(Count == 0)
-                        {
-                            receiverReady.Value = false;
-                        }
-                        UpdateInterrupts();
-                        return character;
-                    }, name: "RXCHR")
-                    .WithTaggedFlag("RXSYNH", 15)
-                },
-
-                {(long)Registers.TransmitHolding, new DoubleWordRegister(this)
-                    .WithValueField(0, 9, FieldMode.Write, writeCallback: (_, b) =>
-                    {
-                        if(!transmitterEnabled)
-                        {
-                            return;
-                        }
-
-                        this.TransmitCharacter((byte)b);
-                        UpdateInterrupts();
-                    }, name: "TXCHR")
-                    .WithTaggedFlag("TXSYNH", 15)
-                },
-            };
-
-            registers = new DoubleWordRegisterCollection(this, registersMap);
-
+            RegistersCollection = new DoubleWordRegisterCollection(this);
             IRQ = new GPIO();
+            DefineRegisters();
+            Reset();
+        }
+
+        public override void Reset()
+        {
+            base.Reset();
+            RegistersCollection.Reset();
+            UpdateInterrupts();
         }
 
         public uint ReadDoubleWord(long offset)
         {
             lock(innerLock)
             {
-                return registers.Read(offset);
+                return RegistersCollection.Read(offset);
             }
         }
 
@@ -195,12 +42,13 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             lock(innerLock)
             {
-                registers.Write(offset, value);
+                RegistersCollection.Write(offset, value);
             }
         }
 
         public long Size => 0x100;
-        public GPIO IRQ { get; private set; }
+        public GPIO IRQ { get; }
+        public DoubleWordRegisterCollection RegistersCollection { get; }
 
         public override uint BaudRate => 115200;
 
@@ -260,17 +108,176 @@ namespace Antmicro.Renode.Peripherals.UART
             UpdateInterrupts();
         }
 
+        private void DefineRegisters()
+        {
+            Registers.Control.Define(this)
+                .WithFlag(2, out var resetReceiver, FieldMode.Write, name: "RSTRX")
+                .WithFlag(3, out var resetTransmitter, FieldMode.Write, name: "RSTTX")
+
+                .WithFlag(4, out var enableReceiver, FieldMode.Write, name: "RXEN")
+                .WithFlag(5, out var disableReceiver, FieldMode.Write, name: "RXDIS")
+
+                .WithFlag(6, out var enableTransmitter, FieldMode.Write, name: "TXEN")
+                .WithFlag(7, out var disableTransmitter, FieldMode.Write, name: "TXDIS")
+
+                .WithWriteCallback((_, __) =>
+                {
+                    if(resetReceiver.Value)
+                    {
+                        /* Clear FIFO */
+                        ClearBuffer();
+                        receiverEnabled = false;
+                    }
+
+                    /* Determine what to do with the Receiver */
+                    if(disableReceiver.Value)
+                    {
+                        receiverEnabled = false;
+                    }
+                    else if(enableReceiver.Value)
+                    {
+                        receiverEnabled = true;
+                    }
+
+                    /* Determine what to do with the Transmitter */
+                    if(disableTransmitter.Value || (resetTransmitter.Value && !enableTransmitter.Value))
+                    {
+                        transmitterEnabled = false;
+                    }
+                    else if(enableTransmitter.Value)
+                    {
+                        transmitterEnabled = true;
+                    }
+                })
+            ;
+
+            Registers.Mode.Define(this)
+                .WithValueField(0, 4, valueProviderCallback: _ => 0, writeCallback: (_, value) =>
+                {
+                    if(value != 0)
+                    {
+                        this.Log(LogLevel.Warning, "Trying to configure the device to an unsupported mode!");
+                    }
+                }, name: "USART_MODE")
+                .WithTag("USCLKS", 4, 2)
+                .WithTag("CHRL", 6, 2)
+                .WithTaggedFlag("SYNC", 8)
+
+                .WithEnumField(9, 3, out parityType, name: "PAR")
+                .WithEnumField(12, 2, out numberOfStopBits, name: "NBSTOP")
+
+                .WithTag("CHMODE", 14, 2)
+                .WithTaggedFlag("MSBF", 16)
+                .WithTaggedFlag("MODE9", 17)
+                .WithTaggedFlag("CLKO", 18)
+                .WithTaggedFlag("OVER", 19)
+                .WithTaggedFlag("INACK", 20)
+                .WithTaggedFlag("DSNACK", 21)
+                .WithTaggedFlag("VAR_SYNC", 22)
+                .WithTaggedFlag("INVDATA", 23)
+                .WithTag("MAX_ITERATION", 24, 3)
+                .WithReservedBits(27, 1)
+                .WithTaggedFlag("FILTER", 28)
+                .WithTaggedFlag("MAN", 29)
+                .WithTaggedFlag("MODSYNC", 30)
+                .WithTaggedFlag("ONEBIT", 31)
+            ;
+
+            Registers.InterruptEnable.Define(this)
+                .WithFlag(0, FieldMode.Write, writeCallback: (_, value) =>
+                {
+                    if(value)
+                    {
+                        receiverReadyIrqEnabled.Value = true;
+                    }
+                }, name: "IER_RXRDY")
+                .WithFlag(1, FieldMode.Write, writeCallback: (_, value) =>
+                {
+                    if(value)
+                    {
+                        transmitterReadyIrqEnabled.Value = true;
+                    }
+                }, name: "IER_TXRDY")
+                .WithWriteCallback((_, __) => UpdateInterrupts())
+            ;
+
+            Registers.InterruptDisable.Define(this)
+                .WithFlag(0, FieldMode.Write, writeCallback: (_, value) =>
+                {
+                    if(value)
+                    {
+                        receiverReadyIrqEnabled.Value = false;
+                    }
+                }, name: "IDR_RXRDY")
+                .WithFlag(1, FieldMode.Write, writeCallback: (_, value) =>
+                {
+                    if(value)
+                    {
+                        transmitterReadyIrqEnabled.Value = false;
+                    }
+                }, name: "IDR_TXRDY")
+                .WithWriteCallback((_, __) => UpdateInterrupts())
+            ;
+
+            Registers.InterruptMask.Define(this)
+                .WithFlag(0, out receiverReadyIrqEnabled, FieldMode.Read, name: "IMR_RXRDY")
+                .WithFlag(1, out transmitterReadyIrqEnabled, FieldMode.Read, name: "IMR_TXRDY")
+            ;
+
+            Registers.ChannelStatus.Define(this)
+                .WithFlag(0, out receiverReady, FieldMode.Read, name: "RXRDY")
+                .WithFlag(1, FieldMode.Read, valueProviderCallback: _ =>
+                {
+                    return transmitterEnabled;
+                }, name: "TXRDY")
+            ;
+
+            Registers.ReceiveHolding.Define(this)
+                .WithValueField(0, 9, FieldMode.Read, valueProviderCallback: _ =>
+                {
+                    if(!receiverEnabled)
+                    {
+                        return 0;
+                    }
+
+                    if(!TryGetCharacter(out var character))
+                    {
+                        this.Log(LogLevel.Warning, "Trying to read data from empty receive fifo");
+                    }
+                    if(Count == 0)
+                    {
+                        receiverReady.Value = false;
+                    }
+                    UpdateInterrupts();
+                    return character;
+                }, name: "RXCHR")
+                .WithTaggedFlag("RXSYNH", 15)
+            ;
+
+            Registers.TransmitHolding.Define(this)
+                .WithValueField(0, 9, FieldMode.Write, writeCallback: (_, b) =>
+                {
+                    if(!transmitterEnabled)
+                    {
+                        return;
+                    }
+
+                    this.TransmitCharacter((byte)b);
+                    UpdateInterrupts();
+                }, name: "TXCHR")
+                .WithTaggedFlag("TXSYNH", 15)
+            ;
+        }
+
         private void UpdateInterrupts()
         {
             IRQ.Set((receiverEnabled && receiverReadyIrqEnabled.Value && receiverReady.Value) || (transmitterEnabled && transmitterReadyIrqEnabled.Value));
         }
 
-        private readonly IFlagRegisterField receiverReady;
+        private IFlagRegisterField receiverReady;
 
-        private readonly IFlagRegisterField receiverReadyIrqEnabled;
-        private readonly IFlagRegisterField transmitterReadyIrqEnabled;
-
-        private readonly DoubleWordRegisterCollection registers;
+        private IFlagRegisterField receiverReadyIrqEnabled;
+        private IFlagRegisterField transmitterReadyIrqEnabled;
 
         private IEnumRegisterField<ParityTypeValues> parityType;
         private IEnumRegisterField<NumberOfStopBitsValues> numberOfStopBits;
