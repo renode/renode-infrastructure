@@ -542,7 +542,7 @@ namespace Antmicro.Renode.UserInterface
             {
                 writer = Interaction;
             }
-            string sha; 
+            string sha;
             using(var shaComputer = SHA256.Create())
             {
                 using(var f = File.OpenRead(filename))
@@ -572,7 +572,7 @@ namespace Antmicro.Renode.UserInterface
                     compiledCode = compiler.Compile(filename);
                     EmulationManager.Instance.CompiledFilesCache.StoreEntryWithSha(sha, compiledCode);
                 }
-                
+
                 cache.ClearCache();
                 var result = TypeManager.Instance.ScanFile(compiledCode);
                 if(result)
@@ -1004,7 +1004,7 @@ namespace Antmicro.Renode.UserInterface
                         }
                         currentObject = newObject;
                     }
-                    
+
                     if(currentObject != null)
                     {
                         var devInfo = GetObjectSuggestions(currentObject).Distinct(); 
