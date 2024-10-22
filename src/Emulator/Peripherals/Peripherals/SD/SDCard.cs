@@ -57,6 +57,7 @@ namespace Antmicro.Renode.Peripherals.SD
             ;
 
             operatingConditionsGenerator = new VariableLengthValue(32)
+                .DefineFragment(7, 1, 1, name: "Reserved for Low Voltage Range")
                 .DefineFragment(8, 1, 1, name: "VDD voltage window 2.0 - 2.1")
                 .DefineFragment(9, 1, 1, name: "VDD voltage window 2.1 - 2.2")
                 .DefineFragment(10, 1, 1, name: "VDD voltage window 2.2 - 2.3")
@@ -112,11 +113,12 @@ namespace Antmicro.Renode.Peripherals.SD
             }
 
             extendedCardSpecificDataGenerator = new VariableLengthValue(4096)
-                .DefineFragment((120), 8, 1, name: "command queue enabled")
-                .DefineFragment((1472), 8, 1, name: "es support")
-                .DefineFragment((1480), 8, 1, name: "hw hs timing")
-                .DefineFragment((1568), 8, (uint)DeviceType.SDR50Mhz, name: "device type")
-                .DefineFragment((2464), 8, 1, name: "command queue support")
+                .DefineFragment(120, 8, 1, name: "command queue enabled")
+                .DefineFragment(200, 1, 1, name: "HS400 support")
+                .DefineFragment(1472, 8, 1, name: "es support")
+                .DefineFragment(1480, 8, 1, name: "hw hs timing")
+                .DefineFragment(1568, 8, (uint)DeviceType.SDR50Mhz | (uint) DeviceType.HS200, name: "device type")
+                .DefineFragment(2464, 8, 1, name: "command queue support")
             ;
 
             cardIdentificationGenerator = new VariableLengthValue(128)
@@ -711,6 +713,9 @@ namespace Antmicro.Renode.Peripherals.SD
                         ? GenerateR1Response()
                         : CardStatus;
 
+                case SdCardCommand.SendTuneBlock_CMD21:
+                    return new BitStream(new byte[4]);
+
                 case SdCardCommand.SetBlockCount_CMD23:
                     return spiMode
                         ? GenerateR1Response()
@@ -792,6 +797,7 @@ namespace Antmicro.Renode.Peripherals.SD
 
                 case SdCardApplicationSpecificCommand.SendSDConfigurationRegister_ACMD51:
                     readContext.Data = SDConfiguration;
+                    state = SDCardState.SendingData;
                     result = spiMode
                         ? GenerateRegisterResponse(SDConfiguration)
                         : CardStatus;
@@ -891,9 +897,11 @@ namespace Antmicro.Renode.Peripherals.SD
             SetBlockLength_CMD16 = 16,
             ReadSingleBlock_CMD17 = 17,
             ReadMultipleBlocks_CMD18 = 18,
+            SendTuneBlock_CMD21 = 21,
             SetBlockCount_CMD23 = 23,
             WriteSingleBlock_CMD24 = 24,
             WriteMultipleBlocks_CMD25 = 25,
+            IOReadWriteDirect_CM52 = 52,
             AppCommand_CMD55 = 55,
             ReadOperationConditionRegister_CMD58 = 58,
             EnableCRCChecking_CMD59 = 59
@@ -958,7 +966,8 @@ namespace Antmicro.Renode.Peripherals.SD
             SDR25Mhz = 1,
             SDR50Mhz = 2,
             SDR = 3,
-            DDR = 4
+            DDR = 4,
+            HS200 = 0x10
         }
 
         private enum DataToken
