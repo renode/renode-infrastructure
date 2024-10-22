@@ -45,7 +45,7 @@ namespace Antmicro.Renode.Core
         public ProgressMonitor ProgressMonitor { get; private set; }
 
         public Emulation CurrentEmulation
-        { 
+        {
             get
             {
                 return currentEmulation;
