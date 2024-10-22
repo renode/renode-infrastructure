@@ -35,7 +35,7 @@ namespace Antmicro.Renode.UserInterface.Commands
         {
             return Run(writer, path.Value);
         }
-        
+
         private bool Run(ICommandInteraction writer, ReadFilePath path)
         {
             using(var progress = EmulationManager.Instance.ProgressMonitor.Start("Including script: " + path))
