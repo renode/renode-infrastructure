@@ -47,17 +47,4 @@
     <ProjectReference Include="..\..\..\..\..\lib\Packet.Net\PacketDotNet\PacketDotNet_NET.csproj"/>
     <ProjectReference Include="..\..\..\..\..\lib\bc-csharp\crypto\crypto_NET.csproj"/>
   </ItemGroup>
-  <ItemGroup>
-    <None Include="..\..\..\..\..\lib\resources\llvm\libllvm-disas.dll" />
-    <None Include="..\..\..\..\..\lib\resources\llvm\libllvm-disas.so" />
-    <None Include="..\..\..\..\..\lib\resources\llvm\libllvm-disas.dylib" />
-  </ItemGroup>
-  <Target Name="CopySharedLibraries" AfterTargets="Build">
-    <PropertyGroup>
-        <Extension Condition=" '$(CurrentPlatform)' == 'Windows'">dll</Extension>
-        <Extension Condition=" '$(CurrentPlatform)' == 'Linux'"  >so</Extension>
-        <Extension Condition=" '$(CurrentPlatform)' == 'OSX'"    >dylib</Extension>
-    </PropertyGroup>
-    <Copy SourceFiles="..\..\..\..\..\lib\resources\llvm\libllvm-disas.$(Extension)" DestinationFiles="$(OutputPath)\libllvm-disas.$(Extension)" Condition="Exists('..\..\..\..\..\lib\resources\llvm\libllvm-disas.$(Extension)')" />
-  </Target>
 </Project>

@@ -786,18 +786,4 @@
     <Folder Include="Peripherals\Miscellaneous\SiLabs\" />
     <Folder Include="Peripherals\SPI\NORFlash\" />
   </ItemGroup>
-  <ItemGroup>
-    <None Include="..\..\..\..\..\lib\resources\llvm\libllvm-disas.dll" />
-    <None Include="..\..\..\..\..\lib\resources\llvm\libllvm-disas.so" />
-    <None Include="..\..\..\..\..\lib\resources\llvm\libllvm-disas.dylib" />
-  </ItemGroup>
-  <UsingTask AssemblyFile="$(MSBuildProjectDirectory)/../../../../../lib/cctask/CCTask/bin/Release/CCTask.dll" TaskName="EnvironmentTask" />
-  <Target Name="CopySharedLibraries" AfterTargets="Build">
-    <PropertyGroup>
-        <Extension Condition=" '$(CurrentPlatform)' == 'Windows'">dll</Extension>
-        <Extension Condition=" '$(CurrentPlatform)' == 'Linux'"  >so</Extension>
-        <Extension Condition=" '$(CurrentPlatform)' == 'OSX'"    >dylib</Extension>
-    </PropertyGroup>
-    <Copy SourceFiles="..\..\..\..\..\lib\resources\llvm\libllvm-disas.$(Extension)" DestinationFiles="$(OutputPath)\libllvm-disas.$(Extension)" Condition="Exists('..\..\..\..\..\lib\resources\llvm\libllvm-disas.$(Extension)')" />
-  </Target>
 </Project>
