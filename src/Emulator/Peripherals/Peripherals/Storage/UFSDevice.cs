@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -77,10 +77,10 @@ namespace Antmicro.Renode.Peripherals.Storage
             IndexManufacturerName = 0;
             IndexProductName = 1;
             IndexSerialNumber = 2;
-            IndexOemID = 3; 
+            IndexOemID = 3;
             IndexProductRevisionLevel = 4;
 
-            ManufacturerName = manufacturerName; 
+            ManufacturerName = manufacturerName;
             ProductName = productName;
             SerialNumber = serialNumber;
             OemID = oemID;
@@ -310,7 +310,7 @@ namespace Antmicro.Renode.Peripherals.Storage
                         {
                             // Combination of the following PolicyPageCode and PolicySubpageCode means that descriptor
                             // applies to all mode pages and subpages not described by other mode page policy descriptors.
-                            // Because ModePagePolicy is always set to Shared for UFS device, it allows to simplify returned structure. 
+                            // Because ModePagePolicy is always set to Shared for UFS device, it allows to simplify returned structure.
                             PolicyPageCode = 0x3f,
                             PolicySubpageCode = 0xff,
                             ModePagePolicy = ModePagePolicy.Shared,
@@ -509,7 +509,7 @@ namespace Antmicro.Renode.Peripherals.Storage
                 Response = (byte)UTPTaskManagementStatus.Success, // Target Success
                 TotalEHSLength = 0,
                 DataSegmentLength = 0,
-                OutputParameter1 = 0x00 // Task Management Function Complete 
+                OutputParameter1 = 0x00 // Task Management Function Complete
             };
             return response;
         }
@@ -874,15 +874,15 @@ namespace Antmicro.Renode.Peripherals.Storage
 
         private void InitDeviceDescriptor(
             byte bDeviceSubClass = 0x01, // Embedded Non-Bootable
-            byte bBackgroundOpsTermLat = 0x00, // Latency undefined 
-            ushort wManufactureDate = 0x0810, // August 2010 
+            byte bBackgroundOpsTermLat = 0x00, // Latency undefined
+            ushort wManufactureDate = 0x0810, // August 2010
             byte iManufacturerName = 0, // Index to the string which contains the Manufacturer Name
             byte iProductName = 1, // Index to the string which contains the Product Name
             byte iSerialNumber = 2, // Index to the string which contains the Serial Number
             byte iOemID = 3, // Index to the string which contains the OEM ID
             ushort wManufacturerID = 0x0000, // Manufacturer ID as defined in JEDEC JEP106, Standard Manufacturer’s Identification Code.
             byte bDeviceRTTCap = 8, // Maximum number of outstanding RTTs supported by device
-            byte bUFSFeaturesSupport = 0b00000001, // UFS Features Support, Bit 0 shall be set to one 
+            byte bUFSFeaturesSupport = 0b00000001, // UFS Features Support, Bit 0 shall be set to one
             byte bFFUTimeout = 0, // No Timeout
             byte bQueueDepth = 0, // The device implements the per-LU queueing architecture
             ushort wDeviceVersion = 0x0000, // Device Version
@@ -1047,7 +1047,7 @@ namespace Antmicro.Renode.Peripherals.Storage
                     LUNumWriteBoosterBufferAllocUnits = 0x00
                 };
 
-                // Set the highest bit to obtain well known logical unit identifier 
+                // Set the highest bit to obtain well known logical unit identifier
                 var lun = (byte)(0x80 | wlun);
                 unitDescriptors[lun] = wellKnownUnitDescr;
             }
@@ -1286,7 +1286,7 @@ namespace Antmicro.Renode.Peripherals.Storage
         public static readonly VitalProductDataPageCode[] SupportedVPDPages = new VitalProductDataPageCode[]
         {
             VitalProductDataPageCode.SupportedVPDPages,
-            VitalProductDataPageCode.ModePagePolicy 
+            VitalProductDataPageCode.ModePagePolicy
         };
 
         public int LogicalUnits { get; }
@@ -1326,7 +1326,7 @@ namespace Antmicro.Renode.Peripherals.Storage
         private const int MaxAllowedOutBufferSize = 255;
         private const int MaxNumberOfStringDescriptors = 256;
         private const int BasicUPIULength = 32; // UPIU length without CRC and data segment
-        private const byte ReportLUNStandardLogicalUnitAddressing = 0b00000000; // Format used for standard logical unit addressing 
+        private const byte ReportLUNStandardLogicalUnitAddressing = 0b00000000; // Format used for standard logical unit addressing
         private const byte ReportLUNWellKnownLogicalUnitAddressing = 0b11000001; // Format used for well known logical unit addressing
         private const int ManufacturerNameLength = 8;
         private const int ProductNameLength = 16;
