@@ -330,6 +330,20 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTag("FIFOSIZE", 0, 5)
                 .WithReservedBits(5, 27);
 
+            // Normally we can select which peripheral to use on Flexcomm.
+            // Since we use this peripheral instead Flexcomm we hardcode USART
+            // as the only possible option.
+            Registers.PeripheralSelectAndId.Define(this)
+                .WithValueField(0, 3, out peripheralSelectId, name: "PERIPHERAL_SELECT")
+                .WithFlag(3, out peripheralSelectLock, FieldMode.Read | FieldMode.Set, name: "LOCK")
+                .WithFlag(4, FieldMode.Read, name: "USART_PRESENT", valueProviderCallback: _ => true)
+                .WithTaggedFlag("SPI_PRESENT", 5)
+                .WithTaggedFlag("I2C_PRESENT", 6)
+                .WithTaggedFlag("I2S_PRESENT", 7)
+                .WithReservedBits(8, 4)
+                .WithTag("ID", 12, 20)
+                .WithWriteCallback((oldVal, __) => HandleFlexcommPeripheralSelect(oldVal));
+
             Registers.PeripheralIdentification.Define(this)
                 .WithTag("APRETURE", 0, 8)
                 .WithTag("MINOR_REV", 8, 4)
@@ -385,18 +399,46 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
+        private void HandleFlexcommPeripheralSelect(ulong oldValue)
+        {
+            var oldIsLocked = (oldValue & 0x8) != 0;
+            var oldPeripheralSelectId = oldValue & 0x7;
+
+            if(oldIsLocked)
+            {
+                this.Log(LogLevel.Warning, "Tried to change flexcomm PSELID register after it has been locked");
+                peripheralSelectId.Value = oldPeripheralSelectId;
+                peripheralSelectLock.Value = oldIsLocked;
+                return;
+            }
+
+            if(peripheralSelectId.Value != FlexcommPeripheralNotSelected && peripheralSelectId.Value != FlexcommPeripheralUsart)
+            {
+                this.Log(
+                    LogLevel.Warning,
+                    "Tried to select flexcomm peripheral with ID {0}, but only USART is available",
+                    peripheralSelectId.Value
+                );
+                peripheralSelectId.Value = FlexcommPeripheralNotSelected;
+            }
+        }
+
         private bool stopBits;
         private ParityMode parityMode;
 
         private readonly ulong clockFrequency;
 
         private const ulong DefaultClockFrequency = 10000000;
+        private const ulong FlexcommPeripheralNotSelected = 0x0;
+        private const ulong FlexcommPeripheralUsart = 0x1;
 
         private IFlagRegisterField transmitDisable;
         private IFlagRegisterField txFifoLevelInterruptEnable;
         private IFlagRegisterField rxFifoLevelInterruptEnable;
         private IFlagRegisterField txFifoLevelTriggerEnable;
         private IFlagRegisterField rxFifoLevelTriggerEnable;
+        private IFlagRegisterField peripheralSelectLock;
+        private IValueRegisterField peripheralSelectId;
         private IValueRegisterField txFifoLevelTriggerPoint;
         private IValueRegisterField rxFifoLevelTriggerPoint;
         private IValueRegisterField baudDivider;
@@ -440,6 +482,7 @@ namespace Antmicro.Renode.Peripherals.UART
             FifoReadData                = 0xE30,
             FifoDataReadNoFifoPop       = 0xE40,
             FifoSize                    = 0xE48,
+            PeripheralSelectAndId       = 0xFF8,
             PeripheralIdentification    = 0xFFC
         }
     }
