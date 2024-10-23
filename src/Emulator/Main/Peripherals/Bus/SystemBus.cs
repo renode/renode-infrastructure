@@ -638,7 +638,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         // to GDB's add-symbol-file.
         public void LoadSymbolsFrom(ReadFilePath fileName, bool useVirtualAddress = false, ulong? textAddress = null, ICPU context = null)
         {
-            using(var elf = GetELFFromFile(fileName))
+            using(var elf = ELFUtils.LoadELF(fileName))
             {
                 GetOrCreateLookup(context).LoadELF(elf, useVirtualAddress, textAddress);
             }
@@ -1792,23 +1792,6 @@ namespace Antmicro.Renode.Peripherals.Bus
             foreach(var address in hooksOnRead.Select(x => x.Key).Union(hooksOnWrite.Select(x => x.Key)))
             {
                 SetPageAccessViaIo(address);
-            }
-        }
-
-        private static IELF GetELFFromFile(ReadFilePath fileName)
-        {
-            try
-            {
-                if(!ELFReader.TryLoad(fileName, out var result))
-                {
-                    throw new RecoverableException($"Could not load ELF from path: {fileName}");
-                }
-                return result;
-            }
-            catch(Exception e)
-            {
-                // ELF creating exception are recoverable in the sense of emulator state
-                throw new RecoverableException(string.Format("Error while loading ELF: {0}.", e.Message), e);
             }
         }
 

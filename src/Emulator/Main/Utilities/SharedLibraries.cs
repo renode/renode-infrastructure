@@ -119,9 +119,11 @@ namespace Antmicro.Renode.Utilities
             {
                 return pe.GetExportedSymbols();
             }
-            var elf = ELFReader.Load(path);
-            var symtab = (ISymbolTable)elf.GetSection(".symtab");
-            return symtab.Entries.Select(x => x.Name);
+            using(var elf = ELFUtils.LoadELF(path))
+            {
+                var symtab = (ISymbolTable)elf.GetSection(".symtab");
+                return symtab.Entries.Select(x => x.Name);
+            }
         }
 
         /// <summary>

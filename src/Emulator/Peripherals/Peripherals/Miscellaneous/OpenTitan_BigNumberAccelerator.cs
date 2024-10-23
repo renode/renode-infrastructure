@@ -78,12 +78,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public void LoadELF(string filePath)
         {
-            if(!ELFSharp.ELF.ELFReader.TryLoad(filePath, out var elf))
-            {
-                throw new RecoverableException($"Could not load ELF from path: {filePath}");
-            }
-
-            using(elf)
+            using(var elf = ELFUtils.LoadELF(filePath))
             {
                 if(elf.TryGetSection(".text", out var iMemSection))
                 {

@@ -637,6 +637,7 @@
     <Compile Include="Peripherals\Sensor\IADC.cs" />
     <Compile Include="Peripherals\Bus\IIndirectCSRPeripheral.cs" />
     <Compile Include="Utilities\Fraction.cs" />
+    <Compile Include="Utilities\ELFUtils.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
