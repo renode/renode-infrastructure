@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 // Copyright (c) 2020-2021 Microsoft
 //
@@ -239,6 +239,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     break;
                 }
                 binaryPointPosition = (int)(value >> 8) & 7;
+                prioritizeSecureInterrupts = (value & (1 << 14)) != 0;
                 if(BitHelper.IsBitSet(value, 2))
                 {
                     resetMachine();
@@ -903,6 +904,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             var returnValue = (uint)VectKeyStat << 16;
             returnValue |= ((uint)binaryPointPosition << 8);
+            returnValue |= prioritizeSecureInterrupts ? (1u << 14) : 0;
             return returnValue;
         }
 
@@ -1279,6 +1281,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private Stack<int> activeIRQs;
         private ISet<int> pendingIRQs;
         private int binaryPointPosition; // from the right
+        private bool prioritizeSecureInterrupts;
         private uint mpuControlRegister;
         private MPUVersion mpuVersion;
 
