@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     public partial class CortexM : Arm
     {
         public CortexM(string cpuType, IMachine machine, NVIC nvic, [NameAlias("id")] uint cpuId = 0, Endianess endianness = Endianess.LittleEndian,
-            uint? fpuInterruptNumber = null, uint? numberOfMPURegions = null, bool enableTrustZone = false)
+            uint? fpuInterruptNumber = null, uint? numberOfMPURegions = null, uint? numberOfSAURegions = null, bool enableTrustZone = false)
             : base(cpuType, machine, cpuId, endianness, numberOfMPURegions)
         {
             if(nvic == null)
@@ -42,6 +42,16 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
 
             TrustZoneEnabled = enableTrustZone;
+            if(!numberOfSAURegions.HasValue && TrustZoneEnabled)
+            {
+                // TODO: Determine default number
+                this.NumberOfSAURegions = 8;
+                this.Log(LogLevel.Info, "Configuring Security Attribution Unit regions to default: {0}", this.NumberOfSAURegions);
+            }
+            else if(numberOfSAURegions.HasValue)
+            {
+                NumberOfSAURegions = numberOfSAURegions.Value;
+            }
 
             this.nvic = nvic;
             try
@@ -133,6 +143,18 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
                 this.NoisyLog("VectorTableOffset set to 0x{0:X}.", value);
                 tlibSetInterruptVectorBase(value);
+            }
+        }
+
+        public uint NumberOfSAURegions
+        {
+            get
+            {
+                return tlibGetNumberOfSauRegions();
+            }
+            set
+            {
+                tlibSetNumberOfSauRegions(value);
             }
         }
 
@@ -291,6 +313,42 @@ namespace Antmicro.Renode.Peripherals.CPU
             get
             {
                 return tlibGetMpuRegionNumber();
+            }
+        }
+
+        public uint SAURegionNumber
+        {
+            set
+            {
+                tlibSetSauRegionNumber(value);
+            }
+            get
+            {
+                return tlibGetSauRegionNumber();
+            }
+        }
+
+        public uint SAURegionBaseAddress
+        {
+            set
+            {
+                tlibSetSauRegionBaseAddress(value);
+            }
+            get
+            {
+                return tlibGetSauRegionBaseAddress();
+            }
+        }
+
+        public uint SAURegionLimitAddress
+        {
+            set
+            {
+                tlibSetSauRegionLimitAddress(value);
+            }
+            get
+            {
+                return tlibGetSauRegionLimitAddress();
             }
         }
 
@@ -476,6 +534,31 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private Action<int> tlibSetSleepOnExceptionExit;
+
+        /* TrustZone SAU */
+        [Import]
+        private Action<uint> tlibSetNumberOfSauRegions;
+
+        [Import]
+        private Func<uint> tlibGetNumberOfSauRegions;
+
+        [Import]
+        private Action<uint> tlibSetSauRegionNumber;
+
+        [Import]
+        private Func<uint> tlibGetSauRegionNumber;
+
+        [Import]
+        private Action<uint> tlibSetSauRegionBaseAddress;
+
+        [Import]
+        private Func<uint> tlibGetSauRegionBaseAddress;
+
+        [Import]
+        private Action<uint> tlibSetSauRegionLimitAddress;
+
+        [Import]
+        private Func<uint> tlibGetSauRegionLimitAddress;
 
         /* PMSAv8 MPU */
         [Import]

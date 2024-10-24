@@ -144,6 +144,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 return HandleMPURead(offset - MPUStart);
             }
+            if(offset >= SAUStart && offset < SAUEnd)
+            {
+                return HandleSAURead(offset - SAUStart);
+            }
             switch((Registers)offset)
             {
             case Registers.VectorTableOffset:
@@ -224,6 +228,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             if(offset >= MPUStart && offset < MPUEnd)
             {
                 HandleMPUWrite(offset - MPUStart, value);
+                return;
+            }
+            if(offset >= SAUStart && offset < SAUEnd)
+            {
+                HandleSAUWrite(offset - SAUStart, value);
                 return;
             }
             switch((Registers)offset)
@@ -900,6 +909,41 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             return value;
         }
 
+        private uint HandleSAURead(long offset)
+        {
+            switch((RegistersSAU)offset)
+            {
+                case RegistersSAU.RegionNumber:
+                    return cpu.SAURegionNumber;
+                case RegistersSAU.RegionBaseAddress:
+                    return cpu.SAURegionBaseAddress;
+                case RegistersSAU.RegionLimitAddress:
+                    return cpu.SAURegionLimitAddress;
+                default:
+                    this.WarningLog("SAU: Read from unhandled register 0x{0:x}", offset);
+                    return 0;
+            }
+        }
+
+        private void HandleSAUWrite(long offset, uint value)
+        {
+            switch((RegistersSAU)offset)
+            {
+                case RegistersSAU.RegionNumber:
+                    cpu.SAURegionNumber = value;
+                    break;
+                case RegistersSAU.RegionBaseAddress:
+                    cpu.SAURegionBaseAddress = value;
+                    break;
+                case RegistersSAU.RegionLimitAddress:
+                    cpu.SAURegionLimitAddress = value;
+                    break;
+                default:
+                    this.WarningLog("SAU: Write to unhandled register 0x{0:x}, value 0x{1:x}", offset, value);
+                    break;
+            }
+        }
+
         private uint HandleApplicationInterruptAndResetRead()
         {
             var returnValue = (uint)VectKeyStat << 16;
@@ -1198,6 +1242,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             Alias2OfMPURegionAttributeAndSize = 0xDB0, // MPU_RASR_A2
             Alias3OfMPURegionBaseAddress = 0xDB4, // MPU_RBAR_A3
             Alias3OfMPURegionAttributeAndSize = 0xDB8, // MPU_RASR_A3
+            SAURegionNumber = 0xDD8, // SAU_RNR
+            SAURegionBaseAddress = 0xDDC, // SAU_RBAR
+            SAURegionLimitAddress = 0xDE0, // SAU_RLAR
             DebugExceptionAndMonitorControlRegister = 0xDFC, // DEMCR
             SoftwareTriggerInterrupt = 0xF00, // STIR
             FPContextControl = 0xF34, // FPCCR
@@ -1260,6 +1307,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             MemoryAttributeIndirectionRegister1 = 0x34
         }
 
+        private enum RegistersSAU
+        {
+            RegionNumber = 0x0, // SAU_RNR
+            RegionBaseAddress = 0x4, // SAU_RBAR
+            RegionLimitAddress = 0x8, // SAU_RLAR
+        }
+
         private enum MPUVersion
         {
             PMSAv7,
@@ -1305,6 +1359,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private const int MPUStart             = 0xD90;
         private const int MPUEnd               = 0xDC4;    // resized for compat. with V8 MPU
+        private const int SAUStart             = 0xDD8;
+        private const int SAUEnd               = 0xDE4;
         private const int SpuriousInterrupt    = 256;
         private const int SetEnableStart       = 0x100;
         private const int SetEnableEnd         = 0x140;
