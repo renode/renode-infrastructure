@@ -229,6 +229,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     .WithValueField(0, 16, FieldMode.Write, writeCallback: (_, value) => { locked.Value = (value != UnlockCode); }, name: "LOCKKEY")
                     .WithReservedBits(16, 16)
                 },
+                {(long)Registers.PageLock0, new DoubleWordRegister(this)
+                    .WithValueField(0, 22, name: "PAGELOCK0")
+                    .WithReservedBits(22, 10)
+                },
+                {(long)Registers.PageLock1, new DoubleWordRegister(this)
+                    .WithValueField(0, 22, name: "PAGELOCK1")
+                    .WithReservedBits(22, 10)
+                },
             };
             return new DoubleWordRegisterCollection(this, registerDictionary);
         }
@@ -432,6 +440,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             LockConfig                          = 0x003C,
             LockWord                            = 0x0040,
             PowerControl                        = 0x0050,
+            PageLock0                           = 0x0120,
+            PageLock1                           = 0x0124,
             // Set registers
             IpVersion_Set                       = 0x1000,
             ReadControl_Set                     = 0x1004,
@@ -448,6 +458,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             ConfigLock_Set                      = 0x103C,
             LockWord_Set                        = 0x1040,
             PowerControl_Set                    = 0x1050,
+            PageLock0_Set                       = 0x1120,
+            PageLock1_Set                       = 0x1124,
             // Clear registers
             IpVersion_Clr                       = 0x2000,
             ReadControl_Clr                     = 0x2004,
@@ -464,6 +476,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             ConfigLock_Clr                      = 0x203C,
             LockWord_Clr                        = 0x2040,
             PowerControl_Clr                    = 0x2050,
+            PageLock0_Clr                       = 0x2120,
+            PageLock1_Clr                       = 0x2124,
             // Toggle registers
             IpVersion_Tgl                       = 0x3000,
             ReadControl_Tgl                     = 0x3004,
@@ -480,6 +494,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             LockConfig_Tgl                      = 0x303C,
             LockWord_Tgl                        = 0x3040,
             PowerControl_Tgl                    = 0x3050,
+            PageLock0_Tgl                       = 0x3120,
+            PageLock1_Tgl                       = 0x3124,
         }
 #endregion        
     }
