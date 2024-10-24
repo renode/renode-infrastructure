@@ -747,6 +747,7 @@
     <Compile Include="Peripherals\DMA\SAM_PDC.cs" />
     <Compile Include="Peripherals\Miscellaneous\RenesasRZG_CPG.cs" />
     <Compile Include="Peripherals\SPI\SAM_SPI.cs" />
+    <Compile Include="Peripherals\Timers\SAM_TC.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
