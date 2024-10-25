@@ -738,6 +738,7 @@
     <Compile Include="Peripherals\CRC\SAM4S_CRCCU.cs" />
     <Compile Include="Peripherals\GPIOPort\SAM4S_PIO.cs" />
     <Compile Include="Peripherals\UART\MSP430_USCIA.cs" />
+    <Compile Include="Peripherals\Miscellaneous\MSP430F2XXX_MPY.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
