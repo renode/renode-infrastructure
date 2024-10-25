@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -245,14 +245,14 @@ namespace Antmicro.Renode.Extensions.Mocks
             IssueCommand(new byte[] { ((byte)Commands.RegisterAccess << 6) | (byte)RegisterAccessType.FPGAROMVersion });
             return GetBytesFromSlave(2, timeInterval);
         }
-        
+
         // Register 15:
         public byte[] ReadSPIFlashStatus(TimeInterval timeInterval)
         {
             IssueCommand(new byte[] { ((byte)Commands.RegisterAccess << 6) | (byte)RegisterAccessType.SPIFlashStatusBits });
             return GetBytesFromSlave(2, timeInterval);
         }
-        
+
         // Register 16:
         public byte[] ReadDebugIndex(TimeInterval timeInterval)
         {
@@ -266,14 +266,14 @@ namespace Antmicro.Renode.Extensions.Mocks
             IssueCommand(new byte[] { ((byte)Commands.RegisterAccess << 6) | (byte)RegisterAccessType.DebugValue });
             return GetBytesFromSlave(2, timeInterval);
         }
-        
+
         // Register 18:
         public string[,] ReadCameraConfiguration(TimeInterval timeInterval)
         {
             IssueCommand(new byte[] { ((byte)Commands.RegisterAccess << 6) | (byte)RegisterAccessType.CameraConfiguration });
             return FormatCameraConfiguration(GetBytesFromSlave(2, timeInterval));
         }
-        
+
         // Register 19:
         public byte[] ReadCameraTestIterations(TimeInterval timeInterval)
         {
@@ -330,7 +330,7 @@ namespace Antmicro.Renode.Extensions.Mocks
             return result;
         }
 
-        // This method is for getting OA1EN, 
+        // This method is for getting OA1EN,
         // returns true when OA1EN is enabled.
         private bool OA1ENEnabled()
         {
@@ -343,7 +343,7 @@ namespace Antmicro.Renode.Extensions.Mocks
         {
             return !currentSlave.RxNotEmpty;
         }
-        
+
         private void PollForRegisterBit(RegisterBitName bitName)
         {
             int i = 0;
@@ -384,7 +384,7 @@ namespace Antmicro.Renode.Extensions.Mocks
         {
             var result = new byte[count];
             var rounds = count / ReadChunkSize;
-            var remainder = count % ReadChunkSize; 
+            var remainder = count % ReadChunkSize;
             for(int i = 0; i <= rounds; i++)
             {
                 int toRead = i == rounds ? remainder : ReadChunkSize;
@@ -394,7 +394,7 @@ namespace Antmicro.Renode.Extensions.Mocks
         }
 
         public void StartSocketServer(TimeInterval timeInterval)
-        {  
+        {
 #if PLATFORM_WINDOWS
             throw new RecoverableException("This method is not supported on Windows");
 #else
@@ -435,10 +435,10 @@ namespace Antmicro.Renode.Extensions.Mocks
                     case SocketI2CMessageType.Read:
                         prevWrite = false;
                         length = GetLength(connection);
-                    
+
                         byte[] dataToSend = GetLongBytes(length, timeInterval);
                         try
-                        {   
+                        {
                             PollForSocketData(connection, dataToSend, true);
                         }
                         catch(Exception e)
@@ -459,8 +459,8 @@ namespace Antmicro.Renode.Extensions.Mocks
                         prevWrite = true;
                         length = GetLength(connection);
                         byte[] data = new byte[length];
-                        try 
-                        {   
+                        try
+                        {
                             PollForSocketData(connection, data);
                         }
                         catch(Exception e)
@@ -494,7 +494,7 @@ namespace Antmicro.Renode.Extensions.Mocks
             var sendReceive = (send == true)
                 ? connection.Send
                 : (Func<byte[], int, int, SocketFlags, int>)connection.Receive;
-        
+
             while(tempLength < data.Length)
             {
                 tempLength += sendReceive(data, tempLength, data.Length - tempLength, SocketFlags.None);
@@ -516,7 +516,7 @@ namespace Antmicro.Renode.Extensions.Mocks
             bool availableBytesIsEmpty = (s.Available == 0);
             return !(dataAvailableForReading && availableBytesIsEmpty);
         }
- 
+
         private string[,] FormatSystemStatus(byte[] data)
         {
             if(data.Length != 2)
