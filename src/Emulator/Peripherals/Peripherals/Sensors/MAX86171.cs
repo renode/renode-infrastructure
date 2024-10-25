@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -181,8 +181,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
         public GPIO Interrupt1 { get; }
         public GPIO Interrupt2 { get; }
 
-        public int Measurement1ADCValue 
-        { 
+        public int Measurement1ADCValue
+        {
             get => measurement1ADCValue;
             set
             {
@@ -191,8 +191,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
-        public int Measurement2ADCValue 
-        { 
+        public int Measurement2ADCValue
+        {
             get => measurement2ADCValue;
             set
             {
@@ -201,8 +201,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
-        public int Measurement3ADCValue 
-        { 
+        public int Measurement3ADCValue
+        {
             get => measurement3ADCValue;
             set
             {
@@ -211,8 +211,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
-        public int Measurement4ADCValue 
-        { 
+        public int Measurement4ADCValue
+        {
             get => measurement4ADCValue;
             set
             {
@@ -221,8 +221,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
-        public int Measurement5ADCValue 
-        { 
+        public int Measurement5ADCValue
+        {
             get => measurement5ADCValue;
             set
             {
@@ -231,8 +231,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
-        public int Measurement6ADCValue 
-        { 
+        public int Measurement6ADCValue
+        {
             get => measurement6ADCValue;
             set
             {
@@ -241,8 +241,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
-        public int Measurement7ADCValue 
-        { 
+        public int Measurement7ADCValue
+        {
             get => measurement7ADCValue;
             set
             {
@@ -251,8 +251,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
-        public int Measurement8ADCValue 
-        { 
+        public int Measurement8ADCValue
+        {
             get => measurement8ADCValue;
             set
             {
@@ -261,8 +261,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
-        public int Measurement9ADCValue 
-        { 
+        public int Measurement9ADCValue
+        {
             get => measurement9ADCValue;
             set
             {
@@ -543,11 +543,11 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     .WithFlag(2, out fifoAssertThresholdOnce, name: "FIFO_CONF2.a_full_type")
                     .WithFlag(3, out clearFlagsOnRead, name: "FIFO_CONF2.fifo_stat_clr")
                     .WithFlag(4, FieldMode.WriteOneToClear | FieldMode.Read, name: "FIFO_CONF2.flush_fifo",
-                        writeCallback: (_, value) => 
-                        { 
-                            if(value) 
+                        writeCallback: (_, value) =>
+                        {
+                            if(value)
                             {
-                                circularFifo.Clear(); 
+                                circularFifo.Clear();
 
                                 statusFifoFull.Value = false;
                                 UpdateInterrupts();
@@ -573,8 +573,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     .WithFlag(6, name: "SYSTEM_CONF1.sw_force_sync")
                     .WithFlag(7, name: "SYSTEM_CONF1.meas9_en",
                         valueProviderCallback: _ => measurementEnabled[(int)Channel.Measurement9],
-                        changeCallback: (_, value) => 
-                        { 
+                        changeCallback: (_, value) =>
+                        {
                             measurementEnabled[(int)Channel.Measurement9] = value;
                             TryFeedDefaultSample();
                         })
@@ -788,7 +788,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     {
                         return feedingSamplesFromFile;
                     };
-
 
                     feederThread = machine.ObtainManagedThread(feedSample, freq, "default_sample_afe", this, stopCondition);
                     feederThread.Start();
