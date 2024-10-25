@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -12,7 +12,7 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Logging
 {
-    public class FileBackend : TextBackend 
+    public class FileBackend : TextBackend
     {
         public FileBackend(SequencedFilePath filePath, bool flushAfterEachWrite = false)
         {
@@ -69,11 +69,11 @@ namespace Antmicro.Renode.Logging
                 {
                     return;
                 }
-                
+
                 output.Flush();
             }
         }
-            
+
         private bool isDisposed;
         private readonly Timer timer;
         private readonly object sync;
