@@ -233,7 +233,7 @@ namespace Antmicro.Renode.UI
                     Uri.IsWellFormedUriString(options.FilePath, UriKind.Absolute) || Path.IsPathRooted(options.FilePath) ? "@" : "$CWD/",
                     options.FilePath);
                 String commandToInject;
-                switch(Path.GetExtension(new PathToken(filePath).Value))
+                switch(Path.GetExtension(filePath))
                 {
                     case ".save":
                     case ".gz":
