@@ -48,7 +48,6 @@ namespace Antmicro.Renode.Utilities
                 bus.WriteDoubleWord(addr, elem);
                 addr += 4;
             }
-
         }
 
         public static void LoadFdt(this IBusController sysbus, string file, ulong address, string bootargs = null, bool append = true, string disabledNodes = "", ICPU context = null)
