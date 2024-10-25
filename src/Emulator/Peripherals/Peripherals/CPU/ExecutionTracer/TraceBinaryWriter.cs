@@ -55,18 +55,18 @@ namespace Antmicro.Renode.Peripherals.CPU
             var pc = block.FirstInstructionPC;
             var pcVirtual = block.FirstInstructionVirtualPC;
             var counter = 0u;
-    
+
             var hasAdditionalData = block.AdditionalDataInTheBlock.TryDequeue(out var insnAdditionalData);
 
             if(usesThumbFlag)
             {
-                // if the CPU supports thumb, we need to mark translation blocks 
+                // if the CPU supports thumb, we need to mark translation blocks
                 // with a flag and length of the block, that is needed to properly disassemble the trace
                 var isThumb = block.DisassemblyFlags > 0;
                 WriteByteToBuffer((byte)(isThumb ? 1 : 0));
                 WriteInstructionsCountToBuffer(block.InstructionsCount);
             }
-                                            
+
             while(counter < block.InstructionsCount)
             {
                 if(!TryReadAndDecodeInstruction(pc, block.DisassemblyFlags, out var opcode))
