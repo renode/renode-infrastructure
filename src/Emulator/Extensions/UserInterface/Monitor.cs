@@ -700,7 +700,6 @@ namespace Antmicro.Renode.UserInterface
 
         private void PrintExceptionDetails(Exception e, ICommandInteraction writer, int tab = 0)
         {
-
             if(!(e is TargetInvocationException) && !String.IsNullOrWhiteSpace(e.Message))
             {
                 writer.WriteError(e.Message.Replace("\n", "\r\n").Indent(tab, '\t'));
