@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -50,7 +50,7 @@ namespace Antmicro.Renode.EventRecording
                 }
             }
         }
-            
+
         public void Dispose()
         {
             stream.Close();
@@ -68,7 +68,7 @@ namespace Antmicro.Renode.EventRecording
             handlersCache.Add(nameAndHandler, result);
             return result;
         }
-            
+
         private IEnumerator<IRecordEntry> entries;
         private readonly Serializer.OpenStreamDeserializer deserializer;
         private readonly Dictionary<NameAndHandler, Delegate> handlersCache;
@@ -81,7 +81,7 @@ namespace Antmicro.Renode.EventRecording
             {
                 this.Name = name;
                 this.Handler = handler;
-            }           
+            }
 
             public string Name { get; private set; }
             public Delegate Handler { get; private set; }
@@ -98,7 +98,7 @@ namespace Antmicro.Renode.EventRecording
                 }
                 var other = (NameAndHandler)obj;
                 return this == other;
-            }            
+            }
 
             public override int GetHashCode()
             {
@@ -117,7 +117,6 @@ namespace Antmicro.Renode.EventRecording
             {
                 return !(first == second);
             }
-            
         }
     }
 }
