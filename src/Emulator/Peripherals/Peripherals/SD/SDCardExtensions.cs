@@ -44,7 +44,7 @@ namespace Antmicro.Renode.Peripherals.SD
 
         public static void EmptySdCard(this IMachine machine, IPeripheralRegister<ISPIPeripheral, NumberRegistrationPoint<int>> attachTo, int port, long size, string name = null)
         {
-            var card = new SDCard(size, persistent: false, spiMode: true);
+            var card = new SDCard(size, spiMode: true);
             attachTo.Register(card, new NumberRegistrationPoint<int>(port));
             machine.SetLocalName(card, name ?? "sdCard");
         }
