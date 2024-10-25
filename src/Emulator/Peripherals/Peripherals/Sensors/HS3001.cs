@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -291,7 +291,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     name: "Humidity Sensor Resolution Write",
                     writeCallback: (_, value) => humidityResolution = value)
                 .WithReservedBits(12, 4);
-            
+
             Registers.TemperatureSensorResolutionRead.Define(this)
                 .WithReservedBits(0, 10)
                 .WithEnumField<WordRegister, MeasurementResolution>(10, 2, FieldMode.Read,
@@ -309,7 +309,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             Registers.ReadSensorIDHigh.Define(this)
                 .WithValueField(0, 16, FieldMode.Read, name: "Sensor ID High",
                     valueProviderCallback: _ => sensorIdHigh);
-            
+
             Registers.ReadSensorIDLow.Define(this)
                 .WithValueField(0, 16, FieldMode.Read, name: "Sensor ID Low",
                     valueProviderCallback: _ => sensorIdLow);
