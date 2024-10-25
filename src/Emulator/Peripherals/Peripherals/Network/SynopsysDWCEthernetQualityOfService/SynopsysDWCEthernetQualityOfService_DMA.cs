@@ -180,7 +180,7 @@ namespace Antmicro.Renode.Peripherals.Network
                                 rxFinishedRing &= !clearRxFinishedRing;
                                 StartRx();
                             }
-                            this.Log(LogLevel.Debug, "Receive Tail register (DMACRxDTPR.RDT) set to: 0x{0:X}", txDescriptorRingTail.Value);
+                            this.Log(LogLevel.Debug, "Receive Tail register (DMACRxDTPR.RDT) set to: 0x{0:X}", rxDescriptorRingTail.Value);
                         }, name: "DMACRxDTPR.RDT (Receive Descriptor Tail Pointer)")
                     },
                     {(long)RegistersDMAChannel.TxDescriptorRingLength + offset, new DoubleWordRegister(parent)
