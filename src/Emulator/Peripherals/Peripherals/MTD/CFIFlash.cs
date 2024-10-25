@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.MTD
     [Icon("sd")]
     public sealed class CFIFlash : IBytePeripheral, IWordPeripheral, IDoubleWordPeripheral, IKnownSize, IDisposable
     {
-        public CFIFlash(string fileName, int size, SysbusAccessWidth bits = SysbusAccessWidth.DoubleWord, bool nonPersistent = false)
+        public CFIFlash(string fileName, int? size = null, SysbusAccessWidth bits = SysbusAccessWidth.DoubleWord, bool nonPersistent = false)
         {
             switch(bits)
             {
@@ -36,12 +36,7 @@ namespace Antmicro.Renode.Peripherals.MTD
             default:
                 throw new ArgumentOutOfRangeException();
             }
-            CheckSize(size);
-            this.size = size;
-            // default erase block is whole flash or 256KB
-            EraseBlockSize = Math.Min(size, DefaultEraseBlockSize);
-            this.nonPersistent = nonPersistent;
-            Init(fileName);
+            Init(fileName, size, nonPersistent);
             CheckBuffer(0);
         }
 
@@ -257,7 +252,7 @@ namespace Antmicro.Renode.Peripherals.MTD
             stream.Dispose();
         }
 
-        private void Init(string fileName)
+        private void Init(string fileName, int? requestedSize, bool nonPersistent)
         {
             if(nonPersistent)
             {
@@ -265,9 +260,14 @@ namespace Antmicro.Renode.Peripherals.MTD
                 FileCopier.Copy(fileName, tempFile, true);
                 fileName = tempFile;
             }
-            stream = new SerializableStreamView(new FileStream(fileName, FileMode.OpenOrCreate), size, 0xFF);
+            // if `requestedSize` is `null`, the file lenght will be used
+            stream = new SerializableStreamView(new FileStream(fileName, FileMode.OpenOrCreate), requestedSize, 0xFF);
+            size = (int)stream.Length;
+            CheckSize(size, requestedSize);
             size2n = (byte)Misc.Logarithm2(size);
             buffer = new byte[DesiredBufferSize];
+            // default erase block is whole flash or 256KB
+            EraseBlockSize = Math.Min(size, DefaultEraseBlockSize);
         }
 
         private uint HandleRead(long offset, int width)
@@ -526,8 +526,13 @@ namespace Antmicro.Renode.Peripherals.MTD
             return offset % EraseBlockSize == 0;
         }
 
-        private void CheckSize(int sizeToCheck)
+        private void CheckSize(int sizeToCheck, int? requestedSize)
         {
+            if(sizeToCheck == 0 && !requestedSize.HasValue)
+            {
+                // most probably we've just created an empty file
+                throw new ConstructionException("Size must be provided when creating a new backend file");
+            }
             if(sizeToCheck < 256)
             {
                 throw new ConstructionException("Size cannot be less than 256B.");
@@ -645,7 +650,6 @@ namespace Antmicro.Renode.Peripherals.MTD
         private int size;
         private State state;
         private SerializableStreamView stream;
-        private bool nonPersistent;
         private readonly int busWidth;
         private static readonly bool likeFlashProgramming = true;
     }

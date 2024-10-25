@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.MTD
             CFIFlash flash;
             try
             {
-                flash = new CFIFlash(fileName, size ?? (int)new FileInfo(fileName).Length, busWidth, nonPersistent);
+                flash = new CFIFlash(fileName, size, busWidth, nonPersistent);
             }
             catch(Exception e)
             {
