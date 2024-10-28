@@ -87,19 +87,40 @@ namespace Antmicro.Renode.Peripherals
             return c.DefineRegister(Convert.ToInt64(o), resetValue, softResettable);
         }
 
-        public static ByteRegister DefineConditional(this System.Enum o, IProvidesRegisterCollection<ByteRegisterCollection> p, Func<bool> condition, byte resetValue = 0, bool softResettable = true, string name = "")
+        public static ByteRegister DefineConditional(this System.Enum o, ByteRegisterCollection c, Func<bool> condition, byte resetValue = 0, bool softResettable = true, string name = "")
         {
-            return p.RegistersCollection.DefineConditionalRegister(Convert.ToInt64(o), condition, resetValue, softResettable);
+            return c.DefineConditionalRegister(Convert.ToInt64(o), condition, resetValue, softResettable);
         }
 
-        public static void DefineManyConditional(this System.Enum o, IProvidesRegisterCollection<ByteRegisterCollection> p, uint count, Func<bool> condition, Action<ByteRegister, int> setup, uint stepInBytes = 1, byte resetValue = 0, string name = "")
+        public static ByteRegister DefineConditional(this System.Enum o, IProvidesRegisterCollection<ByteRegisterCollection> p, Func<bool> condition, byte resetValue = 0, bool softResettable = true, string name = "")
+        {
+            return o.DefineConditional(p.RegistersCollection, condition, resetValue, softResettable);
+        }
+
+        public static void DefineManyConditional(this System.Enum o, ByteRegisterCollection c, uint count, Func<int, bool> condition, Action<ByteRegister, int> setup, uint stepInBytes = 1, byte resetValue = 0, string name = "")
         {
             var baseAddress = Convert.ToInt64(o);
             for(var i = 0; i < count; i++)
             {
-                var register = p.RegistersCollection.DefineConditionalRegister(baseAddress + i * stepInBytes, condition, resetValue);
+                var idx = i;
+                var register = c.DefineConditionalRegister(baseAddress + i * stepInBytes, () => condition(idx), resetValue);
                 setup(register, i);
             }
+        }
+
+        public static void DefineManyConditional(this System.Enum o, IProvidesRegisterCollection<ByteRegisterCollection> p, uint count, Func<int, bool> condition, Action<ByteRegister, int> setup, uint stepInBytes = 1, byte resetValue = 0, string name = "")
+        {
+            o.DefineManyConditional(p.RegistersCollection, count, condition, setup, stepInBytes, resetValue, name);
+        }
+
+        public static void DefineManyConditional(this System.Enum o, ByteRegisterCollection c, uint count, Func<bool> condition, Action<ByteRegister, int> setup, uint stepInBytes = 1, byte resetValue = 0, string name = "")
+        {
+            o.DefineManyConditional(c, count, _ => condition(), setup, stepInBytes, resetValue, name);
+        }
+
+        public static void DefineManyConditional(this System.Enum o, IProvidesRegisterCollection<ByteRegisterCollection> p, uint count, Func<bool> condition, Action<ByteRegister, int> setup, uint stepInBytes = 1, byte resetValue = 0, string name = "")
+        {
+            o.DefineManyConditional(p.RegistersCollection, count, _ => condition(), setup, stepInBytes, resetValue, name);
         }
 
         public static ByteRegister Bind(this System.Enum o, IProvidesRegisterCollection<ByteRegisterCollection> p, ByteRegister reg, string name = "")
