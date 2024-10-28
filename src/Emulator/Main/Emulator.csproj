@@ -225,6 +225,7 @@
     <Compile Include="Utilities\Collections\MultiTreeNode.cs" />
     <Compile Include="Utilities\Collections\MultiTree.cs" />
     <Compile Include="Utilities\Collections\AutoResizingList.cs" />
+    <Compile Include="Utilities\Collections\FixedSizeQueue.cs" />
     <Compile Include="Core\Structure\NullRegistrationPoint.cs" />
     <Compile Include="Storage\LBABackend.cs" />
     <Compile Include="Storage\SerializableStreamView.cs" />
