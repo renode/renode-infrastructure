@@ -167,7 +167,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 return (currentCountFlag
                         | 4u // core clock CLKSOURCE
                         | ((eventEnabled ? 1u : 0u) << 1)
-                        | (systick.Enabled ? 1u : 0u));
+                        | (systickEnabled ? 1u : 0u));
             case Registers.SysTickReloadValue:
                 return (uint)systick.Limit;
             case Registers.SysTickValue:
@@ -233,15 +233,15 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             case Registers.SysTickControl:
                 eventEnabled = ((value & 2) >> 1) != 0;
                 this.NoisyLog("Systick interrupt {0}.", eventEnabled ? "enabled" : "disabled");
-                systick.Enabled = (value & 1) != 0;
-                this.NoisyLog("Systick timer {0}.", systick.Enabled ? "enabled" : "disabled");
+                SetSystickEnabled((value & 1) != 0);
                 break;
             case Registers.SysTickReloadValue:
-                systick.Limit = value & SysTickMaximumValue;
-                if(value > SysTickMaximumValue)
+                var newValue = value & SysTickMaximumValue;
+                if(newValue > SysTickMaximumValue)
                 {
-                    this.Log(LogLevel.Warning, "Given value {0} exceeds maximum available {1}. Writing {2}", value, SysTickMaximumValue, systick.Limit);
+                    this.Log(LogLevel.Warning, "Given value {0} exceeds maximum available {1}. Writing {2}", value, SysTickMaximumValue, newValue);
                 }
+                SetSystickReloadValue(newValue);
                 break;
             case Registers.SysTickValue:
                 systick.Value = systick.Limit;
@@ -395,6 +395,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
             activeIRQs.Clear();
             systick.Reset();
+            systickEnabled = false;
             eventEnabled = false;
             systick.AutoUpdate = true;
             IRQ.Unset();
@@ -1060,6 +1061,37 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             return (cpu.XProgramStatusRegister & InterruptProgramStatusRegisterMask) != 0 || (cpu.Control & 1) == 0;
         }
 
+        private void SetSystickEnabled(bool value)
+        {
+            systickEnabled = value;
+
+            if(value && systick.Limit == 0)
+            {
+                this.DebugLog("Systick enabled but it won't be started as long as reload value is zero");
+                return;
+            }
+            this.NoisyLog("Systick {0}", value ? "enabled" : "disabled");
+            systick.Enabled = value;
+        }
+
+        private void SetSystickReloadValue(ulong value)
+        {
+            var oldValue = systick.Limit;
+            if(oldValue == value)
+            {
+                return;
+            }
+            systick.Limit = value;
+
+            var newEnabled = systickEnabled && value > 0;
+            if(newEnabled != systick.Enabled)
+            {
+                var operation = newEnabled ? "Starting" : "Stopping";
+                this.DebugLog("{0} systick due to reload value changed from 0x{1:X} to 0x{2:X}", operation, oldValue, value);
+                systick.Enabled = newEnabled;
+            }
+        }
+
         private byte basepri;
         public byte BASEPRI
         {
@@ -1233,6 +1265,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private MPUVersion mpuVersion;
 
         private bool maskedInterruptPresent;
+        private bool systickEnabled;
 
         private readonly IRQState[] irqs;
         private readonly byte[] priorities;
