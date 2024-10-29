@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.12)
 
-project (renode-cores)
+project (renode-cores LANGUAGES C)
 
 add_subdirectory(tlib)
 
