@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -26,10 +26,9 @@ namespace Antmicro.Renode.Storage
                 throw new RecoverableException(new FileNotFoundException("File not found: {0}.".FormatWith(underlyingFile), underlyingFile));
             }
             this.blockSize = blockSize;
-            this.numberOfBlocks = numberOfBlocks ?? ToNumberOfBlocks(new FileInfo(underlyingFile).Length);
             this.persistent = persistent;
             this.underlyingFile = underlyingFile;
-            Touch();
+            this.numberOfBlocks = Touch(numberOfBlocks);
         }
 
         public int BlockSize
@@ -58,7 +57,7 @@ namespace Antmicro.Renode.Storage
 
         public byte[] Read(int startingBlock, int numberOfBlocksToRead = 1)
         {
-            Touch();
+            Touch(numberOfBlocks);
             var bytesToRead = blockSize * numberOfBlocksToRead;
             Logger.LogAs(this, LogLevel.Noisy, "Reading {0} blocks ({1}B), starting at block no {2}.",
                           numberOfBlocksToRead, Misc.NormalizeBinary(numberOfBlocksToRead * bytesToRead), startingBlock);
@@ -68,7 +67,7 @@ namespace Antmicro.Renode.Storage
 
         public void Write(int startingBlock, byte[] data, int numberOfBlocksToWrite = 1)
         {
-            Touch();
+            Touch(numberOfBlocks);
             Logger.LogAs(this, LogLevel.Noisy, "Writing {0} blocks ({1}B), starting at block no {2}.",
                           numberOfBlocksToWrite, Misc.NormalizeBinary(data.Length), startingBlock);
             if(data.Length > (long)blockSize * numberOfBlocksToWrite)
@@ -92,11 +91,11 @@ namespace Antmicro.Renode.Storage
             return checked((int)(value / blockSize) + ((value % blockSize > 0) ? 1 : 0));
         }
 
-        private void Touch()
+        private int Touch(int? numberOfBlocks)
         {
             if(file != null)
             {
-                return;
+                return 0;
             }
             if(!persistent)
             {
@@ -104,8 +103,14 @@ namespace Antmicro.Renode.Storage
                 FileCopier.Copy(underlyingFile, tempFileName, true);
                 underlyingFile = tempFileName;
             }
+            if(numberOfBlocks == null)
+            {
+                numberOfBlocks = ToNumberOfBlocks(new FileInfo(underlyingFile).Length);
+            }
             var size = blockSize * (long)numberOfBlocks;
             file = new SerializableStreamView(new FileStream(underlyingFile, FileMode.OpenOrCreate), size);
+
+            return (int)numberOfBlocks;
         }
 
         private readonly int blockSize;
