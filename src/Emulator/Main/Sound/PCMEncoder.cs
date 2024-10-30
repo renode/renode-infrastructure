@@ -1,9 +1,9 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
-// 
+//
 
 using System;
 using System.Collections.Generic;
@@ -15,16 +15,16 @@ namespace Antmicro.Renode.Sound
 {
     public class PCMEncoder : IDisposable
     {
-        public PCMEncoder(uint sampleWidthBits, uint samplingRateHz, uint numberOfChannels, bool concatenatedChannels) 
+        public PCMEncoder(uint sampleWidthBits, uint samplingRateHz, uint numberOfChannels, bool concatenatedChannels)
         {
             if(concatenatedChannels)
             {
-               throw new ConstructionException("Concatenated channels are currently not supported"); 
+               throw new ConstructionException("Concatenated channels are currently not supported");
             }
 
             if(sampleWidthBits != 8u && sampleWidthBits != 16u && sampleWidthBits != 24u && sampleWidthBits != 32u)
             {
-               throw new ConstructionException($"Not supported sample width: {0}. Only 8/16/24/32 values are currently supported."); 
+               throw new ConstructionException($"Not supported sample width: {0}. Only 8/16/24/32 values are currently supported.");
             }
 
             this.samplingRateHz = samplingRateHz;
