@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2022 Pieter Agten
 //
 // This file is licensed under the MIT License.
@@ -121,8 +121,11 @@ namespace Antmicro.Renode.Utilities
         private static readonly Dictionary<CRCPolynomial, uint[]> tablesCache = new Dictionary<CRCPolynomial, uint[]>()
         {
             { CRCPolynomial.CRC32, null },
+            { CRCPolynomial.CRC32C, null },
             { CRCPolynomial.CRC16, null },
-            { CRCPolynomial.CRC16_CCITT, null }
+            { CRCPolynomial.CRC16_CCITT, null },
+            { CRCPolynomial.CRC8_CCITT, null },
+            { CRCPolynomial.CRC7, null }
         };
         
         private uint[] Table
@@ -209,6 +212,7 @@ namespace Antmicro.Renode.Utilities
         }
 
         public static readonly CRCPolynomial CRC32 = new CRCPolynomial(0x04C11DB7, 32);
+        public static readonly CRCPolynomial CRC32C = new CRCPolynomial(0x1EDC6F41, 32);
         public static readonly CRCPolynomial CRC16 = new CRCPolynomial(0x8005, 16);
         public static readonly CRCPolynomial CRC16_CCITT = new CRCPolynomial(0x1021, 16);
         public static readonly CRCPolynomial CRC8_CCITT = new CRCPolynomial(0x07, 8);
