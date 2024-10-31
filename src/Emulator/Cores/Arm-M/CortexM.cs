@@ -499,6 +499,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             return nvic.MaskedInterruptPresent ? 1 : 0;
         }
 
+        [Export]
+        private uint InterruptTargetsSecure(int interruptNumber)
+        {
+            return nvic.IsInterruptTargetSecure(interruptNumber) ? 1u : 0u;
+        }
 
         private NVIC nvic;
         private bool pcNotInitialized = true;

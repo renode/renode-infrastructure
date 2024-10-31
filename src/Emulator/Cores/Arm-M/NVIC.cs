@@ -36,6 +36,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             this.priorityMask = priorityMask;
             defaultHaltSystickOnDeepSleep = haltSystickOnDeepSleep;
             irqs = new IRQState[IRQCount];
+            targetInterruptSecurityState = new InterruptTargetSecurityState[IRQCount];
             IRQ = new GPIO();
             resetMachine = machine.RequestReset;
             systick.LimitReached += () =>
@@ -140,6 +141,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 return GetActive((int)(offset - ActiveBitStart));
             }
+            if(offset >= TargetNonSecureStart && offset < TargetNonSecureEnd)
+            {
+                return GetSecurityTarget((int)(offset - TargetNonSecureStart));
+            }
             if(offset >= MPUStart && offset < MPUEnd)
             {
                 return HandleMPURead(offset - MPUStart);
@@ -225,6 +230,19 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 SetOrClearPendingInterrupt((int)offset - SetPendingStart, value, true);
                 return;
             }
+            if(offset >= TargetNonSecureStart && offset < TargetNonSecureEnd)
+            {
+                if(machine.GetSystemBus(this).TryGetCurrentCPU(out var cpu))
+                {
+                    if(cpu is CortexM mcpu && !mcpu.SecureState)
+                    {
+                        this.WarningLog("CPU {0} tries to access ITNS register, but it's in non-secure state", mcpu.GetName());
+                        return;
+                    }
+                }
+                ModifySecurityTarget((int)offset - TargetNonSecureStart, value);
+                return;
+            }
             if(offset >= MPUStart && offset < MPUEnd)
             {
                 HandleMPUWrite(offset - MPUStart, value);
@@ -247,11 +265,18 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     this.DebugLog("Wrong key while accessing Application Interrupt and Reset Control register 0x{0:X}.", key);
                     break;
                 }
+                // TODO: This should be banked between Security States
                 binaryPointPosition = (int)(value >> 8) & 7;
                 prioritizeSecureInterrupts = (value & (1 << 14)) != 0;
                 if(BitHelper.IsBitSet(value, 2))
                 {
                     resetMachine();
+                }
+
+                // BFHFNMINS
+                foreach(var excp in new SystemException[] {SystemException.NMI, SystemException.HardFault, SystemException.BusFault})
+                {
+                    targetInterruptSecurityState[(int)excp] = BitHelper.IsBitSet(value, 13) ? InterruptTargetSecurityState.NonSecure : InterruptTargetSecurityState.Secure;
                 }
                 break;
             case Registers.ConfigurableFaultStatus:
@@ -1076,6 +1101,26 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
+        private void ModifySecurityTarget(int offset, uint value)
+        {
+            lock(irqs)
+            {
+                var mask = 1u;
+                // Only HW interrupts are modified by this
+                for(var i = 0; i < 32; i++)
+                {
+                    var pos = 16 + offset * 8 + i;
+                    targetInterruptSecurityState[pos] = (value & mask) > 0 ? InterruptTargetSecurityState.NonSecure : InterruptTargetSecurityState.Secure;
+                    mask <<= 1;
+                }
+            }
+        }
+
+        public bool IsInterruptTargetSecure(int interruptNumber)
+        {
+            return targetInterruptSecurityState[interruptNumber] == InterruptTargetSecurityState.Secure;
+        }
+
         public int FindPendingInterrupt()
         {
             lock(irqs)
@@ -1152,6 +1197,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             return BitHelper.GetValueFromBitsArray(irqs.Skip(16 + offset * 8).Take(32).Select(irq => (irq & IRQState.Active) != 0));
         }
 
+        private uint GetSecurityTarget(int offset)
+        {
+            // We skip first 16 entries, as these are not Hard IRQs. Some of them can be configured by `AIRCR.BFHFNMINS`, but we use common list to store their configuration
+            return BitHelper.GetValueFromBitsArray(targetInterruptSecurityState.Skip(16 + offset * 8).Take(32).Select(irq => irq == InterruptTargetSecurityState.NonSecure));
+        }
+
         private bool IsPrivilegedMode()
         {
             // Is in handler mode or is privileged
@@ -1194,6 +1245,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             SetPending = 0x200,
             ClearPending = 0x280,
             ActiveBit = 0x300,
+            InterruptTargetNonSecure = 0x380, // ITNS
             InterruptPriority = 0x400,
             CPUID = 0xD00,
             InterruptControlState = 0xD04,
@@ -1323,8 +1375,16 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private enum SystemException
         {
             NMI = 2,
+            HardFault = 3,
+            BusFault = 5,
             PendSV = 14,
             SysTick = 15
+        }
+
+        private enum InterruptTargetSecurityState
+        {
+            Secure = 0,
+            NonSecure = 1,
         }
 
         // bit [16] DC / Cache enable. This is a global enable bit for data and unified caches.
@@ -1345,6 +1405,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private IFlagRegisterField countFlag;
         private IValueRegisterField systickReload;
 
+        // This is configurable through NVIC_ITNSx only for Hardware Interrupts (exception numbered 16 and above)
+        // for configuring selected exceptions, look at AIRCR.BFHFNMINS
+        // for other exceptions, this will be completely ignored
+        private InterruptTargetSecurityState[] targetInterruptSecurityState;
         private readonly IRQState[] irqs;
         private readonly byte[] priorities;
         private readonly Action resetMachine;
@@ -1372,6 +1436,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private const int ClearPendingEnd      = 0x2C0;
         private const int ActiveBitStart       = 0x300;
         private const int ActiveBitEnd         = 0x320;
+        private const int TargetNonSecureStart = 0x380;
+        private const int TargetNonSecureEnd   = 0x3C0;
         private const int PriorityStart        = 0x400;
         private const int PriorityEnd          = 0x7F0;
         private const int IRQCount             = 512 + 16;
