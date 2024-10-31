@@ -10,6 +10,7 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Storage;
 using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Exceptions;
 using System.IO;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.UserInterface;
@@ -529,11 +530,11 @@ namespace Antmicro.Renode.Peripherals.MTD
         {
             if(sizeToCheck < 256)
             {
-                throw new ArgumentException("Size cannot be less than 256B.");
+                throw new ConstructionException("Size cannot be less than 256B.");
             }
             if((sizeToCheck & (sizeToCheck - 1)) != 0)
             {
-                throw new ArgumentException("Size has to be power of two.");
+                throw new ConstructionException("Size has to be power of two.");
             }
         }
 
