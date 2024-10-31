@@ -618,6 +618,7 @@
     <Compile Include="Peripherals\SPI\SPIMultiplexer.cs" />
     <Compile Include="Peripherals\UART\MxcUart.cs" />
     <Compile Include="Peripherals\Timers\OMAP_Timer.cs" />
+    <Compile Include="Peripherals\Timers\HPET.cs" />
     <Compile Include="Peripherals\Timers\Marvell_Armada_Timer.cs" />
     <Compile Include="Peripherals\UART\CMSDK_APB_UART.cs" />
     <Compile Include="Peripherals\UART\NEORV32_UART.cs" />
