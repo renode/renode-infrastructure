@@ -1580,7 +1580,8 @@ namespace Antmicro.Renode.Peripherals.Bus
         {
             using(Machine.ObtainPausedState(true))
             {
-                var intersecting = GetAccessiblePeripheralsForContext(context).FirstOrDefault(x => x.RegistrationPoint.Range.Intersects(registrationPoint.Range));
+                var busRegisteredInContext = peripheralsCollectionByContext[context].Peripherals;
+                var intersecting = busRegisteredInContext.FirstOrDefault(x => x.RegistrationPoint.Range.Intersects(registrationPoint.Range));
                 if(intersecting != null)
                 {
                     throw new RegistrationException($"Given address {registrationPoint.Range} for peripheral {peripheral} conflicts with address {intersecting.RegistrationPoint.Range} of peripheral {intersecting.Peripheral}", "address");
