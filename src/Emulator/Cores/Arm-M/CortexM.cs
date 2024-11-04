@@ -23,7 +23,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class CortexM : Arm
     {
-        public CortexM(string cpuType, IMachine machine, NVIC nvic, [NameAlias("id")] uint cpuId = 0, Endianess endianness = Endianess.LittleEndian, uint? fpuInterruptNumber = null, uint? numberOfMPURegions = null) : base(cpuType, machine, cpuId, endianness, numberOfMPURegions)
+        public CortexM(string cpuType, IMachine machine, NVIC nvic, [NameAlias("id")] uint cpuId = 0, Endianess endianness = Endianess.LittleEndian,
+            uint? fpuInterruptNumber = null, uint? numberOfMPURegions = null, bool enableTrustZone = false)
+            : base(cpuType, machine, cpuId, endianness, numberOfMPURegions)
         {
             if(nvic == null)
             {
@@ -38,6 +40,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 // Setting 8 regions backward-compatibility for now
                 this.NumberOfMPURegions = 8;
             }
+
+            TrustZoneEnabled = enableTrustZone;
 
             this.nvic = nvic;
             try
@@ -139,6 +143,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 tlibToggleFpu(value ? 1 : 0);
             }
         }
+
+        public bool TrustZoneEnabled { get; }
 
         public UInt32 FaultStatus
         {
@@ -364,6 +370,12 @@ namespace Antmicro.Renode.Peripherals.CPU
                 PC = pc;
                 SP = sp;
             }
+        }
+
+        [Export]
+        private uint HasEnabledTrustZone()
+        {
+            return TrustZoneEnabled ? 1u : 0u;
         }
 
         [Export]

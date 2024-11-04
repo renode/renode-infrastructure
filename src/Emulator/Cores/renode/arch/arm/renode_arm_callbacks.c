@@ -16,6 +16,7 @@ EXTERNAL_AS(void, SetPendingIRQ, tlib_nvic_set_pending_irq, int32_t)
 EXTERNAL_AS(int32_t, FindPendingIRQ, tlib_nvic_find_pending_irq)
 EXTERNAL_AS(void, OnBASEPRIWrite, tlib_nvic_write_basepri, int32_t)
 EXTERNAL_AS(int32_t, PendingMaskedIRQ, tlib_nvic_get_pending_masked_irq)
+EXTERNAL_AS(uint32_t, HasEnabledTrustZone, tlib_has_enabled_trustzone)
 #endif
 
 EXTERNAL_AS(uint32_t, Read32CP15, tlib_read_cp15_32, uint32_t)
