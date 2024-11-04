@@ -44,7 +44,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         var type = entry.Key;
         var name = entry.Value;
 #>
-        public <#= type #> Read<#= name #>(ulong address, ICPU context = null)
+        public <#= type #> Read<#= name #>(ulong address, ICPU context = null, ulong? cpuState = null)
         {
             var accessWidth = SysbusAccessWidth.<#=name#>;
             if(IsAddressRangeLocked(address.By((ulong)accessWidth), context))
@@ -88,7 +88,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
-        public void Write<#=name#>(ulong address, <#=type#> value, ICPU context = null)
+        public void Write<#=name#>(ulong address, <#=type#> value, ICPU context = null, ulong? cpuState = null)
         {
             var accessWidth = SysbusAccessWidth.<#=name#>;
             if(IsAddressRangeLocked(address.By((ulong)accessWidth), context))

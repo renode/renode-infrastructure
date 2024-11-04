@@ -24,17 +24,17 @@ namespace Antmicro.Renode.Peripherals.Bus
         IPeripheralRegister<ICPU, CPURegistrationPoint>, IPeripheralRegister<IBusPeripheral, BusMultiRegistration>, IPeripheralRegister<IPeripheral, NullRegistrationPoint>,
         IPeripheralRegister<IBusPeripheral, BusParametrizedRegistration>, ICanLoadFiles, IPeripheral, IMultibyteWritePeripheral
     {
-        byte ReadByte(ulong address, ICPU context = null);
-        void WriteByte(ulong address, byte value, ICPU context = null);
+        byte ReadByte(ulong address, ICPU context = null, ulong? cpuState = null);
+        void WriteByte(ulong address, byte value, ICPU context = null, ulong? cpuState = null);
 
-        ushort ReadWord(ulong address, ICPU context = null);
-        void WriteWord(ulong address, ushort value, ICPU context = null);
+        ushort ReadWord(ulong address, ICPU context = null, ulong? cpuState = null);
+        void WriteWord(ulong address, ushort value, ICPU context = null, ulong? cpuState = null);
 
-        uint ReadDoubleWord(ulong address, ICPU context = null);
-        void WriteDoubleWord(ulong address, uint value, ICPU context = null);
+        uint ReadDoubleWord(ulong address, ICPU context = null, ulong? cpuState = null);
+        void WriteDoubleWord(ulong address, uint value, ICPU context = null, ulong? cpuState = null);
 
-        ulong ReadQuadWord(ulong address, ICPU context = null);
-        void WriteQuadWord(ulong address, ulong value, ICPU context = null);
+        ulong ReadQuadWord(ulong address, ICPU context = null, ulong? cpuState = null);
+        void WriteQuadWord(ulong address, ulong value, ICPU context = null, ulong? cpuState = null);
 
         void ReadBytes(ulong address, int count, byte[] destination, int startIndex, bool onlyMemory = false, ICPU context = null);
         byte[] ReadBytes(ulong address, int count, bool onlyMemory = false, ICPU context = null);

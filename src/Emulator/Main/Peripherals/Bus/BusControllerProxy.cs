@@ -30,54 +30,54 @@ namespace Antmicro.Renode.Peripherals.Bus
             ParentController = parentController;
         }
 
-        public virtual byte ReadByte(ulong address, ICPU context = null)
+        public virtual byte ReadByte(ulong address, ICPU context = null, ulong? cpuState = null)
         {
             if(ValidateOperation(ref address, BusAccessPrivileges.Read, context))
             {
-                return ParentController.ReadByte(address, context);
+                return ParentController.ReadByte(address, context, cpuState);
             }
             return (byte)0;
         }
 
-        public virtual void WriteByte(ulong address, byte value, ICPU context = null)
+        public virtual void WriteByte(ulong address, byte value, ICPU context = null, ulong? cpuState = null)
         {
             if(ValidateOperation(ref address, BusAccessPrivileges.Write, context))
             {
-                ParentController.WriteByte(address, value, context);
+                ParentController.WriteByte(address, value, context, cpuState);
             }
         }
 
-        public virtual ushort ReadWord(ulong address, ICPU context = null)
+        public virtual ushort ReadWord(ulong address, ICPU context = null, ulong? cpuState = null)
         {
             if(ValidateOperation(ref address, BusAccessPrivileges.Read, context))
             {
-                return ParentController.ReadWord(address, context);
+                return ParentController.ReadWord(address, context, cpuState);
             }
             return (ushort)0;
         }
 
-        public virtual void WriteWord(ulong address, ushort value, ICPU context = null)
+        public virtual void WriteWord(ulong address, ushort value, ICPU context = null, ulong? cpuState = null)
         {
             if(ValidateOperation(ref address, BusAccessPrivileges.Write, context))
             {
-                ParentController.WriteWord(address, value, context);
+                ParentController.WriteWord(address, value, context, cpuState);
             }
         }
 
-        public virtual uint ReadDoubleWord(ulong address, ICPU context = null)
+        public virtual uint ReadDoubleWord(ulong address, ICPU context = null, ulong? cpuState = null)
         {
             if(ValidateOperation(ref address, BusAccessPrivileges.Read, context))
             {
-                return ParentController.ReadDoubleWord(address, context);
+                return ParentController.ReadDoubleWord(address, context, cpuState);
             }
             return (uint)0;
         }
 
-        public virtual void WriteDoubleWord(ulong address, uint value, ICPU context = null)
+        public virtual void WriteDoubleWord(ulong address, uint value, ICPU context = null, ulong? cpuState = null)
         {
             if(ValidateOperation(ref address, BusAccessPrivileges.Write, context))
             {
-                ParentController.WriteDoubleWord(address, value, context);
+                ParentController.WriteDoubleWord(address, value, context, cpuState);
             }
         }
 
@@ -246,14 +246,14 @@ namespace Antmicro.Renode.Peripherals.Bus
             return ParentController.TryFindSymbolAt(offset, out name, out symbol, context);
         }
 
-        public virtual ulong ReadQuadWord(ulong address, ICPU context = null)
+        public virtual ulong ReadQuadWord(ulong address, ICPU context = null, ulong? cpuState = null)
         {
-            return ParentController.ReadQuadWord(address, context);
+            return ParentController.ReadQuadWord(address, context, cpuState);
         }
 
-        public virtual void WriteQuadWord(ulong address, ulong value, ICPU context = null)
+        public virtual void WriteQuadWord(ulong address, ulong value, ICPU context = null, ulong? cpuState = null)
         {
-            ParentController.WriteQuadWord(address, value, context);
+            ParentController.WriteQuadWord(address, value, context, cpuState);
         }
 
         public virtual bool IsPeripheralEnabled(IPeripheral peripheral)

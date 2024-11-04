@@ -32,15 +32,15 @@ void tlib_on_translation_block_find_slow(uint64_t pc)
 EXTERNAL_AS(void, ReportAbort, tlib_abort, charptr)
 EXTERNAL_AS(void, LogAsCpu, tlib_log, int32_t, charptr)
 
-EXTERNAL_AS(uint64_t, ReadByteFromBus, tlib_read_byte, uint64_t)
-EXTERNAL_AS(uint64_t, ReadWordFromBus, tlib_read_word, uint64_t)
-EXTERNAL_AS(uint64_t, ReadDoubleWordFromBus, tlib_read_double_word, uint64_t)
-EXTERNAL_AS(uint64_t, ReadQuadWordFromBus, tlib_read_quad_word, uint64_t)
+EXTERNAL_AS(uint64_t, ReadByteFromBus, tlib_read_byte, uint64_t, uint64_t)
+EXTERNAL_AS(uint64_t, ReadWordFromBus, tlib_read_word, uint64_t, uint64_t)
+EXTERNAL_AS(uint64_t, ReadDoubleWordFromBus, tlib_read_double_word, uint64_t, uint64_t)
+EXTERNAL_AS(uint64_t, ReadQuadWordFromBus, tlib_read_quad_word, uint64_t, uint64_t)
 
-EXTERNAL_AS(void, WriteByteToBus, tlib_write_byte, uint64_t, uint64_t)
-EXTERNAL_AS(void, WriteWordToBus, tlib_write_word, uint64_t, uint64_t)
-EXTERNAL_AS(void, WriteDoubleWordToBus, tlib_write_double_word, uint64_t, uint64_t)
-EXTERNAL_AS(void, WriteQuadWordToBus, tlib_write_quad_word, uint64_t, uint64_t)
+EXTERNAL_AS(void, WriteByteToBus, tlib_write_byte, uint64_t, uint64_t, uint64_t)
+EXTERNAL_AS(void, WriteWordToBus, tlib_write_word, uint64_t, uint64_t, uint64_t)
+EXTERNAL_AS(void, WriteDoubleWordToBus, tlib_write_double_word, uint64_t, uint64_t, uint64_t)
+EXTERNAL_AS(void, WriteQuadWordToBus, tlib_write_quad_word, uint64_t, uint64_t, uint64_t)
 
 EXTERNAL_AS(uint32_t, OnBlockBegin, tlib_on_block_begin, uint64_t, uint32_t)
 
