@@ -166,7 +166,7 @@ namespace Antmicro.Renode.Peripherals.Memory
             var result = offset >= 0 && offset <= array.Length - size;
             if(!result)
             {
-                this.Log(LogLevel.Error, "Tried to read byte at offset 0x{0:X} outside the range of the peripheral 0x0 - 0x{1:X}", offset, array.Length - 1);
+                this.Log(LogLevel.Error, "Tried to read {0} byte(s) at offset 0x{1:X} outside the range of the peripheral 0x0 - 0x{2:X}", size, offset, array.Length - 1);
             }
             return result;
         }
