@@ -39,7 +39,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             IRQ = new GPIO();
 
             messageBufferRange = new Range((ulong)Registers.MessageBuffer, numberOfMessageBuffers * 8);
-            messageBuffers = new ArrayMemory((int)messageBufferRange.Size);
+            messageBuffers = new ArrayMemory(messageBufferRange.Size);
             messageBufferInterruptEnable = new IFlagRegisterField[numberOfMessageBuffers];
             messageBufferInterrupt = new IFlagRegisterField[numberOfMessageBuffers];
             messageBufferSize = new IEnumRegisterField<MessageBufferSize>[MessageBufferRegionsCount];

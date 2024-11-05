@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2021 Google LLC
 //
 // This file is licensed under the MIT License.
@@ -423,7 +423,7 @@ namespace Antmicro.Renode.Peripherals.MTD
             {
                 for(var infoType = 0; infoType < FlashNumberOfInfoTypes; ++infoType)
                 {
-                    infoFlash[bankNumber, infoType] = new ArrayMemory((int)(FlashNumberOfPagesInInfo[infoType] * BytesPerPage));
+                    infoFlash[bankNumber, infoType] = new ArrayMemory(FlashNumberOfPagesInInfo[infoType] * BytesPerPage);
                 }
             }
             this.Reset();

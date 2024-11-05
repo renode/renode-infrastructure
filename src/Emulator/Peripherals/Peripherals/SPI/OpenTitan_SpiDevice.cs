@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.SPI
     {
         public OpenTitan_SpiDevice(IMachine machine) : base(machine)
         {
-            underlyingSramMemory = new ArrayMemory((int)BufferWindowSizeInDoublewords * 4);
+            underlyingSramMemory = new ArrayMemory(BufferWindowSizeInDoublewords * 4);
 
             DefineRegisters();
             rxFifo = new SRAMCircularFifoRange(0u, InitialRxFifoBoundary, underlyingSramMemory);

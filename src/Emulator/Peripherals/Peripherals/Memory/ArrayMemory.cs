@@ -24,11 +24,11 @@ namespace Antmicro.Renode.Peripherals.Memory
             array = source;
         }
 
-        public ArrayMemory(int size)
+        public ArrayMemory(ulong size)
         {
-            if(size <= 0)
+            if(size > MaxSize)
             {
-                throw new ConstructionException($"Memory size should be positive, but tried to configure it to: {size}");
+                throw new ConstructionException($"Memory size cannot be larger than 0x{MaxSize:X}, requested: 0x{size:X}");
             }
             array = new byte[size];
         }
@@ -170,5 +170,12 @@ namespace Antmicro.Renode.Peripherals.Memory
             }
             return result;
         }
+
+        // Objects bigger than 2GB are supported in .NET Framework with `gcAllowVeryLargeObjects`
+        // enabled and in .NET by default but there can be no more elements than that in a single
+        // dimension of an array. We could, e.g., double it by using more dimensions but generally
+        // ArrayMemory is mostly intended to be used for memory smaller than page size, which is
+        // required by MappedMemory, so this is much more than should be needed for ArrayMemory.
+        private const ulong MaxSize = 0x7FFFFFC7;
     }
 }

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -12,7 +12,7 @@ namespace Antmicro.Renode.Peripherals.Memory
 {
     public class ArrayMemoryWithReadonlys : ArrayMemory
     {
-        public ArrayMemoryWithReadonlys(int size):base(size)
+        public ArrayMemoryWithReadonlys(ulong size):base(size)
         {
         }
         public ArrayMemoryWithReadonlys(byte[] source):base(source)
