@@ -47,7 +47,9 @@ namespace Antmicro.Renode.Peripherals.UART
 
                 var idleLineIn = (8 * 1000000) / BaudRate;
                 idleLineDetectedCancellationTokenSrc = new CancellationTokenSource();
-                machine.ScheduleAction(TimeInterval.FromMicroseconds(idleLineIn), _ => ReportIdleLineDetected(idleLineDetectedCancellationTokenSrc.Token), name: $"{nameof(STM32_UART)} Idle line detected");
+
+                var token = idleLineDetectedCancellationTokenSrc.Token; 
+                machine.ScheduleAction(TimeInterval.FromMicroseconds(idleLineIn), _ => ReportIdleLineDetected(token), name: $"{nameof(STM32_UART)} Idle line detected");
             }
 
             Update();
