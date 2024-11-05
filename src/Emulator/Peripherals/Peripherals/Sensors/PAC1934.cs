@@ -128,7 +128,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             {
                 return BitConverter.GetBytes(accumulatorCount);
             }
-            return BitConverter.GetBytes(registers.Read(offset));
+            return BitConverter.GetBytes((ushort)registers.Read(offset));
         }
 
         private void RefreshChannels(RefreshType refresh)
