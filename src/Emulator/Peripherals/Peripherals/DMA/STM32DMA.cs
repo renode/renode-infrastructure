@@ -11,10 +11,11 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Core;
 using System.Collections.Generic;
 using System.Linq;
+using Antmicro.Renode.Peripherals.DMA;
 
 namespace Antmicro.Renode.Peripherals.DMA
 {
-    public sealed class STM32DMA : IDoubleWordPeripheral, IKnownSize, IGPIOReceiver, INumberedGPIOOutput
+    public sealed class STM32DMA : IDoubleWordPeripheral, IKnownSize, IGPIOReceiver, INumberedGPIOOutput, IDMA
     {
         public STM32DMA(IMachine machine)
         {
@@ -92,6 +93,20 @@ namespace Antmicro.Renode.Peripherals.DMA
             foreach(var stream in streams)
             {
                 stream.Reset();
+            }
+        }
+
+        public void RequestTransfer(int stream)
+        {
+            streams[stream].transferBacklog = streams[stream].transferBacklog + 1;
+
+            if(streams[stream].Enabled)
+            {
+                streams[stream].DoPeripheralTransfer();
+            }
+            else
+            {
+                this.Log(LogLevel.Warning, "IDMA peripheral request on stream {0} ignored", stream);
             }
         }
 
@@ -184,6 +199,11 @@ namespace Antmicro.Renode.Peripherals.DMA
             HighInterruptClear = 0xC // DMA_HIFCR
         }
 
+        public int NumberOfChannels
+        {
+            get { return 8; }
+        }
+
         private class Stream
         {
             public Stream(STM32DMA parent, int streamNo)
@@ -253,6 +273,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 direction = Direction.PeripheralToMemory;
                 interruptOnComplete = false;
                 Enabled = false;
+                transferBacklog = 0u;
             }
 
             private Request CreateRequest(int? size = null, int? destinationOffset = null)
@@ -299,21 +320,24 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             public void DoPeripheralTransfer()
             {
-                var request = CreateRequest((int)memoryTransferType, transferredSize);
-                transferredSize += (int)memoryTransferType;
-                if(request.Size > 0)
-                {
-                    lock(parent.streamFinished)
+                while(transferBacklog > 0){
+                    var request = CreateRequest((int)memoryTransferType, transferredSize);
+                    transferredSize += (int)memoryTransferType;
+                    transferBacklog--;
+                    if(request.Size > 0)
                     {
-                        parent.engine.IssueCopy(request);
-                        if(transferredSize == numberOfData * (int)memoryTransferType)
+                        lock(parent.streamFinished)
                         {
-                            transferredSize = 0;
-                            parent.streamFinished[streamNo] = true;
-                            Enabled = false;
-                            if(interruptOnComplete)
+                            parent.engine.IssueCopy(request);
+                            if(transferredSize == numberOfData * (int)memoryTransferType)
                             {
-                                parent.machine.LocalTimeSource.ExecuteInNearestSyncedState(_ => IRQ.Set());
+                                transferredSize = 0;
+                                parent.streamFinished[streamNo] = true;
+                                Enabled = false;
+                                if(interruptOnComplete)
+                                {
+                                    parent.machine.LocalTimeSource.ExecuteInNearestSyncedState(_ => IRQ.Set());
+                                }
                             }
                         }
                     }
@@ -365,6 +389,12 @@ namespace Antmicro.Renode.Peripherals.DMA
                     else
                     {
                         Enabled = true;
+
+                        // If there is data in the backlog when the DMA is re-enabled, process it.
+                        if(direction == Direction.PeripheralToMemory && transferBacklog > 0)
+                        {
+                            DoPeripheralTransfer();
+                        }
                     }
                 }
             }
@@ -399,6 +429,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                 }
                 throw new InvalidOperationException("Should not reach here.");
             }
+            
+            public uint transferBacklog;
 
             private uint memory0Address;
             private uint memory1Address;
