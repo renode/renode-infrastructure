@@ -1166,6 +1166,12 @@ namespace Antmicro.Renode.Peripherals.CPU
                             case "ICSR": standardExtensions.Add(StandardInstructionSetExtensions.ICSR); break;
                             case "IFENCEI": standardExtensions.Add(StandardInstructionSetExtensions.IFENCEI); break;
                             case "FH": standardExtensions.Add(StandardInstructionSetExtensions.ZFH); break;
+                            case "VFH": standardExtensions.Add(StandardInstructionSetExtensions.ZVFH); break;
+                            case "VE32X": standardExtensions.Add(StandardInstructionSetExtensions.ZVE32X); break;
+                            case "VE32F": standardExtensions.Add(StandardInstructionSetExtensions.ZVE32F); break;
+                            case "VE64X": standardExtensions.Add(StandardInstructionSetExtensions.ZVE64X); break;
+                            case "VE64F": standardExtensions.Add(StandardInstructionSetExtensions.ZVE64F); break;
+                            case "VE64D": standardExtensions.Add(StandardInstructionSetExtensions.ZVE64D); break;
                             default:
                                 throw new ConstructionException($"Undefined instruction set standard extension: {set}.");
                         }
