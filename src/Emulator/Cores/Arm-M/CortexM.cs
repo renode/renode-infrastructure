@@ -42,6 +42,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
 
             TrustZoneEnabled = enableTrustZone;
+            if(TrustZoneEnabled)
+            {
+                // Set CPU to start in Secure State
+                // this also enables TrustZone in the translation library
+                tlibSetSecurityState(1u);
+            }
             if(!numberOfSAURegions.HasValue && TrustZoneEnabled)
             {
                 // TODO: Determine default number
@@ -155,6 +161,26 @@ namespace Antmicro.Renode.Peripherals.CPU
             set
             {
                 tlibSetNumberOfSauRegions(value);
+            }
+        }
+
+        public bool SecureState
+        {
+            get
+            {
+                if(!TrustZoneEnabled)
+                {
+                    throw new RecoverableException("You need to enable TrustZone to use this feature");
+                }
+                return tlibGetSecurityState() > 0;
+            }
+            set
+            {
+                if(!TrustZoneEnabled)
+                {
+                    throw new RecoverableException("You need to enable TrustZone to use this feature");
+                }
+                tlibSetSecurityState(value ? 1u : 0u);
             }
         }
 
@@ -534,6 +560,13 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private Action<int> tlibSetSleepOnExceptionExit;
+
+        /* TrustZone */
+        [Import]
+        private Action<uint> tlibSetSecurityState;
+
+        [Import]
+        private Func<uint> tlibGetSecurityState;
 
         /* TrustZone SAU */
         [Import]
