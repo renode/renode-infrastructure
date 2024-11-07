@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -190,6 +190,10 @@ namespace Antmicro.Renode.UnitTests
             structureEnum.enum3 = TestEnumDefaultType.One;
 
             Assert.AreEqual(new byte[] { 1, 2, 3, 0, 0, 0, 1 }, Packet.Encode(structureEnum));
+
+            // test if uninitialized byte[] field will be filled with zeros
+            var testStructWithBytes = new TestStructWithBytes {};
+            Assert.AreEqual(new byte[] { 0, 0 }, Packet.Encode(testStructWithBytes));
         }
 
         [LeastSignificantByteFirst]
@@ -372,6 +376,14 @@ namespace Antmicro.Renode.UnitTests
             public TestEnumDefaultType enum2;
             [PacketField, Width(8)]
             public TestEnumDefaultType enum3;
+#pragma warning restore 649
+        }
+
+        private struct TestStructWithBytes
+        {
+#pragma warning disable 649
+            [PacketField, Width(2)]
+            public byte[] field;
 #pragma warning restore 649
         }
 
