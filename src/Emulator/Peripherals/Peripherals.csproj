@@ -631,6 +631,7 @@
     <Compile Include="Peripherals\Network/SynopsysDWCEthernetQualityOfService\SynopsysDWCEthernetQualityOfService_Registers.cs" />
     <Compile Include="Peripherals\Network/SynopsysDWCEthernetQualityOfService\SynopsysDWCEthernetQualityOfService_DMA.cs" />
     <Compile Include="Peripherals\Timers\EFR32xG2_RTCC.cs" />
+    <Compile Include="Peripherals\Timers\EFR32xG24_SYSRTC.cs" />
     <Compile Include="Peripherals\Timers\EFR32_RTCCCounter.cs" />
     <Compile Include="Peripherals\Miscellaneous\STM32H7_HardwareSemaphore.cs" />
     <Compile Include="Peripherals\I2C\EFR32_GenericI2CController.cs" />
