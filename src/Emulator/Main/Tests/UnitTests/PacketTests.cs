@@ -34,6 +34,7 @@ namespace Antmicro.Renode.UnitTests
             Assert.AreEqual(15, Packet.CalculateLength<TestStructDefaultOffsets>());
             Assert.AreEqual(8, Packet.CalculateLength<TestStructALSB>());
             Assert.AreEqual(8, Packet.CalculateLength<TestStructWithOneUsableBit>());
+            Assert.AreEqual(20, Packet.CalculateLength<TestNestedStruct>());
         }
 
         [Test]
@@ -69,6 +70,22 @@ namespace Antmicro.Renode.UnitTests
             Assert.AreEqual(0xde, structureC.c3);
 
             Assert.Throws<ArgumentException>(() => Packet.Decode<TestStructInvalidWidth>(data));
+        }
+
+        [Test]
+        public void TestNestedDecode()
+        {
+            var data = new byte[]
+            {
+                0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88,
+                0xc0, 0xfe, 0xde, 0xad, 0xc0, 0xde, 0xab, 0xcd,
+                0xba, 0x5e, 0xba, 0x11
+            };
+
+            var nestedStruct = Packet.Decode<TestNestedStruct>(data);
+            Assert.AreEqual(0x1122334455667788, nestedStruct.field);
+            Assert.AreEqual(0xc0fe, nestedStruct.nestedStructA1.nestedStructB.fieldB);
+            Assert.AreEqual(0xdeadc0de, nestedStruct.nestedStructA1.fieldA);
         }
 
         [Test]
@@ -194,6 +211,39 @@ namespace Antmicro.Renode.UnitTests
             // test if uninitialized byte[] field will be filled with zeros
             var testStructWithBytes = new TestStructWithBytes {};
             Assert.AreEqual(new byte[] { 0, 0 }, Packet.Encode(testStructWithBytes));
+        }
+
+        [Test]
+        public void TestNestedEncode()
+        {
+            var nestedStruct = new TestNestedStruct
+            {
+                field = 0x1122334455667788,
+                nestedStructA1 = new NestedStructA
+                {
+                    nestedStructB = new NestedStructB
+                    {
+                        fieldB = 0xc0fe
+                    },
+                    fieldA = 0xdeadc0de
+                },
+                nestedStructA2 = new NestedStructA
+                {
+                    nestedStructB = new NestedStructB
+                    {
+                        fieldB = 0xabcd
+                    },
+                    fieldA = 0xba5eba11
+                }
+            };
+            var bytes = new byte[]
+            {
+                0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88,
+                0xc0, 0xfe, 0xde, 0xad, 0xc0, 0xde, 0xab, 0xcd,
+                0xba, 0x5e, 0xba, 0x11
+            };
+
+            Assert.AreEqual(bytes, Packet.Encode(nestedStruct));
         }
 
         [LeastSignificantByteFirst]
@@ -384,6 +434,36 @@ namespace Antmicro.Renode.UnitTests
 #pragma warning disable 649
             [PacketField, Width(2)]
             public byte[] field;
+#pragma warning restore 649
+        }
+
+        private struct NestedStructB
+        {
+#pragma warning disable 649
+            [PacketField]
+            public ushort fieldB;
+#pragma warning restore 649
+        }
+
+        private struct NestedStructA
+        {
+#pragma warning disable 649
+            [PacketField]
+            public NestedStructB nestedStructB;
+            [PacketField]
+            public uint fieldA;
+#pragma warning restore 649
+        }
+
+        private struct TestNestedStruct
+        {
+#pragma warning disable 649
+            [PacketField]
+            public ulong field;
+            [PacketField]
+            public NestedStructA nestedStructA1;
+            [PacketField]
+            public NestedStructA nestedStructA2;
 #pragma warning restore 649
         }
 
