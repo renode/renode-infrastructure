@@ -1760,6 +1760,12 @@ namespace Antmicro.Renode.Utilities
             }
         }
 
+        public static bool IsStructType(Type type)
+        {
+            // According to docs, IsValueType return true for structs, enums and primitive types
+            return type.IsValueType && !type.IsPrimitive && !type.IsEnum;
+        }
+
         public static MpuAccess MemoryOperationToMpuAccess(MemoryOperation operation)
         {
             switch(operation)
