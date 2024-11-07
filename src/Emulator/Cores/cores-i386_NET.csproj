@@ -18,6 +18,13 @@
     </Compile>
     <Compile Include="X86\LAPIC.cs" />
     <Compile Include="X86\IOAPIC.cs" />
+    <Compile Include="X86\ACPI\ACPIExtensions.cs" />
+    <Compile Include="X86\ACPI\RootSystemDescriptionPointer.cs" />
+    <Compile Include="X86\ACPI\RootSystemDescriptionTable.cs" />
+    <Compile Include="X86\ACPI\SystemDescriptionTableHeader.cs" />
+    <Compile Include="X86\ACPI\FixedACPIDescriptionTable.cs" />
+    <Compile Include="X86\ACPI\ProcessorLocalAPICRecord.cs" />
+    <Compile Include="X86\ACPI\MultipleAPICDescriptionTable.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="X86\X86Registers.tt">
