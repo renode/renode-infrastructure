@@ -59,7 +59,7 @@ namespace Antmicro.Renode.Core
         {
             var symbolToAdd = GetUnique(symbol);
             symbols.Add(symbolToAdd);
-            symbolsByName.Add(symbol.Name, symbol);
+            AddSymbolToNameLookup(symbol);
             maxLoadAddress = SymbolAddress.Max(maxLoadAddress, symbol.End);
         }
 
@@ -242,6 +242,14 @@ namespace Antmicro.Renode.Core
         private void AddSymbolToNameLookup(Symbol symbol)
         {
             symbolsByName.Add(symbol.Name, symbol);
+
+            var dotIndex = symbol.Name.IndexOf('.');
+            if(dotIndex >= 0)
+            {
+                // NOTE: Add alias for the symbol if it contains clone suffix
+                var withoutCloneSuffix = symbol.Name.Substring(0, dotIndex);
+                symbolsByName.Add(withoutCloneSuffix, symbol);
+            }
         }
 
         /// <summary>
