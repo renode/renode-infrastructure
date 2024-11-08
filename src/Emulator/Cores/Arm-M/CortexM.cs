@@ -381,6 +381,18 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public uint SAUControl
+        {
+            set
+            {
+                tlibSetSauControl(value);
+            }
+            get
+            {
+                return tlibGetSauControl();
+            }
+        }
+
         public uint SAURegionNumber
         {
             set
@@ -618,6 +630,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private Func<uint> tlibGetNumberOfSauRegions;
+
+        [Import]
+        private Action<uint> tlibSetSauControl;
+
+        [Import]
+        private Func<uint> tlibGetSauControl;
 
         [Import]
         private Action<uint> tlibSetSauRegionNumber;

@@ -1049,6 +1049,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             switch((RegistersSAU)offset)
             {
+                case RegistersSAU.Control:
+                    return cpu.SAUControl;
+                case RegistersSAU.Type:
+                    return cpu.NumberOfSAURegions;
                 case RegistersSAU.RegionNumber:
                     return cpu.SAURegionNumber;
                 case RegistersSAU.RegionBaseAddress:
@@ -1065,6 +1069,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             switch((RegistersSAU)offset)
             {
+                case RegistersSAU.Control:
+                    cpu.SAUControl = value;
+                    break;
+                case RegistersSAU.Type:
+                    this.WarningLog("SAU: Write to read-only register 0x{0:x} ({1}), value 0x{2:x}", offset, nameof(RegistersSAU.Type), value);
+                    break;
                 case RegistersSAU.RegionNumber:
                     cpu.SAURegionNumber = value;
                     break;
@@ -1467,6 +1477,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             Alias2OfMPURegionAttributeAndSize = 0xDB0, // MPU_RASR_A2
             Alias3OfMPURegionBaseAddress = 0xDB4, // MPU_RBAR_A3
             Alias3OfMPURegionAttributeAndSize = 0xDB8, // MPU_RASR_A3
+            SAUControl = 0xDD0, // SAU_CTRL
+            SAUType = 0xDD4, // SAU_TYPE
             SAURegionNumber = 0xDD8, // SAU_RNR
             SAURegionBaseAddress = 0xDDC, // SAU_RBAR
             SAURegionLimitAddress = 0xDE0, // SAU_RLAR
@@ -1534,9 +1546,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private enum RegistersSAU
         {
-            RegionNumber = 0x0, // SAU_RNR
-            RegionBaseAddress = 0x4, // SAU_RBAR
-            RegionLimitAddress = 0x8, // SAU_RLAR
+            Control = 0x0, // SAU_CTRL
+            Type = 0x4, // SAU_TYPE
+            RegionNumber = 0x8, // SAU_RNR
+            RegionBaseAddress = 0xc, // SAU_RBAR
+            RegionLimitAddress = 0x10, // SAU_RLAR
         }
 
         private enum MPUVersion
@@ -1631,7 +1645,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private const string TrustZoneNSRegionWarning = "Without TrustZone enabled in the CPU, a NonSecure region should not be registered";
         private const int MPUStart             = 0xD90;
         private const int MPUEnd               = 0xDC4;    // resized for compat. with V8 MPU
-        private const int SAUStart             = 0xDD8;
+        private const int SAUStart             = 0xDD0;
         private const int SAUEnd               = 0xDE4;
         private const int SpuriousInterrupt    = 256;
         private const int SetEnableStart       = 0x100;
