@@ -51,7 +51,8 @@ namespace Antmicro.Renode.Peripherals.SPI
             i2cSlaveAddress = 0;
 
             RegistersCollection.Reset();
-            activeTransactionStatus.Value = CommandStatuses.Idle;
+            activeTransactionStatus.Value = Status.Idle;
+            status = Status.Idle;
 
             IRQ.Unset();
             incomingFifo.Reset();
@@ -269,7 +270,8 @@ namespace Antmicro.Renode.Peripherals.SPI
                             (int)spiSlaveSelect.Value, out var errorMessage))
                     {
                         this.Log(LogLevel.Error, errorMessage);
-                        activeTransactionStatus.Value = CommandStatuses.Error;
+                        activeTransactionStatus.Value = Status.Error;
+                        status = Status.Idle;
                         InterruptStatusSet(IoMasterInterrupts.IllegalCommand);
                         return;
                     }
@@ -290,6 +292,8 @@ namespace Antmicro.Renode.Peripherals.SPI
                         TryFinishTransaction();
                         return;
                     }
+
+                    status = Status.Active;
 
                     while(activeTransactionSizeLeft.Value > 0)
                     {
@@ -316,7 +320,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
                     if(activeTransactionSizeLeft.Value != 0)
                     {
-                        activeTransactionStatus.Value = CommandStatuses.Wait;
+                        activeTransactionStatus.Value = Status.Wait;
                     }
                 })
                 ;
@@ -461,8 +465,8 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             Registers.IOModuleStatus.Define(this)
                 .WithTaggedFlag("ERR", 0)
-                .WithFlag(1, FieldMode.Read, name: "CMDACT", valueProviderCallback: _ => activeTransactionStatus.Value == CommandStatuses.Active)
-                .WithFlag(2, FieldMode.Read, name: "IDLEST", valueProviderCallback: _ => activeTransactionStatus.Value == CommandStatuses.Idle)
+                .WithFlag(1, FieldMode.Read, name: "CMDACT", valueProviderCallback: _ => status == Status.Active)
+                .WithFlag(2, FieldMode.Read, name: "IDLEST", valueProviderCallback: _ => status == Status.Idle)
                 .WithReservedBits(3, 29)
                 ;
 
@@ -749,8 +753,10 @@ namespace Antmicro.Renode.Peripherals.SPI
                 activeTransactionCommand.Value = Commands.None;
 
                 // Not sure if these are valid for the continuous transmission.
-                activeTransactionStatus.Value = CommandStatuses.Idle;
+                activeTransactionStatus.Value = Status.Idle;
+                status = Status.Idle;
                 InterruptStatusSet(IoMasterInterrupts.CommandComplete);
+
                 return true;
             }
             return false;
@@ -861,7 +867,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private IEnumRegisterField<Commands> activeTransactionCommand;
         private IValueRegisterField activeTransactionSizeLeft;
-        private IEnumRegisterField<CommandStatuses> activeTransactionStatus;
+        private IEnumRegisterField<Status> activeTransactionStatus;
         private IValueRegisterField fifoInterruptReadThreshold;
         private IValueRegisterField fifoInterruptWriteThreshold;
         private IFlagRegisterField[] ioMasterInterruptsEnableFlags;
@@ -881,6 +887,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private bool activeTransactionContinue;
         private int activeSpiSlaveSelect;
         private uint i2cSlaveAddress;
+        private Status status;
 
         /*
             Both FIFOs occupy a single 64-byte memory:
@@ -1093,7 +1100,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             TestModeRead = 0x4,
         }
 
-        private enum CommandStatuses
+        private enum Status
         {
             Error = 0x1,
             Active = 0x2,
