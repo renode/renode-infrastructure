@@ -247,7 +247,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithValueField(24, 8, out transactionOffsetLow, name: "OFFSETLO")
                 .WithWriteCallback((_, __) =>
                 {
-                    this.Log(LogLevel.Noisy,
+                    this.Log(LogLevel.Debug,
                             "Transaction received for #{0}; command: {1}, size: {2}, offset: <count: {3}, low=0x{4:X2}, high=0x{5:X8}>, cont: {6}",
                             PrettyPendingPeripheral, transactionCommand.Value, transactionSize.Value, transactionOffsetCount.Value,
                             transactionOffsetLow.Value, transactionOffsetHigh.Value, transactionContinue.Value);
