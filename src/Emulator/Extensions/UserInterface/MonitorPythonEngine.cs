@@ -83,7 +83,7 @@ namespace Antmicro.Renode.UserInterface
             }
             catch(Exception e)
             {
-                throw new RecoverableException(e);
+                throw new RecoverableException($"Command '{command_name} {String.Join(" ", parameters)}' failed", e);
             }
             return true;
         }
