@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     public partial class CortexM : Arm
     {
         public CortexM(string cpuType, IMachine machine, NVIC nvic, [NameAlias("id")] uint cpuId = 0, Endianess endianness = Endianess.LittleEndian,
-            uint? fpuInterruptNumber = null, uint? numberOfMPURegions = null, uint? numberOfSAURegions = null, bool enableTrustZone = false)
+            uint? fpuInterruptNumber = null, uint? numberOfMPURegions = null, bool enableTrustZone = false, uint? numberOfSAURegions = null, uint? numberOfIDAURegions = null)
             : base(cpuType, machine, cpuId, endianness, numberOfMPURegions)
         {
             if(nvic == null)
@@ -47,16 +47,18 @@ namespace Antmicro.Renode.Peripherals.CPU
                 // Set CPU to start in Secure State
                 // this also enables TrustZone in the translation library
                 tlibSetSecurityState(1u);
-            }
-            if(!numberOfSAURegions.HasValue && TrustZoneEnabled)
-            {
-                // TODO: Determine default number
-                this.NumberOfSAURegions = 8;
-                this.Log(LogLevel.Info, "Configuring Security Attribution Unit regions to default: {0}", this.NumberOfSAURegions);
-            }
-            else if(numberOfSAURegions.HasValue)
-            {
-                NumberOfSAURegions = numberOfSAURegions.Value;
+
+                NumberOfSAURegions = numberOfSAURegions ?? 8;  // TODO: Determine default number
+                if(!numberOfSAURegions.HasValue)
+                {
+                    this.Log(LogLevel.Info, "Configuring Security Attribution Unit regions to default: {0}", NumberOfSAURegions);
+                }
+
+                NumberOfIDAURegions = numberOfIDAURegions ?? 8;  // TODO: Determine default number
+                if(!numberOfIDAURegions.HasValue)
+                {
+                    this.Log(LogLevel.Info, "Configuring Implementation-Defined Attribution Unit regions to default: {0}", NumberOfIDAURegions);
+                }
             }
 
             this.nvic = nvic;
@@ -125,6 +127,49 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        /// <remark>Should only be used for TrustZone CPUs, <see cref="RecoverableException"/> is thrown otherwise.</remark>
+        public IDAURegion GetIDAURegion(uint regionIndex)
+        {
+            AssertTrustZoneEnabled($"get IDAU region {regionIndex}");
+
+            var rbar = tlibGetIdauRegionBaseAddressRegister(regionIndex);
+            var rlar = tlibGetIdauRegionLimitAddressRegister(regionIndex);
+            return new IDAURegion(rbar, rlar);
+        }
+
+        /// <remarks>
+        /// Should only be used for TrustZone CPUs, <see cref="RecoverableException"/> is thrown otherwise.
+        /// It's also thrown in case <paramref name="region"/>'s index is greater than <see cref="NumberOfIDAURegions"/>.
+        /// </remarks>
+        public void SetIDAURegion(uint regionIndex, IDAURegion region)
+        {
+            AssertTrustZoneEnabled($"set IDAU region {regionIndex}");
+
+            if(regionIndex >= NumberOfIDAURegions)
+            {
+                throw new RecoverableException($"Invalid IDAU region: {regionIndex}, {nameof(NumberOfIDAURegions)}: {NumberOfIDAURegions}");
+            }
+
+            tlibSetIdauRegionBaseAddressRegister(regionIndex, region.ToRBAR());
+            tlibSetIdauRegionLimitAddressRegister(regionIndex, region.ToRLAR());
+        }
+
+        /// <remark>Should only be used for TrustZone CPUs, <see cref="RecoverableException"/> is thrown otherwise.</remark>
+        public bool TryAddImplementationDefinedExemptionRegion(uint startAddress, uint endAddress)
+        {
+            AssertTrustZoneEnabled($"add implementation-defined exemption region 0x{startAddress:X8}-0x{endAddress:X8}");
+
+            return tlibTryAddImplementationDefinedExemptionRegion(startAddress, endAddress) == 1u;
+        }
+
+        /// <remark>Should only be used for TrustZone CPUs, <see cref="RecoverableException"/> is thrown otherwise.</remark>
+        public bool TryRemoveImplementationDefinedExemptionRegion(uint startAddress, uint endAddress)
+        {
+            AssertTrustZoneEnabled($"remove implementation-defined exemption region 0x{startAddress:X8}-0x{endAddress:X8}");
+
+            return tlibTryRemoveImplementationDefinedExemptionRegion(startAddress, endAddress) == 1u;
+        }
+
         public override MemorySystemArchitectureType MemorySystemArchitecture => NumberOfMPURegions > 0 ? MemorySystemArchitectureType.Physical_PMSA : MemorySystemArchitectureType.None;
 
         public override uint ExceptionVectorAddress
@@ -189,6 +234,18 @@ namespace Antmicro.Renode.Peripherals.CPU
                 this.NoisyLog("VectorTableOffset_NS set to 0x{0:X}.", value);
                 tlibSetInterruptVectorBase(value, 0u);
             }
+        }
+
+        public bool IDAUEnabled
+        {
+            get => GetTrustZoneRelatedRegister(nameof(IDAUEnabled), () => tlibGetIdauEnabled()) == 1u;
+            set => SetTrustZoneRelatedRegister(nameof(IDAUEnabled), val => tlibSetIdauEnabled(val), value ? 1u : 0u);
+        }
+
+        public uint NumberOfIDAURegions
+        {
+            get => GetTrustZoneRelatedRegister(nameof(NumberOfIDAURegions), () => tlibGetNumberOfIdauRegions());
+            set => SetTrustZoneRelatedRegister(nameof(NumberOfIDAURegions), val => tlibSetNumberOfIdauRegions(val), value);
         }
 
         public uint NumberOfSAURegions
@@ -437,6 +494,15 @@ namespace Antmicro.Renode.Peripherals.CPU
             base.OnLeavingResetState();
         }
 
+        /// <remarks>Use <see cref="GetTrustZoneRelatedRegister"/> and <see cref="SetTrustZoneRelatedRegister"/> to wrap accesses which have to succeed.</remarks>
+        private void AssertTrustZoneEnabled(string actionName)
+        {
+            if(!TrustZoneEnabled)
+            {
+                throw new RecoverableException($"Tried to {actionName} in CPU with TrustZone disabled");
+            }
+        }
+
         private uint GetTrustZoneRelatedRegister(string registerName, Func<uint> getter)
         {
             if(!TrustZoneEnabled)
@@ -546,9 +612,71 @@ namespace Antmicro.Renode.Peripherals.CPU
             return nvic.GetTargetInterruptSecurityState(interruptNumber) == NVIC.InterruptTargetSecurityState.Secure ? 1u : 0u;
         }
 
+        public const uint IDAU_SAURegionAddressMask = ~(IDAU_SAURegionMinSize - 1u);
+        public const uint IDAU_SAURegionMinSize = 32u;
+
         private NVIC nvic;
         private bool pcNotInitialized = true;
         private bool vtorInitialized;
+
+        public struct IDAURegion
+        {
+            public static bool IsBaseAddressValid(uint address)
+            {
+                return address == (address & IDAU_SAURegionAddressMask);
+            }
+
+            public static bool IsLimitAddressValid(uint address)
+            {
+                return address == (address | ~IDAU_SAURegionAddressMask);
+            }
+
+            public IDAURegion(uint baseAddress, uint limitAddress, bool enabled, bool nonSecureCallable)
+            {
+                if(!IsBaseAddressValid(baseAddress) || !IsLimitAddressValid(limitAddress))
+                {
+                    throw new RecoverableException($"IDAU region must be {IDAU_SAURegionMinSize}B-aligned and the limit is inclusive, "
+                        + $"e.g. 0x20-0x7F (limit=0x80 isn't valid); was: 0x{baseAddress:X8}-0x{limitAddress:X8}");
+                }
+                BaseAddress = baseAddress;
+                LimitAddress = limitAddress;
+                Enabled = enabled;
+                NonSecureCallable = nonSecureCallable;
+            }
+
+            // tlib's IDAU configuration is currently similar to SAU. There are indexed regions for which registers contain
+            // base/limit addresses at bits 5-31 and the remaining bits might be some flags. Currently only used in RLAR.
+            public IDAURegion(uint rbar, uint rlar)
+            {
+                BaseAddress = rbar & IDAU_SAURegionAddressMask;
+                LimitAddress = rlar | ~IDAU_SAURegionAddressMask;
+                Enabled = (rlar & IDAURlarEnabledFlag) == IDAURlarEnabledFlag;
+                NonSecureCallable = (rlar & IDAURlarNonSecureCallableFlag) == IDAURlarNonSecureCallableFlag;
+            }
+
+            public uint ToRBAR()
+            {
+                return BaseAddress;
+            }
+
+            public uint ToRLAR()
+            {
+                uint rlar = LimitAddress & IDAU_SAURegionAddressMask;
+                rlar |= Enabled ? IDAURlarEnabledFlag : 0u;
+                rlar |= NonSecureCallable ? IDAURlarNonSecureCallableFlag : 0u;
+                return rlar;
+            }
+
+            // The struct is intentionally immutable so that nobody tries to just modify the struct and call it a day
+            // without passing the modified region to tlib.
+            public uint BaseAddress { get; private set; }
+            public bool Enabled { get; private set; }
+            public uint LimitAddress { get; private set; }
+            public bool NonSecureCallable { get; private set; }
+
+            private const uint IDAURlarEnabledFlag = 1u << 0;
+            private const uint IDAURlarNonSecureCallableFlag = 1u << 1;
+        }
 
         // 649:  Field '...' is never assigned to, and will always have its default value null
         #pragma warning disable 649
@@ -613,6 +741,37 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private Func<uint> tlibGetSecurityState;
+
+        /* TrustZone IDAU */
+        [Import]
+        private Action<uint> tlibSetNumberOfIdauRegions;
+
+        [Import]
+        private Func<uint> tlibGetNumberOfIdauRegions;
+
+        [Import]
+        private Action<uint> tlibSetIdauEnabled;
+
+        [Import]
+        private Func<uint> tlibGetIdauEnabled;
+
+        [Import]
+        private Action<uint, uint> tlibSetIdauRegionBaseAddressRegister;
+
+        [Import]
+        private Func<uint, uint> tlibGetIdauRegionBaseAddressRegister;
+
+        [Import]
+        private Action<uint, uint> tlibSetIdauRegionLimitAddressRegister;
+
+        [Import]
+        private Func<uint, uint> tlibGetIdauRegionLimitAddressRegister;
+
+        [Import]
+        private Func<uint, uint, uint> tlibTryAddImplementationDefinedExemptionRegion;
+
+        [Import]
+        private Func<uint, uint, uint> tlibTryRemoveImplementationDefinedExemptionRegion;
 
         /* TrustZone SAU */
         [Import]
