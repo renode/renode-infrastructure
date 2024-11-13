@@ -188,8 +188,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             case Registers.SystemHandlerPriority2:
             case Registers.SystemHandlerPriority3:
                 return HandlePriorityRead(offset - 0xD14, false);
-            case Registers.ApplicationInterruptAndReset:
-                return HandleApplicationInterruptAndResetRead();
             case Registers.ConfigurableFaultStatus:
                 return cpu.FaultStatus;
             case Registers.InterruptControllerType:
@@ -232,13 +230,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
             if(offset >= TargetNonSecureStart && offset < TargetNonSecureEnd)
             {
-                if(machine.GetSystemBus(this).TryGetCurrentCPU(out var cpu))
+                // No CPU will mean that we access from the Monitor - let's allow it then
+                if(!IsCurrentCPUInSecureState(out var curcpu) && curcpu != null)
                 {
-                    if(cpu is CortexM mcpu && !mcpu.SecureState)
-                    {
-                        this.WarningLog("CPU {0} tries to access ITNS register, but it's in non-secure state", mcpu.GetName());
-                        return;
-                    }
+                    this.WarningLog("CPU {0} tries to access ITNS register, but it's in non-secure state", curcpu.GetName());
+                    return;
                 }
                 ModifySecurityTarget((int)offset - TargetNonSecureStart, value);
                 return;
@@ -265,20 +261,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     this.DebugLog("Wrong key while accessing Application Interrupt and Reset Control register 0x{0:X}.", key);
                     break;
                 }
-                // TODO: This should be banked between Security States
-                binaryPointPosition = (int)(value >> 8) & 7;
-                prioritizeSecureInterrupts = (value & (1 << 14)) != 0;
-                if(BitHelper.IsBitSet(value, 2))
-                {
-                    resetMachine();
-                }
-
-                // BFHFNMINS
-                foreach(var excp in new SystemException[] {SystemException.NMI, SystemException.HardFault, SystemException.BusFault})
-                {
-                    targetInterruptSecurityState[(int)excp] = BitHelper.IsBitSet(value, 13) ? InterruptTargetSecurityState.NonSecure : InterruptTargetSecurityState.Secure;
-                }
-                break;
+                // Key is OK, allow access to go through
+                goto default;
             case Registers.ConfigurableFaultStatus:
                 cpu.FaultStatus &= ~value;
                 break;
@@ -379,6 +363,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             IRQ.Unset();
             mpuControlRegister = 0;
             HaltSystickOnDeepSleep = defaultHaltSystickOnDeepSleep;
+            canResetOnlyFromSecure = false;
 
             // bit [16] DC / Cache enable. This is a global enable bit for data and unified caches.
             ccr = 0x10000;
@@ -627,6 +612,83 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     changeCallback: (_, value) => SetSevOnPendingOnAllCPUs(value))
                 .WithReservedBits(5, 27);
 
+            Registers.ApplicationInterruptAndReset.Define(RegisterCollection)
+                .WithReservedBits(0, 1)
+                .WithTaggedFlag("VECTCLRACTIVE", 1)
+                .WithFlag(2, writeCallback: (_, value) =>
+                {
+                    if(value)
+                    {
+                        if(canResetOnlyFromSecure && !IsCurrentCPUInSecureState(out var _))
+                        {
+                            this.WarningLog("Requested reset with SYSRESETREQ but SYSRESETREQS is set. Ignoring");
+                            return;
+                        }
+                        this.InfoLog("Resetting platform with SYSRESETREQ");
+                        resetMachine();
+                    }
+                }, name: "SYSRESETREQ")
+                .WithFlag(3, writeCallback: (_, value) =>
+                {
+                    if(!IsCurrentCPUInSecureState(out var currentCpu) && currentCpu != null)
+                    {
+                        // This bit is RAZ/WI from Non-secure state.
+                        return;
+                    }
+                    canResetOnlyFromSecure = value;
+                }, valueProviderCallback: _ =>
+                {
+                    if(!IsCurrentCPUInSecureState(out var currentCpu) && currentCpu != null)
+                    {
+                        // This bit is RAZ/WI from Non-secure state.
+                        return false;
+                    }
+                    return canResetOnlyFromSecure;
+                }, name: "SYSRESETREQS")
+                .WithTaggedFlag("DIT", 4)
+                .WithTaggedFlag("IESB", 5)
+                .WithReservedBits(6, 2)
+                .WithValueField(8, 3, writeCallback: (_, value) =>
+                {
+                    // TODO: This should be banked between Security States
+                    binaryPointPosition = (int)value;
+                }, name: "PRIGROUP")
+                .WithReservedBits(11, 2)
+                .WithFlag(13, writeCallback: (_, value) =>
+                {
+                    if(!IsCurrentCPUInSecureState(out var currentCpu) && currentCpu != null)
+                    {
+                        // This bit is WI from Non-secure state.
+                        return;
+                    }
+                    var sec = value ? InterruptTargetSecurityState.NonSecure : InterruptTargetSecurityState.Secure;
+                    foreach(var excp in new SystemException[] {SystemException.NMI, SystemException.HardFault, SystemException.BusFault})
+                    {
+                        targetInterruptSecurityState[(int)excp] = sec;
+                    }
+                }, name: "BFHFNMINS")
+                .WithFlag(14, writeCallback: (_, value) =>
+                {
+                    if(!IsCurrentCPUInSecureState(out var currentCpu) && currentCpu != null)
+                    {
+                        // This bit is RAZ/WI from Non-secure state.
+                        return;
+                    }
+                    prioritizeSecureInterrupts = value;
+                }, valueProviderCallback: _ =>
+                {
+                    if(!IsCurrentCPUInSecureState(out var currentCpu) && currentCpu != null)
+                    {
+                        // This bit is RAZ/WI from Non-secure state.
+                        return false;
+                    }
+                    return prioritizeSecureInterrupts;
+                }, name: "PRIS")
+                .WithTaggedFlag(name: "ENDIANNESS", 15)
+                // We guard access with VectKey in `WriteDoubleWord` - here we just return the expected value
+                .WithValueField(16, 16, valueProviderCallback: _ => VectKeyStat, name: "VECTKEYSTAT");
+
+
             Registers.SystemHandlerControlAndState.Define(RegisterCollection)
                 .WithTaggedFlag("MEMFAULTACT (Memory Manage Active)", 0)
                 .WithTaggedFlag("BUSFAULTACT (Bus Fault Active)", 1)
@@ -703,11 +765,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private void InitInterrupts()
         {
             Array.Clear(irqs, 0, irqs.Length);
+            Array.Clear(targetInterruptSecurityState, 0, targetInterruptSecurityState.Length);
             for(var i = 0; i < 16; i++)
             {
                 irqs[i] = IRQState.Enabled;
             }
             maskedInterruptPresent = false;
+            prioritizeSecureInterrupts = false;
             pendingIRQs.Clear();
         }
 
@@ -969,14 +1033,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
-        private uint HandleApplicationInterruptAndResetRead()
-        {
-            var returnValue = (uint)VectKeyStat << 16;
-            returnValue |= ((uint)binaryPointPosition << 8);
-            returnValue |= prioritizeSecureInterrupts ? (1u << 14) : 0;
-            return returnValue;
-        }
-
         private void HandleWfiStateChange(bool enteredWfi)
         {
             if(enteredWfi && deepSleepEnabled.Value && HaltSystickOnDeepSleep)
@@ -1209,6 +1265,29 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             return (cpu.XProgramStatusRegister & InterruptProgramStatusRegisterMask) != 0 || (cpu.Control & 1) == 0;
         }
 
+        /* Expect this to return `true` only if the CPU is in Secure state
+         * otherwise this will return `false` - also for CPUs with disabled TrustZone
+         * or for Monitor access. If the CPU was not the originator (e.g. Monitor), then `currentCpu` will be `null`
+         */
+        private bool IsCurrentCPUInSecureState(out ICPU currentCpu)
+        {
+            currentCpu = null;
+            try
+            {
+                currentCpu = machine.GetSystemBus(this).GetCurrentCPU();
+                if(currentCpu is CortexM mcpu)
+                {
+                    return mcpu.SecureState;
+                }
+                return false;
+            }
+            catch(RecoverableException)
+            {
+                // TrustZone might not be enabled
+                return false;
+            }
+        }
+
         private byte basepri;
         public byte BASEPRI
         {
@@ -1250,7 +1329,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             CPUID = 0xD00,
             InterruptControlState = 0xD04,
             VectorTableOffset = 0xD08,
-            ApplicationInterruptAndReset = 0xD0C,
+            ApplicationInterruptAndReset = 0xD0C, // AIRCR
             SystemControlRegister = 0xD10, // SCR
             ConfigurationAndControl = 0xD14, // CCR
             SystemHandlerPriority1 = 0xD18, // SHPR1
@@ -1391,6 +1470,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private uint ccr = 0x10000;
 
         private readonly bool defaultHaltSystickOnDeepSleep;
+        private bool canResetOnlyFromSecure;
         private byte priorityMask;
         private Stack<int> activeIRQs;
         private ISet<int> pendingIRQs;
@@ -1408,7 +1488,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         // This is configurable through NVIC_ITNSx only for Hardware Interrupts (exception numbered 16 and above)
         // for configuring selected exceptions, look at AIRCR.BFHFNMINS
         // for other exceptions, this will be completely ignored
-        private InterruptTargetSecurityState[] targetInterruptSecurityState;
+        private readonly InterruptTargetSecurityState[] targetInterruptSecurityState;
         private readonly IRQState[] irqs;
         private readonly byte[] priorities;
         private readonly Action resetMachine;
