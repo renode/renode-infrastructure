@@ -523,7 +523,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private void DefineRegisters()
         {
             Registers.InterruptControlState.Define(RegisterCollection)
-                .WithTag("VECTACTIVE", 0, 9)
+                .WithValueField(0, 9, FieldMode.Read, valueProviderCallback: _ => (uint)(activeIRQs.Count == 0 ? 0 : activeIRQs.Peek()), name: "VECTACTIVE")
                 .WithReservedBits(9, 2)
                 .WithTaggedFlag("RETTOBASE", 11)
                 .WithValueField(12, 9, FieldMode.Read, valueProviderCallback: _ => (uint)FindPendingInterrupt(), name: "VECTPENDING")
