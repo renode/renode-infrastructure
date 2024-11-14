@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
@@ -1188,22 +1189,23 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 foreach(int i in pendingIRQs)
                 {
                     var currentIRQ = irqs[i];
-                    if(IsCandidate(currentIRQ, i) && priorities[i] < bestPriority)
+                    if(IsCandidate(currentIRQ, i) && AdjustPriority(i) < bestPriority)
                     {
                         result = i;
-                        bestPriority = priorities[i];
+                        bestPriority = AdjustPriority(i);
                     }
                 }
                 if(preemptNeeded)
                 {
-                    var activePriority = (int)priorities[activeIRQs.Peek()];
+                    var activeTop = activeIRQs.Peek();
+                    var activePriority = AdjustPriority(activeTop);
                     if(!DoesAPreemptB(bestPriority, activePriority))
                     {
                         result = SpuriousInterrupt;
                     }
                     else
                     {
-                        this.NoisyLog("IRQ {0} preempts {1}.", result, activeIRQs.Peek());
+                        this.NoisyLog("IRQ {0} preempts {1}.", result, activeTop);
                     }
                 }
 
@@ -1226,6 +1228,34 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
                 return result;
             }
+        }
+
+        private int AdjustPriority(int interruptNo)
+        {
+            byte priority = priorities[interruptNo];
+            if(!prioritizeSecureInterrupts)
+            {
+                return priority;
+            }
+            /* Rule: RWQWK (ARMv8-M Architecture Reference Manual)
+             * When AIRCR.PRIS is 1, each Non-secure SHPRn_NS.PRI_n priority field value [7:0] has the following sequence
+             * applied to it, it:
+             *  1. Is divided by two.
+             *  2. The constant 0x80 is then added to it.
+             * though it appears that it applies to all Non-secure interrupts, not only exceptions configurable with SHPRn_NS.PRI_n
+             */
+
+            // It is a "byte" after all
+            DebugHelper.Assert(priority <= 255);
+            var bankedInterrupts = new int[] {4, 6, 11, 14, 15};
+            if(targetInterruptSecurityState[interruptNo] == InterruptTargetSecurityState.NonSecure
+                || (bankedInterrupts.Contains(interruptNo) && !cpu.SecureState))
+            {
+                // Divide by two, and set 7th bit. Since 255 is the lowest priority (highest number), this is fine
+                priority >>= 1;
+                priority |= 0x80;
+            }
+            return priority;
         }
 
         private bool IsCandidate(IRQState state, int index)
