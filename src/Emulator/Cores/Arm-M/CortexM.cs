@@ -133,14 +133,25 @@ namespace Antmicro.Renode.Peripherals.CPU
             set => VectorTableOffset = value;
         }
 
+        // Sets VTOR for the current Security State the CPU is in right now
         public uint VectorTableOffset
         {
             get
             {
-                return tlibGetInterruptVectorBase();
+                var secure = 0u;
+                if(TrustZoneEnabled)
+                {
+                    secure = SecureState ? 1u : 0u;
+                }
+                return tlibGetInterruptVectorBase(secure);
             }
             set
             {
+                var secure = 0u;
+                if(TrustZoneEnabled)
+                {
+                    secure = SecureState ? 1u : 0u;
+                }
                 vtorInitialized = true;
                 if(!machine.SystemBus.IsMemory(value, this))
                 {
@@ -148,7 +159,35 @@ namespace Antmicro.Renode.Peripherals.CPU
                     return;
                 }
                 this.NoisyLog("VectorTableOffset set to 0x{0:X}.", value);
-                tlibSetInterruptVectorBase(value);
+                tlibSetInterruptVectorBase(value, secure);
+            }
+        }
+
+        // NS alias for VTOR
+        public uint VectorTableOffsetNonSecure
+        {
+            get
+            {
+                if(!TrustZoneEnabled)
+                {
+                    throw new RecoverableException("You need to enable TrustZone to use VTOR_NS");
+                }
+                return tlibGetInterruptVectorBase(0u);
+            }
+            set
+            {
+                if(!TrustZoneEnabled)
+                {
+                    throw new RecoverableException("You need to enable TrustZone to use VTOR_NS");
+                }
+                vtorInitialized = true;
+                if(machine.SystemBus.FindMemory(value, this) == null)
+                {
+                    this.Log(LogLevel.Warning, "Tried to set VTOR_NS address at 0x{0:X} which does not lay in memory. Aborted.", value);
+                    return;
+                }
+                this.NoisyLog("VectorTableOffset_NS set to 0x{0:X}.", value);
+                tlibSetInterruptVectorBase(value, 0u);
             }
         }
 
@@ -552,10 +591,10 @@ namespace Antmicro.Renode.Peripherals.CPU
         private Action<int> tlibSetFpuInterruptNumber;
 
         [Import]
-        private Func<uint> tlibGetInterruptVectorBase;
+        private Func<uint, uint> tlibGetInterruptVectorBase;
 
         [Import]
-        private Action<uint> tlibSetInterruptVectorBase;
+        private Action<uint, uint> tlibSetInterruptVectorBase;
 
         [Import]
         private Func<uint> tlibGetXpsr;

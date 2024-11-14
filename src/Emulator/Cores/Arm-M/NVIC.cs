@@ -116,7 +116,22 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public bool HaltSystickOnDeepSleep { get; set; }
 
+        [ConnectionRegion("NonSecureAlias")]
+        public uint ReadDoubleWordNonSecureAlias(long offset)
+        {
+            if(!cpu.TrustZoneEnabled)
+            {
+                throw new RecoverableException(TrustZoneNSRegionWarning);
+            }
+            return ReadDoubleWord(offset, false);
+        }
+
         public uint ReadDoubleWord(long offset)
+        {
+            return ReadDoubleWord(offset, IsCurrentCPUInSecureState(out var _));
+        }
+
+        public uint ReadDoubleWord(long offset, bool isSecure)
         {
             if(offset >= PriorityStart && offset < PriorityEnd)
             {
@@ -157,7 +172,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             switch((Registers)offset)
             {
             case Registers.VectorTableOffset:
-                return cpu.VectorTableOffset;
+                return (isSecure || !cpu.TrustZoneEnabled) ? cpu.VectorTableOffset : cpu.VectorTableOffsetNonSecure;
             case Registers.CPUID:
                 return cpuId;
             case Registers.CoprocessorAccessControl:
@@ -202,7 +217,22 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public GPIO IRQ { get; private set; }
 
+        [ConnectionRegion("NonSecureAlias")]
+        public void WriteDoubleWordNonSecureAlias(long offset, uint value)
+        {
+            if(!cpu.TrustZoneEnabled)
+            {
+                throw new RecoverableException(TrustZoneNSRegionWarning);
+            }
+            WriteDoubleWord(offset, value, false);
+        }
+
         public void WriteDoubleWord(long offset, uint value)
+        {
+            WriteDoubleWord(offset, value, IsCurrentCPUInSecureState(out var _));
+        }
+
+        public void WriteDoubleWord(long offset, uint value, bool isSecure)
         {
             if(offset >= SetEnableStart && offset < SetEnableEnd)
             {
@@ -253,7 +283,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             switch((Registers)offset)
             {
             case Registers.VectorTableOffset:
-                cpu.VectorTableOffset = value & 0xFFFFFF80;
+                if(isSecure || !cpu.TrustZoneEnabled)
+                {
+                    cpu.VectorTableOffset = value & 0xFFFFFF80;
+                }
+                else
+                {
+                    cpu.VectorTableOffsetNonSecure = value & 0xFFFFFF80;
+                }
                 break;
             case Registers.ApplicationInterruptAndReset:
                 var key = value >> 16;
@@ -1531,6 +1568,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private IFlagRegisterField deepSleepEnabled;
         private IFlagRegisterField currentSevOnPending;
 
+        private const string TrustZoneNSRegionWarning = "Without TrustZone enabled in the CPU, a NonSecure region should not be registered";
         private const int MPUStart             = 0xD90;
         private const int MPUEnd               = 0xDC4;    // resized for compat. with V8 MPU
         private const int SAUStart             = 0xDD8;
