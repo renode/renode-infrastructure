@@ -98,9 +98,9 @@ namespace Antmicro.Renode.Peripherals.Timers
             var registerMap = new Dictionary<long, DoubleWordRegister>
             {
                 {channelOffset + (long)ChannelRegisters.WriteProtection, new DoubleWordRegister(this)
-                    .WithFlag(0, name: "WP (Register Write Disable)")
+                    .WithTaggedFlag("WP (Register Write Disable)", 0)
                     .WithReservedBits(1, 7)
-                    .WithValueField(8, 8, name: "PRKEY (GTWP Key Code)")
+                    .WithTag("PRKEY (GTWP Key Code)", 8, 8)
                     .WithReservedBits(16, 16)
                 },
                 {channelOffset + (long)ChannelRegisters.SoftwareStart, new DoubleWordRegister(this)
@@ -141,14 +141,14 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {channelOffset + (long)ChannelRegisters.InputCaptureSourceSelectA, DefineSourceSelectRegister("Input Capture", 'A', false, "GTCCRA")},
                 {channelOffset + (long)ChannelRegisters.InputCaptureSourceSelectB, DefineSourceSelectRegister("Input Capture", 'B', false, "GTCCRB")},
                 {channelOffset + (long)ChannelRegisters.TimerControl, new DoubleWordRegister(this)
-                    .WithFlag(0, name: "CST (Count Start)")
+                    .WithTaggedFlag("CST (Count Start)", 0)
                     .WithReservedBits(1, 15)
                     .WithEnumField<DoubleWordRegister, Mode>(16, 3, name: "MD (Mode Select)",
                         valueProviderCallback: _ => channel.Mode,
                         writeCallback: (_, value) => channel.Mode = value
                     )
                     .WithReservedBits(19, 4)
-                    .WithValueField(23, 4, name: "TPCS (Timer Prescaler Select)")
+                    .WithTag("TPCS (Timer Prescaler Select)", 23, 4)
                     .WithReservedBits(27, 5)
                 },
                 {channelOffset + (long)ChannelRegisters.CountDirectionAndDutySetting, new DoubleWordRegister(this)
@@ -156,66 +156,66 @@ namespace Antmicro.Renode.Peripherals.Timers
                         valueProviderCallback: _ => channel.Direction,
                         writeCallback: (_, value) => channel.Direction = value
                     )
-                    .WithFlag(1, name: "UDF (Forcible Count Direction Setting)")
+                    .WithTaggedFlag("UDF (Forcible Count Direction Setting)", 1)
                     .WithReservedBits(2, 14)
-                    .WithValueField(16, 2, name: "OADTY (GTIOCnA Output Duty Setting)")
-                    .WithFlag(18, name: "OADTYF (Forcible GTIOCnA Output Duty Setting)")
-                    .WithFlag(19, name: "OADTYR (GTIOCnA Output Value Selecting)")
+                    .WithTag("OADTY (GTIOCnA Output Duty Setting)", 16, 2)
+                    .WithTaggedFlag("OADTYF (Forcible GTIOCnA Output Duty Setting)", 18)
+                    .WithTaggedFlag("OADTYR (GTIOCnA Output Value Selecting)", 19)
                     .WithReservedBits(20, 4)
-                    .WithValueField(24, 2, name: "OBDTY (GTIOCnB Output Duty Setting)")
-                    .WithFlag(26, name: "OBDTYF (Forcible GTIOCnB Output Duty Setting)")
-                    .WithFlag(27, name: "OBDTYR (GTIOCnB Output Value Selecting)")
+                    .WithTag("OBDTY (GTIOCnB Output Duty Setting)", 24, 2)
+                    .WithTaggedFlag("OBDTYF (Forcible GTIOCnB Output Duty Setting)", 26)
+                    .WithTaggedFlag("OBDTYR (GTIOCnB Output Value Selecting)", 27)
                     .WithReservedBits(28, 4)
                 },
                 {channelOffset + (long)ChannelRegisters.IOControl, new DoubleWordRegister(this)
-                    .WithValueField(0, 5, name: "GTIOA (GTIOCnA Pin Function Select)")
+                    .WithTag("GTIOA (GTIOCnA Pin Function Select)", 0, 5)
                     .WithReservedBits(5, 1)
-                    .WithFlag(6, name: "OADFLT (GTIOCnA Pin Output Value Setting at the Count Stop)")
-                    .WithFlag(7, name: "OAHLD (GTIOCnA Pin Output Value Setting at the Start/Stop Count)")
-                    .WithFlag(8, name: "OAE (GTIOCnA Pin Output Enable)")
-                    .WithFlag(9, name: "OADF (GTIOCnA Pin Disaable Value Setting)")
+                    .WithTaggedFlag("OADFLT (GTIOCnA Pin Output Value Setting at the Count Stop)", 6)
+                    .WithTaggedFlag("OAHLD (GTIOCnA Pin Output Value Setting at the Start/Stop Count)", 7)
+                    .WithTaggedFlag("OAE (GTIOCnA Pin Output Enable)", 8)
+                    .WithTaggedFlag("OADF (GTIOCnA Pin Disaable Value Setting)", 9)
                     .WithReservedBits(11, 2)
-                    .WithFlag(13, name: "NFAEN (Noise Filter A Enable)")
-                    .WithValueField(14, 2, name: "NFCSA (Noise Filter A Sampling Clock Select)")
-                    .WithValueField(16, 5, name: "GTIOB (GTIOCnB Pin Function Select)")
+                    .WithTaggedFlag("NFAEN (Noise Filter A Enable)", 13)
+                    .WithTag("NFCSA (Noise Filter A Sampling Clock Select)", 14, 2)
+                    .WithTag("GTIOB (GTIOCnB Pin Function Select)", 16, 5)
                     .WithReservedBits(21, 1)
-                    .WithFlag(22, name: "OBDFLT (GTIOCnB Pin Output Value Setting at the Count Stop)")
-                    .WithFlag(23, name: "OBHLD (GTIOCnB Pin Output Value Setting at the Start/Stop Count)")
-                    .WithFlag(24, name: "OBE (GTIOCnB Pin Output Enable)")
-                    .WithFlag(25, name: "OBDF (GTIOCnB Pin Disaable Value Setting)")
+                    .WithTaggedFlag("OBDFLT (GTIOCnB Pin Output Value Setting at the Count Stop)", 22)
+                    .WithTaggedFlag("OBHLD (GTIOCnB Pin Output Value Setting at the Start/Stop Count)", 23)
+                    .WithTaggedFlag("OBE (GTIOCnB Pin Output Enable)", 24)
+                    .WithTaggedFlag("OBDF (GTIOCnB Pin Disaable Value Setting)", 25)
                     .WithReservedBits(27, 2)
-                    .WithFlag(29, name: "NFBEN (Noise Filter B Enable)")
-                    .WithValueField(30, 2, name: "NFCSB (Noise Filter B Sampling Clock Select)")
+                    .WithTaggedFlag("NFBEN (Noise Filter B Enable)", 29)
+                    .WithTag("NFCSB (Noise Filter B Sampling Clock Select)", 30, 2)
                 },
                 {channelOffset + (long)ChannelRegisters.InterruptOutputSetting, new DoubleWordRegister(this)
                     .WithReservedBits(0, 16)
-                    .WithFlag(16, name: "ADTRAUEN (GTADTRA Register Compare Match (Up-Counting) A/D Conversion Start)")
-                    .WithFlag(17, name: "ADTRADEN (GTADTRA Register Compare Match (Down-Counting) A/D Conversion Start)")
-                    .WithFlag(18, name: "ADTRBUEN (GTADTRB Register Compare Match (Up-Counting) A/D Conversion Start)")
-                    .WithFlag(19, name: "ADTRBDEN (GTADTRB Register Compare Match (Down-Counting) A/D Conversion Start)")
+                    .WithTaggedFlag("ADTRAUEN (GTADTRA Register Compare Match (Up-Counting) A/D Conversion Start)", 16)
+                    .WithTaggedFlag("ADTRADEN (GTADTRA Register Compare Match (Down-Counting) A/D Conversion Start)", 17)
+                    .WithTaggedFlag("ADTRBUEN (GTADTRB Register Compare Match (Up-Counting) A/D Conversion Start)", 18)
+                    .WithTaggedFlag("ADTRBDEN (GTADTRB Register Compare Match (Down-Counting) A/D Conversion Start)", 19)
                     .WithReservedBits(20, 4)
-                    .WithValueField(24, 2, name: "GRP (Output Disable Source Select)")
+                    .WithTag("GRP (Output Disable Source Select)", 24, 2)
                     .WithReservedBits(26, 3)
-                    .WithFlag(29, name: "GRPABH (Same Time Output Level High Disable Request Enable)")
-                    .WithFlag(30, name: "GRPABL (Same Time Output Level Low Disable Request Enable)")
+                    .WithTaggedFlag("GRPABH (Same Time Output Level High Disable Request Enable)", 29)
+                    .WithTaggedFlag("GRPABL (Same Time Output Level Low Disable Request Enable)", 30)
                     .WithReservedBits(31, 1)
                 },
                 // Status register defined later
                 {channelOffset + (long)ChannelRegisters.BufferEnable, new DoubleWordRegister(this)
-                    .WithFlag(0, name: "BD0 (GTCCR Buffer Operation Disable)")
-                    .WithFlag(1, name: "BD1 (GTPR Buffer Operation Disable)")
-                    .WithFlag(2, name: "BD2 (GTAADTRA/GTADTRB Registers Buffer Operation Disable)")
+                    .WithTaggedFlag("BD0 (GTCCR Buffer Operation Disable)", 0)
+                    .WithTaggedFlag("BD1 (GTPR Buffer Operation Disable)", 1)
+                    .WithTaggedFlag("BD2 (GTAADTRA/GTADTRB Registers Buffer Operation Disable)", 2)
                     .WithReservedBits(3, 13)
-                    .WithValueField(16, 2, name: "CCRA (GTCCRA Buffer Operation)")
-                    .WithValueField(18, 2, name: "CCRB (GTCCRB Buffer Operation)")
-                    .WithValueField(20, 2, name: "PR (GTPR Buffer Operation)")
-                    .WithFlag(22, name: "CCRSWT (GTCCRA and GTCCRB Forcible Buffer Operation)")
+                    .WithTag("CCRA (GTCCRA Buffer Operation)", 16, 2)
+                    .WithTag("CCRB (GTCCRB Buffer Operation)", 18, 2)
+                    .WithTag("PR (GTPR Buffer Operation)", 20, 2)
+                    .WithTaggedFlag("CCRSWT (GTCCRA and GTCCRB Forcible Buffer Operation)", 22)
                     .WithReservedBits(23, 1)
-                    .WithValueField(24, 2, name: "ADTTA (GTADTRA Register Buffer Transfer Timing Select)")
-                    .WithFlag(26, name: "ADTDA (GTADTRA Register Double Buffer Operation)")
+                    .WithTag("ADTTA (GTADTRA Register Buffer Transfer Timing Select)", 24, 2)
+                    .WithTaggedFlag("ADTDA (GTADTRA Register Double Buffer Operation)", 26)
                     .WithReservedBits(27, 1)
-                    .WithValueField(28, 2, name: "ADTTB (GTADTRB Register Buffer Transfer Timing Select)")
-                    .WithFlag(30, name: "ADTDB (GTADTRB Register Double Buffer Operation)")
+                    .WithTag("ADTTB (GTADTRB Register Buffer Transfer Timing Select)", 28, 2)
+                    .WithTaggedFlag("ADTDB (GTADTRB Register Double Buffer Operation)", 30)
                     .WithReservedBits(31, 1)
                 },
                 // Interrupt and A/D Converter Skipping Register defined later
@@ -233,56 +233,56 @@ namespace Antmicro.Renode.Peripherals.Timers
                     )
                 },
                 {channelOffset + (long)ChannelRegisters.CycleSettingBuffer, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, name: "GTPBR")
+                    .WithTag("GTPBR", 0, 32)
                 },
                 {channelOffset + (long)ChannelRegisters.CycleSettingDoubleBuffer, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, name: "GTPDBR")
+                    .WithTag("GTPDBR", 0, 32)
                 },
                 {channelOffset + (long)ChannelRegisters.ADConversionStartA, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, name: "GTADTRA")
+                    .WithTag("GTADTRA", 0, 32)
                 },
                 {channelOffset + (long)ChannelRegisters.ADConversionStartB, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, name: "GTADTRB")
+                    .WithTag("GTADTRB", 0, 32)
                 },
                 {channelOffset + (long)ChannelRegisters.ADConversionStartBufferA, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, name: "GTADTBRA")
+                    .WithTag("GTADTBRA", 0, 32)
                 },
                 {channelOffset + (long)ChannelRegisters.ADConversionStartBufferB, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, name: "GTADTBRB")
+                    .WithTag("GTADTBRB", 0, 32)
                 },
                 {channelOffset + (long)ChannelRegisters.ADConversionStartDoubleBufferA, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, name: "GTADTDBRA")
+                    .WithTag("GTADTDBRA", 0, 32)
                 },
                 {channelOffset + (long)ChannelRegisters.ADConversionStartDoubleBufferB, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, name: "GTADTDBRB")
+                    .WithTag("GTADTDBRB", 0, 32)
                 },
                 {channelOffset + (long)ChannelRegisters.DeadTimeControl, new DoubleWordRegister(this)
-                    .WithFlag(0, name: "TDE (Negative-Phase Waveform Setting)")
+                    .WithTaggedFlag("TDE (Negative-Phase Waveform Setting)", 0)
                     .WithReservedBits(1, 3)
-                    .WithFlag(4, name: "TDBUE")
-                    .WithFlag(5, name: "TDBDE")
+                    .WithTaggedFlag("TDBUE", 4)
+                    .WithTaggedFlag("TDBDE", 5)
                     .WithReservedBits(6, 2)
-                    .WithFlag(8, name: "TDFER")
+                    .WithTaggedFlag("TDFER", 8)
                     .WithReservedBits(9, 23)
                 },
                 {channelOffset + (long)ChannelRegisters.DeadTimeValueU, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, name: "GTDVU")
+                    .WithTag("GTDVU", 0, 32)
                 },
                 {channelOffset + (long)ChannelRegisters.DeadTimeValueD, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, name: "GTDVD")
+                    .WithTag("GTDVD", 0, 32)
                 },
                 {channelOffset + (long)ChannelRegisters.DeadTimeBufferU, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, name: "GTDBU")
+                    .WithTag("GTDBU", 0, 32)
                 },
                 {channelOffset + (long)ChannelRegisters.DeadTimeBufferD, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, name: "GTDBD")
+                    .WithTag("GTDBD", 0, 32)
                 },
                 {channelOffset + (long)ChannelRegisters.OutputProtectionStatus, new DoubleWordRegister(this)
-                    .WithValueField(0, 2, name: "SOS")
+                    .WithTag("SOS", 0, 2)
                     .WithReservedBits(2, 30)
                 },
                 {channelOffset + (long)ChannelRegisters.OutputProtectionTempRelease, new DoubleWordRegister(this)
-                    .WithFlag(0, name: "SOTR")
+                    .WithTaggedFlag("SOTR", 0)
                     .WithReservedBits(1, 31)
                 },
             };
@@ -291,48 +291,48 @@ namespace Antmicro.Renode.Peripherals.Timers
             foreach(var f in RangeWithLetters(0, 6))
             {
                 statusRegister
-                    .WithFlag(f.offset, name: $"TCF{f.c} (Input Capture/Compare Match Flag {f.c})");
+                    .WithTaggedFlag($"TCF{f.c} (Input Capture/Compare Match Flag {f.c})", f.offset);
             }
             statusRegister
                 .WithFlag(6, FieldMode.Read | FieldMode.WriteZeroToClear, name: "TCFPO (Overflow Flag)",
                     valueProviderCallback: _ => channel.Overflow,
                     writeCallback: (_, __) => channel.Overflow = false
                 )
-                .WithFlag(7, name: "TCFPU (Underflow Flag)")
+                .WithTaggedFlag("TCFPU (Underflow Flag)", 7)
                 .WithReservedBits(8, 7)
-                .WithFlag(15, name: "TUCF (Count Direction Flag)")
-                .WithFlag(16, name: "ADTRAUF (GTADTRA Register Compare Match (Up-Counting) A/D Conversion Start)")
-                .WithFlag(17, name: "ADTRADF (GTADTRA Register Compare Match (Down-Counting) A/D Conversion Start)")
-                .WithFlag(18, name: "ADTRBUF (GTADTRB Register Compare Match (Up-Counting) A/D Conversion Start)")
-                .WithFlag(19, name: "ADTRBDF (GTADTRB Register Compare Match (Down-Counting) A/D Conversion Start)")
+                .WithTaggedFlag("TUCF (Count Direction Flag)", 15)
+                .WithTaggedFlag("ADTRAUF (GTADTRA Register Compare Match (Up-Counting) A/D Conversion Start)", 16)
+                .WithTaggedFlag("ADTRADF (GTADTRA Register Compare Match (Down-Counting) A/D Conversion Start)", 17)
+                .WithTaggedFlag("ADTRBUF (GTADTRB Register Compare Match (Up-Counting) A/D Conversion Start)", 18)
+                .WithTaggedFlag("ADTRBDF (GTADTRB Register Compare Match (Down-Counting) A/D Conversion Start)", 19)
                 .WithReservedBits(20, 4)
-                .WithFlag(24, name: "ODF (Output Disable Flag)")
+                .WithTaggedFlag("ODF (Output Disable Flag)", 24)
                 .WithReservedBits(25, 4)
-                .WithFlag(29, name: "OABHF (Same Time Output Level High Flag)")
-                .WithFlag(30, name: "OABLF (Same Time Output Level Low Flag)")
-                .WithFlag(31, name: "PCF (Period Count Function Finish Flag)");
+                .WithTaggedFlag("OABHF (Same Time Output Level High Flag)", 29)
+                .WithTaggedFlag("OABLF (Same Time Output Level Low Flag)", 30)
+                .WithTaggedFlag("PCF (Period Count Function Finish Flag)", 31);
             registerMap.Add(channelOffset + (long)ChannelRegisters.Status, statusRegister);
 
             var skippingSettingResiter = new DoubleWordRegister(this);
             foreach(var f in RangeWithLetters(0, 6))
             {
                 skippingSettingResiter
-                    .WithFlag(f.offset, name: $"ITL{f.c} (GTCCR{f.c} Compare Match/Input Capture Interrupt Link)");
+                    .WithTaggedFlag($"ITL{f.c} (GTCCR{f.c} Compare Match/Input Capture Interrupt Link)", f.offset);
             }
             skippingSettingResiter
-                .WithValueField(6, 2, name: "IVTC (OVFn/UNFn Interrupt Skipping Function Select)")
-                .WithValueField(8, 2, name: "IVTT (OVFn/UNFn Interrupt Skipping Count Select)")
+                .WithTag("IVTC (OVFn/UNFn Interrupt Skipping Function Select)", 6, 2)
+                .WithTag("IVTT (OVFn/UNFn Interrupt Skipping Count Select)", 8, 2)
                 .WithReservedBits(11, 1)
-                .WithFlag(12, name: "ADTAL (GTADTRA A/D Converter Start Request Link)")
+                .WithTaggedFlag("ADTAL (GTADTRA A/D Converter Start Request Link)", 12)
                 .WithReservedBits(13, 1)
-                .WithFlag(14, name: "ADTBL (GTADTRB A/D Converter Start Request Link)")
+                .WithTaggedFlag("ADTBL (GTADTRB A/D Converter Start Request Link)", 14)
                 .WithReservedBits(15, 17);
             registerMap.Add(channelOffset + (long)ChannelRegisters.InterruptAndADConverterSkipping, skippingSettingResiter);
 
             foreach(var r in RangeWithLetters((int)channelOffset + (int)ChannelRegisters.CompareCaptureA, 6, 4))
             {
                 var compareCaptureRegister = new DoubleWordRegister(this)
-                    .WithValueField(0, 32, name: $"GTCCR{r.c}");
+                    .WithTag($"GTCCR{r.c}", 0, 32);
                 registerMap.Add(r.offset, compareCaptureRegister);
             }
 
@@ -345,23 +345,23 @@ namespace Antmicro.Renode.Peripherals.Timers
             foreach(var f in RangeWithLetters(0, 4, 2))
             {
                 sourceSelectRegister
-                    .WithFlag(f.offset,     name: $"{marker}SGTRG{f.c}R (GTETRG{f.c} Pin Rising Input Source {sourceName} {name} Enable)")
-                    .WithFlag(f.offset + 1, name: $"{marker}SGTRG{f.c}F (GTETRG{f.c} Pin Falling Input Source {sourceName} {name} Enable)");
+                    .WithTaggedFlag($"{marker}SGTRG{f.c}R (GTETRG{f.c} Pin Rising Input Source {sourceName} {name} Enable)", f.offset)
+                    .WithTaggedFlag($"{marker}SGTRG{f.c}F (GTETRG{f.c} Pin Falling Input Source {sourceName} {name} Enable)", f.offset + 1);
             }
             foreach(var f in RangeWithLetters(8, 2, 4))
             {
                 var other = f.c == 'A' ? 'B' : 'A';
                 sourceSelectRegister
-                    .WithFlag(f.offset,     name: $"{marker}SC{f.c}RBL (GTIOCn{f.c} Pin Rising Input during GTIOCn{other} Value Low Source {sourceName} {name} Enable)")
-                    .WithFlag(f.offset + 1, name: $"{marker}SC{f.c}RBH (GTIOCn{f.c} Pin Rising Input during GTIOCn{other} Value High Source {sourceName} {name} Enable)")
-                    .WithFlag(f.offset + 2, name: $"{marker}SC{f.c}FBL (GTIOCn{f.c} Pin Falling Input during GTIOCn{other} Value Low Source {sourceName} {name} Enable)")
-                    .WithFlag(f.offset + 3, name: $"{marker}SC{f.c}FBH (GTIOCn{f.c} Pin Falling Input during GTIOCn{other} Value High Source {sourceName} {name} Enable)");
+                    .WithTaggedFlag($"{marker}SC{f.c}RBL (GTIOCn{f.c} Pin Rising Input during GTIOCn{other} Value Low Source {sourceName} {name} Enable)", f.offset)
+                    .WithTaggedFlag($"{marker}SC{f.c}RBH (GTIOCn{f.c} Pin Rising Input during GTIOCn{other} Value High Source {sourceName} {name} Enable)", f.offset + 1)
+                    .WithTaggedFlag($"{marker}SC{f.c}FBL (GTIOCn{f.c} Pin Falling Input during GTIOCn{other} Value Low Source {sourceName} {name} Enable)", f.offset + 2)
+                    .WithTaggedFlag($"{marker}SC{f.c}FBH (GTIOCn{f.c} Pin Falling Input during GTIOCn{other} Value High Source {sourceName} {name} Enable)", f.offset + 3);
             }
             if(hasClear)
             {
                 sourceSelectRegister
                     .WithReservedBits(16, 15)
-                    .WithFlag(31, name: $"C{name.ToUpper()} (Software Source {sourceName} {name} Enable)");
+                    .WithTaggedFlag($"C{name.ToUpper()} (Software Source {sourceName} {name} Enable)", 31);
             }
             else
             {
