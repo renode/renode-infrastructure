@@ -36,6 +36,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             this.machine = machine;
             this.priorityMask = priorityMask;
             defaultHaltSystickOnDeepSleep = haltSystickOnDeepSleep;
+            binaryPointPosition = new SecurityBanked<int>();
             irqs = new IRQState[IRQCount];
             targetInterruptSecurityState = new InterruptTargetSecurityState[IRQCount];
             IRQ = new GPIO();
@@ -211,7 +212,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             case Registers.MemoryFaultAddress:
                 return cpu.MemoryFaultAddress;
             default:
-                return RegisterCollection.Read(offset);
+                lock(RegisterCollection)
+                {
+                    isNextAccessSecure = isSecure;
+                    return RegisterCollection.Read(offset);
+                }
             }
         }
 
@@ -261,10 +266,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
             if(offset >= TargetNonSecureStart && offset < TargetNonSecureEnd)
             {
-                // No CPU will mean that we access from the Monitor - let's allow it then
-                if(!IsCurrentCPUInSecureState(out var curcpu) && curcpu != null)
+                bool isCpu = machine.GetSystemBus(this).TryGetCurrentCPU(out var cpu);
+                // For convenience, if we access this from outside CPU context (e.g. Monitor) let's allow this access through
+                if(!isSecure && isCpu)
                 {
-                    this.WarningLog("CPU {0} tries to access ITNS register, but it's in non-secure state", curcpu.GetName());
+                    this.WarningLog("CPU {0} tries to access ITNS register, but it's in Non-secure state", cpu);
                     return;
                 }
                 ModifySecurityTarget((int)offset - TargetNonSecureStart, value);
@@ -383,7 +389,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 ccr = value;
                 break;
             default:
-                RegisterCollection.Write(offset, value);
+                lock(RegisterCollection)
+                {
+                    isNextAccessSecure = isSecure;
+                    RegisterCollection.Write(offset, value);
+                }
                 break;
             }
         }
@@ -402,6 +412,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             mpuControlRegister = 0;
             HaltSystickOnDeepSleep = defaultHaltSystickOnDeepSleep;
             canResetOnlyFromSecure = false;
+            binaryPointPosition.Reset();
 
             // bit [16] DC / Cache enable. This is a global enable bit for data and unified caches.
             ccr = 0x10000;
@@ -657,7 +668,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 {
                     if(value)
                     {
-                        if(canResetOnlyFromSecure && !IsCurrentCPUInSecureState(out var _))
+                        if(canResetOnlyFromSecure && !isNextAccessSecure)
                         {
                             this.WarningLog("Requested reset with SYSRESETREQ but SYSRESETREQS is set. Ignoring");
                             return;
@@ -668,7 +679,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 }, name: "SYSRESETREQ")
                 .WithFlag(3, writeCallback: (_, value) =>
                 {
-                    if(!IsCurrentCPUInSecureState(out var currentCpu) && currentCpu != null)
+                    if(!isNextAccessSecure)
                     {
                         // This bit is RAZ/WI from Non-secure state.
                         return;
@@ -676,7 +687,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     canResetOnlyFromSecure = value;
                 }, valueProviderCallback: _ =>
                 {
-                    if(!IsCurrentCPUInSecureState(out var currentCpu) && currentCpu != null)
+                    if(!isNextAccessSecure)
                     {
                         // This bit is RAZ/WI from Non-secure state.
                         return false;
@@ -688,13 +699,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 .WithReservedBits(6, 2)
                 .WithValueField(8, 3, writeCallback: (_, value) =>
                 {
-                    // TODO: This should be banked between Security States
-                    binaryPointPosition = (int)value;
+                    binaryPointPosition.Get(isNextAccessSecure) = (int)value;
                 }, name: "PRIGROUP")
                 .WithReservedBits(11, 2)
                 .WithFlag(13, writeCallback: (_, value) =>
                 {
-                    if(!IsCurrentCPUInSecureState(out var currentCpu) && currentCpu != null)
+                    if(!isNextAccessSecure)
                     {
                         // This bit is WI from Non-secure state.
                         return;
@@ -707,7 +717,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 }, name: "BFHFNMINS")
                 .WithFlag(14, writeCallback: (_, value) =>
                 {
-                    if(!IsCurrentCPUInSecureState(out var currentCpu) && currentCpu != null)
+                    if(!isNextAccessSecure)
                     {
                         // This bit is RAZ/WI from Non-secure state.
                         return;
@@ -715,7 +725,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     prioritizeSecureInterrupts = value;
                 }, valueProviderCallback: _ =>
                 {
-                    if(!IsCurrentCPUInSecureState(out var currentCpu) && currentCpu != null)
+                    if(!isNextAccessSecure)
                     {
                         // This bit is RAZ/WI from Non-secure state.
                         return false;
@@ -1236,7 +1246,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 {
                     var activeTop = activeIRQs.Peek();
                     var activePriority = AdjustPriority(activeTop);
-                    if(!DoesAPreemptB(bestPriority, activePriority))
+                    if(!DoesAPreemptB(bestPriority, activePriority, !IsInterruptTargetNonSecure(result), !IsInterruptTargetNonSecure(activeTop)))
                     {
                         result = SpuriousInterrupt;
                     }
@@ -1284,15 +1294,25 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             // It is a "byte" after all
             DebugHelper.Assert(priority <= 255);
-            var bankedInterrupts = new int[] {4, 6, 11, 14, 15};
-            if(targetInterruptSecurityState[interruptNo] == InterruptTargetSecurityState.NonSecure
-                || (bankedInterrupts.Contains(interruptNo) && !cpu.SecureState))
+
+            if(IsInterruptTargetNonSecure(interruptNo))
             {
                 // Divide by two, and set 7th bit. Since 255 is the lowest priority (highest number), this is fine
                 priority >>= 1;
                 priority |= 0x80;
             }
             return priority;
+        }
+
+        private bool IsInterruptTargetNonSecure(int interruptNo)
+        {
+            if(!cpu.TrustZoneEnabled)
+            {
+                return false;
+            }
+            var bankedInterrupts = new int[] {4, 6, 11, 14, 15};
+            return targetInterruptSecurityState[interruptNo] == InterruptTargetSecurityState.NonSecure
+                || (bankedInterrupts.Contains(interruptNo) && !cpu.SecureState);
         }
 
         private bool IsCandidate(IRQState state, int index)
@@ -1304,10 +1324,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                    (basepri == 0 || priorities[index] < basepri);
         }
 
-        private bool DoesAPreemptB(int priorityA, int priorityB)
+        private bool DoesAPreemptB(int priorityA, int priorityB, bool secureA, bool secureB)
         {
-            var binaryPointMask = ~((1 << binaryPointPosition + 1) - 1);
-            return (priorityA & binaryPointMask) < (priorityB & binaryPointMask);
+            var binaryPointMaskA = ~((1 << binaryPointPosition.Get(secureA) + 1) - 1);
+            var binaryPointMaskB = ~((1 << binaryPointPosition.Get(secureB) + 1) - 1);
+            return (priorityA & binaryPointMaskA) < (priorityB & binaryPointMaskB);
         }
 
         private uint GetPending(int offset)
@@ -1533,15 +1554,33 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             NonSecure = 1,
         }
 
+        private class SecurityBanked<T>
+        {
+            public T SecureVal;
+            public T NonSecureVal;
+
+            public void Reset()
+            {
+                SecureVal = default(T);
+                NonSecureVal = default(T);
+            }
+
+            public ref T Get(bool IsSecure)
+            {
+                return ref IsSecure ? ref SecureVal : ref NonSecureVal; 
+            }
+        }
+
         // bit [16] DC / Cache enable. This is a global enable bit for data and unified caches.
         private uint ccr = 0x10000;
 
         private readonly bool defaultHaltSystickOnDeepSleep;
+        private bool isNextAccessSecure;
         private bool canResetOnlyFromSecure;
         private byte priorityMask;
         private Stack<int> activeIRQs;
         private ISet<int> pendingIRQs;
-        private int binaryPointPosition; // from the right
+        private SecurityBanked<int> binaryPointPosition; // from the right
         private bool prioritizeSecureInterrupts;
         private uint mpuControlRegister;
         private MPUVersion mpuVersion;
