@@ -130,6 +130,7 @@
     <Compile Include="Peripherals\UART\STM32_UART.cs" />
     <Compile Include="Peripherals\UART\STM32W_UART.cs" />
     <Compile Include="Peripherals\UART\EFM32_UART.cs" />
+    <Compile Include="Peripherals\UART\SI32_USART.cs" />
     <Compile Include="Peripherals\SD\SDHCI.cs" />
     <Compile Include="Peripherals\USBDeprecated\PortStatusAndControlRegister.cs" />
     <Compile Include="Peripherals\USBDeprecated\USBDescriptor.cs" />
