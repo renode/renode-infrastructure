@@ -541,7 +541,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         private uint InterruptTargetsSecure(int interruptNumber)
         {
-            return nvic.IsInterruptTargetSecure(interruptNumber) ? 1u : 0u;
+            return nvic.GetTargetInterruptSecurityState(interruptNumber) == NVIC.InterruptTargetSecurityState.Secure ? 1u : 0u;
         }
 
         private NVIC nvic;

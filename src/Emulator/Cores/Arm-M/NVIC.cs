@@ -117,7 +117,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public bool HaltSystickOnDeepSleep { get; set; }
 
-        [ConnectionRegion("NonSecureAlias")]
+        [ConnectionRegion("NonSecure")]
         public uint ReadDoubleWordNonSecureAlias(long offset)
         {
             if(!cpu.TrustZoneEnabled)
@@ -222,7 +222,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public GPIO IRQ { get; private set; }
 
-        [ConnectionRegion("NonSecureAlias")]
+        [ConnectionRegion("NonSecure")]
         public void WriteDoubleWordNonSecureAlias(long offset, uint value)
         {
             if(!cpu.TrustZoneEnabled)
@@ -1219,11 +1219,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
-        public bool IsInterruptTargetSecure(int interruptNumber)
-        {
-            return targetInterruptSecurityState[interruptNumber] == InterruptTargetSecurityState.Secure;
-        }
-
         public int FindPendingInterrupt()
         {
             lock(irqs)
@@ -1276,6 +1271,19 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
+        /// <remarks>
+        /// This exposes raw value of <see cref="targetInterruptSecurityState"/>
+        /// note, that for some exceptions, this doesn't mean that they are Secure, since some exceptions are banked
+        /// </remarks>
+        public InterruptTargetSecurityState GetTargetInterruptSecurityState(int interruptNumber)
+        {
+            // Don't check this for banked IRQs - this makes no sense at all!
+            // since they are taken to the state in which they occurred - they can be triggered independently
+            DebugHelper.Assert(!bankedInterrupts.Contains(interruptNumber));
+
+            return targetInterruptSecurityState[interruptNumber];
+        }
+
         private int AdjustPriority(int interruptNo)
         {
             byte priority = priorities[interruptNo];
@@ -1309,7 +1317,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 return false;
             }
-            var bankedInterrupts = new int[] {4, 6, 11, 14, 15};
             return targetInterruptSecurityState[interruptNo] == InterruptTargetSecurityState.NonSecure
                 || (bankedInterrupts.Contains(interruptNo) && !cpu.SecureState);
         }
@@ -1540,14 +1547,20 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private enum SystemException
         {
+            Reset = 1,
             NMI = 2,
             HardFault = 3,
+            MemManageFault = 4,
             BusFault = 5,
+            UsageFault = 6,
+            SecureFault = 7,
+            SuperVisorCall = 11,
+            DebugMonitor = 12,
             PendSV = 14,
             SysTick = 15
         }
 
-        private enum InterruptTargetSecurityState
+        public enum InterruptTargetSecurityState
         {
             Secure = 0,
             NonSecure = 1,
@@ -1605,6 +1618,15 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private IFlagRegisterField sleepOnExitEnabled;
         private IFlagRegisterField deepSleepEnabled;
         private IFlagRegisterField currentSevOnPending;
+
+        private readonly int[] bankedInterrupts = new int []
+        {
+            (int)SystemException.MemManageFault,
+            (int)SystemException.UsageFault,
+            (int)SystemException.SuperVisorCall,
+            (int)SystemException.PendSV,
+            (int)SystemException.SysTick,
+        };
 
         private const string TrustZoneNSRegionWarning = "Without TrustZone enabled in the CPU, a NonSecure region should not be registered";
         private const int MPUStart             = 0xD90;
