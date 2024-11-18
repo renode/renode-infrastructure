@@ -835,7 +835,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 var startingInterrupt = GetStartingInterrupt(offset, externalInterrupt);
                 for(var i = startingInterrupt; i < startingInterrupt + 4; i++)
                 {
-
                     if((((byte)value) & ~priorityMask) != 0)
                     {
                         this.Log(LogLevel.Warning, "Trying to set the priority for interrupt {0} to 0x{1:X}, but it should be maskable with 0x{2:X}", i, value, priorityMask);
@@ -1577,7 +1576,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private readonly bool defaultHaltSystickOnDeepSleep;
         private bool isNextAccessSecure;
         private bool canResetOnlyFromSecure;
-        private byte priorityMask;
+        private readonly byte priorityMask;
         private Stack<int> activeIRQs;
         private ISet<int> pendingIRQs;
         private SecurityBanked<int> binaryPointPosition; // from the right
