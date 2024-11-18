@@ -822,7 +822,15 @@ namespace Antmicro.Renode.Peripherals.Network
                         if((txState & DMAState.ProcessingSecond) == 0 && operateOnSecondPacket.Value)
                         {
                             txState |= DMAState.ProcessingSecond;
-                            continue;
+                            // Even with OSP mode we do nothing more here!
+                            // In OSP mode the DMA is expected to:
+                            // * fetch the second frame without needing to wait for the status of first descriptor
+                            // * wait for the status of the first frame before writing it back
+                            // * and repeat
+                            // We can immediately close the first descriptor as at this point that frame
+                            // has already been transmitted, so we can write back the status and fetch the second descriptor
+                            // in the next loop iteration if it is available. So for this model OSP mode is a no-op due
+                            // to instant frame transmission.
                         }
 
                         var writeBackStructure = new TxDescriptor.NormalWriteBackDescriptor();
