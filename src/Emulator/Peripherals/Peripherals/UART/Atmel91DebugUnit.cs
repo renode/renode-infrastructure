@@ -15,7 +15,7 @@ using Antmicro.Migrant;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
-    public class Atmel91DebugUnit : IDoubleWordPeripheral, IUART
+    public class Atmel91DebugUnit : IDoubleWordPeripheral, IUART, IKnownSize
     {
         public Atmel91DebugUnit()
         {
@@ -62,22 +62,7 @@ namespace Antmicro.Renode.Peripherals.UART
             case Offset.InterruptDisable:
                 InterruptEnable &= ~(value);
                 return;
-                
-/*            case Offset.InterruptStatus:
-                InterruptStatus &= ~(value);
-                lock(buffer)
-                {
-                    if(buffer.Count != 0)
-                    {   
-                        InterruptStatus |= 0x01;
-                    }
-                }
-                if(InterruptStatus == 0)
-                {
-                    IRQ.Unset();
-                }
-                return;
-  */              
+
             case Offset.BaudRateGen:
                 BaudRateGenerator = value & 0xFFFF;
                 return;
@@ -113,10 +98,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 
             case Offset.InterruptMask:
                 return InterruptEnable;
-                
-/*            case Offset.InterruptStatus: //int status
-                return InterruptStatus;
-  */              
+
             case Offset.Status:
                     // status register
 		        uint res = 0;
@@ -176,11 +158,13 @@ namespace Antmicro.Renode.Peripherals.UART
             InterruptDisable = 0x0C,
             InterruptMask = 0x10,
             Status = 0x14,
-	        ReceiveHoldingRegister = 0x18,
-	        TransmitHoldingRegister = 0x1C,
+            ReceiveHoldingRegister = 0x18,
+            TransmitHoldingRegister = 0x1C,
             BaudRateGen = 0x20,
             PDCTransferStatusRegister = 0x124,
-        }    
+        }
+        
+        public long Size => 0x200;
 
         public Bits StopBits { get { return Bits.One; } }
 
