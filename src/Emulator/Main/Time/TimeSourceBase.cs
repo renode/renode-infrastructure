@@ -316,7 +316,21 @@ namespace Antmicro.Renode.Time
 
         // TODO: do not allow to set Quantum of 0
         /// <see cref="ITimeSource.Quantum">
-        public TimeInterval Quantum { get; set; }
+        public TimeInterval Quantum
+        {
+            get => quantum;
+            set
+            {
+                if(quantum == value)
+                {
+                    return;
+                }
+
+                var oldQuantum = quantum;
+                quantum = value;
+                QuantumChanged?.Invoke(oldQuantum, quantum);
+            }
+        }
 
         /// <summary>
         /// Gets the value representing current load, i.e., value indicating how much time the emulation spends sleeping in order to match the expected <see cref="Performance">.
@@ -425,6 +439,11 @@ namespace Antmicro.Renode.Time
         /// An event informing about the amount of passed virtual time. Might be called many times between two consecutive synchronization points.
         /// </summary>
         public event Action<TimeInterval> TimePassed;
+
+        /// <summary>
+        /// An event called when the Quantum is changed.
+        /// </summary>
+        public event Action<TimeInterval, TimeInterval> QuantumChanged;
 
         /// <summary>
         /// Execute one iteration of time-granting loop.
@@ -750,6 +769,7 @@ namespace Antmicro.Renode.Time
         private bool updateNearestSyncPoint;
         private int? executeThreadId;
         private ulong delayedTaskId;
+        private TimeInterval quantum;
 
         private readonly TimeVariantValue virtualTicksElapsed;
         private readonly TimeVariantValue hostTicksElapsed;
