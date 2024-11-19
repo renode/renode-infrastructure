@@ -10,16 +10,20 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.DMA;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
-    public class SAM_USART : UARTBase, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
+    public class SAM_USART : UARTBase, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize,
+        ISamPdcBytePeripheral
     {
-        public SAM_USART(IMachine machine) : base(machine)
+        public SAM_USART(IMachine machine, bool enablePdc = false) : base(machine)
         {
             RegistersCollection = new DoubleWordRegisterCollection(this);
             IRQ = new GPIO();
             DefineRegisters();
+            pdc = enablePdc ? new SAM_PDC(machine, this, (long)Registers.PdcReceivePointer, UpdateInterrupts) : null;
+            Size = enablePdc ? 0x128 : 0x100;
             Reset();
         }
 
@@ -27,6 +31,7 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             base.Reset();
             RegistersCollection.Reset();
+            pdc?.Reset();
             UpdateInterrupts();
         }
 
@@ -46,9 +51,15 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
-        public long Size => 0x100;
+        public byte? DmaByteRead() => ReadBuffer();
+        public void DmaByteWrite(byte data) => Transmit(data);
+
+        public long Size { get; }
         public GPIO IRQ { get; }
         public DoubleWordRegisterCollection RegistersCollection { get; }
+
+        public TransferType DmaReadAccessWidth => TransferType.Byte;
+        public TransferType DmaWriteAccessWidth => TransferType.Byte;
 
         public override uint BaudRate => 115200;
 
@@ -111,6 +122,13 @@ namespace Antmicro.Renode.Peripherals.UART
         private void DefineRegisters()
         {
             // NOTE: Registers are assumed not to be in SPI mode
+            Func<IFlagRegisterField, Action<bool, bool>> writeOneToClearFlag = flag => (_, value) =>
+            {
+                if(value)
+                {
+                    flag.Value = false;
+                }
+            };
 
             Registers.Control.Define(this)
                 .WithReservedBits(0, 2)
@@ -195,31 +213,19 @@ namespace Antmicro.Renode.Peripherals.UART
             ;
 
             Registers.InterruptEnable.Define(this)
-                .WithFlag(0, FieldMode.Write, writeCallback: (_, value) =>
-                {
-                    if(value)
-                    {
-                        receiverReadyIrqEnabled.Value = true;
-                    }
-                }, name: "IER_RXRDY")
-                .WithFlag(1, FieldMode.Write, writeCallback: (_, value) =>
-                {
-                    if(value)
-                    {
-                        transmitterReadyIrqEnabled.Value = true;
-                    }
-                }, name: "IER_TXRDY")
+                .WithFlag(0, out receiverReadyIrqEnabled, FieldMode.Set, name: "IER_RXRDY")
+                .WithFlag(1, out transmitterReadyIrqEnabled, FieldMode.Set, name: "IER_TXRDY")
                 .WithTaggedFlag("RXBRK", 2)
-                .WithTaggedFlag("ENDRX", 3)
-                .WithTaggedFlag("ENDTX", 4)
+                .WithFlag(3, out endOfRxBufferIrqEnabled, FieldMode.Set, name: "ENDRX")
+                .WithFlag(4, out endOfTxBufferIrqEnabled, FieldMode.Set, name: "ENDTX")
                 .WithTaggedFlag("OVRE", 5)
                 .WithTaggedFlag("FRAME", 6)
                 .WithTaggedFlag("PARE", 7)
                 .WithTaggedFlag("TIMEOUT", 8)
                 .WithTaggedFlag("TXEMPTY", 9)
                 .WithTaggedFlag("ITER", 10)
-                .WithTaggedFlag("TXBUFE", 11)
-                .WithTaggedFlag("RXBUFF", 12)
+                .WithFlag(11, out txBufferEmptyIrqEnabled, FieldMode.Set, name: "TXBUFE")
+                .WithFlag(12, out rxBufferFullIrqEnabled, FieldMode.Set, name: "RXBUFF")
                 .WithTaggedFlag("NACK", 13)
                 .WithReservedBits(14, 2)
                 .WithTaggedFlag("RIIC", 16)
@@ -233,31 +239,19 @@ namespace Antmicro.Renode.Peripherals.UART
             ;
 
             Registers.InterruptDisable.Define(this)
-                .WithFlag(0, FieldMode.Write, writeCallback: (_, value) =>
-                {
-                    if(value)
-                    {
-                        receiverReadyIrqEnabled.Value = false;
-                    }
-                }, name: "IDR_RXRDY")
-                .WithFlag(1, FieldMode.Write, writeCallback: (_, value) =>
-                {
-                    if(value)
-                    {
-                        transmitterReadyIrqEnabled.Value = false;
-                    }
-                }, name: "IDR_TXRDY")
+                .WithFlag(0, FieldMode.Write, writeCallback: writeOneToClearFlag(receiverReadyIrqEnabled), name: "IDR_RXRDY")
+                .WithFlag(1, FieldMode.Write, writeCallback: writeOneToClearFlag(transmitterReadyIrqEnabled), name: "IDR_TXRDY")
                 .WithTaggedFlag("RXBRK", 2)
-                .WithTaggedFlag("ENDRX", 3)
-                .WithTaggedFlag("ENDTX", 4)
+                .WithFlag(3, FieldMode.Write, writeCallback: writeOneToClearFlag(endOfRxBufferIrqEnabled), name: "ENDRX")
+                .WithFlag(4, FieldMode.Write, writeCallback: writeOneToClearFlag(endOfTxBufferIrqEnabled), name: "ENDTX")
                 .WithTaggedFlag("OVRE", 5)
                 .WithTaggedFlag("FRAME", 6)
                 .WithTaggedFlag("PARE", 7)
                 .WithTaggedFlag("TIMEOUT", 8)
                 .WithTaggedFlag("TXEMPTY", 9)
                 .WithTaggedFlag("ITER", 10)
-                .WithTaggedFlag("TXBUFE", 11)
-                .WithTaggedFlag("RXBUFF", 12)
+                .WithFlag(11, FieldMode.Write, writeCallback: writeOneToClearFlag(txBufferEmptyIrqEnabled), name: "TXBUFE")
+                .WithFlag(12, FieldMode.Write, writeCallback: writeOneToClearFlag(rxBufferFullIrqEnabled), name: "RXBUFF")
                 .WithTaggedFlag("NACK", 13)
                 .WithReservedBits(14, 2)
                 .WithTaggedFlag("RIIC", 16)
@@ -271,19 +265,19 @@ namespace Antmicro.Renode.Peripherals.UART
             ;
 
             Registers.InterruptMask.Define(this)
-                .WithFlag(0, out receiverReadyIrqEnabled, FieldMode.Read, name: "IMR_RXRDY")
-                .WithFlag(1, out transmitterReadyIrqEnabled, FieldMode.Read, name: "IMR_TXRDY")
+                .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => receiverReadyIrqEnabled.Value, name: "IMR_RXRDY")
+                .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => transmitterReadyIrqEnabled.Value, name: "IMR_TXRDY")
                 .WithTaggedFlag("RXBRK", 2)
-                .WithTaggedFlag("ENDRX", 3)
-                .WithTaggedFlag("ENDTX", 4)
+                .WithFlag(3, FieldMode.Read, valueProviderCallback: _ => endOfRxBufferIrqEnabled.Value, name: "ENDRX")
+                .WithFlag(4, FieldMode.Read, valueProviderCallback: _ => endOfTxBufferIrqEnabled.Value, name: "ENDTX")
                 .WithTaggedFlag("OVRE", 5)
                 .WithTaggedFlag("FRAME", 6)
                 .WithTaggedFlag("PARE", 7)
                 .WithTaggedFlag("TIMEOUT", 8)
                 .WithTaggedFlag("TXEMPTY", 9)
                 .WithTaggedFlag("ITER", 10)
-                .WithTaggedFlag("TXBUFE", 11)
-                .WithTaggedFlag("RXBUFF", 12)
+                .WithFlag(11, FieldMode.Read, valueProviderCallback: _ => txBufferEmptyIrqEnabled.Value, name: "TXBUFE")
+                .WithFlag(12, FieldMode.Read, valueProviderCallback: _ => rxBufferFullIrqEnabled.Value, name: "RXBUFF")
                 .WithTaggedFlag("NACK", 13)
                 .WithReservedBits(14, 2)
                 .WithTaggedFlag("RIIC", 16)
@@ -303,16 +297,16 @@ namespace Antmicro.Renode.Peripherals.UART
                     return transmitterEnabled;
                 }, name: "TXRDY")
                 .WithTaggedFlag("RXBRK", 2)
-                .WithTaggedFlag("ENDRX", 3)
-                .WithTaggedFlag("ENDTX", 4)
+                .WithFlag(3, FieldMode.Read, valueProviderCallback: _ => pdc?.EndOfRxBuffer ?? false, name: "ENDRX")
+                .WithFlag(4, FieldMode.Read, valueProviderCallback: _ => pdc?.EndOfTxBuffer ?? false, name: "ENDTX")
                 .WithTaggedFlag("OVRE", 5)
                 .WithTaggedFlag("FRAME", 6)
                 .WithTaggedFlag("PARE", 7)
                 .WithTaggedFlag("TIMEOUT", 8)
                 .WithTaggedFlag("TXEMPTY", 9)
                 .WithTaggedFlag("ITER", 10)
-                .WithTaggedFlag("TXBUFE", 11)
-                .WithTaggedFlag("RXBUFF", 12)
+                .WithFlag(11, FieldMode.Read, valueProviderCallback: _ => pdc?.TxBufferEmpty ?? false, name: "TXBUFE")
+                .WithFlag(12, FieldMode.Read, valueProviderCallback: _ => pdc?.RxBufferFull ?? false, name: "RXBUFF")
                 .WithTaggedFlag("NACK", 13)
                 .WithReservedBits(14, 2)
                 .WithTaggedFlag("RIIC", 16)
@@ -328,40 +322,14 @@ namespace Antmicro.Renode.Peripherals.UART
             ;
 
             Registers.ReceiveHolding.Define(this)
-                .WithValueField(0, 9, FieldMode.Read, valueProviderCallback: _ =>
-                {
-                    if(!receiverEnabled)
-                    {
-                        return 0;
-                    }
-
-                    if(!TryGetCharacter(out var character))
-                    {
-                        this.Log(LogLevel.Warning, "Trying to read data from empty receive fifo");
-                    }
-                    if(Count == 0)
-                    {
-                        receiverReady.Value = false;
-                    }
-                    UpdateInterrupts();
-                    return character;
-                }, name: "RXCHR")
+                .WithValueField(0, 9, FieldMode.Read, valueProviderCallback: _ => ReadBuffer() ?? 0x0, name: "RXCHR")
                 .WithReservedBits(9, 6)
                 .WithTaggedFlag("RXSYNH", 15)
                 .WithReservedBits(16, 16)
             ;
 
             Registers.TransmitHolding.Define(this)
-                .WithValueField(0, 9, FieldMode.Write, writeCallback: (_, b) =>
-                {
-                    if(!transmitterEnabled)
-                    {
-                        return;
-                    }
-
-                    this.TransmitCharacter((byte)b);
-                    UpdateInterrupts();
-                }, name: "TXCHR")
+                .WithValueField(0, 9, FieldMode.Write, writeCallback: (_, b) => Transmit((byte)b), name: "TXCHR")
                 .WithReservedBits(9, 6)
                 .WithTaggedFlag("TXSYNH", 15)
                 .WithReservedBits(16, 16)
@@ -429,21 +397,66 @@ namespace Antmicro.Renode.Peripherals.UART
             ;
         }
 
+        private void Transmit(byte data)
+        {
+            if(!transmitterEnabled)
+            {
+                return;
+            }
+
+            this.TransmitCharacter((byte)data);
+            UpdateInterrupts();
+        }
+
+        private byte? ReadBuffer()
+        {
+            if(!receiverEnabled)
+            {
+                return null;
+            }
+
+            if(!TryGetCharacter(out var character))
+            {
+                this.Log(LogLevel.Warning, "Trying to read data from empty receive fifo");
+                return null;
+            }
+            if(Count == 0)
+            {
+                receiverReady.Value = false;
+            }
+            UpdateInterrupts();
+            return character;
+        }
+
         private void UpdateInterrupts()
         {
-            IRQ.Set((receiverEnabled && receiverReadyIrqEnabled.Value && receiverReady.Value) || (transmitterEnabled && transmitterReadyIrqEnabled.Value));
+            var state = false;
+            state |= receiverEnabled && receiverReadyIrqEnabled.Value && receiverReady.Value;
+            state |= transmitterEnabled && transmitterReadyIrqEnabled.Value;
+            state |= (pdc?.EndOfRxBuffer ?? false) && endOfRxBufferIrqEnabled.Value;
+            state |= (pdc?.EndOfTxBuffer ?? false) && endOfTxBufferIrqEnabled.Value;
+            state |= (pdc?.TxBufferEmpty ?? false) && txBufferEmptyIrqEnabled.Value;
+            state |= (pdc?.RxBufferFull ?? false) && rxBufferFullIrqEnabled.Value;
+            this.DebugLog("IRQ {0}", state ? "set" : "unset");
+            IRQ.Set(state);
         }
 
         private IFlagRegisterField receiverReady;
 
         private IFlagRegisterField receiverReadyIrqEnabled;
         private IFlagRegisterField transmitterReadyIrqEnabled;
+        private IFlagRegisterField endOfRxBufferIrqEnabled;
+        private IFlagRegisterField endOfTxBufferIrqEnabled;
+        private IFlagRegisterField txBufferEmptyIrqEnabled;
+        private IFlagRegisterField rxBufferFullIrqEnabled;
 
         private IEnumRegisterField<ParityTypeValues> parityType;
         private IEnumRegisterField<NumberOfStopBitsValues> numberOfStopBits;
 
         private bool receiverEnabled;
         private bool transmitterEnabled;
+
+        private readonly SAM_PDC pdc;
 
         private enum ParityTypeValues
         {
@@ -496,7 +509,17 @@ namespace Antmicro.Renode.Peripherals.UART
             LONIntermediateTimeAfterReception = 0x84,
             ICDifferentiator = 0x88,
             WriteProtectionMode = 0xE4,
-            WriteProtectionStatus = 0xE8
+            WriteProtectionStatus = 0xE8,
+            PdcReceivePointer = 0x100,
+            PdcReceiveCounter = 0x104,
+            PdcTransmitPointer = 0x108,
+            PdcTransmitCounter = 0x10C,
+            PdcReceiveNextPointer = 0x110,
+            PdcReceiveNextCounter = 0x114,
+            PdcTransmitNextPointer = 0x118,
+            PdcTransmitNextCounter = 0x11C,
+            PdcTransferControl = 0x120,
+            PdcTransferStatus = 0x124,
         }
     }
 }
