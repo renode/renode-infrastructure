@@ -312,14 +312,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 break;
             case Registers.SystemHandlerPriority1:
                 // 7th interrupt is ignored
-                priorities[4] = (byte)value;
-                priorities[5] = (byte)(value >> 8);
-                priorities[6] = (byte)(value >> 16);
+                priorities[(int)SystemException.MemManageFault] = (byte)value;
+                priorities[(int)SystemException.BusFault] = (byte)(value >> 8);
+                priorities[(int)SystemException.UsageFault] = (byte)(value >> 16);
                 this.DebugLog("Priority of IRQs 4, 5, 6 set to 0x{0:X}, 0x{1:X}, 0x{2:X} respectively.", (byte)value, (byte)(value >> 8), (byte)(value >> 16));
                 break;
             case Registers.SystemHandlerPriority2:
                 // only 11th is not ignored
-                priorities[11] = (byte)(value >> 24);
+                priorities[(int)SystemException.SuperVisorCall] = (byte)(value >> 24);
                 this.DebugLog("Priority of IRQ 11 set to 0x{0:X}.", (byte)(value >> 24));
                 break;
             case Registers.SystemHandlerPriority3:
