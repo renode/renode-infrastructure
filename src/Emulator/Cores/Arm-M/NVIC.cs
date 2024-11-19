@@ -7,6 +7,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Antmicro.Renode.Core;
@@ -27,37 +28,20 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
     {
         public NVIC(IMachine machine, long systickFrequency = 50 * 0x800000, byte priorityMask = 0xFF, bool haltSystickOnDeepSleep = true)
         {
-            priorities = new byte[IRQCount];
+            priorities = new ExceptionSimpleArray<byte>();
             activeIRQs = new Stack<int>();
             pendingIRQs = new SortedSet<int>();
-            // We set initial limit to the maximum 24-bit value, and don't modify it afterwards.
-            // Instead we reload counter with RELOAD value when counter reaches 0.
-            systick = new LimitTimer(machine.ClockSource, systickFrequency, this, nameof(systick), SysTickMaxValue, Direction.Descending, false, eventEnabled: true);
             this.machine = machine;
             this.priorityMask = priorityMask;
             defaultHaltSystickOnDeepSleep = haltSystickOnDeepSleep;
             binaryPointPosition = new SecurityBanked<int>();
-            irqs = new IRQState[IRQCount];
+            irqs = new ExceptionSimpleArray<IRQState>();
             targetInterruptSecurityState = new InterruptTargetSecurityState[IRQCount];
             IRQ = new GPIO();
             resetMachine = machine.RequestReset;
-            systick.LimitReached += () =>
+            systick = new SecurityBanked<SysTick>
             {
-                countFlag.Value = true;
-                if(eventEnabled.Value)
-                {
-                    SetPendingIRQ((int)SystemException.SysTick);
-                }
-
-                // If the systick timer is running and the reload value is 0, this has the effect of disabling the counter on the expiration.
-                if(systickReload.Value == 0)
-                {
-                    systick.Enabled = false;
-                }
-                else
-                {
-                    systick.Value = systickReload.Value;
-                }
+                NonSecureVal = new SysTick(machine, this, systickFrequency)
             };
             RegisterCollection = new DoubleWordRegisterCollection(this);
             DefineRegisters();
@@ -73,6 +57,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             this.cpu = cpu;
             this.cpuId = cpu.ModelID;
             mpuVersion = cpu.IsV8 ? MPUVersion.PMSAv8 : MPUVersion.PMSAv7;
+
+            if(cpu.TrustZoneEnabled)
+            {
+                systick.SecureVal = new SysTick(machine, this, systick.NonSecureVal.Frequency, true);
+            }
 
             if(cpu.Model == "cortex-m7")
             {
@@ -96,22 +85,19 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public long Frequency
         {
-            get
-            {
-                return systick.Frequency;
-            }
+            get => systick.Get(IsCurrentCPUInSecureState(out var _)).Frequency;
             set
             {
-                systick.Frequency = value;
+                systick.Get(IsCurrentCPUInSecureState(out var _)).Frequency = value;
             }
         }
 
         public int Divider
         {
-            get => systick.Divider;
+            get => systick.Get(IsCurrentCPUInSecureState(out var _)).Divider;
             set
             {
-                systick.Divider = value;
+                systick.Get(IsCurrentCPUInSecureState(out var _)).Divider = value;
             }
         }
 
@@ -204,7 +190,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             case Registers.SystemHandlerPriority1:
             case Registers.SystemHandlerPriority2:
             case Registers.SystemHandlerPriority3:
-                return HandlePriorityRead(offset - 0xD14, false);
+                return HandlePriorityRead(offset - 0xD14, false, isSecure);
             case Registers.ConfigurableFaultStatus:
                 return cpu.FaultStatus;
             case Registers.InterruptControllerType:
@@ -312,19 +298,19 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 break;
             case Registers.SystemHandlerPriority1:
                 // 7th interrupt is ignored
-                priorities[(int)SystemException.MemManageFault] = (byte)value;
+                priorities[(int)(isSecure ? SystemException.MemManageFault_S : SystemException.MemManageFault)] = (byte)value;
                 priorities[(int)SystemException.BusFault] = (byte)(value >> 8);
-                priorities[(int)SystemException.UsageFault] = (byte)(value >> 16);
+                priorities[(int)(isSecure ? SystemException.UsageFault_S : SystemException.UsageFault)] = (byte)(value >> 16);
                 this.DebugLog("Priority of IRQs 4, 5, 6 set to 0x{0:X}, 0x{1:X}, 0x{2:X} respectively.", (byte)value, (byte)(value >> 8), (byte)(value >> 16));
                 break;
             case Registers.SystemHandlerPriority2:
                 // only 11th is not ignored
-                priorities[(int)SystemException.SuperVisorCall] = (byte)(value >> 24);
+                priorities[(int)(isSecure ? SystemException.SuperVisorCall_S : SystemException.SuperVisorCall)] = (byte)(value >> 24);
                 this.DebugLog("Priority of IRQ 11 set to 0x{0:X}.", (byte)(value >> 24));
                 break;
             case Registers.SystemHandlerPriority3:
-                priorities[(int)SystemException.PendSV] = (byte)(value >> 16);
-                priorities[(int)SystemException.SysTick] = (byte)(value >> 24);
+                priorities[(int)(isSecure ? SystemException.PendSV_S : SystemException.PendSV)] = (byte)(value >> 16);
+                priorities[(int)(isSecure ? SystemException.SysTick_S : SystemException.SysTick)] = (byte)(value >> 24);
                 this.DebugLog("Priority of IRQs 14, 15 set to 0x{0:X}, 0x{1:X} respectively.", (byte)(value >> 16), (byte)(value >> 24));
                 break;
             case Registers.CoprocessorAccessControl:
@@ -407,7 +393,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 priorities[i] = 0x00;
             }
             activeIRQs.Clear();
-            systick.Reset();
+            systick.NonSecureVal.Reset();
+            systick.SecureVal?.Reset();
+
             IRQ.Unset();
             mpuControlRegister = 0;
             HaltSystickOnDeepSleep = defaultHaltSystickOnDeepSleep;
@@ -510,11 +498,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
             if(pendingInterrupt != SpuriousInterrupt && value)
             {
-                if(systickEnabled.Value && systick.Enabled == false)
+                if(!systick.NonSecureVal.Enabled)
                 {
                     this.NoisyLog("Waking up from deep sleep");
                 }
-                systick.Enabled |= value && systickEnabled.Value && systickReload.Value != 0;
+                systick.NonSecureVal.Enabled |= value;
             }
         }
 
@@ -541,61 +529,52 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private void DefineRegisters()
         {
             Registers.SysTickControl.Define(RegisterCollection)
-                .WithFlag(0, out systickEnabled, changeCallback: (_, value) =>
-                {
-                    if(value && systickReload.Value == 0)
+                .WithFlag(0,
+                    changeCallback: (_, value) => systick.Get(isNextAccessSecure).Enabled = value,
+                    valueProviderCallback: _ => systick.Get(isNextAccessSecure).Enabled,
+                    name: "ENABLE")
+                .WithFlag(1,
+                    valueProviderCallback: _ => systick.Get(isNextAccessSecure).TickInterruptEnabled,
+                    changeCallback: (_, newValue) =>
                     {
-                        this.DebugLog("Systick enabled but it won't be started as long as reload value is zero");
-                        return;
-                    }
-                    this.NoisyLog("Systick {0}", value ? "enabled" : "disabled");
-                    systick.Enabled = value;
-                }, name: "ENABLE")
-                .WithFlag(1, out eventEnabled, changeCallback: (_, newValue) =>
-                {
-                    this.NoisyLog("Systick interrupt {0}.", newValue ? "enabled" : "disabled");
-                }, name: "TICKINT")
+                        this.NoisyLog("Systick_{0} interrupt {1}", isNextAccessSecure ? "S" : "NS", newValue  ? "enabled" : "disabled");
+                        systick.Get(isNextAccessSecure).TickInterruptEnabled = newValue;
+                    }, name: "TICKINT")
                 // If no external clock is provided, this bit reads as 1 and ignores writes.
                 .WithFlag(2, FieldMode.Read, valueProviderCallback: _ => true, name: "CLKSOURCE") // SysTick uses the processor clock
                 .WithReservedBits(3, 13)
-                .WithFlag(16, out countFlag, FieldMode.ReadToClear, name: "COUNTFLAG")
+                .WithFlag(16, FieldMode.ReadToClear,
+                    valueProviderCallback: _ =>
+                    {
+                        var ret = systick.Get(isNextAccessSecure).CountFlag;
+                        systick.Get(isNextAccessSecure).CountFlag = false;
+                        return ret;
+                    },
+                    name: "COUNTFLAG")
                 .WithReservedBits(17, 15);
 
             Registers.SysTickReloadValue.Define(RegisterCollection)
-                .WithValueField(0, 24, out systickReload, changeCallback: (oldValue, newValue) =>
-                {
-                    if(systickEnabled.Value && oldValue == 0 && !systick.Enabled)
-                    {
-                        // We explicitly enable underlying SysTick counter only in the case it was blocked by RELOAD=0.
-                        // We ignore other cases, as we don't want to accidentally enable counter in DEEPSLEEP just by writing to this register.
-                        this.DebugLog("Resuming systick counter due to reload value change from 0x0 to 0x{0:X}", newValue);
-                        systick.Value = newValue;
-                        systick.Enabled = true;
-                    }
-                }, name: "RELOAD")
+                .WithValueField(0, 24,
+                    valueProviderCallback: _ => systick.Get(isNextAccessSecure).Reload,
+                    changeCallback: (_, newValue) => systick.Get(isNextAccessSecure).Reload = newValue,
+                    name: "RELOAD")
                 .WithReservedBits(24, 8);
 
             Registers.SysTickValue.Define(RegisterCollection)
-                .WithValueField(0, 24, writeCallback: (_, __) =>
-                {
-                    if(systickReload.Value != 0)
+                .WithValueField(0, 24,
+                    writeCallback: (_, __) => systick.Get(isNextAccessSecure).UpdateSystickValue(),
+                    valueProviderCallback: _ =>
                     {
-                        // Write to this register does not trigger the SysTick exception logic - we can't write zero to timer value as it would trigger an event.
-                        systick.Value = systickReload.Value;
-                    }
-                    countFlag.Value = false;
-                },
-                valueProviderCallback: _ =>
-                {
-                    cpu?.SyncTime();
-                    return (uint)systick.Value;
-                }, name: "CURRENT");
+                        cpu?.SyncTime();
+                        return (uint)systick.Get(isNextAccessSecure).Value;
+                    }, name: "CURRENT")
+                .WithReservedBits(24, 8);
 
             Registers.SysTickCalibrationValue.Define(RegisterCollection)
                 // Note that some reference manuals state that this value is for 1ms interval and not for 10ms
-                .WithValueField(0, 24, FieldMode.Read, valueProviderCallback: _ => SysTickMaxValue & (uint)(systick.Frequency / SysTickCalibration100Hz), name: "TENMS")
+                .WithValueField(0, 24, FieldMode.Read, valueProviderCallback: _ => SysTickMaxValue & (uint)(systick.Get(isNextAccessSecure).Frequency / SysTickCalibration100Hz), name: "TENMS")
                 .WithReservedBits(24, 6)
-                .WithFlag(30, FieldMode.Read, valueProviderCallback: _ => systick.Frequency % SysTickCalibration100Hz != 0, name: "SKEW")
+                .WithFlag(30, FieldMode.Read, valueProviderCallback: _ => systick.Get(isNextAccessSecure).Frequency % SysTickCalibration100Hz != 0, name: "SKEW")
                 .WithFlag(31, FieldMode.Read, valueProviderCallback: _ => true, name: "NOREF");
 
             Registers.InterruptControlState.Define(RegisterCollection)
@@ -611,28 +590,28 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 {
                     if(value)
                     {
-                        ClearPending((int)SystemException.SysTick);
+                        ClearPending((int)(isNextAccessSecure ? SystemException.SysTick_S : SystemException.SysTick));
                     }
                 }, name: "PENDSTCLR")
                 .WithFlag(26, writeCallback: (_, value) =>
                 {
                     if(value)
                     {
-                        SetPendingIRQ((int)SystemException.SysTick);
+                        SetPendingIRQ((int)(isNextAccessSecure ? SystemException.SysTick_S : SystemException.SysTick));
                     }
                 }, valueProviderCallback: _ => irqs[(int)SystemException.SysTick].HasFlag(IRQState.Pending), name: "PENDSTSET")
                 .WithFlag(27, FieldMode.WriteOneToClear, writeCallback: (_, value) =>
                 {
                     if(value)
                     {
-                        ClearPending((int)SystemException.PendSV);
+                        ClearPending((int)(isNextAccessSecure ? SystemException.PendSV_S : SystemException.PendSV));
                     }
                 }, name: "PENDSVCLR")
                 .WithFlag(28, writeCallback: (_, value) =>
                 {
                     if(value)
                     {
-                        SetPendingIRQ((int)SystemException.PendSV);
+                        SetPendingIRQ((int)(isNextAccessSecure ? SystemException.PendSV_S : SystemException.PendSV));
                     }
                 }, valueProviderCallback: _ => irqs[(int)SystemException.PendSV].HasFlag(IRQState.Pending), name: "PENDSVSET")
                 .WithReservedBits(29, 1)
@@ -812,9 +791,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private void InitInterrupts()
         {
-            Array.Clear(irqs, 0, irqs.Length);
+            irqs.Clear();
             Array.Clear(targetInterruptSecurityState, 0, targetInterruptSecurityState.Length);
             for(var i = 0; i < 16; i++)
+            {
+                irqs[i] = IRQState.Enabled;
+            }
+            foreach(var i in bankedInterrupts)
             {
                 irqs[i] = IRQState.Enabled;
             }
@@ -848,18 +831,25 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
-        private uint HandlePriorityRead(long offset, bool externalInterrupt)
+        private uint HandlePriorityRead(long offset, bool externalInterrupt, bool isSecure = false)
         {
             lock(irqs)
             {
                 var returnValue = 0u;
                 var startingInterrupt = GetStartingInterrupt(offset, externalInterrupt);
-                for(var i = startingInterrupt + 3; i > startingInterrupt; i--)
+                for(var i = startingInterrupt + 3; i >= startingInterrupt; i--)
                 {
-                    returnValue |= priorities[i];
                     returnValue <<= 8;
+                    // If we are in Secure state, get Secure variant for banked exception
+                    if(isSecure && bankedInterrupts.Contains(i))
+                    {
+                        returnValue |= priorities[i | BankedExcpSecureBit];
+                    }
+                    else
+                    {
+                        returnValue |= priorities[i];
+                    }
                 }
-                returnValue |= priorities[startingInterrupt];
                 return returnValue;
             }
         }
@@ -1094,7 +1084,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             if(enteredWfi && deepSleepEnabled.Value && HaltSystickOnDeepSleep)
             {
-                systick.Enabled = false;
+                systick.NonSecureVal.Enabled = false;
+                if(cpu.TrustZoneEnabled)
+                {
+                    systick.SecureVal.Enabled = false;
+                }
                 this.NoisyLog("Entering deep sleep");
             }
         }
@@ -1143,10 +1137,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 }
                 for(var i = lastIRQNo; i > firstIRQNo; i--)
                 {
-                    result |= ((irqs[i] & IRQState.Enabled) != 0) ? 1u : 0u;
+                    result |= ((irqs[(int)i] & IRQState.Enabled) != 0) ? 1u : 0u;
                     result <<= 1;
                 }
-                result |= ((irqs[firstIRQNo] & IRQState.Enabled) != 0) ? 1u : 0u;
+                result |= ((irqs[(int)firstIRQNo] & IRQState.Enabled) != 0) ? 1u : 0u;
                 return result;
             }
         }
@@ -1327,8 +1321,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 return false;
             }
-            return targetInterruptSecurityState[interruptNo] == InterruptTargetSecurityState.NonSecure
-                || (bankedInterrupts.Contains(interruptNo) && !cpu.SecureState);
+            if(bankedInterrupts.Contains(interruptNo))
+            {
+                return (interruptNo & BankedExcpSecureBit) == 0;
+            }
+            return targetInterruptSecurityState[interruptNo] == InterruptTargetSecurityState.NonSecure;
         }
 
         private bool IsCandidate(IRQState state, int index)
@@ -1571,7 +1568,17 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             SuperVisorCall = 11,
             DebugMonitor = 12,
             PendSV = 14,
-            SysTick = 15
+            SysTick = 15,
+
+            // These are not real exceptions!
+            // We cheat here a bit, to create banked exceptions for TrustZone
+            // since they can live indepenently from their not-banked variants (so effectively they behave like separate exceptions)
+            HardFault_S = HardFault | BankedExcpSecureBit,
+            MemManageFault_S = MemManageFault | BankedExcpSecureBit,
+            UsageFault_S = UsageFault | BankedExcpSecureBit,
+            SuperVisorCall_S = SuperVisorCall | BankedExcpSecureBit,
+            PendSV_S = PendSV | BankedExcpSecureBit,
+            SysTick_S = SysTick | BankedExcpSecureBit,
         }
 
         public enum InterruptTargetSecurityState
@@ -1597,11 +1604,196 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
+        private class SysTick
+        {
+            public SysTick(IMachine machine, NVIC parent, long systickFrequency, bool isSecure = false)
+            {
+                IsSecure = isSecure;
+                this.parent = parent;
+                // We set initial limit to the maximum 24-bit value, and don't modify it afterwards.
+                // Instead we reload counter with RELOAD value when counter reaches 0.
+                systick = new LimitTimer(machine.ClockSource, systickFrequency, parent, nameof(systick) + (isSecure ? "_S" : "_NS"), SysTickMaxValue, Direction.Descending, false, eventEnabled: true);
+                systick.LimitReached += () =>
+                {
+                    CountFlag = true;
+                    if(TickInterruptEnabled)
+                    {
+                        parent.SetPendingIRQ((int)(IsSecure ? SystemException.SysTick_S : SystemException.SysTick));
+                    }
+
+                    // If the systick timer is running and the reload value is 0, this has the effect of disabling the counter on the expiration.
+                    if(Reload == 0)
+                    {
+                        systick.Enabled = false;
+                    }
+                    else
+                    {
+                        systick.Value = Reload;
+                    }
+                };
+            }
+
+            public void Reset()
+            {
+                systickEnabled = false;
+                reloadValue = 0;
+
+                systick.Reset();
+                systick.AutoUpdate = true;
+            }
+
+            public void UpdateSystickValue()
+            {
+                if(reloadValue != 0)
+                {
+                    // Write to this register does not trigger the SysTick exception logic - we can't write zero to timer value as it would trigger an event.
+                    systick.Value = reloadValue;
+                }
+                CountFlag = false;
+            }
+
+            public bool IsSecure { get; }
+
+            public bool TickInterruptEnabled { get; set; } // TICKINT
+            public bool CountFlag { get; set; } // COUNTFLAG
+
+            // Systick can be enabled but doesn't have to count, e.g. if RELOAD value is set to 0,
+            // or we are in DEEPSLEEP
+            public bool Enabled
+            {
+                get => systickEnabled;
+                set
+                {
+                    systickEnabled = value;
+                    if(value && Reload == 0)
+                    {
+                        parent.DebugLog("Systick_{0} enabled but it won't be started as long as the reload value is zero", IsSecure ? "S" : "NS");
+                        return;
+                    }
+                    parent.NoisyLog("Systick_{0} {1}", IsSecure ? "S" : "NS", value ? "enabled" : "disabled");
+                    systick.Enabled = value;
+                }
+            }
+
+            public ulong Value // CURRENT
+            {
+                get => systick.Value;
+            }
+
+            public ulong Reload // RELOAD
+            {
+                get => reloadValue;
+                set
+                {
+                    if(Enabled && reloadValue == 0 && !systick.Enabled)
+                    {
+                        // We explicitly enable underlying SysTick counter only in the case it was blocked by RELOAD=0.
+                        // We ignore other cases, as we don't want to accidentally enable counter in DEEPSLEEP just by writing to this register.
+                        parent.DebugLog("Resuming Systick_{0} counter due to reload value change from 0x0 to 0x{1:X}", IsSecure ? "_S" : "_NS", value);
+                        systick.Value = value;
+                        systick.Enabled = true;
+                    }
+                    reloadValue = value;
+                }
+            }
+
+            public long Frequency
+            {
+                get => systick.Frequency;
+                set
+                {
+                    systick.Frequency = value;
+                }
+            }
+
+            public int Divider
+            {
+                get => systick.Divider;
+                set
+                {
+                    systick.Divider = value;
+                }
+            }
+
+            private ulong reloadValue;
+            private bool systickEnabled; // ENABLE
+            private readonly LimitTimer systick;
+            private readonly NVIC parent;
+        }
+
+        /// This is the simplest hash-map-like class, to store exceptions.
+        /// We use <see cref="BankedExcpSecureBit"/> to mark banked exception as Secure.
+        /// Such exception behaves like separate exception (e.g. Secure and Non-secure banked exception can exist at once).
+        /// This way, we can use the end of the array to place the extra Secure banked exceptions
+        /// it's still easier than using a dictionary.
+        private class ExceptionSimpleArray<T> : IEnumerable<T>
+        {
+            public ExceptionSimpleArray()
+            {
+                container = new T[IRQCount + bankedInterrupts.Length / 2];
+            }
+
+            public void Clear()
+            {
+                Array.Clear(container, 0, container.Length);
+            }
+
+            public T this[int index]
+            {
+                get
+                {
+                    return container[MapSystemExceptionToInteger(index)];
+                }
+                set
+                {
+                    container[MapSystemExceptionToInteger(index)] = value;
+                }
+            }
+
+            public int Length => container.Length;
+
+            private static int MapSystemExceptionToInteger(int exception)
+            {
+                if(exception < BankedExcpSecureBit)
+                {
+                    return exception;
+                }
+                switch(exception)
+                {
+                    case (int)SystemException.MemManageFault_S:
+                        return IRQCount;
+                    case (int)SystemException.UsageFault_S:
+                        return IRQCount + 1;
+                    case (int)SystemException.SuperVisorCall_S:
+                        return IRQCount + 2;
+                    case (int)SystemException.PendSV_S:
+                        return IRQCount + 3;
+                    case (int)SystemException.SysTick_S:
+                        return IRQCount + 4;
+                    default:
+                        throw new InvalidOperationException($"Exception number {exception} is invalid");
+                }
+            }
+
+            public IEnumerator<T> GetEnumerator()
+            {
+                return container.AsEnumerable().GetEnumerator();
+            }
+
+            IEnumerator IEnumerable.GetEnumerator()
+            {
+                return GetEnumerator();
+            }
+
+            private readonly T[] container;
+        }
+
         // bit [16] DC / Cache enable. This is a global enable bit for data and unified caches.
         private uint ccr = 0x10000;
 
         private readonly bool defaultHaltSystickOnDeepSleep;
         private bool isNextAccessSecure;
+        private readonly SecurityBanked<SysTick> systick;
         private bool canResetOnlyFromSecure;
         private readonly byte priorityMask;
         private Stack<int> activeIRQs;
@@ -1612,20 +1804,16 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private MPUVersion mpuVersion;
 
         private bool maskedInterruptPresent;
-        private IFlagRegisterField systickEnabled;
-        private IFlagRegisterField eventEnabled;
-        private IFlagRegisterField countFlag;
-        private IValueRegisterField systickReload;
 
         // This is configurable through NVIC_ITNSx only for Hardware Interrupts (exception numbered 16 and above)
         // for configuring selected exceptions, look at AIRCR.BFHFNMINS
         // for other exceptions, this will be completely ignored
         private readonly InterruptTargetSecurityState[] targetInterruptSecurityState;
-        private readonly IRQState[] irqs;
-        private readonly byte[] priorities;
+
+        private readonly ExceptionSimpleArray<IRQState> irqs;
+        private readonly ExceptionSimpleArray<byte> priorities;
         private readonly Action resetMachine;
         private CortexM cpu;
-        private readonly LimitTimer systick;
         private readonly IMachine machine;
         private uint cpuId;
 
@@ -1633,13 +1821,19 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private IFlagRegisterField deepSleepEnabled;
         private IFlagRegisterField currentSevOnPending;
 
-        private readonly int[] bankedInterrupts = new int []
+        private static readonly int[] bankedInterrupts = new int []
         {
             (int)SystemException.MemManageFault,
             (int)SystemException.UsageFault,
             (int)SystemException.SuperVisorCall,
             (int)SystemException.PendSV,
             (int)SystemException.SysTick,
+
+            (int)SystemException.MemManageFault_S,
+            (int)SystemException.UsageFault_S,
+            (int)SystemException.SuperVisorCall_S,
+            (int)SystemException.PendSV_S,
+            (int)SystemException.SysTick_S,
         };
 
         private const string TrustZoneNSRegionWarning = "Without TrustZone enabled in the CPU, a NonSecure region should not be registered";
@@ -1668,6 +1862,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private const int VectKeyStat          = 0xFA05;
         private const uint SysTickMaximumValue = 0x00FFFFFF;
 
+        private const int BankedExcpSecureBit  = 1 << 30;
         private const uint InterruptProgramStatusRegisterMask = 0x1FF;
         private const uint NonMaskableInterruptIRQ = 2;
         private const int SysTickCalibration100Hz = 100;
