@@ -193,14 +193,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public uint NumberOfSAURegions
         {
-            get
-            {
-                return tlibGetNumberOfSauRegions();
-            }
-            set
-            {
-                tlibSetNumberOfSauRegions(value);
-            }
+            get => GetTrustZoneRelatedRegister(nameof(NumberOfSAURegions), () => tlibGetNumberOfSauRegions());
+            set => SetTrustZoneRelatedRegister(nameof(NumberOfSAURegions), val => tlibSetNumberOfSauRegions(val), value);
         }
 
         public bool SecureState
@@ -383,50 +377,26 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public uint SAUControl
         {
-            set
-            {
-                tlibSetSauControl(value);
-            }
-            get
-            {
-                return tlibGetSauControl();
-            }
+            get => GetTrustZoneRelatedRegister(nameof(SAUControl), () => tlibGetSauControl());
+            set => SetTrustZoneRelatedRegister(nameof(SAUControl), val => tlibSetSauControl(val), value);
         }
 
         public uint SAURegionNumber
         {
-            set
-            {
-                tlibSetSauRegionNumber(value);
-            }
-            get
-            {
-                return tlibGetSauRegionNumber();
-            }
+            get => GetTrustZoneRelatedRegister(nameof(SAURegionNumber), () => tlibGetSauRegionNumber());
+            set => SetTrustZoneRelatedRegister(nameof(SAURegionNumber), val => tlibSetSauRegionNumber(val), value);
         }
 
         public uint SAURegionBaseAddress
         {
-            set
-            {
-                tlibSetSauRegionBaseAddress(value);
-            }
-            get
-            {
-                return tlibGetSauRegionBaseAddress();
-            }
+            get => GetTrustZoneRelatedRegister(nameof(SAURegionBaseAddress), () => tlibGetSauRegionBaseAddress());
+            set => SetTrustZoneRelatedRegister(nameof(SAURegionBaseAddress), val => tlibSetSauRegionBaseAddress(val), value);
         }
 
         public uint SAURegionLimitAddress
         {
-            set
-            {
-                tlibSetSauRegionLimitAddress(value);
-            }
-            get
-            {
-                return tlibGetSauRegionLimitAddress();
-            }
+            get => GetTrustZoneRelatedRegister(nameof(SAURegionLimitAddress), () => tlibGetSauRegionLimitAddress());
+            set => SetTrustZoneRelatedRegister(nameof(SAURegionLimitAddress), val => tlibSetSauRegionLimitAddress(val), value);
         }
 
         public uint XProgramStatusRegister
@@ -467,6 +437,16 @@ namespace Antmicro.Renode.Peripherals.CPU
             base.OnLeavingResetState();
         }
 
+        private uint GetTrustZoneRelatedRegister(string registerName, Func<uint> getter)
+        {
+            if(!TrustZoneEnabled)
+            {
+                this.Log(LogLevel.Warning, "Tried to read from {0} in CPU without TrustZone implemented, returning 0x0", registerName);
+                return 0x0;
+            }
+            return getter();
+        }
+
         private void InitPCAndSP()
         {
             var firstNotNullSection = machine.SystemBus.GetLookup(this).FirstNotNullSectionAddress;
@@ -505,6 +485,16 @@ namespace Antmicro.Renode.Peripherals.CPU
                 PC = pc;
                 SP = sp;
             }
+        }
+
+        private void SetTrustZoneRelatedRegister(string registerName, Action<uint> setter, uint value)
+        {
+            if(!TrustZoneEnabled)
+            {
+                this.Log(LogLevel.Warning, "Tried to write to {0} (value: 0x{1:X}) in CPU without TrustZone implemented, write ignored", registerName, value);
+                return;
+            }
+            setter(value);
         }
 
         [Export]
