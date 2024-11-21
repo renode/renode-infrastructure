@@ -740,6 +740,7 @@
     <Compile Include="Peripherals\UART\MSP430_USCIA.cs" />
     <Compile Include="Peripherals\Miscellaneous\MSP430F2XXX_MPY.cs" />
     <Compile Include="Peripherals\Timers\MSP430_Timer.cs" />
+    <Compile Include="Peripherals\SPI\RenesasRZG_SPI.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
