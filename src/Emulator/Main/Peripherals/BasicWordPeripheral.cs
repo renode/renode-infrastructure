@@ -75,6 +75,11 @@ namespace Antmicro.Renode.Peripherals
             return Define(o, p, resetValue, softResettable);
         }
 
+        public static WordRegister Define(this System.Enum o, WordRegisterCollection c, ushort resetValue = 0, bool softResettable = true, string name = "")
+        {
+            return c.DefineRegister(Convert.ToInt64(o), resetValue, softResettable);
+        }
+
         public static WordRegister Define(this System.Enum o, IProvidesRegisterCollection<WordRegisterCollection> p, ushort resetValue = 0, bool softResettable = true, string name = "")
         {
             return p.RegistersCollection.DefineRegister(Convert.ToInt64(o), resetValue, softResettable);
