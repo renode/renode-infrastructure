@@ -411,6 +411,18 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
         [Register]
+        public RegisterValue MSECCFG
+        {
+            get
+            {
+                return GetRegisterValue32((int)RiscV32Registers.MSECCFG);
+            }
+            set
+            {
+                SetRegisterValue32((int)RiscV32Registers.MSECCFG, value);
+            }
+        }
+        [Register]
         public RegisterValue PRIV
         {
             get
@@ -772,6 +784,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             { RiscV32Registers.MCAUSE,  new CPURegister(899, 32, isGeneral: false, isReadonly: false, aliases: new [] { "MCAUSE" }) },
             { RiscV32Registers.MTVAL,  new CPURegister(900, 32, isGeneral: false, isReadonly: false, aliases: new [] { "MTVAL" }) },
             { RiscV32Registers.MIP,  new CPURegister(901, 32, isGeneral: false, isReadonly: false, aliases: new [] { "MIP" }) },
+            { RiscV32Registers.MSECCFG,  new CPURegister(1863, 32, isGeneral: false, isReadonly: false, aliases: new [] { "MSECCFG" }) },
             { RiscV32Registers.VL,  new CPURegister(3104, 32, isGeneral: false, isReadonly: false, aliases: new [] { "VL" }) },
             { RiscV32Registers.VTYPE,  new CPURegister(3105, 32, isGeneral: false, isReadonly: false, aliases: new [] { "VTYPE" }) },
             { RiscV32Registers.VLENB,  new CPURegister(3106, 32, isGeneral: false, isReadonly: true, aliases: new [] { "VLENB" }) },
@@ -809,6 +822,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         MCAUSE = 899,
         MTVAL = 900,
         MIP = 901,
+        MSECCFG = 1863,
         PRIV = 4161,
         VSTART = 101,
         VXSAT = 102,
