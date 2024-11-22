@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 {
     public class BusPointRegistration : BusRegistration
     {
-        public BusPointRegistration(ulong address, ulong offset = 0, ICPU cpu = null, ICluster<ICPU> cluster = null) : base(address, offset, cpu, cluster)
+        public BusPointRegistration(ulong address, ulong offset = 0, IPeripheral cpu = null, ICluster<ICPU> cluster = null) : base(address, offset, cpu, cluster)
         {
         }
 

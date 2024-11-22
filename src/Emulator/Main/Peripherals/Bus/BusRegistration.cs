@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 {
     public abstract class BusRegistration : IBusRegistration
     {
-        protected BusRegistration(ulong startingPoint, ulong offset = 0, ICPU cpu = null, ICluster<ICPU> cluster = null)
+        protected BusRegistration(ulong startingPoint, ulong offset = 0, IPeripheral cpu = null, ICluster<ICPU> cluster = null)
         {
             if(cpu != null && cluster != null)
             {
@@ -27,7 +27,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             StartingPoint = startingPoint;
         }
 
-        public ICPU CPU { get; }
+        public IPeripheral CPU { get; }
         public ICluster<ICPU> Cluster { get; }
         public ulong Offset { get; set; }
         public ulong StartingPoint { get; set; }

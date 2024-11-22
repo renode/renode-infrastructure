@@ -44,7 +44,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         var type = entry.Key;
         var name = entry.Value;
 #>
-        public <#= type #> Read<#= name #>(ulong address, ICPU context = null, ulong? cpuState = null)
+        public <#= type #> Read<#= name #>(ulong address, IPeripheral context = null, ulong? cpuState = null)
         {
             var accessWidth = SysbusAccessWidth.<#=name#>;
             if(IsAddressRangeLocked(address.By((ulong)accessWidth), context))
@@ -88,7 +88,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
-        public void Write<#=name#>(ulong address, <#=type#> value, ICPU context = null, ulong? cpuState = null)
+        public void Write<#=name#>(ulong address, <#=type#> value, IPeripheral context = null, ulong? cpuState = null)
         {
             var accessWidth = SysbusAccessWidth.<#=name#>;
             if(IsAddressRangeLocked(address.By((ulong)accessWidth), context))
@@ -187,9 +187,14 @@ namespace Antmicro.Renode.Peripherals.Bus
 <#
     }
 #>
-        private bool TryFindPeripheralAccessMethods(ulong address, ICPU context, out PeripheralAccessMethods accessMethods, out ulong startAddress)
+        private bool TryFindPeripheralAccessMethods(ulong address, IPeripheral context, out PeripheralAccessMethods accessMethods, out ulong startAddress)
         {
-            if(context != null || TryGetCurrentCPU(out context))
+            if(context == null)
+            {
+                TryGetCurrentCPU(out var cpu);
+                context = cpu;
+            }
+            if(context != null)
             {
                 accessMethods = peripheralsCollectionByContext[context].FindAccessMethods(address, out startAddress, out var _);
                 if(accessMethods != null)

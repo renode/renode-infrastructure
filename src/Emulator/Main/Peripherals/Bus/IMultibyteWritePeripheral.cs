@@ -11,8 +11,8 @@ namespace Antmicro.Renode.Peripherals.Bus
 {
     public interface IMultibyteWritePeripheral
     {
-        byte[] ReadBytes(long offset, int count, ICPU context = null);
-        void WriteBytes(long offset, byte[] array, int startingIndex, int count, ICPU context = null);
+        byte[] ReadBytes(long offset, int count, IPeripheral context = null);
+        void WriteBytes(long offset, byte[] array, int startingIndex, int count, IPeripheral context = null);
     }
 }
 

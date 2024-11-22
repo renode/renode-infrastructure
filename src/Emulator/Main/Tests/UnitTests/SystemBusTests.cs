@@ -419,10 +419,10 @@ namespace Antmicro.Renode.UnitTests
 
             var accessMethods = new dynamic []
             {
-                Tuple.Create((Func<ulong, ICPU, ulong?, byte>)sysbus.ReadByte, (Action<ulong, byte, ICPU, ulong?>)sysbus.WriteByte),
-                Tuple.Create((Func<ulong, ICPU, ulong?, ushort>)sysbus.ReadWord, (Action<ulong, ushort, ICPU, ulong?>)sysbus.WriteWord),
-                Tuple.Create((Func<ulong, ICPU, ulong?, uint>)sysbus.ReadDoubleWord, (Action<ulong, uint, ICPU, ulong?>)sysbus.WriteDoubleWord),
-                Tuple.Create((Func<ulong, ICPU, ulong?, ulong>)sysbus.ReadQuadWord, (Action<ulong, ulong, ICPU, ulong?>)sysbus.WriteQuadWord),
+                Tuple.Create((Func<ulong, IPeripheral, ulong?, byte>)sysbus.ReadByte, (Action<ulong, byte, IPeripheral, ulong?>)sysbus.WriteByte),
+                Tuple.Create((Func<ulong, IPeripheral, ulong?, ushort>)sysbus.ReadWord, (Action<ulong, ushort, IPeripheral, ulong?>)sysbus.WriteWord),
+                Tuple.Create((Func<ulong, IPeripheral, ulong?, uint>)sysbus.ReadDoubleWord, (Action<ulong, uint, IPeripheral, ulong?>)sysbus.WriteDoubleWord),
+                Tuple.Create((Func<ulong, IPeripheral, ulong?, ulong>)sysbus.ReadQuadWord, (Action<ulong, ulong, IPeripheral, ulong?>)sysbus.WriteQuadWord),
             };
 
             for(var i = 0; i < accessMethods.Length; i++)

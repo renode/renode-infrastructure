@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 {
     public class BusMultiRegistration : BusRangeRegistration
     {
-        public BusMultiRegistration(ulong address, ulong size, string region, ICPU cpu = null, ICluster<ICPU> cluster = null) : base(address, size, 0, cpu, cluster)
+        public BusMultiRegistration(ulong address, ulong size, string region, IPeripheral cpu = null, ICluster<ICPU> cluster = null) : base(address, size, 0, cpu, cluster)
         {
             if(string.IsNullOrWhiteSpace(region))
             {

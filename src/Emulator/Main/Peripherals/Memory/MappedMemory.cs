@@ -284,7 +284,7 @@ namespace Antmicro.Renode.Peripherals.Memory
             }
         }
 
-        public byte[] ReadBytes(long offset, int count, ICPU context = null)
+        public byte[] ReadBytes(long offset, int count, IPeripheral context = null)
         {
             var result = new byte[count];
             ReadBytes(offset, count, result, 0);
@@ -301,7 +301,7 @@ namespace Antmicro.Renode.Peripherals.Memory
             WriteBytes(offset, value, 0, count);
         }
 
-        public void WriteBytes(long offset, byte[] array, int startingIndex, int count, ICPU context = null)
+        public void WriteBytes(long offset, byte[] array, int startingIndex, int count, IPeripheral context = null)
         {
             if(offset < 0 || offset > size - count)
             {

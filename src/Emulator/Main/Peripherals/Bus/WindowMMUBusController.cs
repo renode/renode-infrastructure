@@ -39,7 +39,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public List<MMUWindow> Windows { get; }
 
-        protected override bool ValidateOperation(ref ulong address, BusAccessPrivileges accessType, ICPU context = null)
+        protected override bool ValidateOperation(ref ulong address, BusAccessPrivileges accessType, IPeripheral context = null)
         {
             if(TryFindWindowIndex(address, out var index))
             {

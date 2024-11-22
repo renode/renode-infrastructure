@@ -341,7 +341,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private void OnSnoopControlUnitAdded(Signal<ArmSignals> peripheralsBase, IBusRegistration busRegistration)
         {
-            var context = busRegistration.CPU;
+            var context = busRegistration.CPU as ICPU;
             if(context != null && !registeredCPUs.ContainsKey(context))
             {
                 this.DebugLog("Ignoring {0} registration for CPU unregistered in {1}: {2}",

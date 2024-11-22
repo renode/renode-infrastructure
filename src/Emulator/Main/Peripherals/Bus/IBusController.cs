@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -24,32 +24,32 @@ namespace Antmicro.Renode.Peripherals.Bus
         IPeripheralRegister<ICPU, CPURegistrationPoint>, IPeripheralRegister<IBusPeripheral, BusMultiRegistration>, IPeripheralRegister<IPeripheral, NullRegistrationPoint>,
         IPeripheralRegister<IBusPeripheral, BusParametrizedRegistration>, ICanLoadFiles, IPeripheral, IMultibyteWritePeripheral
     {
-        byte ReadByte(ulong address, ICPU context = null, ulong? cpuState = null);
-        void WriteByte(ulong address, byte value, ICPU context = null, ulong? cpuState = null);
+        byte ReadByte(ulong address, IPeripheral context = null, ulong? cpuState = null);
+        void WriteByte(ulong address, byte value, IPeripheral context = null, ulong? cpuState = null);
 
-        ushort ReadWord(ulong address, ICPU context = null, ulong? cpuState = null);
-        void WriteWord(ulong address, ushort value, ICPU context = null, ulong? cpuState = null);
+        ushort ReadWord(ulong address, IPeripheral context = null, ulong? cpuState = null);
+        void WriteWord(ulong address, ushort value, IPeripheral context = null, ulong? cpuState = null);
 
-        uint ReadDoubleWord(ulong address, ICPU context = null, ulong? cpuState = null);
-        void WriteDoubleWord(ulong address, uint value, ICPU context = null, ulong? cpuState = null);
+        uint ReadDoubleWord(ulong address, IPeripheral context = null, ulong? cpuState = null);
+        void WriteDoubleWord(ulong address, uint value, IPeripheral context = null, ulong? cpuState = null);
 
-        ulong ReadQuadWord(ulong address, ICPU context = null, ulong? cpuState = null);
-        void WriteQuadWord(ulong address, ulong value, ICPU context = null, ulong? cpuState = null);
+        ulong ReadQuadWord(ulong address, IPeripheral context = null, ulong? cpuState = null);
+        void WriteQuadWord(ulong address, ulong value, IPeripheral context = null, ulong? cpuState = null);
 
-        void ReadBytes(ulong address, int count, byte[] destination, int startIndex, bool onlyMemory = false, ICPU context = null);
-        byte[] ReadBytes(ulong address, int count, bool onlyMemory = false, ICPU context = null);
+        void ReadBytes(ulong address, int count, byte[] destination, int startIndex, bool onlyMemory = false, IPeripheral context = null);
+        byte[] ReadBytes(ulong address, int count, bool onlyMemory = false, IPeripheral context = null);
 
-        void WriteBytes(byte[] bytes, ulong address, bool onlyMemory = false, ICPU context = null);
-        void WriteBytes(byte[] bytes, ulong address, int startingIndex, long count, bool onlyMemory = false, ICPU context = null);
-        void WriteBytes(byte[] bytes, ulong address, long count, bool onlyMemory = false, ICPU context = null);
+        void WriteBytes(byte[] bytes, ulong address, bool onlyMemory = false, IPeripheral context = null);
+        void WriteBytes(byte[] bytes, ulong address, int startingIndex, long count, bool onlyMemory = false, IPeripheral context = null);
+        void WriteBytes(byte[] bytes, ulong address, long count, bool onlyMemory = false, IPeripheral context = null);
 
-        void ZeroRange(Range range, ICPU context = null);
+        void ZeroRange(Range range, IPeripheral context = null);
 
-        IBusRegistered<IBusPeripheral> WhatIsAt(ulong address, ICPU context = null);
-        IPeripheral WhatPeripheralIsAt(ulong address, ICPU context = null);
+        IBusRegistered<IBusPeripheral> WhatIsAt(ulong address, IPeripheral context = null);
+        IPeripheral WhatPeripheralIsAt(ulong address, IPeripheral context = null);
 
-        bool IsAddressRangeLocked(Range range, ICPU context = null);
-        void SetAddressRangeLocked(Range range, bool locked, ICPU context = null);
+        bool IsAddressRangeLocked(Range range, IPeripheral context = null);
+        void SetAddressRangeLocked(Range range, bool locked, IPeripheral context = null);
 
         void SetPeripheralEnabled(IPeripheral peripheral, bool value);
         bool IsPeripheralEnabled(IPeripheral peripheral);
@@ -58,7 +58,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         int GetCPUSlot(ICPU cpu);
         ICPU GetCurrentCPU();
         IEnumerable<ICPU> GetAllContextKeys();
-        IEnumerable<IBusRegistered<IBusPeripheral>> GetRegisteredPeripherals(ICPU context = null);
+        IEnumerable<IBusRegistered<IBusPeripheral>> GetRegisteredPeripherals(IPeripheral context = null);
         IEnumerable<IBusRegistered<IBusPeripheral>> GetRegistrationsForPeripheralType<T>(ICPU context = null);
         bool TryGetCurrentCPU(out ICPU cpu);
 

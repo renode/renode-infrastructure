@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Core.Structure
     /// </summary>
     public interface IBusRegistration : IRegistrationPoint
     {
-        ICPU CPU { get; }
+        IPeripheral CPU { get; }
         ICluster<ICPU> Cluster { get; }
         ulong Offset { get; }
         ulong StartingPoint { get; }

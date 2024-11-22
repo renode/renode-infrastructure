@@ -122,7 +122,7 @@ namespace Antmicro.Renode.Peripherals.Memory
             array[intOffset] = value;
         }
 
-        public byte[] ReadBytes(long offset, int count, ICPU context = null)
+        public byte[] ReadBytes(long offset, int count, IPeripheral context = null)
         {
             if(!IsCorrectOffset(offset, count))
             {
@@ -133,7 +133,7 @@ namespace Antmicro.Renode.Peripherals.Memory
             return result;
         }
 
-        public void WriteBytes(long offset, byte[] bytes, int startingIndex, int count, ICPU context = null)
+        public void WriteBytes(long offset, byte[] bytes, int startingIndex, int count, IPeripheral context = null)
         {
             if(!IsCorrectOffset(offset, count))
             {
