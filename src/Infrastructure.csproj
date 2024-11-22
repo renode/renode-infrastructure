@@ -1640,6 +1640,8 @@
     <Compile Include="Emulator/Main/Peripherals/Python/PeripheralPythonEngine.cs" />
     <Compile Include="Emulator/Main/Peripherals/Miscellaneous/ILed.cs" />
     <Compile Include="Emulator/Main/Peripherals/Miscellaneous/CombinedInput.cs" />
+    <Compile Include="Emulator/Main/Peripherals/Miscellaneous/SampleStateAwarePeripheral.cs" />
+    <Compile Include="Emulator/Main/Peripherals/Miscellaneous/SampleStateAwareReader.cs" />
     <Compile Include="Emulator/Main/Peripherals/Video/AutoRepaintingVideo.cs" />
     <Compile Include="Emulator/Main/Peripherals/Python/PythonPeripheral.cs" />
     <Compile Include="Emulator/Main/Peripherals/Memory/MappedMemory.cs" />
