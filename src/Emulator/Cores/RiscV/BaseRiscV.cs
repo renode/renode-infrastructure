@@ -1105,90 +1105,93 @@ namespace Antmicro.Renode.Peripherals.CPU
             private void Decode(string architectureString)
             {
                 // Example cpuType string we would like to handle here: "rv64gcv_zba_zbb_zbc_zbs_xcustom".
-                var parts = architectureString.ToUpper().Split('_');
-                var basicDescription = parts[0];
+                architectureString = architectureString.ToUpper();
 
-                if(!basicDescription.StartsWith("RV"))
+                if(!architectureString.StartsWith("RV"))
                 {
                     throw new ConstructionException($"Architecture string should start with rv, but is: {architectureString}");
                 }
+                var instructionSetsString = architectureString.Skip(2);
 
-                var bits = string.Join("", basicDescription.Skip(2).TakeWhile(Char.IsDigit));
+                var bits = string.Join("", instructionSetsString.TakeWhile(Char.IsDigit));
                 if(bits.Length == 0 || int.Parse(bits) != parent.MostSignificantBit + 1)
                 {
                     throw new ConstructionException($"Unexpected architecture width: {bits}");
                 }
+                instructionSetsString = instructionSetsString.Skip(bits.Length);
 
-                //The architecture name is: RV{architecture_width}{list of letters denoting instruction sets}
-                foreach(var @set in basicDescription.Skip(2 + bits.Length))
+                while(instructionSetsString.Count() != 0)
                 {
-                    switch(set)
+                    if(instructionSetsString.First() == '_')
                     {
-                        case 'I': instructionSets.Add(InstructionSet.I); break;
-                        case 'M': instructionSets.Add(InstructionSet.M); break;
-                        case 'A': instructionSets.Add(InstructionSet.A); break;
-                        case 'F': instructionSets.Add(InstructionSet.F); break;
-                        case 'D': instructionSets.Add(InstructionSet.D); break;
-                        case 'C': instructionSets.Add(InstructionSet.C); break;
-                        case 'V': instructionSets.Add(InstructionSet.V); break;
-                        case 'B': instructionSets.Add(InstructionSet.B); break;
-                        case 'G': instructionSets.Add(InstructionSet.G); break;
-                        case 'S':
-                        case 'U':
-                            parent.WarningLog("Enabling privilege level extension '{0}' using 'cpuType' is not supported. " +
-                                "Privilege levels should be specified using the 'privilegeLevels' constructor parameter. " +
-                                "Extension will not be enabled", set);
+                        if(instructionSetsString.Count() == 1)
+                        {
                             break;
-                        default:
-                            throw new ConstructionException($"Undefined instruction set: {set}.");
+                        }
+                        instructionSetsString = instructionSetsString.Skip(1);
                     }
-                }
 
-                // skip the basic description
-                foreach(var extension in parts.Skip(1))
-                {
-                    // standard extension
-                    if(extension.StartsWith("Z"))
+                    string isaStringPart = "";
+                    if(TryHandleSingleCharInstructionSetName(instructionSetsString.First()))
                     {
-                        var set = extension.Substring(1);
-                        switch(set)
-                        {
-                            case "BA": standardExtensions.Add(StandardInstructionSetExtensions.BA); break;
-                            case "BB": standardExtensions.Add(StandardInstructionSetExtensions.BB); break;
-                            case "BC": standardExtensions.Add(StandardInstructionSetExtensions.BC); break;
-                            case "BS": standardExtensions.Add(StandardInstructionSetExtensions.BS); break;
-                            case "ICSR": standardExtensions.Add(StandardInstructionSetExtensions.ICSR); break;
-                            case "IFENCEI": standardExtensions.Add(StandardInstructionSetExtensions.IFENCEI); break;
-                            case "FH": standardExtensions.Add(StandardInstructionSetExtensions.ZFH); break;
-                            default:
-                                throw new ConstructionException($"Undefined instruction set standard extension: {set}.");
-                        }
+                        isaStringPart = instructionSetsString.First().ToString();
                     }
-                    // supervisor extensions
-                    else if(extension.StartsWith("S"))
-                    {
-                        switch(extension.Substring(1))
-                        {
-                            case "MEPMP": standardExtensions.Add(StandardInstructionSetExtensions.SMEPMP); break;
-                            default:
-                                throw new ConstructionException($"Undefined supervisor instruction set extension: {extension}.");
-                        }
-                    }
-                    // custom extesions
-                    else if(extension.StartsWith("X"))
-                    {
-                        switch(extension.Substring(1))
-                        {
-                            case "ANDES": Andes_AndeStarV5Extension.RegisterIn(machine, (RiscV32)parent); break;
-                            default:
-                                throw new ConstructionException($"Unsupported custom instruction set extension: {extension}.");
-                        }
-                    }
-                    // unexpected value
                     else
                     {
-                        throw new ConstructionException($"Undefined instruction set extension: {extension}.");
+                        isaStringPart = String.Join("", instructionSetsString.TakeWhile(Char.IsLetter));
+                        HandleLongInstructionSetName(isaStringPart);
                     }
+
+                    parent.DebugLog("Matched ISA String :'{0}'", isaStringPart);
+                    // Consume used characters
+                    instructionSetsString = instructionSetsString.Skip(isaStringPart.Length);
+                }
+            }
+
+            private bool TryHandleSingleCharInstructionSetName(char isaChar)
+            {
+                switch(isaChar)
+                {
+                    case 'I': instructionSets.Add(InstructionSet.I); break;
+                    case 'M': instructionSets.Add(InstructionSet.M); break;
+                    case 'A': instructionSets.Add(InstructionSet.A); break;
+                    case 'F': instructionSets.Add(InstructionSet.F); break;
+                    case 'D': instructionSets.Add(InstructionSet.D); break;
+                    case 'C': instructionSets.Add(InstructionSet.C); break;
+                    case 'V': instructionSets.Add(InstructionSet.V); break;
+                    case 'B': instructionSets.Add(InstructionSet.B); break;
+                    case 'G': instructionSets.Add(InstructionSet.G); break;
+                    case 'U':
+                        parent.WarningLog("Enabling privilege level extension '{0}' using 'cpuType' is not supported. " +
+                            "Privilege levels should be specified using the 'privilegeLevels' constructor parameter. " +
+                            "Extension will not be enabled", isaChar);
+                        break;
+                    default:
+                        return false;
+                }
+                return true;
+            }
+
+            private void HandleLongInstructionSetName(string name)
+            {
+                switch(name)
+                {
+                    case "S":
+                        parent.WarningLog("Enabling privilege level extension '{0}' using 'cpuType' is not supported. " +
+                            "Privilege levels should be specified using the 'privilegeLevels' constructor parameter. " +
+                            "Extension will not be enabled", name);
+                        break;
+                    case "SMEPMP": standardExtensions.Add(StandardInstructionSetExtensions.SMEPMP); break;
+                    case "XANDES": Andes_AndeStarV5Extension.RegisterIn(machine, (RiscV32)parent); break;
+                    case "ZBA": standardExtensions.Add(StandardInstructionSetExtensions.BA); break;
+                    case "ZBB": standardExtensions.Add(StandardInstructionSetExtensions.BB); break;
+                    case "ZBC": standardExtensions.Add(StandardInstructionSetExtensions.BC); break;
+                    case "ZBS": standardExtensions.Add(StandardInstructionSetExtensions.BS); break;
+                    case "ZICSR": standardExtensions.Add(StandardInstructionSetExtensions.ICSR); break;
+                    case "ZIFENCEI": standardExtensions.Add(StandardInstructionSetExtensions.IFENCEI); break;
+                    case "ZFH": standardExtensions.Add(StandardInstructionSetExtensions.ZFH); break;
+                    default:
+                        throw new ConstructionException($"Undefined instructions set extension: '{name}'");
                 }
             }
 
