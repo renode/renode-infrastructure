@@ -1813,6 +1813,7 @@
     <Compile Include="Emulator/Main/Utilities/ELFUtils.cs" />
     <Compile Include="Emulator/Main/Logging/Backends/FormattedTextBackend.cs" />
     <Compile Include="Emulator/Main/Utilities/SealableValue.cs" />
+    <Compile Include="Emulator/Main/Core/StateMask.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Emulator/Main/Peripherals/Bus/SystemBusGenerated.tt">
