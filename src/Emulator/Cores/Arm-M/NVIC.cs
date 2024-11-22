@@ -32,7 +32,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             systick = new LimitTimer(machine.ClockSource, systickFrequency, this, nameof(systick), uint.MaxValue, Direction.Descending, false, eventEnabled: true, autoUpdate: true);
             this.machine = machine;
             this.priorityMask = priorityMask;
-            this.haltSystickOnDeepSleep = haltSystickOnDeepSleep;
+            defaultHaltSystickOnDeepSleep = haltSystickOnDeepSleep;
             irqs = new IRQState[IRQCount];
             IRQ = new GPIO();
             resetMachine = machine.RequestReset;
@@ -63,6 +63,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 DefineTightlyCoupledMemoryControlRegisters();
             }
+
+            cpu.AddHookAtWfiStateChange(HandleWfiStateChange);
         }
 
         public bool MaskedInterruptPresent { get { return maskedInterruptPresent; } }
@@ -97,6 +99,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 systick.Divider = value;
             }
         }
+
+        public bool HaltSystickOnDeepSleep { get; set; }
 
         public uint ReadDoubleWord(long offset)
         {
@@ -173,8 +177,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             case Registers.SysTickValue:
                 cpu?.SyncTime();
                 return (uint)systick.Value;
-            case Registers.SystemControlRegister:
-                return currentSevOnPending ? SevOnPending : 0x0;
             case Registers.ConfigurationAndControl:
                 return ccr;
             case Registers.SystemHandlerPriority1:
@@ -261,42 +263,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 {
                     resetMachine();
                 }
-                break;
-            case Registers.SystemControlRegister:
-                var sevOnPending = (value & SevOnPending) != 0;
-                var deepSleep = (value & DeepSleep) != 0;
-                var unknownFlags = value & ~(DeepSleep|SevOnPending);
-
-                if(unknownFlags != 0)
-                {
-                    this.Log(LogLevel.Warning, "Unhandled value written to System Control Register: 0x{0:X}.", unknownFlags);
-                }
-                if(deepSleep && haltSystickOnDeepSleep)
-                {
-                    systick.Enabled = false;
-                    // Clean Pending Status of SysTick IRQ when it is set,
-                    // otherwise, we would be instantly waken up.
-                    // This SysTick IRQ status isn't restored on exit from deep-sleep,
-                    // system needs to account for this.
-                    var sysTickIRQ = irqs[(int)SystemException.SysTick];
-                    if((sysTickIRQ & IRQState.Pending) > 0)
-                    {
-                        sysTickIRQ &= ~IRQState.Pending;
-                        pendingIRQs.Remove((int)SystemException.SysTick);
-                        // call 'FindPendingInterrupt' to update 'maskedInterruptPresent'
-                        // this variable is used to wake up CPU in tlib
-                        FindPendingInterrupt();
-                    }
-                    this.NoisyLog("Entering deep sleep");
-                }
-
-                // This register gets written pretty often, this aims to reduce the number of C#->C call
-                if(currentSevOnPending != sevOnPending)
-                {
-                    SetSevOnPendingOnAllCPUs(sevOnPending);
-                    currentSevOnPending = sevOnPending;
-                }
-
                 break;
             case Registers.ConfigurableFaultStatus:
                 cpu.FaultStatus &= ~value;
@@ -400,8 +366,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             systick.AutoUpdate = true;
             IRQ.Unset();
             countFlag = false;
-            currentSevOnPending = false;
             mpuControlRegister = 0;
+            HaltSystickOnDeepSleep = defaultHaltSystickOnDeepSleep;
 
             // bit [16] DC / Cache enable. This is a global enable bit for data and unified caches.
             ccr = 0x10000;
@@ -574,6 +540,15 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         SetPendingIRQ((int)SystemException.NMI);
                     }
                 }, valueProviderCallback: _ => irqs[(int)SystemException.NMI].HasFlag(IRQState.Pending), name: "PENDNMISET");
+
+            Registers.SystemControlRegister.Define(RegisterCollection)
+                .WithReservedBits(0, 1)
+                .WithTaggedFlag("SLEEPONEXIT", 1)
+                .WithFlag(2, out deepSleepEnabled, name: "SLEEPDEEP")
+                .WithReservedBits(3, 1)
+                .WithFlag(4, out currentSevOnPending, name: "SEVONPEND",
+                    changeCallback: (_, value) => SetSevOnPendingOnAllCPUs(value))
+                .WithReservedBits(5, 27);
 
             Registers.SystemHandlerControlAndState.Define(RegisterCollection)
                 .WithTaggedFlag("MEMFAULTACT (Memory Manage Active)", 0)
@@ -868,6 +843,15 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             return returnValue;
         }
 
+        private void HandleWfiStateChange(bool enteredWfi)
+        {
+            if(enteredWfi && deepSleepEnabled.Value && HaltSystickOnDeepSleep)
+            {
+                systick.Enabled = false;
+                this.NoisyLog("Entering deep sleep");
+            }
+        }
+
         private void EnableOrDisableInterrupt(int offset, uint value, bool enable)
         {
             lock(irqs)
@@ -929,7 +913,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             // when SEVONPEND is set all interrupts (even those masked)
             // generate an event when entering the pending state
-            if(before != irqs[i] && currentSevOnPending)
+            if(before != irqs[i] && currentSevOnPending.Value)
             {
                 foreach(var cpu in machine.SystemBus.GetCPUs().OfType<CortexM>())
                 {
@@ -1254,10 +1238,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private uint ccr = 0x10000;
 
         private bool eventEnabled;
-        private readonly bool haltSystickOnDeepSleep;
+        private readonly bool defaultHaltSystickOnDeepSleep;
         private bool countFlag;
         private byte priorityMask;
-        private bool currentSevOnPending;
         private Stack<int> activeIRQs;
         private ISet<int> pendingIRQs;
         private int binaryPointPosition; // from the right
@@ -1274,6 +1257,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private readonly LimitTimer systick;
         private readonly IMachine machine;
         private uint cpuId;
+
+        private IFlagRegisterField deepSleepEnabled;
+        private IFlagRegisterField currentSevOnPending;
 
         private const int MPUStart             = 0xD90;
         private const int MPUEnd               = 0xDC4;    // resized for compat. with V8 MPU
@@ -1295,8 +1281,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private const int VectKey              = 0x5FA;
         private const int VectKeyStat          = 0xFA05;
         private const uint SysTickMaximumValue = 0x00FFFFFF;
-        private const uint DeepSleep           = 0x4;
-        private const uint SevOnPending        = 0x10;
 
         private const uint InterruptProgramStatusRegisterMask = 0x1FF;
         private const uint NonMaskableInterruptIRQ = 2;
