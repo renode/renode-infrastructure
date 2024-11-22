@@ -247,7 +247,9 @@ namespace Antmicro.Renode.Peripherals.SCI
                     name: "FTDR")
                 .WithIgnoredBits(8, 8);
 
-            Registers.SerialStatus.Define(this, 0x20)
+            // According to the documentation this register should have a reset value of 0x20.
+            // Some software expects the TEND flag to be set even before transmitting the first character.
+            Registers.SerialStatus.Define(this, 0x60)
                 .WithFlag(0, out receiveDataReady, FieldMode.Read | FieldMode.WriteZeroToClear, name: "DR")
                 .WithFlag(1, out receiveFifoFull, FieldMode.Read | FieldMode.WriteZeroToClear, name: "RDF")
                 .WithTaggedFlag("PER", 2)
