@@ -16,13 +16,13 @@ namespace Antmicro.Renode.Peripherals.Bus
 {
     public class BusRangeRegistration : BusRegistration
     {
-        public BusRangeRegistration(Range range, ulong offset = 0, IPeripheral cpu = null, ICluster<ICPU> cluster = null) : base(range.StartAddress, offset, cpu, cluster)
+        public BusRangeRegistration(Range range, ulong offset = 0, IPeripheral cpu = null, ICluster<ICPU> cluster = null, StateMask? cpuState = null, string condition = null) : base(range.StartAddress, offset, cpu, cluster, cpuState, condition)
         {
             Range = range;
         }
 
-        public BusRangeRegistration(ulong address, ulong size, ulong offset = 0, IPeripheral cpu = null, ICluster<ICPU> cluster = null) :
-            this(new Range(address, size), offset, cpu, cluster)
+        public BusRangeRegistration(ulong address, ulong size, ulong offset = 0, IPeripheral cpu = null, ICluster<ICPU> cluster = null, StateMask? cpuState = null, string condition = null) :
+            this(new Range(address, size), offset, cpu, cluster, cpuState, condition)
         {
         }
 

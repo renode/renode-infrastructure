@@ -14,21 +14,30 @@ namespace Antmicro.Renode.Peripherals.Bus
 {
     public abstract class BusRegistration : IBusRegistration
     {
-        protected BusRegistration(ulong startingPoint, ulong offset = 0, IPeripheral cpu = null, ICluster<ICPU> cluster = null)
+        protected BusRegistration(ulong startingPoint, ulong offset = 0, IPeripheral cpu = null, ICluster<ICPU> cluster = null, StateMask? stateMask = null, string condition = null)
         {
             if(cpu != null && cluster != null)
             {
                 throw new ConstructionException("CPU and cluster cannot be specified at the same time");
             }
 
+            if(stateMask != null && condition != null)
+            {
+                throw new ConstructionException("State mask and condition cannot be specified at the same time");
+            }
+
             CPU = cpu;
             Cluster = cluster;
+            StateMask = stateMask;
+            Condition = condition;
             Offset = offset;
             StartingPoint = startingPoint;
         }
 
         public IPeripheral CPU { get; }
         public ICluster<ICPU> Cluster { get; }
+        public StateMask? StateMask { get; }
+        public string Condition { get; }
         public ulong Offset { get; set; }
         public ulong StartingPoint { get; set; }
 
@@ -48,12 +57,14 @@ namespace Antmicro.Renode.Peripherals.Bus
             if(ReferenceEquals(this, obj))
                 return true;
 
-            return StartingPoint == other.StartingPoint && Offset == other.Offset && CPU == other.CPU && Cluster == other.Cluster;
+            return StartingPoint == other.StartingPoint && Offset == other.Offset && CPU == other.CPU && Cluster == other.Cluster
+                && StateMask.Equals(other.StateMask) && Condition == other.Condition;
         }
 
         public override int GetHashCode()
         {
-            return 17 * StartingPoint.GetHashCode() + 23 * Offset.GetHashCode() + 101 * (CPU?.GetHashCode() ?? 0) + 397 * (Cluster?.GetHashCode() ?? 0);
+            return 17 * StartingPoint.GetHashCode() + 23 * Offset.GetHashCode() + 101 * (CPU?.GetHashCode() ?? 0) + 397 * (Cluster?.GetHashCode() ?? 0)
+                + 401 * (StateMask?.GetHashCode() ?? 0) + 409 * (Condition?.GetHashCode() ?? 0);
         }
 
         protected void RegisterForEachContextInner<T>(Action<T> register, Func<ICPU, T> registrationForCpuGetter)

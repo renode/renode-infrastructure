@@ -6,14 +6,14 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Core.Structure;
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Peripherals.Bus
 {
     public class BusPointRegistration : BusRegistration
     {
-        public BusPointRegistration(ulong address, ulong offset = 0, IPeripheral cpu = null, ICluster<ICPU> cluster = null) : base(address, offset, cpu, cluster)
+        public BusPointRegistration(ulong address, ulong offset = 0, IPeripheral cpu = null, ICluster<ICPU> cluster = null, StateMask? cpuState = null, string condition = null) : base(address, offset, cpu, cluster, cpuState, condition)
         {
         }
 

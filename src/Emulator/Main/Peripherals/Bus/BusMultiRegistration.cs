@@ -6,6 +6,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.CPU;
 
@@ -13,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 {
     public class BusMultiRegistration : BusRangeRegistration
     {
-        public BusMultiRegistration(ulong address, ulong size, string region, IPeripheral cpu = null, ICluster<ICPU> cluster = null) : base(address, size, 0, cpu, cluster)
+        public BusMultiRegistration(ulong address, ulong size, string region, IPeripheral cpu = null, ICluster<ICPU> cluster = null, StateMask? cpuState = null, string condition = null) : base(address, size, 0, cpu, cluster, cpuState, condition)
         {
             if(string.IsNullOrWhiteSpace(region))
             {
