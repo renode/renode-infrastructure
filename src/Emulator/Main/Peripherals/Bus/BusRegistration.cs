@@ -40,6 +40,22 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
+        public override bool Equals(object obj)
+        {
+            var other = obj as BusRegistration;
+            if(other == null)
+                return false;
+            if(ReferenceEquals(this, obj))
+                return true;
+
+            return StartingPoint == other.StartingPoint && Offset == other.Offset && CPU == other.CPU && Cluster == other.Cluster;
+        }
+
+        public override int GetHashCode()
+        {
+            return 17 * StartingPoint.GetHashCode() + 23 * Offset.GetHashCode() + 101 * (CPU?.GetHashCode() ?? 0) + 397 * (Cluster?.GetHashCode() ?? 0);
+        }
+
         protected void RegisterForEachContextInner<T>(Action<T> register, Func<ICPU, T> registrationForCpuGetter)
             where T : BusRegistration
         {

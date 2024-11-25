@@ -57,19 +57,14 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public override bool Equals(object obj)
         {
-            var other = obj as BusRangeRegistration;
-            if(other == null)
-                return false;
-            if(ReferenceEquals(this, obj))
-                return true;
-            return Range == other.Range && Offset == other.Offset && CPU == other.CPU && Cluster == other.Cluster;
+            return base.Equals(obj) && Range.Size == ((BusRangeRegistration)obj).Range.Size;
         }
 
         public override int GetHashCode()
         {
             unchecked
             {
-                return 17 * Range.GetHashCode() + 23 * Offset.GetHashCode() + 101 * (CPU?.GetHashCode() ?? 0) + 397 * (Cluster?.GetHashCode() ?? 0);
+                return 17 * base.GetHashCode() + 101 * Range.Size.GetHashCode();
             }
         }
 

@@ -44,25 +44,6 @@ namespace Antmicro.Renode.Peripherals.Bus
             return new BusPointRegistration(address);
         }
 
-        public override bool Equals(object obj)
-        {
-            var other = obj as BusPointRegistration;
-            if(other == null)
-                return false;
-            if(ReferenceEquals(this, obj))
-                return true;
-
-            return StartingPoint == other.StartingPoint && Offset == other.Offset && CPU == other.CPU && Cluster == other.Cluster;
-        }
-
-        public override int GetHashCode()
-        {
-            unchecked
-            {
-                return 17 * StartingPoint.GetHashCode() + 23 * Offset.GetHashCode() + 101 * (CPU?.GetHashCode() ?? 0) + 397 * (Cluster?.GetHashCode() ?? 0);
-            }
-        }
-
         public void RegisterForEachContext(Action<BusPointRegistration> register)
         {
             RegisterForEachContextInner(register, cpu => new BusPointRegistration(StartingPoint, Offset, cpu));
