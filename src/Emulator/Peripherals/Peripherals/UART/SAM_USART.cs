@@ -303,7 +303,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTaggedFlag("FRAME", 6)
                 .WithTaggedFlag("PARE", 7)
                 .WithTaggedFlag("TIMEOUT", 8)
-                .WithTaggedFlag("TXEMPTY", 9)
+                .WithFlag(9, FieldMode.Read, valueProviderCallback: _ => true, name: "TXEMPTY")
                 .WithTaggedFlag("ITER", 10)
                 .WithFlag(11, FieldMode.Read, valueProviderCallback: _ => pdc?.TxBufferEmpty ?? false, name: "TXBUFE")
                 .WithFlag(12, FieldMode.Read, valueProviderCallback: _ => pdc?.RxBufferFull ?? false, name: "RXBUFF")
