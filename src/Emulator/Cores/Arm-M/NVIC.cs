@@ -567,9 +567,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 .WithTaggedFlag("SVCALLPENDED (SV Call Pending)", 15)
                 // The enable flags only store written data.
                 // Changing them doesn't change a behavior of the model.
-                .WithFlag(16, name: "MEMFAULTENA (Memory Manage Fault Enable)") 
-                .WithFlag(17, name: "BUSFAULTENA (Bus Fault Enable)") 
-                .WithFlag(18, name: "USGFAULTENA (Usage Fault Enable)") 
+                .WithFlag(16, name: "MEMFAULTENA (Memory Manage Fault Enable)")
+                .WithFlag(17, name: "BUSFAULTENA (Bus Fault Enable)")
+                .WithFlag(18, name: "USGFAULTENA (Usage Fault Enable)")
                 .WithReservedBits(19, 13)
                 .WithChangeCallback((_, val) =>
                     this.Log(LogLevel.Warning, "Changing value of the SHCSR register to 0x{0:X}, the register isn't supported by Renode", val)
@@ -1168,25 +1168,25 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             MediaAndFPFeature0 = 0xF40, // MVFR0
             MediaAndFPFeature1 = 0xF44, // MVFR1
             MediaAndFPFeature2 = 0xF48, // MVFR2
-            ICacheInvalidateAllToPoUaIgnored = 0xF50, // ICIALLU 
-            ICacheInvalidateByMVAToPoUaAddress = 0xF58, // ICIMVAU 
-            DCacheInvalidateByMVAToPoCAddress = 0xF5C, // DCIMVAC 
-            DCacheInvalidateBySetWay= 0xF60, // DCISW 
-            DCacheCleanByMVAToPoUAddress = 0xF64, // DCCMVAU 
-            DCacheCleanByMVAToPoCAddress = 0xF68, // DCCMVAC 
-            DCacheCleanBySetWay= 0xF6C, // DCCSW 
-            DCacheCleanAndInvalidateByMVAToPoCAddress = 0xF70, // DCCIMVAC 
-            DCacheCleanAndInvalidateBySetWay= 0xF74, // DCCISW 
-            BranchPredictorInvalidateAllIgnored = 0xF78, // BPIALL 
+            ICacheInvalidateAllToPoUaIgnored = 0xF50, // ICIALLU
+            ICacheInvalidateByMVAToPoUaAddress = 0xF58, // ICIMVAU
+            DCacheInvalidateByMVAToPoCAddress = 0xF5C, // DCIMVAC
+            DCacheInvalidateBySetWay= 0xF60, // DCISW
+            DCacheCleanByMVAToPoUAddress = 0xF64, // DCCMVAU
+            DCacheCleanByMVAToPoCAddress = 0xF68, // DCCMVAC
+            DCacheCleanBySetWay= 0xF6C, // DCCSW
+            DCacheCleanAndInvalidateByMVAToPoCAddress = 0xF70, // DCCIMVAC
+            DCacheCleanAndInvalidateBySetWay= 0xF74, // DCCISW
+            BranchPredictorInvalidateAllIgnored = 0xF78, // BPIALL
 
             // Registers with addresses from 0xF90 to 0xFCF are implementation defined.
             // The following ones are valid for Cortex-M7.
-            InstructionTightlyCoupledMemoryControl = 0xF90, // ITCMCR 
-            DataTightlyCoupledMemoryControl = 0xF94, // DTCMCR 
-            AHBPControl = 0xF98, // AHBPCR 
-            L1CacheControl = 0xF9C, // CACR 
-            AHBSlaveControl = 0xFA0, // AHBSCR 
-            AuxiliaryBusFaultStatus = 0xFA8, // ABFSR 
+            InstructionTightlyCoupledMemoryControl = 0xF90, // ITCMCR
+            DataTightlyCoupledMemoryControl = 0xF94, // DTCMCR
+            AHBPControl = 0xF98, // AHBPCR
+            L1CacheControl = 0xF9C, // CACR
+            AHBSlaveControl = 0xFA0, // AHBSCR
+            AuxiliaryBusFaultStatus = 0xFA8, // ABFSR
         }
 
         private enum RegistersV7
@@ -1286,4 +1286,3 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private const uint NonMaskableInterruptIRQ = 2;
     }
 }
-
