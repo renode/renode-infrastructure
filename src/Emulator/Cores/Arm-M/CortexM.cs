@@ -286,13 +286,43 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public UInt32 FaultStatus
         {
-            set
-            {
-                tlibSetFaultStatus(value);
-            }
             get
             {
-                return tlibGetFaultStatus();
+                var secure = 0u;
+                if(TrustZoneEnabled)
+                {
+                    secure = SecureState ? 1u : 0u;
+                }
+                return tlibGetFaultStatus(secure);
+            }
+            set
+            {
+                var secure = 0u;
+                if(TrustZoneEnabled)
+                {
+                    secure = SecureState ? 1u : 0u;
+                }
+                tlibSetFaultStatus(value, secure);
+            }
+        }
+
+        public UInt32 FaultStatusNonSecure
+        {
+            get
+            {
+                if(!TrustZoneEnabled)
+                {
+                    throw new RecoverableException("You need to enable TrustZone to use FaultStatus_NS");
+                }
+                return tlibGetFaultStatus(0u);
+            }
+            set
+            {
+                if(!TrustZoneEnabled)
+                {
+                    throw new RecoverableException("You need to enable TrustZone to use FaultStatus_NS");
+                }
+                tlibSetFaultStatus(value, 0u);
             }
         }
 
@@ -685,10 +715,10 @@ namespace Antmicro.Renode.Peripherals.CPU
         private Action<int> tlibToggleFpu;
 
         [Import]
-        private Func<uint> tlibGetFaultStatus;
+        private Func<uint, uint> tlibGetFaultStatus;
 
         [Import]
-        private Action<uint> tlibSetFaultStatus;
+        private Action<uint, uint> tlibSetFaultStatus;
 
         [Import]
         private Func<uint> tlibGetMemoryFaultAddress;

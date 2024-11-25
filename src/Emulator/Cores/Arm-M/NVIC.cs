@@ -192,7 +192,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             case Registers.SystemHandlerPriority3:
                 return HandlePriorityRead(offset - 0xD14, false, isSecure);
             case Registers.ConfigurableFaultStatus:
-                return cpu.FaultStatus;
+                return isSecure || !cpu.TrustZoneEnabled ? cpu.FaultStatus : cpu.FaultStatusNonSecure;
             case Registers.InterruptControllerType:
                 return 0b0111;
             case Registers.MemoryFaultAddress:
@@ -294,7 +294,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 // Key is OK, allow access to go through
                 goto default;
             case Registers.ConfigurableFaultStatus:
-                cpu.FaultStatus &= ~value;
+                if(isSecure || !cpu.TrustZoneEnabled)
+                {
+                    cpu.FaultStatus &= ~value;
+                }
+                else
+                {
+                    cpu.FaultStatusNonSecure &= ~value;
+                }
                 break;
             case Registers.SystemHandlerPriority1:
                 // 7th interrupt is ignored
