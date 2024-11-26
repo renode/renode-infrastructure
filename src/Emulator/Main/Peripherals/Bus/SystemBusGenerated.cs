@@ -30,7 +30,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 return 0;
             }
 
-            using(SetLocalContext(context))
+            using(SetLocalContext(context, cpuState))
             {
                 if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress))
                 {
@@ -74,7 +74,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 return;
             }
 
-            using(SetLocalContext(context))
+            using(SetLocalContext(context, cpuState))
             {
                 if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress))
                 {
@@ -120,7 +120,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 return 0;
             }
 
-            using(SetLocalContext(context))
+            using(SetLocalContext(context, cpuState))
             {
                 if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress))
                 {
@@ -164,7 +164,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 return;
             }
 
-            using(SetLocalContext(context))
+            using(SetLocalContext(context, cpuState))
             {
                 if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress))
                 {
@@ -210,7 +210,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 return 0;
             }
 
-            using(SetLocalContext(context))
+            using(SetLocalContext(context, cpuState))
             {
                 if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress))
                 {
@@ -254,7 +254,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 return;
             }
 
-            using(SetLocalContext(context))
+            using(SetLocalContext(context, cpuState))
             {
                 if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress))
                 {
@@ -300,7 +300,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 return 0;
             }
 
-            using(SetLocalContext(context))
+            using(SetLocalContext(context, cpuState))
             {
                 if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress))
                 {
@@ -344,7 +344,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 return;
             }
 
-            using(SetLocalContext(context))
+            using(SetLocalContext(context, cpuState))
             {
                 if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress))
                 {

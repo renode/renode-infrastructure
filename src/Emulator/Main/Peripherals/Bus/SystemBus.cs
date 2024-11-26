@@ -1978,9 +1978,9 @@ namespace Antmicro.Renode.Peripherals.Bus
             this.Log(LogLevel.Warning, warning, address, value, type);
         }
 
-        private IDisposable SetLocalContext(IPeripheral context)
+        private IDisposable SetLocalContext(IPeripheral context, ulong? cpuState = null)
         {
-            return threadLocalContext.Initialize(context);
+            return threadLocalContext.Initialize(context, cpuState);
         }
 
         [PostDeserialization]
@@ -2230,18 +2230,18 @@ namespace Antmicro.Renode.Peripherals.Bus
         {
             public ThreadLocalContext(IBusController parent)
             {
-                context = new ThreadLocal<IPeripheral>(() => null, true);
+                context = new ThreadLocal<Tuple<IPeripheral, ulong?>>(() => null, true);
                 emptyDisposable.Disable();
             }
 
-            public IDisposable Initialize(IPeripheral cpu)
+            public IDisposable Initialize(IPeripheral cpu, ulong? cpuState)
             {
                 if(cpu == null)
                 {
                     return emptyDisposable;
                 }
                 var previousContext = context.Value;
-                context.Value = cpu;
+                context.Value = Tuple.Create(cpu, cpuState);
                 return DisposableWrapper.New(() =>
                 {
                     context.Value = previousContext;
@@ -2254,9 +2254,10 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
 
             public bool InUse => context.Value != null;
-            public IPeripheral CPU => context.Value;
+            public IPeripheral CPU => context.Value.Item1;
+            public ulong? CPUState => context.Value.Item2;
 
-            private readonly ThreadLocal<IPeripheral> context;
+            private readonly ThreadLocal<Tuple<IPeripheral, ulong?>> context;
 
             private static readonly DisposableWrapper emptyDisposable = new DisposableWrapper();
         }
