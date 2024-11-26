@@ -247,6 +247,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 break;
             case Registers.SysTickValue:
                 systick.Value = systick.Limit;
+                countFlag = false;
                 break;
             case Registers.VectorTableOffset:
                 cpu.VectorTableOffset = value & 0xFFFFFF80;
