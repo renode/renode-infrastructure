@@ -85,9 +85,6 @@
     <Reference Include="Nini">
       <HintPath>..\..\..\..\..\lib\resources\libraries\Nini.dll</HintPath>
     </Reference>
-    <Reference Include="Lucene.Net">
-      <HintPath>..\..\..\..\..\lib\resources\libraries\Lucene.Net.dll</HintPath>
-    </Reference>
     <Reference Include="LZ4">
       <HintPath>..\..\..\..\..\lib\resources\libraries\LZ4.dll</HintPath>
     </Reference>
@@ -443,12 +440,6 @@
     <Compile Include="Logging\Backends\NetworkBackend.cs" />
     <Compile Include="Logging\Backends\LoggerBackend.cs" />
     <Compile Include="Logging\Backends\TextBackend.cs" />
-    <Compile Include="Logging\Lucene\Direction.cs" />
-    <Compile Include="Logging\Lucene\Range.cs" />
-    <Compile Include="Logging\Lucene\ViewFilter.cs" />
-    <Compile Include="Logging\Lucene\SearchResults.cs" />
-    <Compile Include="Logging\Lucene\SearchContext.cs" />
-    <Compile Include="Logging\Backends\LuceneLoggerBackend.cs" />
     <Compile Include="Logging\Backends\DummyLoggerBackend.cs" />
     <Compile Include="Peripherals\Timers\LimitTimer.cs" />
     <Compile Include="Peripherals\Bus\ConnectionRegionAttribute.cs" />

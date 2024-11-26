@@ -758,7 +758,6 @@ namespace Antmicro.Renode.Utilities
             "IronPython.StdLib.dll",
             "IronPython.Wpf.dll",
             "libtftp.dll",
-            "Lucene.Net.dll",
             "LZ4.dll",
             "mcs.dll",
             "Microsoft.Dynamic.dll",

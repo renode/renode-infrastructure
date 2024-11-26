@@ -39,9 +39,6 @@
     <Reference Include="Nini">
       <HintPath>..\..\..\..\..\lib\resources\libraries\Nini.dll</HintPath>
     </Reference>
-    <Reference Include="Lucene.Net">
-      <HintPath>..\..\..\..\..\lib\resources\libraries\Lucene.Net.dll</HintPath>
-    </Reference>
     <Reference Include="LZ4">
       <HintPath>..\..\..\..\..\lib\resources\libraries\LZ4.dll</HintPath>
     </Reference>
