@@ -21,6 +21,11 @@ namespace Antmicro.Renode.Core.Structure
     public abstract class SimpleContainerBase<T> : IPeripheralContainer<T, NumberRegistrationPoint<int>>, IDisposable, ISimpleContainer
          where T : IPeripheral
     {
+        public void Register(T peripheral, int address)
+        {
+            Register(peripheral, new NumberRegistrationPoint<int>(address));
+        }
+
         public virtual IEnumerable<NumberRegistrationPoint<int>> GetRegistrationPoints(T peripheral)
         {
             return ChildCollection.Keys.Select(x => new NumberRegistrationPoint<int>(x)).ToList();
