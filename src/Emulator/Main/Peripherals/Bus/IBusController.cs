@@ -57,10 +57,11 @@ namespace Antmicro.Renode.Peripherals.Bus
         IEnumerable<ICPU> GetCPUs();
         int GetCPUSlot(ICPU cpu);
         ICPU GetCurrentCPU();
-        IEnumerable<ICPU> GetAllContextKeys();
+        IEnumerable<IPeripheral> GetAllContextKeys();
         IEnumerable<IBusRegistered<IBusPeripheral>> GetRegisteredPeripherals(IPeripheral context = null);
-        IEnumerable<IBusRegistered<IBusPeripheral>> GetRegistrationsForPeripheralType<T>(ICPU context = null);
+        IEnumerable<IBusRegistered<IBusPeripheral>> GetRegistrationsForPeripheralType<T>(IPeripheral context = null);
         bool TryGetCurrentCPU(out ICPU cpu);
+        bool TryGetCurrentContextState(out IPeripheral cpu, out ulong cpuState);
 
         void UnregisterFromAddress(ulong address, ICPU context = null);
         void MoveRegistrationWithinContext(IBusPeripheral peripheral, BusRangeRegistration newRegistration, ICPU context, Func<IEnumerable<IBusRegistered<IBusPeripheral>>, IBusRegistered<IBusPeripheral>> selector = null);

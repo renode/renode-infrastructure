@@ -380,9 +380,22 @@ namespace Antmicro.Renode.Peripherals.Bus
             return id;
         }
 
-        public IEnumerable<ICPU> GetAllContextKeys()
+        public IEnumerable<IPeripheral> GetAllContextKeys()
         {
             return peripheralsCollectionByContext.GetAllContextKeys();
+        }
+
+        public bool TryGetCurrentContextState(out IPeripheral cpu, out ulong cpuState)
+        {
+            if(!threadLocalContext.InUse || !threadLocalContext.CPUState.HasValue)
+            {
+                cpu = null;
+                cpuState = 0;
+                return false;
+            }
+            cpu = threadLocalContext.CPU;
+            cpuState = threadLocalContext.CPUState.Value;
+            return true;
         }
 
         private void HandleChangedSymbols()
@@ -550,7 +563,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 .Convert<IBusPeripheral, IMapped>();
         }
 
-        public IEnumerable<IBusRegistered<IBusPeripheral>> GetRegistrationsForPeripheralType<T>(ICPU context = null)
+        public IEnumerable<IBusRegistered<IBusPeripheral>> GetRegistrationsForPeripheralType<T>(IPeripheral context = null)
         {
             return GetAccessiblePeripheralsForContext(context)
                 .Where(x => x.Peripheral is T);
