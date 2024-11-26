@@ -329,6 +329,7 @@
     <Compile Include="Peripherals\Timers\RenesasRZG_GTM.cs" />
     <Compile Include="Peripherals\Timers\RenesasRZG_Watchdog.cs" />
     <Compile Include="Peripherals\Miscellaneous\RenesasRZG_MHU.cs" />
+    <Compile Include="Peripherals\I2C\RenesasRZG_IIC.cs" />
     <Compile Include="Peripherals\UART\Renesas_SCI.cs" />
     <Compile Include="Peripherals\UART\RCAR_UART.cs" />
     <Compile Include="Peripherals\Sensors\DummySensor.cs" />
