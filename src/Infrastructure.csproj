@@ -1721,6 +1721,7 @@
     <Compile Include="Emulator/Main/Utilities/GDB/GdbStub.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/ICpuSupportingGdb.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/ICPUWithMMU.cs" />
+    <Compile Include="Emulator/Main/Peripherals/IPeripheralWithTransactionState.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/GDB/GDBTypeBitField.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/GDB/GDBCustomType.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/GDB/GDBFeatureDescriptor.cs" />
