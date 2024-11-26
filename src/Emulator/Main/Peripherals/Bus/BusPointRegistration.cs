@@ -7,6 +7,7 @@
 //
 using System;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Peripherals.Bus
@@ -42,6 +43,11 @@ namespace Antmicro.Renode.Peripherals.Bus
         public static implicit operator BusPointRegistration(ulong address)
         {
             return new BusPointRegistration(address);
+        }
+
+        public override IConditionalRegistration WithInitiatorAndStateMask(IPeripheral initiator, StateMask mask)
+        {
+            return new BusPointRegistration(StartingPoint, Offset, initiator, cpuState: mask);
         }
 
         public void RegisterForEachContext(Action<BusPointRegistration> register)

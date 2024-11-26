@@ -68,6 +68,11 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
+        public override IConditionalRegistration WithInitiatorAndStateMask(IPeripheral initiator, StateMask mask)
+        {
+            return new BusRangeRegistration(Range, Offset, initiator, cpuState: mask);
+        }
+
         public void RegisterForEachContext(Action<BusRangeRegistration> register)
         {
             RegisterForEachContextInner(register, cpu => new BusRangeRegistration(Range, Offset, cpu));

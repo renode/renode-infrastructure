@@ -7,6 +7,7 @@
 //
 using System;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.CPU;
 
@@ -51,6 +52,11 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 return 17 * base.GetHashCode() + 101 * ConnectionRegionName.GetHashCode();
             }
+        }
+
+        public override IConditionalRegistration WithInitiatorAndStateMask(IPeripheral initiator, StateMask mask)
+        {
+            return new BusMultiRegistration(StartingPoint, Range.Size, ConnectionRegionName, initiator, cpuState: mask);
         }
 
         public void RegisterForEachContext(Action<BusMultiRegistration> register)

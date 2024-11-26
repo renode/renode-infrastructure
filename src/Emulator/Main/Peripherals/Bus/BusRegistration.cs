@@ -12,7 +12,7 @@ using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Peripherals.Bus
 {
-    public abstract class BusRegistration : IBusRegistration
+    public abstract class BusRegistration : IBusRegistration, IConditionalRegistration
     {
         protected BusRegistration(ulong startingPoint, ulong offset = 0, IPeripheral cpu = null, ICluster<ICPU> cluster = null, StateMask? stateMask = null, string condition = null)
         {
@@ -66,6 +66,8 @@ namespace Antmicro.Renode.Peripherals.Bus
             return 17 * StartingPoint.GetHashCode() + 23 * Offset.GetHashCode() + 101 * (CPU?.GetHashCode() ?? 0) + 397 * (Cluster?.GetHashCode() ?? 0)
                 + 401 * (StateMask?.GetHashCode() ?? 0) + 409 * (Condition?.GetHashCode() ?? 0);
         }
+
+        public abstract IConditionalRegistration WithInitiatorAndStateMask(IPeripheral initiator, StateMask mask);
 
         protected void RegisterForEachContextInner<T>(Action<T> register, Func<ICPU, T> registrationForCpuGetter)
             where T : BusRegistration
