@@ -553,6 +553,7 @@ namespace Antmicro.Renode.Core
         }
 
         public bool InternalPause { get; private set; }
+        public bool IgnorePeripheralRegistrationConditions { get; set; }
 
         public void RequestResetInSafeState(Action postReset = null, ICollection<IPeripheral> unresetable = null)
         {
