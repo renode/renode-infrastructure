@@ -22,7 +22,7 @@ using Machine = Antmicro.Renode.Core.Machine;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public partial class CortexM : Arm
+    public partial class CortexM : Arm, IPeripheralWithTransactionState
     {
         public CortexM(string cpuType, IMachine machine, NVIC nvic, [NameAlias("id")] uint cpuId = 0, Endianess endianness = Endianess.LittleEndian,
             uint? fpuInterruptNumber = null, uint? numberOfMPURegions = null, bool enableTrustZone = false, uint? numberOfSAURegions = null, uint? numberOfIDAURegions = null)
@@ -127,6 +127,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 return features;
             }
         }
+
+        public IReadOnlyDictionary<string, int> StateBits { get { return stateBits; } }
 
         /// <remark>Should only be used for TrustZone CPUs, <see cref="RecoverableException"/> is thrown otherwise.</remark>
         public IDAURegion GetIDAURegion(uint regionIndex)
@@ -772,6 +774,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             public int AccessWidth;
         }
 
+        private static readonly IReadOnlyDictionary<string, int> stateBits = new Dictionary<string, int>
+        {
+            ["privileged"] = 0,
+            ["cpuSecure"] = 1,
+            ["attributionSecure"] = 2,
+        };
 
         public struct IDAURegion
         {
