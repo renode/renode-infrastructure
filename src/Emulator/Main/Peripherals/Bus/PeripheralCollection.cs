@@ -90,6 +90,14 @@ namespace Antmicro.Renode.Peripherals.Bus
                 }
             }
 
+            public void AddAll(PeripheralCollection source)
+            {
+                foreach(var block in source.blocks.Union(source.shortBlocks.Values))
+                {
+                    Add(block.Start, block.End, block.Peripheral, block.AccessMethods);
+                }
+            }
+
             public void Move(IBusRegistered<IBusPeripheral> registeredPeripheral, BusRangeRegistration newRegistration)
             {
                 var newRegisteredPeripheral = new BusRegistered<IBusPeripheral>(registeredPeripheral.Peripheral, newRegistration);

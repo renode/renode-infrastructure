@@ -231,10 +231,7 @@ namespace Antmicro.Renode.Core
         {
             if(rangeEnumerable != null)
             {
-                foreach(var range in rangeEnumerable)
-                {
-                    Add(range);
-                }
+                AddAll(rangeEnumerable);
             }
         }
 
@@ -254,6 +251,14 @@ namespace Antmicro.Renode.Core
             ranges.Add(range);
         }
 
+        public void AddAll(IEnumerable<Range> source)
+        {
+            foreach(var range in source)
+            {
+                Add(range);
+            }
+        }
+
         public void Clear()
         {
             ranges.Clear();
@@ -268,6 +273,11 @@ namespace Antmicro.Renode.Core
         {
             // Ranges are merged when added to the collection which means it's only possible if one of elements contains this whole range.
             return ranges.Any(existingRange => existingRange.Contains(range));
+        }
+
+        public bool ContainsPoint(ulong point)
+        {
+            return ranges.Any(existingRange => existingRange.Contains(point));
         }
 
         public IEnumerator GetEnumerator()

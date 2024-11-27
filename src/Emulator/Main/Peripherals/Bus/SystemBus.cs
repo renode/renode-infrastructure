@@ -1277,9 +1277,9 @@ namespace Antmicro.Renode.Peripherals.Bus
         /// This method will return all accessible peripherals for the given context.
         /// This means all peripherals accessible only in the current context, and peripherals accessible globally (from any - `null` - context).
         /// </summary>
-        private IEnumerable<IBusRegistered<IBusPeripheral>> GetAccessiblePeripheralsForContext(IPeripheral context)
+        private IEnumerable<IBusRegistered<IBusPeripheral>> GetAccessiblePeripheralsForContext(IPeripheral context, ulong? cpuState = null)
         {
-            var locals = peripheralsCollectionByContext[context].Peripherals;
+            var locals = peripheralsCollectionByContext.GetValue(context, cpuState).Peripherals;
             return context != null ? locals.Concat(peripheralsCollectionByContext[null].Peripherals) : locals;
         }
 
@@ -1636,8 +1636,10 @@ namespace Antmicro.Renode.Peripherals.Bus
                 {
                     AddContextKeys(context);
                 }
-                var busRegisteredInContext = peripheralsCollectionByContext[context].Peripherals;
-                var intersecting = busRegisteredInContext.FirstOrDefault(x => x.RegistrationPoint.Range.Intersects(registrationPoint.Range));
+                var busRegisteredInContext = peripheralsCollectionByContext.GetValue(context, stateMask?.State).Peripherals;
+                var intersecting = busRegisteredInContext
+                    .FirstOrDefault(x => x.RegistrationPoint.Range.Intersects(registrationPoint.Range)
+                                      && x.RegistrationPoint.StateMask?.Mask == registrationPoint.StateMask?.Mask);
                 if(intersecting != null)
                 {
                     throw new RegistrationException($"Given address {registrationPoint.Range} for peripheral {peripheral} conflicts with address {intersecting.RegistrationPoint.Range} of peripheral {intersecting.Peripheral}", "address");
@@ -1833,9 +1835,17 @@ namespace Antmicro.Renode.Peripherals.Bus
             globalLookup = new SymbolLookup();
             localLookups = new Dictionary<ICPU, SymbolLookup>();
             cachedCpuId = new ThreadLocal<int>();
-            peripheralsCollectionByContext = new ContextKeyDictionary<PeripheralCollection>(() => new PeripheralCollection(this));
+            peripheralsCollectionByContext = new ContextKeyDictionary<PeripheralCollection>(() => new PeripheralCollection(this), (a, b) =>
+            {
+                a.AddAll(b); // Fine to mutate a here
+                return a;
+            });
             lockedPeripherals = new HashSet<IPeripheral>();
-            lockedRangesCollectionByContext = new ContextKeyDictionary<MinimalRangesCollection>(() => new MinimalRangesCollection());
+            lockedRangesCollectionByContext = new ContextKeyDictionary<MinimalRangesCollection>(() => new MinimalRangesCollection(), (a, b) =>
+            {
+                a.AddAll(b);
+                return a;
+            });
             mappingsForPeripheral = new Dictionary<IBusPeripheral, List<MappedSegmentWrapper>>();
             tags = new Dictionary<Range, TagEntry>();
             svdDevices = new List<SVDParser>();
@@ -2049,10 +2059,11 @@ namespace Antmicro.Renode.Peripherals.Bus
         // It doesn't implement IDictionary because serialization doesn't work correctly for dictionaries without two generic parameters.
         private class ContextKeyDictionary<TValue> where TValue : class
         {
-            public ContextKeyDictionary(Func<TValue> defaultFactory)
+            public ContextKeyDictionary(Func<TValue> defaultFactory, Func<TValue, TValue, TValue> merge)
             {
                 this.defaultFactory = defaultFactory;
-                globalValue[AllAccessMask] = defaultFactory();
+                this.merge = merge;
+                globalAllAccess = globalValue[AllAccessMask] = defaultFactory();
             }
 
             // Adding the context key might happen on peripheral registration, or on first use.
@@ -2067,7 +2078,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     return;
                 }
                 cpuLocalValues[key] = new Dictionary<StateMask, TValue>();
-                cpuLocalValues[key][AllAccessMask] = defaultFactory();
+                cpuAllAccess[key] = cpuLocalValues[key][AllAccessMask] = defaultFactory();
             }
 
             public void RemoveContextKey(IPeripheral key)
@@ -2077,15 +2088,16 @@ namespace Antmicro.Renode.Peripherals.Bus
                     throw new ArgumentNullException(nameof(key));
                 }
                 cpuLocalValues.Remove(key);
+                DropCaches(); // has the effect of dropping caches when a peripheral is unregistered
             }
 
             public TValue this[IPeripheral key] => GetValue(key);
 
-            public TValue GetValue(IPeripheral key)
+            public TValue GetValue(IPeripheral key, ulong? cpuState = null)
             {
-                if(!TryGetValue(key, out var value))
+                if(!TryGetValue(key, cpuState, out var value))
                 {
-                    throw new KeyNotFoundException($"{typeof(TValue).Name} not found for the given CPU: {key.GetName()}");
+                    throw new RecoverableException($"{typeof(TValue).Name} not found for the given context: {key.GetName()} in state: {cpuState}");
                 }
                 return value;
             }
@@ -2100,6 +2112,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     collection[effectiveMask] = defaultFactory();
                 }
                 action(collection[effectiveMask]);
+                DropCaches();
             }
 
             public IEnumerable<TValue> GetAllDistinctValues()
@@ -2112,33 +2125,82 @@ namespace Antmicro.Renode.Peripherals.Bus
                 return cpuLocalValues.Keys;
             }
 
-            public bool TryGetValue(IPeripheral key, out TValue value)
+            public IEnumerable<StateMask> GetAllStateKeys(IPeripheral context)
             {
-                if(key != null && cpuLocalValues.TryGetValue(key, out var thisCpuValues))
-                {
-                    if(TryGetValueForState(thisCpuValues, null, out value))
-                    {
-                        return true;
-                    }
-                }
-                return TryGetValueForState(globalValue, null, out value);
+                return (context == null ? globalValue : cpuLocalValues[context]).Keys;
             }
 
-            private bool TryGetValueForState(Dictionary<StateMask, TValue> collection, ulong? cpuState, out TValue value)
+            public bool TryGetValue(IPeripheral key, ulong? cpuState, out TValue value)
+            {
+                var collectionToSearch = globalValue.AsEnumerable();
+                if(key != null && cpuLocalValues.TryGetValue(key, out var thisCpuValues))
+                {
+                    // Note that in order for the 'local peripheral overrides the global one' behavior to work as intended,
+                    // we must check the local peripherals first. That way they 'reserve' their spot in the cache. This function
+                    // also checks the global collection when called with a context argument, but it does it only after going
+                    // through the context-specific one to ensure this.
+                    collectionToSearch = thisCpuValues.Concat(collectionToSearch);
+                }
+                return TryGetValueForState(collectionToSearch, key, cpuState, out value);
+            }
+
+            private bool TryGetValueForState(IEnumerable<KeyValuePair<StateMask, TValue>> collection, IPeripheral key, ulong? cpuState, out TValue value)
             {
                 if(!cpuState.HasValue)
                 {
-                    value = collection[AllAccessMask];
+                    value = key == null ? globalAllAccess : cpuAllAccess[key];
                     return true;
                 }
-                value = default(TValue);
-                return false;
+                if(key != null && !cpuInStateCache.ContainsKey(key))
+                {
+                    cpuInStateCache[key] = new Dictionary<ulong, TValue>();
+                }
+                var cache = key == null ? globalCache : cpuInStateCache[key];
+                if(cache.TryGetValue(cpuState.Value, out var cachedValue))
+                {
+                    value = cachedValue;
+                    return true;
+                }
+                else
+                {
+                    cache[cpuState.Value] = cachedValue = defaultFactory();
+                }
+                // The core of the state filtering logic. Look up which element fits the current initiator state.
+                // This might need multiple checks. We might encounter a peripheral mapped with state,
+                // mask = 1,1 while the CPU state is 0x3 (which passes the mask), but the matching collection we
+                // find first does not contain this peripheral (say it's in another collection with a more specific,
+                // or just different matching mask, in this example 2,2 or 3,3). We probe the found collection based
+                // on the address we want to access and return the one where it's mapped.
+                bool anyHit = false;
+                foreach(var sm in collection)
+                {
+                    var mask = sm.Key;
+                    if((cpuState.Value & mask.Mask) == mask.State)
+                    {
+                        anyHit = true;
+                        merge(cachedValue, pair.Value);
+                    }
+                }
+                value = anyHit ? cachedValue : default(TValue);
+                return anyHit;
+            }
+
+            private void DropCaches()
+            {
+                cpuInStateCache.Clear();
+                globalCache.Clear();
             }
 
             private readonly Dictionary<IPeripheral, Dictionary<StateMask, TValue>> cpuLocalValues = new Dictionary<IPeripheral, Dictionary<StateMask, TValue>>();
+            private readonly Dictionary<IPeripheral, Dictionary<ulong, TValue>> cpuInStateCache = new Dictionary<IPeripheral, Dictionary<ulong, TValue>>();
             private readonly Func<TValue> defaultFactory;
+            private readonly Func<TValue, TValue, TValue> merge;
             private readonly Dictionary<StateMask, TValue> globalValue = new Dictionary<StateMask, TValue>();
-            private static readonly StateMask AllAccessMask = new StateMask(0, 0);
+            private readonly Dictionary<ulong, TValue> globalCache = new Dictionary<ulong, TValue>();
+            // Please take performance into account before removing these caches (they were added because looking up a value
+            // in a Dictionary<StateMask, TValue> was very slow)
+            private readonly Dictionary<IPeripheral, TValue> cpuAllAccess = new Dictionary<IPeripheral, TValue>();
+            private readonly TValue globalAllAccess;
         }
 
         private Dictionary<IBusPeripheral, List<MappedSegmentWrapper>> mappingsForPeripheral;
