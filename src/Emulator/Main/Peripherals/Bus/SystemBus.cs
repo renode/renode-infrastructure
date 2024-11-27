@@ -87,6 +87,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             using(Machine.ObtainPausedState(true))
             {
                 Machine.UnregisterAsAChildOf(this, peripheral);
+                RemoveContextKeys(peripheral);
             }
         }
 
@@ -226,9 +227,8 @@ namespace Antmicro.Renode.Peripherals.Bus
                 }
                 Machine.RegisterAsAChildOf(this, cpu, registrationPoint);
                 cpuById.Add(registrationPoint.Slot.Value, cpu);
-                peripheralsCollectionByContext[cpu] = new PeripheralCollection(this);
                 idByCpu.Add(cpu, registrationPoint.Slot.Value);
-                lockedRangesCollectionByContext[cpu] = new MinimalRangesCollection();
+                AddContextKeys(cpu);
                 if(cpu is ICPUWithMappedMemory memoryMappedCpu)
                 {
                     foreach(var mapping in mappingsForPeripheral.SelectMany(x => x.Value)
@@ -261,8 +261,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     var id = idByCpu[cpu];
                     idByCpu.Remove(cpu);
                     cpuById.Remove(id);
-                    peripheralsCollectionByContext.RemoveContextKey(cpu);
-                    lockedRangesCollectionByContext.RemoveContextKey(cpu);
+                    RemoveContextKeys(cpu);
                 }
             }
         }
@@ -1236,6 +1235,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 peripheralsCollectionByContext[context].Remove(peripheral);
             }
             peripheralsCollectionByContext[null].Remove(peripheral);
+            RemoveContextKeys(peripheral);
         }
 
         private void UnregisterInner(IBusRegistered<IBusPeripheral> busRegistered)
@@ -1257,6 +1257,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
             var perCoreRegistration = busRegistered.RegistrationPoint as IBusRegistration;
             peripheralsCollectionByContext[perCoreRegistration.CPU].Remove(busRegistered.RegistrationPoint.Range.StartAddress, busRegistered.RegistrationPoint.Range.EndAddress);
+            RemoveContextKeys(busRegistered.Peripheral);
         }
 
         // this wrapper is to avoid compiler crashing on Ubuntu 20.04;
@@ -1819,9 +1820,9 @@ namespace Antmicro.Renode.Peripherals.Bus
             globalLookup = new SymbolLookup();
             localLookups = new Dictionary<ICPU, SymbolLookup>();
             cachedCpuId = new ThreadLocal<int>();
-            peripheralsCollectionByContext = new ContextKeyDictionary<PeripheralCollection>(new PeripheralCollection(this));
+            peripheralsCollectionByContext = new ContextKeyDictionary<PeripheralCollection>(() => new PeripheralCollection(this));
             lockedPeripherals = new HashSet<IPeripheral>();
-            lockedRangesCollectionByContext = new ContextKeyDictionary<MinimalRangesCollection>(new MinimalRangesCollection());
+            lockedRangesCollectionByContext = new ContextKeyDictionary<MinimalRangesCollection>(() => new MinimalRangesCollection());
             mappingsForPeripheral = new Dictionary<IBusPeripheral, List<MappedSegmentWrapper>>();
             tags = new Dictionary<Range, TagEntry>();
             svdDevices = new List<SVDParser>();
@@ -1996,6 +1997,18 @@ namespace Antmicro.Renode.Peripherals.Bus
             return threadLocalContext.Initialize(context, cpuState);
         }
 
+        private void AddContextKeys(IPeripheral peripheral)
+        {
+            peripheralsCollectionByContext.AddContextKey(peripheral);
+            lockedRangesCollectionByContext.AddContextKey(peripheral);
+        }
+
+        private void RemoveContextKeys(IPeripheral peripheral)
+        {
+            peripheralsCollectionByContext.RemoveContextKey(peripheral);
+            lockedRangesCollectionByContext.RemoveContextKey(peripheral);
+        }
+
         [PostDeserialization]
         private void PostDeserializationInitStructures()
         {
@@ -2023,16 +2036,31 @@ namespace Antmicro.Renode.Peripherals.Bus
         // It doesn't implement IDictionary because serialization doesn't work correctly for dictionaries without two generic parameters.
         private class ContextKeyDictionary<TValue> where TValue : class
         {
-            public ContextKeyDictionary(TValue globalValue)
+            public ContextKeyDictionary(Func<TValue> defaultFactory)
             {
-                this.globalValue = globalValue;
+                this.defaultFactory = defaultFactory;
+                globalValue = defaultFactory();
+            }
+
+            // Adding the context key might happen on peripheral registration, or on first use.
+            public void AddContextKey(IPeripheral key)
+            {
+                if(key == null)
+                {
+                    throw new ArgumentNullException(nameof(key));
+                }
+                if(cpuLocalValues.ContainsKey(key))
+                {
+                    return;
+                }
+                cpuLocalValues[key] = defaultFactory();
             }
 
             public void RemoveContextKey(IPeripheral key)
             {
-                if(key == null || !cpuLocalValues.ContainsKey(key))
+                if(key == null)
                 {
-                    throw new KeyNotFoundException($"Key: {key} is null or doesn't exist");
+                    throw new ArgumentNullException(nameof(key));
                 }
                 cpuLocalValues.Remove(key);
             }
@@ -2091,6 +2119,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
 
             private readonly Dictionary<IPeripheral, TValue> cpuLocalValues = new Dictionary<IPeripheral, TValue>();
+            private readonly Func<TValue> defaultFactory;
             private readonly TValue globalValue;
         }
 
