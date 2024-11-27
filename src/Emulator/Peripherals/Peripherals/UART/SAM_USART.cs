@@ -17,11 +17,11 @@ namespace Antmicro.Renode.Peripherals.UART
     public class SAM_USART : UARTBase, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize,
         ISamPdcBytePeripheral
     {
-        public SAM_USART(IMachine machine, bool enablePdc = false) : base(machine)
+        public SAM_USART(IMachine machine, bool uartOnlyMode = false, bool enablePdc = false) : base(machine)
         {
             RegistersCollection = new DoubleWordRegisterCollection(this);
             IRQ = new GPIO();
-            DefineRegisters();
+            DefineRegisters(uartOnlyMode);
             pdc = enablePdc ? new SAM_PDC(machine, this, (long)Registers.PdcReceivePointer, UpdateInterrupts) : null;
             Size = enablePdc ? 0x128 : 0x100;
             Reset();
@@ -119,7 +119,7 @@ namespace Antmicro.Renode.Peripherals.UART
             UpdateInterrupts();
         }
 
-        private void DefineRegisters()
+        private void DefineRegisters(bool uartOnlyMode)
         {
             // NOTE: Registers are assumed not to be in SPI mode
             Func<IFlagRegisterField, Action<bool, bool>> writeOneToClearFlag = flag => (_, value) =>
@@ -139,17 +139,23 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithFlag(6, out var enableTransmitter, FieldMode.Write, name: "TXEN")
                 .WithFlag(7, out var disableTransmitter, FieldMode.Write, name: "TXDIS")
                 .WithTaggedFlag("RSTSTA", 8)
-                .WithTaggedFlag("STTBRK", 9)
-                .WithTaggedFlag("STPBRK", 10)
-                .WithTaggedFlag("STTTO", 11)
-                .WithTaggedFlag("SENDA", 12)
-                .WithTaggedFlag("RSTIT", 13)
-                .WithTaggedFlag("RSTNACK", 14)
-                .WithTaggedFlag("RETTO", 15)
-                .WithTaggedFlag("DTREN", 16)
-                .WithTaggedFlag("DTRDIS", 17)
-                .WithTaggedFlag("RTSEN", 18)
-                .WithTaggedFlag("RTSDIS", 19)
+                .If(uartOnlyMode)
+                    .Then(reg => reg
+                        .WithReservedBits(9, 11)
+                    )
+                    .Else(reg => reg
+                        .WithTaggedFlag("STTBRK", 9)
+                        .WithTaggedFlag("STPBRK", 10)
+                        .WithTaggedFlag("STTTO", 11)
+                        .WithTaggedFlag("SENDA", 12)
+                        .WithTaggedFlag("RSTIT", 13)
+                        .WithTaggedFlag("RSTNACK", 14)
+                        .WithTaggedFlag("RETTO", 15)
+                        .WithTaggedFlag("DTREN", 16)
+                        .WithTaggedFlag("DTRDIS", 17)
+                        .WithTaggedFlag("RTSEN", 18)
+                        .WithTaggedFlag("RTSDIS", 19)
+                    )
                 .WithReservedBits(20, 12)
                 .WithWriteCallback((_, __) =>
                 {
@@ -183,57 +189,99 @@ namespace Antmicro.Renode.Peripherals.UART
             ;
 
             Registers.Mode.Define(this)
-                .WithValueField(0, 4, valueProviderCallback: _ => 0, writeCallback: (_, value) =>
-                {
-                    if(value != 0)
-                    {
-                        this.Log(LogLevel.Warning, "Trying to configure the device to an unsupported mode!");
-                    }
-                }, name: "USART_MODE")
-                .WithTag("USCLKS", 4, 2)
-                .WithTag("CHRL", 6, 2)
-                .WithTaggedFlag("SYNC", 8)
+                .If(uartOnlyMode)
+                    .Then(reg => reg
+                        .WithReservedBits(0, 9)
+                    )
+                    .Else(reg => reg
+                        .WithValueField(0, 4, valueProviderCallback: _ => 0, writeCallback: (_, value) =>
+                        {
+                            if(value != 0)
+                            {
+                                this.Log(LogLevel.Warning, "Trying to configure the device to an unsupported mode!");
+                            }
+                        }, name: "USART_MODE")
+                        .WithTag("USCLKS", 4, 2)
+                        .WithTag("CHRL", 6, 2)
+                        .WithTaggedFlag("SYNC", 8)
+                    )
                 .WithEnumField(9, 3, out parityType, name: "PAR")
-                .WithEnumField(12, 2, out numberOfStopBits, name: "NBSTOP")
+                .If(uartOnlyMode)
+                    .Then(reg => reg
+                        .WithReservedBits(12, 2)
+                    )
+                    .Else(reg => reg
+                        .WithEnumField(12, 2, out numberOfStopBits, name: "NBSTOP")
+                    )
                 .WithTag("CHMODE", 14, 2)
-                .WithTaggedFlag("MSBF", 16)
-                .WithTaggedFlag("MODE9", 17)
-                .WithTaggedFlag("CLKO", 18)
-                .WithTaggedFlag("OVER", 19)
-                .WithTaggedFlag("INACK", 20)
-                .WithTaggedFlag("DSNACK", 21)
-                .WithTaggedFlag("VAR_SYNC", 22)
-                .WithTaggedFlag("INVDATA", 23)
-                .WithTag("MAX_ITERATION", 24, 3)
-                .WithReservedBits(27, 1)
-                .WithTaggedFlag("FILTER", 28)
-                .WithTaggedFlag("MAN", 29)
-                .WithTaggedFlag("MODSYNC", 30)
-                .WithTaggedFlag("ONEBIT", 31)
+                .If(uartOnlyMode)
+                    .Then(reg => reg
+                        .WithReservedBits(16, 16)
+                    )
+                    .Else(reg => reg
+                        .WithTaggedFlag("MSBF", 16)
+                        .WithTaggedFlag("MODE9", 17)
+                        .WithTaggedFlag("CLKO", 18)
+                        .WithTaggedFlag("OVER", 19)
+                        .WithTaggedFlag("INACK", 20)
+                        .WithTaggedFlag("DSNACK", 21)
+                        .WithTaggedFlag("VAR_SYNC", 22)
+                        .WithTaggedFlag("INVDATA", 23)
+                        .WithTag("MAX_ITERATION", 24, 3)
+                        .WithReservedBits(27, 1)
+                        .WithTaggedFlag("FILTER", 28)
+                        .WithTaggedFlag("MAN", 29)
+                        .WithTaggedFlag("MODSYNC", 30)
+                        .WithTaggedFlag("ONEBIT", 31)
+                    )
             ;
 
             Registers.InterruptEnable.Define(this)
                 .WithFlag(0, out receiverReadyIrqEnabled, FieldMode.Set, name: "IER_RXRDY")
                 .WithFlag(1, out transmitterReadyIrqEnabled, FieldMode.Set, name: "IER_TXRDY")
-                .WithTaggedFlag("RXBRK", 2)
+                .If(uartOnlyMode)
+                    .Then(reg => reg
+                        .WithReservedBits(2, 1)
+                    )
+                    .Else(reg => reg
+                        .WithTaggedFlag("RXBRK", 2)
+                    )
                 .WithFlag(3, out endOfRxBufferIrqEnabled, FieldMode.Set, name: "ENDRX")
                 .WithFlag(4, out endOfTxBufferIrqEnabled, FieldMode.Set, name: "ENDTX")
                 .WithTaggedFlag("OVRE", 5)
                 .WithTaggedFlag("FRAME", 6)
                 .WithTaggedFlag("PARE", 7)
-                .WithTaggedFlag("TIMEOUT", 8)
+                .If(uartOnlyMode)
+                    .Then(reg => reg
+                        .WithReservedBits(8, 1)
+                    )
+                    .Else(reg => reg
+                        .WithTaggedFlag("TIMEOUT", 8)
+                    )
                 .WithTaggedFlag("TXEMPTY", 9)
-                .WithTaggedFlag("ITER", 10)
+                .If(uartOnlyMode)
+                    .Then(reg => reg
+                        .WithReservedBits(10, 1)
+                    )
+                    .Else(reg => reg
+                        .WithTaggedFlag("ITER", 10)
+                    )
                 .WithFlag(11, out txBufferEmptyIrqEnabled, FieldMode.Set, name: "TXBUFE")
                 .WithFlag(12, out rxBufferFullIrqEnabled, FieldMode.Set, name: "RXBUFF")
-                .WithTaggedFlag("NACK", 13)
-                .WithReservedBits(14, 2)
-                .WithTaggedFlag("RIIC", 16)
-                .WithTaggedFlag("DSRIC", 17)
-                .WithTaggedFlag("DCDIC", 18)
-                .WithTaggedFlag("CTSIC", 19)
-                .WithReservedBits(20, 4)
-                .WithTaggedFlag("MANE", 24)
+                .If(uartOnlyMode)
+                    .Then(reg => reg
+                        .WithReservedBits(13, 12)
+                    )
+                    .Else(reg => reg
+                        .WithTaggedFlag("NACK", 13)
+                        .WithReservedBits(14, 2)
+                        .WithTaggedFlag("RIIC", 16)
+                        .WithTaggedFlag("DSRIC", 17)
+                        .WithTaggedFlag("DCDIC", 18)
+                        .WithTaggedFlag("CTSIC", 19)
+                        .WithReservedBits(20, 4)
+                        .WithTaggedFlag("MANE", 24)
+                    )
                 .WithReservedBits(25, 7)
                 .WithWriteCallback((_, __) => UpdateInterrupts())
             ;
@@ -241,25 +289,49 @@ namespace Antmicro.Renode.Peripherals.UART
             Registers.InterruptDisable.Define(this)
                 .WithFlag(0, FieldMode.Write, writeCallback: writeOneToClearFlag(receiverReadyIrqEnabled), name: "IDR_RXRDY")
                 .WithFlag(1, FieldMode.Write, writeCallback: writeOneToClearFlag(transmitterReadyIrqEnabled), name: "IDR_TXRDY")
-                .WithTaggedFlag("RXBRK", 2)
+                .If(uartOnlyMode)
+                    .Then(reg => reg
+                        .WithReservedBits(2, 1)
+                    )
+                    .Else(reg => reg
+                        .WithTaggedFlag("RXBRK", 2)
+                    )
                 .WithFlag(3, FieldMode.Write, writeCallback: writeOneToClearFlag(endOfRxBufferIrqEnabled), name: "ENDRX")
                 .WithFlag(4, FieldMode.Write, writeCallback: writeOneToClearFlag(endOfTxBufferIrqEnabled), name: "ENDTX")
                 .WithTaggedFlag("OVRE", 5)
                 .WithTaggedFlag("FRAME", 6)
                 .WithTaggedFlag("PARE", 7)
-                .WithTaggedFlag("TIMEOUT", 8)
+                .If(uartOnlyMode)
+                    .Then(reg => reg
+                        .WithReservedBits(8, 1)
+                    )
+                    .Else(reg => reg
+                        .WithTaggedFlag("TIMEOUT", 8)
+                    )
                 .WithTaggedFlag("TXEMPTY", 9)
-                .WithTaggedFlag("ITER", 10)
+                .If(uartOnlyMode)
+                    .Then(reg => reg
+                        .WithReservedBits(10, 1)
+                    )
+                    .Else(reg => reg
+                        .WithTaggedFlag("ITER", 10)
+                    )
                 .WithFlag(11, FieldMode.Write, writeCallback: writeOneToClearFlag(txBufferEmptyIrqEnabled), name: "TXBUFE")
                 .WithFlag(12, FieldMode.Write, writeCallback: writeOneToClearFlag(rxBufferFullIrqEnabled), name: "RXBUFF")
-                .WithTaggedFlag("NACK", 13)
-                .WithReservedBits(14, 2)
-                .WithTaggedFlag("RIIC", 16)
-                .WithTaggedFlag("DSRIC", 17)
-                .WithTaggedFlag("DCDIC", 18)
-                .WithTaggedFlag("CTSIC", 19)
-                .WithReservedBits(20, 4)
-                .WithTaggedFlag("MANE", 24)
+                .If(uartOnlyMode)
+                    .Then(reg => reg
+                        .WithReservedBits(13, 12)
+                    )
+                    .Else(reg => reg
+                        .WithTaggedFlag("NACK", 13)
+                        .WithReservedBits(14, 2)
+                        .WithTaggedFlag("RIIC", 16)
+                        .WithTaggedFlag("DSRIC", 17)
+                        .WithTaggedFlag("DCDIC", 18)
+                        .WithTaggedFlag("CTSIC", 19)
+                        .WithReservedBits(20, 4)
+                        .WithTaggedFlag("MANE", 24)
+                    )
                 .WithReservedBits(25, 7)
                 .WithWriteCallback((_, __) => UpdateInterrupts())
             ;
@@ -267,25 +339,48 @@ namespace Antmicro.Renode.Peripherals.UART
             Registers.InterruptMask.Define(this)
                 .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => receiverReadyIrqEnabled.Value, name: "IMR_RXRDY")
                 .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => transmitterReadyIrqEnabled.Value, name: "IMR_TXRDY")
-                .WithTaggedFlag("RXBRK", 2)
+                .If(uartOnlyMode)
+                    .Then(reg => reg
+                        .WithReservedBits(2, 1)
+                    )
+                    .Else(reg => reg
+                        .WithTaggedFlag("RXBRK", 2)
+                    )
                 .WithFlag(3, FieldMode.Read, valueProviderCallback: _ => endOfRxBufferIrqEnabled.Value, name: "ENDRX")
                 .WithFlag(4, FieldMode.Read, valueProviderCallback: _ => endOfTxBufferIrqEnabled.Value, name: "ENDTX")
                 .WithTaggedFlag("OVRE", 5)
                 .WithTaggedFlag("FRAME", 6)
-                .WithTaggedFlag("PARE", 7)
-                .WithTaggedFlag("TIMEOUT", 8)
+                .If(uartOnlyMode)
+                    .Then(reg => reg
+                        .WithReservedBits(8, 1)
+                    )
+                    .Else(reg => reg
+                        .WithTaggedFlag("TIMEOUT", 8)
+                    )
                 .WithTaggedFlag("TXEMPTY", 9)
-                .WithTaggedFlag("ITER", 10)
+                .If(uartOnlyMode)
+                    .Then(reg => reg
+                        .WithReservedBits(10, 1)
+                    )
+                    .Else(reg => reg
+                        .WithTaggedFlag("ITER", 10)
+                    )
                 .WithFlag(11, FieldMode.Read, valueProviderCallback: _ => txBufferEmptyIrqEnabled.Value, name: "TXBUFE")
                 .WithFlag(12, FieldMode.Read, valueProviderCallback: _ => rxBufferFullIrqEnabled.Value, name: "RXBUFF")
-                .WithTaggedFlag("NACK", 13)
-                .WithReservedBits(14, 2)
-                .WithTaggedFlag("RIIC", 16)
-                .WithTaggedFlag("DSRIC", 17)
-                .WithTaggedFlag("DCDIC", 18)
-                .WithTaggedFlag("CTSIC", 19)
-                .WithReservedBits(20, 4)
-                .WithTaggedFlag("MANE", 24)
+                .If(uartOnlyMode)
+                    .Then(reg => reg
+                        .WithReservedBits(13, 12)
+                    )
+                    .Else(reg => reg
+                        .WithTaggedFlag("NACK", 13)
+                        .WithReservedBits(14, 2)
+                        .WithTaggedFlag("RIIC", 16)
+                        .WithTaggedFlag("DSRIC", 17)
+                        .WithTaggedFlag("DCDIC", 18)
+                        .WithTaggedFlag("CTSIC", 19)
+                        .WithReservedBits(20, 4)
+                        .WithTaggedFlag("MANE", 24)
+                    )
                 .WithReservedBits(25, 7)
                 .WithWriteCallback((_, __) => UpdateInterrupts())
             ;
@@ -296,50 +391,97 @@ namespace Antmicro.Renode.Peripherals.UART
                 {
                     return transmitterEnabled;
                 }, name: "TXRDY")
-                .WithTaggedFlag("RXBRK", 2)
+                .If(uartOnlyMode)
+                    .Then(reg => reg
+                        .WithReservedBits(2, 1)
+                    )
+                    .Else(reg => reg
+                        .WithTaggedFlag("RXBRK", 2)
+                    )
                 .WithFlag(3, FieldMode.Read, valueProviderCallback: _ => pdc?.EndOfRxBuffer ?? false, name: "ENDRX")
                 .WithFlag(4, FieldMode.Read, valueProviderCallback: _ => pdc?.EndOfTxBuffer ?? false, name: "ENDTX")
                 .WithTaggedFlag("OVRE", 5)
                 .WithTaggedFlag("FRAME", 6)
                 .WithTaggedFlag("PARE", 7)
-                .WithTaggedFlag("TIMEOUT", 8)
+                .If(uartOnlyMode)
+                    .Then(reg => reg
+                        .WithReservedBits(8, 1)
+                    )
+                    .Else(reg => reg
+                        .WithTaggedFlag("TIMEOUT", 8)
+                    )
                 .WithFlag(9, FieldMode.Read, valueProviderCallback: _ => true, name: "TXEMPTY")
-                .WithTaggedFlag("ITER", 10)
+                .If(uartOnlyMode)
+                    .Then(reg => reg
+                        .WithReservedBits(10, 1)
+                    )
+                    .Else(reg => reg
+                        .WithTaggedFlag("ITER", 10)
+                    )
                 .WithFlag(11, FieldMode.Read, valueProviderCallback: _ => pdc?.TxBufferEmpty ?? false, name: "TXBUFE")
                 .WithFlag(12, FieldMode.Read, valueProviderCallback: _ => pdc?.RxBufferFull ?? false, name: "RXBUFF")
-                .WithTaggedFlag("NACK", 13)
-                .WithReservedBits(14, 2)
-                .WithTaggedFlag("RIIC", 16)
-                .WithTaggedFlag("DSRIC", 17)
-                .WithTaggedFlag("DCDIC", 18)
-                .WithTaggedFlag("CTSIC", 19)
-                .WithTaggedFlag("RI", 20)
-                .WithTaggedFlag("DSR", 21)
-                .WithTaggedFlag("DCD", 22)
-                .WithTaggedFlag("CTS", 23)
-                .WithTaggedFlag("MANERR", 24)
+                .If(uartOnlyMode)
+                    .Then(reg => reg
+                        .WithReservedBits(13, 12)
+                    )
+                    .Else(reg => reg
+                        .WithTaggedFlag("NACK", 13)
+                        .WithReservedBits(14, 2)
+                        .WithTaggedFlag("RIIC", 16)
+                        .WithTaggedFlag("DSRIC", 17)
+                        .WithTaggedFlag("DCDIC", 18)
+                        .WithTaggedFlag("CTSIC", 19)
+                        .WithTaggedFlag("RI", 20)
+                        .WithTaggedFlag("DSR", 21)
+                        .WithTaggedFlag("DCD", 22)
+                        .WithTaggedFlag("CTS", 23)
+                        .WithTaggedFlag("MANERR", 24)
+                    )
                 .WithReservedBits(25, 7)
             ;
 
             Registers.ReceiveHolding.Define(this)
                 .WithValueField(0, 9, FieldMode.Read, valueProviderCallback: _ => ReadBuffer() ?? 0x0, name: "RXCHR")
                 .WithReservedBits(9, 6)
-                .WithTaggedFlag("RXSYNH", 15)
+                .If(uartOnlyMode)
+                    .Then(reg => reg
+                        .WithReservedBits(15, 1)
+                    )
+                    .Else(reg => reg
+                        .WithTaggedFlag("RXSYNH", 15)
+                    )
                 .WithReservedBits(16, 16)
             ;
 
             Registers.TransmitHolding.Define(this)
                 .WithValueField(0, 9, FieldMode.Write, writeCallback: (_, b) => Transmit((byte)b), name: "TXCHR")
                 .WithReservedBits(9, 6)
-                .WithTaggedFlag("TXSYNH", 15)
+                .If(uartOnlyMode)
+                    .Then(reg => reg
+                        .WithReservedBits(15, 1)
+                    )
+                    .Else(reg => reg
+                        .WithTaggedFlag("TXSYNH", 15)
+                    )
                 .WithReservedBits(16, 16)
             ;
 
             Registers.BaudRateGenerator.Define(this)
                 .WithTag("CD", 0, 16)
-                .WithTag("FP", 16, 3)
+                .If(uartOnlyMode)
+                    .Then(reg => reg
+                        .WithReservedBits(16, 3)
+                    )
+                    .Else(reg => reg
+                        .WithTag("FP", 16, 3)
+                    )
                 .WithReservedBits(19, 13)
             ;
+
+            if(uartOnlyMode)
+            {
+                return;
+            }
 
             Registers.ReceiveTimeout.Define(this)
                 .WithTag("TO", 0, 16)
