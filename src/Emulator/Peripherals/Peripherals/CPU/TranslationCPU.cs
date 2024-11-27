@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -1949,9 +1949,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private ActionUInt32 TlibSetBlockBeginHookPresent;
-
-        [Import]
-        protected ActionUInt64 TlibResetExecutedInstructions;
 
         [Import]
         private ActionUInt32 TlibSetInterruptBeginHookPresent;
