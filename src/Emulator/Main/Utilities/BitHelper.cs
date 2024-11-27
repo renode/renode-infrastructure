@@ -401,6 +401,17 @@ namespace Antmicro.Renode.Utilities
             return result;
         }
 
+        public static uint GetSetBitsCount(ulong value)
+        {
+            var count = 0u;
+            while(value != 0)
+            {
+                count++;
+                value &= value - 1;
+            }
+            return count;
+        }
+
         public static string GetSetBitsPretty(ulong reg)
         {
             var setBits = new HashSet<int>(GetSetBits(reg));
