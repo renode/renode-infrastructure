@@ -123,12 +123,12 @@ namespace Antmicro.Renode.Peripherals.Bus
                     throw new ConstructionException(string.Format("It is not allowed to register `{0}` peripheral using `{1}`", typeof(IMapped).Name, typeof(BusMultiRegistration).Name));
                 }
                 FillAccessMethodsWithTaggedMethods(peripheral, multiRegistrationPoint.ConnectionRegionName, ref methods);
-                multiRegistrationPoint.RegisterForEachContext((contextRegistration) => RegisterInner(peripheral, methods, contextRegistration, context: contextRegistration.CPU));
+                multiRegistrationPoint.RegisterForEachContext((contextRegistration) => RegisterInner(peripheral, methods, contextRegistration, context: contextRegistration.CPU, registrationPoint.StateMask));
             }
             else
             {
                 FillAccessMethodsWithDefaultMethods(peripheral, ref methods);
-                registrationPoint.RegisterForEachContext((contextRegistration) => RegisterInner(peripheral, methods, contextRegistration, context: contextRegistration.CPU));
+                registrationPoint.RegisterForEachContext((contextRegistration) => RegisterInner(peripheral, methods, contextRegistration, context: contextRegistration.CPU, registrationPoint.StateMask));
             }
         }
 
@@ -191,7 +191,10 @@ namespace Antmicro.Renode.Peripherals.Bus
                 throw new RecoverableException("Moving a peripheral to a locked address range is not supported");
             }
             UnregisterAccessFlags(busRegistered.RegistrationPoint, context);
-            peripheralsCollectionByContext[context].Move(busRegistered, newRegistration);
+            peripheralsCollectionByContext.WithStateCollection(context, null, collection =>
+            {
+                collection.Move(busRegistered, newRegistration);
+            });
             Machine.ExchangeRegistrationPointForPeripheral(this, peripheral, busRegistered.RegistrationPoint, newRegistration);
             if(wasMapped)
             {
@@ -1622,10 +1625,17 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
-        private void RegisterInner(IBusPeripheral peripheral, PeripheralAccessMethods methods, BusRangeRegistration registrationPoint, IPeripheral context)
+        private void RegisterInner(IBusPeripheral peripheral, PeripheralAccessMethods methods, BusRangeRegistration registrationPoint, IPeripheral context, StateMask? stateMask = null)
         {
             using(Machine.ObtainPausedState(true))
             {
+                // Ensure the context exists if we need one, since this peripheral might be getting registered before its context is.
+                // This only applies for contexts that are not CPUs, since those are always created immediately, but it's harmless to do
+                // for CPUs.
+                if(context != null)
+                {
+                    AddContextKeys(context);
+                }
                 var busRegisteredInContext = peripheralsCollectionByContext[context].Peripherals;
                 var intersecting = busRegisteredInContext.FirstOrDefault(x => x.RegistrationPoint.Range.Intersects(registrationPoint.Range));
                 if(intersecting != null)
@@ -1650,7 +1660,10 @@ namespace Antmicro.Renode.Peripherals.Bus
                 {
                     methods.SetAbsoluteAddress = absoluteAddressAware.SetAbsoluteAddress;
                 }
-                peripheralsCollectionByContext[context].Add(registrationPoint.Range.StartAddress, registrationPoint.Range.EndAddress + 1, registeredPeripheral, methods);
+                peripheralsCollectionByContext.WithStateCollection(context, stateMask, collection =>
+                {
+                    collection.Add(registrationPoint.Range.StartAddress, registrationPoint.Range.EndAddress + 1, registeredPeripheral, methods);
+                });
                 // let's add new mappings
                 AddMappingsForPeripheral(peripheral, registrationPoint, context);
                 // After adding new mappings, if the address range is locked, the mappings possibly have to be modified/unmapped on the CPU's side
@@ -2039,7 +2052,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             public ContextKeyDictionary(Func<TValue> defaultFactory)
             {
                 this.defaultFactory = defaultFactory;
-                globalValue = defaultFactory();
+                globalValue[AllAccessMask] = defaultFactory();
             }
 
             // Adding the context key might happen on peripheral registration, or on first use.
@@ -2053,7 +2066,8 @@ namespace Antmicro.Renode.Peripherals.Bus
                 {
                     return;
                 }
-                cpuLocalValues[key] = defaultFactory();
+                cpuLocalValues[key] = new Dictionary<StateMask, TValue>();
+                cpuLocalValues[key][AllAccessMask] = defaultFactory();
             }
 
             public void RemoveContextKey(IPeripheral key)
@@ -2076,7 +2090,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     }
                     else
                     {
-                        cpuLocalValues[key] = value;
+                        cpuLocalValues[key][AllAccessMask] = value;
                     }
                 }
             }
@@ -2090,9 +2104,21 @@ namespace Antmicro.Renode.Peripherals.Bus
                 return value;
             }
 
+            // Perform a mutation on the value collection for a specific initiator state and mask pair (for example to add a new peripheral)
+            public void WithStateCollection(IPeripheral context, StateMask? stateMask, Action<TValue> action)
+            {
+                var collection = context == null ? globalValue : cpuLocalValues[context];
+                var effectiveMask = stateMask ?? AllAccessMask;
+                if(!collection.ContainsKey(effectiveMask))
+                {
+                    collection[effectiveMask] = defaultFactory();
+                }
+                action(collection[effectiveMask]);
+            }
+
             public IEnumerable<TValue> GetAllDistinctValues()
             {
-                return cpuLocalValues.Values.Concat(new [] { globalValue }).Distinct();
+                return cpuLocalValues.Values.SelectMany(v => v.Values).Concat(globalValue.Values).Distinct();
             }
 
             public IEnumerable<IPeripheral> GetAllContextKeys()
@@ -2100,27 +2126,33 @@ namespace Antmicro.Renode.Peripherals.Bus
                 return cpuLocalValues.Keys;
             }
 
-            private bool TryGetValue(IPeripheral key, out TValue value)
+            public bool TryGetValue(IPeripheral key, out TValue value)
             {
-                if(key == null)
+                if(key != null && cpuLocalValues.TryGetValue(key, out var thisCpuValues))
                 {
-                    value = globalValue;
+                    if(TryGetValueForState(thisCpuValues, null, out value))
+                    {
+                        return true;
+                    }
                 }
-                else if(cpuLocalValues.TryGetValue(key, out var cpuLocalValue))
-                {
-                    value = cpuLocalValue;
-                }
-                else
-                {
-                    value = default(TValue);
-                    return false;
-                }
-                return true;
+                return TryGetValueForState(globalValue, null, out value);
             }
 
-            private readonly Dictionary<IPeripheral, TValue> cpuLocalValues = new Dictionary<IPeripheral, TValue>();
+            private bool TryGetValueForState(Dictionary<StateMask, TValue> collection, ulong? cpuState, out TValue value)
+            {
+                if(!cpuState.HasValue)
+                {
+                    value = collection[AllAccessMask];
+                    return true;
+                }
+                value = default(TValue);
+                return false;
+            }
+
+            private readonly Dictionary<IPeripheral, Dictionary<StateMask, TValue>> cpuLocalValues = new Dictionary<IPeripheral, Dictionary<StateMask, TValue>>();
             private readonly Func<TValue> defaultFactory;
-            private readonly TValue globalValue;
+            private readonly Dictionary<StateMask, TValue> globalValue = new Dictionary<StateMask, TValue>();
+            private static readonly StateMask AllAccessMask = new StateMask(0, 0);
         }
 
         private Dictionary<IBusPeripheral, List<MappedSegmentWrapper>> mappingsForPeripheral;
