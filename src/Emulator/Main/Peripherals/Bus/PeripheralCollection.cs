@@ -94,6 +94,12 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 foreach(var block in source.blocks.Union(source.shortBlocks.Values))
                 {
+                    // Don't add overlapping peripherals.
+                    if(FindAccessMethods(block.Start, out _, out _) != null
+                        || FindAccessMethods(block.End - 1, out _, out _) != null)
+                    {
+                        return;
+                    }
                     Add(block.Start, block.End, block.Peripheral, block.AccessMethods);
                 }
             }

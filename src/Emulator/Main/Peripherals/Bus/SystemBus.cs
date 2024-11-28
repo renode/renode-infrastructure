@@ -1837,6 +1837,8 @@ namespace Antmicro.Renode.Peripherals.Bus
             cachedCpuId = new ThreadLocal<int>();
             peripheralsCollectionByContext = new ContextKeyDictionary<PeripheralCollection>(() => new PeripheralCollection(this), (a, b) =>
             {
+                // PeripheralCollection.AddAll doesn't add overlapping peripherals. This means that for the 'local peripheral overrides
+                // the global one' behavior to work as intended we must check the local peripherals first.
                 a.AddAll(b); // Fine to mutate a here
                 return a;
             });
@@ -2177,8 +2179,20 @@ namespace Antmicro.Renode.Peripherals.Bus
                     var mask = sm.Key;
                     if((cpuState.Value & mask.Mask) == mask.State)
                     {
-                        anyHit = true;
-                        merge(cachedValue, pair.Value);
+                        if(probeAddress.HasValue && !isHit(sm.Value, probeAddress.Value))
+                        {
+                            // If we just created the state-specific cache, then we must have come here while processing
+                            // the CPU-local peripheral collection. Merge all of them in so they take priority over the
+                            // ones from the global collection when we hit it later.
+                            if(!stateCacheExisted)
+                            {
+                                merge(cachedValue, sm.Value);
+                            }
+                            continue;
+                        }
+                        value = sm.Value;
+                        merge(cachedValue, value);
+                        return true;
                     }
                 }
                 value = anyHit ? cachedValue : default(TValue);
