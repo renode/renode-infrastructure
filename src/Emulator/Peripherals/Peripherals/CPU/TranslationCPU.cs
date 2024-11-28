@@ -913,13 +913,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         private void ValidateMemoryRangeAndThrow(Range range)
         {
             var pageSize = TlibGetPageSize();
-            if((range.StartAddress % pageSize) != 0)
+            var startUnaligned = (range.StartAddress % pageSize) != 0;
+            var sizeUnaligned = (range.Size % pageSize) != 0;
+            if(startUnaligned || sizeUnaligned)
             {
-                throw new RecoverableException("Memory offset has to be aligned to guest page size.");
-            }
-            if(range.Size % pageSize != 0)
-            {
-                throw new RecoverableException("Memory size has to be aligned to guest page size.");
+                throw new RecoverableException($"Could not register memory at offset 0x{range.StartAddress:X} and size 0x{range.Size:X} - the {(startUnaligned ? "registration address" : "size")} has to be aligned to guest page size 0x{pageSize:X}.");
             }
         }
 
