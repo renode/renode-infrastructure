@@ -697,6 +697,7 @@
     <Compile Include="Peripherals\Miscellaneous\S32K3XX_ModeEntryModule.cs" />
     <Compile Include="Peripherals\DMA\RenesasDA14_DMA.cs" />
     <Compile Include="Peripherals\DMA\RenesasDA_DMABase.cs" />
+    <Compile Include="Peripherals\DMA\RenesasRZG_DMAC.cs" />
     <Compile Include="Peripherals\I2C\RenesasDA_I2C.cs" />
     <Compile Include="Peripherals\I2C\RenesasRA_IIC.cs" />
     <Compile Include="Peripherals\MemoryControllers\Gaisler_FaultTolerantMemoryController.cs" />
