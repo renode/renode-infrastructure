@@ -806,39 +806,80 @@ namespace Antmicro.Renode.Peripherals.CPU
                     // NOTE: Single operand instructions
                     var fullOpcode = (instr & 0x0380) >> 7;
 
-                    if(fullOpcode == 0x07)
+                    // NOTE: CALLA (20-bit), handle this separately
+                    switch(fullOpcode)
                     {
-                        // NOTE: CALLA (20-bit), handle this separately
-                        // NOTE: `register` contains part of the address
-                        var fullAddress = (uint)destination << 16;
-                        var imm = GetOperandValue(Registers.PC, AddressingMode.IndirectAutoincrement, out var _);
-                        fullAddress |= imm;
-
-                        SP -= 4U;
-                        PerformMemoryWrite(SP, PC, AccessWidth._20bit);
-
-                        switch(addressingMode)
+                        case 0x06:
                         {
-                            case AddressingMode.Register:
-                                // TODO: Absolute addressing
-                                this.Log(LogLevel.Error, "CALLA absolute addressing is not supported");
-                                return true;
+                            uint newPC;
+                            // NOTE: RETI / CALLA
+                            if((Registers)destination == Registers.PC)
+                            {
+                                // NOTE: RETI
+                                var statusAndPC = PerformMemoryRead(SP, AccessWidth._16bit);
+                                statusRegister = (StatusFlags)(statusAndPC & 0x1FF);
+                                SP += 2U;
 
-                            case AddressingMode.Indexed:
-                                // TODO: Indexed addressing
-                                this.Log(LogLevel.Error, "CALLA indexed addressing is not supported");
-                                return true;
+                                newPC = PerformMemoryRead(SP, AccessWidth._16bit);
+                                SP += 2U;
+                                newPC |= (ushort)((statusAndPC & 0xF000) << 4);
+                                PC = newPC;
 
-                            case AddressingMode.IndirectAutoincrement:
-                                // NOTE: Immediate addressing
-                                PC = (uint)fullAddress;
-                                break;
+                                if(processedInterrupt.Count > 0)
+                                {
+                                    processedInterrupt.Pop();
+                                }
+                            }
+                            else
+                            {
+                                // NOTE: CALLA
+                                // NOTE: Decrement SP before reading the address
+                                SP -= 2;
+                                newPC = GetOperandValue((Registers)destination, addressingMode, out  _, accessWidth: AccessWidth._20bit, addressExtension: addressExtension);
 
-                            default:
-                                return true;
+                                SP -= 2;
+                                PerformMemoryWrite(SP, PC, AccessWidth._20bit);
+                                PC = (uint)newPC;
+                            }
+                            continue;
                         }
 
-                        continue;
+                        case 0x07:
+                        {
+                            // NOTE: `register` contains part of the address
+                            var fullAddress = (uint)destination << 16;
+                            SP -= 2U;
+                            var imm = GetOperandValue(Registers.PC, AddressingMode.IndirectAutoincrement, out var _);
+                            fullAddress |= imm;
+
+                            SP -= 2U;
+                            PerformMemoryWrite(SP, PC, AccessWidth._20bit);
+
+                            switch(addressingMode)
+                            {
+                                case AddressingMode.Register:
+                                    // NOTE: Absolute addressing
+                                    fullAddress = PerformMemoryRead(fullAddress, AccessWidth._20bit);
+                                    PC = (uint)fullAddress;
+                                    break;
+
+                                case AddressingMode.Indexed:
+                                    // TODO: Indexed addressing
+                                    this.Log(LogLevel.Error, "CALLA indexed addressing is not supported");
+                                    return true;
+
+                                case AddressingMode.IndirectAutoincrement:
+                                    // NOTE: Immediate addressing
+                                    PC = (uint)fullAddress;
+                                    break;
+
+                                default:
+                                    return true;
+                            }
+
+                            continue;
+                        }
+
                     }
 
                     var operand = GetOperandValue((Registers)destination, addressingMode, out var address, accessWidth: accessWidth, addressExtension: addressExtension);
@@ -895,32 +936,6 @@ namespace Antmicro.Renode.Peripherals.CPU
                             PerformMemoryWrite(SP, PC, AccessWidth._16bit);
                             PC = (uint)operand;
                             continue;
-
-                        case 0x06:
-                        {
-                            // NOTE: RETI / CALLA
-                            if((Registers)destination == Registers.PC)
-                            {
-                                // NOTE: RETI
-                                var statusAndPC = PerformMemoryRead(SP, AccessWidth._16bit);
-                                statusRegister = (StatusFlags)(statusAndPC & 0x1FF);
-                                SP += 2U;
-
-                                var newPC = PerformMemoryRead(SP, AccessWidth._16bit);
-                                SP += 2U;
-                                newPC |= (ushort)((statusAndPC & 0xF000) << 4);
-                                PC = newPC;
-
-                                var interrupt = processedInterrupt.Count > 0 ? (int?)processedInterrupt.Pop() : null;
-                                continue;
-                            }
-
-                            // NOTE: CALLA
-                            SP -= 4;
-                            PerformMemoryWrite(SP, PC, AccessWidth._20bit);
-                            PC = (uint)operand;
-                            continue;
-                        }
 
                         default:
                             return true;
