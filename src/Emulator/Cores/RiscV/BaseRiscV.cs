@@ -1018,6 +1018,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         public enum InstructionSet
         {
             I = 'I' - 'A',
+            E = 'E' - 'A',
             M = 'M' - 'A',
             A = 'A' - 'A',
             F = 'F' - 'A',
@@ -1152,15 +1153,44 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 switch(isaChar)
                 {
-                    case 'I': instructionSets.Add(InstructionSet.I); break;
-                    case 'M': instructionSets.Add(InstructionSet.M); break;
-                    case 'A': instructionSets.Add(InstructionSet.A); break;
-                    case 'F': instructionSets.Add(InstructionSet.F); break;
-                    case 'D': instructionSets.Add(InstructionSet.D); break;
-                    case 'C': instructionSets.Add(InstructionSet.C); break;
-                    case 'V': instructionSets.Add(InstructionSet.V); break;
-                    case 'B': instructionSets.Add(InstructionSet.B); break;
-                    case 'G': instructionSets.Add(InstructionSet.G); break;
+                    case 'I':
+                        if(instructionSets.Contains(InstructionSet.E))
+                        {
+                            throw new ConstructionException($"ISA string cannot contain both I and E base instruction sets at the same time.");
+                        }
+                        instructionSets.Add(InstructionSet.I);
+                        break;
+                    case 'E':
+                        if(instructionSets.Contains(InstructionSet.I))
+                        {
+                            throw new ConstructionException($"ISA string cannot contain both I and E base instruction sets at the same time.");
+                        }
+                        instructionSets.Add(InstructionSet.E);
+                        break;
+                    case 'M':
+                        instructionSets.Add(InstructionSet.M);
+                        break;
+                    case 'A':
+                        instructionSets.Add(InstructionSet.A);
+                        break;
+                    case 'F':
+                        instructionSets.Add(InstructionSet.F);
+                        break;
+                    case 'D':
+                        instructionSets.Add(InstructionSet.D);
+                        break;
+                    case 'C':
+                        instructionSets.Add(InstructionSet.C);
+                        break;
+                    case 'V':
+                        instructionSets.Add(InstructionSet.V);
+                        break;
+                    case 'B':
+                        instructionSets.Add(InstructionSet.B);
+                        break;
+                    case 'G':
+                        instructionSets.Add(InstructionSet.G);
+                        break;
                     case 'U':
                         parent.WarningLog("Enabling privilege level extension '{0}' using 'cpuType' is not supported. " +
                             "Privilege levels should be specified using the 'privilegeLevels' constructor parameter. " +
@@ -1169,6 +1199,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     default:
                         return false;
                 }
+                ValidateInstructionSetForBaseE();
                 return true;
             }
 
@@ -1210,6 +1241,18 @@ namespace Antmicro.Renode.Peripherals.CPU
                         break;
                     default:
                         throw new Exception("Unreachable");
+                }
+            }
+
+            private void ValidateInstructionSetForBaseE()
+            {
+                if(instructionSets.Contains(InstructionSet.E) 
+                    && (instructionSets.Any(x => (x != InstructionSet.E) 
+                                                && (x != InstructionSet.M)
+                                                && (x != InstructionSet.A)
+                                                && (x != InstructionSet.C))))
+                {
+                    throw new ConstructionException($"RV32E can only have M, A and C standard extensions");
                 }
             }
 
