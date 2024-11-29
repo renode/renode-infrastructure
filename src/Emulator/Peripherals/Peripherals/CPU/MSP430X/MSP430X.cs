@@ -873,10 +873,15 @@ namespace Antmicro.Renode.Peripherals.CPU
                         }
 
                         case 0x03:
+                        {
                             // NOTE: SXT
-                            // TODO: SXT
-                            this.Log(LogLevel.Error, "SXT is not supported");
-                            return true;
+                            var msb = GetAccessWidthMSB(accessWidth);
+                            msb = (uint)(operand & msb);
+                            operand |= msb > 0 ? 0xFFFF00U : 0U;
+                            TruncateWithFlags((uint)operand, accessWidth);
+                            SetStatusFlag(StatusFlags.Carry, !statusRegister.HasFlag(StatusFlags.Zero));
+                            break;
+                        }
 
                         case 0x04:
                             // NOTE: PUSH
