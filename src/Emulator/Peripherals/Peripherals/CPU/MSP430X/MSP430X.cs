@@ -641,7 +641,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                             // NOTE: MOVA z16(Rsrc)
                             var sourceRegister = (Registers)((instr & 0x0F00) >> 8);
                             var offset = (short)GetOperandValue(Registers.PC, AddressingMode.IndirectAutoincrement, out _);
-                            var memoryAddress = (ulong)(GetRegisterValue(sourceRegister) + 4 * offset);
+                            var memoryAddress = (ulong)(GetRegisterValue(sourceRegister) + offset);
 
                             var memoryValue = PerformMemoryRead(memoryAddress, AccessWidth._20bit);
                             SetRegisterValue((Registers)destination, memoryValue);
@@ -716,7 +716,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                             var sourceRegister = (Registers)((instr & 0x0F00) >> 8);
                             var value = GetRegisterValue(sourceRegister, AddressingMode.Register);
                             var offset = (short)GetOperandValue(Registers.PC, AddressingMode.IndirectAutoincrement, out _);
-                            var memoryAddress = (ulong)(GetRegisterValue((Registers)destination) + offset);
+                            var memoryAddress = (ulong)(destination + offset);
                             PerformMemoryWrite(memoryAddress, value, AccessWidth._20bit);
                             continue;
                         }
@@ -725,9 +725,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                             // NOTE: MOVA @Rsrc, z16(Rdst)
                             var sourceRegister = (Registers)((instr & 0x0F00) >> 8);
                             var value = GetRegisterValue(sourceRegister, AddressingMode.Register);
-
                             var offset = (short)GetOperandValue(Registers.PC, AddressingMode.IndirectAutoincrement, out _);
-                            var memoryAddress = (ulong)(GetRegisterValue((Registers)destination) + 4 * offset);
+                            var memoryAddress = (ulong)(GetRegisterValue((Registers)destination) + offset);
                             PerformMemoryWrite(memoryAddress, value, AccessWidth._20bit);
                             continue;
                         }
