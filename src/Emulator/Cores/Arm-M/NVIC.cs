@@ -1584,6 +1584,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             MemManageFault_S = MemManageFault | BankedExcpSecureBit,
             UsageFault_S = UsageFault | BankedExcpSecureBit,
             SuperVisorCall_S = SuperVisorCall | BankedExcpSecureBit,
+            DebugMonitor_S = DebugMonitor | BankedExcpSecureBit,
             PendSV_S = PendSV | BankedExcpSecureBit,
             SysTick_S = SysTick | BankedExcpSecureBit,
         }
@@ -1777,6 +1778,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         return IRQCount + 3;
                     case (int)SystemException.SysTick_S:
                         return IRQCount + 4;
+                    case (int)SystemException.DebugMonitor_S:
+                        return IRQCount + 5;
                     default:
                         throw new InvalidOperationException($"Exception number {exception} is invalid");
                 }
@@ -1835,12 +1838,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             (int)SystemException.SuperVisorCall,
             (int)SystemException.PendSV,
             (int)SystemException.SysTick,
+            (int)SystemException.DebugMonitor,
 
             (int)SystemException.MemManageFault_S,
             (int)SystemException.UsageFault_S,
             (int)SystemException.SuperVisorCall_S,
             (int)SystemException.PendSV_S,
             (int)SystemException.SysTick_S,
+            (int)SystemException.DebugMonitor_S,
         };
 
         private const string TrustZoneNSRegionWarning = "Without TrustZone enabled in the CPU, a NonSecure region should not be registered";
