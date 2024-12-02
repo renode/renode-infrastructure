@@ -35,6 +35,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             this.priorityMask = priorityMask;
             defaultHaltSystickOnDeepSleep = haltSystickOnDeepSleep;
             binaryPointPosition = new SecurityBanked<int>();
+            currentSevOnPending = new SecurityBanked<bool>();
             irqs = new ExceptionSimpleArray<IRQState>();
             targetInterruptSecurityState = new InterruptTargetSecurityState[IRQCount];
             IRQ = new GPIO();
@@ -404,9 +405,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             systick.SecureVal?.Reset();
 
             IRQ.Unset();
+            currentSevOnPending.Reset();
             mpuControlRegister = 0;
             HaltSystickOnDeepSleep = defaultHaltSystickOnDeepSleep;
             canResetOnlyFromSecure = false;
+            deepSleepOnlyFromSecure = false;
             binaryPointPosition.Reset();
 
             // bit [16] DC / Cache enable. This is a global enable bit for data and unified caches.
@@ -537,7 +540,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public DoubleWordRegisterCollection RegisterCollection { get; }
 
-        public bool DeepSleepEnabled => deepSleepEnabled.Value;
+        public bool DeepSleepEnabled { get; set; }
 
         private void DefineRegisters()
         {
@@ -647,10 +650,50 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 .WithReservedBits(0, 1)
                 .WithFlag(1, out sleepOnExitEnabled, name: "SLEEPONEXIT",
                     changeCallback: (_, value) => SetSleepOnExceptionExitOnAllCPUs(value))
-                .WithFlag(2, out deepSleepEnabled, name: "SLEEPDEEP")
-                .WithReservedBits(3, 1)
-                .WithFlag(4, out currentSevOnPending, name: "SEVONPEND",
-                    changeCallback: (_, value) => SetSevOnPendingOnAllCPUs(value))
+                .WithFlag(2,
+                    writeCallback: (_, value) =>
+                    {
+                        if(!isNextAccessSecure && deepSleepOnlyFromSecure)
+                        {
+                            this.WarningLog("Trying to set SLEEPDEEP but SLEEPDEEPS is set and the access is Non-secure. Ignoring");
+                            return;
+                        }
+                        DeepSleepEnabled = value;
+                    },
+                    valueProviderCallback: _ =>
+                    {
+                        if(!isNextAccessSecure && deepSleepOnlyFromSecure)
+                        {
+                            return false;
+                        }
+                        return DeepSleepEnabled;
+                    },
+                    name: "SLEEPDEEP")
+                .WithFlag(3,
+                    writeCallback: (_, value) =>
+                    {
+                        if(isNextAccessSecure)
+                        {
+                            deepSleepOnlyFromSecure = value;
+                        }
+                    },
+                    valueProviderCallback: _ =>
+                    {
+                        if(!isNextAccessSecure)
+                        {
+                            return false;
+                        }
+                        return deepSleepOnlyFromSecure;
+                    },
+                    name: "SLEEPDEEPS")
+                .WithFlag(4,
+                    changeCallback: (_, value) =>
+                    {
+                        SetSevOnPendingOnAllCPUs(value);
+                        currentSevOnPending.Get(isNextAccessSecure) = value;
+                    },
+                    valueProviderCallback: _ => currentSevOnPending.Get(isNextAccessSecure),
+                    name: "SEVONPEND")
                 .WithReservedBits(5, 27);
 
             Registers.ApplicationInterruptAndReset.Define(RegisterCollection)
@@ -1095,7 +1138,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private void HandleWfiStateChange(bool enteredWfi)
         {
-            if(enteredWfi && deepSleepEnabled.Value && HaltSystickOnDeepSleep)
+            if(enteredWfi && DeepSleepEnabled && HaltSystickOnDeepSleep)
             {
                 systick.NonSecureVal.Enabled = false;
                 if(cpu.TrustZoneEnabled)
@@ -1167,7 +1210,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             // when SEVONPEND is set all interrupts (even those masked)
             // generate an event when entering the pending state
-            if(before != irqs[i] && currentSevOnPending.Value)
+            if(before != irqs[i] && currentSevOnPending.Get(IsInterruptTargetNonSecure(i)))
             {
                 foreach(var cpu in machine.SystemBus.GetCPUs().OfType<CortexM>())
                 {
@@ -1810,11 +1853,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private readonly bool defaultHaltSystickOnDeepSleep;
         private readonly SecurityBanked<SysTick> systick;
         private readonly byte priorityMask;
+        private readonly SecurityBanked<bool> currentSevOnPending;
         private readonly Stack<int> activeIRQs;
         private readonly ISet<int> pendingIRQs;
         private readonly SecurityBanked<int> binaryPointPosition; // from the right
         private bool isNextAccessSecure;
         private bool canResetOnlyFromSecure;
+        private bool deepSleepOnlyFromSecure;
         private bool prioritizeSecureInterrupts;
         private uint mpuControlRegister;
         private MPUVersion mpuVersion;
@@ -1834,8 +1879,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private uint cpuId;
 
         private IFlagRegisterField sleepOnExitEnabled;
-        private IFlagRegisterField deepSleepEnabled;
-        private IFlagRegisterField currentSevOnPending;
 
         private static readonly int[] bankedInterrupts = new int []
         {
