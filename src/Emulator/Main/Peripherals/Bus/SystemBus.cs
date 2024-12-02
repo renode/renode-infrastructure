@@ -2079,21 +2079,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 cpuLocalValues.Remove(key);
             }
 
-            public TValue this[IPeripheral key]
-            {
-                get => GetValue(key);
-                set
-                {
-                    if(key == null)
-                    {
-                        throw new InvalidOperationException($"Cannot modify {nameof(globalValue)}");
-                    }
-                    else
-                    {
-                        cpuLocalValues[key][AllAccessMask] = value;
-                    }
-                }
-            }
+            public TValue this[IPeripheral key] => GetValue(key);
 
             public TValue GetValue(IPeripheral key)
             {
