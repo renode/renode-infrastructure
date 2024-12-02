@@ -2170,23 +2170,23 @@ namespace Antmicro.Renode.Peripherals.Bus
                     collectionToSearch = thisCpuValues.Concat(collectionToSearch);
                 }
                 bool anyHit = false;
-                foreach(var sm in collectionToSearch)
+                foreach(var pair in collectionToSearch)
                 {
-                    var mask = sm.Key;
+                    var mask = pair.Key;
                     if((cpuState.Value & mask.Mask) == mask.State)
                     {
-                        if(probeAddress.HasValue && !isHit(sm.Value, probeAddress.Value))
+                        if(probeAddress.HasValue && !isHit(pair.Value, probeAddress.Value))
                         {
                             // If we just created the state-specific cache, then we must have come here while processing
                             // the CPU-local peripheral collection. Merge all of them in so they take priority over the
                             // ones from the global collection when we hit it later.
                             if(!stateCacheExisted)
                             {
-                                merge(cachedValue, sm.Value);
+                                merge(cachedValue, pair.Value);
                             }
                             continue;
                         }
-                        value = sm.Value;
+                        value = pair.Value;
                         merge(cachedValue, value);
                         return true;
                     }
