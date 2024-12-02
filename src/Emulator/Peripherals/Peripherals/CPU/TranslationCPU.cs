@@ -609,10 +609,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             using(var guard = ObtainPauseGuardForReading(offset, SysbusAccessWidth.Byte))
             {
-                var res = guard.InterruptTransaction
+                return guard.InterruptTransaction
                     ? 0
                     : (ulong)machine.SystemBus.ReadByte(offset, this, cpuState);
-                return res;
             }
         }
 
