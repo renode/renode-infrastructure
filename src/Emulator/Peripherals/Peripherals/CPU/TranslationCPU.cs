@@ -725,6 +725,46 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        protected ulong ReadByteFromBus(ulong offset)
+        {
+            return ReadByteFromBus(offset, GetCPUStateForMemoryTransaction());
+        }
+
+        protected ulong ReadWordFromBus(ulong offset)
+        {
+            return ReadWordFromBus(offset, GetCPUStateForMemoryTransaction());
+        }
+
+        protected ulong ReadDoubleWordFromBus(ulong offset)
+        {
+            return ReadDoubleWordFromBus(offset, GetCPUStateForMemoryTransaction());
+        }
+
+        protected ulong ReadQuadWordFromBus(ulong offset)
+        {
+            return ReadQuadWordFromBus(offset, GetCPUStateForMemoryTransaction());
+        }
+
+        protected void WriteByteToBus(ulong offset, ulong value)
+        {
+            WriteByteToBus(offset, value, GetCPUStateForMemoryTransaction());
+        }
+
+        protected void WriteWordToBus(ulong offset, ulong value)
+        {
+            WriteWordToBus(offset, value, GetCPUStateForMemoryTransaction());
+        }
+
+        protected void WriteDoubleWordToBus(ulong offset, ulong value)
+        {
+            WriteDoubleWordToBus(offset, value, GetCPUStateForMemoryTransaction());
+        }
+
+        protected void WriteQuadWordToBus(ulong offset, ulong value)
+        {
+            WriteQuadWordToBus(offset, value, GetCPUStateForMemoryTransaction());
+        }
+
         protected virtual string GetExceptionDescription(ulong exceptionIndex)
         {
             return $"Undecoded {exceptionIndex}";
