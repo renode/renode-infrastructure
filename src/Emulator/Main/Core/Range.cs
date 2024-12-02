@@ -225,7 +225,14 @@ namespace Antmicro.Renode.Core
         }
     }
 
-    public class MinimalRangesCollection : IEnumerable<Range>
+    public interface IReadOnlyMinimalRangesCollection : IEnumerable<Range>
+    {
+        bool ContainsOverlappingRange(Range range);
+        bool ContainsWholeRange(Range range);
+        bool ContainsPoint(ulong point);
+    }
+
+    public class MinimalRangesCollection : IReadOnlyMinimalRangesCollection
     {
         public MinimalRangesCollection(IEnumerable<Range> rangeEnumerable = null)
         {

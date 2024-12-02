@@ -19,7 +19,16 @@ namespace Antmicro.Renode.Peripherals.Bus
 {
     partial class SystemBus
     {
-        private class PeripheralCollection
+        private interface IReadOnlyPeripheralCollection
+        {
+            IEnumerable<IBusRegistered<IBusPeripheral>> Peripherals { get; }
+            PeripheralAccessMethods FindAccessMethods(ulong address, out ulong startAddress, out ulong endAddress);
+#if DEBUG
+            void ShowStatistics();
+#endif
+        }
+
+        private class PeripheralCollection : IReadOnlyPeripheralCollection
         {
             internal PeripheralCollection(SystemBus sysbus)
             {

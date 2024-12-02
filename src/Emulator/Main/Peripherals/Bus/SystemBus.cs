@@ -1044,14 +1044,17 @@ namespace Antmicro.Renode.Peripherals.Bus
                 {
                     RelockRange(range, locked, context);
 
-                    if(locked)
+                    lockedRangesCollectionByContext.WithStateCollection(context, stateMask: null, collection =>
                     {
-                        lockedRangesCollectionByContext[context].Add(range);
-                    }
-                    else
-                    {
-                        lockedRangesCollectionByContext[context].Remove(range);
-                    }
+                        if(locked)
+                        {
+                            collection.Add(range);
+                        }
+                        else
+                        {
+                            collection.Remove(range);
+                        }
+                    });
                 }
             }
         }
@@ -1235,9 +1238,15 @@ namespace Antmicro.Renode.Peripherals.Bus
             // remove the peripheral from all cpu-local and the global mappings
             foreach(var context in peripheralsCollectionByContext.GetAllContextKeys())
             {
-                peripheralsCollectionByContext[context].Remove(peripheral);
+                peripheralsCollectionByContext.WithStateCollection(context, stateMask: null, collection =>
+                {
+                    collection.Remove(peripheral);
+                });
             }
-            peripheralsCollectionByContext[null].Remove(peripheral);
+            peripheralsCollectionByContext.WithStateCollection(null, stateMask: null, collection =>
+            {
+                collection.Remove(peripheral);
+            });
             RemoveContextKeys(peripheral);
         }
 
@@ -1259,7 +1268,10 @@ namespace Antmicro.Renode.Peripherals.Bus
                 }
             }
             var perCoreRegistration = busRegistered.RegistrationPoint as IBusRegistration;
-            peripheralsCollectionByContext[perCoreRegistration.CPU].Remove(busRegistered.RegistrationPoint.Range.StartAddress, busRegistered.RegistrationPoint.Range.EndAddress);
+            peripheralsCollectionByContext.WithStateCollection(perCoreRegistration.CPU, perCoreRegistration.StateMask, collection =>
+            {
+                collection.Remove(busRegistered.RegistrationPoint.Range.StartAddress, busRegistered.RegistrationPoint.Range.EndAddress);
+            });
             RemoveContextKeys(busRegistered.Peripheral);
         }
 
@@ -1835,7 +1847,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             globalLookup = new SymbolLookup();
             localLookups = new Dictionary<ICPU, SymbolLookup>();
             cachedCpuId = new ThreadLocal<int>();
-            peripheralsCollectionByContext = new ContextKeyDictionary<PeripheralCollection>(() => new PeripheralCollection(this), (a, b) =>
+            peripheralsCollectionByContext = new ContextKeyDictionary<PeripheralCollection, IReadOnlyPeripheralCollection>(() => new PeripheralCollection(this), (a, b) =>
             {
                 // PeripheralCollection.AddAll doesn't add overlapping peripherals. This means that for the 'local peripheral overrides
                 // the global one' behavior to work as intended we must check the local peripherals first.
@@ -1843,7 +1855,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 return a;
             });
             lockedPeripherals = new HashSet<IPeripheral>();
-            lockedRangesCollectionByContext = new ContextKeyDictionary<MinimalRangesCollection>(() => new MinimalRangesCollection(), (a, b) =>
+            lockedRangesCollectionByContext = new ContextKeyDictionary<MinimalRangesCollection, IReadOnlyMinimalRangesCollection>(() => new MinimalRangesCollection(), (a, b) =>
             {
                 a.AddAll(b);
                 return a;
@@ -2055,11 +2067,11 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         private ISet<IPeripheral> lockedPeripherals;
 
-        private ContextKeyDictionary<PeripheralCollection> peripheralsCollectionByContext;
-        private ContextKeyDictionary<MinimalRangesCollection> lockedRangesCollectionByContext;
+        private ContextKeyDictionary<PeripheralCollection, IReadOnlyPeripheralCollection> peripheralsCollectionByContext;
+        private ContextKeyDictionary<MinimalRangesCollection, IReadOnlyMinimalRangesCollection> lockedRangesCollectionByContext;
 
         // It doesn't implement IDictionary because serialization doesn't work correctly for dictionaries without two generic parameters.
-        private class ContextKeyDictionary<TValue> where TValue : class
+        private class ContextKeyDictionary<TValue, TReadOnlyValue> where TValue : TReadOnlyValue where TReadOnlyValue : class
         {
             public ContextKeyDictionary(Func<TValue> defaultFactory, Func<TValue, TValue, TValue> merge)
             {
@@ -2093,9 +2105,9 @@ namespace Antmicro.Renode.Peripherals.Bus
                 DropCaches(); // has the effect of dropping caches when a peripheral is unregistered
             }
 
-            public TValue this[IPeripheral key] => GetValue(key);
+            public TReadOnlyValue this[IPeripheral key] => GetValue(key);
 
-            public TValue GetValue(IPeripheral key, ulong? cpuState = null)
+            public TReadOnlyValue GetValue(IPeripheral key, ulong? cpuState = null)
             {
                 if(!TryGetValue(key, cpuState, out var value))
                 {
