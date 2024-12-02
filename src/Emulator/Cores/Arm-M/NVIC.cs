@@ -1799,13 +1799,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private uint ccr = 0x10000;
 
         private readonly bool defaultHaltSystickOnDeepSleep;
-        private bool isNextAccessSecure;
         private readonly SecurityBanked<SysTick> systick;
-        private bool canResetOnlyFromSecure;
         private readonly byte priorityMask;
-        private Stack<int> activeIRQs;
-        private ISet<int> pendingIRQs;
-        private SecurityBanked<int> binaryPointPosition; // from the right
+        private readonly Stack<int> activeIRQs;
+        private readonly ISet<int> pendingIRQs;
+        private readonly SecurityBanked<int> binaryPointPosition; // from the right
+        private bool isNextAccessSecure;
+        private bool canResetOnlyFromSecure;
         private bool prioritizeSecureInterrupts;
         private uint mpuControlRegister;
         private MPUVersion mpuVersion;
