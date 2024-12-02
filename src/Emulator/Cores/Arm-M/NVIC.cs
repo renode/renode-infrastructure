@@ -196,7 +196,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             case Registers.InterruptControllerType:
                 return 0b0111;
             case Registers.MemoryFaultAddress:
-                return cpu.MemoryFaultAddress;
+                return isSecure || !cpu.TrustZoneEnabled ? cpu.MemoryFaultAddress : cpu.MemoryFaultAddressNonSecure;
             default:
                 lock(RegisterCollection)
                 {
