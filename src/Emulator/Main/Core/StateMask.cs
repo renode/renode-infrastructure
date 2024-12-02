@@ -17,5 +17,7 @@ namespace Antmicro.Renode.Core
 
         public ulong State;
         public ulong Mask;
+
+        public static readonly StateMask AllAccess = new StateMask(0, 0);
     }
 }

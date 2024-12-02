@@ -2065,7 +2065,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 this.defaultFactory = defaultFactory;
                 this.merge = merge;
-                globalAllAccess = globalValue[AllAccessMask] = defaultFactory();
+                globalAllAccess = globalValue[StateMask.AllAccess] = defaultFactory();
             }
 
             // Adding the context key might happen on peripheral registration, or on first use.
@@ -2080,7 +2080,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     return;
                 }
                 cpuLocalValues[key] = new Dictionary<StateMask, TValue>();
-                cpuAllAccess[key] = cpuLocalValues[key][AllAccessMask] = defaultFactory();
+                cpuAllAccess[key] = cpuLocalValues[key][StateMask.AllAccess] = defaultFactory();
             }
 
             public void RemoveContextKey(IPeripheral key)
@@ -2108,7 +2108,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             public void WithStateCollection(IPeripheral context, StateMask? stateMask, Action<TValue> action)
             {
                 var collection = context == null ? globalValue : cpuLocalValues[context];
-                var effectiveMask = stateMask ?? AllAccessMask;
+                var effectiveMask = stateMask ?? StateMask.AllAccess;
                 if(!collection.ContainsKey(effectiveMask))
                 {
                     collection[effectiveMask] = defaultFactory();
