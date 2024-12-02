@@ -505,11 +505,17 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
             if(pendingInterrupt != SpuriousInterrupt && value)
             {
+                // We assume both SysTicks are woken up on exiting deep sleep
+                // docs aren't clear on this, but this seems like a logical behavior
                 if(!systick.NonSecureVal.Enabled)
                 {
                     this.NoisyLog("Waking up from deep sleep");
                 }
                 systick.NonSecureVal.Enabled |= value;
+                if(cpu.TrustZoneEnabled)
+                {
+                    systick.SecureVal.Enabled |= value;
+                }
             }
         }
 
