@@ -2172,8 +2172,8 @@ namespace Antmicro.Renode.Peripherals.Bus
                 bool anyHit = false;
                 foreach(var pair in collectionToSearch)
                 {
-                    var mask = pair.Key;
-                    if((cpuState.Value & mask.Mask) == mask.State)
+                    var stateMask = pair.Key;
+                    if((cpuState.Value & stateMask.Mask) == stateMask.State)
                     {
                         if(probeAddress.HasValue && !isHit(pair.Value, probeAddress.Value))
                         {
