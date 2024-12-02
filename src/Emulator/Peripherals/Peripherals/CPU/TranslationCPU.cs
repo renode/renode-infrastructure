@@ -601,7 +601,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        protected virtual ulong ReadByteFromBus(ulong offset, ulong cpuState)
+        protected ulong ReadByteFromBus(ulong offset, ulong cpuState)
         {
             if(UpdateContextOnLoadAndStore)
             {
@@ -617,7 +617,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        protected virtual ulong ReadWordFromBus(ulong offset, ulong cpuState)
+        protected ulong ReadWordFromBus(ulong offset, ulong cpuState)
         {
             if(UpdateContextOnLoadAndStore)
             {
@@ -632,7 +632,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        protected virtual ulong ReadDoubleWordFromBus(ulong offset, ulong cpuState)
+        protected ulong ReadDoubleWordFromBus(ulong offset, ulong cpuState)
         {
             if(UpdateContextOnLoadAndStore)
             {
@@ -647,7 +647,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        protected virtual ulong ReadQuadWordFromBus(ulong offset, ulong cpuState)
+        protected ulong ReadQuadWordFromBus(ulong offset, ulong cpuState)
         {
             if(UpdateContextOnLoadAndStore)
             {
@@ -662,7 +662,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        protected virtual void WriteByteToBus(ulong offset, ulong value, ulong cpuState)
+        protected void WriteByteToBus(ulong offset, ulong value, ulong cpuState)
         {
             if(UpdateContextOnLoadAndStore)
             {
@@ -678,7 +678,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        protected virtual void WriteWordToBus(ulong offset, ulong value, ulong cpuState)
+        protected void WriteWordToBus(ulong offset, ulong value, ulong cpuState)
         {
             if(UpdateContextOnLoadAndStore)
             {
@@ -694,7 +694,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        protected virtual void WriteDoubleWordToBus(ulong offset, ulong value, ulong cpuState)
+        protected void WriteDoubleWordToBus(ulong offset, ulong value, ulong cpuState)
         {
             if(UpdateContextOnLoadAndStore)
             {
