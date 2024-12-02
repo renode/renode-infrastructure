@@ -609,6 +609,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             using(var guard = ObtainPauseGuardForReading(offset, SysbusAccessWidth.Byte))
             {
+                // If the transaction was interrupted while handling a watchpoint, return 0 immediately to avoid
+                // duplicating the access' side effect.
                 return guard.InterruptTransaction
                     ? 0
                     : (ulong)machine.SystemBus.ReadByte(offset, this, cpuState);
@@ -624,6 +626,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             using(var guard = ObtainPauseGuardForReading(offset, SysbusAccessWidth.Word))
             {
+                // If the transaction was interrupted while handling a watchpoint, return 0 immediately to avoid
+                // duplicating the access' side effect.
                 return guard.InterruptTransaction
                     ? 0
                     : (ulong)machine.SystemBus.ReadWord(offset, this, cpuState);
@@ -639,6 +643,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             using(var guard = ObtainPauseGuardForReading(offset, SysbusAccessWidth.DoubleWord))
             {
+                // If the transaction was interrupted while handling a watchpoint, return 0 immediately to avoid
+                // duplicating the access' side effect.
                 return guard.InterruptTransaction
                     ? 0
                     : machine.SystemBus.ReadDoubleWord(offset, this, cpuState);
@@ -654,6 +660,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             using(var guard = ObtainPauseGuardForReading(offset, SysbusAccessWidth.QuadWord))
             {
+                // If the transaction was interrupted while handling a watchpoint, return 0 immediately to avoid
+                // duplicating the access' side effect.
                 return guard.InterruptTransaction
                     ? 0
                     : machine.SystemBus.ReadQuadWord(offset, this, cpuState);
@@ -669,6 +677,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             using(var guard = ObtainPauseGuardForWriting(offset, SysbusAccessWidth.Byte, value))
             {
+                // If the transaction was interrupted while handling a watchpoint, don't perform the write to avoid
+                // duplicating the access' side effect.
                 if(!guard.InterruptTransaction)
                 {
                     machine.SystemBus.WriteByte(offset, unchecked((byte)value), this, cpuState);
@@ -685,6 +695,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             using(var guard = ObtainPauseGuardForWriting(offset, SysbusAccessWidth.Word, value))
             {
+                // If the transaction was interrupted while handling a watchpoint, don't perform the write to avoid
+                // duplicating the access' side effect.
                 if(!guard.InterruptTransaction)
                 {
                     machine.SystemBus.WriteWord(offset, unchecked((ushort)value), this, cpuState);
@@ -701,6 +713,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             using(var guard = ObtainPauseGuardForWriting(offset, SysbusAccessWidth.DoubleWord, value))
             {
+                // If the transaction was interrupted while handling a watchpoint, don't perform the write to avoid
+                // duplicating the access' side effect.
                 if(!guard.InterruptTransaction)
                 {
                     machine.SystemBus.WriteDoubleWord(offset, (uint)value, this, cpuState);
@@ -717,6 +731,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             using(var guard = ObtainPauseGuardForWriting(offset, SysbusAccessWidth.QuadWord, value))
             {
+                // If the transaction was interrupted while handling a watchpoint, don't perform the write to avoid
+                // duplicating the access' side effect.
                 if(!guard.InterruptTransaction)
                 {
                     machine.SystemBus.WriteQuadWord(offset, value, this, cpuState);
