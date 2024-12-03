@@ -29,7 +29,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             priorities = new byte[IRQCount];
             activeIRQs = new Stack<int>();
             pendingIRQs = new SortedSet<int>();
-            systick = new LimitTimer(machine.ClockSource, systickFrequency, this, nameof(systick), uint.MaxValue, Direction.Descending, false, eventEnabled: true, autoUpdate: true);
+            // We set initial limit to the maximum 24-bit value, and don't modify it afterwards.
+            // Instead we reload counter with RELOAD value when counter reaches 0.
+            systick = new LimitTimer(machine.ClockSource, systickFrequency, this, nameof(systick), SysTickMaxValue, Direction.Descending, false, eventEnabled: true);
             this.machine = machine;
             this.priorityMask = priorityMask;
             defaultHaltSystickOnDeepSleep = haltSystickOnDeepSleep;
@@ -38,10 +40,20 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             resetMachine = machine.RequestReset;
             systick.LimitReached += () =>
             {
-                countFlag = true;
-                if(eventEnabled)
+                countFlag.Value = true;
+                if(eventEnabled.Value)
                 {
                     SetPendingIRQ((int)SystemException.SysTick);
+                }
+
+                // If the systick timer is running and the reload value is 0, this has the effect of disabling the counter on the expiration.
+                if(systickReload.Value == 0)
+                {
+                    systick.Enabled = false;
+                }
+                else
+                {
+                    systick.Value = systickReload.Value;
                 }
             };
             RegisterCollection = new DoubleWordRegisterCollection(this);
@@ -134,10 +146,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
             switch((Registers)offset)
             {
-            case Registers.SysTickCalibrationValue:
-                // bits [0, 23] TENMS
-                // Note that some reference manuals state that this value is for 1ms interval and not for 10ms
-                return 0xFFFFFF & (uint)(systick.Frequency / 100);
             case Registers.VectorTableOffset:
                 return cpu.VectorTableOffset;
             case Registers.CPUID:
@@ -165,18 +173,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     return 0;
                 }
                 return cpu.FPDSCR;
-            case Registers.SysTickControl:
-                var currentCountFlag = countFlag ? 1u << 16 : 0;
-                countFlag = false;
-                return (currentCountFlag
-                        | 4u // core clock CLKSOURCE
-                        | ((eventEnabled ? 1u : 0u) << 1)
-                        | (systickEnabled ? 1u : 0u));
-            case Registers.SysTickReloadValue:
-                return (uint)systick.Limit;
-            case Registers.SysTickValue:
-                cpu?.SyncTime();
-                return (uint)systick.Value;
             case Registers.ConfigurationAndControl:
                 return ccr;
             case Registers.SystemHandlerPriority1:
@@ -232,23 +228,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
             switch((Registers)offset)
             {
-            case Registers.SysTickControl:
-                eventEnabled = ((value & 2) >> 1) != 0;
-                this.NoisyLog("Systick interrupt {0}.", eventEnabled ? "enabled" : "disabled");
-                SetSystickEnabled((value & 1) != 0);
-                break;
-            case Registers.SysTickReloadValue:
-                var newValue = value & SysTickMaximumValue;
-                if(newValue > SysTickMaximumValue)
-                {
-                    this.Log(LogLevel.Warning, "Given value {0} exceeds maximum available {1}. Writing {2}", value, SysTickMaximumValue, newValue);
-                }
-                SetSystickReloadValue(newValue);
-                break;
-            case Registers.SysTickValue:
-                systick.Value = systick.Limit;
-                countFlag = false;
-                break;
             case Registers.VectorTableOffset:
                 cpu.VectorTableOffset = value & 0xFFFFFF80;
                 break;
@@ -362,11 +341,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
             activeIRQs.Clear();
             systick.Reset();
-            systickEnabled = false;
-            eventEnabled = false;
-            systick.AutoUpdate = true;
             IRQ.Unset();
-            countFlag = false;
             mpuControlRegister = 0;
             HaltSystickOnDeepSleep = defaultHaltSystickOnDeepSleep;
 
@@ -469,11 +444,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
             if(pendingInterrupt != SpuriousInterrupt && value)
             {
-                if(systick.Enabled == false)
+                if(systickEnabled.Value && systick.Enabled == false)
                 {
                     this.NoisyLog("Waking up from deep sleep");
                 }
-                systick.Enabled |= value && systick.Limit != 0;
+                systick.Enabled |= value && systickEnabled.Value && systickReload.Value != 0;
             }
         }
 
@@ -489,6 +464,64 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private void DefineRegisters()
         {
+            Registers.SysTickControl.Define(RegisterCollection)
+                .WithFlag(0, out systickEnabled, changeCallback: (_, value) =>
+                {
+                    if(value && systickReload.Value == 0)
+                    {
+                        this.DebugLog("Systick enabled but it won't be started as long as reload value is zero");
+                        return;
+                    }
+                    this.NoisyLog("Systick {0}", value ? "enabled" : "disabled");
+                    systick.Enabled = value;
+                }, name: "ENABLE")
+                .WithFlag(1, out eventEnabled, changeCallback: (_, newValue) =>
+                {
+                    this.NoisyLog("Systick interrupt {0}.", newValue ? "enabled" : "disabled");
+                }, name: "TICKINT")
+                // If no external clock is provided, this bit reads as 1 and ignores writes.
+                .WithFlag(2, FieldMode.Read, valueProviderCallback: _ => true, name: "CLKSOURCE") // SysTick uses the processor clock
+                .WithReservedBits(3, 13)
+                .WithFlag(16, out countFlag, FieldMode.ReadToClear, name: "COUNTFLAG")
+                .WithReservedBits(17, 15);
+
+            Registers.SysTickReloadValue.Define(RegisterCollection)
+                .WithValueField(0, 24, out systickReload, changeCallback: (oldValue, newValue) =>
+                {
+                    if(systickEnabled.Value && oldValue == 0 && !systick.Enabled)
+                    {
+                        // We explicitly enable underlying SysTick counter only in the case it was blocked by RELOAD=0.
+                        // We ignore other cases, as we don't want to accidentally enable counter in DEEPSLEEP just by writing to this register.
+                        this.DebugLog("Resuming systick counter due to reload value change from 0x0 to 0x{0:X}", newValue);
+                        systick.Value = newValue;
+                        systick.Enabled = true;
+                    }
+                }, name: "RELOAD")
+                .WithReservedBits(24, 8);
+
+            Registers.SysTickValue.Define(RegisterCollection)
+                .WithValueField(0, 24, writeCallback: (_, __) =>
+                {
+                    if(systickReload.Value != 0)
+                    {
+                        // Write to this register does not trigger the SysTick exception logic - we can't write zero to timer value as it would trigger an event.
+                        systick.Value = systickReload.Value;
+                    }
+                    countFlag.Value = false;
+                },
+                valueProviderCallback: _ =>
+                {
+                    cpu?.SyncTime();
+                    return (uint)systick.Value;
+                }, name: "CURRENT");
+
+            Registers.SysTickCalibrationValue.Define(RegisterCollection)
+                // Note that some reference manuals state that this value is for 1ms interval and not for 10ms
+                .WithValueField(0, 24, FieldMode.Read, valueProviderCallback: _ => SysTickMaxValue & (uint)(systick.Frequency / SysTickCalibration100Hz), name: "TENMS")
+                .WithReservedBits(24, 6)
+                .WithFlag(30, FieldMode.Read, valueProviderCallback: _ => systick.Frequency % SysTickCalibration100Hz != 0, name: "SKEW")
+                .WithFlag(31, FieldMode.Read, valueProviderCallback: _ => true, name: "NOREF");
+
             Registers.InterruptControlState.Define(RegisterCollection)
                 .WithValueField(0, 9, FieldMode.Read, valueProviderCallback: _ => (uint)(activeIRQs.Count == 0 ? 0 : activeIRQs.Peek()), name: "VECTACTIVE")
                 .WithReservedBits(9, 2)
@@ -1046,37 +1079,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             return (cpu.XProgramStatusRegister & InterruptProgramStatusRegisterMask) != 0 || (cpu.Control & 1) == 0;
         }
 
-        private void SetSystickEnabled(bool value)
-        {
-            systickEnabled = value;
-
-            if(value && systick.Limit == 0)
-            {
-                this.DebugLog("Systick enabled but it won't be started as long as reload value is zero");
-                return;
-            }
-            this.NoisyLog("Systick {0}", value ? "enabled" : "disabled");
-            systick.Enabled = value;
-        }
-
-        private void SetSystickReloadValue(ulong value)
-        {
-            var oldValue = systick.Limit;
-            if(oldValue == value)
-            {
-                return;
-            }
-            systick.Limit = value;
-
-            var newEnabled = systickEnabled && value > 0;
-            if(newEnabled != systick.Enabled)
-            {
-                var operation = newEnabled ? "Starting" : "Stopping";
-                this.DebugLog("{0} systick due to reload value changed from 0x{1:X} to 0x{2:X}", operation, oldValue, value);
-                systick.Enabled = newEnabled;
-            }
-        }
-
         private byte basepri;
         public byte BASEPRI
         {
@@ -1238,9 +1240,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         // bit [16] DC / Cache enable. This is a global enable bit for data and unified caches.
         private uint ccr = 0x10000;
 
-        private bool eventEnabled;
         private readonly bool defaultHaltSystickOnDeepSleep;
-        private bool countFlag;
         private byte priorityMask;
         private Stack<int> activeIRQs;
         private ISet<int> pendingIRQs;
@@ -1249,7 +1249,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private MPUVersion mpuVersion;
 
         private bool maskedInterruptPresent;
-        private bool systickEnabled;
+        private IFlagRegisterField systickEnabled;
+        private IFlagRegisterField eventEnabled;
+        private IFlagRegisterField countFlag;
+        private IValueRegisterField systickReload;
 
         private readonly IRQState[] irqs;
         private readonly byte[] priorities;
@@ -1285,5 +1288,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private const uint InterruptProgramStatusRegisterMask = 0x1FF;
         private const uint NonMaskableInterruptIRQ = 2;
+        private const int SysTickCalibration100Hz = 100;
+        private const int SysTickMaxValue = (1 << 24) - 1;
     }
 }
