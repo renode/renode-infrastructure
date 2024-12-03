@@ -1278,6 +1278,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/I2C/SAMD21_I2C.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/DMA/MSP430F261X_DMA.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/UART/MSP430_eUSCI.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Timers/MSP430F2XXX_Watchdog.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Emulator/Main/Utilities/Packets/Packet.cs" />
