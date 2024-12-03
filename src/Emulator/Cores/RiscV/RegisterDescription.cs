@@ -393,7 +393,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 csrGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.MEDELEG, registerWidth, "medeleg", intType, "csr"));
                 csrGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.MIDELEG, registerWidth, "mideleg", intType, "csr"));
             }
-
+            
+            csrGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.MTVT, registerWidth, "mtvt","", "csr"));
             csrGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.MSTATUS, registerWidth, "mstatus", "", "csr"));
             csrGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.MISA, registerWidth, "misa", "", "csr"));
             csrGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.MIE, registerWidth, "mie", "mie_type", "csr"));
