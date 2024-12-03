@@ -36,6 +36,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             defaultHaltSystickOnDeepSleep = haltSystickOnDeepSleep;
             binaryPointPosition = new SecurityBanked<int>();
             currentSevOnPending = new SecurityBanked<bool>();
+            ccr = new SecurityBanked<uint>();
             irqs = new ExceptionSimpleArray<IRQState>();
             targetInterruptSecurityState = new InterruptTargetSecurityState[IRQCount];
             IRQ = new GPIO();
@@ -187,7 +188,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 }
                 return cpu.FPDSCR;
             case Registers.ConfigurationAndControl:
-                return ccr;
+                return ccr.Get(isSecure);
             case Registers.SystemHandlerPriority1:
             case Registers.SystemHandlerPriority2:
             case Registers.SystemHandlerPriority3:
@@ -380,7 +381,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 cpu.FPDSCR = value & 0x07c00000;
                 break;
             case Registers.ConfigurationAndControl:
-                ccr = value;
+                ccr.Get(isSecure) = value;
                 break;
             default:
                 lock(RegisterCollection)
@@ -413,7 +414,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             binaryPointPosition.Reset();
 
             // bit [16] DC / Cache enable. This is a global enable bit for data and unified caches.
-            ccr = 0x10000;
+            ccr.Reset(0x10000);
         }
 
         public long Size
@@ -1655,6 +1656,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 NonSecureVal = default(T);
             }
 
+            public void Reset(T val)
+            {
+                SecureVal = val;
+                NonSecureVal = val;
+            }
+
             public ref T Get(bool IsSecure)
             {
                 return ref IsSecure ? ref SecureVal : ref NonSecureVal; 
@@ -1848,7 +1855,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         }
 
         // bit [16] DC / Cache enable. This is a global enable bit for data and unified caches.
-        private uint ccr = 0x10000;
+        private readonly SecurityBanked<uint> ccr;
 
         private readonly bool defaultHaltSystickOnDeepSleep;
         private readonly SecurityBanked<SysTick> systick;
