@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using Antmicro.Migrant;
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals;
@@ -28,7 +29,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 #endif
         }
 
-        private class PeripheralCollection : IReadOnlyPeripheralCollection
+        private class PeripheralCollection : IReadOnlyPeripheralCollection, ICoalescable<PeripheralCollection>
         {
             internal PeripheralCollection(SystemBus sysbus)
             {
@@ -99,7 +100,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 }
             }
 
-            public void AddAll(PeripheralCollection source)
+            public void Coalesce(PeripheralCollection source)
             {
                 foreach(var block in source.blocks.Union(source.shortBlocks.Values))
                 {

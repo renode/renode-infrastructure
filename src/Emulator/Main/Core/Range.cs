@@ -9,6 +9,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Core
@@ -232,7 +233,7 @@ namespace Antmicro.Renode.Core
         bool ContainsPoint(ulong point);
     }
 
-    public class MinimalRangesCollection : IReadOnlyMinimalRangesCollection
+    public class MinimalRangesCollection : IReadOnlyMinimalRangesCollection, ICoalescable<MinimalRangesCollection>
     {
         public MinimalRangesCollection(IEnumerable<Range> rangeEnumerable = null)
         {
@@ -264,6 +265,11 @@ namespace Antmicro.Renode.Core
             {
                 Add(range);
             }
+        }
+
+        public void Coalesce(MinimalRangesCollection source)
+        {
+            AddAll(source.AsEnumerable());
         }
 
         public void Clear()
