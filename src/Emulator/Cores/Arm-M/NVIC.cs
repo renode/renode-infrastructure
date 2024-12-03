@@ -1382,6 +1382,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 return (interruptNo & BankedExcpSecureBit) == 0;
             }
+            // HardFault is banked if "BFHFNMINS" is set
+            if((interruptNo == (int)SystemException.HardFault_S || interruptNo == (int)SystemException.HardFault)
+                && targetInterruptSecurityState[(int)SystemException.HardFault] == InterruptTargetSecurityState.NonSecure)
+            {
+                return (interruptNo & BankedExcpSecureBit) == 0;
+            }
             return targetInterruptSecurityState[interruptNo] == InterruptTargetSecurityState.NonSecure;
         }
 
@@ -1794,7 +1800,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             public ExceptionSimpleArray()
             {
-                container = new T[IRQCount + bankedInterrupts.Length / 2];
+                // Regular IRQs, plus banked, plus HardFault (which can be banked, but doesn't have to be)
+                container = new T[IRQCount + bankedInterrupts.Length / 2 + 1];
             }
 
             public void Clear()
@@ -1834,8 +1841,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         return IRQCount + 3;
                     case (int)SystemException.SysTick_S:
                         return IRQCount + 4;
-                    case (int)SystemException.DebugMonitor_S:
+                    case (int)SystemException.HardFault_S:
                         return IRQCount + 5;
+                    case (int)SystemException.DebugMonitor_S:
+                        return IRQCount + 6;
                     default:
                         throw new InvalidOperationException($"Exception number {exception} is invalid");
                 }
@@ -1902,6 +1911,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             (int)SystemException.PendSV_S,
             (int)SystemException.SysTick_S,
             (int)SystemException.DebugMonitor_S,
+            // Lack of HardFault here is not a mistake
+            // HardFault is by default handled as Secure exception
         };
 
         private const string TrustZoneNSRegionWarning = "Without TrustZone enabled in the CPU, a NonSecure region should not be registered";
