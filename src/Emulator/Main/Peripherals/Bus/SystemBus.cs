@@ -2134,20 +2134,6 @@ namespace Antmicro.Renode.Peripherals.Bus
 
             public bool TryGetValue(IPeripheral key, ulong? cpuState, out TValue value)
             {
-                var collectionToSearch = globalValue.AsEnumerable();
-                if(key != null && cpuLocalValues.TryGetValue(key, out var thisCpuValues))
-                {
-                    // Note that in order for the 'local peripheral overrides the global one' behavior to work as intended,
-                    // we must check the local peripherals first. That way they 'reserve' their spot in the cache. This function
-                    // also checks the global collection when called with a context argument, but it does it only after going
-                    // through the context-specific one to ensure this.
-                    collectionToSearch = thisCpuValues.Concat(collectionToSearch);
-                }
-                return TryGetValueForState(collectionToSearch, key, cpuState, out value);
-            }
-
-            private bool TryGetValueForState(IEnumerable<KeyValuePair<StateMask, TValue>> collection, IPeripheral key, ulong? cpuState, out TValue value)
-            {
                 if(!cpuState.HasValue)
                 {
                     value = key == null ? globalAllAccess : cpuAllAccess[key];
@@ -2166,15 +2152,25 @@ namespace Antmicro.Renode.Peripherals.Bus
                 else
                 {
                     cache[cpuState.Value] = cachedValue = defaultFactory();
+                    return TryGetValueForState(cachedValue, key, cpuState, out value);
                 }
-                // The core of the state filtering logic. Look up which element fits the current initiator state.
-                // This might need multiple checks. We might encounter a peripheral mapped with state,
-                // mask = 1,1 while the CPU state is 0x3 (which passes the mask), but the matching collection we
-                // find first does not contain this peripheral (say it's in another collection with a more specific,
-                // or just different matching mask, in this example 2,2 or 3,3). We probe the found collection based
-                // on the address we want to access and return the one where it's mapped.
+            }
+
+            private bool TryGetValueForState(TValue cachedValue, IPeripheral key, ulong? cpuState, out TValue value)
+            {
+                // The core of the state filtering logic. Look up which elements fit the current initiator state.
+                // Then join all found state-specific collections of elements into the cached one for this state.
+                var collectionToSearch = globalValue.AsEnumerable();
+                if(key != null && cpuLocalValues.TryGetValue(key, out var thisCpuValues))
+                {
+                    // Note that in order for the 'local peripheral overrides the global one' behavior to work as intended,
+                    // we must check the local peripherals first. That way they 'reserve' their spot in the cache. This function
+                    // also checks the global collection when called with a context argument, but it does it only after going
+                    // through the context-specific one to ensure this.
+                    collectionToSearch = thisCpuValues.Concat(collectionToSearch);
+                }
                 bool anyHit = false;
-                foreach(var sm in collection)
+                foreach(var sm in collectionToSearch)
                 {
                     var mask = sm.Key;
                     if((cpuState.Value & mask.Mask) == mask.State)
