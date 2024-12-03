@@ -1312,7 +1312,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
                 if(result != SpuriousInterrupt)
                 {
-                    if(result == NonMaskableInterruptIRQ || (cpu.PRIMASK == 0 && cpu.FAULTMASK == 0))
+                    if(result == (int)SystemException.NMI || (cpu.PRIMASK == 0 && cpu.FAULTMASK == 0))
                     {
                         IRQ.Set(true);
                     }
@@ -1924,7 +1924,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private const int BankedExcpSecureBit  = 1 << 30;
         private const uint InterruptProgramStatusRegisterMask = 0x1FF;
-        private const uint NonMaskableInterruptIRQ = 2;
         private const int SysTickCalibration100Hz = 100;
         private const int SysTickMaxValue = (1 << 24) - 1;
     }
