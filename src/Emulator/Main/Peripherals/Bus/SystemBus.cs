@@ -1236,17 +1236,21 @@ namespace Antmicro.Renode.Peripherals.Bus
             RemoveMappingsForPeripheral(peripheral);
 
             // remove the peripheral from all cpu-local and the global mappings
-            foreach(var context in peripheralsCollectionByContext.GetAllContextKeys())
+            foreach(var pair in peripheralsCollectionByContext.GetAllContextKeys()
+                .SelectMany(context => peripheralsCollectionByContext.GetAllStateKeys(context).Select(stateMask => new { context, stateMask })))
             {
-                peripheralsCollectionByContext.WithStateCollection(context, stateMask: null, collection =>
+                peripheralsCollectionByContext.WithStateCollection(pair.context, stateMask: pair.stateMask, collection =>
                 {
                     collection.Remove(peripheral);
                 });
             }
-            peripheralsCollectionByContext.WithStateCollection(null, stateMask: null, collection =>
+            foreach(var stateMask in peripheralsCollectionByContext.GetAllStateKeys(context: null))
             {
-                collection.Remove(peripheral);
-            });
+                peripheralsCollectionByContext.WithStateCollection(context: null, stateMask, collection =>
+                {
+                    collection.Remove(peripheral);
+                });
+            }
             RemoveContextKeys(peripheral);
         }
 
