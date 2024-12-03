@@ -1851,19 +1851,9 @@ namespace Antmicro.Renode.Peripherals.Bus
             globalLookup = new SymbolLookup();
             localLookups = new Dictionary<ICPU, SymbolLookup>();
             cachedCpuId = new ThreadLocal<int>();
-            peripheralsCollectionByContext = new ContextKeyDictionary<PeripheralCollection, IReadOnlyPeripheralCollection>(() => new PeripheralCollection(this), (a, b) =>
-            {
-                // PeripheralCollection.AddAll doesn't add overlapping peripherals. This means that for the 'local peripheral overrides
-                // the global one' behavior to work as intended we must check the local peripherals first.
-                a.AddAll(b); // Fine to mutate a here
-                return a;
-            });
+            peripheralsCollectionByContext = new ContextKeyDictionary<PeripheralCollection, IReadOnlyPeripheralCollection>(() => new PeripheralCollection(this));
             lockedPeripherals = new HashSet<IPeripheral>();
-            lockedRangesCollectionByContext = new ContextKeyDictionary<MinimalRangesCollection, IReadOnlyMinimalRangesCollection>(() => new MinimalRangesCollection(), (a, b) =>
-            {
-                a.AddAll(b);
-                return a;
-            });
+            lockedRangesCollectionByContext = new ContextKeyDictionary<MinimalRangesCollection, IReadOnlyMinimalRangesCollection>(() => new MinimalRangesCollection());
             mappingsForPeripheral = new Dictionary<IBusPeripheral, List<MappedSegmentWrapper>>();
             tags = new Dictionary<Range, TagEntry>();
             svdDevices = new List<SVDParser>();
@@ -2075,12 +2065,11 @@ namespace Antmicro.Renode.Peripherals.Bus
         private ContextKeyDictionary<MinimalRangesCollection, IReadOnlyMinimalRangesCollection> lockedRangesCollectionByContext;
 
         // It doesn't implement IDictionary because serialization doesn't work correctly for dictionaries without two generic parameters.
-        private class ContextKeyDictionary<TValue, TReadOnlyValue> where TValue : TReadOnlyValue where TReadOnlyValue : class
+        private class ContextKeyDictionary<TValue, TReadOnlyValue> where TValue : TReadOnlyValue, ICoalescable<TValue> where TReadOnlyValue : class
         {
-            public ContextKeyDictionary(Func<TValue> defaultFactory, Func<TValue, TValue, TValue> merge)
+            public ContextKeyDictionary(Func<TValue> defaultFactory)
             {
                 this.defaultFactory = defaultFactory;
-                this.merge = merge;
                 globalAllAccess = globalValue[StateMask.AllAccess] = defaultFactory();
             }
 
@@ -2191,20 +2180,10 @@ namespace Antmicro.Renode.Peripherals.Bus
                     var stateMask = pair.Key;
                     if((cpuState.Value & stateMask.Mask) == stateMask.State)
                     {
-                        if(probeAddress.HasValue && !isHit(pair.Value, probeAddress.Value))
-                        {
-                            // If we just created the state-specific cache, then we must have come here while processing
-                            // the CPU-local peripheral collection. Merge all of them in so they take priority over the
-                            // ones from the global collection when we hit it later.
-                            if(!stateCacheExisted)
-                            {
-                                merge(cachedValue, pair.Value);
-                            }
-                            continue;
-                        }
-                        value = pair.Value;
-                        merge(cachedValue, value);
-                        return true;
+                        anyHit = true;
+                        /// <see cref="PeripheralCollection.Coalesce"> doesn't add overlapping peripherals. This means that for the 'local peripheral
+                        /// overrides the global one' behavior to work as intended we must check the local peripherals first, as we did above.
+                        cachedValue.Coalesce(pair.Value);
                     }
                 }
                 value = anyHit ? cachedValue : default(TValue);
@@ -2220,7 +2199,6 @@ namespace Antmicro.Renode.Peripherals.Bus
             private readonly Dictionary<IPeripheral, Dictionary<StateMask, TValue>> cpuLocalValues = new Dictionary<IPeripheral, Dictionary<StateMask, TValue>>();
             private readonly Dictionary<IPeripheral, Dictionary<ulong, TValue>> cpuInStateCache = new Dictionary<IPeripheral, Dictionary<ulong, TValue>>();
             private readonly Func<TValue> defaultFactory;
-            private readonly Func<TValue, TValue, TValue> merge;
             private readonly Dictionary<StateMask, TValue> globalValue = new Dictionary<StateMask, TValue>();
             private readonly Dictionary<ulong, TValue> globalCache = new Dictionary<ulong, TValue>();
             // Please take performance into account before removing these caches (they were added because looking up a value
