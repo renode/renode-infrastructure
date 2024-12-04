@@ -49,9 +49,10 @@ namespace Antmicro.Renode.Peripherals.Timers
         private void DefineRegisters(bool is64Bit)
         {
             Registers.Prescaler.Define(this)
-                .WithValueField(0, 8, name: "PRE_8 (Prescaler Value)",
+                .WithReservedBits(0, 8)
+                .WithValueField(8, 8, name: "PRE_8 (Prescaler Value)",
                     changeCallback: (_, value) => timer.Divider = (int)value + 1)
-                .WithReservedBits(8, 24);
+                .WithReservedBits(16, 16);
 
             Registers.ControlAndStatus.Define(this)
                 .WithFlag(0, out timeoutStatus, FieldMode.Read | FieldMode.WriteOneToClear, name: "TO_STS (Timeout Status)")
@@ -136,7 +137,11 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private enum Registers
         {
-            Prescaler           = 0x1, // ITPRE32n or ITPRE64
+            // Prescaler register is defined at offset 0x1
+            // Due to current lack of support for register collections
+            // with multiple widths, this register will be implemented
+            // as the second byte in a 4 byte register
+            Prescaler           = 0x0, // ITPRE32n or ITPRE64
             ControlAndStatus    = 0x4, // ITCTS32n or ITCTS64
             Counter             = 0x8, // ITCNT32n or ITCNT64L
             CounterHigh         = 0xC, // ITCNT64H
