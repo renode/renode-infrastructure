@@ -5,9 +5,15 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
+using Antmicro.Renode.Utilities;
+
 namespace Antmicro.Renode.Core
 {
-    public struct StateMask
+    public
+#if NET
+    readonly
+#endif
+    struct StateMask
     {
         public StateMask(ulong state, ulong mask)
         {
@@ -15,8 +21,19 @@ namespace Antmicro.Renode.Core
             Mask = mask;
         }
 
-        public ulong State;
-        public ulong Mask;
+        public bool HasMaskBit(int position)
+        {
+            return BitHelper.IsBitSet(Mask, (byte)position);
+        }
+
+        public StateMask WithBitValue(int position, bool value)
+        {
+            var bit = (ulong)BitHelper.Bit((byte)position);
+            return new StateMask(State | (value ? bit : 0), Mask | bit);
+        }
+
+        public readonly ulong State;
+        public readonly ulong Mask;
 
         public static readonly StateMask AllAccess = new StateMask(0, 0);
     }
