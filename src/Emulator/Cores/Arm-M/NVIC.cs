@@ -2047,7 +2047,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private const int MPUEnd               = 0xDC4;    // resized for compat. with V8 MPU
         private const int SAUStart             = 0xDD0;
         private const int SAUEnd               = 0xDE4;
-        private const int SpuriousInterrupt    = 256;
         private const int SetEnableStart       = 0x100;
         private const int SetEnableEnd         = 0x140;
         private const int ClearEnableStart     = 0x180;
@@ -2062,7 +2061,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private const int TargetNonSecureEnd   = 0x3C0;
         private const int PriorityStart        = 0x400;
         private const int PriorityEnd          = 0x7F0;
-        private const int IRQCount             = 512 + 16;
+        private const int IRQCount             = 512 + 16 + 1;
+        private const int SpuriousInterrupt    = IRQCount - 1;
         private const int VectKey              = 0x5FA;
         private const int VectKeyStat          = 0xFA05;
         private const uint SysTickMaximumValue = 0x00FFFFFF;
