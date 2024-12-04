@@ -1474,7 +1474,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             if(!cpu.TrustZoneEnabled)
             {
-                return false;
+                return true;
             }
             if(bankedInterrupts.Contains(interruptNo))
             {
