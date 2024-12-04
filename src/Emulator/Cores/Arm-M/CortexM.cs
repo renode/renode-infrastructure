@@ -511,6 +511,16 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public uint GetPrimask(bool secure)
+        {
+            return tlibGetPrimask(secure ? 1u : 0u);
+        }
+
+        public uint GetFaultmask(bool secure)
+        {
+            return tlibGetFaultmask(secure ? 1u : 0u);
+        }
+
         public override void InitFromElf(IELF elf)
         {
             // do nothing
@@ -636,9 +646,16 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        private void OnBASEPRIWrite(int value)
+        private void OnBASEPRIWrite(int value, uint secure)
         {
-            nvic.BASEPRI = (byte)value;
+            if(secure > 0)
+            {
+                nvic.BASEPRI_S = (byte)value;
+            }
+            else
+            {
+                nvic.BASEPRI_NS = (byte)value;
+            }
         }
 
         [Export]
@@ -777,10 +794,16 @@ namespace Antmicro.Renode.Peripherals.CPU
         private Func<uint> tlibGetXpsr;
 
         [Import]
-        private Func<uint> tlibIsV8;
+        private Action<int> tlibSetSleepOnExceptionExit;
 
         [Import]
-        private Action<int> tlibSetSleepOnExceptionExit;
+        private Func<uint, uint> tlibGetPrimask;
+
+        [Import]
+        private Func<uint, uint> tlibGetFaultmask;
+
+        [Import]
+        private Func<uint> tlibIsV8;
 
         /* TrustZone */
         [Import]

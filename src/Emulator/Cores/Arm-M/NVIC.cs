@@ -19,6 +19,7 @@ using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Time;
+using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.IRQControllers
@@ -36,6 +37,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             defaultHaltSystickOnDeepSleep = haltSystickOnDeepSleep;
             binaryPointPosition = new SecurityBanked<int>();
             currentSevOnPending = new SecurityBanked<bool>();
+            basepri = new SecurityBanked<byte>();
             ccr = new SecurityBanked<uint>();
             irqs = new ExceptionSimpleArray<IRQState>();
             targetInterruptSecurityState = new InterruptTargetSecurityState[IRQCount];
@@ -1313,7 +1315,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
                 if(result != SpuriousInterrupt)
                 {
-                    if(result == (int)SystemException.NMI || (cpu.PRIMASK == 0 && cpu.FAULTMASK == 0))
+                    if(ShouldRaiseException(result))
                     {
                         IRQ.Set(true);
                     }
@@ -1336,6 +1338,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         /// This exposes raw value of <see cref="targetInterruptSecurityState"/>
         /// note, that for some exceptions, this doesn't mean that they are Secure, since some exceptions are banked
         /// </remarks>
+        [HideInMonitor]
         public InterruptTargetSecurityState GetTargetInterruptSecurityState(int interruptNumber)
         {
             // Don't check this for banked IRQs - this makes no sense at all!
@@ -1343,6 +1346,101 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             DebugHelper.Assert(!bankedInterrupts.Contains(interruptNumber));
 
             return targetInterruptSecurityState[interruptNumber];
+        }
+
+
+        private bool ShouldRaiseException(int excp)
+        {
+            /* The intuition to understanding this:
+             * PRIMASK is used to mask all exceptions, minus Reset, NMI and HardFault
+             * FAULTMASK is a more restrictive PRIMASK, also masking HardFault
+             * _NS variants will attempt to only disable NonSecure exceptions, but this can only happen if "PRIS" is set
+             * here `BFHFNMINS` will also matter, since it retargets several exceptions (e.g. NMI), and enables HardFault banking
+             */
+            if(!cpu.TrustZoneEnabled)
+            {
+                // These have prio below -1, so they are never maskable
+                if(excp == (int)SystemException.NMI || excp == (int)SystemException.Reset)
+                {
+                    return true;
+                }
+
+                if(cpu.PRIMASK == 0 && cpu.FAULTMASK == 0)
+                {
+                    return true;
+                }
+                else if(cpu.PRIMASK != 0 && cpu.FAULTMASK == 0)
+                {
+                    // If only PRIMASK is set, HardFault always goes through
+                    return excp == (int)SystemException.HardFault;
+                }
+                // Otherwise, if FAULTMASK is set, deny everything
+            }
+            else
+            {
+                // Reset is not maskable
+                if(excp == (int)SystemException.Reset)
+                {
+                    return true;
+                }
+
+                if(cpu.GetFaultmask(true) > 0 || cpu.GetFaultmask(false) > 0)
+                {
+                    // "BFHFNMINS" is 1
+                    bool isNSEnabled = GetTargetInterruptSecurityState((int)SystemException.HardFault) == InterruptTargetSecurityState.NonSecure;
+                    if(cpu.GetFaultmask(true) > 0)
+                    {
+                        if(isNSEnabled)
+                        {
+                            return false;
+                        }
+                        else
+                        {
+                            return excp == (int)SystemException.HardFault_S || excp == (int)SystemException.NMI;
+                        }
+                    }
+                    else if(cpu.GetFaultmask(false) > 0)
+                    {
+                        if(isNSEnabled)
+                        {
+                            // If Configurable exceptions target Non-secure mode, and PRIS is set, we boost current execution priority to 0x80
+                            // which is the boundary between Secure and Non-secure priorities, so only Secure exceptions will pass.
+                            // If PRIS is unset, we block everything (raise priotity to 0), but not HardFault (Secure and Non-Secure) and NMI.
+                            return (prioritizeSecureInterrupts && !IsInterruptTargetNonSecure(excp))
+                                || excp == (int)SystemException.NMI || excp == (int)SystemException.HardFault || excp == (int)SystemException.HardFault_S;
+                        }
+                        else
+                        {
+                            // Configurable exceptions target Secure mode only, so we raise execution priority to -1
+                            return excp == (int)SystemException.NMI;
+                        }
+                    }
+                }
+                // Secure PRIMASK is unset, so all pass, unless Non-secure is set
+                else if(cpu.GetPrimask(true) == 0)
+                {
+                    if(cpu.GetPrimask(false) == 0)
+                    {
+                        return true;
+                    }
+                    else
+                    {
+                        // If PRIMASK_NS is set, and PRIS is set, we boost current execution priority to 0x80
+                        // which is the boundary between Secure and Non-secure priorities, so only Secure exceptions will pass.
+                        // If PRIS is unset, we block everything (raise priotity to 0), but not HardFault and NMI.
+                        return (prioritizeSecureInterrupts && !IsInterruptTargetNonSecure(excp))
+                            || excp == (int)SystemException.NMI || excp == (int)SystemException.HardFault;
+                    }
+                }
+                // Secure PRIMASK is set - deny all, except HardFault and NMI (exec priority boosted to 0)
+                else if(cpu.GetPrimask(true) > 0)
+                {
+                    return excp == (int)SystemException.HardFault || excp == (int)SystemException.HardFault_S || excp == (int)SystemException.NMI;
+                }
+            }
+
+            // Ignore exception otherwise
+            return false;
         }
 
         private int AdjustPriority(int interruptNo)
@@ -1397,7 +1495,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             const IRQState candidate = IRQState.Pending | IRQState.Enabled;
 
             return ((state & mask) == candidate) &&
-                   (basepri == 0 || priorities[index] < basepri);
+                   (basepri.Get(!IsInterruptTargetNonSecure(index)) == 0 || priorities[index] < basepri.Get(!IsInterruptTargetNonSecure(index)));
         }
 
         private bool DoesAPreemptB(int priorityA, int priorityB, bool secureA, bool secureB)
@@ -1462,17 +1560,36 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             return $"HardwareIRQ#{exception - ((int)SystemException.SysTick) - 1} ({exception})";
         }
 
-        private byte basepri;
-        public byte BASEPRI
+        // This is just a cache of BASEPRI register, present in ARMv7M and newer CPUs
+        // modifying them here will cause a bad desync with the CPU state
+        private readonly SecurityBanked<byte> basepri;
+
+        [HideInMonitor]
+        public byte BASEPRI_NS
         {
-            get { return basepri; }
+            get { return basepri.NonSecureVal; }
             set
             {
-                if(value == basepri)
+                if(value == basepri.NonSecureVal)
                 {
                     return;
                 }
-                basepri = value;
+                basepri.NonSecureVal = value;
+                FindPendingInterrupt();
+            }
+        }
+
+        [HideInMonitor]
+        public byte BASEPRI_S
+        {
+            get { return basepri.SecureVal; }
+            set
+            {
+                if(value == basepri.SecureVal)
+                {
+                    return;
+                }
+                basepri.SecureVal = value;
                 FindPendingInterrupt();
             }
         }
