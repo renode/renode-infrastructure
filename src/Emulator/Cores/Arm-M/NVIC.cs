@@ -435,7 +435,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     irqs[result] |= IRQState.Active;
                     irqs[result] &= ~IRQState.Pending;
                     pendingIRQs.Remove(result);
-                    this.NoisyLog("Acknowledged IRQ {0}.", result);
+                    this.NoisyLog("Acknowledged IRQ {0}.", ExceptionToString(result));
                     activeIRQs.Push(result);
                 }
                 // at this point we can surely deactivate interrupt, because the best was chosen
@@ -451,19 +451,19 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 var currentIRQ = irqs[number];
                 if((currentIRQ & IRQState.Active) == 0)
                 {
-                    this.Log(LogLevel.Error, "Trying to complete not active IRQ {0}.", number);
+                    this.Log(LogLevel.Error, "Trying to complete not active IRQ {0}.", ExceptionToString(number));
                     return;
                 }
                 irqs[number] &= ~IRQState.Active;
                 var activeIRQ = activeIRQs.Pop();
                 if(activeIRQ != number)
                 {
-                    this.Log(LogLevel.Error, "Trying to complete IRQ {0} that was not the last active. Last active was {1}.", number, activeIRQ);
+                    this.Log(LogLevel.Error, "Trying to complete IRQ {0} that was not the last active. Last active was {1}.", ExceptionToString(number), ExceptionToString(activeIRQ));
                     return;
                 }
                 if((currentIRQ & IRQState.Running) > 0)
                 {
-                    this.NoisyLog("Completed IRQ {0} active -> pending.", number);
+                    this.NoisyLog("Completed IRQ {0} active -> pending.", ExceptionToString(number));
                     irqs[number] |= IRQState.Pending;
                     pendingIRQs.Add(number);
                 }
@@ -473,7 +473,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 }
                 else
                 {
-                    this.NoisyLog("Completed IRQ {0} active -> inactive.", number);
+                    this.NoisyLog("Completed IRQ {0} active -> inactive.", ExceptionToString(number));
                 }
                 FindPendingInterrupt();
             }
@@ -483,7 +483,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             lock(irqs)
             {
-                this.NoisyLog("Internal IRQ {0}.", number);
+                this.NoisyLog("Internal IRQ {0}.", ExceptionToString(number));
                 SetPending(number);
                 FindPendingInterrupt();
             }
@@ -1164,12 +1164,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         {
                             if(enable)
                             {
-                                this.NoisyLog("Enabled IRQ {0}.", i);
+                                this.NoisyLog("Enabled IRQ {0}.", ExceptionToString(i));
                                 irqs[i] |= IRQState.Enabled;
                             }
                             else
                             {
-                                this.NoisyLog("Disabled IRQ {0}.", i);
+                                this.NoisyLog("Disabled IRQ {0}.", ExceptionToString(i));
                                 irqs[i] &= ~IRQState.Enabled;
                             }
                         }
@@ -1204,7 +1204,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private void SetPending(int i)
         {
-            this.DebugLog("Set pending IRQ {0}.", i);
+            this.DebugLog("Set pending IRQ {0}.", ExceptionToString(i));
             var before = irqs[i];
             irqs[i] |= IRQState.Pending;
             pendingIRQs.Add(i);
@@ -1226,13 +1226,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 if((irqs[i] & IRQState.Running) == 0)
                 {
-                    this.DebugLog("Cleared pending IRQ {0}.", i);
+                    this.DebugLog("Cleared pending IRQ {0}.", ExceptionToString(i));
                     irqs[i] &= ~IRQState.Pending;
                     pendingIRQs.Remove(i);
                 }
                 else
                 {
-                    this.DebugLog("Not clearing pending IRQ {0} as it is currently running.", i);
+                    this.DebugLog("Not clearing pending IRQ {0} as it is currently running.", ExceptionToString(i));
                 }
             }
         }
@@ -1307,7 +1307,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     }
                     else
                     {
-                        this.NoisyLog("IRQ {0} preempts {1}.", result, activeTop);
+                        this.NoisyLog("IRQ {0} preempts {1}.", ExceptionToString(result), ExceptionToString(activeTop));
                     }
                 }
 
@@ -1450,6 +1450,16 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 // TrustZone might not be enabled
                 return false;
             }
+        }
+
+        private static string ExceptionToString(int exception)
+        {
+            if(Enum.IsDefined(typeof(SystemException), exception))
+            {
+                return ((SystemException)exception).ToString();
+            }
+            // Otherwise, it's an external Hard IRQ.
+            return $"HardwareIRQ#{exception - ((int)SystemException.SysTick) - 1} ({exception})";
         }
 
         private byte basepri;
