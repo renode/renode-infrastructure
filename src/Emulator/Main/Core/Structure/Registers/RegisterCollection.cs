@@ -232,6 +232,15 @@ namespace Antmicro.Renode.Core.Structure.Registers
         }
 
         /// <summary>
+        /// Check if collection has register defined at given offset.
+        /// </summary>
+        /// <param name="offset">Register offset.</param>
+        public bool HasRegisterAtOffset(long offset)
+        {
+            return registers.TryGetValue(offset, out var selector) && selector.HasRegister();
+        }
+
+        /// <summary>
         /// Resets all registers in this collection.
         /// </summary>
         public void Reset()

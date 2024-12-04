@@ -50,6 +50,11 @@ namespace Antmicro.Renode.Core.Structure.Registers
             conditionalRegisters.Add(new ConditionalRegister(register, condition));
         }
 
+        public bool HasRegister()
+        {
+            return conditionalRegisters.Count == 1 || conditionalRegisters.Any(c => c.Condition());
+        }
+
         private IPeripheralRegister<T> GetRegister()
         {
             if(conditionalRegisters.Count == 1)
