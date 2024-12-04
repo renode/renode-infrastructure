@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -339,6 +339,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 // we set these interrupts regardless of the transfer length
                 interruptManager.SetInterrupt(Interrupts.TransmitStarted);
                 interruptManager.SetInterrupt(Interrupts.TransmitStopped);
+                interruptManager.SetInterrupt(Interrupts.EndTransmit);
 
                 if(txMaximumCount.Value == 0)
                 {
@@ -353,7 +354,6 @@ namespace Antmicro.Renode.Peripherals.UART
                     TransmitCharacter(character);
                 }
                 txAmount.Value = txMaximumCount.Value;
-                interruptManager.SetInterrupt(Interrupts.EndTransmit);
             }
             interruptManager.SetInterrupt(Interrupts.TransmitReady);
         }
