@@ -745,6 +745,7 @@
     <Compile Include="Peripherals\SPI\RenesasRZG_SPI.cs" />
     <Compile Include="Peripherals\GPIOPort\RenesasRZG_GPIO.cs" />
     <Compile Include="Peripherals\DMA\SAM_PDC.cs" />
+    <Compile Include="Peripherals\Miscellaneous\RenesasRZG_CPG.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
