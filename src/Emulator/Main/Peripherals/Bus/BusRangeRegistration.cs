@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -50,6 +50,10 @@ namespace Antmicro.Renode.Peripherals.Bus
             if(Initiator != null)
             {
                 result += $" for core {Initiator}";
+            }
+            if(Condition != null)
+            {
+                result += $" with condition \"{Condition}\"";
             }
             return result;
         }
