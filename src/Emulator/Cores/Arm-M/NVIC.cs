@@ -708,7 +708,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     {
                         if(canResetOnlyFromSecure && !isNextAccessSecure)
                         {
-                            this.WarningLog("Requested reset with SYSRESETREQ but SYSRESETREQS is set. Ignoring");
+                            this.WarningLog("Requested reset with SYSRESETREQ but SYSRESETREQS is set and the access is Non-secure. Ignoring");
                             return;
                         }
                         this.InfoLog("Resetting platform with SYSRESETREQ");
