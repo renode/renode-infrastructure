@@ -102,6 +102,7 @@
     <Compile Include="BitHelperTests.cs" />
     <Compile Include="CRCTests.cs" />
     <Compile Include="PacketTests.cs" />
+    <Compile Include="AccessConditionParserTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System" />

@@ -1581,6 +1581,7 @@
     <Compile Include="Emulator/Main/Core/IGPIOSender.cs" />
     <Compile Include="Emulator/Main/Testing/TimeoutExecutor.cs" />
     <Compile Include="Emulator/Main/Core/BinaryFingerprint.cs" />
+    <Compile Include="Emulator/Main/Core/AccessConditionParser.cs" />
     <Compile Include="Emulator/Main/Time/ClockEntry.cs" />
     <Compile Include="Emulator/Main/Time/Direction.cs" />
     <Compile Include="Emulator/Main/Peripherals/Bus/Redirector.cs" />
@@ -1897,6 +1898,7 @@
     <Compile Include="Emulator/Main/Peripherals/Miscellaneous/LogicGate.cs" />
     <Compile Include="Emulator/Main/Core/ISimpleManagedThread.cs" />
     <Compile Include="Emulator/Main/Peripherals/UART/UARTRESDFeeder.cs" />
+    <Compile Include="Emulator/Main/Core/AccessConditionParser.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/I2C/PCA9548.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/I2C/TCA6416.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/SPI/ZynqMP_GQSPI.cs" />
@@ -2056,6 +2058,9 @@
     </Reference>
     <Reference Include="IronPython.Modules">
       <HintPath>../../../lib/resources/libraries/IronPython.Modules.dll</HintPath>
+    </Reference>
+    <Reference Include="Sprache">
+      <HintPath>../../../lib/resources/libraries/Sprache.dll</HintPath>
     </Reference>
   </ItemGroup>
 </Project>

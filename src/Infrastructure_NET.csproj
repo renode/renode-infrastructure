@@ -29,6 +29,9 @@
     <Reference Include="IronPython.Modules">
       <HintPath>..\..\..\lib\resources\libraries\ironpython-netcore\IronPython.Modules.dll</HintPath>
     </Reference>
+    <Reference Include="Sprache">
+      <HintPath>../../../lib/resources/libraries/Sprache.dll</HintPath>
+    </Reference>
     <PackageReference Include="IronPython.StdLib" Version="2.7.12.0">
       <!-- We only need the Lib directory with python files, IronPython is referenced from our patched dll -->
       <IncludeAssets>contentFiles</IncludeAssets>
