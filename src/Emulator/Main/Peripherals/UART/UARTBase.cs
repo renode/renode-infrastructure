@@ -20,6 +20,7 @@ namespace Antmicro.Renode.Peripherals.UART
         protected UARTBase(IMachine machine) : base(machine)
         {
             queue = new Queue<byte>();
+            overflowQueue = new Queue<byte>();
             innerLock = new object();
         }
 
@@ -59,6 +60,27 @@ namespace Antmicro.Renode.Peripherals.UART
 
         [field: Transient]
         public event Action<byte> CharReceived;
+
+        public void QueueOverflowByte(byte b)
+        {
+            overflowQueue.Enqueue(b);
+        }
+
+        public bool TryDequeueOverflowByte(ref byte b)
+        {
+            // Queue<T>.TryDequeue() is unavailable, so mimic it with a try...catch
+            bool result = false;
+            try
+            {
+                b = overflowQueue.Dequeue();
+                result = true;
+            }
+            catch (InvalidOperationException)
+            {
+                // nothing to do on exception
+            }
+            return result;
+        }
 
         protected abstract void CharWritten();
         protected abstract void QueueEmptied();
@@ -108,6 +130,11 @@ namespace Antmicro.Renode.Peripherals.UART
 
         protected readonly object innerLock;
         private readonly Queue<byte> queue;
+
+        // A queue for optionally storing incoming bytes that are received more
+        // quickly than they can be processed by an executing machine, typically
+        // used in tandem with a UARTHub.
+        protected Queue<byte> overflowQueue;
 
         public abstract Bits StopBits { get; }
 
