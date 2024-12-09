@@ -84,6 +84,11 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public bool IsPaused => !started;
 
+        struct WriteCharContext {
+            public I i;
+            public byte b;
+        };
+
         private void HandleCharReceived(byte obj, I sender)
         {
             if(!started)
@@ -95,8 +100,34 @@ namespace Antmicro.Renode.Peripherals.UART
             {
                 foreach(var item in uarts.Where(x => shouldLoopback || x.Key != sender).Select(x => x.Key))
                 {
-                    item.GetMachine().HandleTimeDomainEvent(item.WriteChar, obj, TimeDomainsManager.Instance.VirtualTimeStamp);
+                    WriteCharContext context = new WriteCharContext() { i = item, b = obj };
+                    item.GetMachine().HandleTimeDomainEvent(WriteCharCallback, context, TimeDomainsManager.Instance.VirtualTimeStamp);
                 }
+            }
+        }
+
+        //
+        // For any UART device that is correctly modeling its RX buffer state
+        // and is derived from UARTHub, this callback will queue any byte that
+        // would trigger a RX overflow, giving the device a mechanism to dequeue
+        // and process the byte later when its buffer state becomes "Ready"
+        // again.
+        //
+        // For all other devices, the byte is sent immediately.
+        //
+        private void WriteCharCallback(WriteCharContext context) {
+            bool isUARTBase = (context.i as UARTBase) != null;
+            bool hasBufferState = (context.i as IUARTWithBufferState) != null;
+            bool bufferIsFull = hasBufferState
+                ? ((context.i as IUARTWithBufferState).BufferState == BufferState.Full)
+                : false;
+            if (bufferIsFull && isUARTBase)
+            {
+                (context.i as UARTBase).QueueOverflowByte(context.b);
+            }
+            else
+            {
+                context.i.WriteChar(context.b);
             }
         }
 
