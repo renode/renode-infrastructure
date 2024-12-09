@@ -16,13 +16,19 @@ namespace Antmicro.Renode.Peripherals.Bus
 {
     public class BusRangeRegistration : BusRegistration
     {
-        public BusRangeRegistration(Range range, ulong offset = 0, IPeripheral cpu = null, ICluster<ICPU> cluster = null, StateMask? cpuState = null, string condition = null) : base(range.StartAddress, offset, cpu, cluster, cpuState, condition)
+        public BusRangeRegistration(Range range, ulong offset = 0, IPeripheral cpu = null, ICluster<ICPU> cluster = null) : this(range, stateMask: null, offset, cpu, cluster)
         {
-            Range = range;
         }
 
-        public BusRangeRegistration(ulong address, ulong size, ulong offset = 0, IPeripheral cpu = null, ICluster<ICPU> cluster = null, StateMask? cpuState = null, string condition = null) :
-            this(new Range(address, size), offset, cpu, cluster, cpuState, condition)
+        public BusRangeRegistration(Range range, string condition, ulong offset = 0) : this(range, stateMask: null, offset, condition: condition)
+        {
+        }
+
+        public BusRangeRegistration(ulong address, ulong size, ulong offset = 0, IPeripheral cpu = null, ICluster<ICPU> cluster = null) : this(new Range(address, size), stateMask: null, offset, cpu, cluster)
+        {
+        }
+
+        public BusRangeRegistration(ulong address, ulong size, string condition, ulong offset = 0) : this(new Range(address, size), stateMask: null, offset, condition: condition)
         {
         }
 
@@ -70,12 +76,17 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public override IConditionalRegistration WithInitiatorAndStateMask(IPeripheral initiator, StateMask mask)
         {
-            return new BusRangeRegistration(Range, Offset, initiator, cpuState: mask);
+            return new BusRangeRegistration(Range, mask, Offset, initiator);
         }
 
         public void RegisterForEachContext(Action<BusRangeRegistration> register)
         {
             RegisterForEachContextInner(register, cpu => new BusRangeRegistration(Range, Offset, cpu));
+        }
+
+        protected BusRangeRegistration(Range range, StateMask? stateMask, ulong offset = 0, IPeripheral cpu = null, ICluster<ICPU> cluster = null, string condition = null) : base(range.StartAddress, offset, cpu, cluster, stateMask, condition)
+        {
+            Range = range;
         }
     }
 }

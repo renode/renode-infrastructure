@@ -148,7 +148,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public void Register(IKnownSize peripheral, BusPointRegistration registrationPoint)
         {
-            Register(peripheral, new BusRangeRegistration(new Range(registrationPoint.StartingPoint, checked((ulong)peripheral.Size)), registrationPoint.Offset, registrationPoint.CPU, registrationPoint.Cluster));
+            Register(peripheral, registrationPoint.ToRangeRegistration(checked((ulong)peripheral.Size)));
         }
 
         public void Unregister(IKnownSize peripheral)
