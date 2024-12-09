@@ -349,20 +349,33 @@ namespace Antmicro.Renode.Peripherals.Bus
                     throw new RegistrationException("Currently there can't be CPUs with different endiannesses on the same bus.");
                 }
 
+                if(registrationPoint == null && !Machine.IsRegistered(cpu))
+                {
+                    throw new RegistrationException(
+                        "Registering a CPU without a registration point is allowed only after it has already been registered on a valid registration point in this machine.");
+                }
+
+                var cpuId = 0;
+                if(registrationPoint == null || !registrationPoint.Slot.HasValue)
+                {
+                    while(cpuById.ContainsKey(cpuId))
+                    {
+                        cpuId++;
+                    }
+                }
+                else
+                {
+                    cpuId = registrationPoint.Slot.Value;
+                }
+
                 // This must be the very last step after all conditions have been validated and we are committed to registering
                 // this CPU.
-                if(!registrationPoint.Slot.HasValue)
+                if(registrationPoint != null)
                 {
-                    var i = 0;
-                    while(cpuById.ContainsKey(i))
-                    {
-                        i++;
-                    }
-                    registrationPoint = new CPURegistrationPoint(i);
+                    Machine.RegisterAsAChildOf(this, cpu, new CPURegistrationPoint(cpuId));
                 }
-                Machine.RegisterAsAChildOf(this, cpu, registrationPoint);
-                cpuById.Add(registrationPoint.Slot.Value, cpu);
-                idByCpu.Add(cpu, registrationPoint.Slot.Value);
+                cpuById.Add(cpuId, cpu);
+                idByCpu.Add(cpu, cpuId);
                 AddContextKeys(cpu);
             }
             finally

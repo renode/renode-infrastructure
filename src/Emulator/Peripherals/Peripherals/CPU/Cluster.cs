@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -60,16 +60,16 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void Register(TranslationCPU cpu, NullRegistrationPoint registrationPoint)
         {
-            // CPUs are registered both on sysbus and in the parent cluster,
-            // so they can be accessed either directly or through the cluster's tree hierarchy.
             machine.RegisterAsAChildOf(this, cpu, NullRegistrationPoint.Instance);
-            machine.SystemBus.Register(cpu, new CPURegistrationPoint());
+            // Passing null will not register CPU on sysbus, but will do necessary cpu-specific actions.
+            machine.SystemBus.Register(cpu, null);
             cpus.Add(cpu);
         }
 
         public void Unregister(TranslationCPU cpu)
         {
-            machine.UnregisterAsAChildOf(this, cpu);
+            // Sysbus will call a generic "Unregister" method which will handle
+            // unregistering the CPU from a cluster on the machine level.
             machine.SystemBus.Unregister(cpu);
             cpus.Remove(cpu);
         }

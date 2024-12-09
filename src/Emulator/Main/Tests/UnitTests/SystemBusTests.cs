@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -17,8 +17,10 @@ using Moq;
 using System.Linq;
 using System.Collections.Generic;
 using Antmicro.Renode.Peripherals.Memory;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.Mocks;
+using Antmicro.Renode.UnitTests.Mocks;
 
 namespace Antmicro.Renode.UnitTests
 {
@@ -391,6 +393,14 @@ namespace Antmicro.Renode.UnitTests
                 sysbus.WriteBytes(hugeBytes, 0xC0000000 - 4);
                 Assert.AreEqual(Enumerable.Repeat((byte)0, 4).Concat(hugeBytes.Skip(4).Take(16)).Concat(Enumerable.Repeat((byte)0, 12)).ToArray(), sysbus.ReadBytes(0xC0000000 - 4, 32));
             });
+        }
+
+        [Test]
+        public void ShouldFailToRegisterNonClusteredCpuOnNull()
+        {
+            var machine = new Machine();
+            var cpu = new EmptyCPU(machine);
+            Assert.Throws(typeof(RegistrationException), () => machine.SystemBus.Register(cpu, null));
         }
 
         private void CreateMachineAndExecute(Action<IBusController> action)
