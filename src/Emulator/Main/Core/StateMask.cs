@@ -32,6 +32,11 @@ namespace Antmicro.Renode.Core
             return new StateMask(State | (value ? bit : 0), Mask | bit);
         }
 
+        public override string ToString()
+        {
+            return $"[StateMask: State={State:x}, Mask={Mask:x}]";
+        }
+
         public readonly ulong State;
         public readonly ulong Mask;
 
