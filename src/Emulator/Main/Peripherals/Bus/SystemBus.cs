@@ -1680,6 +1680,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 }
                 peripheralsCollectionByContext.WithStateCollection(context, stateMask, collection =>
                 {
+                    // Currently the end address is actually "one past the end address".
                     collection.Add(registrationPoint.Range.StartAddress, registrationPoint.Range.EndAddress + 1, registeredPeripheral, methods);
                 });
                 // let's add new mappings

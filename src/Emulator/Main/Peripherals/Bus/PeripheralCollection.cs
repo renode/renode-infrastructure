@@ -69,7 +69,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                         goToDictionary = false;
                     }
                     // is the peripheral small enough?
-                    var size = end - start;
+                    var size = end - start; // don't add 1 because `end` is actually one past the end.
                     var numOfPages = size/PageSize;
                     if(numOfPages > NumOfPagesThreshold)
                     {
@@ -105,6 +105,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 foreach(var block in source.blocks.Union(source.shortBlocks.Values))
                 {
                     // Don't add overlapping peripherals.
+                    // We subtract 1 from the end address because it is actually one past the end.
                     if(FindAccessMethods(block.Start, out _, out _) != null
                         || FindAccessMethods(block.End - 1, out _, out _) != null)
                     {
@@ -141,6 +142,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
                     var newStart = newRegistration.StartingPoint;
                     var size = newRegistration.Range.Size;
+                    // End address is one past the end.
                     Add(newStart, newStart + size, newRegisteredPeripheral, block.AccessMethods);
                 }
             }
@@ -209,6 +211,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 #if DEBUG
                 Interlocked.Increment(ref queryCount);
 #endif
+                /// Note `< End` - End is currently one past the end in reality. Please also change <see cref="ICoalescable{T}.Coalesce"> after changing this.
                 if (address >= lastBlock.Start && address < lastBlock.End)
                 {
 #if DEBUG
