@@ -1,8 +1,8 @@
 //
 // Copyright (c) 2010-2024 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 
 using Antmicro.Renode.Core;
@@ -251,7 +251,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             byteRegistersMap[(long)Registers.SDChannel0VoltageControlRegister] = new ByteRegister(this)
                 .WithTaggedFlag("SD0_PVDD", 0)
                 .WithReservedBits(1, 7);
-            
+
             byteRegistersMap[(long)Registers.SDChannel1VoltageControlRegister] = new ByteRegister(this)
                 .WithTaggedFlag("SD1_PVDD", 0)
                 .WithReservedBits(1, 7);
@@ -264,7 +264,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 .WithTaggedFlag("ETH0_1.8V_PVDD", 0)
                 .WithTaggedFlag("ETH0_2.5V_PVDD", 1)
                 .WithReservedBits(2, 6);
-            
+
             byteRegistersMap[(long)Registers.EthernetChannel1IOVoltageModeControl] = new ByteRegister(this)
                 .WithTaggedFlag("ETH1_1.8V_PVDD", 0)
                 .WithTaggedFlag("ETH1_2.5V_PVDD", 1)
