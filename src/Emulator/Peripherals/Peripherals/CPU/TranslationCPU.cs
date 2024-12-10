@@ -96,6 +96,20 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public bool SyncPCEveryInstructionDisabled
+        {
+            get
+            {
+                return TlibGetSyncPcEveryInstructionDisabled() != 0;
+            }
+
+            set
+            {
+                TlibSetSyncPcEveryInstructionDisabled(value ? 1u : 0u);
+            }
+        }
+
+
         public bool ChainingEnabled
         {
             get
@@ -1824,6 +1838,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private FuncUInt32 TlibGetTbCacheEnabled;
+
+        [Import]
+        private ActionUInt32 TlibSetSyncPcEveryInstructionDisabled;
+
+        [Import]
+        private FuncUInt32 TlibGetSyncPcEveryInstructionDisabled;
 
         [Import]
         private FuncInt32String TlibInit;
