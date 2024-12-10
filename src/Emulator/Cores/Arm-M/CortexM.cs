@@ -154,6 +154,16 @@ namespace Antmicro.Renode.Peripherals.CPU
             tlibSetIdauRegionLimitAddressRegister(regionIndex, region.ToRLAR());
         }
 
+        public void SetIDAURegion(uint regionIndex, uint baseAddress, uint limitAddress, bool enabled, bool nonSecureCallable)
+        {
+            SetIDAURegion(regionIndex, new IDAURegion(baseAddress, limitAddress, enabled, nonSecureCallable));
+        }
+
+        public void SetIDAURegion(uint regionIndex, uint rbar, uint rlar)
+        {
+            SetIDAURegion(regionIndex, new IDAURegion(rbar, rlar));
+        }
+
         /// <remark>Should only be used for TrustZone CPUs, <see cref="RecoverableException"/> is thrown otherwise.</remark>
         public bool TryAddImplementationDefinedExemptionRegion(uint startAddress, uint endAddress)
         {
@@ -729,6 +739,15 @@ namespace Antmicro.Renode.Peripherals.CPU
                 rlar |= Enabled ? IDAURlarEnabledFlag : 0u;
                 rlar |= NonSecureCallable ? IDAURlarNonSecureCallableFlag : 0u;
                 return rlar;
+            }
+
+            public override string ToString()
+            {
+                return $"{nameof(IDAURegion)} [\n"
+                    +$"  Enabled: {Enabled}\n"
+                    +$"  From: 0x{BaseAddress:x}, To: 0x{LimitAddress:x}\n"
+                    +$"  Is Non-secure Callable: {NonSecureCallable}\n"
+                    + "]";
             }
 
             // The struct is intentionally immutable so that nobody tries to just modify the struct and call it a day
