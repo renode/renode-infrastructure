@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -35,6 +35,8 @@ namespace Antmicro.Renode.Peripherals.Timers
             RegistersCollection.Reset();
             IRQ.Unset();
             timer.Reset();
+            forceStop = false;
+            timerEnabled = false;
         }
 
         public uint ReadDoubleWord(long offset)
@@ -50,6 +52,15 @@ namespace Antmicro.Renode.Peripherals.Timers
         public GPIO IRQ { get; }
         public long Size => 0x400;
         public DoubleWordRegisterCollection RegistersCollection { get; }
+        public bool ForceStop
+        {
+            get => forceStop;
+            set
+            {
+                forceStop = value;
+                UpdateTimerStatus();
+            }
+        }
 
         private void OnLimitReached()
         {
@@ -61,15 +72,20 @@ namespace Antmicro.Renode.Peripherals.Timers
             var registerMap = new Dictionary<long, DoubleWordRegister>
             {
                 {(long)Registers.Control, new DoubleWordRegister(this)
-                    .WithReservedBits(1, 31)
                     .WithFlag(0, name: "WDTEN",
-                        valueProviderCallback: _ => timer.Enabled,
-                        writeCallback: (_, value) => timer.Enabled = value
+                        valueProviderCallback: _ => timerEnabled,
+                        writeCallback: (_, value) =>
+                        {
+                            timerEnabled = value;
+                            UpdateTimerStatus();
+                        }
                     )
+                    .WithReservedBits(1, 31)
                 },
                 {(long)Registers.PeriodSetting, new DoubleWordRegister(this)
+                    .WithReservedBits(0, 20)
                     .WithValueField(20, 12, name: "WDTTIME",
-                        valueProviderCallback: _ => timer.Limit,
+                        valueProviderCallback: _ => timer.Limit >> 20,
                         writeCallback: (_, value) =>
                         {
                             if(timer.Enabled)
@@ -80,7 +96,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                             timer.Limit = (value + 1) << 20;
                         }
                     )
-                    .WithReservedBits(0, 20)
                 },
                 {(long)Registers.ElapsedTime, new DoubleWordRegister(this)
                     .WithValueField(0, 32, name: "CRTTIME",
@@ -97,7 +112,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                     )
                 },
                 {(long)Registers.InterruptControl, new DoubleWordRegister(this)
-                    .WithReservedBits(1, 31)
                     .WithFlag(0, FieldMode.WriteOneToClear | FieldMode.Read, name: "INTDISP",
                         valueProviderCallback: _ => IRQ.IsSet,
                         writeCallback: (_, value) =>
@@ -108,13 +122,14 @@ namespace Antmicro.Renode.Peripherals.Timers
                             }
                         }
                     )
+                    .WithReservedBits(1, 31)
                 },
                 {(long)Registers.ParityErrorControl, new DoubleWordRegister(this)
                     .WithTaggedFlags("PECR", 0, 32)
                 },
                 {(long)Registers.ParityErrorForcedEnable, new DoubleWordRegister(this)
-                    .WithReservedBits(1, 31)
                     .WithTaggedFlag("PEEN", 0)
+                    .WithReservedBits(1, 31)
                 },
                 {(long)Registers.ParityStatus, new DoubleWordRegister(this)
                     .WithTaggedFlags("PESR", 0, 32)
@@ -129,6 +144,14 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             return registerMap;
         }
+
+        private void UpdateTimerStatus()
+        {
+            timer.Enabled = timerEnabled && !forceStop;
+        }
+
+        private bool forceStop = false;
+        private bool timerEnabled = false;
 
         private readonly IMachine machine;
         private readonly LimitTimer timer;
