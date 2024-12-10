@@ -1040,7 +1040,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             ICSR = 4,
             IFENCEI = 5,
             ZFH = 6,
+            ZVFH = 7,
             SMEPMP = 8,
+            ZVE32X = 9,
+            ZVE32F = 10,
+            ZVE64X = 11,
+            ZVE64F = 12,
+            ZVE64D = 13,
         }
 
         public enum InterruptMode
@@ -1139,7 +1145,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     }
                     else
                     {
-                        isaStringPart = String.Join("", instructionSetsString.TakeWhile(Char.IsLetter));
+                        isaStringPart = String.Join("", instructionSetsString.TakeWhile(Char.IsLetterOrDigit));
                         HandleLongInstructionSetName(isaStringPart);
                     }
 
@@ -1221,6 +1227,12 @@ namespace Antmicro.Renode.Peripherals.CPU
                     case "ZICSR": standardExtensions.Add(StandardInstructionSetExtensions.ICSR); break;
                     case "ZIFENCEI": standardExtensions.Add(StandardInstructionSetExtensions.IFENCEI); break;
                     case "ZFH": standardExtensions.Add(StandardInstructionSetExtensions.ZFH); break;
+                    case "ZVFH": standardExtensions.Add(StandardInstructionSetExtensions.ZVFH); break;
+                    case "ZVE32X": standardExtensions.Add(StandardInstructionSetExtensions.ZVE32X); break;
+                    case "ZVE32F": standardExtensions.Add(StandardInstructionSetExtensions.ZVE32F); break;
+                    case "ZVE64X": standardExtensions.Add(StandardInstructionSetExtensions.ZVE64X); break;
+                    case "ZVE64F": standardExtensions.Add(StandardInstructionSetExtensions.ZVE64F); break;
+                    case "ZVE64D": standardExtensions.Add(StandardInstructionSetExtensions.ZVE64D); break;
                     default:
                         throw new ConstructionException($"Undefined instructions set extension: '{name}'");
                 }
