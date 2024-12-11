@@ -578,13 +578,29 @@ namespace Antmicro.Renode.Time
 
         /// <summary>
         /// Interrupts the current or next call to <see cref="RequestTimeInterval"/> causing it to return 'false' immediately.
+        /// Caller of this method should check if lock was acquired within specified timeout and retry if not.
         /// </summary>
-        public void Interrupt()
+        /// <param name="success">True if lock was acquired within timeout, false otherwise</param>
+        public void Interrupt(ref bool success, int millisecondsTimeout = Timeout.Infinite)
         {
-            lock(innerLock)
+            var timeout = TimeSpan.FromMilliseconds(millisecondsTimeout);
+
+            try
             {
-                interrupt = true;
-                Monitor.PulseAll(innerLock);
+                Monitor.TryEnter(innerLock, timeout, ref success);
+                if(success)
+                {
+                    interrupt = true;
+                    Monitor.PulseAll(innerLock);
+                }
+            }
+            finally
+            {
+                // Ensure that the lock is released.
+                if(success)
+                {
+                    Monitor.Exit(innerLock);
+                }
             }
         }
 
