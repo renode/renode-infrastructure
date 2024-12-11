@@ -2207,7 +2207,10 @@ namespace Antmicro.Renode.Peripherals.Bus
                     collectionToSearch = thisCpuValues.Concat(collectionToSearch);
                 }
                 bool anyHit = false;
-                foreach(var pair in collectionToSearch)
+                // Additionally, search the collections from the most to least specific (by number of set bits in the mask).
+                // This is mainly used so that if an conditionally-registered peripheral overlaps an unconditional one, the
+                // conditional peripheral will be prioritized.
+                foreach(var pair in collectionToSearch.OrderByDescending(pair => BitHelper.GetSetBitsCount(pair.Key.Mask)))
                 {
                     var stateMask = pair.Key;
                     if((initiatorState.Value & stateMask.Mask) == stateMask.State)
