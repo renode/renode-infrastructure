@@ -834,6 +834,32 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 // Changing it doesn't change the behavior of the model.
                 .WithFlag(24, name: "TRCENA (Trace Enable)")
                 .WithReservedBits(25, 7);
+
+            Registers.SecureFaultStatus.Define(RegisterCollection)
+                .WithValueField(0, 8, writeCallback: (_, value) =>
+                {
+                    if(!isNextAccessSecure)
+                    {
+                        // This bit is RAZ/WI from Non-secure state.
+                        return;
+                    }
+                    cpu.SecureFaultStatus = (uint)value;
+                }, valueProviderCallback: _ =>
+                {
+                    if(!isNextAccessSecure)
+                    {
+                        // This bit is RAZ/WI from Non-secure state.
+                        return 0;
+                    }
+                    return cpu.SecureFaultStatus;
+                }, name: "Status bits")
+                .WithReservedBits(8, 24);
+
+            /* While the ISA manual permits this to be shared with MMFAR, we keep it separate,
+             * so we don't have to worry about invalidating it between exceptions.
+             * If there is an address here, it's always valid */
+            Registers.SecureFaultAddress.Define(RegisterCollection)
+                .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => isNextAccessSecure ? cpu.SecureFaultAddress : 0, name: "Address");
         }
 
         private void DefineTightlyCoupledMemoryControlRegisters()
@@ -1669,6 +1695,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             SAURegionNumber = 0xDD8, // SAU_RNR
             SAURegionBaseAddress = 0xDDC, // SAU_RBAR
             SAURegionLimitAddress = 0xDE0, // SAU_RLAR
+            SecureFaultStatus = 0xDE4, // SAU_SFSR
+            SecureFaultAddress = 0xDE8, // SAU_SFAR
             DebugExceptionAndMonitorControlRegister = 0xDFC, // DEMCR
             SoftwareTriggerInterrupt = 0xF00, // STIR
             FPContextControl = 0xF34, // FPCCR

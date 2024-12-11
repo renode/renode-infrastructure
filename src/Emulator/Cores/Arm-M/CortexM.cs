@@ -361,6 +361,39 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public UInt32 SecureFaultAddress
+        {
+            get
+            {
+                if(!TrustZoneEnabled)
+                {
+                    throw new RecoverableException("You need to enable TrustZone to use SecureFaultAddress");
+                }
+                return tlibGetSecureFaultAddress();
+            }
+        }
+
+
+        public UInt32 SecureFaultStatus
+        {
+            get
+            {
+                if(!TrustZoneEnabled)
+                {
+                    throw new RecoverableException("You need to enable TrustZone to use SecureFaultStatus");
+                }
+                return tlibGetSecureFaultStatus();
+            }
+            set
+            {
+                if(!TrustZoneEnabled)
+                {
+                    throw new RecoverableException("You need to enable TrustZone to use SecureFaultStatus");
+                }
+                tlibSetSecureFaultStatus(value);
+            }
+        }
+
         public bool IsV8
         {
             get
@@ -775,6 +808,15 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private Func<uint, uint> tlibGetMemoryFaultAddress;
+
+        [Import]
+        private Func<uint> tlibGetSecureFaultAddress;
+
+        [Import]
+        private Func<uint> tlibGetSecureFaultStatus;
+
+        [Import]
+        private Action<uint> tlibSetSecureFaultStatus;
 
         [Import]
         private Action<int> tlibEnableMpu;
