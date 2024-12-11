@@ -77,6 +77,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public bool MaskedInterruptPresent { get { return maskedInterruptPresent; } }
 
+        public bool PauseInsteadOfReset { get; set; }
+
         public IEnumerable<int> GetEnabledExternalInterrupts()
         {
             return irqs.Skip(16).Select((x,i) => new {x,i}).Where(y => (y.x & IRQState.Enabled) != 0).Select(y => y.i).OrderBy(x => x);
@@ -712,7 +714,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                             return;
                         }
                         this.InfoLog("Resetting platform with SYSRESETREQ");
-                        resetMachine();
+                        if(PauseInsteadOfReset)
+                        {
+                            machine.Pause();
+                        }
+                        else
+                        {
+                            resetMachine();
+                        }
                     }
                 }, name: "SYSRESETREQ")
                 .WithFlag(3, writeCallback: (_, value) =>
