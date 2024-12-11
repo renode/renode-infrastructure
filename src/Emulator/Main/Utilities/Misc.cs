@@ -1804,6 +1804,17 @@ namespace Antmicro.Renode.Utilities
             return a / GCD(a, b) * b;
         }
 
+        public static T ReturnThenAssign<T>(ref T variable, T value)
+        {
+            var temp = variable;
+            variable = value;
+            return temp;
+        }
+
+        public static bool ReturnThenSet(ref bool variable, bool value = true) => ReturnThenAssign(ref variable, value);
+
+        public static bool ReturnThenClear(ref bool variable) => ReturnThenAssign(ref variable, false);
+
         public static DateTime UnixEpoch = new DateTime(1970, 1, 1);
     }
 
