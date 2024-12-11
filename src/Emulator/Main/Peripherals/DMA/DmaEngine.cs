@@ -101,9 +101,9 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
 
             var destinationAddress = request.Destination.Address ?? 0;
-            var whatIsAtDestination = sysbus.WhatIsAt(destinationAddress);
+            var whatIsAtDestination = sysbus.WhatIsAt(destinationAddress, context);
             var isDestinationContinuousMemory = (whatIsAtDestination == null || whatIsAtDestination.Peripheral is MappedMemory) // Not a peripheral
-                                                        && readLengthInBytes == request.DestinationIncrementStep;  // Consistent memory region
+                                                        && writeLengthInBytes == request.DestinationIncrementStep;  // Consistent memory region
             if(!request.Destination.Address.HasValue)
             {
                 // request array based copy
