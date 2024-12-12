@@ -1078,7 +1078,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         public bool IsAddressRangeLocked(Range range, IPeripheral context = null)
         {
             // The locked range is either mapped for the CPU context, or globally (that is the reason for the OR)
-            return lockedRangesCollectionByContext[context].ContainsOverlappingRange(range)
+            return (lockedRangesCollectionByContext.TryGetValue(context, cpuState: null, out var collection) && collection.ContainsOverlappingRange(range))
                 || lockedRangesCollectionByContext[null].ContainsOverlappingRange(range);
         }
 
@@ -2142,8 +2142,14 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 if(!cpuState.HasValue)
                 {
-                    value = key == null ? globalAllAccess : cpuAllAccess[key];
-                    return true;
+                    if(key == null)
+                    {
+                        value = globalAllAccess;
+                        return true;
+                    }
+                    // Handle reads initiated by peripherals that are never used as a context and thus have no collections.
+                    // Then this will fail and it's up to the caller to fall back to the global collection.
+                    return cpuAllAccess.TryGetValue(key, out value);
                 }
                 if(key != null && !cpuInStateCache.ContainsKey(key))
                 {
