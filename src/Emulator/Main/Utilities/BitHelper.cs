@@ -440,6 +440,16 @@ namespace Antmicro.Renode.Utilities
 
         }
 
+        public static ulong GetLeastSignificantOne(ulong val)
+        {
+            return (ulong)((long)val & -(long)val);
+        }
+
+        public static ulong GetLeastSignificantZero(ulong val)
+        {
+            return GetLeastSignificantOne(~val);
+        }
+
         public static void GetBytesFromValue(byte[] bytes, int offset, ulong val, int typeSize, bool reverse = false)
         {
             if(offset + typeSize > bytes.Length)
