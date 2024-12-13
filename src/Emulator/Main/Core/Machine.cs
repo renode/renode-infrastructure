@@ -31,6 +31,7 @@ using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Collections;
 using Antmicro.Renode.Utilities.GDB;
 using Microsoft.CSharp.RuntimeBinder;
+using Monitor = System.Threading.Monitor;
 
 namespace Antmicro.Renode.Core
 {

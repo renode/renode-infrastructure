@@ -1,0 +1,251 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks Condition="$(OS) != 'Windows_NT'">net6.0</TargetFrameworks>
+    <TargetFrameworks Condition="$(OS) == 'Windows_NT'">net6.0-windows10.0.17763.0</TargetFrameworks>
+    <UseWPF Condition=" $(OS) == 'Windows_NT' And $(GUI_DISABLED) != 'true' ">true</UseWPF>
+    <LangVersion>7.2</LangVersion>
+    <PropertiesLocation>../../../output/properties.csproj</PropertiesLocation>
+    <AssemblyName>Infrastructure</AssemblyName>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <Import Project="$(PropertiesLocation)" />
+  <PropertyGroup Condition=" $(GUI_DISABLED) == 'true' ">
+    <DefineConstants>$(DefineConstants);GUI_DISABLED</DefineConstants>
+  </PropertyGroup>
+  <Target Name="VerifyProperties">
+    <Error Text="Configuration not provided" Condition=" $(Configuration) == '' " />
+  </Target>
+  <ItemGroup>
+    <PackageReference Include="Mono.Posix" Version="7.1.0-final.1.21458.1" Condition=" $(OS) != 'Windows_NT'" />
+    <PackageReference Include="System.Drawing.Common" Version="5.0.3" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Compilers" Version="3.9.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="3.9.0" />
+    <PackageReference Include="Dynamitey" Version="2.0.10.189" />
+    <PackageReference Include="Mono.Cecil" Version="0.11.3" />
+    <Reference Include="IronPython">
+      <HintPath>..\..\..\lib\resources\libraries\ironpython-netcore\IronPython.dll</HintPath>
+    </Reference>
+    <Reference Include="IronPython.Modules">
+      <HintPath>..\..\..\lib\resources\libraries\ironpython-netcore\IronPython.Modules.dll</HintPath>
+    </Reference>
+    <PackageReference Include="IronPython.StdLib" Version="2.7.12.0">
+      <!-- We only need the Lib directory with python files, IronPython is referenced from our patched dll -->
+      <IncludeAssets>contentFiles</IncludeAssets>
+      <GeneratePathProperty>true</GeneratePathProperty>
+    </PackageReference>
+    <PackageReference Include="DynamicLanguageRuntime" Version="1.3.5" />
+    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+    <Reference Include="ProtobufNet">
+      <HintPath>../../../lib/resources/libraries/protobuf-net.dll</HintPath>
+    </Reference>
+    <Reference Include="FlatBuffers">
+      <HintPath>../../../lib/resources/libraries/FlatBuffers.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Scripting">
+      <HintPath>../../../lib/resources/libraries/Microsoft.Scripting.dll</HintPath>
+    </Reference>
+    <Reference Include="BitMiracle.LibJpeg.NET.dll">
+      <HintPath>../../../lib/resources/libraries/BitMiracle.LibJpeg.NET.dll</HintPath>
+    </Reference>
+    <Reference Include="Mono.CSharp">
+      <HintPath>../../../lib/resources/libraries/mcs.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Dynamic">
+      <HintPath>../../../lib/resources/libraries/Microsoft.Dynamic.dll</HintPath>
+    </Reference>
+    <Reference Include="Mono.Linq.Expressions">
+      <HintPath>../../../lib/resources/libraries/Mono.Linq.Expressions.dll</HintPath>
+    </Reference>
+    <Reference Include="Nini">
+      <HintPath>../../../lib/resources/libraries/Nini.dll</HintPath>
+    </Reference>
+    <Reference Include="LZ4">
+      <HintPath>../../../lib/resources/libraries/LZ4.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup Condition=" $(CurrentPlatform) != Windows And $(GUI_DISABLED) != 'true' ">
+    <PackageReference Include="GdkSharp" Version="3.24.24.34" />
+    <PackageReference Include="GLibSharp" Version="3.24.24.34" />
+  </ItemGroup>
+  <Import Project="$(MSBuildProjectDirectory)/BuildAdditionalProjects-UI.csproj.targets" Condition="Exists('$(MSBuildProjectDirectory)/BuildAdditionalProjects-UI.csproj.targets')" />
+  <ItemGroup>
+    <Compile Remove="Plugins/**/*"/>
+    <Compile Remove="Emulator/Main/Tests/**/*"/>
+    <Compile Remove="Emulator/Main/Utilities/AdHocCompiler.cs"/>
+    <Compile Remove="Emulator/Peripherals/Test/**/*"/>
+    <Compile Remove="Emulator/Extensions/MonitorTests/**/*" />
+    <Compile Remove="Emulator/Extensions/TAPHelper/DynamicModuleSpawner.cs" />
+    <!--
+    Exclude Assembly* files that may remain from removed Extensions, cores*, Emulator, Peripherals and UI projects.
+    They cause conflict with the new Infrastructure_NET.csproj
+    -->
+    <Compile Remove="**/obj/**/*AssemblyInfo.cs"/>
+    <Compile Remove="**/obj/**/*AssemblyAttributes.cs"/>
+  </ItemGroup>
+
+  <Target Name="PrepareEmbeddedResources" BeforeTargets="ResolveReferences" >
+    <ItemGroup>
+      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/translate-arm64-le.so">
+        <LogicalName>Antmicro.Renode.translate-arm64-le.so</LogicalName>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/translate-arm-le.so">
+        <LogicalName>Antmicro.Renode.translate-arm-le.so</LogicalName>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/translate-arm-be.so">
+        <LogicalName>Antmicro.Renode.translate-arm-be.so</LogicalName>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/translate-arm-m-le.so">
+        <LogicalName>Antmicro.Renode.translate-arm-m-le.so</LogicalName>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/translate-arm-m-be.so">
+        <LogicalName>Antmicro.Renode.translate-arm-m-be.so</LogicalName>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/translate-i386-le.so">
+        <LogicalName>Antmicro.Renode.translate-i386-le.so</LogicalName>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/translate-x86_64-le.so">
+        <LogicalName>Antmicro.Renode.translate-x86_64-le.so</LogicalName>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/translate-riscv64-le.so">
+        <LogicalName>Antmicro.Renode.translate-riscv64-le.so</LogicalName>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/translate-riscv-le.so">
+        <LogicalName>Antmicro.Renode.translate-riscv-le.so</LogicalName>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/translate-ppc-be.so">
+        <LogicalName>Antmicro.Renode.translate-ppc-be.so</LogicalName>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/translate-ppc64-be.so">
+        <LogicalName>Antmicro.Renode.translate-ppc64-be.so</LogicalName>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/translate-xtensa-le.so">
+        <LogicalName>Antmicro.Renode.translate-xtensa-le.so</LogicalName>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/translate-sparc-le.so">
+        <LogicalName>Antmicro.Renode.translate-sparc-le.so</LogicalName>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/translate-sparc-be.so">
+        <LogicalName>Antmicro.Renode.translate-sparc-be.so</LogicalName>
+      </EmbeddedResource>
+    </ItemGroup>
+  </Target>
+
+  <ItemGroup>
+    <ProjectReference Include="../../../lib/Migrant/Migrant/Migrant_NET.csproj"/>
+    <ProjectReference Include="../../../lib/ELFSharp/ELFSharp/ELFSharp_NET.csproj"/>
+    <ProjectReference Include="../../../lib/AntShell/AntShell/AntShell_NET.csproj"/>
+    <ProjectReference Include="../../../lib/FdtSharp/FdtSharp/FdtSharp_NET.csproj"/>
+    <ProjectReference Include="../../../lib/termsharp/TermSharp_NET.csproj"/>
+    <ProjectReference Include="../../../lib/termsharp/xwt/Xwt/Xwt_NET.csproj"/>
+    <ProjectReference Include="../../../lib/Packet.Net/PacketDotNet/PacketDotNet_NET.csproj"/>
+    <ProjectReference Include="../../../lib/bc-csharp/crypto/crypto_NET.csproj"/>
+    <ProjectReference Include="../../../lib/CxxDemangler/CxxDemangler/CxxDemangler_NET.csproj"/>
+    <ProjectReference Include="../../../lib/termsharp/xwt/Xwt.Gtk/Xwt.Gtk3_NET.csproj" Condition=" $(OS) != 'Windows_NT' And $(GUI_DISABLED) != 'true' "/>
+    <ProjectReference Include="../../../lib/termsharp/xwt/Xwt.WPF/Xwt.WPF_NET.csproj" Condition=" $(OS) == 'Windows_NT' And $(GUI_DISABLED) != 'true' "/>
+    <ProjectReference Include="../../../lib/BigGustave/src/BigGustave/BigGustave_NET.csproj"/>
+    <ProjectReference Include="../../../lib/options-parser/OptionsParser_NET.csproj"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Emulator/Cores/RiscV/opcodes/opcodes-custom">
+      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Custom</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Emulator/Cores/RiscV/opcodes/opcodes-pseudo">
+      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Pseudo</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Emulator/Cores/RiscV/opcodes/opcodes-rv32a">
+      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv32a</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Emulator/Cores/RiscV/opcodes/opcodes-rv32b">
+      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv32b</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Emulator/Cores/RiscV/opcodes/opcodes-rv32c">
+      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv32c</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Emulator/Cores/RiscV/opcodes/opcodes-rv32d">
+      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv32d</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Emulator/Cores/RiscV/opcodes/opcodes-rv32d-zfh">
+      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv32d-zfh</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Emulator/Cores/RiscV/opcodes/opcodes-rv32f">
+      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv32f</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Emulator/Cores/RiscV/opcodes/opcodes-rv32h">
+      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv32h</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Emulator/Cores/RiscV/opcodes/opcodes-rv32i">
+      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv32i</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Emulator/Cores/RiscV/opcodes/opcodes-rv32k">
+      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv32k</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Emulator/Cores/RiscV/opcodes/opcodes-rv32m">
+      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv32m</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Emulator/Cores/RiscV/opcodes/opcodes-rv32q">
+      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv32q</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Emulator/Cores/RiscV/opcodes/opcodes-rv32q-zfh">
+      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv32q-zfh</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Emulator/Cores/RiscV/opcodes/opcodes-rv32zfh">
+      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv32zfh</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Emulator/Cores/RiscV/opcodes/opcodes-rv64a">
+      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv64a</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Emulator/Cores/RiscV/opcodes/opcodes-rv64b">
+      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv64b</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Emulator/Cores/RiscV/opcodes/opcodes-rv64c">
+      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv64c</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Emulator/Cores/RiscV/opcodes/opcodes-rv64d">
+      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv64d</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Emulator/Cores/RiscV/opcodes/opcodes-rv64f">
+      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv64f</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Emulator/Cores/RiscV/opcodes/opcodes-rv64h">
+      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv64h</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Emulator/Cores/RiscV/opcodes/opcodes-rv64i">
+      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv64i</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Emulator/Cores/RiscV/opcodes/opcodes-rv64k">
+      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv64k</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Emulator/Cores/RiscV/opcodes/opcodes-rv64m">
+      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv64m</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Emulator/Cores/RiscV/opcodes/opcodes-rv64q">
+      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv64q</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Emulator/Cores/RiscV/opcodes/opcodes-rv64zfh">
+      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rv64zfh</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Emulator/Cores/RiscV/opcodes/opcodes-rvc">
+      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rvc</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Emulator/Cores/RiscV/opcodes/opcodes-rvk">
+      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rvk</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Emulator/Cores/RiscV/opcodes/opcodes-rvp">
+      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rvp</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Emulator/Cores/RiscV/opcodes/opcodes-rvv">
+      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rvv</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Emulator/Cores/RiscV/opcodes/opcodes-rvv-pseudo">
+      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Rvv-pseudo</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Emulator/Cores/RiscV/opcodes/opcodes-svinval">
+      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.Svinval</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Emulator/Cores/RiscV/opcodes/opcodes-system">
+      <LogicalName>Antmicro.Renode.Cores.RiscV.Opcodes.System</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+</Project>

@@ -24,13 +24,11 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.9.1" /> 
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Emulator_NET.csproj"/>
+    <ProjectReference Include="..\..\..\..\Infrastructure_NET.csproj"/>
     <!-- PythonEngine requires reference to Renode assembly. -->
     <ProjectReference Include="..\..\..\..\..\..\Renode\Renode_NET.csproj"/>
     <ProjectReference Include="..\..\..\..\..\..\..\lib\Migrant\Migrant\Migrant_NET.csproj"/>
     <ProjectReference Include="..\..\..\..\..\..\..\lib\ELFSharp\ELFSharp\ELFSharp_NET.csproj"/>
-    <ProjectReference Include="..\..\..\Peripherals\Peripherals_NET.csproj"/>
-    <ProjectReference Include="..\..\..\Extensions\Extensions_NET.csproj"/>
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Mocks\MockExtension.cs">
