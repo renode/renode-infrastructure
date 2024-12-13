@@ -156,7 +156,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
             // Some registers are not uniformly distributed over their regions.
             // We define them in separate loops.
-            for(var registerIdx = 0; registerIdx < NrOfDrivingAbilityControlRegisters; registerIdx++)
+            for(var registerIdx = 0; registerIdx < NrOfInterrupEnableControlRegisters; registerIdx++)
             {
                 var interrupEnableControlOffset = (long)Registers.InterruptEnableControl + registerIdx * 0x4;
                 doubleWordRegistersMap[interrupEnableControlOffset] = new DoubleWordRegister(this)
@@ -172,7 +172,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
             for(var registerIdx = 0; registerIdx < NrOfDrivingAbilityControlRegisters; registerIdx++)
             {
-                var drivingAbilityControlOffset = (long)Registers.PortFunctionControl + registerIdx * 0x4;
+                var drivingAbilityControlOffset = (long)Registers.DrivingAbilityControl + registerIdx * 0x4;
                 doubleWordRegistersMap[drivingAbilityControlOffset] = new DoubleWordRegister(this)
                     .WithTag("IOLH0", 0, 2)
                     .WithReservedBits(2, 6)
@@ -212,7 +212,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithReservedBits(26, 6);
             }
 
-            for(var registerIdx = 0; registerIdx < NrOfPullUpPullDownSwitchingRegisters; registerIdx++)
+            for(var registerIdx = 0; registerIdx < NrOfDigitalNoiseFilterRegisters; registerIdx++)
             {
                 var digitalNoiseFilterSwitchingOffset = (long)Registers.DigitalNoiseFilterSwitching + registerIdx * 0x4;
                 doubleWordRegistersMap[digitalNoiseFilterSwitchingOffset] = new DoubleWordRegister(this)
