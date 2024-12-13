@@ -425,7 +425,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 "Trying to read from port {0}, pin {1} in register {2}. This pin doesn't exist. Returning 0x0.",
                 portIdx,
                 pinIdx,
-                nameof(register)
+                register
             );
         }
 
@@ -435,7 +435,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 "Trying to write to port {0}, pin {1} in register {2}. This pin doesn't exist. Nothing will happen.",
                 portIdx,
                 pinIdx,
-                nameof(register)
+                register
             );
         }
 
