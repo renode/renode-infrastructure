@@ -460,10 +460,11 @@ namespace Antmicro.Renode.Peripherals.Network
 
         public override void Reset()
         {
+            uint value = 0x00000000;
             registers.Reset();
             interruptManager.Reset();
-            txDescriptorsQueue = null;
-            rxDescriptorsQueue = null;
+            txDescriptorsQueue = new DmaBufferDescriptorsQueue<DmaTxBufferDescriptor>(sysbus, (uint)value << 2, (sb, addr) => new DmaTxBufferDescriptor(sb, addr, dmaAddressBusWith.Value, extendedTxBufferDescriptorEnabled.Value));
+            rxDescriptorsQueue = new DmaBufferDescriptorsQueue<DmaRxBufferDescriptor>(sysbus, (uint)value << 2, (sb, addr) => new DmaRxBufferDescriptor(sb, addr, dmaAddressBusWith.Value, extendedRxBufferDescriptorEnabled.Value));
             phyDataRead = 0;
             isTransmissionStarted = false;
             nanoTimer.Reset();
