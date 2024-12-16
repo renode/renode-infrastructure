@@ -552,7 +552,10 @@ namespace Antmicro.Renode.Logging
 
                 StopLoggingThread();
 
-                FlushAggregatedLogs();
+                if(aggregateLogs) 
+                {
+                    FlushAggregatedLogs();
+                }
 
                 // switch collections to avoid
                 // stucking forever in the loop below
@@ -604,6 +607,14 @@ namespace Antmicro.Renode.Logging
                     catch(OperationCanceledException)
                     {
                         break;
+                    }
+
+                    if(!aggregateLogs)
+                    {
+                        // we set ids here to avoid the need of locking counter in `ObjectInnerLog`
+                        entry.Id = Logger.nextEntryId++;
+                        WriteLogEntryToBackends(entry);
+                        continue;
                     }
 
                     lock(aggregationFlushLock)
@@ -675,6 +686,7 @@ namespace Antmicro.Renode.Logging
 
                 SynchronousLogging = ConfigurationManager.Instance.Get("general", "use-synchronous-logging", false);
                 alwaysAppendMachineName = ConfigurationManager.Instance.Get("general", "always-log-machine-name", false);
+                aggregateLogs = ConfigurationManager.Instance.Get("general", "collapse-repeated-log-entries", true);
 
                 if(!SynchronousLogging)
                 {
@@ -688,13 +700,16 @@ namespace Antmicro.Renode.Logging
             {
                 lock(innerLock)
                 {
-                    logAggregatorTimer = new Timer(x =>
+                    if(aggregateLogs) 
                     {
-                        lock(aggregationFlushLock)
+                        logAggregatorTimer = new Timer(x =>
                         {
-                            FlushAggregatedLogs();
-                        }
-                    }, null, MaxAggregateTimeMs, MaxAggregateTimeMs);
+                            lock(aggregationFlushLock)
+                            {
+                                FlushAggregatedLogs();
+                            }
+                        }, null, MaxAggregateTimeMs, MaxAggregateTimeMs);
+                    }
 
                     cancellationToken = new CancellationTokenSource();
                     loggingThread = new Thread(LoggingThreadBody);
@@ -708,8 +723,11 @@ namespace Antmicro.Renode.Logging
             {
                 lock(innerLock)
                 {
-                    logAggregatorTimer?.Dispose();
-                    logAggregatorTimer = null;
+                    if(aggregateLogs) 
+                    {
+                        logAggregatorTimer?.Dispose();
+                        logAggregatorTimer = null;
+                    }
 
                     if(loggingThread == null)
                     {
@@ -729,6 +747,8 @@ namespace Antmicro.Renode.Logging
             private LogEntry lastLoggedEntry;
             [Transient]
             private Timer logAggregatorTimer;
+            [Transient]
+            private bool aggregateLogs;
 
             [Transient]
             private bool alwaysAppendMachineName;
