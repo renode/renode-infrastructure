@@ -16,14 +16,6 @@ namespace Antmicro.Renode.Peripherals.CPU
     // A few helper methods to simplify the common operations on all cpus in the cluster.
     public static class ClusterExtensions
     {
-        public static void SetIsHalted(this Cluster cluster, bool value)
-        {
-            foreach(var cpu in cluster.Clustered)
-            {
-                cpu.IsHalted = value;
-            }
-        }
-
         public static void SetPC(this Cluster cluster, ulong value)
         {
             foreach (var cpu in cluster.Clustered)
@@ -37,7 +29,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     /// <see cref="Cluster"/> could be a generic class to accept any types derived from <see cref="ICPU"/>,
     /// but we wouldn't be able to use it in the platform description file (REPL), so it has a concrete type.
     /// </summary>
-    public class Cluster : IPeripheralRegister<ICluster<TranslationCPU>, NullRegistrationPoint>, IPeripheralRegister<TranslationCPU, NullRegistrationPoint>, ICluster<TranslationCPU>
+    public class Cluster : IPeripheralRegister<ICluster<TranslationCPU>, NullRegistrationPoint>, IPeripheralRegister<TranslationCPU, NullRegistrationPoint>, ICluster<TranslationCPU>, IHaltable
     {
         public Cluster(IMachine machine)
         {
@@ -81,6 +73,18 @@ namespace Antmicro.Renode.Peripherals.CPU
             machine.SystemBus.Unregister(cpu);
             cpus.Remove(cpu);
         }
+
+        public bool IsHalted
+        {
+            set
+            {
+                foreach(var cpu in this.Clustered)
+                {
+                    cpu.IsHalted = value;
+                }
+            }
+        }
+
 
         public IEnumerable<ICluster<TranslationCPU>> Clusters => clusters;
 
