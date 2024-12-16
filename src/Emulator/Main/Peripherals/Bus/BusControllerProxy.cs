@@ -372,6 +372,11 @@ namespace Antmicro.Renode.Peripherals.Bus
             ParentController.MoveRegistrationWithinContext(peripheral, newRegistration, context, selector);
         }
 
+        public void ChangePeripheralAccessCondition(IBusPeripheral peripheral, string newCondition, string oldCondition = null)
+        {
+            ParentController.ChangePeripheralAccessCondition(peripheral, newCondition, oldCondition);
+        }
+
         void IPeripheralRegister<IBusPeripheral, BusMultiRegistration>.Unregister(IBusPeripheral peripheral)
         {
             ((IPeripheralRegister<IBusPeripheral, BusMultiRegistration>)ParentController).Unregister(peripheral);

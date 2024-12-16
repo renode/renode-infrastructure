@@ -74,6 +74,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         void UnregisterFromAddress(ulong address, ICPU context = null);
         void MoveRegistrationWithinContext(IBusPeripheral peripheral, BusRangeRegistration newRegistration, ICPU context, Func<IEnumerable<IBusRegistered<IBusPeripheral>>, IBusRegistered<IBusPeripheral>> selector = null);
+        void ChangePeripheralAccessCondition(IBusPeripheral peripheral, string newCondition, string oldCondition = null);
 
         void AddWatchpointHook(ulong address, SysbusAccessWidth width, Access access, BusHookDelegate hook);
         void RemoveWatchpointHook(ulong address, BusHookDelegate hook);

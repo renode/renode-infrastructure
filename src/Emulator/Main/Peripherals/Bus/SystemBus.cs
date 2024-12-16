@@ -211,6 +211,88 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
+        public void ChangePeripheralAccessCondition(IBusPeripheral peripheral, string newCondition, string oldCondition = null)
+        {
+            lock(peripheral)
+            {
+                var newConditionsPerInitiator = ParseNewConditions(newCondition);
+                var foundEntry = FindUniqueRegistration(peripheral, oldCondition) ?? throw new RecoverableException("No registration found for this peripheral with the specified condition.");
+
+                foundEntry.Collection.Remove(peripheral);
+                var registration = foundEntry.RegistrationPoint;
+                var methods = foundEntry.AccessMethods;
+                var range = registration.Range;
+
+                foreach(var newContext in newConditionsPerInitiator)
+                {
+                    var initiator = Machine[Core.Machine.SystemBusName + Core.Machine.PathSeparator + newContext.Key];
+                    foreach(var newMask in newContext.Value)
+                    {
+                        peripheralsCollectionByContext.WithStateCollection(initiator, newMask, collection =>
+                        {
+                            var busRegistered = new BusRegistered<IBusPeripheral>(peripheral, registration);
+                            collection.Add(range.StartAddress, range.EndAddress + 1, busRegistered, methods);
+                        });
+                    }
+                }
+            }
+        }
+
+        private Dictionary<string, List<StateMask>> ParseNewConditions(string newCondition)
+        {
+            if(string.IsNullOrEmpty(newCondition))
+            {
+                return new Dictionary<string, List<StateMask>>
+                {
+                    [""] = new List<StateMask> { StateMask.AllAccess }
+                };
+            }
+            else
+            {
+                var condition = AccessConditionParser.ParseCondition(newCondition);
+                return AccessConditionParser.EvaluateWithStateBits(condition,
+                    i => string.IsNullOrEmpty(i) ? GetCommonStateBits() : GetStateBits(i));
+            }
+        }
+
+        private FoundRegistrationInfo? FindUniqueRegistration(IBusPeripheral peripheral, string oldCondition)
+        {
+            FoundRegistrationInfo? match = null;
+
+            foreach(var contextKey in peripheralsCollectionByContext.GetAllContextKeys())
+            {
+                foreach(var stateKey in peripheralsCollectionByContext.GetAllStateKeys(contextKey))
+                {
+                    peripheralsCollectionByContext.WithStateCollection(contextKey, stateKey, collection =>
+                    {
+                        // We take only the entries with a distinct registration point ignoring the state mask as a registration might be split
+                        // into multiple points, for example `secure || privileged` will be represented as 2 registrations which differ only in
+                        // the state mask, but it's the same registration for our purposes.
+                        var busRegisteredEntries = collection.Peripherals
+                            .Where(x => x.Peripheral == peripheral && (string.IsNullOrEmpty(oldCondition) || x.RegistrationPoint.Condition == oldCondition))
+                            .DistinctBy(x => x.RegistrationPoint.WithInitiatorAndStateMask(x.RegistrationPoint.Initiator, StateMask.AllAccess));
+
+                        foreach(var entry in busRegisteredEntries)
+                        {
+                            var registration = entry.RegistrationPoint;
+                            var normalizedRegistration = registration.WithInitiatorAndStateMask(registration.Initiator, StateMask.AllAccess);
+                            var methods = collection.FindAccessMethods(registration.Range.StartAddress, out _, out _);
+                            if(match == null)
+                            {
+                                match = new FoundRegistrationInfo(registration, collection, methods);
+                            }
+                            else if(!match.Value.RegistrationPoint.WithInitiatorAndStateMask(match.Value.RegistrationPoint.Initiator, StateMask.AllAccess).Equals(normalizedRegistration))
+                            {
+                                throw new RecoverableException("This peripheral is registered with several conditions. You need to specify which one to change.");
+                            }
+                        }
+                    });
+                }
+            }
+
+            return match;
+        }
+
         public void Register(ICPU cpu, CPURegistrationPoint registrationPoint)
         {
             lock(cpuSync)
@@ -2268,6 +2350,20 @@ namespace Antmicro.Renode.Peripherals.Bus
             // in a Dictionary<StateMask, TValue> was very slow)
             private readonly Dictionary<IPeripheral, TValue> cpuAllAccess = new Dictionary<IPeripheral, TValue>();
             private readonly TValue globalAllAccess;
+        }
+
+        private struct FoundRegistrationInfo
+        {
+            public FoundRegistrationInfo(BusRangeRegistration registrationPoint, PeripheralCollection collection, PeripheralAccessMethods accessMethods)
+            {
+                RegistrationPoint = registrationPoint;
+                Collection = collection;
+                AccessMethods = accessMethods;
+            }
+
+            public readonly BusRangeRegistration RegistrationPoint;
+            public readonly PeripheralCollection Collection;
+            public readonly PeripheralAccessMethods AccessMethods;
         }
 
         private Dictionary<IBusPeripheral, List<MappedSegmentWrapper>> mappingsForPeripheral;
