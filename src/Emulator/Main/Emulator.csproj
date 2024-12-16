@@ -315,6 +315,7 @@
     <Compile Include="Peripherals\CPU\ICPUWithOpcodeHooks.cs" />
     <Compile Include="Peripherals\CPU\ICPUWithMemoryAccessHooks.cs" />
     <Compile Include="Peripherals\CPU\ICPUWithPostGprAccessHooks.cs" />
+    <Compile Include="Peripherals\CPU\IHaltable.cs" />
     <Compile Include="Peripherals\CPU\IInitableCPU.cs" />
     <Compile Include="Peripherals\CPU\IControllableCPU.cs" />
     <Compile Include="Peripherals\CPU\ISignalsUnit.cs" />

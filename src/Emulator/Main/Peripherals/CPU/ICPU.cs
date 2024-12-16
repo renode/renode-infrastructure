@@ -15,13 +15,14 @@ using System.Collections.Generic;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public interface ICPU : IPeripheral, IHasOwnLife
+    public interface ICPU : IPeripheral, IHasOwnLife, IHaltable
     {
         string Architecture { get; }
         uint MultiprocessingId { get; }
         string Model { get; }
         RegisterValue PC { get; set; }
-        bool IsHalted { get; set; }
+        // Extend `IsHalted` with a getter by using the `new` keyword
+        new bool IsHalted { get; set; }
         IBusController Bus { get; }
         /// <summary>
         /// Returns true if the thread calling this property is possesed
