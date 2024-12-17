@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -57,8 +57,7 @@ namespace Antmicro.Renode.UserInterface.Commands
 
             foreach(var entry in ((MemoryBackend)memoryBackend).GetMemoryLogEntries(numberOfEntries))
             {
-                var count = entry.Count > 1 ? $"({entry.Count})" : string.Empty;
-                writer.WriteLine($"{entry.DateTime:HH:mm:ss.ffff} [{entry.Type}] {entry.Message} {count}", entry.Type.Color);
+                writer.WriteLine($"{entry.DateTime:HH:mm:ss.ffff} [{entry.Type}] {entry.Message}", entry.Type.Color);
             }
         }
 
