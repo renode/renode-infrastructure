@@ -97,6 +97,14 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             byteRegisters.Reset();
             wordRegisters.Reset();
             doubleWordRegisters.Reset();
+            Array.Clear(output, 0, output.Length);
+            Array.Clear(portMode, 0, portMode.Length);
+        }
+
+        public override void OnGPIO(int number, bool value)
+        {
+            base.OnGPIO(number, value);
+            UpdateGPIO();
         }
 
         public long Size => 0x10000;
@@ -116,14 +124,16 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithFlags(0, NrOfPinsInPortRegister,
                         writeCallback: CreateGPIOOutputWriteCallback(portIdx),
                         valueProviderCallback: CreateGPIOOutputValueProviderCallback(portIdx),
-                        name: "P");
+                        name: "P")
+                    .WithWriteCallback((_, __) => UpdateGPIO());
 
                 var portModeOffset = (long)Registers.PortMode + portIdx * 0x2;
                 wordRegistersMap[portModeOffset] = new WordRegister(this)
                     .WithEnumFields<WordRegister, PortMode>(0, 2, 5,
                         valueProviderCallback: CreatePortModeValueProviderCallback(portIdx),
                         writeCallback: CreatePortModeWriteCallback(portIdx),
-                        name: "PM");
+                        name: "PM")
+                    .WithWriteCallback((_, __) => UpdateGPIO());
 
                 // We don't implement peripheral function mode, so we hardcode this registers with 0x0,
                 // and log if someone tries to enable this mode.
@@ -285,6 +295,27 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             doubleWordRegisters = new DoubleWordRegisterCollection(this, doubleWordRegistersMap);
         }
 
+        private void UpdateGPIO()
+        {
+            for(var gpioIdx = 0; gpioIdx < NrOfPins; gpioIdx++)
+            {
+                var mode = portMode[gpioIdx];
+                if(mode == PortMode.Output)
+                {
+                    Connections[gpioIdx].Set(output[gpioIdx]);
+                }
+                else if(mode == PortMode.OutputInput)
+                {
+                    Connections[gpioIdx].Set(State[gpioIdx] || output[gpioIdx]);
+                }
+                else
+                {
+                    Connections[gpioIdx].Set(false);
+                }
+                this.DebugLog("GPIO pin {0}: {1}", gpioIdx, Connections[gpioIdx].IsSet ? "set" : "unset");
+            }
+        }
+
         private Func<int, bool, bool> CreateGPIOOutputValueProviderCallback(int portIdx)
         {
             return (pinIdx, _) =>
@@ -293,7 +324,15 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 // greater than real number of pins
                 if(TryGetGPIOIdx(portIdx, pinIdx, out var gpioIdx))
                 {
-                    return Connections[gpioIdx].IsSet;
+                    switch(portMode[gpioIdx])
+                    {
+                        case PortMode.Output:
+                            return output[gpioIdx];
+                        case PortMode.OutputInput:
+                            return State[gpioIdx] || output[gpioIdx];
+                        default:
+                            return false;
+                    }
                 }
                 LogOutOfRangePinWrite(portIdx, pinIdx, Registers.Port);
                 return false;
@@ -308,7 +347,11 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 // greater than real number of pins
                 if(TryGetGPIOIdx(portIdx, pinIdx, out var gpioIdx))
                 {
-                    Connections[gpioIdx].Set(value);
+                    var mode = portMode[gpioIdx];
+                    if(mode == PortMode.Output || mode == PortMode.OutputInput)
+                    {
+                        output[gpioIdx] = value;
+                    }
                 }
                 else
                 {
@@ -325,7 +368,15 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 // greater than real number of pins
                 if(TryGetGPIOIdx(portIdx, pinIdx, out var gpioIdx))
                 {
-                    return State[gpioIdx];
+                    switch(portMode[gpioIdx])
+                    {
+                        case PortMode.Input:
+                            return State[gpioIdx];
+                        case PortMode.OutputInput:
+                            return State[gpioIdx] || output[gpioIdx];
+                        default:
+                            return false;
+                    }
                 }
                 LogOutOfRangePinRead(portIdx, pinIdx, Registers.PortInput);
                 return false;
@@ -356,6 +407,24 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 if(TryGetGPIOIdx(portIdx, pinIdx, out var gpioIdx))
                 {
                     portMode[gpioIdx] = value;
+                    switch(value)
+                    {
+                        case PortMode.HighImpedance:
+                            output[gpioIdx] = false;
+                            State[gpioIdx] = false;
+                            break;
+                        case PortMode.Output:
+                            State[gpioIdx] = false;
+                            break;
+                        case PortMode.Input:
+                            output[gpioIdx] = false;
+                            break;
+                        case PortMode.OutputInput:
+                            // Setting this mode doesn't change anything.
+                            break;
+                        default:
+                            throw new Exception("unreachable");
+                    }
                 }
                 else
                 {
@@ -448,6 +517,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         private const int NrOfPullUpPullDownSwitchingRegisters = 33;
         private const int NrOfDigitalNoiseFilterRegisters = 52;
 
+        private readonly bool[] output = new bool[NrOfPins];
         private readonly PortMode[] portMode = new PortMode[NrOfPins];
         private readonly int[] gpioOffsetPerPort = new int[NrOfPorts];
 
