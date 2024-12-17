@@ -327,6 +327,7 @@
     <Compile Include="Peripherals\Timers\RenesasDA14_GPT.cs" />
     <Compile Include="Peripherals\Timers\RenesasRZG_GPT.cs" />
     <Compile Include="Peripherals\Timers\RenesasRZG_GTM.cs" />
+    <Compile Include="Peripherals\Timers\RenesasRZG_SYC.cs" />
     <Compile Include="Peripherals\Timers\RenesasRZG_Watchdog.cs" />
     <Compile Include="Peripherals\Miscellaneous\RenesasRZG_MHU.cs" />
     <Compile Include="Peripherals\I2C\RenesasRZG_IIC.cs" />
