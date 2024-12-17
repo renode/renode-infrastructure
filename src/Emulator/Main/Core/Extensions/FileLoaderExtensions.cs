@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -368,7 +368,7 @@ namespace Antmicro.Renode.Core.Extensions
         }
 
         // Name of the last parameter is kept as 'cpu' for backward compatibility.
-        public static void LoadELF(this IBusController loader, ReadFilePath fileName, bool useVirtualAddress = false, bool allowLoadsOnlyToMemory = true, ICluster<IInitableCPU> cpu = null)
+        public static void LoadELF(this IBusController loader, ReadFilePath fileName, bool useVirtualAddress = false, bool allowLoadsOnlyToMemory = true, IPeripheral cpu = null)
         {
             if(!loader.Machine.IsPaused)
             {
@@ -396,11 +396,15 @@ namespace Antmicro.Renode.Core.Extensions
                 // Otherwise, we initialize all cpus on sysbus and load symbols to global lookup.
                 if(cpu != null)
                 {
-                    foreach(var initableCpu in cpu.Clustered)
+                    var cpus = cpu is ICluster<ICPU> cluster ? cluster.Clustered : new [] { cpu }.AsEnumerable();
+                    foreach(var peripheral in cpus)
                     {
-                        loader.LoadFileChunks(fileName, chunks, initableCpu);
-                        loader.LoadSymbolsFrom(elf, useVirtualAddress, context: initableCpu);
-                        initableCpu.InitFromElf(elf);
+                        loader.LoadFileChunks(fileName, chunks, peripheral);
+                        if(peripheral is IInitableCPU initableCPU)
+                        {
+                            loader.LoadSymbolsFrom(elf, useVirtualAddress, context: initableCPU);
+                            initableCPU.InitFromElf(elf);
+                        }
                     }
                 }
                 else
