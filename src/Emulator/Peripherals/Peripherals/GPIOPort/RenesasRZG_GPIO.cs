@@ -99,6 +99,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             doubleWordRegisters.Reset();
             Array.Clear(output, 0, output.Length);
             Array.Clear(portMode, 0, portMode.Length);
+            Array.Clear(interruptEnabled, 0, interruptEnabled.Length);
         }
 
         public override void OnGPIO(int number, bool value)
@@ -114,6 +115,10 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             var byteRegistersMap = new Dictionary <long, ByteRegister>();
             var wordRegistersMap = new Dictionary <long, WordRegister>();
             var doubleWordRegistersMap = new Dictionary <long, DoubleWordRegister>();
+
+            // Interrupt enable registers are not distributed uniformly across it's region
+            // we keep track of their current offset in this variable instead of calculating it every time.
+            var interruptEnableControlOffset = (long)Registers.InterruptEnableControl;
 
             // Although different ports have different number of GPIO pins, with maximum of 5 usable pins,
             // they have the same registers structure.
@@ -162,24 +167,55 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithFlags(0, NrOfPinsInPortRegister, FieldMode.Read,
                         valueProviderCallback: CreateGPIOInputValueProviderCallback(portIdx),
                         name: "PIN");
+
+                doubleWordRegistersMap[interruptEnableControlOffset] = new DoubleWordRegister(this)
+                    .WithFlag(0,
+                        writeCallback: CreateInterruptEnableControlWriteCallback(portIdx, 0),
+                        valueProviderCallback: CreateInterruptEnableControlValueProviderCallback(portIdx, 0),
+                        name: "ISEL0")
+                    .WithReservedBits(1, 7)
+                    .WithFlag(8,
+                        writeCallback: CreateInterruptEnableControlWriteCallback(portIdx, 1),
+                        valueProviderCallback: CreateInterruptEnableControlValueProviderCallback(portIdx, 1),
+                        name: "ISEL1")
+                    .WithReservedBits(9, 7)
+                    .WithFlag(16,
+                        writeCallback: CreateInterruptEnableControlWriteCallback(portIdx, 2),
+                        valueProviderCallback: CreateInterruptEnableControlValueProviderCallback(portIdx, 2),
+                        name: "ISEL2")
+                    .WithReservedBits(17, 7)
+                    .WithFlag(24,
+                        writeCallback: CreateInterruptEnableControlWriteCallback(portIdx, 3),
+                        valueProviderCallback: CreateInterruptEnableControlValueProviderCallback(portIdx, 3),
+                        name: "ISEL3")
+                    .WithReservedBits(25, 7)
+                    .WithWriteCallback((_, __) => UpdateGPIO());
+
+                interruptEnableControlOffset += 0x4;
+
+                if(GetNrOfGPIOPinsForPort(portIdx) > 4)
+                {
+                    // We have 5 pins per port at most, so we only define here one flag
+                    doubleWordRegistersMap[interruptEnableControlOffset] = new DoubleWordRegister(this)
+                        .WithFlag(0,
+                            writeCallback: CreateInterruptEnableControlWriteCallback(portIdx, 4),
+                            valueProviderCallback: CreateInterruptEnableControlValueProviderCallback(portIdx, 4),
+                            name: "ISEL0")
+                        .WithReservedBits(1, 7)
+                        .WithTaggedFlag("ISEL1", 8)
+                        .WithReservedBits(9, 7)
+                        .WithTaggedFlag("ISEL2", 16)
+                        .WithReservedBits(17, 7)
+                        .WithTaggedFlag("ISEL3", 24)
+                        .WithReservedBits(25, 7)
+                        .WithWriteCallback((_, __) => UpdateGPIO());
+
+                    interruptEnableControlOffset += 0x4;
+                }
             }
 
             // Some registers are not uniformly distributed over their regions.
             // We define them in separate loops.
-            for(var registerIdx = 0; registerIdx < NrOfInterrupEnableControlRegisters; registerIdx++)
-            {
-                var interrupEnableControlOffset = (long)Registers.InterruptEnableControl + registerIdx * 0x4;
-                doubleWordRegistersMap[interrupEnableControlOffset] = new DoubleWordRegister(this)
-                    .WithTaggedFlag("ISEL0", 0)
-                    .WithReservedBits(1, 7)
-                    .WithTaggedFlag("ISEL1", 8)
-                    .WithReservedBits(9, 7)
-                    .WithTaggedFlag("ISEL2", 16)
-                    .WithReservedBits(17, 7)
-                    .WithTaggedFlag("ISEL3", 24)
-                    .WithReservedBits(25, 7);
-            }
-
             for(var registerIdx = 0; registerIdx < NrOfDrivingAbilityControlRegisters; registerIdx++)
             {
                 var drivingAbilityControlOffset = (long)Registers.DrivingAbilityControl + registerIdx * 0x4;
@@ -300,7 +336,11 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             for(var gpioIdx = 0; gpioIdx < NrOfPins; gpioIdx++)
             {
                 var mode = portMode[gpioIdx];
-                if(mode == PortMode.Output)
+                if(interruptEnabled[gpioIdx])
+                {
+                    Connections[gpioIdx].Set(State[gpioIdx]);
+                }
+                else if(mode == PortMode.Output)
                 {
                     Connections[gpioIdx].Set(output[gpioIdx]);
                 }
@@ -448,6 +488,38 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             };
         }
 
+        private Func<bool, bool> CreateInterruptEnableControlValueProviderCallback(int portIdx, int pinIdx)
+        {
+            return (_) =>
+            {
+                // Documentation doesn't state what should be done when accessing pins with indices
+                // greater than real number of pins
+                if(TryGetGPIOIdx(portIdx, pinIdx, out var gpioIdx))
+                {
+                    return interruptEnabled[gpioIdx];
+                }
+                LogOutOfRangePinRead(portIdx, pinIdx, Registers.PortMode);
+                return false;
+            };
+        }
+
+        private Action<bool, bool> CreateInterruptEnableControlWriteCallback(int portIdx, int pinIdx)
+        {
+            return (_, value) =>
+            {
+                // Documentation doesn't state what should be done when accessing pins with indices
+                // greater than real number of pins
+                if(TryGetGPIOIdx(portIdx, pinIdx, out var gpioIdx))
+                {
+                    interruptEnabled[gpioIdx] = value;
+                }
+                else
+                {
+                    LogOutOfRangePinWrite(portIdx, pinIdx, Registers.InterruptEnableControl);
+                }
+            };
+        }
+
         private bool TryGetGPIOIdx(int portIdx, int pinIdx, out int gpioIdx)
         {
             if(pinIdx > GetNrOfGPIOPinsForPort(portIdx))
@@ -511,13 +583,13 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         private const int NrOfPorts = 49;
         private const int NrOfPins = 123;
         private const int NrOfPinsInPortRegister = 8;
-        private const int NrOfInterrupEnableControlRegisters = 51;
         private const int NrOfDrivingAbilityControlRegisters = 46;
         private const int NrOfSlewRateSwitchingRegisters = 46;
         private const int NrOfPullUpPullDownSwitchingRegisters = 33;
         private const int NrOfDigitalNoiseFilterRegisters = 52;
 
         private readonly bool[] output = new bool[NrOfPins];
+        private readonly bool[] interruptEnabled = new bool[NrOfPins];
         private readonly PortMode[] portMode = new PortMode[NrOfPins];
         private readonly int[] gpioOffsetPerPort = new int[NrOfPorts];
 
