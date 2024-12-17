@@ -11,6 +11,7 @@ using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Logging;
 using System;
+using System.Linq;
 using System.Collections.Generic;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
@@ -100,6 +101,12 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             Array.Clear(output, 0, output.Length);
             Array.Clear(portMode, 0, portMode.Length);
             Array.Clear(interruptEnabled, 0, interruptEnabled.Length);
+            Array.Clear(pinFunction, 0, pinFunction.Length);
+            Array.Clear(pinFunctionEnabled, 0, pinFunctionEnabled.Length);
+            foreach (var irq in functionInterrupts)
+            {
+                irq.Unset();
+            }
         }
 
         public override void OnGPIO(int number, bool value)
@@ -109,6 +116,15 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         }
 
         public long Size => 0x10000;
+
+        public GPIO IRQ0 => functionInterrupts[0];
+        public GPIO IRQ1 => functionInterrupts[1];
+        public GPIO IRQ2 => functionInterrupts[2];
+        public GPIO IRQ3 => functionInterrupts[3];
+        public GPIO IRQ4 => functionInterrupts[4];
+        public GPIO IRQ5 => functionInterrupts[5];
+        public GPIO IRQ6 => functionInterrupts[6];
+        public GPIO IRQ7 => functionInterrupts[7];
 
         private void DefineRegisters()
         {
@@ -140,27 +156,42 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                         name: "PM")
                     .WithWriteCallback((_, __) => UpdateGPIO());
 
-                // We don't implement peripheral function mode, so we hardcode this registers with 0x0,
-                // and log if someone tries to enable this mode.
-                var portModeControlOffset = (long)Registers.PortModeControl + portIdx * 0x2;
+                var portModeControlOffset = (long)Registers.PortModeControl + portIdx;
                 byteRegistersMap[portModeControlOffset] = new ByteRegister(this)
                     .WithFlags(0, 5,
                         writeCallback: CreatePortModeControlWriteCallback(portIdx),
-                        valueProviderCallback: (_, __) => false,
-                        name: "PMC");
+                        valueProviderCallback: CreatePortModeControlValueProviderCallback(portIdx),
+                        name: "PMC")
+                    .WithWriteCallback((_, __) => UpdateGPIO());
 
                 var portFunctionControlOffset = (long)Registers.PortFunctionControl + portIdx * 0x4;
-                doubleWordRegistersMap[portModeOffset] = new DoubleWordRegister(this)
-                    .WithTag("PFC0", 0, 3)
+                doubleWordRegistersMap[portFunctionControlOffset] = new DoubleWordRegister(this)
+                    .WithValueField(0, 3,
+                        writeCallback: CreatePortFunctionControlWriteCallback(portIdx, 0),
+                        valueProviderCallback: CreatePortFunctionControlValueProviderCallback(portIdx, 0),
+                        name: "PFC0")
                     .WithReservedBits(3, 1)
-                    .WithTag("PFC1", 4, 3)
+                    .WithValueField(4, 3,
+                        writeCallback: CreatePortFunctionControlWriteCallback(portIdx, 1),
+                        valueProviderCallback: CreatePortFunctionControlValueProviderCallback(portIdx, 1),
+                        name: "PFC1")
                     .WithReservedBits(7, 1)
-                    .WithTag("PFC2", 8, 3)
+                    .WithValueField(8, 3,
+                        writeCallback: CreatePortFunctionControlWriteCallback(portIdx, 2),
+                        valueProviderCallback: CreatePortFunctionControlValueProviderCallback(portIdx, 2),
+                        name: "PFC2")
                     .WithReservedBits(11, 1)
-                    .WithTag("PFC3", 12, 3)
+                    .WithValueField(12, 3,
+                        writeCallback: CreatePortFunctionControlWriteCallback(portIdx, 3),
+                        valueProviderCallback: CreatePortFunctionControlValueProviderCallback(portIdx, 3),
+                        name: "PFC3")
                     .WithReservedBits(15, 1)
-                    .WithTag("PFC4", 16, 3)
-                    .WithReservedBits(19, 13);
+                    .WithValueField(16, 3,
+                        writeCallback: CreatePortFunctionControlWriteCallback(portIdx, 4),
+                        valueProviderCallback: CreatePortFunctionControlValueProviderCallback(portIdx, 4),
+                        name: "PFC4")
+                    .WithReservedBits(19, 13)
+                    .WithWriteCallback((_, __) => UpdateGPIO());
 
                 var portInputOffset = (long)Registers.PortInput + portIdx;
                 byteRegistersMap[portInputOffset] = new ByteRegister(this)
@@ -354,6 +385,24 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 }
                 this.DebugLog("GPIO pin {0}: {1}", gpioIdx, Connections[gpioIdx].IsSet ? "set" : "unset");
             }
+
+            foreach(var entry in pinAndFunctionToInterruptMap)
+            {
+                var gpioIdx = entry.Key.Item1;
+                var functionIdx = entry.Key.Item2;
+                var interruptIdx = entry.Value;
+
+                if(pinFunctionEnabled[gpioIdx] && pinFunction[gpioIdx] == functionIdx)
+                {
+                    functionInterrupts[interruptIdx].Set(State[gpioIdx]);
+                    this.DebugLog("IRQ{0}: {1}", interruptIdx, State[gpioIdx] ? "set" : "unset");
+                }
+                else
+                {
+                    functionInterrupts[interruptIdx].Set(false);
+                    this.DebugLog("IRQ{0}: unset", interruptIdx);
+                }
+            }
         }
 
         private Func<int, bool, bool> CreateGPIOOutputValueProviderCallback(int portIdx)
@@ -473,17 +522,34 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             };
         }
 
+        private Func<int, bool, bool> CreatePortModeControlValueProviderCallback(int portIdx)
+        {
+            return (pinIdx, _) =>
+            {
+                // Documentation doesn't state what should be done when accessing pins with indices
+                // greater than real number of pins
+                if(TryGetGPIOIdx(portIdx, pinIdx, out var gpioIdx))
+                {
+                    return pinFunctionEnabled[gpioIdx];
+                }
+                LogOutOfRangePinRead(portIdx, pinIdx, Registers.PortModeControl);
+                return false;
+            };
+        }
+
         private Action<int, bool, bool> CreatePortModeControlWriteCallback(int portIdx)
         {
             return (pinIdx, _, value) =>
             {
-                if(value)
+                // Documentation doesn't state what should be done when accessing pins with indices
+                // greater than real number of pins
+                if(TryGetGPIOIdx(portIdx, pinIdx, out var gpioIdx))
                 {
-                    this.WarningLog(
-                        "Trying to use peripheral function mode on GPIO port {0}, pin {1}. This mode is not supported. Falling back to GPIO mode.",
-                        portIdx,
-                        pinIdx
-                    );
+                    pinFunctionEnabled[gpioIdx] = value;
+                }
+                else
+                {
+                    LogOutOfRangePinWrite(portIdx, pinIdx, Registers.PortMode);
                 }
             };
         }
@@ -512,6 +578,59 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 if(TryGetGPIOIdx(portIdx, pinIdx, out var gpioIdx))
                 {
                     interruptEnabled[gpioIdx] = value;
+                }
+                else
+                {
+                    LogOutOfRangePinWrite(portIdx, pinIdx, Registers.InterruptEnableControl);
+                }
+            };
+        }
+
+        private Func<ulong, ulong> CreatePortFunctionControlValueProviderCallback(int portIdx, int pinIdx)
+        {
+            return (_) =>
+            {
+                // Documentation doesn't state what should be done when accessing pins with indices
+                // greater than real number of pins
+                if(TryGetGPIOIdx(portIdx, pinIdx, out var gpioIdx))
+                {
+                    return (ulong)pinFunction[gpioIdx];
+                }
+                LogOutOfRangePinRead(portIdx, pinIdx, Registers.PortMode);
+                return 0;
+            };
+        }
+
+        private Action<ulong, ulong> CreatePortFunctionControlWriteCallback(int portIdx, int pinIdx)
+        {
+            return (_, value) =>
+            {
+                // Documentation doesn't state what should be done when accessing pins with indices
+                // greater than real number of pins
+                if(TryGetGPIOIdx(portIdx, pinIdx, out var gpioIdx))
+                {
+                    // We only implement interrupt peripheral functions.
+                    // We also allow selecting default function for pin, which does nothing.
+                    if(value == DefaultPinFunctionIdx || pinAndFunctionToInterruptMap.ContainsKey(Tuple.Create(gpioIdx, (int)value)))
+                    {
+                        pinFunction[gpioIdx] = (int)value;
+                    }
+                    else if(value > MaxPinFunctionIdx)
+                    {
+                        this.WarningLog(
+                            "Trying to set pin function to invalid value {0}. Function value won't change.",
+                            value
+                        );
+                    }
+                    else
+                    {
+                        this.WarningLog(
+                            "Trying to enable function {0} which is not currently supported for port {1}, pin {2}. Function value won't change.",
+                            value,
+                            portIdx,
+                            pinIdx
+                        );
+                    }
                 }
                 else
                 {
@@ -582,16 +701,50 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         private const int NrOfPorts = 49;
         private const int NrOfPins = 123;
+        private const int NrOfFunctionInterrutps = 8;
         private const int NrOfPinsInPortRegister = 8;
         private const int NrOfDrivingAbilityControlRegisters = 46;
         private const int NrOfSlewRateSwitchingRegisters = 46;
         private const int NrOfPullUpPullDownSwitchingRegisters = 33;
         private const int NrOfDigitalNoiseFilterRegisters = 52;
+        private const int MaxPinFunctionIdx = 5;
+        private const int DefaultPinFunctionIdx = 0;
 
         private readonly bool[] output = new bool[NrOfPins];
         private readonly bool[] interruptEnabled = new bool[NrOfPins];
+        private readonly int[] pinFunction = new int[NrOfPins];
+        private readonly bool[] pinFunctionEnabled = new bool[NrOfPins];
         private readonly PortMode[] portMode = new PortMode[NrOfPins];
         private readonly int[] gpioOffsetPerPort = new int[NrOfPorts];
+        private readonly GPIO[] functionInterrupts = Enumerable.Range(0, NrOfFunctionInterrutps).Select(_ => new GPIO()).ToArray();
+        private readonly Dictionary<Tuple<int, int>, int> pinAndFunctionToInterruptMap = new Dictionary<Tuple<int, int>, int>
+        {
+            {Tuple.Create(0, 1),    0},
+            {Tuple.Create(1, 1),    1},
+            {Tuple.Create(2, 1),    2},
+            {Tuple.Create(3, 1),    3},
+            {Tuple.Create(4, 1),    4},
+            {Tuple.Create(5, 1),    5},
+            {Tuple.Create(6, 1),    6},
+            {Tuple.Create(7, 1),    7},
+            {Tuple.Create(30, 4),   0},
+            {Tuple.Create(31, 4),   1},
+            {Tuple.Create(32, 4),   2},
+            {Tuple.Create(32, 3),   7},
+            {Tuple.Create(37, 4),   3},
+            {Tuple.Create(38, 4),   4},
+            {Tuple.Create(39, 4),   5},
+            {Tuple.Create(40, 4),   6},
+            {Tuple.Create(41, 4),   7},
+            {Tuple.Create(98, 4),   4},
+            {Tuple.Create(99, 4),   5},
+            {Tuple.Create(100, 4),  6},
+            {Tuple.Create(101, 4),  7},
+            {Tuple.Create(114, 3),  0},
+            {Tuple.Create(115, 3),  1},
+            {Tuple.Create(116, 3),  2},
+            {Tuple.Create(117, 3),  3},
+        };
 
         private ByteRegisterCollection byteRegisters;
         private WordRegisterCollection wordRegisters;
@@ -629,4 +782,3 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         }
     }
 }
-
