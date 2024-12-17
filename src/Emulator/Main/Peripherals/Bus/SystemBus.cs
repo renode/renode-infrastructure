@@ -56,7 +56,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             this.Log(LogLevel.Info, "System bus created.");
         }
 
-        public void LoadFileChunks(string path, IEnumerable<FileChunk> chunks, ICPU cpu)
+        public void LoadFileChunks(string path, IEnumerable<FileChunk> chunks, IPeripheral cpu)
         {
             var minAddr = this.LoadFileChunks(chunks, cpu);
             AddFingerprint(path);

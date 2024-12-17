@@ -432,7 +432,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             return ParentController.IsMemory(address, context);
         }
 
-        public virtual void LoadFileChunks(string path, IEnumerable<FileChunk> chunks, ICPU cpu)
+        public virtual void LoadFileChunks(string path, IEnumerable<FileChunk> chunks, IPeripheral cpu)
         {
             ParentController.LoadFileChunks(path, chunks, cpu);
         }

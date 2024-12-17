@@ -338,7 +338,7 @@ namespace Antmicro.Renode.Peripherals.Memory
             WriteBytes(offset, new System.Text.ASCIIEncoding().GetBytes(value).Concat(new []{ (byte)'\0' }).ToArray());
         }
 
-        public void LoadFileChunks(string path, IEnumerable<FileChunk> chunks, ICPU cpu)
+        public void LoadFileChunks(string path, IEnumerable<FileChunk> chunks, IPeripheral cpu)
         {
             this.LoadFileChunks(chunks, cpu);
         }

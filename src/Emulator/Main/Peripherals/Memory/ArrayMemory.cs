@@ -146,7 +146,7 @@ namespace Antmicro.Renode.Peripherals.Memory
             Array.Copy(bytes, startingIndex, array, offset, count);
         }
 
-        public void LoadFileChunks(string path, IEnumerable<FileChunk> chunks, ICPU cpu)
+        public void LoadFileChunks(string path, IEnumerable<FileChunk> chunks, IPeripheral cpu)
         {
             this.LoadFileChunks(chunks, cpu);
         }

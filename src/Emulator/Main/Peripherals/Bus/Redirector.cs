@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -85,7 +85,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             systemBus.WriteBytes(array, redirectedAddress + checked((ulong)offset), count, context: context);
         }
 
-        public void LoadFileChunks(string path, IEnumerable<FileChunk> chunks, ICPU cpu)
+        public void LoadFileChunks(string path, IEnumerable<FileChunk> chunks, IPeripheral cpu)
         {
             this.LoadFileChunks(chunks, cpu);
         }

@@ -1,12 +1,12 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.CPU;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,13 +16,13 @@ namespace Antmicro.Renode.Utilities
     public interface ICanLoadFiles
     {
         // Handle data from FileChunk collection - specific for each peripheral
-        void LoadFileChunks(string path, IEnumerable<FileChunk> chunks, ICPU cpu);
+        void LoadFileChunks(string path, IEnumerable<FileChunk> chunks, IPeripheral cpu);
     }
 
     public static class LoadFileChunksExtensions
     {
         // Returns the lowest touched address
-        public static ulong LoadFileChunks(this IMultibyteWritePeripheral peripheral, IEnumerable<FileChunk> chunks, ICPU cpu = null)
+        public static ulong LoadFileChunks(this IMultibyteWritePeripheral peripheral, IEnumerable<FileChunk> chunks, IPeripheral cpu = null)
         {
             ulong minAddr = ulong.MaxValue;
 
