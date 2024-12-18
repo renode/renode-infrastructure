@@ -259,7 +259,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     .Else(reg => reg
                         .WithTaggedFlag("TIMEOUT", 8)
                     )
-                .WithTaggedFlag("TXEMPTY", 9)
+                .WithFlag(9, out txEmptyEnabled, FieldMode.Set, name: "TXEMPTY")
                 .If(uartOnlyMode)
                     .Then(reg => reg
                         .WithReservedBits(10, 1)
@@ -309,7 +309,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     .Else(reg => reg
                         .WithTaggedFlag("TIMEOUT", 8)
                     )
-                .WithTaggedFlag("TXEMPTY", 9)
+                .WithFlag(9, FieldMode.Write, writeCallback: writeOneToClearFlag(txEmptyEnabled), name: "TXEMPTY")
                 .If(uartOnlyMode)
                     .Then(reg => reg
                         .WithReservedBits(10, 1)
@@ -358,7 +358,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     .Else(reg => reg
                         .WithTaggedFlag("TIMEOUT", 8)
                     )
-                .WithTaggedFlag("TXEMPTY", 9)
+                .WithFlag(9, FieldMode.Read, valueProviderCallback: _ => txEmptyEnabled.Value, name: "TXEMPTY")
                 .If(uartOnlyMode)
                     .Then(reg => reg
                         .WithReservedBits(10, 1)
@@ -576,6 +576,7 @@ namespace Antmicro.Renode.Peripherals.UART
             var state = false;
             state |= receiverEnabled && receiverReadyIrqEnabled.Value && receiverReady.Value;
             state |= transmitterEnabled && transmitterReadyIrqEnabled.Value;
+            state |= transmitterEnabled && txEmptyEnabled.Value;
             state |= (pdc?.EndOfRxBuffer ?? false) && endOfRxBufferIrqEnabled.Value;
             state |= (pdc?.EndOfTxBuffer ?? false) && endOfTxBufferIrqEnabled.Value;
             state |= (pdc?.TxBufferEmpty ?? false) && txBufferEmptyIrqEnabled.Value;
@@ -592,6 +593,7 @@ namespace Antmicro.Renode.Peripherals.UART
         private IFlagRegisterField endOfTxBufferIrqEnabled;
         private IFlagRegisterField txBufferEmptyIrqEnabled;
         private IFlagRegisterField rxBufferFullIrqEnabled;
+        private IFlagRegisterField txEmptyEnabled;
 
         private IEnumRegisterField<ParityTypeValues> parityType;
         private IEnumRegisterField<NumberOfStopBitsValues> numberOfStopBits;
