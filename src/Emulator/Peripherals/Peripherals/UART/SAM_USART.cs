@@ -442,7 +442,7 @@ namespace Antmicro.Renode.Peripherals.UART
             ;
 
             Registers.ReceiveHolding.Define(this)
-                .WithValueField(0, 9, FieldMode.Read, valueProviderCallback: _ => ReadBuffer() ?? 0x0, name: "RXCHR")
+                .WithValueField(0, 9, FieldMode.Read, valueProviderCallback: _ => ReadBuffer(true) ?? 0x0, name: "RXCHR")
                 .WithReservedBits(9, 6)
                 .If(uartOnlyMode)
                     .Then(reg => reg
@@ -551,7 +551,7 @@ namespace Antmicro.Renode.Peripherals.UART
             UpdateInterrupts();
         }
 
-        private byte? ReadBuffer()
+        private byte? ReadBuffer(bool warnEmpty = false)
         {
             if(!receiverEnabled)
             {
@@ -560,7 +560,10 @@ namespace Antmicro.Renode.Peripherals.UART
 
             if(!TryGetCharacter(out var character))
             {
-                this.Log(LogLevel.Warning, "Trying to read data from empty receive fifo");
+                if(warnEmpty)
+                {
+                    this.Log(LogLevel.Warning, "Trying to read data from empty receive fifo");
+                }
                 return null;
             }
             if(Count == 0)
