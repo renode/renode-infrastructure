@@ -606,7 +606,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         protected override void OnLeavingResetState()
         {
-            if(State == CPUState.Running)
+            if(EmulationState == EmulationCPUState.Running)
             {
                 InitPCAndSP();
             }

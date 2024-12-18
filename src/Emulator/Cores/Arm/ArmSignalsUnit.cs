@@ -135,7 +135,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
 
             cpu.StateChanged += (_, oldState, __) => {
-                if(oldState == CPUState.InReset)
+                if(oldState == EmulationCPUState.InReset)
                 {
                     if(unitType == UnitType.CortexR8)
                     {

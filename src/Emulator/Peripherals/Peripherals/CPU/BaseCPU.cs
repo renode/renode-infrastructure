@@ -157,7 +157,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             isAborted = false;
             Pause();
-            State = CPUState.InReset;
+            EmulationState = EmulationCPUState.InReset;
         }
 
         public virtual void SyncTime()
@@ -241,9 +241,9 @@ namespace Antmicro.Renode.Peripherals.CPU
                     }
                     else
                     {
-                        if(State == CPUState.InReset)
+                        if(EmulationState == EmulationCPUState.InReset)
                         {
-                            State = CPUState.Running;
+                            EmulationState = EmulationCPUState.Running;
                         }
 
                         if(wasRunningWhenHalted)
@@ -256,7 +256,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         /// <remarks><c>StateChanged</c> is invoked when the value gets changed.</remarks>
-        public CPUState State
+        public EmulationCPUState EmulationState
         {
             get => state;
 
@@ -268,7 +268,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     return;
                 }
                 state = value;
-                if(oldState == CPUState.InReset)
+                if(oldState == EmulationCPUState.InReset)
                 {
                     OnLeavingResetState();
                 }
@@ -325,7 +325,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         public event Action<HaltArguments> Halted;
 
         /// <remarks>The arguments passed are: <c>StateChanged(cpu, oldState, newState)</c>.</remarks>
-        public event Action<ICPU, CPUState, CPUState> StateChanged;
+        public event Action<ICPU, EmulationCPUState, EmulationCPUState> StateChanged;
 
         public abstract ulong ExecutedInstructions { get; }
         public abstract RegisterValue PC { get; set; }
@@ -423,9 +423,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         protected override void OnResume()
         {
-            if(State == CPUState.InReset && !currentHaltedState)
+            if(EmulationState == EmulationCPUState.InReset && !currentHaltedState)
             {
-                State = CPUState.Running;
+                EmulationState = EmulationCPUState.Running;
             }
             singleStepSynchronizer.Enabled = IsSingleStepMode;
             StartCPUThread();
@@ -705,7 +705,7 @@ restart:
                     this.Trace("aborted, reporting continue");
                     TimeHandle.ReportBackAndContinue(TimeInterval.Empty);
                     executedResiduum = 0;
-                    State = CPUState.Aborted;
+                    EmulationState = EmulationCPUState.Aborted;
                     return CpuResult.Aborted;
                 }
                 else if(currentHaltedState)
@@ -930,7 +930,7 @@ restart:
         [Transient]
         private Thread cpuThread;
 
-        private CPUState state = CPUState.InReset;
+        private EmulationCPUState state = EmulationCPUState.InReset;
         private TimeHandle timeHandle;
 
         private bool wasRunningWhenHalted;
