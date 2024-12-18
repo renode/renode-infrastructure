@@ -185,6 +185,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     {
                         transmitterEnabled = true;
                     }
+                    UpdateInterrupts();
                 })
             ;
 
