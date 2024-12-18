@@ -387,16 +387,16 @@ namespace Antmicro.Renode.Peripherals.Bus
             return peripheralsCollectionByContext.GetAllContextKeys();
         }
 
-        public bool TryGetCurrentContextState(out IPeripheral cpu, out ulong cpuState)
+        public bool TryGetCurrentContextState(out IPeripheral initiator, out ulong initiatorState)
         {
-            if(!threadLocalContext.InUse || !threadLocalContext.CPUState.HasValue)
+            if(!threadLocalContext.InUse || !threadLocalContext.InitiatorState.HasValue)
             {
-                cpu = null;
-                cpuState = 0;
+                initiator = null;
+                initiatorState = 0;
                 return false;
             }
-            cpu = threadLocalContext.CPU;
-            cpuState = threadLocalContext.CPUState.Value;
+            initiator = threadLocalContext.Initiator;
+            initiatorState = threadLocalContext.InitiatorState.Value;
             return true;
         }
 
@@ -418,7 +418,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         private bool TryGetCurrentCPUId(out int cpuId)
         {
-            if(threadLocalContext.InUse && threadLocalContext.CPU is ICPU cpu)
+            if(threadLocalContext.InUse && threadLocalContext.Initiator is ICPU cpu)
             {
                 cpuId = idByCpu[cpu];
                 return true;
@@ -1078,7 +1078,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         public bool IsAddressRangeLocked(Range range, IPeripheral context = null)
         {
             // The locked range is either mapped for the CPU context, or globally (that is the reason for the OR)
-            return (lockedRangesCollectionByContext.TryGetValue(context, cpuState: null, out var collection) && collection.ContainsOverlappingRange(range))
+            return (lockedRangesCollectionByContext.TryGetValue(context, initiatorState: null, out var collection) && collection.ContainsOverlappingRange(range))
                 || lockedRangesCollectionByContext[null].ContainsOverlappingRange(range);
         }
 
@@ -1293,9 +1293,9 @@ namespace Antmicro.Renode.Peripherals.Bus
         /// This method will return all accessible peripherals for the given context.
         /// This means all peripherals accessible only in the current context, and peripherals accessible globally (from any - `null` - context).
         /// </summary>
-        private IEnumerable<IBusRegistered<IBusPeripheral>> GetAccessiblePeripheralsForContext(IPeripheral context, ulong? cpuState = null)
+        private IEnumerable<IBusRegistered<IBusPeripheral>> GetAccessiblePeripheralsForContext(IPeripheral context, ulong? initiatorState = null)
         {
-            var locals = peripheralsCollectionByContext.GetValue(context, cpuState).Peripherals;
+            var locals = peripheralsCollectionByContext.GetValue(context, initiatorState).Peripherals;
             return context != null ? locals.Concat(peripheralsCollectionByContext[null].Peripherals) : locals;
         }
 
@@ -2024,9 +2024,9 @@ namespace Antmicro.Renode.Peripherals.Bus
             this.Log(LogLevel.Warning, warning, address, value, type);
         }
 
-        private IDisposable SetLocalContext(IPeripheral context, ulong? cpuState = null)
+        private IDisposable SetLocalContext(IPeripheral context, ulong? initiatorState = null)
         {
-            return threadLocalContext.Initialize(context, cpuState);
+            return threadLocalContext.Initialize(context, initiatorState);
         }
 
         private void AddContextKeys(IPeripheral peripheral)
@@ -2101,11 +2101,11 @@ namespace Antmicro.Renode.Peripherals.Bus
 
             public TReadOnlyValue this[IPeripheral key] => GetValue(key);
 
-            public TReadOnlyValue GetValue(IPeripheral key, ulong? cpuState = null)
+            public TReadOnlyValue GetValue(IPeripheral key, ulong? initiatorState = null)
             {
-                if(!TryGetValue(key, cpuState, out var value))
+                if(!TryGetValue(key, initiatorState, out var value))
                 {
-                    throw new RecoverableException($"{typeof(TValue).Name} not found for the given context: {key.GetName()} in state: {cpuState}");
+                    throw new RecoverableException($"{typeof(TValue).Name} not found for the given context: {key.GetName()} in state: {initiatorState}");
                 }
                 return value;
             }
@@ -2138,9 +2138,9 @@ namespace Antmicro.Renode.Peripherals.Bus
                 return (context == null ? globalValue : cpuLocalValues[context]).Keys;
             }
 
-            public bool TryGetValue(IPeripheral key, ulong? cpuState, out TValue value)
+            public bool TryGetValue(IPeripheral key, ulong? initiatorState, out TValue value)
             {
-                if(!cpuState.HasValue)
+                if(!initiatorState.HasValue)
                 {
                     if(key == null)
                     {
@@ -2156,19 +2156,19 @@ namespace Antmicro.Renode.Peripherals.Bus
                     cpuInStateCache[key] = new Dictionary<ulong, TValue>();
                 }
                 var cache = key == null ? globalCache : cpuInStateCache[key];
-                if(cache.TryGetValue(cpuState.Value, out var cachedValue))
+                if(cache.TryGetValue(initiatorState.Value, out var cachedValue))
                 {
                     value = cachedValue;
                     return true;
                 }
                 else
                 {
-                    cache[cpuState.Value] = cachedValue = defaultFactory();
-                    return TryGetValueForState(cachedValue, key, cpuState, out value);
+                    cache[initiatorState.Value] = cachedValue = defaultFactory();
+                    return TryGetValueForState(cachedValue, key, initiatorState, out value);
                 }
             }
 
-            private bool TryGetValueForState(TValue cachedValue, IPeripheral key, ulong? cpuState, out TValue value)
+            private bool TryGetValueForState(TValue cachedValue, IPeripheral key, ulong? initiatorState, out TValue value)
             {
                 // The core of the state filtering logic. Look up which elements fit the current initiator state.
                 // Then join all found state-specific collections of elements into the cached one for this state.
@@ -2185,7 +2185,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 foreach(var pair in collectionToSearch)
                 {
                     var stateMask = pair.Key;
-                    if((cpuState.Value & stateMask.Mask) == stateMask.State)
+                    if((initiatorState.Value & stateMask.Mask) == stateMask.State)
                     {
                         anyHit = true;
                         /// <see cref="PeripheralCollection.Coalesce"> doesn't add overlapping peripherals. This means that for the 'local peripheral
@@ -2367,14 +2367,14 @@ namespace Antmicro.Renode.Peripherals.Bus
                 emptyDisposable.Disable();
             }
 
-            public IDisposable Initialize(IPeripheral cpu, ulong? cpuState)
+            public IDisposable Initialize(IPeripheral cpu, ulong? initiatorState)
             {
                 if(cpu == null)
                 {
                     return emptyDisposable;
                 }
                 var previousContext = context.Value;
-                context.Value = Tuple.Create(cpu, cpuState);
+                context.Value = Tuple.Create(cpu, initiatorState);
                 return DisposableWrapper.New(() =>
                 {
                     context.Value = previousContext;
@@ -2387,8 +2387,8 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
 
             public bool InUse => context.Value != null;
-            public IPeripheral CPU => context.Value.Item1;
-            public ulong? CPUState => context.Value.Item2;
+            public IPeripheral Initiator => context.Value.Item1;
+            public ulong? InitiatorState => context.Value.Item2;
 
             private readonly ThreadLocal<Tuple<IPeripheral, ulong?>> context;
 
