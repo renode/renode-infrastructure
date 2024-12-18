@@ -26,7 +26,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             address = 0x0ul;
             var busRegistration = ((SystemBus)sysbus).GetRegistrationPoints(memory, cpu)
                 .OfType<IBusRegistration>()
-                .Where(x => x.CPU == cpu)
+                .Where(x => x.Initiator == cpu)
                 .SingleOrDefault();
 
             if(busRegistration == default(IBusRegistration))

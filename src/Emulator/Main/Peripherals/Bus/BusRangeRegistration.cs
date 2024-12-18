@@ -47,9 +47,9 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 result += $" with offset 0x{Offset:X}";
             }
-            if(CPU != null)
+            if(Initiator != null)
             {
-                result += $" for core {CPU}";
+                result += $" for core {Initiator}";
             }
             return result;
         }

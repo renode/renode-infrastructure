@@ -113,7 +113,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     methods = PeripheralAccessMethods.CreateWithLock();
                     contextRegistration.FillAccessMethods(peripheral, ref methods);
                     FillAccessMethodsWithDefaultMethods(peripheral, ref methods);
-                    RegisterInner(peripheral, methods, contextRegistration, context: contextRegistration.CPU);
+                    RegisterInner(peripheral, methods, contextRegistration, context: contextRegistration.Initiator);
                 });
             }
             else if(registrationPoint is BusMultiRegistration multiRegistrationPoint)
@@ -123,12 +123,12 @@ namespace Antmicro.Renode.Peripherals.Bus
                     throw new ConstructionException(string.Format("It is not allowed to register `{0}` peripheral using `{1}`", typeof(IMapped).Name, typeof(BusMultiRegistration).Name));
                 }
                 FillAccessMethodsWithTaggedMethods(peripheral, multiRegistrationPoint.ConnectionRegionName, ref methods);
-                multiRegistrationPoint.RegisterForEachContext((contextRegistration) => RegisterInner(peripheral, methods, contextRegistration, context: contextRegistration.CPU, registrationPoint.StateMask));
+                multiRegistrationPoint.RegisterForEachContext((contextRegistration) => RegisterInner(peripheral, methods, contextRegistration, context: contextRegistration.Initiator, registrationPoint.StateMask));
             }
             else
             {
                 FillAccessMethodsWithDefaultMethods(peripheral, ref methods);
-                registrationPoint.RegisterForEachContext((contextRegistration) => RegisterInner(peripheral, methods, contextRegistration, context: contextRegistration.CPU, registrationPoint.StateMask));
+                registrationPoint.RegisterForEachContext((contextRegistration) => RegisterInner(peripheral, methods, contextRegistration, context: contextRegistration.Initiator, registrationPoint.StateMask));
             }
         }
 
@@ -1272,7 +1272,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 }
             }
             var perCoreRegistration = busRegistered.RegistrationPoint as IBusRegistration;
-            peripheralsCollectionByContext.WithStateCollection(perCoreRegistration.CPU, perCoreRegistration.StateMask, collection =>
+            peripheralsCollectionByContext.WithStateCollection(perCoreRegistration.Initiator, perCoreRegistration.StateMask, collection =>
             {
                 collection.Remove(busRegistered.RegistrationPoint.Range.StartAddress, busRegistered.RegistrationPoint.Range.EndAddress);
             });
@@ -1724,7 +1724,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
                     foreach(var busRegistered in mappedInRange)
                     {
-                        var registrationContext = busRegistered.RegistrationPoint.CPU;
+                        var registrationContext = busRegistered.RegistrationPoint.Initiator;
                         var registrationRange = busRegistered.RegistrationPoint.Range;
                         foreach(var cpu in GetCPUsForContext<ICPUWithMappedMemory>(registrationContext))
                         {

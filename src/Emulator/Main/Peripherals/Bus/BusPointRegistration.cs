@@ -29,9 +29,9 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 result += $" with offset 0x{Offset:X}";
             }
-            if(CPU != null)
+            if(Initiator != null)
             {
-                result += $" for core {CPU}";
+                result += $" for core {Initiator}";
             }
             return result;
         }
@@ -68,11 +68,11 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
             else
             {
-                result = new BusRangeRegistration(StartingPoint, size, Offset, CPU, Cluster);
+                result = new BusRangeRegistration(StartingPoint, size, Offset, Initiator, Cluster);
             }
             if(StateMask.HasValue)
             {
-                return (BusRangeRegistration)result.WithInitiatorAndStateMask(CPU, StateMask.Value);
+                return (BusRangeRegistration)result.WithInitiatorAndStateMask(Initiator, StateMask.Value);
             }
             return result;
         }

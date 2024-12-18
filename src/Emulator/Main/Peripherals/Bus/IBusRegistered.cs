@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         public static IBusRegistered<TTo> Convert<TFrom, TTo>(this IBusRegistered<TFrom> conversionSource) where TTo : TFrom where TFrom : IBusPeripheral
         {
             return new BusRegistered<TTo>((TTo)conversionSource.Peripheral, new BusRangeRegistration(conversionSource.RegistrationPoint.Range,
-                                          conversionSource.RegistrationPoint.Offset, conversionSource.RegistrationPoint.CPU));
+                                          conversionSource.RegistrationPoint.Offset, conversionSource.RegistrationPoint.Initiator));
         }
 
         public static IEnumerable<IBusRegistered<TTo>> Convert<TFrom, TTo>(this IEnumerable<IBusRegistered<TFrom>> sourceCollection) where TTo : TFrom where TFrom : IBusPeripheral

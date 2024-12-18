@@ -26,7 +26,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 throw new ConstructionException("State mask and condition cannot be specified at the same time");
             }
 
-            CPU = cpu;
+            Initiator = cpu;
             Cluster = cluster;
             StateMask = stateMask;
             Condition = condition;
@@ -34,7 +34,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             StartingPoint = startingPoint;
         }
 
-        public IPeripheral CPU { get; }
+        public IPeripheral Initiator { get; }
         public ICluster<ICPU> Cluster { get; }
         public StateMask? StateMask { get; }
         public string Condition { get; }
@@ -57,13 +57,13 @@ namespace Antmicro.Renode.Peripherals.Bus
             if(ReferenceEquals(this, obj))
                 return true;
 
-            return StartingPoint == other.StartingPoint && Offset == other.Offset && CPU == other.CPU && Cluster == other.Cluster
+            return StartingPoint == other.StartingPoint && Offset == other.Offset && Initiator == other.Initiator && Cluster == other.Cluster
                 && StateMask.Equals(other.StateMask) && Condition == other.Condition;
         }
 
         public override int GetHashCode()
         {
-            return 17 * StartingPoint.GetHashCode() + 23 * Offset.GetHashCode() + 101 * (CPU?.GetHashCode() ?? 0) + 397 * (Cluster?.GetHashCode() ?? 0)
+            return 17 * StartingPoint.GetHashCode() + 23 * Offset.GetHashCode() + 101 * (Initiator?.GetHashCode() ?? 0) + 397 * (Cluster?.GetHashCode() ?? 0)
                 + 401 * (StateMask?.GetHashCode() ?? 0) + 409 * (Condition?.GetHashCode() ?? 0);
         }
 
