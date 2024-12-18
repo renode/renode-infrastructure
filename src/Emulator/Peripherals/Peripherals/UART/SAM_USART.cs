@@ -203,7 +203,7 @@ namespace Antmicro.Renode.Peripherals.UART
                             }
                         }, name: "USART_MODE")
                         .WithTag("USCLKS", 4, 2)
-                        .WithTag("CHRL", 6, 2)
+                        .WithEnumField<DoubleWordRegister, CharacterLength>(6, 2, name: "CHRL")
                         .WithTaggedFlag("SYNC", 8)
                     )
                 .WithEnumField(9, 3, out parityType, name: "PAR")
@@ -468,7 +468,7 @@ namespace Antmicro.Renode.Peripherals.UART
             ;
 
             Registers.BaudRateGenerator.Define(this)
-                .WithTag("CD", 0, 16)
+                .WithValueField(0, 16, name: "CD")
                 .If(uartOnlyMode)
                     .Then(reg => reg
                         .WithReservedBits(16, 3)
@@ -623,6 +623,14 @@ namespace Antmicro.Renode.Peripherals.UART
             Half = 1,
             Two = 2,
             OneAndAHalf = 3
+        }
+
+        private enum CharacterLength
+        {
+            FiveBits = 0,
+            SixBits = 1,
+            SevenBits = 2,
+            EightBits = 3,
         }
 
         private enum Registers
