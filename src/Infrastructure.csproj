@@ -240,6 +240,7 @@
     </Compile>
     <Compile Include="Emulator/Cores/Arm-M/NVIC.cs" />
     <Compile Include="Emulator/Cores/Arm-M/DWT.cs" />
+    <Compile Include="Emulator/Cores/Arm-M/CortexMImplementationDefinedAttributionUnit.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Emulator/Cores/Arm-M/CortexMRegisters.tt">

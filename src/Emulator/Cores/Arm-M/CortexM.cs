@@ -8,6 +8,7 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.IRQControllers;
@@ -546,6 +547,22 @@ namespace Antmicro.Renode.Peripherals.CPU
             set => SetTrustZoneRelatedRegister(nameof(SAURegionLimitAddress), val => tlibSetSauRegionLimitAddress(val), value);
         }
 
+        public CortexMImplementationDefinedAttributionUnit ImplementationDefinedAttributionUnit
+        {
+            set
+            {
+                if(value != null)
+                {
+                   tlibSetCustomIdauHandlerEnabled(1);
+                }
+                else
+                {
+                   tlibSetCustomIdauHandlerEnabled(0);
+                }
+                idau = value;
+            }
+        }
+
         public uint XProgramStatusRegister
         {
             get
@@ -719,12 +736,42 @@ namespace Antmicro.Renode.Peripherals.CPU
             return nvic.GetTargetInterruptSecurityState(interruptNumber) == NVIC.InterruptTargetSecurityState.Secure ? 1u : 0u;
         }
 
+        [Export]
+        private int CustomIdauHandler(IntPtr request, IntPtr region, IntPtr attribution)
+        {
+            if(idau == null)
+            {
+                return 0;
+            }
+
+            var parsedRequest = (ExternalIDAURequest)Marshal.PtrToStructure(request, typeof(ExternalIDAURequest));
+            var attributionFound = idau.AttributionCheckCallback(parsedRequest.Address, parsedRequest.Secure != 0, (AccessType)parsedRequest.AccessType, parsedRequest.AccessWidth, out var reg, out var attrib);
+            if(attributionFound)
+            {
+                Marshal.WriteInt32(region, reg);
+                Marshal.WriteInt32(attribution, (int)attrib);
+            }
+            return attributionFound ? 1 : 0;
+        }
+
         public const uint IDAU_SAURegionAddressMask = ~(IDAU_SAURegionMinSize - 1u);
         public const uint IDAU_SAURegionMinSize = 32u;
 
         private NVIC nvic;
+        private CortexMImplementationDefinedAttributionUnit idau;
         private bool pcNotInitialized = true;
         private bool vtorInitialized;
+
+        // Keep in line with ExternalIDAURequest struct in tlib's arm/arch_callbacks.h
+        [StructLayout(LayoutKind.Sequential)]
+        private struct ExternalIDAURequest
+        {
+            public uint Address;
+            public int Secure;
+            public int AccessType;
+            public int AccessWidth;
+        }
+
 
         public struct IDAURegion
         {
@@ -888,6 +935,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private Action<uint, uint> tlibSetIdauRegionBaseAddressRegister;
+
+        [Import]
+        private Action<uint> tlibSetCustomIdauHandlerEnabled;
 
         [Import]
         private Func<uint, uint> tlibGetIdauRegionBaseAddressRegister;
