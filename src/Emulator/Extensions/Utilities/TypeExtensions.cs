@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2024 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -135,7 +135,8 @@ namespace Antmicro.Renode.Utilities
             //trying to convert Span<T> and ReadOnlySpan<T> always throws exception
             catch(Exception ex) when (ex is TypeLoadException ||
                                       ex is BadImageFormatException ||
-                                      ex is RuntimeBinderException)
+                                      ex is RuntimeBinderException ||
+                                      ex is ArgumentException)
             {
             }
             try    //try with a string
@@ -145,7 +146,8 @@ namespace Antmicro.Renode.Utilities
             }
             catch(Exception ex) when (ex is TypeLoadException ||
                                       ex is BadImageFormatException ||
-                                      ex is RuntimeBinderException)
+                                      ex is RuntimeBinderException ||
+                                      ex is ArgumentException)
             {
             }
             try    //try with a character
@@ -155,7 +157,8 @@ namespace Antmicro.Renode.Utilities
             }
             catch(Exception ex) when (ex is TypeLoadException ||
                                       ex is BadImageFormatException ||
-                                      ex is RuntimeBinderException)
+                                      ex is RuntimeBinderException ||
+                                      ex is ArgumentException)
             {
             }
             try    //try with a bool
@@ -165,7 +168,8 @@ namespace Antmicro.Renode.Utilities
             }
             catch(Exception ex) when (ex is TypeLoadException ||
                                       ex is BadImageFormatException ||
-                                      ex is RuntimeBinderException)
+                                      ex is RuntimeBinderException ||
+                                      ex is ArgumentException)
             {
             }
             return false;
