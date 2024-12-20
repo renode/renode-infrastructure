@@ -81,7 +81,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public void RegisterForEachContext(Action<BusRangeRegistration> register)
         {
-            RegisterForEachContextInner(register, cpu => new BusRangeRegistration(Range, Offset, cpu));
+            RegisterForEachContextInner(register, cpu => new BusRangeRegistration(Range, StateMask, Offset, cpu));
         }
 
         protected BusRangeRegistration(Range range, StateMask? stateMask, ulong offset = 0, IPeripheral cpu = null, ICluster<ICPU> cluster = null, string condition = null) : base(range.StartAddress, offset, cpu, cluster, stateMask, condition)

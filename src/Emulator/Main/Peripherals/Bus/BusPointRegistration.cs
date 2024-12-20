@@ -56,7 +56,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public void RegisterForEachContext(Action<BusPointRegistration> register)
         {
-            RegisterForEachContextInner(register, cpu => new BusPointRegistration(StartingPoint, Offset, cpu));
+            RegisterForEachContextInner(register, cpu => new BusPointRegistration(StartingPoint, StateMask, Offset, cpu));
         }
 
         public BusRangeRegistration ToRangeRegistration(ulong size)
