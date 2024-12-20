@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         public SAM_SPI(IMachine machine) : base(machine)
         {
             IRQ = new GPIO();
-            irqManager = new InterruptManager<Interrupts>(this, IRQ);
+            irqManager = new InterruptManager<Interrupts>(this, IRQ, nameof(IRQ));
             transmitBuffer = new Queue<byte>();
             RegistersCollection = new DoubleWordRegisterCollection(this);
             pdc = new SAM_PDC(machine, this, (long)Registers.PdcReceivePointer, HandlePDCInterrupts);
