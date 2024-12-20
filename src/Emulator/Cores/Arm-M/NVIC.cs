@@ -462,6 +462,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public DoubleWordRegisterCollection RegisterCollection { get; }
 
+        public bool DeepSleepEnabled => deepSleepEnabled.Value;
+
         private void DefineRegisters()
         {
             Registers.SysTickControl.Define(RegisterCollection)
