@@ -123,12 +123,12 @@ namespace Antmicro.Renode.Peripherals.Bus
                     throw new ConstructionException(string.Format("It is not allowed to register `{0}` peripheral using `{1}`", typeof(IMapped).Name, typeof(BusMultiRegistration).Name));
                 }
                 FillAccessMethodsWithTaggedMethods(peripheral, multiRegistrationPoint.ConnectionRegionName, ref methods);
-                multiRegistrationPoint.RegisterForEachContext((contextRegistration) => RegisterInner(peripheral, methods, contextRegistration, context: contextRegistration.Initiator, registrationPoint.StateMask));
+                multiRegistrationPoint.RegisterForEachContext((contextRegistration) => RegisterInner(peripheral, methods, contextRegistration, context: contextRegistration.Initiator));
             }
             else
             {
                 FillAccessMethodsWithDefaultMethods(peripheral, ref methods);
-                registrationPoint.RegisterForEachContext((contextRegistration) => RegisterInner(peripheral, methods, contextRegistration, context: contextRegistration.Initiator, registrationPoint.StateMask));
+                registrationPoint.RegisterForEachContext((contextRegistration) => RegisterInner(peripheral, methods, contextRegistration, context: contextRegistration.Initiator));
             }
         }
 
@@ -1641,7 +1641,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
-        private void RegisterInner(IBusPeripheral peripheral, PeripheralAccessMethods methods, BusRangeRegistration registrationPoint, IPeripheral context, StateMask? stateMask = null)
+        private void RegisterInner(IBusPeripheral peripheral, PeripheralAccessMethods methods, BusRangeRegistration registrationPoint, IPeripheral context)
         {
             using(Machine.ObtainPausedState(true))
             {
@@ -1652,6 +1652,8 @@ namespace Antmicro.Renode.Peripherals.Bus
                 {
                     AddContextKeys(context);
                 }
+
+                var stateMask = registrationPoint.StateMask;
                 var busRegisteredInContext = peripheralsCollectionByContext.GetValue(context, stateMask?.State).Peripherals;
                 var intersecting = busRegisteredInContext
                     .FirstOrDefault(x => x.RegistrationPoint.Range.Intersects(registrationPoint.Range)
