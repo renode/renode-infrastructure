@@ -34,6 +34,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             RegistersCollection.Reset();
             SWReset();
             irqManager.Reset();
+            irqManager.SetInterrupt(Interrupts.TransmissionRegistersEmpty);
             pdc.Reset();
         }
 
@@ -351,6 +352,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             selectedSlaveAddr = 0;
             rawChipSelect = 0;
             transmitBuffer.Clear();
+            irqManager.SetInterrupt(Interrupts.TransmissionRegistersEmpty);
             mode.Value = SPIMode.Slave;
             peripheralSelectMode.Value = PeripheralSelectMode.Fixed;
             DmaWriteAccessWidth = TransferType.Byte;
