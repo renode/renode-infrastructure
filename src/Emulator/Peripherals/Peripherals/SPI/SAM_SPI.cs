@@ -406,7 +406,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             (long)Registers.ChipSelect3,
         };
         private const int NumberOfChipSelectRegisters = 4;
-        private const int WriteProtectionPasswd = 0x535049 << 8; // ASCII: "SPI"
+        private const int WriteProtectionPasswd = 0x535049; // ASCII: "SPI"
 
         public enum Registers
         {
