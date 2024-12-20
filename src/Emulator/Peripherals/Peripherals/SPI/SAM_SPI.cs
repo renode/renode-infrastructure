@@ -304,13 +304,29 @@ namespace Antmicro.Renode.Peripherals.SPI
             {
                 irqManager.SetInterrupt(Interrupts.OverrunError);
             }
-            var twoByteTransfer = transmitBuffer.Count == 2 ? true : false;
-            var transmit = localLoopback.Value ? (Func<byte, byte>)(b => b) : slavePeripheral.Transmit;
-            var byte0 = transmit(transmitBuffer.Dequeue());
-            var byte1 = twoByteTransfer ? transmit(transmitBuffer.Dequeue()) : (byte)0;
+            DmaReadAccessWidth = (TransferType)transmitBuffer.Count;
 
-            DmaReadAccessWidth = twoByteTransfer ? TransferType.Word : TransferType.Byte;
-            receiveBuffer.Value = (ulong)((int)byte0 | ((int)byte1 << 8));
+            var transmit = localLoopback.Value ? (Func<byte, byte>)(b => b) : slavePeripheral.Transmit;
+
+            var transmitted = (ulong)0;
+            receiveBuffer.Value = 0;
+
+            for(var i = 0; i < transmitBuffer.Count; ++i)
+            {
+                var b = transmitBuffer.Dequeue();
+                transmitted |= (ulong)b << (8 * i);
+                receiveBuffer.Value |= (ulong)transmit(b) << (8 * i);
+            }
+
+            if(localLoopback.Value)
+            {
+                this.NoisyLog("Transmitted 0x{0:X} in loopback", transmitted);
+            }
+            else
+            {
+                slavePeripheral.NoisyLog("Received 0x{0:X}, transmitted 0x{1:X}", transmitted, receiveBuffer.Value);
+            }
+
             irqManager.SetInterrupt(Interrupts.ReceiveDataRegisterFull);
             irqManager.SetInterrupt(Interrupts.TransmissionRegistersEmpty);
         }
