@@ -28,6 +28,8 @@ namespace Antmicro.Renode.Peripherals.Timers
             this.timer.LimitReached += OnLimitReached;
 
             RegistersCollection = new DoubleWordRegisterCollection(this, BuildRegisterMap());
+
+            Reset();
         }
 
         public void Reset()
@@ -37,6 +39,12 @@ namespace Antmicro.Renode.Peripherals.Timers
             timer.Reset();
             forceStop = false;
             timerEnabled = false;
+            SystemResetEnabled = false;
+            if(!keepGeneratedResetValue)
+            {
+                generatedReset = false;
+            }
+            keepGeneratedResetValue = false;
         }
 
         public uint ReadDoubleWord(long offset)
@@ -61,10 +69,32 @@ namespace Antmicro.Renode.Peripherals.Timers
                 UpdateTimerStatus();
             }
         }
+        public bool SystemResetEnabled { get; set; } = false;
+        public bool GeneratedReset
+        {
+            get => generatedReset;
+            set
+            {
+                // Only allow to reset the flag, not set it
+                if(!value)
+                {
+                    generatedReset = false;
+                }
+            }
+        }
 
         private void OnLimitReached()
         {
-            IRQ.Set();
+            if(IRQ.IsSet && SystemResetEnabled)
+            {
+                keepGeneratedResetValue = true;
+                generatedReset = true;
+                machine.RequestReset();
+            }
+            else
+            {
+                IRQ.Set();
+            }
         }
 
         private Dictionary<long, DoubleWordRegister> BuildRegisterMap()
@@ -85,7 +115,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {(long)Registers.PeriodSetting, new DoubleWordRegister(this)
                     .WithReservedBits(0, 20)
                     .WithValueField(20, 12, name: "WDTTIME",
-                        valueProviderCallback: _ => timer.Limit >> 20,
+                        valueProviderCallback: _ => (timer.Limit >> 20) - 1,
                         writeCallback: (_, value) =>
                         {
                             if(timer.Enabled)
@@ -152,6 +182,8 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private bool forceStop = false;
         private bool timerEnabled = false;
+        private bool generatedReset = false;
+        private bool keepGeneratedResetValue = false;
 
         private readonly IMachine machine;
         private readonly LimitTimer timer;
