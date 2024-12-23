@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -13,9 +13,9 @@ using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
-    public class RenesasRZG_CPG : BasicDoubleWordPeripheral, IKnownSize
+    public class RenesasRZG_CPG_SYSC : BasicDoubleWordPeripheral, IKnownSize
     {
-        public RenesasRZG_CPG(IMachine machine): base(machine)
+        public RenesasRZG_CPG_SYSC(IMachine machine): base(machine)
         {
             DefineRegisters();
         }

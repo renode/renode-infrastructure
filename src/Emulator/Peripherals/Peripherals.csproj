@@ -746,7 +746,7 @@
     <Compile Include="Peripherals\SPI\RenesasRZG_SPI.cs" />
     <Compile Include="Peripherals\GPIOPort\RenesasRZG_GPIO.cs" />
     <Compile Include="Peripherals\DMA\SAM_PDC.cs" />
-    <Compile Include="Peripherals\Miscellaneous\RenesasRZG_CPG.cs" />
+    <Compile Include="Peripherals\Miscellaneous\RenesasRZG_CPG_SYSC.cs" />
     <Compile Include="Peripherals\SPI\SAM_SPI.cs" />
     <Compile Include="Peripherals\Timers\SAM_TC.cs" />
     <Compile Include="Peripherals\IRQControllers\RenesasRZG_IRQController.cs" />
