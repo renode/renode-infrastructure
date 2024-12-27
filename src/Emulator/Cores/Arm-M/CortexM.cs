@@ -271,18 +271,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             get
             {
-                if(!TrustZoneEnabled)
-                {
-                    throw new RecoverableException("You need to enable TrustZone to use this feature");
-                }
+                AssertTrustZoneEnabled("get SecurityState");
                 return tlibGetSecurityState() > 0;
             }
             set
             {
-                if(!TrustZoneEnabled)
-                {
-                    throw new RecoverableException("You need to enable TrustZone to use this feature");
-                }
+                AssertTrustZoneEnabled("modify SecurityState");
                 tlibSetSecurityState(value ? 1u : 0u);
             }
         }
@@ -323,18 +317,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             get
             {
-                if(!TrustZoneEnabled)
-                {
-                    throw new RecoverableException("You need to enable TrustZone to use FaultStatus_NS");
-                }
+                AssertTrustZoneEnabled("get FaultStatus_NS");
                 return tlibGetFaultStatus(0u);
             }
             set
             {
-                if(!TrustZoneEnabled)
-                {
-                    throw new RecoverableException("You need to enable TrustZone to use FaultStatus_NS");
-                }
+                AssertTrustZoneEnabled("set FaultStatus_NS");
                 tlibSetFaultStatus(value, 0u);
             }
         }
@@ -356,10 +344,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             get
             {
-                if(!TrustZoneEnabled)
-                {
-                    throw new RecoverableException("You need to enable TrustZone to use MemoryFaultAddress_NS");
-                }
+                AssertTrustZoneEnabled("get MemoryFaultAddress_NS");
                 return tlibGetMemoryFaultAddress(0u);
             }
         }
@@ -368,10 +353,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             get
             {
-                if(!TrustZoneEnabled)
-                {
-                    throw new RecoverableException("You need to enable TrustZone to use SecureFaultAddress");
-                }
+                AssertTrustZoneEnabled("get SecureFaultAddress");
                 return tlibGetSecureFaultAddress();
             }
         }
@@ -381,18 +363,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             get
             {
-                if(!TrustZoneEnabled)
-                {
-                    throw new RecoverableException("You need to enable TrustZone to use SecureFaultStatus");
-                }
+                AssertTrustZoneEnabled("get SecureFaultStatus");
                 return tlibGetSecureFaultStatus();
             }
             set
             {
-                if(!TrustZoneEnabled)
-                {
-                    throw new RecoverableException("You need to enable TrustZone to use SecureFaultStatus");
-                }
+                AssertTrustZoneEnabled("set SecureFaultStatus");
                 tlibSetSecureFaultStatus(value);
             }
         }
