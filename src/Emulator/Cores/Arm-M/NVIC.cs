@@ -169,28 +169,28 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             case Registers.CPUID:
                 return cpuId;
             case Registers.CoprocessorAccessControl:
-                return cpu.CPACR;
+                return (isSecure || !cpu.TrustZoneEnabled) ? cpu.CPACR : cpu.CPACR_NS;
             case Registers.FPContextControl:
                 if(!IsPrivilegedMode())
                 {
                     this.Log(LogLevel.Warning, "Tried to read FPContextControl from an unprivileged context. Returning 0.");
                     return 0;
                 }
-                return cpu.FPCCR;
+                return (isSecure || !cpu.TrustZoneEnabled) ? cpu.FPCCR: cpu.FPCCR_NS;
             case Registers.FPContextAddress:
                 if(!IsPrivilegedMode())
                 {
                     this.Log(LogLevel.Warning, "Tried to read FPContextAddress from an unprivileged context. Returning 0.");
                     return 0;
                 }
-                return cpu.FPCAR;
+                return isSecure || !cpu.TrustZoneEnabled ? cpu.FPCAR : cpu.FPCAR_NS;
             case Registers.FPDefaultStatusControl:
                 if(!IsPrivilegedMode())
                 {
                     this.Log(LogLevel.Warning, "Tried to read FPDefaultStatusControl from an unprivileged context. Returning 0.");
                     return 0;
                 }
-                return cpu.FPDSCR;
+                return isSecure || !cpu.TrustZoneEnabled ? cpu.FPDSCR : cpu.FPDSCR_NS;
             case Registers.ConfigurationAndControl:
                 return ccr.Get(isSecure);
             case Registers.SystemHandlerPriority1:
@@ -334,8 +334,16 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 //      0b10 Reserved
                 // Any attempted use without access generates a NOCP UsageFault.
                 // same for ARM v7, but if values of CP11 and CP10 differ then effects are unpredictable
-                cpu.CPACR = value;
+                if(isSecure || !cpu.TrustZoneEnabled)
+                {
+                    cpu.CPACR = value;
+                }
+                else
+                {
+                    cpu.CPACR_NS = value;
+                }
                 // Enable FPU if any access is permitted, privilege checks in tlib use CPACR register.
+                // Similarly, if TrustZone is enabled, CPACR should be used to check if FPU is enabled in respective Security state
                 if((value & 0x100000) == 0x100000)
                 {
                     this.DebugLog("Enabling FPU.");
@@ -364,7 +372,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     this.Log(LogLevel.Warning, "Writing to FPContextControl requires privileged access.");
                     break;
                 }
-                cpu.FPCCR = value;
+                if(isSecure || !cpu.TrustZoneEnabled)
+                {
+                    cpu.FPCCR = value;
+                }
+                else
+                {
+                    cpu.FPCCR_NS = value;
+                }
                 break;
             case Registers.FPContextAddress:
                 if(!IsPrivilegedMode())
@@ -373,7 +388,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     break;
                 }
                 // address must be 8-byte aligned
-                cpu.FPCAR = value & ~0x3u;
+                if(isSecure || !cpu.TrustZoneEnabled)
+                {
+                    cpu.FPCAR = value & ~0x7u;
+                }
+                else
+                {
+                    cpu.FPCAR_NS = value & ~0x7u;
+                }
                 break;
             case Registers.FPDefaultStatusControl:
                 if(!IsPrivilegedMode())
@@ -382,7 +404,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     break;
                 }
                 // set only not reserved values
-                cpu.FPDSCR = value & 0x07c00000;
+                if(isSecure || !cpu.TrustZoneEnabled)
+                {
+                    cpu.FPDSCR = value & 0x07c00000;
+                }
+                else
+                {
+                    cpu.FPDSCR_NS = value & 0x07c00000;
+                }
                 break;
             case Registers.ConfigurationAndControl:
                 ccr.Get(isSecure) = value;

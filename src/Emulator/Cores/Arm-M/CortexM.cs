@@ -249,6 +249,33 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        [Register]
+        public RegisterValue FPCAR_NS
+        {
+            get => GetTrustZoneRelatedRegister(nameof(FPCAR_NS), () => GetRegisterValue32NonSecure((int)CortexMRegisters.FPCAR));
+            set => SetTrustZoneRelatedRegister(nameof(FPCAR_NS), val => SetRegisterValue32NonSecure((int)CortexMRegisters.FPCAR, val), value);
+        }
+
+        [Register]
+        public RegisterValue FPDSCR_NS
+        {
+            get => GetTrustZoneRelatedRegister(nameof(FPDSCR_NS), () => GetRegisterValue32NonSecure((int)CortexMRegisters.FPDSCR));
+            set => SetTrustZoneRelatedRegister(nameof(FPDSCR_NS), val => SetRegisterValue32NonSecure((int)CortexMRegisters.FPDSCR, val), value);
+        }
+
+        [Register]
+        public RegisterValue FPCCR_NS
+        {
+            get => GetTrustZoneRelatedRegister(nameof(FPCCR_NS), () => GetRegisterValue32NonSecure((int)CortexMRegisters.FPCCR));
+            set => SetTrustZoneRelatedRegister(nameof(FPCCR_NS), val => SetRegisterValue32NonSecure((int)CortexMRegisters.FPCCR, val), value);
+        }
+        [Register]
+        public RegisterValue CPACR_NS
+        {
+            get => GetTrustZoneRelatedRegister(nameof(CPACR_NS), () => GetRegisterValue32NonSecure((int)CortexMRegisters.CPACR));
+            set => SetTrustZoneRelatedRegister(nameof(CPACR_NS), val => SetRegisterValue32NonSecure((int)CortexMRegisters.CPACR, val), value);
+        }
+
         public bool IDAUEnabled
         {
             get => GetTrustZoneRelatedRegister(nameof(IDAUEnabled), () => tlibGetIdauEnabled()) == 1u;
@@ -903,6 +930,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private Func<uint> tlibGetSecurityState;
+
+        [Import(Name = "tlib_set_register_value_32_non_secure")]
+        private Action<int, uint> SetRegisterValue32NonSecure;
+
+        [Import(Name = "tlib_get_register_value_32_non_secure")]
+        private Func<int, uint> GetRegisterValue32NonSecure;
 
         /* TrustZone IDAU */
         [Import]
