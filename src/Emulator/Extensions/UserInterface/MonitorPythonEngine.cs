@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -23,7 +23,7 @@ namespace Antmicro.Renode.UserInterface
     {
         private readonly string[] Imports =
         {
-            "clr.AddReference('Extensions')",
+            "clr.AddReference('Infrastructure')",
         };
 
         public MonitorPythonEngine(Monitor monitor)
