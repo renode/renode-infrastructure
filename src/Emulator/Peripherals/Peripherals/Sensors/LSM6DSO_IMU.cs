@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -7,8 +7,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -353,7 +353,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                         {
                             return 0u;
                         }
-                        Debug.Assert(sample.IsAccelerationSample || sample.IsAngularRateSample, $"Invalid sample: {sample}");
+                        DebugHelper.Assert(sample.IsAccelerationSample || sample.IsAngularRateSample, $"Invalid sample: {sample}");
 
                         var sensitivity = sample.IsAccelerationSample ? accelerationSensitivity : angularRateSensitivity;
                         var _byte = sample.GetScaledValueByte(registerInfo.Axis, sensitivity, registerInfo.UpperByte, out var realScaledValue);

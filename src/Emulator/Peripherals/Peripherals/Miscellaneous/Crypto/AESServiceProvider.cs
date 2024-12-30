@@ -1,14 +1,14 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
 //
+using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Security.Cryptography;
 using System.Linq;
@@ -93,9 +93,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
 
         private byte[] GetResultBytesCTR(byte[] keyBytes, byte[] ivBytes, byte[] inputBytes, Operation operation)
         {
-            Debug.Assert(keyBytes.Length >= SegmentSize, "Length of key bytes should at least ${SegmentSize}");
-            Debug.Assert(inputBytes.Length >= SegmentSize, "Length of input bytes should at least ${SegmentSize}");
-            Debug.Assert(inputBytes.Length % SegmentSize == 0, "Length of input bytes should be a multiple of ${SegmentSize}");
+            DebugHelper.Assert(keyBytes.Length >= SegmentSize, "Length of key bytes should at least ${SegmentSize}");
+            DebugHelper.Assert(inputBytes.Length >= SegmentSize, "Length of input bytes should at least ${SegmentSize}");
+            DebugHelper.Assert(inputBytes.Length % SegmentSize == 0, "Length of input bytes should be a multiple of ${SegmentSize}");
             var segment = ProcessSegment(keyBytes.Take(SegmentSize).ToArray(), ivBytes, new byte[SegmentSize], operation);
             for(var i = 0; i < segment.Length; ++i)
             {
@@ -109,7 +109,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
             var inputSegment = new byte[SegmentSize];
             var result = new byte[SegmentSize];
 
-            Debug.Assert(inputBytes.Length % SegmentSize == 0, "Length of input bytes should be a multiple of ${SegmentSize}");
+            DebugHelper.Assert(inputBytes.Length % SegmentSize == 0, "Length of input bytes should be a multiple of ${SegmentSize}");
             var segmentCount = inputBytes.Length / SegmentSize;
             for(var i = 0; i < segmentCount; ++i)
             {

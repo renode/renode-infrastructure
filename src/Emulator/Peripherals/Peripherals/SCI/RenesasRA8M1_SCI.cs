@@ -1,17 +1,17 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using Antmicro.Migrant;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.I2C;
@@ -209,7 +209,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private void BlinkTxIRQ()
         {
-            Debug.Assert(currentPeripheralMode == PeripheralMode.IIC);
+            DebugHelper.Assert(currentPeripheralMode == PeripheralMode.IIC);
 
             if(transmitInterruptEnabled.Value)
             {
@@ -757,7 +757,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private void TransmitIICData(byte value)
         {
-            Debug.Assert((iicState == IICState.Idle) || (iicDirection != IICTransactionDirection.Unset), $"Incorrect communication direction {iicDirection} in state {iicState}");
+            DebugHelper.Assert((iicState == IICState.Idle) || (iicDirection != IICTransactionDirection.Unset), $"Incorrect communication direction {iicDirection} in state {iicState}");
             switch(iicState)
             {
                 case IICState.Idle:

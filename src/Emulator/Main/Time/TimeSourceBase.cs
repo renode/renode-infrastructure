@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -624,7 +624,7 @@ namespace Antmicro.Renode.Time
         {
             lock(hostTicksElapsed)
             {
-                Debug.Assert(ElapsedVirtualTime <= interval, $"Couldn't reset back in time from {ElapsedVirtualTime} to {interval}.");
+                DebugHelper.Assert(ElapsedVirtualTime <= interval, $"Couldn't reset back in time from {ElapsedVirtualTime} to {interval}.");
 
                 virtualTicksElapsed.Reset(interval.Ticks);
                 NearestSyncPoint = interval;

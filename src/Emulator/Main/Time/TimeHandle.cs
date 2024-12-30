@@ -1,11 +1,10 @@
 ﻿//
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Diagnostics;
 using System.Threading;
 using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Logging;
@@ -119,7 +118,7 @@ namespace Antmicro.Renode.Time
         {
             lock(innerLock)
             {
-                Debug.Assert(TimeSource.ElapsedVirtualTime >= TotalElapsedTime, $"Trying to move time handle back in time from: {TotalElapsedTime} to {TimeSource.ElapsedVirtualTime}");
+                DebugHelper.Assert(TimeSource.ElapsedVirtualTime >= TotalElapsedTime, $"Trying to move time handle back in time from: {TotalElapsedTime} to {TimeSource.ElapsedVirtualTime}");
                 TotalElapsedTime = TimeSource.ElapsedVirtualTime;
             }
         }
@@ -172,7 +171,7 @@ namespace Antmicro.Renode.Time
             this.Trace();
             lock(innerLock)
             {
-                Debug.Assert(isBlocking || !enabled, "This handle should be blocking or disabled");
+                DebugHelper.Assert(isBlocking || !enabled, "This handle should be blocking or disabled");
 
                 if(!waitsToBeUnblocked)
                 {

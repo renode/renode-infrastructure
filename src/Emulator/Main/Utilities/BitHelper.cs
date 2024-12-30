@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -9,7 +9,6 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Linq;
-using System.Diagnostics;
 using Antmicro.Renode.Debugging;
 
 namespace Antmicro.Renode.Utilities
@@ -733,8 +732,8 @@ namespace Antmicro.Renode.Utilities
 
         private static void AssertMaskParameters(int width, int position, int maxWidth)
         {
-            Debug.Assert(width >= 0 && position >= 0, $"Width (0x{width:X}) and position (0x{position:X}) should be grater than 0.");
-            Debug.Assert(checked(width + position) <= maxWidth, $"Sum of width (0x{width:X}) and position (0x{position:X}) should be lower than or equal to {maxWidth}.");
+            DebugHelper.Assert(width >= 0 && position >= 0, $"Width (0x{width:X}) and position (0x{position:X}) should be grater than 0.");
+            DebugHelper.Assert(checked(width + position) <= maxWidth, $"Sum of width (0x{width:X}) and position (0x{position:X}) should be lower than or equal to {maxWidth}.");
         }
 
         private static bool[] GetBitsInner(ulong reg, int length)
