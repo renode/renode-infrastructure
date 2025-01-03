@@ -1331,6 +1331,7 @@
     <Compile Include="Emulator/Main/Peripherals/BasicWordPeripheral.cs" />
     <Compile Include="Emulator/Main/Peripherals/BasicDoubleWordPeripheral.cs" />
     <Compile Include="Emulator/Main/Peripherals/IPeripheral.cs" />
+    <Compile Include="Emulator/Main/Peripherals/IContextState.cs" />
     <Compile Include="Emulator/Main/Peripherals/ICluster.cs" />
     <Compile Include="Emulator/Main/Utilities/Misc.cs" />
     <Compile Include="Emulator/Main/Utilities/VideoCapturer.cs" />
