@@ -74,6 +74,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public class ContextState : IContextState
+        {
+            public bool Privileged;
+            public bool CpuSecure;
+            public bool AttributionSecure;
+        }
+
         public override void Reset()
         {
             pcNotInitialized = true;
