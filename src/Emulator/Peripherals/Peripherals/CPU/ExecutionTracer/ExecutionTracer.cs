@@ -20,10 +20,10 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public static class ExecutionTracerExtensions
     {
-        public static void CreateExecutionTracing(this TranslationCPU @this, string name, string fileName, TraceFormat format, bool isBinary = false, bool compress = false)
+        public static void CreateExecutionTracing(this TranslationCPU @this, string name, string fileName, TraceFormat format, bool isBinary = false, bool compress = false, bool isSynchronous = false)
         {
             var writerBuilder = new TraceWriterBuilder(@this, fileName, format, isBinary, compress);
-            var tracer = new ExecutionTracer(@this, writerBuilder);
+            var tracer = new ExecutionTracer(@this, writerBuilder, isSynchronous);
 
             try
             {
@@ -37,6 +37,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
 
             tracer.Start();
+        }
+
+        public static void CreateExecutionTracingSynchronous(this TranslationCPU @this, string name, string fileName, TraceFormat format, bool isBinary = false, bool compress = false)
+        {
+            CreateExecutionTracing(@this, name, fileName, format, isBinary, compress, true);
         }
 
         public static void DisableExecutionTracing(this TranslationCPU @this)
@@ -53,10 +58,11 @@ namespace Antmicro.Renode.Peripherals.CPU
 
     public class ExecutionTracer : IDisposable, IExternal
     {
-        public ExecutionTracer(TranslationCPU cpu, TraceWriterBuilder traceWriterBuilder)
+        public ExecutionTracer(TranslationCPU cpu, TraceWriterBuilder traceWriterBuilder, bool isSynchronous = false)
         {
             AttachedCPU = cpu;
             writerBuilder = traceWriterBuilder;
+            this.isSynchronous = isSynchronous;
 
             AttachedCPU.SetHookAtBlockEnd(HandleBlockEndHook);
         }
@@ -68,7 +74,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void Start()
         {
-            if(underlyingThread != null)
+            if(IsRunning)
             {
                 throw new RecoverableException("ExecutionTracer is already running");
             }
@@ -76,31 +82,41 @@ namespace Antmicro.Renode.Peripherals.CPU
             writer = writerBuilder.CreateWriter();
             writer.WriteHeader();
 
-            blocks = new BlockingCollection<Block>();
             currentAdditionalData = new Queue<AdditionalData>();
 
-            underlyingThread = new Thread(WriterThreadBody);
-            underlyingThread.IsBackground = true;
-            underlyingThread.Name = "Execution tracer worker";
-            underlyingThread.Start();
+            if(!isSynchronous)
+            {
+                blocks = new BlockingCollection<Block>();
+
+                underlyingThread = new Thread(WriterThreadBody);
+                underlyingThread.IsBackground = true;
+                underlyingThread.Name = "Execution tracer worker";
+                underlyingThread.Start();
+            }
 
             wasStarted = true;
-            wasStoped = false;
+            wasStopped = false;
         }
 
         public void Stop()
         {
-            wasStoped = true;
-            if(underlyingThread == null)
+            if(!IsRunning)
             {
                 return;
             }
+            wasStopped = true;
 
-            this.Log(LogLevel.Info, "Stopping the execution tracer worker and dumping the trace to a file...");
-
-            blocks.CompleteAdding();
-            underlyingThread.Join();
-            underlyingThread = null;
+            if(!isSynchronous)
+            {
+                this.Log(LogLevel.Info, "Stopping the execution tracer worker and dumping the trace to a file...");
+                blocks.CompleteAdding();
+                underlyingThread.Join();
+                underlyingThread = null;
+            }
+            else
+            {
+                writer.FlushBuffer();
+            }
 
             this.Log(LogLevel.Info, "Execution tracer stopped");
         }
@@ -179,7 +195,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private void HandleBlockEndHook(ulong pc, uint instructionsInBlock)
         {
-            if(instructionsInBlock == 0 || wasStoped)
+            if(instructionsInBlock == 0 || wasStopped)
             {
                 // ignore
                 return;
@@ -188,21 +204,31 @@ namespace Antmicro.Renode.Peripherals.CPU
             // We don't care if translation fails here (the address is unchanged in this case)
             AttachedCPU.TryTranslateAddress(pc, MpuAccess.InstructionFetch, out var pcPhysical);
 
-            try
+            var block = new Block
             {
-                blocks.Add(new Block
+                FirstInstructionPC = pcPhysical,
+                FirstInstructionVirtualPC = pc,
+                InstructionsCount = instructionsInBlock,
+                DisassemblyFlags = AttachedCPU.CurrentBlockDisassemblyFlags,
+                AdditionalDataInTheBlock = currentAdditionalData,
+            };
+
+            if(!isSynchronous)
+            {
+                try
                 {
-                    FirstInstructionPC = pcPhysical,
-                    FirstInstructionVirtualPC = pc,
-                    InstructionsCount = instructionsInBlock,
-                    DisassemblyFlags = AttachedCPU.CurrentBlockDisassemblyFlags,
-                    AdditionalDataInTheBlock = currentAdditionalData,
-                });
+                    blocks.Add(block);
+                }
+                catch(Exception e)
+                {
+                    this.Log(LogLevel.Warning, "The translation block that started at 0x{0:X} will not be traced and saved to file. The ExecutionTracer isn't ready yet.\n Underlying error : {1}", pc, e);
+                }
             }
-            catch(Exception e)
+            else
             {
-                this.Log(LogLevel.Warning, "The translation block that started at 0x{0:X} will not be traced and saved to file. The ExecutionTracer isn't ready yet.\n Underlying error : {1}", pc, e);
+                writer.Write(block);
             }
+
             currentAdditionalData = new Queue<AdditionalData>();
         }
 
@@ -211,10 +237,13 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Transient]
         private Thread underlyingThread;
 
+        private bool IsRunning => wasStarted && !wasStopped;
+
         private BlockingCollection<Block> blocks;
         private Queue<AdditionalData> currentAdditionalData;
         private bool wasStarted;
-        private bool wasStoped;
+        private bool wasStopped;
+        private readonly bool isSynchronous;
 
         private readonly TraceWriterBuilder writerBuilder;
 
