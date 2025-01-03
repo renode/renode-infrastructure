@@ -387,17 +387,25 @@ namespace Antmicro.Renode.Peripherals.Bus
             return peripheralsCollectionByContext.GetAllContextKeys();
         }
 
-        public bool TryGetCurrentContextState(out IPeripheral initiator, out ulong initiatorState)
+        public bool TryGetCurrentContextState<T>(out IPeripheralWithTransactionState cpu, out T cpuState)
         {
+            cpu = null;
+            cpuState = default;
             if(!threadLocalContext.InUse || !threadLocalContext.InitiatorState.HasValue)
             {
-                initiator = null;
-                initiatorState = 0;
                 return false;
             }
-            initiator = threadLocalContext.Initiator;
-            initiatorState = threadLocalContext.InitiatorState.Value;
-            return true;
+            cpu = threadLocalContext.Initiator as IPeripheralWithTransactionState;
+            if((cpu == null) || !cpu.TryConvertUlongToStateObj(threadLocalContext.InitiatorState.Value, out var state))
+            {
+                return false;
+            }
+            if(state is T requestedTypeSTate)
+            {
+                cpuState = requestedTypeSTate;
+                return true;
+            }
+            return false;
         }
 
         public bool TryConvertStateToUlongForContext(IPeripheral context, IContextState cpuStateObj, out ulong? state)

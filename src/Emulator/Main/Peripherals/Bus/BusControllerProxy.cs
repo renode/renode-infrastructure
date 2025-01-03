@@ -166,9 +166,9 @@ namespace Antmicro.Renode.Peripherals.Bus
             return ParentController.TryGetCurrentCPU(out cpu);
         }
 
-        public virtual bool TryGetCurrentContextState(out IPeripheral cpu, out ulong cpuState)
+        public virtual bool TryGetCurrentContextState<T>(out IPeripheralWithTransactionState context, out T stateObj)
         {
-            return ParentController.TryGetCurrentContextState(out cpu, out cpuState);
+            return ParentController.TryGetCurrentContextState(out context, out stateObj);
         }
 
         public virtual ICPU GetCurrentCPU()
