@@ -124,6 +124,16 @@ namespace Antmicro.Renode.Peripherals.Bus
             WriteBytes(array, (ulong)offset, startingIndex, count, context: context);
         }
 
+        public virtual bool TryConvertStateToUlongForContext(IPeripheral context, IContextState stateObj, out ulong? state)
+        {
+            state = null;
+            if(!ParentController.TryConvertStateToUlongForContext(context, stateObj, out state))
+            {
+                return false;
+            }
+            return true;
+        }
+
         public virtual IBusRegistered<IBusPeripheral> WhatIsAt(ulong address, IPeripheral context = null)
         {
             ValidateOperation(ref address, BusAccessPrivileges.Other, context);

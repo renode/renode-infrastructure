@@ -44,6 +44,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         void WriteBytes(byte[] bytes, ulong address, long count, bool onlyMemory = false, IPeripheral context = null);
 
         void ZeroRange(Range range, IPeripheral context = null);
+        bool TryConvertStateToUlongForContext(IPeripheral context, IContextState stateObj, out ulong? state);
 
         IBusRegistered<IBusPeripheral> WhatIsAt(ulong address, IPeripheral context = null);
         IPeripheral WhatPeripheralIsAt(ulong address, IPeripheral context = null);

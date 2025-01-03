@@ -400,6 +400,17 @@ namespace Antmicro.Renode.Peripherals.Bus
             return true;
         }
 
+        public bool TryConvertStateToUlongForContext(IPeripheral context, IContextState cpuStateObj, out ulong? state)
+        {
+            state = null;
+            if(!(context is IPeripheralWithTransactionState peripheralWithTransactionState)
+                || !peripheralWithTransactionState.TryConvertStateObjToUlong(cpuStateObj, out state))
+            {
+                return false;
+            }
+            return true;
+        }
+
         private void HandleChangedSymbols()
         {
             OnSymbolsChanged?.Invoke(Machine);
