@@ -791,6 +791,20 @@ namespace Antmicro.Renode.Peripherals.CPU
             ["attributionSecure"] = 2,
         };
 
+        public bool TryConvertStateObjToUlong(IContextState stateObj, out ulong? state)
+        {
+            state = null;
+            if((stateObj == null) || !(stateObj is ContextState cortexMStateObj))
+            {
+                return false;
+            }
+            state = 0u;
+            state |= (cortexMStateObj.Privileged ? 1u : 0) & 1u;
+            state |= (cortexMStateObj.CpuSecure ? 2u : 0) & 2u;
+            state |= (cortexMStateObj.AttributionSecure ? 4u : 0) & 4u;
+            return true;
+        }
+
         public struct IDAURegion
         {
             public static bool IsBaseAddressValid(uint address)

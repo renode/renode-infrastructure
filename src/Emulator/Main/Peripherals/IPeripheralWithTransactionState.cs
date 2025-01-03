@@ -11,5 +11,6 @@ namespace Antmicro.Renode.Peripherals
     public interface IPeripheralWithTransactionState : IPeripheral
     {
         IReadOnlyDictionary<string, int> StateBits { get; }
+        bool TryConvertStateObjToUlong(IContextState stateObj, out ulong? state);
     }
 }
