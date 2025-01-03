@@ -805,6 +805,23 @@ namespace Antmicro.Renode.Peripherals.CPU
             return true;
         }
 
+        public bool TryConvertUlongToStateObj(ulong? state, out IContextState stateObj)
+        {
+            stateObj = null;
+            if(!state.HasValue)
+            {
+                return false;
+            }
+            var cortexMStateObj = new ContextState
+            {
+                Privileged = (state & 1u) == 1u,
+                CpuSecure = (state & 2u) == 2u,
+                AttributionSecure = (state & 4u) == 4u
+            };
+            stateObj = cortexMStateObj;
+            return true;
+        }
+
         public struct IDAURegion
         {
             public static bool IsBaseAddressValid(uint address)
