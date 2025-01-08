@@ -737,33 +737,42 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(11, 21)
             );
 
+            DefineRegistersForPeripheral(registerMap, Registers.ClockControlGIC, Registers.ClockMonitorGIC,
+                Registers.ResetControlGIC, Registers.ResetMonitorGIC, NrOfGicClocks);
+
+            DefineRegistersForPeripheral(registerMap, Registers.ClockControlIA55, Registers.ClockMonitorIA55,
+                Registers.ResetControlIA55, Registers.ResetMonitorIA55, NrOfIA55Clocks);
+
             DefineRegistersForPeripheral(registerMap, Registers.ClockControlMHU, Registers.ClockMonitorMHU,
-                Registers.ResetControlMHU, Registers.ResetMonitorMHU, NrOfMhuClocks, out mhuClockEnabled);
+                Registers.ResetControlMHU, Registers.ResetMonitorMHU, NrOfMhuClocks);
+
+            DefineRegistersForPeripheral(registerMap, Registers.ClockControlDMAC, Registers.ClockMonitorDMAC,
+                Registers.ResetControlDMAC, Registers.ResetMonitorDMAC, NrOfDmacClocks);
 
             DefineRegistersForPeripheral(registerMap, Registers.ClockControlGTM, Registers.ClockMonitorGTM,
-                Registers.ResetControlGTM, Registers.ResetMonitorGTM, NrOfGtmClocks, out gtmClockEnabled);
+                Registers.ResetControlGTM, Registers.ResetMonitorGTM, NrOfGtmClocks);
 
             DefineRegistersForPeripheral(registerMap, Registers.ClockControlGPT, Registers.ClockMonitorGPT,
-                Registers.ResetControlGPT, Registers.ResetMonitorGPT, NrOfGptClocks, out gptClockEnabled);
+                Registers.ResetControlGPT, Registers.ResetMonitorGPT, NrOfGptClocks);
 
             DefineRegistersForPeripheral(registerMap, Registers.ClockControlSCIF, Registers.ClockMonitorSCIF,
-                Registers.ResetControlSCIF, Registers.ResetMonitorSCIF, NrOfScifClocks, out scifClockEnabled);
+                Registers.ResetControlSCIF, Registers.ResetMonitorSCIF, NrOfScifClocks);
 
             DefineRegistersForPeripheral(registerMap, Registers.ClockControlRSPI, Registers.ClockMonitorRSPI,
-                Registers.ResetControlRSPI, Registers.ResetMonitorRSPI, NrOfRspiClocks, out rspiClockEnabled);
+                Registers.ResetControlRSPI, Registers.ResetMonitorRSPI, NrOfRspiClocks);
 
             DefineRegistersForPeripheral(registerMap, Registers.ClockControlGPIO, Registers.ClockMonitorGPIO,
-                Registers.ResetControlGPIO, Registers.ResetMonitorGPIO, NrOfGpioClocks, out gpioClockEnabled);
+                Registers.ResetControlGPIO, Registers.ResetMonitorGPIO, NrOfGpioClocks);
 
             DefineRegistersForPeripheral(registerMap, Registers.ClockControlI2C, Registers.ClockMonitorI2C,
-                Registers.ResetControlI2C, Registers.ResetMonitorI2C, NrOfI2cClocks, out i2cClockEnabled);
+                Registers.ResetControlI2C, Registers.ResetMonitorI2C, NrOfI2cClocks);
         }
 
         private void DefineRegistersForPeripheral(Dictionary<long, DoubleWordRegister> registerMap, Registers clockControl, Registers clockMonitor,
-            Registers resetControl, Registers resetMonitor, int nrOfClocks, out IFlagRegisterField[] clockEnabled)
+            Registers resetControl, Registers resetMonitor, int nrOfClocks)
         {
             registerMap.Add((long)clockControl, new DoubleWordRegister(this)
-                .WithFlags(0, nrOfClocks, out clockEnabled, name: "CLK_ON")
+                .WithFlags(0, nrOfClocks, out var clockEnabled, name: "CLK_ON")
                 .WithReservedBits(nrOfClocks, 16 - nrOfClocks)
                 .WithFlags(16, nrOfClocks, FieldMode.Set | FieldMode.Read,
                     valueProviderCallback: (_, __) => false,
@@ -885,19 +894,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             return invalid;
         }
 
-        private IFlagRegisterField[] mhuClockEnabled;
-        private IFlagRegisterField[] gtmClockEnabled;
-        private IFlagRegisterField[] gptClockEnabled;
-        private IFlagRegisterField[] i2cClockEnabled;
-        private IFlagRegisterField[] scifClockEnabled;
-        private IFlagRegisterField[] rspiClockEnabled;
-        private IFlagRegisterField[] gpioClockEnabled;
-
         private RenesasRZG_Watchdog[] watchdogs = new RenesasRZG_Watchdog[MaxWatchdogCount];
 
         private readonly bool hasTwoCortexA55Cores;
 
+        private const int NrOfGicClocks = 2;
+        private const int NrOfIA55Clocks = 2;
         private const int NrOfMhuClocks = 1;
+        private const int NrOfDmacClocks = 2;
         private const int NrOfGtmClocks = 3;
         private const int NrOfGptClocks = 1;
         private const int NrOfI2cClocks = 4;
@@ -924,7 +928,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             WDTResetSelector                           = 0xB14 + CPGOffset, // CPG_WDTRST_SEL
 
             // Clock Control
+            ClockControlGIC                            = 0x514 + CPGOffset, // CPG_CLKON_GIC600
+            ClockControlIA55                           = 0x518 + CPGOffset, // CPG_CLKON_IA55
             ClockControlMHU                            = 0x520 + CPGOffset, // CPG_CLKON_MHU
+            ClockControlDMAC                           = 0x52C + CPGOffset, // CPG_CLKON_DAMC_REG
             ClockControlGTM                            = 0x534 + CPGOffset, // CPG_CLKON_GTM
             ClockControlGPT                            = 0x540 + CPGOffset, // CPG_CLKON_GPT
             ClockControlI2C                            = 0x580 + CPGOffset, // CPG_CLKON_I2C
@@ -933,7 +940,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             ClockControlGPIO                           = 0x598 + CPGOffset, // CPG_CLKON_GPIO
 
             // Clock Monitor
+            ClockMonitorGIC                            = 0x694 + CPGOffset, // CPG_CLKMON_GIC600
+            ClockMonitorIA55                           = 0x698 + CPGOffset, // CPG_CLKMON_IA55
             ClockMonitorMHU                            = 0x6A0 + CPGOffset, // CPG_CLMON_MHU
+            ClockMonitorDMAC                           = 0x6AC + CPGOffset, // CPG_CLKMON_DAMC_REG
             ClockMonitorGTM                            = 0x6B4 + CPGOffset, // CPG_CLMON_GTM
             ClockMonitorGPT                            = 0x6C0 + CPGOffset, // CPG_CLMON_GPT
             ClockMonitorI2C                            = 0x700 + CPGOffset, // CPG_CLMON_I2C
@@ -942,7 +952,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             ClockMonitorGPIO                           = 0x718 + CPGOffset, // CPG_CLMON_GPIO
 
             // Reset Control
+            ResetControlGIC                            = 0x814 + CPGOffset, // CPG_RST_GIC600
+            ResetControlIA55                           = 0x818 + CPGOffset, // CPG_RST_IA55
             ResetControlMHU                            = 0x820 + CPGOffset, // CPG_RST_MHU
+            ResetControlDMAC                           = 0x82C + CPGOffset, // CPG_RST_DMAC
             ResetControlGTM                            = 0x834 + CPGOffset, // CPG_RST_GTM
             ResetControlGPT                            = 0x844 + CPGOffset, // CPG_RST_GPT
             ResetControlI2C                            = 0x880 + CPGOffset, // CPG_RST_I2C
@@ -951,7 +964,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             ResetControlGPIO                           = 0x898 + CPGOffset, // CPG_RST_GPIO
 
             // Reset Monitor
+            ResetMonitorGIC                            = 0x994 + CPGOffset, // CPG_RSTMON_GIC600
+            ResetMonitorIA55                           = 0x998 + CPGOffset, // CPG_RSTMON_IA55
             ResetMonitorMHU                            = 0x9A0 + CPGOffset, // CPG_RSTMON_MHU
+            ResetMonitorDMAC                           = 0x9AC + CPGOffset, // CPG_RSTMON_DMAC
             ResetMonitorGTM                            = 0x9B4 + CPGOffset, // CPG_RSTMON_GTM
             ResetMonitorGPT                            = 0x9C0 + CPGOffset, // CPG_RSTMON_GPT
             ResetMonitorI2C                            = 0xA00 + CPGOffset, // CPG_RSTMON_I2C
