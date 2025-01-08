@@ -73,6 +73,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             InitDisas();
             externalMmuWindowsCount = TlibGetMmuWindowsCount();
             Clustered = new TranslationCPU[] { this };
+            ChainingEnabled = false;
         }
 
         public new IEnumerable<ICluster<TranslationCPU>> Clusters { get; } = new List<ICluster<TranslationCPU>>(0);
