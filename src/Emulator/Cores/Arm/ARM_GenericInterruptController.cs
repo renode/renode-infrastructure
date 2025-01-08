@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -140,7 +140,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         + $" This is illegal for {nameof(ARM_GenericInterruptControllerVersion.GICv1)}.");
                 }
             }
-            var processorNumber = cpu.Affinity.AllLevels & affinityToIdMask;
+            var processorNumber = GetProcessorNumber(cpu);
             this.Log(LogLevel.Noisy, "Trying to attach CPU {0}", cpu.Affinity);
             if(TryGetCPUEntry(processorNumber, out var existingCPUEntry))
             {
@@ -2015,6 +2015,19 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             forcedTargettedCpuForAffinityRouting = null;
         }
 
+        private static uint GetProcessorNumber(ICPU cpu)
+        {
+            switch(cpu.Model)
+            {
+                // For Cortex-A55 core number is stored in affinity level 1.
+                // In older CPUs (i.e. Cortex-A53) it's stored in affinity level 0.
+                case "cortex-a55":
+                    return BitHelper.GetValue(cpu.MultiprocessingId, 8, 8);
+                default:
+                    return BitHelper.GetValue(cpu.MultiprocessingId, 0, 8);
+            }
+        }
+
         private CPUEntry ForcedTargettingCpuForAffinityRouting
         {
             get
@@ -2429,7 +2442,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             public EndOfInterruptModes EndOfInterruptModeVirtual { get; set; }
             public bool IsStateSecure => cpu.SecurityState == SecurityState.Secure;
             public string Name { get; }
-            public uint ProcessorNumber => cpu.Affinity.AllLevels & gic.affinityToIdMask;
+            public uint ProcessorNumber => GetProcessorNumber(cpu);
             public uint TargetFieldFlag => ProcessorNumber <= CPUsCountLegacySupport ? 1U << (int)ProcessorNumber : 0;
             public bool VirtualCPUInterfaceEnabled { get; set; }
             public bool VirtualFIQEnabled { get; set; }
