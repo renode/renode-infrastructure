@@ -249,15 +249,16 @@ namespace Antmicro.Renode.Peripherals.SCI
 
             // According to the documentation this register should have a reset value of 0x20.
             // Some software expects the TEND flag to be set even before transmitting the first character.
+            // Error status flags are modeled as fields to reduce the amount of logs generated during the simulation.
             Registers.SerialStatus.Define(this, 0x60)
                 .WithFlag(0, out receiveDataReady, FieldMode.Read | FieldMode.WriteZeroToClear, name: "DR")
                 .WithFlag(1, out receiveFifoFull, FieldMode.Read | FieldMode.WriteZeroToClear, name: "RDF")
-                .WithTaggedFlag("PER", 2)
-                .WithTaggedFlag("FER", 3)
-                .WithTaggedFlag("BRK", 4)
+                .WithFlag(2, FieldMode.Read | FieldMode.WriteZeroToClear, name: "PER")
+                .WithFlag(3, FieldMode.Read | FieldMode.WriteZeroToClear, name: "FER")
+                .WithFlag(4, FieldMode.Read | FieldMode.WriteZeroToClear, name: "BRK")
                 .WithFlag(5, out transmitFIFOEmpty, FieldMode.Read | FieldMode.WriteZeroToClear, name: "TDFE")
                 .WithFlag(6, out transmitEnd, FieldMode.Read | FieldMode.WriteZeroToClear, name: "TEND")
-                .WithTaggedFlag("ER", 7)
+                .WithFlag(7, FieldMode.Read | FieldMode.WriteZeroToClear, name: "ER")
                 .WithReservedBits(8, 8)
                 .WithWriteCallback((_, __) => UpdateInterrupts());
 
