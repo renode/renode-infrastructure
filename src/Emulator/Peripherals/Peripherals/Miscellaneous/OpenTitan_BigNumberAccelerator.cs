@@ -384,7 +384,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Type coreType = null;
             foreach(Assembly asm in AppDomain.CurrentDomain.GetAssemblies())
             {
-                if(asm.FullName.StartsWith("cores-riscv"))
+                if(asm.FullName.StartsWith("Infrastructure"))
                 {
                     coreType = asm.GetType("Antmicro.Renode.Peripherals.CPU.OpenTitan_BigNumberAcceleratorCore", false);
                     if(coreType != null)
