@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -19,11 +19,6 @@ namespace Antmicro.Renode.Peripherals.Bus
             if(cpu != null && cluster != null)
             {
                 throw new ConstructionException("CPU and cluster cannot be specified at the same time");
-            }
-
-            if(stateMask != null && condition != null)
-            {
-                throw new ConstructionException("State mask and condition cannot be specified at the same time");
             }
 
             Initiator = cpu;
