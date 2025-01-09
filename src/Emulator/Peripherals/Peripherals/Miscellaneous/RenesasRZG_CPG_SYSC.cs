@@ -10,6 +10,7 @@ using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.CPU;
 using System.Collections.Generic;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Core.Structure;
@@ -19,9 +20,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class RenesasRZG_CPG_SYSC : IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize, IPeripheralRegister<RenesasRZG_Watchdog, NumberRegistrationPoint<byte>>
     {
-        public RenesasRZG_CPG_SYSC(bool hasTwoCortexA55Cores = true)
+        public RenesasRZG_CPG_SYSC(ICPU cpu0, ICPU cpu1 = null)
         {
-            this.hasTwoCortexA55Cores = hasTwoCortexA55Cores;
+            this.cpu0 = cpu0;
+            this.cpu1 = cpu1;
             RegistersCollection = new DoubleWordRegisterCollection(this, BuildRegisterMap());
         }
 
@@ -444,11 +446,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             registerMap.Add((long)Registers.CortexA55Core1ResetVectorAddressLowConfig, new DoubleWordRegister(this, 0x00020000)
                 .WithReservedBits(0, 2)
-                .WithTag("RVBARADDRL1", 2, 30)
+                .WithValueField(2, 30, out cortexA55Core1ResetVectorLow, name: "RVBARADDRL1")
             );
 
             registerMap.Add((long)Registers.CortexA55Core1ResetVectorAddressHighConfig, new DoubleWordRegister(this)
-                .WithTag("RVBARADDRH1", 0, 8)
+                .WithValueField(0, 8, out cortexA55Core1ResetVectorHigh, name: "RVBARADDRH1")
                 .WithReservedBits(8, 24)
             );
 
@@ -468,7 +470,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithValueField(0, 32, FieldMode.Read, name: "DEV_ID")
             );
 
-            registerMap.Add((long)Registers.LsiProduct, new DoubleWordRegister(this, (uint)(hasTwoCortexA55Cores ? 0x0 : 0x1))
+            registerMap.Add((long)Registers.LsiProduct, new DoubleWordRegister(this, (uint)(HasTwoCortexA55Cores ? 0x0 : 0x1))
                 .WithFlag(0, FieldMode.Read, name: "CA55_1CPU")
                 .WithReservedBits(1, 31)
             );
@@ -737,6 +739,63 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(11, 21)
             );
 
+            registerMap.Add((long)Registers.CortexA55Core1PowerStatusMonitor, new DoubleWordRegister(this)
+                .WithFlag(0, FieldMode.Read,
+                    valueProviderCallback: _ =>
+                    {
+                        var retVal = cortexA55Core1PowerTransitionReq.Value;
+                        cortexA55Core1PowerTransitionReq.Value = false;
+                        return retVal;
+                    },
+                    name: "PACCEPT1_MON")
+                .WithFlag(1, FieldMode.Read,
+                    valueProviderCallback: _ => false,
+                    name: "PDENY1_MON")
+                .WithReservedBits(2, 30)
+            );
+
+            registerMap.Add((long)Registers.CortexA55Core1PowerStatusControl, new DoubleWordRegister(this)
+                .WithFlag(0, out cortexA55Core1PowerTransitionReq, name: "PREQ1_SET")
+                .WithReservedBits(1, 15)
+                .WithEnumField(16, 6, out cortexA55Core1PowerTransitionState, name:"PSTATE1_SET")
+                .WithReservedBits(22, 10)
+                .WithWriteCallback((_, __) =>
+                {
+                    if(!cortexA55Core1PowerTransitionReq.Value)
+                    {
+                        return;
+                    }
+
+                    if(!HasTwoCortexA55Cores)
+                    {
+                        this.WarningLog("Trying to change power state of cpu1, but platform has only cpu0.");
+                        return;
+                    }
+                    switch(cortexA55Core1PowerTransitionState.Value)
+                    {
+                        case PowerTransitionState.Off:
+                        case PowerTransitionState.OffEmulated:
+                            cpu1.IsHalted = true;
+                            this.DebugLog("Stopping CPU1");
+                            break;
+                        case PowerTransitionState.On:
+                            cpu1.PC = CortexA55Core1ResetVector;
+                            cpu1.IsHalted = false;
+                            this.DebugLog("Starting CPU1 at 0x{0:X}", CortexA55Core1ResetVector);
+                            break;
+                        default:
+                            this.WarningLog(
+                                "Trying to trigger power state transition of cpu1 to invalid state 0x{0:X}",
+                                cortexA55Core1PowerTransitionState.Value
+                            );
+                            break;
+                    }
+                })
+            );
+
+            DefineRegistersForPeripheral(registerMap, Registers.ClockControlCA55, Registers.ClockMonitorCA55,
+                Registers.ResetControlCA55, Registers.ResetMonitorCA55, NrOfCa55Clocks);
+
             DefineRegistersForPeripheral(registerMap, Registers.ClockControlGIC, Registers.ClockMonitorGIC,
                 Registers.ResetControlGIC, Registers.ResetMonitorGIC, NrOfGicClocks);
 
@@ -794,7 +853,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             // We don't really implement resets, but we still should log
             // if we write to register when write is disabled.
             registerMap.Add((long)resetControl, new DoubleWordRegister(this)
-                .WithFlags(0, nrOfClocks,
+                .WithFlags(0, nrOfClocks, out var resetApplied,
                     valueProviderCallback: (_, __) => false,
                     name: "UNIT_RSTB")
                 .WithReservedBits(nrOfClocks, 16 - nrOfClocks)
@@ -805,12 +864,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 // We have to use register write callback,
                 // because multiple fields, depending on each other,
                 // can be changed in one write.
-                .WithWriteCallback(CreateResetControlWriteCallback(resetControl))
+                .WithWriteCallback(CreateResetControlWriteCallback(resetControl, resetApplied))
             );
 
             // Reset is instantenous, so we always return 0, which means that we aren't in reset state.
             registerMap.Add((long)resetMonitor, new DoubleWordRegister(this)
-                .WithFlags(0, nrOfClocks, FieldMode.Read, name: "RST_MON")
+                .WithFlags(0, nrOfClocks, FieldMode.Read,
+                    valueProviderCallback: CreateResetMonitorValueProviderCallback(resetApplied),
+                    name: "RST_MON")
                 .WithReservedBits(nrOfClocks, 32 - nrOfClocks)
             );
         }
@@ -837,7 +898,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             };
          }
 
-        private Action<uint, uint> CreateResetControlWriteCallback(Registers register)
+        private Action<uint, uint> CreateResetControlWriteCallback(Registers register, IFlagRegisterField[] resetApplied)
         {
             return (oldVal, newVal) =>
             {
@@ -853,6 +914,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                             resetIdx,
                             register
                         );
+                        resetApplied[resetIdx].Value = !resetApplied[resetIdx].Value;
                     });
                 }
             };
@@ -881,6 +943,16 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             return (clockIdx, _) => clockEnabled[clockIdx].Value;
         }
 
+        private Func<int, bool, bool> CreateResetMonitorValueProviderCallback(IFlagRegisterField[] resetApplied)
+        {
+            return (resetIdx, _) =>
+            {
+                var retVal = !resetApplied[resetIdx].Value;
+                resetApplied[resetIdx].Value = true;
+                return retVal;
+            };
+        }
+
         private uint GetInvalidBits(uint oldVal, uint newVal, int valueOffset, int valueSize, int maskOffset, int maskSize)
         {
             var mask = BitHelper.GetValue(newVal, maskOffset, maskSize);
@@ -894,10 +966,20 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             return invalid;
         }
 
+        private ulong CortexA55Core1ResetVector => (cortexA55Core1ResetVectorLow.Value << 2) | (cortexA55Core1ResetVectorHigh.Value << 32);
+        private bool HasTwoCortexA55Cores => cpu1 != null;
+
+        private IFlagRegisterField cortexA55Core1PowerTransitionReq;
+        private IEnumRegisterField<PowerTransitionState> cortexA55Core1PowerTransitionState;
+        private IValueRegisterField cortexA55Core1ResetVectorLow;
+        private IValueRegisterField cortexA55Core1ResetVectorHigh;
+
         private RenesasRZG_Watchdog[] watchdogs = new RenesasRZG_Watchdog[MaxWatchdogCount];
 
-        private readonly bool hasTwoCortexA55Cores;
+        private readonly ICPU cpu0;
+        private readonly ICPU cpu1;
 
+        private const int NrOfCa55Clocks = 13;
         private const int NrOfGicClocks = 2;
         private const int NrOfIA55Clocks = 2;
         private const int NrOfMhuClocks = 1;
@@ -922,12 +1004,22 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private const long CPGOffset = 0;
         private const long SYSCOffset = 0x10_000;
 
+        private enum PowerTransitionState
+        {
+            Off = 0x0,
+            OffEmulated = 0x1,
+            On = 0x8,
+        }
+
         private enum Registers : long
         {
             WDTOverflowSystemReset                     = 0xB10 + CPGOffset, // CPG_WDTOVF_RST
             WDTResetSelector                           = 0xB14 + CPGOffset, // CPG_WDTRST_SEL
+            CortexA55Core1PowerStatusMonitor           = 0xB40 + CPGOffset, // CPG_CORE1_PCHMON
+            CortexA55Core1PowerStatusControl           = 0xB44 + CPGOffset, // CPG_CORE1_PCHCTL
 
             // Clock Control
+            ClockControlCA55                           = 0x500 + CPGOffset, // CPG_CLKON_CA55
             ClockControlGIC                            = 0x514 + CPGOffset, // CPG_CLKON_GIC600
             ClockControlIA55                           = 0x518 + CPGOffset, // CPG_CLKON_IA55
             ClockControlMHU                            = 0x520 + CPGOffset, // CPG_CLKON_MHU
@@ -940,6 +1032,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             ClockControlGPIO                           = 0x598 + CPGOffset, // CPG_CLKON_GPIO
 
             // Clock Monitor
+            ClockMonitorCA55                           = 0x680 + CPGOffset, // CPG_CLMON_CA55
             ClockMonitorGIC                            = 0x694 + CPGOffset, // CPG_CLKMON_GIC600
             ClockMonitorIA55                           = 0x698 + CPGOffset, // CPG_CLKMON_IA55
             ClockMonitorMHU                            = 0x6A0 + CPGOffset, // CPG_CLMON_MHU
@@ -952,6 +1045,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             ClockMonitorGPIO                           = 0x718 + CPGOffset, // CPG_CLMON_GPIO
 
             // Reset Control
+            ResetControlCA55                           = 0x800 + CPGOffset, // CPG_RST_CA55
             ResetControlGIC                            = 0x814 + CPGOffset, // CPG_RST_GIC600
             ResetControlIA55                           = 0x818 + CPGOffset, // CPG_RST_IA55
             ResetControlMHU                            = 0x820 + CPGOffset, // CPG_RST_MHU
@@ -964,6 +1058,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             ResetControlGPIO                           = 0x898 + CPGOffset, // CPG_RST_GPIO
 
             // Reset Monitor
+            ResetMonitorCA55                           = 0x980 + CPGOffset, // CPG_RSTMON_CA55
             ResetMonitorGIC                            = 0x994 + CPGOffset, // CPG_RSTMON_GIC600
             ResetMonitorIA55                           = 0x998 + CPGOffset, // CPG_RSTMON_IA55
             ResetMonitorMHU                            = 0x9A0 + CPGOffset, // CPG_RSTMON_MHU
