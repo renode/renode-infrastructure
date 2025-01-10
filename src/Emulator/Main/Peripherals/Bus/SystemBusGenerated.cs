@@ -64,6 +64,18 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
+        public byte ReadByteWithState(ulong address, IPeripheral context, IContextState stateObj)
+        {
+            var accessWidth = SysbusAccessWidth.Byte;
+            if(!TryConvertStateToUlongForContext(context, stateObj, out ulong? state))
+            {
+                this.Log(LogLevel.Warning, "Tried to read {0} bytes at 0x{1:X} but failed on context state conversion, returning 0",
+                    (uint)accessWidth, address);
+                return 0;
+            }
+            return ReadByte(address, context, state);
+        }
+
         public void WriteByte(ulong address, byte value, IPeripheral context = null, ulong? cpuState = null)
         {
             var accessWidth = SysbusAccessWidth.Byte;
@@ -110,6 +122,18 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
+        public void WriteByteWithState(ulong address, byte value, IPeripheral context, IContextState stateObj)
+        {
+            var accessWidth = SysbusAccessWidth.Byte;
+            if(!TryConvertStateToUlongForContext(context, stateObj, out ulong? state))
+            {
+                this.Log(LogLevel.Warning, "Tried to write {0} bytes (0x{1:X}) at 0x{2:X} but failed on context state conversion, write ignored",
+                    (uint)accessWidth, value, address);
+                return;
+            }
+            WriteByte(address, value, context, state);
+        }
+
         public ushort ReadWord(ulong address, IPeripheral context = null, ulong? cpuState = null)
         {
             var accessWidth = SysbusAccessWidth.Word;
@@ -152,6 +176,18 @@ namespace Antmicro.Renode.Peripherals.Bus
                     }
                 }
             }
+        }
+
+        public ushort ReadWordWithState(ulong address, IPeripheral context, IContextState stateObj)
+        {
+            var accessWidth = SysbusAccessWidth.Word;
+            if(!TryConvertStateToUlongForContext(context, stateObj, out ulong? state))
+            {
+                this.Log(LogLevel.Warning, "Tried to read {0} bytes at 0x{1:X} but failed on context state conversion, returning 0",
+                    (uint)accessWidth, address);
+                return 0;
+            }
+            return ReadWord(address, context, state);
         }
 
         public void WriteWord(ulong address, ushort value, IPeripheral context = null, ulong? cpuState = null)
@@ -200,6 +236,18 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
+        public void WriteWordWithState(ulong address, ushort value, IPeripheral context, IContextState stateObj)
+        {
+            var accessWidth = SysbusAccessWidth.Word;
+            if(!TryConvertStateToUlongForContext(context, stateObj, out ulong? state))
+            {
+                this.Log(LogLevel.Warning, "Tried to write {0} bytes (0x{1:X}) at 0x{2:X} but failed on context state conversion, write ignored",
+                    (uint)accessWidth, value, address);
+                return;
+            }
+            WriteWord(address, value, context, state);
+        }
+
         public uint ReadDoubleWord(ulong address, IPeripheral context = null, ulong? cpuState = null)
         {
             var accessWidth = SysbusAccessWidth.DoubleWord;
@@ -242,6 +290,18 @@ namespace Antmicro.Renode.Peripherals.Bus
                     }
                 }
             }
+        }
+
+        public uint ReadDoubleWordWithState(ulong address, IPeripheral context, IContextState stateObj)
+        {
+            var accessWidth = SysbusAccessWidth.DoubleWord;
+            if(!TryConvertStateToUlongForContext(context, stateObj, out ulong? state))
+            {
+                this.Log(LogLevel.Warning, "Tried to read {0} bytes at 0x{1:X} but failed on context state conversion, returning 0",
+                    (uint)accessWidth, address);
+                return 0;
+            }
+            return ReadDoubleWord(address, context, state);
         }
 
         public void WriteDoubleWord(ulong address, uint value, IPeripheral context = null, ulong? cpuState = null)
@@ -290,6 +350,18 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
+        public void WriteDoubleWordWithState(ulong address, uint value, IPeripheral context, IContextState stateObj)
+        {
+            var accessWidth = SysbusAccessWidth.DoubleWord;
+            if(!TryConvertStateToUlongForContext(context, stateObj, out ulong? state))
+            {
+                this.Log(LogLevel.Warning, "Tried to write {0} bytes (0x{1:X}) at 0x{2:X} but failed on context state conversion, write ignored",
+                    (uint)accessWidth, value, address);
+                return;
+            }
+            WriteDoubleWord(address, value, context, state);
+        }
+
         public ulong ReadQuadWord(ulong address, IPeripheral context = null, ulong? cpuState = null)
         {
             var accessWidth = SysbusAccessWidth.QuadWord;
@@ -332,6 +404,18 @@ namespace Antmicro.Renode.Peripherals.Bus
                     }
                 }
             }
+        }
+
+        public ulong ReadQuadWordWithState(ulong address, IPeripheral context, IContextState stateObj)
+        {
+            var accessWidth = SysbusAccessWidth.QuadWord;
+            if(!TryConvertStateToUlongForContext(context, stateObj, out ulong? state))
+            {
+                this.Log(LogLevel.Warning, "Tried to read {0} bytes at 0x{1:X} but failed on context state conversion, returning 0",
+                    (uint)accessWidth, address);
+                return 0;
+            }
+            return ReadQuadWord(address, context, state);
         }
 
         public void WriteQuadWord(ulong address, ulong value, IPeripheral context = null, ulong? cpuState = null)
@@ -378,6 +462,18 @@ namespace Antmicro.Renode.Peripherals.Bus
                     }
                 }
             }
+        }
+
+        public void WriteQuadWordWithState(ulong address, ulong value, IPeripheral context, IContextState stateObj)
+        {
+            var accessWidth = SysbusAccessWidth.QuadWord;
+            if(!TryConvertStateToUlongForContext(context, stateObj, out ulong? state))
+            {
+                this.Log(LogLevel.Warning, "Tried to write {0} bytes (0x{1:X}) at 0x{2:X} but failed on context state conversion, write ignored",
+                    (uint)accessWidth, value, address);
+                return;
+            }
+            WriteQuadWord(address, value, context, state);
         }
 
         public void ClearHookAfterPeripheralRead<T>(IBusPeripheral peripheral)

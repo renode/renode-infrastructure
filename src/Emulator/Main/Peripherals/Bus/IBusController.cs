@@ -25,16 +25,24 @@ namespace Antmicro.Renode.Peripherals.Bus
         IPeripheralRegister<IBusPeripheral, BusParametrizedRegistration>, ICanLoadFiles, IPeripheral, IMultibyteWritePeripheral
     {
         byte ReadByte(ulong address, IPeripheral context = null, ulong? cpuState = null);
+        byte ReadByteWithState(ulong address, IPeripheral context, IContextState stateObj);
         void WriteByte(ulong address, byte value, IPeripheral context = null, ulong? cpuState = null);
+        void WriteByteWithState(ulong address, byte value, IPeripheral context, IContextState stateObj);
 
         ushort ReadWord(ulong address, IPeripheral context = null, ulong? cpuState = null);
+        ushort ReadWordWithState(ulong address, IPeripheral context, IContextState stateObj);
         void WriteWord(ulong address, ushort value, IPeripheral context = null, ulong? cpuState = null);
+        void WriteWordWithState(ulong address, ushort value, IPeripheral context, IContextState stateObj);
 
         uint ReadDoubleWord(ulong address, IPeripheral context = null, ulong? cpuState = null);
+        uint ReadDoubleWordWithState(ulong address, IPeripheral context, IContextState stateObj);
         void WriteDoubleWord(ulong address, uint value, IPeripheral context = null, ulong? cpuState = null);
+        void WriteDoubleWordWithState(ulong address, uint value, IPeripheral context, IContextState stateObj);
 
         ulong ReadQuadWord(ulong address, IPeripheral context = null, ulong? cpuState = null);
+        ulong ReadQuadWordWithState(ulong address, IPeripheral context, IContextState stateObj);
         void WriteQuadWord(ulong address, ulong value, IPeripheral context = null, ulong? cpuState = null);
+        void WriteQuadWordWithState(ulong address, ulong value, IPeripheral context, IContextState stateObj);
 
         void ReadBytes(ulong address, int count, byte[] destination, int startIndex, bool onlyMemory = false, IPeripheral context = null);
         byte[] ReadBytes(ulong address, int count, bool onlyMemory = false, IPeripheral context = null);

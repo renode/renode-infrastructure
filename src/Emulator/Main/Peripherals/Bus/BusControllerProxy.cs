@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -39,11 +39,28 @@ namespace Antmicro.Renode.Peripherals.Bus
             return (byte)0;
         }
 
+        public virtual byte ReadByteWithState(ulong address, IPeripheral context, IContextState stateObj)
+        {
+            if(ValidateOperation(ref address, BusAccessPrivileges.Read, context))
+            {
+                return ParentController.ReadByteWithState(address, context, stateObj);
+            }
+            return (byte)0;
+        }
+
         public virtual void WriteByte(ulong address, byte value, IPeripheral context = null, ulong? cpuState = null)
         {
             if(ValidateOperation(ref address, BusAccessPrivileges.Write, context))
             {
                 ParentController.WriteByte(address, value, context, cpuState);
+            }
+        }
+
+        public virtual void WriteByteWithState(ulong address, byte value, IPeripheral context, IContextState stateObj)
+        {
+            if(ValidateOperation(ref address, BusAccessPrivileges.Write, context))
+            {
+                ParentController.WriteByteWithState(address, value, context, stateObj);
             }
         }
 
@@ -56,11 +73,28 @@ namespace Antmicro.Renode.Peripherals.Bus
             return (ushort)0;
         }
 
+        public virtual ushort ReadWordWithState(ulong address, IPeripheral context, IContextState stateObj)
+        {
+            if(ValidateOperation(ref address, BusAccessPrivileges.Read, context))
+            {
+                return ParentController.ReadWordWithState(address, context, stateObj);
+            }
+            return (ushort)0;
+        }
+
         public virtual void WriteWord(ulong address, ushort value, IPeripheral context = null, ulong? cpuState = null)
         {
             if(ValidateOperation(ref address, BusAccessPrivileges.Write, context))
             {
                 ParentController.WriteWord(address, value, context, cpuState);
+            }
+        }
+
+        public virtual void WriteWordWithState(ulong address, ushort value, IPeripheral context, IContextState stateObj)
+        {
+            if(ValidateOperation(ref address, BusAccessPrivileges.Write, context))
+            {
+                ParentController.WriteWordWithState(address, value, context, stateObj);
             }
         }
 
@@ -73,11 +107,28 @@ namespace Antmicro.Renode.Peripherals.Bus
             return (uint)0;
         }
 
+        public virtual uint ReadDoubleWordWithState(ulong address, IPeripheral context, IContextState stateObj)
+        {
+            if(ValidateOperation(ref address, BusAccessPrivileges.Read, context)) // todo state
+            {
+                return ParentController.ReadDoubleWordWithState(address, context, stateObj);
+            }
+            return (uint)0;
+        }
+
         public virtual void WriteDoubleWord(ulong address, uint value, IPeripheral context = null, ulong? cpuState = null)
         {
             if(ValidateOperation(ref address, BusAccessPrivileges.Write, context))
             {
                 ParentController.WriteDoubleWord(address, value, context, cpuState);
+            }
+        }
+
+        public virtual void WriteDoubleWordWithState(ulong address, uint value, IPeripheral context, IContextState stateObj)
+        {
+            if(ValidateOperation(ref address, BusAccessPrivileges.Write, context))
+            {
+                ParentController.WriteDoubleWordWithState(address, value, context, stateObj);
             }
         }
 
@@ -266,9 +317,19 @@ namespace Antmicro.Renode.Peripherals.Bus
             return ParentController.ReadQuadWord(address, context, cpuState);
         }
 
+        public virtual ulong ReadQuadWordWithState(ulong address, IPeripheral context, IContextState stateObj)
+        {
+            return ParentController.ReadQuadWordWithState(address, context, stateObj);
+        }
+
         public virtual void WriteQuadWord(ulong address, ulong value, IPeripheral context = null, ulong? cpuState = null)
         {
             ParentController.WriteQuadWord(address, value, context, cpuState);
+        }
+
+        public virtual void WriteQuadWordWithState(ulong address, ulong value, IPeripheral context, IContextState stateObj)
+        {
+            ParentController.WriteQuadWordWithState(address, value, context, stateObj);
         }
 
         public virtual bool IsPeripheralEnabled(IPeripheral peripheral)
