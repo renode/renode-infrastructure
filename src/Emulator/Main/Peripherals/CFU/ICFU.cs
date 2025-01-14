@@ -12,6 +12,6 @@ namespace Antmicro.Renode.Peripherals.CFU
     public interface ICFU : IPeripheral
     {
         ICPU ConnectedCpu { get; set; }
-        string SimulationFilePath { get; set; }
+        string SimulationFilePath { get; }
     }
 }
