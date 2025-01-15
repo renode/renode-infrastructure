@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -11,6 +11,7 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Migrant;
 using System.Linq;
+using System.IO;
 
 namespace Antmicro.Renode.Utilities.GDB
 {
@@ -79,9 +80,17 @@ namespace Antmicro.Renode.Utilities.GDB
             terminal.Dispose();
         }
 
+        public event Action<Stream> ConnectionAccepted
+        {
+            add => terminal.ConnectionAccepted += value;
+            remove => terminal.ConnectionAccepted -= value;
+        }
+
         public int Port { get; private set; }
 
         public bool LogsEnabled { get; set; }
+
+        public bool GdbClientConnected => !commandsManager.CanAttachCPU;
 
         private void OnHalted(HaltArguments args)
         {

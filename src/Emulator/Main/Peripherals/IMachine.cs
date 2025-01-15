@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2023 Western Digital Corporation
 //
 // This file is licensed under the MIT License.
@@ -66,6 +66,9 @@ namespace Antmicro.Renode.Core
         void StartGdbServer(int port, bool autostartEmulation = true, string cpuCluster = "");
         void StartGdbServer(int port, bool autostartEmulation, ICluster<ICpuSupportingGdb> cpu);
         void StopGdbServer(int? port = null);
+        bool AttachConnectionAcceptedListenerToGdbStub(int port, Action<System.IO.Stream> listener);
+        bool DetachConnectionAcceptedListenerFromGdbStub(int port, Action<System.IO.Stream> listener);
+        bool IsGdbConnectedToServer(int port);
         string ToString();
         bool TryGetAnyName(IPeripheral peripheral, out string name);
         bool TryGetBusController(IBusPeripheral peripheral, out IBusController controller);
