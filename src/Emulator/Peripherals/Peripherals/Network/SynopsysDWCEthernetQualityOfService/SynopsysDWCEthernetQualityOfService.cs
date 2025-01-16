@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -33,6 +33,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
             IRQ = new GPIO();
             MAC = EmulationManager.Instance.CurrentEmulation.MACRepository.GenerateUniqueMAC();
+            MAC1 = EmulationManager.Instance.CurrentEmulation.MACRepository.GenerateUniqueMAC();
             Bus = machine.GetSystemBus(this);
             this.CpuContext = cpuContext;
 
@@ -104,6 +105,8 @@ namespace Antmicro.Renode.Peripherals.Network
         [DefaultInterrupt]
         public GPIO IRQ { get; }
         public MACAddress MAC { get; set; }
+        public MACAddress MAC0 => MAC;
+        public MACAddress MAC1 { get; set; }
 
         public event Action<EthernetFrame> FrameReady;
 

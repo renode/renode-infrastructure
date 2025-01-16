@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -122,7 +122,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithTaggedFlag("MACCR.GPSLCE (GPSLCE)", 23)
                     .WithTag("MACCR.IPG (IPG)", 24, 3)
                     .WithFlag(27, out checksumOffloadEnable, name: "MACCR.IPC (IPC)")
-                    .WithTag("MACCR.SARC (SARC)", 28, 3)
+                    .WithEnumField<DoubleWordRegister, RegisterSourceAddressOperation>(28, 3, out sourceAddressOperation, name: "MACCR.SARC (SARC)")
                     .WithTaggedFlag("MACCR.ARPEN (ARPEN)", 31)
                 },
                 {(long)RegistersMacAndMmc.ExtendedOperatingModeConfiguration, new DoubleWordRegister(this)
@@ -445,14 +445,30 @@ namespace Antmicro.Renode.Peripherals.Network
                         writeCallback: (_, value) => MAC = MAC.WithNewOctets(d: (byte)value))
                 },
                 {(long)RegistersMacAndMmc.MACAddress1High, new DoubleWordRegister(this, 0xFFFF)
-                    .WithTag("MACA1HR.ADDRHI (ADDRHI)", 0, 16)
+                    .WithValueField(0, 8, name: "MACA1HR.ADDRHI (ADDRHI) [MAC1.E]",
+                        valueProviderCallback: _ => MAC1.E,
+                        writeCallback: (_, value) => MAC1 = MAC1.WithNewOctets(e: (byte)value))
+                    .WithValueField(8, 8, name: "MACA1HR.ADDRHI (ADDRHI) [MAC1.F]",
+                        valueProviderCallback: _ => MAC1.F,
+                        writeCallback: (_, value) => MAC1 = MAC1.WithNewOctets(f: (byte)value))
                     .WithReservedBits(16, 8)
                     .WithTag("MACA1HR.MBC (MBC)", 24, 6)
                     .WithTaggedFlag("MACA1HR.SA (SA)", 30)
                     .WithTaggedFlag("MACA1HR.AE (AE)", 31)
                 },
                 {(long)RegistersMacAndMmc.MACAddress1Low, new DoubleWordRegister(this, 0xFFFFFFFF)
-                    .WithTag("MACA1LR.ADDRLO (ADDRLO)", 0, 32)
+                    .WithValueField(0, 8, name: "MACA1LR.ADDRLO (ADDRLO) [MAC.A]",
+                        valueProviderCallback: _ => MAC1.A,
+                        writeCallback: (_, value) => MAC1 = MAC1.WithNewOctets(a: (byte)value))
+                    .WithValueField(8, 8, name: "MACA1LR.ADDRLO (ADDRLO) [MAC1.B]",
+                        valueProviderCallback: _ => MAC1.B,
+                        writeCallback: (_, value) => MAC = MAC.WithNewOctets(b: (byte)value))
+                    .WithValueField(16, 8, name: "MACA1LR.ADDRLO (ADDRLO) [MAC1.C]",
+                        valueProviderCallback: _ => MAC1.C,
+                        writeCallback: (_, value) => MAC1 = MAC1.WithNewOctets(c: (byte)value))
+                    .WithValueField(24, 8, name: "MACA1LR.ADDRLO (ADDRLO) [MAC1.D]",
+                        valueProviderCallback: _ => MAC1.D,
+                        writeCallback: (_, value) => MAC1 = MAC1.WithNewOctets(d: (byte)value))
                 },
                 {(long)RegistersMacAndMmc.MACAddress2High, new DoubleWordRegister(this, 0xFFFF)
                     .WithTag("MACA2HR.ADDRHI (ADDRHI)", 0, 16)
@@ -1324,6 +1340,7 @@ namespace Antmicro.Renode.Peripherals.Network
         private IFlagRegisterField miiBusy;
         private IFlagRegisterField clause45PhyEnable;
         private IEnumRegisterField<MIIOperation> miiOperation;
+        private IEnumRegisterField<RegisterSourceAddressOperation> sourceAddressOperation;
         private IValueRegisterField miiRegisterOrDeviceAddress;
         private IValueRegisterField miiPhy;
         private IValueRegisterField miiData;
@@ -1570,6 +1587,18 @@ namespace Antmicro.Renode.Peripherals.Network
             CurrentApplicationReceiveBuffer = 0x5C,
             Status = 0x60,
             MissedFrameCount = 0x6C,
+        }
+
+        public enum RegisterSourceAddressOperation : byte
+        {
+            MACAddressRegisterReserved0 = 0b000,
+            MACAddressRegisterReserved1 = 0b001,
+            MACAddressRegister0Insert   = 0b010,
+            MACAddressRegister0Replace  = 0b011,
+            MACAddressRegisterReserved2 = 0b100,
+            MACAddressRegisterReserved3 = 0b101,
+            MACAddressRegister1Insert   = 0b110,
+            MACAddressRegister1Replace  = 0b111,
         }
 
         protected enum DMATxProcessState

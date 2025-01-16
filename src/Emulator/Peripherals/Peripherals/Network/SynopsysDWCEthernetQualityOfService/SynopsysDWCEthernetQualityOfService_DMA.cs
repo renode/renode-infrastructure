@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -710,6 +710,41 @@ namespace Antmicro.Renode.Peripherals.Network
                         var buffer = structure.FetchBuffer1OrHeader(parent.Bus, parent.CpuContext);
                         txCurrentBuffer.Value = structure.buffer1OrHeaderAddress;
                         var tsoEnabled = structure.tcpSegmentationEnable && tcpSegmentationEnable.Value;
+
+                        MACAddress? sourceAddress = null;
+                        switch(structure.sourceAddressControl)
+                        {
+                            case DescriptorSourceAddressOperation.MACAddressRegister0Insert:
+                            case DescriptorSourceAddressOperation.MACAddressRegister0Replace:
+                                sourceAddress = parent.MAC0;
+                                break;
+                            case DescriptorSourceAddressOperation.MACAddressRegister1Insert:
+                            case DescriptorSourceAddressOperation.MACAddressRegister1Replace:
+                                sourceAddress = parent.MAC1;
+                                break;
+                            default:
+                                sourceAddress = null;
+                                break;
+                        }
+
+                        if(!sourceAddress.HasValue)
+                        {
+                            switch(parent.sourceAddressOperation.Value)
+                            {
+                                case RegisterSourceAddressOperation.MACAddressRegister0Insert:
+                                case RegisterSourceAddressOperation.MACAddressRegister0Replace:
+                                    sourceAddress = parent.MAC0;
+                                    break;
+                                case RegisterSourceAddressOperation.MACAddressRegister1Insert:
+                                case RegisterSourceAddressOperation.MACAddressRegister1Replace:
+                                    sourceAddress = parent.MAC1;
+                                    break;
+                                default:
+                                    this.Log(LogLevel.Error, "Using a reserved value in ETH_MACCR.SARC register.");
+                                    break;
+                            }
+                        }
+
                         if(structure.firstDescriptor)
                         {
                             if(tsoEnabled)
@@ -720,7 +755,8 @@ namespace Antmicro.Renode.Peripherals.Network
                                     (uint)maximumSegmentSize.Value,
                                     latestTxContext,
                                     parent.checksumOffloadEnable.Value,
-                                    parent.SendFrame
+                                    parent.SendFrame,
+                                    sourceAddress
                                 );
                                 buffer = structure.FetchBuffer2OrBuffer1(parent.Bus, parent.CpuContext);
                                 txCurrentBuffer.Value = structure.buffer2orBuffer1Address;

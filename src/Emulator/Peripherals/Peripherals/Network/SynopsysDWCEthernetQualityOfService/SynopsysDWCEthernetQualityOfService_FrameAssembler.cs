@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -7,6 +7,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.NetworkInformation;
+using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Network;
 using Antmicro.Renode.Utilities.Packets;
@@ -34,13 +36,13 @@ namespace Antmicro.Renode.Peripherals.Network
         private class FrameAssembler
         {
             public FrameAssembler(IEmulationElement parent, CRCPadOperation crcPadControl, ChecksumOperation checksumControl, Action<EthernetFrame> frameReady)
-                : this(parent, null, crcPadControl, checksumControl, 0, frameReady)
+                : this(parent, null, crcPadControl, checksumControl, 0, frameReady, null)
             {
             }
 
-            public FrameAssembler(IEmulationElement parent, byte[] header, uint defaultMaximumSegmentSize, TxDescriptor.ContextDescriptor? context, bool enableChecksumOffload, Action<EthernetFrame> frameReady)
+            public FrameAssembler(IEmulationElement parent, byte[] header, uint defaultMaximumSegmentSize, TxDescriptor.ContextDescriptor? context, bool enableChecksumOffload, Action<EthernetFrame> frameReady, MACAddress? sourceMACAddress)
                 : this(parent, header, CRCPadOperation.InsetCRCAndPad, enableChecksumOffload ? ChecksumOperation.InsertHeaderPayloadAndPseudoHeaderChecksum : ChecksumOperation.None,
-                    context.HasValue && context.Value.oneStepTimestampCorrectionInputOrMaximumSegmentSizeValid ? context.Value.maximumSegmentSize : defaultMaximumSegmentSize, frameReady)
+                    context.HasValue && context.Value.oneStepTimestampCorrectionInputOrMaximumSegmentSizeValid ? context.Value.maximumSegmentSize : defaultMaximumSegmentSize, frameReady, sourceMACAddress)
             {
                 if(header.Length < EthernetFields.HeaderLength)
                 {
@@ -107,10 +109,11 @@ namespace Antmicro.Renode.Peripherals.Network
                 FinalizeSegment(payloadSegments.SelectMany(x => x), totalPayloadLength, true);
             }
 
-            private FrameAssembler(IEmulationElement parent, byte[] header, CRCPadOperation crcPadControl, ChecksumOperation checksumControl, uint maximumSegmentSize, Action<EthernetFrame> frameReady)
+            private FrameAssembler(IEmulationElement parent, byte[] header, CRCPadOperation crcPadControl, ChecksumOperation checksumControl, uint maximumSegmentSize, Action<EthernetFrame> frameReady, MACAddress? sourceMACAddress)
             {
                 this.parent = parent;
                 tcpHeader = header;
+                this.sourceMACAddress = sourceMACAddress;
 
                 padEthernetFrame = false;
 
@@ -222,6 +225,10 @@ namespace Antmicro.Renode.Peripherals.Network
                     {
                         builtFrame.FillWithChecksums(checksumOffloadEngineIpHeaderTypes, checksumTypes, crcMode != CRCMode.Keep);
                     }
+                    if(sourceMACAddress.HasValue)
+                    {
+                        builtFrame.UnderlyingPacket.SourceHwAddress = (PhysicalAddress)sourceMACAddress.Value;
+                    }
                     return true;
                 }
                 catch(Exception e)
@@ -238,6 +245,7 @@ namespace Antmicro.Renode.Peripherals.Network
             private uint packetsFinalized;
 
             private readonly IEmulationElement parent;
+            private readonly MACAddress? sourceMACAddress;
             private readonly byte[] tcpHeader;
             private readonly CRCMode crcMode;
             private readonly bool padEthernetFrame;

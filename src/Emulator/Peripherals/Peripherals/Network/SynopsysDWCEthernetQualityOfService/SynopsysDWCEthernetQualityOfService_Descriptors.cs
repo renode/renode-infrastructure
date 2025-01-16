@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -414,7 +414,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 [PacketField, Offset(doubleWords: 3, bits: 19), Width(4)] // THL
                 public uint headerLength;
                 [PacketField, Offset(doubleWords: 3, bits: 23), Width(3)] // SAIC
-                public SourceAddressOperation sourceAddressControl;
+                public DescriptorSourceAddressOperation sourceAddressControl;
                 [PacketField, Offset(doubleWords: 3, bits: 26), Width(2)] // CPC
                 public CRCPadOperation crcPadControl;
                 [PacketField, Offset(doubleWords: 3, bits: 28), Width(1)] // LD
@@ -629,7 +629,7 @@ namespace Antmicro.Renode.Peripherals.Network
             InsertHeaderPayloadAndPseudoHeaderChecksum = 0b11,
         }
 
-        private enum SourceAddressOperation : byte
+        private enum DescriptorSourceAddressOperation : byte
         {
             MACAddressRegister0None     = 0b000,
             MACAddressRegister0Insert   = 0b001,
