@@ -1601,7 +1601,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             try
             {
                 currentCpu = machine.GetSystemBus(this).GetCurrentCPU();
-                if(currentCpu is CortexM mcpu)
+                // Checking if TZ is enabled is a short-cut to avoid lengthy lookups into CPU state
+                // and stack unwinding if an exception is thrown.
+                // It results in a significant speed-up
+                if(currentCpu is CortexM mcpu && mcpu.TrustZoneEnabled)
                 {
                     return mcpu.SecureState;
                 }
