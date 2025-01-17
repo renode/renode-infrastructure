@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -237,7 +237,7 @@ namespace Antmicro.Renode.Peripherals.SCI
                         transmitFIFOEmpty.Value = false;
                         transmitEnd.Value = false;
                         UpdateInterrupts();
-                        machine.ScheduleAction(TimeInterval.FromMilliseconds(TransmitInterruptDelay), ___ =>
+                        machine.ScheduleAction(TimeInterval.FromMicroseconds(TransmitInterruptDelay), ___ =>
                         {
                             transmitFIFOEmpty.Value = true;
                             transmitEnd.Value = true;
@@ -406,7 +406,7 @@ namespace Antmicro.Renode.Peripherals.SCI
         private const int ReceiveFifoFullIrqIdx = 2;
         private const int TransmitFifoEmptyIrqIdx = 3;
         private const int TransmitEndReceiveReadyIrqIdx = 4;
-        private const int TransmitInterruptDelay = 1;
+        private const int TransmitInterruptDelay = 5;
 
         private enum CommunicationMode
         {
