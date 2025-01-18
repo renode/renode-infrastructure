@@ -1166,6 +1166,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/I2C/EFR32_GenericI2CController.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/I2C/EFR32xG2_I2CController.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/STM32WBA_RCC.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/STM32WBx5_RCC.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Timers/EFR32xG2_BURTC.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/I2C/SHT45.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/I2C/BME280.cs" />
