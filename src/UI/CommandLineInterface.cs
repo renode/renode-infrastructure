@@ -161,14 +161,6 @@ namespace Antmicro.Renode.UI
             Shell shell = null;
             if(options.Console)
             {
-            #if NET && !PLATFORM_WINDOWS
-                // On dotnet "collapse-repeated-log-entries" configuration is not supported in "--console" mode on unix-like systems 
-                // https://github.com/dotnet/runtime/issues/49301#issuecomment-800048609
-                Logger.Log(LogLevel.Warning, "On dotnet configuration option \"collapse-repeated-log-entries\" is not supported in console mode on unix-like system. It will be set to false.");
-                ConsoleBackend.Instance.ReportRepeatingLines = true;
-                // Override config for the current session to keep it consistent, in case it is read from other place in code.
-                ConfigurationManager.Instance.SetNonPersistent("general", "collapse-repeated-log-entries", false);
-            #endif
                 var io = new IOProvider()
                 {
                     Backend = new ConsoleIOSource()
