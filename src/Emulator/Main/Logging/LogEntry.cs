@@ -49,17 +49,6 @@ namespace Antmicro.Renode.Logging
             return (int)Id;
         }
 
-        public int GetHashCodeWithoutIdAndTime()
-        {
-            int hash = 17;
-            hash = hash * 23 + numericLogLevel;
-            hash = hash * 23 + Message.GetHashCode();
-            hash = hash * 23 + SourceId;
-            hash = hash * 23 + (ThreadId ?? -1);
-
-            return hash;
-        }
-
         public void Load(PrimitiveReader reader)
         {
             Id = reader.ReadUInt64();
