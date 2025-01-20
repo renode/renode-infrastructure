@@ -1035,11 +1035,15 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
                 if(result != SpuriousInterrupt)
                 {
-                    maskedInterruptPresent = true;
                     if(result == NonMaskableInterruptIRQ || (cpu.PRIMASK == 0 && cpu.FAULTMASK == 0))
                     {
                         IRQ.Set(true);
                     }
+                    // This field has side-effects, and can cause Cortex-M CPU running in another thread to exit WFI immediately.
+                    // Make absolutely sure to execute last, after signaling IRQ handler to run with `IRQ.Set`.
+                    // Only this way the CPU will enter an exception handler immediately upon waking from WFI.
+                    // This doesn't matter for async (HW) interrupts, arriving when the core is executing normally.
+                    maskedInterruptPresent = true;
                 }
                 else
                 {
