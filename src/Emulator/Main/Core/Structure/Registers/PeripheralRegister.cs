@@ -95,6 +95,10 @@ namespace Antmicro.Renode.Core.Structure.Registers
             {
                 return UnderlyingValue;
             }
+            set
+            {
+                UnderlyingValue = value;
+            }
         }
 
         public const int QuadWordWidth = 64;
