@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -57,7 +57,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public override IConditionalRegistration WithInitiatorAndStateMask(IPeripheral initiator, StateMask mask)
         {
-            return new BusMultiRegistration(StartingPoint, Range.Size, ConnectionRegionName, mask, cpu: initiator);
+            return new BusMultiRegistration(StartingPoint, Range.Size, ConnectionRegionName, mask, cpu: initiator, condition: Condition);
         }
 
         public void RegisterForEachContext(Action<BusMultiRegistration> register)

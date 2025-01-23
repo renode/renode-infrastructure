@@ -55,7 +55,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public override IConditionalRegistration WithInitiatorAndStateMask(IPeripheral initiator, StateMask mask)
         {
-            return new BusPointRegistration(StartingPoint, mask, Offset, initiator);
+            return new BusPointRegistration(StartingPoint, mask, Offset, initiator, condition: Condition);
         }
 
         public void RegisterForEachContext(Action<BusPointRegistration> register)
