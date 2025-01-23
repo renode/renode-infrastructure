@@ -750,6 +750,7 @@
     <Compile Include="Peripherals\SPI\SAM_SPI.cs" />
     <Compile Include="Peripherals\Timers\SAM_TC.cs" />
     <Compile Include="Peripherals\IRQControllers\RenesasRZG_IRQController.cs" />
+    <Compile Include="Peripherals\I2C\RockchipI2C.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
