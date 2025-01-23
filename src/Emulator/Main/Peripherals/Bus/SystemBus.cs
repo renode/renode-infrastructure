@@ -1163,6 +1163,34 @@ namespace Antmicro.Renode.Peripherals.Bus
             return cpuLookup;
         }
 
+        public IReadOnlyDictionary<string, int> GetCommonStateBits()
+        {
+            var possibleInitiators = Machine.GetPeripheralsOfType<IPeripheralWithTransactionState>();
+            if(!possibleInitiators.Any())
+            {
+                return null;
+            }
+
+            var theIntersectionOfTheirStateBitsets = possibleInitiators
+                .Select(i => i.StateBits)
+                .Aggregate((commonDict, nextDict) =>
+                    commonDict
+                        .Where(p => nextDict.TryGetValue(p.Key, out var value) && p.Value == value)
+                        .ToDictionary(p => p.Key, p => p.Value)
+                );
+            return theIntersectionOfTheirStateBitsets;
+        }
+
+        public IReadOnlyDictionary<string, int> GetStateBits(string initiatorName)
+        {
+            if(string.IsNullOrEmpty(initiatorName))
+            {
+                throw new ArgumentNullException(nameof(initiatorName));
+            }
+            var fullPath = Core.Machine.SystemBusName + Core.Machine.PathSeparator + initiatorName;
+            return Machine.TryGetByName<IPeripheralWithTransactionState>(fullPath, out var peri) ? peri?.StateBits : null;
+        }
+
         public IMachine Machine { get; }
 
         public int UnexpectedReads

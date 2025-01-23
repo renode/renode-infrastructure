@@ -103,6 +103,9 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         SymbolLookup GetLookup(ICPU context = null);
 
+        IReadOnlyDictionary<string, int> GetCommonStateBits();
+        IReadOnlyDictionary<string, int> GetStateBits(string initiatorName);
+
         void EnableAllTranslations(bool enable = true);
         void EnableAllTranslations(IBusPeripheral busPeripheral, bool enable = true);
 

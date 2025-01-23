@@ -472,6 +472,16 @@ namespace Antmicro.Renode.Peripherals.Bus
             return ParentController.GetLookup(context);
         }
 
+        public virtual IReadOnlyDictionary<string, int> GetCommonStateBits()
+        {
+            return ParentController.GetCommonStateBits();
+        }
+
+        public virtual IReadOnlyDictionary<string, int> GetStateBits(string initiatorName)
+        {
+            return ParentController.GetStateBits(initiatorName);
+        }
+
         public virtual bool TryGetAllSymbolAddresses(string symbolName, out IEnumerable<ulong> symbolAddresses, ICPU context = null)
         {
             return ParentController.TryGetAllSymbolAddresses(symbolName, out symbolAddresses, context);
