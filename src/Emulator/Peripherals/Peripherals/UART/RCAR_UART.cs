@@ -11,6 +11,8 @@ using Antmicro.Renode.Core;
 using Antmicro.Migrant;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.UART;
+using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -21,7 +23,7 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             IRQ = new GPIO();
 
-            receiveQueue = new Queue<ushort>();
+            receiveQueue = new Queue<byte>();
             RegistersCollection = new DoubleWordRegisterCollection(this);
             DefineRegisters();
             Reset();
@@ -86,7 +88,22 @@ namespace Antmicro.Renode.Peripherals.UART
                     })
                 .WithReservedBits(8, 24);
 
-            Registers.SerialStatus.Define(this, 0x20)
+            Registers.ReceiveData.Define(this)
+               .WithValueField(0, 8, FieldMode.Read, name: "RDAT",
+                valueProviderCallback: _ =>
+                {
+                    if(!receiveQueue.TryDequeue(out byte value))
+                    {
+                        this.Log(LogLevel.Warning, "Trying to read data from empty receive fifo");
+                        return 0;
+                    }
+                    return value;
+                });
+
+            Registers.FifoDataCount.Define(this)
+                .WithValueField(0, 16, valueProviderCallback: _ => (ulong) receiveQueue.Count);
+
+            Registers.SerialStatus.Define(this, 0x60)
 
                 .WithTaggedFlag("DR", 0)
                 .WithTaggedFlag("RDF", 1)
@@ -107,7 +124,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithReservedBits(16, 16);
         }
 
-        private readonly Queue<ushort> receiveQueue;
+        private readonly Queue<byte> receiveQueue;
 
         [field: Transient]
         public event Action<byte> CharReceived;
