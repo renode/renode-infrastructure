@@ -445,7 +445,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             statusRegister &= StatusFlags.SystemClockGenerator0;
             PC = interruptAddress;
 
-            pendingInterrupt.Remove(interruptNumber);
             InterruptAcknowledged?.Invoke(interruptNumber);
         }
 

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -147,11 +147,6 @@ namespace Antmicro.Renode.Peripherals.UART
                     {
                         var returnValue = queue.TryDequeue(out var character) ? (byte)character : (byte)0;
 
-                        // NOTE: We have to call UpdateInterrupts immediately, so if there are still
-                        // pending bytes to read, we will blink the IRQ
-                        interruptReceivePending.Value = false;
-                        UpdateInterrupts();
-
                         if(queue.Count > 0)
                         {
                             interruptReceivePending.Value = true;
@@ -168,10 +163,6 @@ namespace Antmicro.Renode.Peripherals.UART
                     writeCallback: (_, value) =>
                     {
                         CharReceived?.Invoke((byte)value);
-
-                        // NOTE: Blink the IRQ if there is still data in the queue
-                        interruptTransmitPending.Value = false;
-                        UpdateInterrupts();
 
                         interruptTransmitPending.Value = true;
                         UpdateInterrupts();
