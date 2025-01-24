@@ -157,7 +157,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                             {
                                 var systemBus = machine.SystemBus;
 
-                                systemBus.Unregister(this.rom);
+                                if(systemBus.WhatPeripheralIsAt(RomRemapAddress) != this.rom)
+                                {
+                                    this.ErrorLog("ROM cannot be unregisted from 0x{0:X} because it is not registered at this address");
+                                    return;
+                                }
+
+                                systemBus.UnregisterFromAddress(RomRemapAddress);
                                 systemBus.Register(this.eflashDataText, new BusPointRegistration(RomRemapAddress));
                                 // SP is register is not available in the interface, so we have to set it manually
                                 // ArmRegisters is in another project, so we can't use it here
