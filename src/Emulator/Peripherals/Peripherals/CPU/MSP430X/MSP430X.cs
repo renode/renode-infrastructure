@@ -10,9 +10,11 @@ using System.Linq;
 using System.Collections.Generic;
 
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Memory;
 using Antmicro.Renode.Utilities;
 using ELFSharp.ELF;
 
@@ -22,7 +24,31 @@ namespace Antmicro.Renode.Peripherals.CPU
     {
         public MSP430X(IMachine machine, string cpuType) : base(0, cpuType, machine, Endianess.LittleEndian)
         {
-            // Intentionally left empty
+            // NOTE: Track all ArrayMemory instances for the direct access
+            machine.PeripheralsChanged += (_, ev) =>
+            {
+                if(ev.Peripheral is ArrayMemory arrayMemory)
+                {
+                    if(ev.Operation == PeripheralsChangedEventArgs.PeripheralChangeType.Removal ||
+                       ev.Operation == PeripheralsChangedEventArgs.PeripheralChangeType.CompleteRemoval ||
+                       ev.Operation == PeripheralsChangedEventArgs.PeripheralChangeType.Moved)
+                    {
+                        foreach(var startingPoint in arrayMemoryList.Where(keyValue => keyValue.Value == arrayMemory).Select(keyValue => keyValue.Key).ToList())
+                        {
+                            arrayMemoryList.Remove(startingPoint);
+                        }
+                    }
+
+                    if(ev.Operation == PeripheralsChangedEventArgs.PeripheralChangeType.Addition ||
+                       ev.Operation == PeripheralsChangedEventArgs.PeripheralChangeType.Moved)
+                    {
+                        foreach(IBusRegistration registrationPoint in machine.GetPeripheralRegistrationPoints(machine.SystemBus, arrayMemory))
+                        {
+                            arrayMemoryList[registrationPoint.StartingPoint] = arrayMemory;
+                        }
+                    }
+                }
+            };
         }
 
         public override void Reset()
@@ -1307,11 +1333,49 @@ namespace Antmicro.Renode.Peripherals.CPU
             SetStatusFlag(StatusFlags.Overflow, ((operand1 ^ operand2) & mask) == 0 && ((operand1 ^ result) & mask) > 0);
         }
 
+        private bool TryPerformDirectWrite(ulong address, uint value, AccessWidth accessWidth)
+        {
+            var len = (ulong)GetAccessWidthInBytes(accessWidth);
+            var keyValue = arrayMemoryList.Where(e => address >= e.Key && address + len < e.Key + (ulong)e.Value.Size).FirstOrDefault();
+            if(keyValue.Value == null)
+            {
+                return false;
+            }
+
+            var underlyingMemory = keyValue.Value;
+            address -= keyValue.Key;
+
+            switch(accessWidth)
+            {
+                case AccessWidth._8bit:
+                    underlyingMemory.WriteByte((long)address, (byte)value);
+                    break;
+
+                case AccessWidth._16bit:
+                    underlyingMemory.WriteWord((long)address, (ushort)value);
+                    break;
+
+                case AccessWidth._20bit:
+                    underlyingMemory.WriteDoubleWord((long)address, value & GetAccessWidthMask(accessWidth));
+                    break;
+
+                default:
+                    throw new Exception("unreachable");
+            }
+
+            return true;
+        }
+
         private void PerformMemoryWrite(ulong address, uint value, AccessWidth accessWidth)
         {
             if(machine.SystemBus.TryGetWatchpointsAt(address, Access.Write, out var _))
             {
                 pendingWatchpoints.Add(new PendingWatchpoint(address, accessWidth, value));
+            }
+
+            if(TryPerformDirectWrite(address, value, accessWidth))
+            {
+                return;
             }
 
             switch(accessWidth)
@@ -1334,11 +1398,51 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        private bool TryPerfrormDirectRead(ulong address, AccessWidth accessWidth, out uint value)
+        {
+            var len = (ulong)GetAccessWidthInBytes(accessWidth);
+            var keyValue = arrayMemoryList.Where(e => address >= e.Key && address + len < e.Key + (ulong)e.Value.Size).FirstOrDefault();
+            if(keyValue.Value == null)
+            {
+                value = 0;
+                return false;
+            }
+
+            var underlyingMemory = keyValue.Value;
+            address -= keyValue.Key;
+
+            switch(accessWidth)
+            {
+                case AccessWidth._8bit:
+                    value = underlyingMemory.ReadByte((long)address);
+                    break;
+
+                case AccessWidth._16bit:
+                    value = underlyingMemory.ReadWord((long)address);
+                    break;
+
+                case AccessWidth._20bit:
+                    value = underlyingMemory.ReadDoubleWord((long)address);
+                    value &= GetAccessWidthMask(accessWidth);
+                    break;
+
+                default:
+                    throw new Exception("unreachable");
+            }
+
+            return true;
+        }
+
         private uint PerformMemoryRead(ulong address, AccessWidth accessWidth)
         {
             if(machine.SystemBus.TryGetWatchpointsAt(address, Access.Read, out var _))
             {
                 pendingWatchpoints.Add(new PendingWatchpoint(address, accessWidth));
+            }
+
+            if(TryPerfrormDirectRead(address, accessWidth, out var directValue))
+            {
+                return directValue;
             }
 
             switch(accessWidth)
@@ -1371,6 +1475,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        private static int GetAccessWidthInBytes(AccessWidth accessWidth)
+        {
+            return (int)accessWidth;
+        }
+
         private static uint GetAccessWidthMask(AccessWidth accessWidth)
         {
             return (1U << GetAccessWidthInBits(accessWidth)) - 1;
@@ -1389,6 +1498,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private readonly Stack<int> processedInterrupt = new Stack<int>();
         private readonly IDictionary<ulong, HashSet<Action<ICpuSupportingGdb, ulong>>> hooks =
             new Dictionary<ulong, HashSet<Action<ICpuSupportingGdb, ulong>>>();
+        private readonly SortedList<ulong, ArrayMemory> arrayMemoryList = new SortedList<ulong, ArrayMemory>();
 
         private const uint InterruptVectorStart = 0xFFFE;
 
@@ -1438,11 +1548,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             Overflow = (1 << 8)
         }
 
+        // NOTE: Enum value stores a byte width
         private enum AccessWidth
         {
-            _8bit,
-            _16bit,
-            _20bit,
+            _8bit = 1,
+            _16bit = 2,
+            _20bit = 4,
         }
 
         private enum AddressingMode
