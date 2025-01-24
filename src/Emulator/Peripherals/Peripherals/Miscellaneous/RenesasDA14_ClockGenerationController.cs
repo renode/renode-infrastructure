@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -156,10 +156,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                             machine.LocalTimeSource.ExecuteInNearestSyncedState((__) =>
                             {
                                 var systemBus = machine.SystemBus;
-                                const int baseRegistrationPoint = 0x0;
 
                                 systemBus.Unregister(this.rom);
-                                systemBus.Register(this.eflashDataText, new BusPointRegistration(baseRegistrationPoint));
+                                systemBus.Register(this.eflashDataText, new BusPointRegistration(RomRemapAddress));
                                 // SP is register is not available in the interface, so we have to set it manually
                                 // ArmRegisters is in another project, so we can't use it here
                                 const int SP = 13;
@@ -167,7 +166,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                                 const int SPValueInELF = 0x0;
                                 cpuWithRegisters.PC = systemBus.ReadDoubleWord(PCValueInELF);
                                 cpuWithRegisters.SetRegister(SP, systemBus.ReadDoubleWord(SPValueInELF));
-                                cpuWithRegisters.Log(LogLevel.Info, "Succesfully remapped eflash to address 0x0. Restarting machine.");
+                                cpuWithRegisters.Log(LogLevel.Info, "Successfully remapped eflash to address 0x{0:X}, restarting machine", RomRemapAddress);
                                 cpuWithRegisters.Log(LogLevel.Info, "PC set to 0x{0:X}, SP set to 0x{1:X}", cpuWithRegisters.PC.RawValue, cpuWithRegisters.GetRegister(SP).RawValue);
                                 cpuWithRegisters.IsHalted = false;
                             });
@@ -358,6 +357,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private IFlagRegisterField bodVdcdcOkSyncRd;
         private IFlagRegisterField bodVdddOkSyncRd;
         private IFlagRegisterField bodVddioOkSyncRd;
+
+        private const int RomRemapAddress = 0x0;
 
         private enum Registers
         {
