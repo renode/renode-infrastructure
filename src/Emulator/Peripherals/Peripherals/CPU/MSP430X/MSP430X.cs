@@ -63,7 +63,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             hooks.Clear();
             pendingWatchpoints.Clear();
             pendingInterrupt.Clear();
-            processedInterrupt.Clear();
         }
 
         public void OnGPIO(int number, bool value)
@@ -447,7 +446,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             PC = interruptAddress;
 
             pendingInterrupt.Remove(interruptNumber);
-            processedInterrupt.Push(interruptNumber);
             InterruptAcknowledged?.Invoke(interruptNumber);
         }
 
@@ -850,11 +848,6 @@ namespace Antmicro.Renode.Peripherals.CPU
                                 SP += 2U;
                                 newPC |= (ushort)((statusAndPC & 0xF000) << 4);
                                 PC = newPC;
-
-                                if(processedInterrupt.Count > 0)
-                                {
-                                    processedInterrupt.Pop();
-                                }
                             }
                             else
                             {
@@ -1506,7 +1499,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private readonly List<PendingWatchpoint> pendingWatchpoints = new List<PendingWatchpoint>();
         private readonly SortedSet<int> pendingInterrupt = new SortedSet<int>();
-        private readonly Stack<int> processedInterrupt = new Stack<int>();
         private readonly IDictionary<ulong, HashSet<Action<ICpuSupportingGdb, ulong>>> hooks =
             new Dictionary<ulong, HashSet<Action<ICpuSupportingGdb, ulong>>>();
         private readonly SortedList<ulong, ArrayMemory> arrayMemoryList = new SortedList<ulong, ArrayMemory>();
