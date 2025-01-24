@@ -408,7 +408,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private void HandleInterrupt(int interruptNumber)
         {
             var interruptVector = InterruptVectorStart - (ulong)interruptNumber * 2U;
-            var interruptAddress = machine.SystemBus.ReadWord(interruptVector);
+            var interruptAddress = (ushort)PerformMemoryRead(interruptVector, AccessWidth._16bit);
 
             var statusAndPC = ((PC & 0xF0000U) >> 8) | SR;
 
@@ -475,7 +475,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 case AddressingMode.Indexed:
                 {
                     var registerValue = GetRegisterValue(register, addressingMode);
-                    var index = (short)machine.SystemBus.ReadWord(PC);
+                    var index = (short)PerformMemoryRead(PC, AccessWidth._16bit);
                     PC += 2U;
 
                     var memoryAddress = (uint)(registerValue + index);
@@ -1201,7 +1201,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private ExecutionResult EvaluateNextOpcode(ushort extensionWord = 0)
         {
-            var instr = machine.SystemBus.ReadWord((uint)PC);
+            var instr = (ushort)PerformMemoryRead((uint)PC, AccessWidth._16bit);
             this.Log(LogLevel.Debug, "{0}: 0x{1:X04} @ {2}", PC, instr, ExecutedInstructions);
             PC += 2U;
 
