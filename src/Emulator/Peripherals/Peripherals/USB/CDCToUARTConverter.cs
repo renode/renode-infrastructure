@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -61,6 +61,12 @@ namespace Antmicro.Renode.Peripherals.USB
             {
                 CharReceived?.Invoke(value);
             }
+        }
+
+        public override void Dispose()
+        {
+            base.Dispose();
+            EmulationManager.Instance.CurrentEmulation.BackendManager.HideAnalyzersFor(this);
         }
 
         public uint BaudRate { get; set; }
