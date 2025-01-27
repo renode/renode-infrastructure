@@ -87,7 +87,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
         }
 
         /// <summary>
-        /// Gets the underlying value without any modification or reaction.
+        /// Gets or sets the underlying value without any modification or reaction.
         /// </summary>
         public ulong Value
         {
@@ -196,13 +196,17 @@ namespace Antmicro.Renode.Core.Structure.Registers
         }
 
         /// <summary>
-        /// Gets the underlying value without any modification or reaction.
+        /// Gets or sets the underlying value without any modification or reaction.
         /// </summary>
         public uint Value
         {
             get
             {
                 return (uint)UnderlyingValue;
+            }
+            set
+            {
+                UnderlyingValue = value;
             }
         }
 
@@ -301,13 +305,17 @@ namespace Antmicro.Renode.Core.Structure.Registers
         }
 
         /// <summary>
-        /// Gets the underlying value without any modification or reaction.
+        /// Gets or sets the underlying value without any modification or reaction.
         /// </summary>
         public ushort Value
         {
             get
             {
                 return (ushort)UnderlyingValue;
+            }
+            set
+            {
+                UnderlyingValue = value;
             }
         }
 
@@ -406,13 +414,17 @@ namespace Antmicro.Renode.Core.Structure.Registers
         }
 
         /// <summary>
-        /// Gets the underlying value without any modification or reaction.
+        /// Gets or sets the underlying value without any modification or reaction.
         /// </summary>
         public byte Value
         {
             get
             {
                 return (byte)UnderlyingValue;
+            }
+            set
+            {
+                UnderlyingValue = value;
             }
         }
 
