@@ -1044,6 +1044,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/SPI/NORFlash/DecodedOperation.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/SPI/GigaDevice_GD25LQ.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/STM32_PWR.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/STM32WBx5_PWR.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Timers/S32K_LPIT.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Timers/S32K_LPTMR.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/UART/TrivialUart.cs" />
