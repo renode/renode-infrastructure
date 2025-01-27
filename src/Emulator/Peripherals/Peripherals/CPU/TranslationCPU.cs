@@ -1307,10 +1307,10 @@ namespace Antmicro.Renode.Peripherals.CPU
             CyclesPerInstruction = 1;
         }
 
-        protected override ulong SkipInstructions
+        public override ulong SkipInstructions
         {
             get => base.SkipInstructions;
-            set
+            protected set
             {
                 if(!OnPossessedThread)
                 {

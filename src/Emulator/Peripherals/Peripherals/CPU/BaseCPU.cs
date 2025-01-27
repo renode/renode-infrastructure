@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -843,10 +843,10 @@ restart:
             return true;
         }
 
-        protected virtual ulong SkipInstructions
+        public virtual ulong SkipInstructions
         {
             get => skipInstructions;
-            set => skipInstructions = value;
+            protected set => skipInstructions = value;
         }
 
         protected static bool IsSingleStepBlocking => EmulationManager.Instance.CurrentEmulation.SingleStepBlocking;

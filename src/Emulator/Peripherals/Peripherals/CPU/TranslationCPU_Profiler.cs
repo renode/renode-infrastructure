@@ -94,6 +94,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             Perfetto
         }
 
+        public BaseProfiler Profiler => profiler;
+
         [Export]
         protected void OnStackChange(ulong currentAddress, ulong returnAddress, ulong instructionsCount, int isFrameAdd)
         {
