@@ -2090,6 +2090,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 this.gic = gic;
                 this.cpu = cpu;
+                ProcessorNumber = GetProcessorNumber(cpu);
+                TargetFieldFlag = ProcessorNumber <= CPUsCountLegacySupport ? 1U << (int)ProcessorNumber : 0;
+                Affinity = cpu.Affinity;
                 Name = $"cpu{Affinity}";
                 interruptSignals = interruptConnections;
 
@@ -2410,7 +2413,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 }
             }
 
-            public Affinity Affinity => cpu.Affinity;
             public bool IsParticipatingInRouting => !IsSleeping;
             public virtual string CurrentCPUSecurityStateString => $"state: {cpu.SecurityState}";
             public virtual EndOfInterruptModes CurrentEndOfInterruptMode => EndOfInterruptModeEL1;
@@ -2442,8 +2444,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             public EndOfInterruptModes EndOfInterruptModeVirtual { get; set; }
             public bool IsStateSecure => cpu.SecurityState == SecurityState.Secure;
             public string Name { get; }
-            public uint ProcessorNumber => GetProcessorNumber(cpu);
-            public uint TargetFieldFlag => ProcessorNumber <= CPUsCountLegacySupport ? 1U << (int)ProcessorNumber : 0;
             public bool VirtualCPUInterfaceEnabled { get; set; }
             public bool VirtualFIQEnabled { get; set; }
 
@@ -2470,6 +2470,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             public RunningInterrupts RunningInterrupts { get; }
             public uint EOICount { get; private set; }
             public NonSecureAccess[] NonSecureSGIAccess { get; } = new NonSecureAccess[InterruptsDecoder.SoftwareGeneratedCount];
+
+            public readonly uint ProcessorNumber;
+            public readonly uint TargetFieldFlag;
+            public readonly Affinity Affinity;
 
             public const int EOICountWidth = 5;
             public const int EOICountMask = (1 << EOICountWidth) - 1;
