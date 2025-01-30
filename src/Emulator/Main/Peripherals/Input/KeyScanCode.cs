@@ -83,7 +83,7 @@ namespace Antmicro.Renode.Peripherals.Input
         OemSemicolon = 0x33,
         OemQuotes = 0x34,
         CapsLock = 0x39,
-        OemPeriod= 0x36,
+        OemPeriod = 0x36,
         OemComma = 0x37,
         OemQuestion = 0x38,
         NumLock = 0x53,
