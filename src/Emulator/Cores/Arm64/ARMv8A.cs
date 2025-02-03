@@ -34,6 +34,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             catch(Exception e)
             {
+                // Free unmanaged resources allocated by the base class constructor
+                Dispose();
                 throw new ConstructionException($"Failed to attach CPU to Generic Interrupt Controller: {e.Message}", e);
             }
             TlibSetGicCpuRegisterInterfaceVersion(gic.ArchitectureVersionAtLeast3 ? GICCPUInterfaceVersion.Version30Or40 : GICCPUInterfaceVersion.None);

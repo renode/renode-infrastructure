@@ -30,6 +30,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             if(nvic == null)
             {
+                // Free unmanaged resources allocated by the base class constructor
+                Dispose();
                 throw new RecoverableException(new ArgumentNullException("nvic"));
             }
 
@@ -69,7 +71,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             catch(RecoverableException e)
             {
-                // Rethrow attachment error as ConstructionException, so the CreationDriver doesn't crash
+                // Rethrow attachment error as ConstructionException, so the CreationDriver doesn't crash. Also
+                // free unmanaged resources allocated by the base class constructor
+                Dispose();
                 throw new ConstructionException("Exception occurred when attaching NVIC: ", e);
             }
         }

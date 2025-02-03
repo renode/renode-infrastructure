@@ -77,6 +77,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             catch(CpuAbortException)
             {
+                // Free unmanaged resources allocated by the base class constructor
+                Dispose();
                 throw new ConstructionException(string.Format("Unsupported interrupt mode: 0x{0:X}", interruptMode));
             }
 
