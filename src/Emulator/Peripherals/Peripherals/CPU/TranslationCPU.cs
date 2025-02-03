@@ -1260,7 +1260,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         protected override void DisposeInner(bool silent = false)
         {
             base.DisposeInner(silent);
-            TimeHandle.Dispose();
+            TimeHandle?.Dispose();
             RemoveAllHooks();
             TlibDispose();
             RenodeFreeHostBlocks();
