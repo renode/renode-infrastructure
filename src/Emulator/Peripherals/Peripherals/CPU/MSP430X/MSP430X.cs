@@ -908,6 +908,19 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                     }
 
+                    switch(fullOpcode)
+                    {
+                        case 0x04: // NOTE: PUSH
+                        case 0x05: // NOTE: CALL
+                            // NOTE: PUSH and CALL decrement stack pointer before operand evaluation
+                            SP -= 2U;
+                            break;
+
+                        default:
+                            // NOTE: Do nothing
+                            break;
+                    }
+
                     var operand = GetOperandValue((Registers)destination, addressingMode, out var address, accessWidth: accessWidth, addressExtension: addressExtension);
                     switch(fullOpcode)
                     {
@@ -952,13 +965,11 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                         case 0x04:
                             // NOTE: PUSH
-                            SP -= 2U;
                             PerformMemoryWrite(SP, operand, accessWidth);
                             continue;
 
                         case 0x05:
                             // NOTE: CALL
-                            SP -= 2U;
                             PerformMemoryWrite(SP, PC, AccessWidth._16bit);
                             PC = (uint)operand;
                             continue;
