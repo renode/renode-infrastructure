@@ -460,6 +460,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
+        public void SetSleepOnExceptionExitOnAllCPUs(bool value)
+        {
+            foreach(var cpu in machine.SystemBus.GetCPUs().OfType<CortexM>())
+            {
+                cpu.SetSleepOnExceptionExit(value);
+            }
+        }
+
         public DoubleWordRegisterCollection RegisterCollection { get; }
 
         public bool DeepSleepEnabled => deepSleepEnabled.Value;
@@ -579,7 +587,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             Registers.SystemControlRegister.Define(RegisterCollection)
                 .WithReservedBits(0, 1)
-                .WithTaggedFlag("SLEEPONEXIT", 1)
+                .WithFlag(1, out sleepOnExitEnabled, name: "SLEEPONEXIT",
+                    changeCallback: (_, value) => SetSleepOnExceptionExitOnAllCPUs(value))
                 .WithFlag(2, out deepSleepEnabled, name: "SLEEPDEEP")
                 .WithReservedBits(3, 1)
                 .WithFlag(4, out currentSevOnPending, name: "SEVONPEND",
@@ -1290,6 +1299,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private readonly IMachine machine;
         private uint cpuId;
 
+        private IFlagRegisterField sleepOnExitEnabled;
         private IFlagRegisterField deepSleepEnabled;
         private IFlagRegisterField currentSevOnPending;
 

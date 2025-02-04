@@ -58,6 +58,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             base.Reset();
         }
 
+        public void SetSleepOnExceptionExit(bool value)
+        {
+            tlibSetSleepOnExceptionExit(value ? 1 : 0);
+        }
+
         protected override void OnResume()
         {
             // Suppress initialization when processor is turned off as binary may not even be loaded yet
@@ -456,6 +461,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private Func<uint> tlibIsV8;
+
+        [Import]
+        private Action<int> tlibSetSleepOnExceptionExit;
 
         /* PMSAv8 MPU */
         [Import]
