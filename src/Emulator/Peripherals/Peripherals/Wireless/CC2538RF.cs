@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -266,7 +266,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             }
         }
 
-        public void ReceiveFrame(byte[] bytes)
+        public void ReceiveFrame(byte[] bytes, IRadio sender)
         {
             irqHandler.RequestInterrupt(InterruptSource.StartOfFrameDelimiter);
 

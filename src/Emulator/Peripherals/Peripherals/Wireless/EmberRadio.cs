@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -297,7 +297,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         public event Action<IRadio, byte[]> FrameSent;
 
-        public void ReceiveFrame(byte[] frame)
+        public void ReceiveFrame(byte[] frame, IRadio sender)
         {
             this.Log(LogLevel.Warning, "packet as bytes '{0}' of len {1}", frame.Select(x => String.Format("0x{0:X}", x)).Aggregate((x, y) => x + " " + y), frame.Length);
             packLength = (uint)frame.Length;

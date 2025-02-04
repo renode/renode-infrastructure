@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -26,7 +26,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             interruptManager = new InterruptManager<Events>(this, IRQ, "RadioIrq");
             shorts = new Shorts();
             events = new IFlagRegisterField[(int)Events.PHYEnd + 1];
-            rxBuffer = new ConcurrentQueue<byte[]>();
+            rxBuffer = new ConcurrentQueue<KeyValuePair<byte[], IRadio>>();
             DefineRegisters();
             Reset();
         }
@@ -42,14 +42,14 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         public void FakePacket()
         {
-            ReceiveFrame(new byte[]{0xD6, 0xBE, 0x89, 0x8E, 0x60, 0x11, 0xFF, 0xFF, 0xFF, 0xFF, 0x0, 0xC0, 0x2, 0x1, 0x6, 0x7, 0x3, 0xD, 0x18, 0xF, 0x18, 0xA, 0x18, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0});
+            ReceiveFrame(new byte[]{0xD6, 0xBE, 0x89, 0x8E, 0x60, 0x11, 0xFF, 0xFF, 0xFF, 0xFF, 0x0, 0xC0, 0x2, 0x1, 0x6, 0x7, 0x3, 0xD, 0x18, 0xF, 0x18, 0xA, 0x18, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}, null);
         }
 
-        public void ReceiveFrame(byte[] frame)
+        public void ReceiveFrame(byte[] frame, IRadio sender)
         {
             if(radioState != State.RxIdle)
             {
-                rxBuffer.Enqueue(frame);
+                rxBuffer.Enqueue(new KeyValuePair<byte[], IRadio>(frame, sender));
                 return;
             }
 
@@ -392,9 +392,9 @@ namespace Antmicro.Renode.Peripherals.Wireless
             else if(radioState == State.RxIdle)
             {
                 // Can only receive one packet per enable
-                if(rxBuffer.TryDequeue(out var packet))
+                if(rxBuffer.TryDequeue(out var pair))
                 {
-                    ReceiveFrame(packet);
+                    ReceiveFrame(pair.Key, pair.Value);
                 }
             }
             else
@@ -535,7 +535,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
         
         private const int DefaultRSSISample = 10;
 
-        private readonly ConcurrentQueue<byte[]> rxBuffer;
+        private readonly ConcurrentQueue<KeyValuePair<byte[], IRadio>> rxBuffer;
         private Shorts shorts;
         private byte[] addressPrefixes;
         private State radioState;

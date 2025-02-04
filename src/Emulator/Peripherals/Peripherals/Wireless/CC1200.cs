@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -378,7 +378,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             state = State.WaitingForHeader;
         }
 
-        public void ReceiveFrame(byte[] bytes)
+        public void ReceiveFrame(byte[] bytes, IRadio sender)
         {
             if(stateMachineMode == StateMachineMode.ReceiveMode)
             {

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -136,11 +136,11 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 if(receiver is ISlipRadio)
                 {
                     // send immediately
-                    receiver.ReceiveFrame(packetCopy);
+                    receiver.ReceiveFrame(packetCopy, sender);
                     continue;
                 }
 
-                receiver.GetMachine().HandleTimeDomainEvent(receiver.ReceiveFrame, packetCopy, vts, () =>
+                receiver.GetMachine().HandleTimeDomainEvent(receiver.ReceiveFrame, packetCopy, sender, vts, () =>
                 {
                     this.NoisyLog("Packet {0}:chan{1} -> {2}:chan{3} delivered, size {4}.",
                           senderName, sender.Channel, receiverName, receiver.Channel, packet.Length);
