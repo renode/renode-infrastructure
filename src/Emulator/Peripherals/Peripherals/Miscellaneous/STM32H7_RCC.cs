@@ -76,6 +76,33 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 },
                 {(long)Registers.PLLConfigurationRegister, new DoubleWordRegister(this, 0x01FF0000)
                 },
+                {(long)Registers.Domain1KernelClockConfiguration, new DoubleWordRegister(this, 0x0)
+                    .WithValueField(0, 2, name: "FMCSEL")
+                    .WithReservedBits(2, 2)
+                    .WithValueField(4, 2, name: "QSPISEL")
+                    .WithReservedBits(6, 10)
+                    .WithFlag(16, name: "SDMMCSEL")
+                    .WithReservedBits(17, 11)
+                    .WithValueField(28, 2, name: "CKPERSEL")
+                    .WithReservedBits(30, 2)
+                },
+                {(long)Registers.Domain2KernelClockConfiguration, new DoubleWordRegister(this, 0x0)
+                    .WithValueField(0, 3, name: "SAI1SEL")
+                    .WithReservedBits(3, 3)
+                    .WithValueField(6, 3, name: "SAI23SEL")
+                    .WithReservedBits(9, 3)
+                    .WithValueField(12, 3, name: "SPI123SEL")
+                    .WithReservedBits(15, 1)
+                    .WithValueField(16, 3, name: "SPI45SEL")
+                    .WithReservedBits(19, 1)
+                    .WithValueField(20, 2, name: "SPDIFSEL")
+                    .WithReservedBits(22, 2)
+                    .WithFlag(24, name: "DFSDM1SEL")
+                    .WithReservedBits(25, 3)
+                    .WithValueField(28, 2, name: "FDCANSEL")
+                    .WithReservedBits(30, 1)
+                    .WithFlag(31, name: "SVPSEL")
+                },
                 {(long)Registers.BackupDomainControl, new DoubleWordRegister(this)
                     .WithFlag(0, out var lseon, name: "LSEON")
                     .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => lseon.Value, name: "LSERDY")
@@ -91,6 +118,19 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     .WithFlag(0, out var lsion, name: "LSION")
                     .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => lsion.Value, name: "LSIRDY")
                     .WithReservedBits(2, 30)
+                },
+                {(long)Registers.AHB2Enable, new DoubleWordRegister(this, 0x0)
+                    .WithFlag(0, name: "DCMIEN")
+                    .WithReservedBits(1, 3)
+                    .WithFlag(4, name: "CRYPTEN")
+                    .WithFlag(5, name: "HASHEN")
+                    .WithFlag(6, name: "RNGEN")
+                    .WithReservedBits(7, 2)
+                    .WithFlag(9, name: "SDMMC2EN")
+                    .WithReservedBits(10, 19)
+                    .WithFlag(29, name: "SRAM1EN")
+                    .WithFlag(30, name: "SRAM2EN")
+                    .WithFlag(31, name: "SRAM3EN")
                 },
                 {(long)Registers.AHB4Enable, new DoubleWordRegister(this, 0x0)
                     .WithFlag(0, name: "GPIOAEN")
@@ -116,6 +156,18 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     .WithReservedBits(29, 3)
                 }
             };
+
+            for(var i = 0; i < 3; ++i)
+            {
+                registersMap.Add((long)Registers.PLL1DividersConfiguration + i * 0x8, new DoubleWordRegister(this, 0x0101_0280)
+                    .WithValueField(0, 9, name: "DIVN1")
+                    .WithValueField(9, 7, name: "DIVP1")
+                    .WithValueField(16, 7, name: "DIVQ1")
+                    .WithReservedBits(23, 1)
+                    .WithValueField(24, 7, name: "DIVR1")
+                    .WithReservedBits(31, 1)
+                );
+            }
 
             for(var i = 0; i < 3; ++i)
             {
@@ -162,9 +214,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             PLL3DividersConfiguration = 0x40,
             PLL3FractionalDivider = 0x44,
             // ...
+            Domain1KernelClockConfiguration = 0x4C,
+            Domain2KernelClockConfiguration = 0x50,
+            // ...
             BackupDomainControl = 0x70,
             ClockControlAndStatus = 0x74,
             // ...
+            AHB2Enable = 0xDC,
             AHB4Enable = 0xE0
         }
     }
