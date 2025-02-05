@@ -28,6 +28,7 @@ namespace Antmicro.Renode.UserInterface
 
         public MonitorPythonEngine(Monitor monitor)
         {
+            this.monitor = monitor;
             var rootPath = Misc.GetRootDirectory();
 
             var imports = Engine.CreateScriptSourceFromString(Aggregate(Imports));
@@ -69,7 +70,19 @@ namespace Antmicro.Renode.UserInterface
             }
 
             object comm = Scope.GetVariable("mc_" + command_name); // get a method
-            var parameters = command.Skip(1).Select(x => x.GetObjectValue()).ToArray();
+            var parameters = command.Skip(1).Select(token =>
+            {
+                var value = token.GetObjectValue();
+                if(token is LiteralToken)
+                {
+                    if(EmulationManager.Instance.CurrentEmulation.TryGetEmulationElementByName(value as string, monitor.Machine, out var emulationElement))
+                    {
+                        return emulationElement;
+                    }
+                    throw new RecoverableException($"No such emulation element: {value}");
+                }
+                return value;
+            }).ToArray();
 
             ConfigureOutput(writer);
 
@@ -143,9 +156,11 @@ namespace Antmicro.Renode.UserInterface
             streamToEventConverterForError.BytesWritten += bytes => writer.WriteError(utf8WithoutBom.GetString(bytes).Replace("\n", "\r\n"));
         }
 
-        private const string MonitorPyPath = "scripts/monitor.py";
+
         private StreamToEventConverter streamToEventConverter;
         private StreamToEventConverter streamToEventConverterForError;
+        private readonly Monitor monitor;
+        private const string MonitorPyPath = "scripts/monitor.py";
     }
 }
 
