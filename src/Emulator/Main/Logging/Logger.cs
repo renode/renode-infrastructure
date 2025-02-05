@@ -723,12 +723,6 @@ namespace Antmicro.Renode.Logging
             {
                 lock(innerLock)
                 {
-                    if(aggregateLogs) 
-                    {
-                        logAggregatorTimer?.Dispose();
-                        logAggregatorTimer = null;
-                    }
-
                     if(loggingThread == null)
                     {
                         return;
@@ -738,6 +732,9 @@ namespace Antmicro.Renode.Logging
                     cancellationToken.Cancel();
                     loggingThread.Join();
                     loggingThread = null;
+
+                    logAggregatorTimer?.Dispose();
+                    logAggregatorTimer = null;
                 }
             }
 
