@@ -13,7 +13,7 @@ using Antmicro.Renode.Debugging;
 
 namespace Antmicro.Renode.Logging
 {
-    public class ConsoleBackend : TextBackend 
+    public class ConsoleBackend : TextBackend
     {
         public static ConsoleBackend Instance { get; private set; }
 
@@ -46,7 +46,7 @@ namespace Antmicro.Renode.Logging
         // do not set window title
         // minimize the use of VT100 codes
         public bool PlainMode { get; set; }
-        
+
         public bool LogThreadId { get; set; }
 
         public override void Log(LogEntry entry)
@@ -59,7 +59,7 @@ namespace Antmicro.Renode.Logging
             var type = entry.Type;
             var changeColor = !PlainMode && output == Console.Out && type.Color.HasValue && !isRedirected;
             var message = FormatLogEntry(entry);
-            
+
             lock(syncObject)
             {
                 if(changeColor)
@@ -115,4 +115,3 @@ namespace Antmicro.Renode.Logging
         private readonly bool isRedirected;
     }
 }
-
