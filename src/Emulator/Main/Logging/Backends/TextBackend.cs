@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Logging
 {
     public abstract class TextBackend : LoggerBackend
     {
-        protected string FormatLogEntry(LogEntry entry)
+        protected virtual string FormatLogEntry(LogEntry entry)
         {
             var messageBuilder = new StringBuilder();
             var messages = entry.Message.Split('\n').GetEnumerator();

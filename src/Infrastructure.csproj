@@ -1806,6 +1806,7 @@
     <Compile Include="Emulator/Main/Peripherals/Bus/IIndirectCSRPeripheral.cs" />
     <Compile Include="Emulator/Main/Utilities/Fraction.cs" />
     <Compile Include="Emulator/Main/Utilities/ELFUtils.cs" />
+    <Compile Include="Emulator/Main/Logging/Backends/FormattedTextBackend.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Emulator/Main/Peripherals/Bus/SystemBusGenerated.tt">
