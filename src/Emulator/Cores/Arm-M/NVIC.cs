@@ -624,6 +624,27 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 .WithTaggedFlag("RA (Read Allocation Support)", 29)
                 .WithTaggedFlag("WB (Write Back Support)", 30)
                 .WithTaggedFlag("WT (Write Through Support)", 31);
+
+            Registers.DebugExceptionAndMonitorControlRegister.Define(RegisterCollection)
+                .WithTaggedFlag("VC_CORERESET (Reset Vector Catch)", 0)
+                .WithReservedBits(1, 3)
+                .WithTaggedFlag("VC_MMERR (Debug trap on Memory Management faults)", 4)
+                .WithTaggedFlag("VC_NOCPERR (Debug trap on Usage Fault access to Coprocessor which is not present)", 5)
+                .WithTaggedFlag("VC_CHKERR (Debug trap on Usage Fault enabled checking errors)", 6)
+                .WithTaggedFlag("VC_STATERR (Debug trap on Usage Fault state error)", 7)
+                .WithTaggedFlag("VC_BUSERR (Debug trap on normal Bus error)", 8)
+                .WithTaggedFlag("VC_INTERR (Debug trap on interrupt/exception service errors)", 9)
+                .WithTaggedFlag("VC_HARDERR (Debug trap on Hard Fault)", 10)
+                .WithReservedBits(11, 5)
+                .WithTaggedFlag("MON_EN (Monitor Enable)", 16)
+                .WithTaggedFlag("MON_PEND (Monitor Pend)", 17)
+                .WithTaggedFlag("MON_STEP (Monitor Step)", 18)
+                .WithTaggedFlag("MON_REQ (Monitor Request)", 19)
+                .WithReservedBits(20, 4)
+                // The trace flag only store written data.
+                // Changing it doesn't change the behavior of the model.
+                .WithFlag(24, name: "TRCENA (Trace Enable)")
+                .WithReservedBits(25, 7);
         }
 
         private void DefineTightlyCoupledMemoryControlRegisters()
@@ -1169,6 +1190,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             Alias2OfMPURegionAttributeAndSize = 0xDB0, // MPU_RASR_A2
             Alias3OfMPURegionBaseAddress = 0xDB4, // MPU_RBAR_A3
             Alias3OfMPURegionAttributeAndSize = 0xDB8, // MPU_RASR_A3
+            DebugExceptionAndMonitorControlRegister = 0xDFC, // DEMCR
             SoftwareTriggerInterrupt = 0xF00, // STIR
             FPContextControl = 0xF34, // FPCCR
             FPContextAddress = 0xF38, // FPCAR
