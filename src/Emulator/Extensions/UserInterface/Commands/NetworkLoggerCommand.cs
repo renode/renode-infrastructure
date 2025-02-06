@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -17,20 +17,34 @@ namespace Antmicro.Renode.UserInterface.Commands
         {
             base.PrintHelp(writer);
             writer.WriteLine();
+            writer.WriteLine("Usages:");
+            writer.WriteLine($" {FullCommand} PORT [PLAIN_MODE]");
             writer.WriteError("\nYou must specify the port number for the logger's socket.");
+        }
+
+        [Runnable]
+        public void Run(DecimalIntegerToken port, BooleanToken plainMode)
+        {
+            Run((int)port.Value, plainMode.Value);
         }
 
         [Runnable]
         public void Run(DecimalIntegerToken port)
         {
-            Logger.AddBackend(new NetworkBackend((int)port.Value), BackendName, true);
+            Run((int)port.Value);
         }
 
-        public NetworkLoggerCommand(Monitor monitor) : base(monitor, "logNetwork", "sets the output port for logger.", "logN")
+        public NetworkLoggerCommand(Monitor monitor) : base(monitor, FullCommand, "sets the output port for logger.", "logN")
         {
         }
 
+        private void Run(int port, bool plainMode = true)
+        {
+            Logger.AddBackend(new NetworkBackend(port, plainMode), BackendName, overwrite: true);
+        }
+
         private readonly string BackendName = "network";
+        private const string FullCommand = "logNetwork";
     }
 }
 
