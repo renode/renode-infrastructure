@@ -1,5 +1,5 @@
-﻿//
-// Copyright (c) 2010-2024 Antmicro
+//
+// Copyright (c) 2010-2025 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -54,6 +54,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private void Update()
         {
             bool irq = (lfclkEventGenerated.Value && lfclkStartedEventEnabled.Value)
+                    || (lfclkCalibrationEventGenerated.Value && lfclkCalibrationEventEnabled.Value)
                     || (hfclkEventGenerated.Value && hfclkStartedEventEnabled.Value)
                     || (hfclk192mStartedEventEnabled.Value && hfclk192mStarted);
             this.Log(LogLevel.Noisy, "Setting IRQ: {0}", irq);
@@ -107,6 +108,25 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 }, name: "TASKS_HFCLK192MSTART")
                 .WithReservedBits(1, 31);
 
+            Registers.CalibrationOfLFRCCompleted.Define(this)
+                .WithFlag(0, out lfclkCalibrationEventGenerated, name: "EVENTS_HFCLKSTARTED")
+                .WithReservedBits(1, 31)
+                .WithWriteCallback((_, __) => Update());
+
+            Registers.StartLFRCCallibration.Define(this)
+                .WithFlag(0, FieldMode.Write, writeCallback: (_, value) =>
+                {
+                    lfclkCalibrationEventGenerated.Value = true;
+                    Update();
+                }).WithReservedBits(1, 31);
+
+            Registers.StopCallibrationTimer.Define(this)
+                .WithFlag(0, FieldMode.Write, writeCallback: (_, value) =>
+                {
+                    lfclkCalibrationEventGenerated.Value = false;
+                    Update();
+                }).WithReservedBits(1, 31);
+
             Registers.PowerUsbRegisterStatus.Define(this)
                 .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => true, name: "VBUSDETECT")
                 .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => true, name: "OUTPUTRDY")
@@ -137,7 +157,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithFlag(0, out hfclkStartedEventEnabled, FieldMode.Read | FieldMode.Set, name: "HFCLKSTARTED")
                 .WithFlag(1, out lfclkStartedEventEnabled, FieldMode.Read | FieldMode.Set, name: "LFCLKSTARTED")
                 .WithReservedBits(2, 1)
-                .WithTaggedFlag("DONE", 3)
+                .WithFlag(3, out lfclkCalibrationEventEnabled, FieldMode.Read | FieldMode.Set, name: "DONE")
                 .WithTaggedFlag("CTTO", 4)
                 .WithReservedBits(5, 2)
                 .WithTaggedFlag("DONE (nRF5340)", 7) // nRF5340, but also nRF52840 USB
@@ -156,7 +176,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     writeCallback: (_, value) => lfclkStartedEventEnabled.Value &= !value,
                     valueProviderCallback: _ => lfclkStartedEventEnabled.Value, name: "LFCLKSTARTED")
                 .WithReservedBits(2, 1)
-                .WithTaggedFlag("DONE", 3)
+                .WithFlag(3,
+                    writeCallback: (_, value) => lfclkCalibrationEventEnabled.Value &= !value,
+                    valueProviderCallback: _ => lfclkCalibrationEventEnabled.Value, name: "DONE")
                 .WithTaggedFlag("CTTO", 4)
                 .WithReservedBits(5, 2)
                 .WithTaggedFlag("DONE (nRF540)", 7) // nRF5340, but also nRF52840 USB
@@ -205,6 +227,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private IFlagRegisterField hfclkEventGenerated;
         private IFlagRegisterField hfclk192mStartedEventEnabled;
         private IFlagRegisterField hfclk192mAudioStartedEventEnabled;
+        private IFlagRegisterField lfclkCalibrationEventEnabled;
+        private IFlagRegisterField lfclkCalibrationEventGenerated;
 
         private enum Registers
         {
