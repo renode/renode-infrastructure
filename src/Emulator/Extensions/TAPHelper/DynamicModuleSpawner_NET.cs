@@ -36,18 +36,10 @@ namespace Antmicro.Renode.TAPHelper
                 GenerateRuntimeConfig()
             );
 
-            // Copy Extensions.dll and Emulator.dll assemblies to temp directory
-            var extensionsAssemblyPath = Assembly.GetExecutingAssembly().Location;
-            var executingDir = Path.GetDirectoryName(extensionsAssemblyPath);
-            var emulatorAssemblyPath = Path.Combine(executingDir, "Emulator.dll");
-
-            var extensionsPath = Path.Combine(TemporaryFilesManager.Instance.EmulatorTemporaryPath, "Extensions.dll");
-            var emulatorPath = Path.Combine(TemporaryFilesManager.Instance.EmulatorTemporaryPath, "Emulator.dll");
-
-            // Copy Extensions.dll to temp
-            File.Copy(extensionsAssemblyPath, extensionsPath, true);
-            // Copy Emulator.dll to temp
-            File.Copy(emulatorAssemblyPath, emulatorPath, true);
+            // Copy Infrastructure.dll to temp directory
+            var currentAssemblyPath = Assembly.GetExecutingAssembly().Location;
+            var targetPath = Path.Combine(TemporaryFilesManager.Instance.EmulatorTemporaryPath, "Infrastructure.dll");
+            File.Copy(currentAssemblyPath, targetPath, true);
 
             return outputFilePath;
         }

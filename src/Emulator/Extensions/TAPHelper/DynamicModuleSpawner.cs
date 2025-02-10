@@ -22,21 +22,13 @@ namespace Antmicro.Renode.TAPHelper
             var dirName = Path.GetDirectoryName(generatedFileName);
             var filName = Path.GetFileName(generatedFileName);
 
-            var extensionsAssemblySourcePath = Assembly.GetExecutingAssembly().CodeBase.Substring(7);
-            var executingDir = Path.GetDirectoryName(extensionsAssemblySourcePath);
-            var emulatorAssemblySourcePath = Path.Combine(executingDir, "Emulator.dll");
-
-            var extensionsAssemblyPath = Path.Combine(TemporaryFilesManager.Instance.EmulatorTemporaryPath, "Extensions.dll");
-            var emulatorAssemblyPath = Path.Combine(TemporaryFilesManager.Instance.EmulatorTemporaryPath, "Emulator.dll");
-
-            // Copy Extensions.dll to temp
-            FileCopier.Copy(extensionsAssemblySourcePath, extensionsAssemblyPath, true);
-
-            // Copy Emulator.dll (it has LibC wrapper we need)
-            FileCopier.Copy(emulatorAssemblySourcePath, emulatorAssemblyPath, true);
+            // Copy Infrastructure.dll to temp directory
+            var currentAssemblyPath = Assembly.GetExecutingAssembly().CodeBase.Substring(7);
+            var targetPath = Path.Combine(TemporaryFilesManager.Instance.EmulatorTemporaryPath, "Infrastructure.dll");
+            File.Copy(currentAssemblyPath, targetPath, true);
 
             // Generate binary
-            GenerateTAPHelper(dirName, filName, extensionsAssemblyPath);
+            GenerateTAPHelper(dirName, filName, currentAssemblyPath);
 
             return generatedFileName;
         }
