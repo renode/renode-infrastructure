@@ -153,6 +153,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                         .WithReservedBits(27, 5)
                         .WithWriteCallback((oldVal, newVal) =>
                         {
+                            uint oldStart = (oldVal >> 13) & 1;
                             uint oldBytesToTransfer = (oldVal >> 16) & 0xFF;
 
                             if(start.Value && stop.Value)
@@ -175,9 +176,13 @@ namespace Antmicro.Renode.Peripherals.I2C
                                     ExtendTransfer();
                                 }
                             }
-                            else if(oldBytesToTransfer != bytesToTransfer.Value)
+
+                            if(oldStart == 1)
                             {
-                                this.Log(LogLevel.Error, "Changing NBYTES when START is set is not permitted");
+                                if(oldBytesToTransfer != bytesToTransfer.Value)
+                                {
+                                    this.Log(LogLevel.Error, "Changing NBYTES when START is set is not permitted");
+                                }
                             }
 
                             start.Value = false;
