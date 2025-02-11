@@ -17,6 +17,9 @@ namespace Antmicro.Renode.UI
         [Name('P', "port"), DefaultValue(-1), Description("Instead of opening a window, listen for Monitor commands on the specified port.")]
         public int Port { get; set; }
 
+        [Name('b', "store-table-bits"), DefaultValue(36), Description("How many bits are used to uniquely address the store table. Fewer means more memory usage but less spurious reservation invalidations.")]
+        public int StoreTableBits { get; set; }
+
         [Name('e', "execute"), Description("Execute command on startup (executed after the optional script). May be used many times.")]
         public string[] Execute { get; set; }
 
@@ -66,6 +69,12 @@ namespace Antmicro.Renode.UI
             if(DisableXwt)
             {
                 HideMonitor = true;
+            }
+
+            if(StoreTableBits > System.IntPtr.Size * 8)
+            {
+                error = $"--store-table-bits must be between 0 and the host pointer size ({System.IntPtr.Size * 8})";
+                return false;
             }
 
             error = null;

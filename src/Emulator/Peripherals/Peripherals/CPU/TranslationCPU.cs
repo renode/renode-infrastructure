@@ -920,7 +920,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 // Overflow on 64bits currently not possible due to type constraints
                 if(this.bitness == CpuBitness.Bits32)
                 {
-                    useInclusiveEndRange = ((endAddress - 1) == UInt32.MaxValue); 
+                    useInclusiveEndRange = ((endAddress - 1) == UInt32.MaxValue);
                 }
 
                 if(useInclusiveEndRange)
@@ -1128,14 +1128,14 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         private IntPtr GetDirty(IntPtr size)
         {
-            var dirtyAddressesList = machine.GetNewDirtyAddressesForCore(this); 
+            var dirtyAddressesList = machine.GetNewDirtyAddressesForCore(this);
             var newAddressesCount = dirtyAddressesList.Length;
 
             if(newAddressesCount > 0)
             {
                 dirtyAddressesPtr = memoryManager.Reallocate(dirtyAddressesPtr, new IntPtr(newAddressesCount * 8));
                 Marshal.Copy(dirtyAddressesList, 0, dirtyAddressesPtr, newAddressesCount);
-            }      
+            }
             Marshal.WriteInt64(size, newAddressesCount);
 
             return dirtyAddressesPtr;
@@ -1284,7 +1284,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             It has to survive emulation reset, so the file names remain unique.
         */
         private static int CpuCounter = 0;
-        
+
         protected override bool UpdateHaltedState(bool ignoreExecutionMode = false)
         {
             if(!base.UpdateHaltedState(ignoreExecutionMode))
@@ -1353,6 +1353,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 {
                     throw new ConstructionException("Failed to initialize atomic state, see the log for details");
                 }
+                TlibStoreTableInit(machine.StoreTablePointer, (byte)Machine.StoreTableBits);
             }
             HandleRamSetup();
             foreach(var hook in hooks)
@@ -1389,7 +1390,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         /// It's used to restore the atomic state after deserialization
         /// </summary>
         private int atomicId;
-        
+
         [Transient]
         private string libraryFile;
 
@@ -1927,6 +1928,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private Func<IntPtr, int, int> TlibAtomicMemoryStateInit;
+
+        [Import]
+        private Func<UIntPtr, byte, int> TlibStoreTableInit;
 
         [Import]
         private Func<uint> TlibGetPageSize;
