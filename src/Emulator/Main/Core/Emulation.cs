@@ -195,6 +195,15 @@ namespace Antmicro.Renode.Core
             return false;
         }
 
+        public void SetStoreTableBits(int bits)
+        {
+            if (bits > IntPtr.Size * 8 || bits < 0)
+            {
+                throw new RecoverableException($"store table bits must be between 0 and the host pointer size ({IntPtr.Size * 8})");
+            }
+            Machine.StoreTableBits = bits;
+        }
+
         /// <summary>
         /// Adds the machine to emulation.
         /// </summary>

@@ -83,6 +83,7 @@ namespace Antmicro.Renode.Core
 
         IPeripheral this[string name] { get; }
         IntPtr AtomicMemoryStatePointer { get; }
+        UIntPtr StoreTablePointer { get; }
         IClockSource ClockSource { get; }
         bool HasRecorder { get; }
         bool HasPlayer { get; }

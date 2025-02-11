@@ -12,3 +12,4 @@ obj
 *.userprefs
 .vscode
 *.swp
+.idea/

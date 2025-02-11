@@ -37,9 +37,15 @@ namespace Antmicro.Renode.Core
 {
     public class Machine : IMachine, IDisposable
     {
+        /// <summary>
+        ///  The number of bits used to uniquely address the store table in memory.
+        /// </summary>
+        public static int StoreTableBits = 255;
+
         public Machine(bool createLocalTimeSource = false)
         {
             InitAtomicMemoryState();
+            InitHstState();
 
             collectionSync = new object();
             pausingSync = new object();
@@ -75,7 +81,7 @@ namespace Antmicro.Renode.Core
         [PreSerialization]
         private void SerializeAtomicMemoryState()
         {
-            atomicMemoryState = new byte[AtomicMemoryStateSize];
+            atomicMemoryState = new byte[AtomicMemoryStateSizeBytes];
             Marshal.Copy(atomicMemoryStatePointer, atomicMemoryState, 0, atomicMemoryState.Length);
             // the first byte of an atomic memory state contains value 0 or 1
             // indicating if the mutex has already been initialized;
@@ -86,8 +92,7 @@ namespace Antmicro.Renode.Core
         [PostDeserialization]
         public void InitAtomicMemoryState()
         {
-            atomicMemoryStatePointer = Marshal.AllocHGlobal(AtomicMemoryStateSize);
-
+            atomicMemoryStatePointer = Marshal.AllocHGlobal(AtomicMemoryStateSizeBytes);
             // the beginning of an atomic memory state contains two 8-bit flags:
             // byte 0: information if the mutex has already been initialized
             // byte 1: information if the reservations array has already been initialized
@@ -109,14 +114,42 @@ namespace Antmicro.Renode.Core
             }
         }
 
+        [PostDeserialization]
+        public void InitHstState()
+        {
+
+            // How many bits inside a host address that are dedicated to addressing table contents.
+            var contentBits = IntPtr.Size * 8 - StoreTableBits;
+            // It's important that the store table be naturally aligned such that it's located on an address where the
+            // last `contentBits` are zero, so that it becomes easy to calculate the addresses of its elements.
+            var storeTableSizeBytes = 1 << contentBits;
+            unsafe
+            {
+                // Table must be naturally aligned.
+                var tableSizeBytes = (UIntPtr)storeTableSizeBytes;
+                storeTablePointer = (UIntPtr) NativeMemory.AlignedAlloc(tableSizeBytes, tableSizeBytes);
+                // Verify pointer is correctly aligned (sometimes AlignedAlloc fails silently).
+                if((storeTablePointer & (tableSizeBytes - 1)) != 0)
+                {
+                    throw new InvalidOperationException(
+                        "Store table allocation failed. " +
+                        $"The table was not able to be aligned properly (ptr {storeTablePointer}).");
+                }
+            }
+        }
+
         public IntPtr AtomicMemoryStatePointer => atomicMemoryStatePointer;
+        public UIntPtr StoreTablePointer => storeTablePointer;
 
         [Transient]
         private IntPtr atomicMemoryStatePointer;
         private byte[] atomicMemoryState;
 
-        // TODO: this probably should be dynamically get from Tlib, but how to nicely do that in `Machine` class?
-        private const int AtomicMemoryStateSize = 25600;
+        [Transient]
+        private UIntPtr storeTablePointer;
+        private byte[] storeTable; // todo: serialize data?
+
+        private const int AtomicMemoryStateSizeBytes = 25_600;
 
         public IEnumerable<IPeripheral> GetParentPeripherals(IPeripheral peripheral)
         {
@@ -786,7 +819,7 @@ namespace Antmicro.Renode.Core
                     }, eventTime);
                     break;
                 }
-                
+
                 case Emulation.EmulationMode.SynchronizedTimers:
                 {
                     handler(handlerArgument);
@@ -812,7 +845,7 @@ namespace Antmicro.Renode.Core
                     }, eventTime);
                     break;
                 }
-                
+
                 case Emulation.EmulationMode.SynchronizedTimers:
                 {
                     handler(handlerArgument1, handlerArgument2);
@@ -836,7 +869,7 @@ namespace Antmicro.Renode.Core
                             () => handler(handlerArgument), timeDomainInternalEvent);
                     break;
                 }
-                
+
                 case Emulation.EmulationMode.SynchronizedTimers:
                 {
                     handler(handlerArgument);
@@ -894,7 +927,7 @@ namespace Antmicro.Renode.Core
                         () => handler(handlerArgument1, handlerArgument2), timeDomainInternalEvent);
                     break;
                 }
-                
+
                 case Emulation.EmulationMode.SynchronizedTimers:
                 {
                     handler(handlerArgument1, handlerArgument2);
@@ -918,11 +951,11 @@ namespace Antmicro.Renode.Core
                 {
                     throw new RecoverableException($"Recording events only allowed in the synchronized IO emulation mode (current mode is {EmulationManager.Instance.CurrentEmulation.Mode}");
                 }
-                
+
                 recorder = new Recorder(File.Create(fileName), this, recordingBehaviour);
             }
         }
-        
+
         public bool HasPlayer => player != null;
 
         public void PlayFrom(ReadFilePath fileName)
@@ -933,7 +966,7 @@ namespace Antmicro.Renode.Core
                 {
                     throw new RecoverableException($"Replying events only allowed in the synchronized IO emulation mode (current mode is {EmulationManager.Instance.CurrentEmulation.Mode}");
                 }
-                
+
                 player = new Player(File.OpenRead(fileName), this);
                 LocalTimeSource.SyncHook += player.Play;
             }
@@ -1100,7 +1133,7 @@ namespace Antmicro.Renode.Core
             Profiler?.Dispose();
             Profiler = new Profiler(this, outputPath ?? TemporaryFilesManager.Instance.GetTemporaryFile("renode_profiler"));
         }
-        
+
         public void CheckRecorderPlayer()
         {
             lock(recorderPlayerLock)
