@@ -15,39 +15,17 @@ namespace Antmicro.Renode.Logging
 {
     public class ConsoleBackend : TextBackend
     {
-        public static ConsoleBackend Instance { get; private set; }
-
-        public string WindowTitle
+        static ConsoleBackend()
         {
-            // Console.Title *getter* is only supported on Windows,
-            // so we always return an empty string on other platforms.
-            get
-            {
-#if PLATFORM_WINDOWS
-                return PlainMode
-                    ? string.Empty
-                    : Console.Title;
-#else
-                return string.Empty;
-#endif
-            }
-            // The setter is supported on all the platforms we target,
-            // so it doesn't need the if clause.
-            set
-            {
-                if(!PlainMode)
-                {
-                    Console.Title = value;
-                }
-            }
+            Instance = new ConsoleBackend();
         }
 
-        // do not generate color output
-        // do not set window title
-        // minimize the use of VT100 codes
-        public bool PlainMode { get; set; }
+        public static ConsoleBackend Instance { get; private set; }
 
-        public bool LogThreadId { get; set; }
+        public override void Dispose()
+        {
+
+        }
 
         public override void Log(LogEntry entry)
         {
@@ -89,20 +67,42 @@ namespace Antmicro.Renode.Logging
             output.Flush();
         }
 
-        static ConsoleBackend()
+        public string WindowTitle
         {
-            Instance = new ConsoleBackend();
+            // Console.Title *getter* is only supported on Windows,
+            // so we always return an empty string on other platforms.
+            get
+            {
+#if PLATFORM_WINDOWS
+                return PlainMode
+                    ? string.Empty
+                    : Console.Title;
+#else
+                return string.Empty;
+#endif
+            }
+            // The setter is supported on all the platforms we target,
+            // so it doesn't need the if clause.
+            set
+            {
+                if(!PlainMode)
+                {
+                    Console.Title = value;
+                }
+            }
         }
+
+        // do not generate color output
+        // do not set window title
+        // minimize the use of VT100 codes
+        public bool PlainMode { get; set; }
+
+        public bool LogThreadId { get; set; }
 
         private ConsoleBackend()
         {
             syncObject = new object();
             isRedirected = Console.IsOutputRedirected;
-        }
-
-        public override void Dispose()
-        {
-
         }
 
         private void WriteNewLine(string line)
