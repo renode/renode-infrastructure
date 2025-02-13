@@ -362,7 +362,7 @@ namespace Antmicro.Renode.Utilities.Binding
         {
             var baseName = returnType == typeof(void) ? "Action" : "Func" + returnType.Name;
             var paramNames = parameterTypes.Select(p => p.Name);
-            return string.Join("", paramNames.Prepend(baseName));
+            return string.Join("", paramNames.Prepend(baseName)).Replace("[]", "Array");
         }
 
         private static string GetCName(string name)
