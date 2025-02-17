@@ -488,6 +488,11 @@ namespace Antmicro.Renode.Peripherals.Bus
         {
             cachedCpuId.Dispose();
             threadLocalContext.Dispose();
+            globalLookup.Dispose();
+            foreach(var lookup in localLookups.Values)
+            {
+                lookup.Dispose();
+            }
             #if DEBUG
             foreach(var peripherals in allPeripherals)
             {
