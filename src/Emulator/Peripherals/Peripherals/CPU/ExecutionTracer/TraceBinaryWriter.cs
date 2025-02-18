@@ -166,7 +166,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             if(opcode.Length == 0)
             {
-                AttachedCPU.Log(LogLevel.Warning, "ExecutionTracer: Couldn't disassemble opcode at PC 0x{0:X}\n", pc);
+                AttachedCPU.Log(LogLevel.Warning, "ExecutionTracer: Couldn't disassemble opcode at PC 0x{0:X}", pc);
                 return false;
             }
 
