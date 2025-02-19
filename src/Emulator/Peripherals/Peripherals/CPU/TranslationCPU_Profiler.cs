@@ -88,6 +88,16 @@ namespace Antmicro.Renode.Peripherals.CPU
             profiler.FlushBuffer();
         }
 
+        public string GetProfilerStack()
+        {
+            if(profiler == null)
+            {
+                throw new RecoverableException("The profiler is not enabled on this core");
+            }
+
+            return profiler.GetCurrentStack();
+        }
+
         public enum ProfilerType
         {
             CollapsedStack,

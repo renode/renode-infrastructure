@@ -154,6 +154,13 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
             return string.Join(";", stack.Reverse());
         }
 
+        public override string GetCurrentStack()
+        {
+            var result = FormatCollapsedStackString(currentStack);
+
+            return result;
+        }
+
         private readonly StringBuilder stringBuffer;
         private readonly StreamWriter fileStream;
         private ulong lastInstructionsCount;

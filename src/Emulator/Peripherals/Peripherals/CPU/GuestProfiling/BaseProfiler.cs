@@ -47,6 +47,11 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
         public abstract void InterruptExit(ulong interruptIndex);
         public abstract void FlushBuffer();
 
+        public virtual string GetCurrentStack()
+        {
+            throw new RecoverableException($"Functionality is not supported by the currently selected profiler");
+        }
+
         protected string GetSymbolName(ulong address)
         {
             if(!cpu.Bus.TryFindSymbolAt(address, out var name, out var _, cpu))
