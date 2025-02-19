@@ -184,7 +184,7 @@ namespace Antmicro.Renode.Utilities.Packets
                     return false;
                 }
 
-                if(Misc.IsStructType(type))
+                if(Misc.IsStructType(type) || type.IsClass)
                 {
                     if (!TryDecode(type, data, out var nestedPacket, offset))
                     {
@@ -387,7 +387,7 @@ namespace Antmicro.Renode.Utilities.Packets
                 {
                     intermediate = (bool)field.GetValue(packet) ? 1UL : 0UL;
                 }
-                else if(Misc.IsStructType(type))
+                else if(Misc.IsStructType(type) || type.IsClass)
                 {
                     var nestedPacket = field.GetValue(packet);
                     offset += EncodeInner(type, nestedPacket, result, offset);
@@ -548,7 +548,7 @@ namespace Antmicro.Renode.Utilities.Packets
                     {
                         return (int)(GetAttribute<WidthAttribute>()?.Value ?? 0);
                     }
-                    if(Misc.IsStructType(type))
+                    if(Misc.IsStructType(type) || type.IsClass)
                     {
                         return CalculateLength(type);
                     }

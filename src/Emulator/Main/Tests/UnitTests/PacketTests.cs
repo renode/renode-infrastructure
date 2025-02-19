@@ -198,7 +198,7 @@ namespace Antmicro.Renode.UnitTests
             Assert.AreEqual(new byte[] { 5, 11, 44, 255 }, Packet.Encode(structureArray));
 
             Assert.AreEqual(new byte[0], Packet.Encode(new TestStructZeroWidth()));
-            Assert.Throws<ArgumentException>(() => Packet.Encode(new TestStructWithUnsupportedType()));
+            Assert.IsEmpty(Packet.Encode(new TestStructWithEmptyNestedPacket()));
 
             var structureEnum = new TestStructWithEnums();
             structureEnum.enum0 = TestEnumByteType.One;
@@ -406,7 +406,7 @@ namespace Antmicro.Renode.UnitTests
 #pragma warning restore 649
         }
 
-        private struct TestStructWithUnsupportedType
+        private struct TestStructWithEmptyNestedPacket
         {
 #pragma warning disable 649
             [PacketField]
