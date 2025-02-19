@@ -32,6 +32,7 @@ namespace Antmicro.Renode.Peripherals
             {
                 analyzer.Dispose();
             }
+            TypeManager.Instance.AutoLoadedType -= HandleAutoLoadTypeFound;
         }
 
         public IEnumerable<string> GetAvailableAnalyzersFor(IAnalyzableBackend backend)
