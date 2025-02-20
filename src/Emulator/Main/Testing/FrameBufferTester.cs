@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -96,6 +96,12 @@ namespace Antmicro.Renode.Testing
             var finalTimeout = timeout ?? globalTimeout;
             var timeoutEvent = machine.LocalTimeSource.EnqueueTimeoutEvent((ulong)finalTimeout.TotalMilliseconds);
 
+            var emulation = EmulationManager.Instance.CurrentEmulation;
+            if(!emulation.IsStarted)
+            {
+                emulation.StartAll();
+            }
+
             do
             {
                 if(framesQueue.TryTake(out var queuedFrame)
@@ -134,6 +140,12 @@ namespace Antmicro.Renode.Testing
             var machine = video.GetMachine();
             var finalTimeout = timeout ?? globalTimeout;
             var timeoutEvent = machine.LocalTimeSource.EnqueueTimeoutEvent((ulong)finalTimeout.TotalMilliseconds);
+
+            var emulation = EmulationManager.Instance.CurrentEmulation;
+            if(!emulation.IsStarted)
+            {
+                emulation.StartAll();
+            }
 
             do
             {
