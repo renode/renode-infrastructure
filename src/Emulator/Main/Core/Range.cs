@@ -86,7 +86,8 @@ namespace Antmicro.Renode.Core
 
         public bool IsAdjacentTo(Range range)
         {
-            return (StartAddress == range.EndAddress + 1) || (EndAddress == range.StartAddress - 1);
+            return (StartAddress != 0x0 && StartAddress == range.EndAddress + 1) 
+                    || (EndAddress != ulong.MaxValue && EndAddress == range.StartAddress - 1);
         }
 
         public List<Range> Subtract(Range sub)

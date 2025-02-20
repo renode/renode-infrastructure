@@ -1347,7 +1347,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private void TouchHostBlock(ulong offset)
         {
             this.NoisyLog("Trying to find the mapping for offset 0x{0:X}.", offset);
-            var mapping = currentMappings.FirstOrDefault(x => x.Segment.StartingOffset <= offset && offset < x.Segment.StartingOffset + x.Segment.Size);
+            var mapping = currentMappings.FirstOrDefault(x => x.Segment.StartingOffset <= offset && offset <= x.Segment.StartingOffset + (x.Segment.Size - 1));
             if(mapping == null)
             {
                 throw new InvalidOperationException(string.Format("Could not find mapped segment for offset 0x{0:X}.", offset));
