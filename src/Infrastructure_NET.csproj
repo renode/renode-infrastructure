@@ -65,8 +65,8 @@
   </ItemGroup>
 
   <ItemGroup Condition=" $(CurrentPlatform) != Windows And $(GUI_DISABLED) != 'true' ">
-    <PackageReference Include="GdkSharp" Version="3.24.24.34" />
-    <PackageReference Include="GLibSharp" Version="3.24.24.34" />
+    <PackageReference Include="GdkSharp" Version="3.24.24.95" />
+    <PackageReference Include="GLibSharp" Version="3.24.24.95" />
   </ItemGroup>
   <Import Project="$(MSBuildProjectDirectory)/BuildAdditionalProjects-UI.csproj.targets" Condition="Exists('$(MSBuildProjectDirectory)/BuildAdditionalProjects-UI.csproj.targets')" />
   <ItemGroup>
