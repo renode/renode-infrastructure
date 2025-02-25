@@ -161,7 +161,9 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         {
             lock(locker)
             {
-                if((irqManager.PinDirection[number] & GPIOInterruptManager.Direction.Input) == 0)
+                var isInput = irqManager.PinDirection[number].HasFlag(GPIOInterruptManager.Direction.Input);
+                var isOutput = irqManager.PinDirection[number].HasFlag(GPIOInterruptManager.Direction.Output);
+                if(isOutput && !isInput)
                 {
                     this.Log(LogLevel.Warning, "Writing to an output GPIO pin #{0}", number);
                     return;
@@ -172,7 +174,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 // RefreshInterrupts will update the main IRQ, but it will not update the connection.
                 // We have to do it manually, as connection reflects if there is an active interrupt for the given pin.
                 var isIrqActive = irqManager.ActiveInterrupts.ElementAt(number);
-                if((irqManager.PinDirection[number] & GPIOInterruptManager.Direction.Input) != 0)
+                if(isInput)
                 {
                     Connections[number].Set(isIrqActive);
                 }
