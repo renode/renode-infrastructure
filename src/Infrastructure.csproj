@@ -1283,6 +1283,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/Timers/MSP430F2XXX_Watchdog.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Analog/SAM4S_ADC.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SAM4S_RSTC.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Timers/SAM4S_WDT.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Emulator/Main/Utilities/Packets/Packet.cs" />
