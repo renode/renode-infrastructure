@@ -151,6 +151,15 @@ namespace Antmicro.Renode.Testing
                 pattern, includeUnfinishedLine, timeout ?? GlobalTimeout, treatAsRegex, pauseEmulation, matchNextLine);
 #endif
 
+            if(binaryMode && !treatAsRegex)
+            {
+                // The pattern is provided as a hex string. Parse it to a byte array and then decode
+                // using the Latin1 encoding which passes through byte values as character values (that is,
+                // { 0x00, 0x80, 0xff } becomes "\x00\x80\xff") to convert to a string where each char
+                // is equivalent to one input byte.
+                pattern = Encoding.GetEncoding("iso-8859-1").GetString(Misc.HexStringToByteArray(pattern, ignoreWhitespace: true));
+            }
+
             var result = WaitForMatch(() =>
             {
                 var lineMatch = CheckFinishedLines(pattern, treatAsRegex, eventName, matchNextLine);
@@ -487,7 +496,9 @@ namespace Antmicro.Renode.Testing
 
             if(regex)
             {
-                var match = Regex.Match(content, pattern);
+                // In binary mode, make . match any character
+                var options = binaryMode ? RegexOptions.Singleline : 0;
+                var match = Regex.Match(content, pattern, options);
                 if(match.Success)
                 {
                     matchEnd = match.Index + match.Length;
@@ -496,16 +507,21 @@ namespace Antmicro.Renode.Testing
             }
             else
             {
-                var matchStart = content.IndexOf(pattern);
+                // In binary mode, use ordinal (here: raw byte value) comparison.
+                var comparisonType = binaryMode ? StringComparison.Ordinal : StringComparison.CurrentCulture;
+                var matchStart = content.IndexOf(pattern, comparisonType);
                 if(matchStart != -1)
                 {
                     matchEnd = matchStart + pattern.Length;
                 }
             }
 
+            // We know the match was successful, but only want to cut the current line buffer exactly when in binary mode.
+            // Otherwise, we just throw out the whole thing.
             if(matchEnd != -1)
             {
-                return HandleSuccess(eventName, matchingLineId: CurrentLine, matchGroups: matchGroups);
+                return HandleSuccess(eventName, matchingLineId: CurrentLine, matchGroups: matchGroups,
+                    matchEnd: binaryMode ? (int?)matchEnd : null);
             }
 
             return null;
@@ -632,7 +648,7 @@ namespace Antmicro.Renode.Testing
                 }
 
                 lines.RemoveRange(0, numberOfLinesToCopy);
-                if(content != null)
+                if(content != null && !binaryMode)
                 {
                     content = content.StripNonSafeCharacters();
                 }
@@ -662,7 +678,15 @@ namespace Antmicro.Renode.Testing
 
             if(includeCurrentLineBuffer)
             {
-                report.AppendFormat("{0} [[no newline]]\n", currentLineBuffer);
+                // Don't say there was no newline if we are in binary mode as it does not operate on lines
+                var newlineIndication = !binaryMode ? " [[no newline]]" : "";
+                var displayString = currentLineBuffer.ToString();
+                if(binaryMode)
+                {
+                    // Not using PrettyPrintCollection(Hex) to use simpler `01 02 03...` formatting.
+                    displayString = string.Join(" ", displayString.Select(ch => ((byte)ch).ToHex()));
+                }
+                report.AppendFormat("{0}{1}\n", displayString, newlineIndication);
             }
 
             var virtMs = machine.ElapsedVirtualTime.TimeElapsed.TotalMilliseconds;
