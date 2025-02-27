@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -31,11 +31,11 @@ namespace Antmicro.Renode.Testing
 {
     public class TerminalTester : BackendTerminal
     {
-        public TerminalTester(TimeInterval timeout, EndLineOption endLineOption = EndLineOption.TreatLineFeedAsEndLine, bool removeColors = true)
+        public TerminalTester(TimeInterval timeout, EndLineOption endLineOption = EndLineOption.TreatLineFeedAsEndLine, bool binaryMode = false)
         {
             GlobalTimeout = timeout;
             this.endLineOption = endLineOption;
-            this.removeColors = removeColors;
+            this.binaryMode = binaryMode;
             charEvent = new AutoResetEvent(false);
             matchEvent = new AutoResetEvent(false);
             lines = new List<Line>();
@@ -89,12 +89,12 @@ namespace Antmicro.Renode.Testing
 
         public override void WriteChar(byte value)
         {
-            if(value == CarriageReturn && endLineOption == EndLineOption.TreatLineFeedAsEndLine)
+            if(!binaryMode && value == CarriageReturn && endLineOption == EndLineOption.TreatLineFeedAsEndLine)
             {
                 return;
             }
 
-            if(value != (endLineOption == EndLineOption.TreatLineFeedAsEndLine ? LineFeed : CarriageReturn))
+            if(binaryMode || value != (endLineOption == EndLineOption.TreatLineFeedAsEndLine ? LineFeed : CarriageReturn))
             {
                 AppendCharToBuffer((char)value);
             }
@@ -528,7 +528,7 @@ namespace Antmicro.Renode.Testing
 #if DEBUG_EVENTS
             this.Log(LogLevel.Noisy, "Appending char >>{0}<< to buffer in state {1}", value, sgrDecodingState);
 #endif
-            if(!removeColors)
+            if(binaryMode)
             {
                 currentLineBuffer.Append(value);
                 return;
@@ -676,7 +676,7 @@ namespace Antmicro.Renode.Testing
         private readonly SafeStringBuilder currentLineBuffer;
         private readonly SafeStringBuilder sgrDecodingBuffer;
         private readonly EndLineOption endLineOption;
-        private readonly bool removeColors;
+        private readonly bool binaryMode;
         private readonly List<Line> lines;
         private readonly SafeStringBuilder report;
         private readonly Queue<Tuple<TimeSpan, char>> delayedChars = new Queue<Tuple<TimeSpan, char>>();
