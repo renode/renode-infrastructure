@@ -36,6 +36,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 throw new ConstructionException($"Failed to attach CPU to Generic Interrupt Controller: {e.Message}", e);
             }
+            TlibSetGicCpuRegisterInterfaceVersion(gic.ArchitectureVersionAtLeast3 ? GICCPUInterfaceVersion.Version30Or40 : GICCPUInterfaceVersion.None);
             Reset();
             HasSingleSecurityState = TlibHasEl3() == 0;
         }
@@ -472,6 +473,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
 #pragma warning disable 649
+        [Import]
+        private Action<GICCPUInterfaceVersion> TlibSetGicCpuRegisterInterfaceVersion;
+
         [Import]
         private Func<string, uint, uint> TlibCheckSystemRegisterAccess;
 
