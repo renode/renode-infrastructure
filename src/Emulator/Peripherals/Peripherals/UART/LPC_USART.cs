@@ -146,7 +146,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
             Registers.InterruptEnableReadSet.Define(this)
                 .WithReservedBits(0, 3)
-                .WithTaggedFlag("TXIDLEEN", 3)
+                .WithFlag(3, out txIdleInterruptEnable, FieldMode.Read | FieldMode.Set, name: "TXIDLEEN")
                 .WithReservedBits(4, 1)
                 .WithTaggedFlag("DELTACTSEN", 5)
                 .WithTaggedFlag("TXDISEN", 6)
@@ -161,7 +161,14 @@ namespace Antmicro.Renode.Peripherals.UART
 
             Registers.InterruptEnableClear.Define(this)
                 .WithReservedBits(0, 3)
-                .WithTaggedFlag("TXIDLECLR", 3)
+                .WithFlag(3, FieldMode.Write, name: "TXIDLECLR",
+                          writeCallback: (_, val) => {
+                              if (!val)
+                              {
+                                  return;
+                              }
+                              txIdleInterruptEnable.Value = false;
+                          })
                 .WithReservedBits(4, 1)
                 .WithTaggedFlag("DELTACTSCLR", 5)
                 .WithTaggedFlag("TXDISCLR", 6)
@@ -374,7 +381,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private void UpdateInterrupts()
         {
-            var status = TxLevelInterruptStatus || RxLevelInterruptStatus;
+            var status = TxIdleInterruptStatus || TxLevelInterruptStatus || RxLevelInterruptStatus;
             this.Log(LogLevel.Noisy, "IRQ set to {0}.", status);
             IRQ.Set(status);
         }
@@ -417,6 +424,11 @@ namespace Antmicro.Renode.Peripherals.UART
             get => txFifoLevelInterruptEnable.Value && GetTxFifoTriggerLevelStatus();
         }
 
+        private bool TxIdleInterruptStatus
+        {
+            get => txIdleInterruptEnable.Value && (Count == (int)FifoCount.Empty);
+        }
+
         private bool RxLevelInterruptStatus
         {
             get => rxFifoLevelInterruptEnable.Value && GetRxFifoTriggerLevelStatus();
@@ -435,6 +447,8 @@ namespace Antmicro.Renode.Peripherals.UART
         private IFlagRegisterField rxFifoLevelTriggerEnable;
         private IValueRegisterField oversampleSelection;
 
+        private IFlagRegisterField txIdleInterruptEnable;
+
         private bool stopBits;
         private ParityMode parityMode;
 
@@ -443,6 +457,7 @@ namespace Antmicro.Renode.Peripherals.UART
         private const ulong DefaultClockFrequency = 10000000;
         private const ulong FlexcommPeripheralNotSelected = 0x0;
         private const ulong FlexcommPeripheralUsart = 0x1;
+
 
         private enum ParityMode
         {
