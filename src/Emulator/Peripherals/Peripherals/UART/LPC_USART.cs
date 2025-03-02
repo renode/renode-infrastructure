@@ -203,7 +203,8 @@ namespace Antmicro.Renode.Peripherals.UART
 
             Registers.InterruptStatus.Define(this)
                 .WithReservedBits(0, 3)
-                .WithTaggedFlag("TXIDLE", 3)
+                .WithFlag(3, FieldMode.Read, name: "TXIDLE",
+                          valueProviderCallback: _ => Count == (int)FifoCount.Empty)
                 .WithReservedBits(4, 1)
                 .WithTaggedFlag("DELTACTS", 5)
                 .WithTaggedFlag("TXDISINT", 6)
