@@ -22,7 +22,8 @@ namespace Antmicro.Renode.Core.Structure.Registers
         ReadToClear = 1 << 6,
         WriteZeroToSet = 1 << 7,
         WriteZeroToToggle = 1 << 8,
-        ReadToSet = 1 << 11
+        ReadToSet = 1 << 11,
+        WriteToClear = 1 << 12
     }
 
     public static class FieldModeHelper
@@ -40,7 +41,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
         public static bool IsWritable(this FieldMode mode)
         {
             return (mode & (FieldMode.Write | FieldMode.Set | FieldMode.Toggle | FieldMode.WriteOneToClear | FieldMode.WriteZeroToClear |
-                            FieldMode.WriteZeroToSet | FieldMode.WriteZeroToToggle)) != 0;
+                            FieldMode.WriteZeroToSet | FieldMode.WriteZeroToToggle | FieldMode.WriteToClear)) != 0;
         }
 
         public static FieldMode WriteBits(this FieldMode mode)
