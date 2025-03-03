@@ -30,6 +30,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             RegisterCSR((ulong)CustomCSR.HardwareLoop1Start    , () => LogUnhandledCSRRead("HardwareLoop1Start")    , val => LogUnhandledCSRWrite("HardwareLoop1Start", val));
             RegisterCSR((ulong)CustomCSR.HardwareLoop1End      , () => LogUnhandledCSRRead("HardwareLoop1End")      , val => LogUnhandledCSRWrite("HardwareLoop1End", val));
             RegisterCSR((ulong)CustomCSR.HardwareLoop1Counter  , () => LogUnhandledCSRRead("HardwareLoop1Counter")  , val => LogUnhandledCSRWrite("HardwareLoop1Counter", val));
+            RegisterCSR((ulong)CustomCSR.MachineIntStatusH     , () => LogUnhandledCSRRead("MachineIntStatusH")     , val => LogUnhandledCSRWrite("MachineIntStatusH", val));
 
             InstallCustomInstruction(pattern: "FFFFFFFFFFFFBBBBB000DDDDD0001011", handler: opcode => LoadRegisterImmediate(opcode, Width.Byte, BitExtension.Sign, "p.lb rD, Imm(rs1!)"));
             InstallCustomInstruction(pattern: "FFFFFFFFFFFFBBBBB100DDDDD0001011", handler: opcode => LoadRegisterImmediate(opcode, Width.Byte, BitExtension.Zero, "p.lbu rD, Imm(rs1!)"));
@@ -446,7 +447,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             HardwareLoop0Counter = 0x7c2,
             HardwareLoop1Start = 0x7c4,
             HardwareLoop1End = 0x7d5,
-            HardwareLoop1Counter = 0x7d6
+            HardwareLoop1Counter = 0x7d6,
+            MachineIntStatusH = 0x310
         }
     }
 }
