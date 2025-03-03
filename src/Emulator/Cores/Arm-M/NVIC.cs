@@ -399,6 +399,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     irqs[number] |= IRQState.Pending;
                     pendingIRQs.Add(number);
                 }
+                else if((currentIRQ & IRQState.Pending) != 0)
+                {
+                    this.NoisyLog("Completed IRQ {0} active -> pending.", number);
+                }
                 else
                 {
                     this.NoisyLog("Completed IRQ {0} active -> inactive.", number);
@@ -412,10 +416,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             lock(irqs)
             {
                 this.NoisyLog("Internal IRQ {0}.", number);
-                if((irqs[number] & IRQState.Active) == 0)
-                {
-                    SetPending(number);
-                }
+                SetPending(number);
                 FindPendingInterrupt();
             }
         }
@@ -430,11 +431,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 if(value)
                 {
                     irqs[number] |= IRQState.Running;
-                    // let's latch it if not active
-                    if((irqs[number] & IRQState.Active) == 0)
-                    {
-                        SetPending(number);
-                    }
+                    SetPending(number);
                 }
                 else
                 {
