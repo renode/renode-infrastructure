@@ -412,10 +412,19 @@ namespace Antmicro.Renode.Utilities.Binding
             return result;
         }
 
+        private static Type GetUnderlyingType(Type type)
+        {
+            return type.IsEnum ? type.GetEnumUnderlyingType() : type;
+        }
+
         // This method and the constants used in it are inspired by MakeNewCustomDelegate from .NET itself.
         // See https://github.com/dotnet/runtime/blob/8ca896c3f5ef8eb1317439178bf041b5f270f351/src/libraries/System.Linq.Expressions/src/System/Linq/Expressions/Compiler/DelegateHelpers.cs#L110
         private static Type DelegateTypeFromParamsAndReturn(IEnumerable<Type> parameterTypes, Type returnType, string name = null)
         {
+            // Convert enums to their underlying types to avoid creating needless additional delegate types
+            returnType = GetUnderlyingType(returnType);
+            parameterTypes = parameterTypes.Select(GetUnderlyingType);
+
             if(name == null)
             {
                 // The default naming mirrors the generic delegate types, but for functions, the return type comes first
