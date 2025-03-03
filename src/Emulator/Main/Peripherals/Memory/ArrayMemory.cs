@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -17,20 +17,24 @@ using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.Memory
 {
-    public class ArrayMemory : IBytePeripheral, IWordPeripheral, IDoubleWordPeripheral, IKnownSize, IMemory, IMultibyteWritePeripheral, IQuadWordPeripheral, ICanLoadFiles, IEndiannessAware
+    public class ArrayMemory : IMemory, ICanLoadFiles, IEndiannessAware
     {
         public ArrayMemory(byte[] source)
         {
             array = source;
         }
 
-        public ArrayMemory(ulong size)
+        public ArrayMemory(ulong size, byte initialValue = 0x00)
         {
             if(size > MaxSize)
             {
                 throw new ConstructionException($"Memory size cannot be larger than 0x{MaxSize:X}, requested: 0x{size:X}");
             }
             array = new byte[size];
+            if(initialValue != 0x00)
+            {
+                Fill(initialValue);
+            }
         }
 
         public virtual ulong ReadQuadWord(long offset)
@@ -145,6 +149,16 @@ namespace Antmicro.Renode.Peripherals.Memory
         public void LoadFileChunks(string path, IEnumerable<FileChunk> chunks, ICPU cpu)
         {
             this.LoadFileChunks(chunks, cpu);
+        }
+
+        public void Fill(byte value)
+        {
+            array.Fill(value);
+        }
+
+        public void FillRegion(byte value, int startIndex, int count)
+        {
+            array.Fill(value, startIndex, count);
         }
 
         public long Size
