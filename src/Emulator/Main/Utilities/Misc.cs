@@ -1749,6 +1749,28 @@ namespace Antmicro.Renode.Utilities
                 yield return buffer.ToArray();
             }
         }
+
+        public static void Fill<T>(this T[] array, T value, int startIndex = 0, int? count = null)
+        {
+            if(startIndex >= array.Length || startIndex < 0)
+            {
+                throw new ArgumentException("has to be a legal index", nameof(startIndex));
+            }
+            count = count ?? array.Length - startIndex;
+            if(startIndex + count.Value > array.Length)
+            {
+                throw new ArgumentException("value out of bounds", nameof(count));
+            }
+            for(var i = 0; i < count.Value; ++i)
+            {
+                array[startIndex + i] = value;
+            }
+        }
+#else
+        public static void Fill<T>(this T[] array, T value, int startIndex = 0, int? count = null)
+        {
+            Array.Fill(array, value, startIndex, count ?? array.Length - startIndex);
+        }
 #endif
 
         public static ulong CastToULong(dynamic number)
