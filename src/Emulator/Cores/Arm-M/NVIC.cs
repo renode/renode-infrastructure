@@ -265,7 +265,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     this.WarningLog("CPU {0} tries to access ITNS register, but it's in Non-secure state", cpu);
                     return;
                 }
-                ModifySecurityTarget((int)offset - TargetNonSecureStart, value);
+                ModifySecurityTarget((int)(offset - TargetNonSecureStart), value);
                 return;
             }
             if(offset >= MPUStart && offset < MPUEnd)
@@ -1340,6 +1340,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 for(var i = 0; i < 32; i++)
                 {
                     var pos = 16 + offset * 8 + i;
+                    this.NoisyLog("IRQ {0} configured as {1}", ExceptionToString(pos), (value & mask) > 0 ? "Non-secure" : "Secure");
                     targetInterruptSecurityState[pos] = (value & mask) > 0 ? InterruptTargetSecurityState.NonSecure : InterruptTargetSecurityState.Secure;
                     mask <<= 1;
                 }
