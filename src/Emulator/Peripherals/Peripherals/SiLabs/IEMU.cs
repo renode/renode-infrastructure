@@ -1,0 +1,32 @@
+//
+// Copyright (c) 2010-2025 Silicon Labs
+//
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
+//
+
+using System;
+using System.IO;
+using System.Collections.Generic;
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Peripherals.CPU;
+using Antmicro.Renode.Peripherals.Bus;
+
+namespace Antmicro.Renode.Peripherals.Silabs
+{ 
+    public interface IEmu
+    {
+        /// <summary>
+        /// Method to add a hook when entering Deep Sleep.
+        /// </summary>
+        void AddEnterDeepSleepHook(Action hook);
+
+        /// <summary>
+        /// Method to add a hook when exiting Deep Sleep.
+        /// </summary>
+        void AddExitDeepSleepHook(Action hook);
+    }
+}
