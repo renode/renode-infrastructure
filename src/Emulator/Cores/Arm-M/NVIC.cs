@@ -128,30 +128,37 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             if(offset >= PriorityStart && offset < PriorityEnd)
             {
-                return HandlePriorityRead(offset - PriorityStart, true);
+                return HandlePriorityRead(offset - PriorityStart, true, isSecure);
             }
             if(offset >= SetEnableStart && offset < SetEnableEnd)
             {
-                return HandleEnableRead(offset - SetEnableStart);
+                return HandleEnableRead((int)(offset - SetEnableStart), isSecure);
             }
             if(offset >= ClearEnableStart && offset < ClearEnableEnd)
             {
-                return HandleEnableRead(offset - ClearEnableStart);
+                return HandleEnableRead((int)(offset - ClearEnableStart), isSecure);
             }
             if(offset >= SetPendingStart && offset < SetPendingEnd)
             {
-                return GetPending((int)(offset - SetPendingStart));
+                return GetPending((int)(offset - SetPendingStart), isSecure);
             }
             if(offset >= ClearPendingStart && offset < ClearPendingEnd)
             {
-                return GetPending((int)(offset - ClearPendingStart));
+                return GetPending((int)(offset - ClearPendingStart), isSecure);
             }
             if(offset >= ActiveBitStart && offset < ActiveBitEnd)
             {
-                return GetActive((int)(offset - ActiveBitStart));
+                return GetActive((int)(offset - ActiveBitStart), isSecure);
             }
             if(offset >= TargetNonSecureStart && offset < TargetNonSecureEnd)
             {
+                bool isCpu = machine.GetSystemBus(this).TryGetCurrentCPU(out var cpu);
+                // For convenience, if we access this from outside CPU context (e.g. Monitor) let's allow this access through
+                if(!isSecure && isCpu)
+                {
+                    this.WarningLog("CPU {0} tries to read from ITNS register, but it's in Non-secure state", cpu);
+                    return 0;
+                }
                 return GetSecurityTarget((int)(offset - TargetNonSecureStart));
             }
             if(offset >= MPUStart && offset < MPUEnd)
@@ -160,6 +167,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
             if(offset >= SAUStart && offset < SAUEnd)
             {
+                // SAU access is filtered at tlib level
                 return HandleSAURead(offset - SAUStart);
             }
             switch((Registers)offset)
@@ -233,27 +241,27 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             if(offset >= SetEnableStart && offset < SetEnableEnd)
             {
-                EnableOrDisableInterrupt((int)offset - SetEnableStart, value, true);
+                EnableOrDisableInterrupt((int)offset - SetEnableStart, value, true, isSecure);
                 return;
             }
             if(offset >= PriorityStart && offset < PriorityEnd)
             {
-                HandlePriorityWrite(offset - PriorityStart, true, value);
+                HandlePriorityWrite(offset - PriorityStart, true, value, isSecure);
                 return;
             }
             if(offset >= ClearEnableStart && offset < ClearEnableEnd)
             {
-                EnableOrDisableInterrupt((int)offset - ClearEnableStart, value, false);
+                EnableOrDisableInterrupt((int)offset - ClearEnableStart, value, false, isSecure);
                 return;
             }
             if(offset >= ClearPendingStart && offset < ClearPendingEnd)
             {
-                SetOrClearPendingInterrupt((int)offset - ClearPendingStart, value, false);
+                SetOrClearPendingInterrupt((int)offset - ClearPendingStart, value, false, isSecure);
                 return;
             }
             if(offset >= SetPendingStart && offset < SetPendingEnd)
             {
-                SetOrClearPendingInterrupt((int)offset - SetPendingStart, value, true);
+                SetOrClearPendingInterrupt((int)offset - SetPendingStart, value, true, isSecure);
                 return;
             }
             if(offset >= TargetNonSecureStart && offset < TargetNonSecureEnd)
@@ -262,7 +270,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 // For convenience, if we access this from outside CPU context (e.g. Monitor) let's allow this access through
                 if(!isSecure && isCpu)
                 {
-                    this.WarningLog("CPU {0} tries to access ITNS register, but it's in Non-secure state", cpu);
+                    this.WarningLog("CPU {0} tries to write to ITNS register, but it's in Non-secure state", cpu);
                     return;
                 }
                 ModifySecurityTarget((int)(offset - TargetNonSecureStart), value);
@@ -275,6 +283,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
             if(offset >= SAUStart && offset < SAUEnd)
             {
+                // SAU access is filtered at tlib level
                 HandleSAUWrite(offset - SAUStart, value);
                 return;
             }
@@ -934,13 +943,20 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             return (int)(offset + (externalInterrupt ? 16 : 0));
         }
 
-        private void HandlePriorityWrite(long offset, bool externalInterrupt, uint value)
+        private void HandlePriorityWrite(long offset, bool externalInterrupt, uint value, bool isSecure)
         {
             lock(irqs)
             {
                 var startingInterrupt = GetStartingInterrupt(offset, externalInterrupt);
                 for(var i = startingInterrupt; i < startingInterrupt + 4; i++)
                 {
+                    if(!isSecure && !IsInterruptTargetNonSecure(i))
+                    {
+                        this.WarningLog("Cannot set priority for IRQ {0}, since it targets Secure state, and the access is in Non-secure",
+                            ExceptionToString(i));
+                        continue;
+                    }
+
                     if((((byte)value) & ~priorityMask) != 0)
                     {
                         this.Log(LogLevel.Warning, "Trying to set the priority for interrupt {0} to 0x{1:X}, but it should be maskable with 0x{2:X}", i, value, priorityMask);
@@ -954,7 +970,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
-        private uint HandlePriorityRead(long offset, bool externalInterrupt, bool isSecure = false)
+        private uint HandlePriorityRead(long offset, bool externalInterrupt, bool isSecure)
         {
             lock(irqs)
             {
@@ -970,7 +986,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     }
                     else
                     {
-                        returnValue |= priorities[i];
+                        // Cannot read the priority of a Secure interrupt in a Non-secure state, read zero instead
+                        if(isSecure || IsInterruptTargetNonSecure(i))
+                        {
+                            returnValue |= priorities[i];
+                        }
                     }
                 }
                 return returnValue;
@@ -1216,7 +1236,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
-        private void EnableOrDisableInterrupt(int offset, uint value, bool enable)
+        private void EnableOrDisableInterrupt(int offset, uint value, bool enable, bool isSecure)
         {
             lock(irqs)
             {
@@ -1228,6 +1248,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     {
                         if((value & mask) > 0)
                         {
+                            if(!isSecure && !IsInterruptTargetNonSecure(i))
+                            {
+                                this.WarningLog("Cannot {0} IRQ {1}, since it targets Secure state, and the access is in Non-secure",
+                                    enable ? "enable" : "disable", ExceptionToString(i));
+                                continue;
+                            }
+
                             if(enable)
                             {
                                 this.NoisyLog("Enabled IRQ {0}.", ExceptionToString(i));
@@ -1246,7 +1273,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
-        private uint HandleEnableRead(long offset)
+        private uint HandleEnableRead(int offset, bool isSecure)
         {
             lock(irqs)
             {
@@ -1260,10 +1287,17 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 }
                 for(var i = lastIRQNo; i > firstIRQNo; i--)
                 {
-                    result |= ((irqs[(int)i] & IRQState.Enabled) != 0) ? 1u : 0u;
+                    // Cannot read the enable state of a Secure interrupt in a Non-secure state, read zero instead
+                    if(isSecure || IsInterruptTargetNonSecure(i))
+                    {
+                        result |= ((irqs[(int)i] & IRQState.Enabled) != 0) ? 1u : 0u;
+                    }
                     result <<= 1;
                 }
-                result |= ((irqs[(int)firstIRQNo] & IRQState.Enabled) != 0) ? 1u : 0u;
+                if(isSecure || IsInterruptTargetNonSecure(firstIRQNo))
+                {
+                    result |= ((irqs[(int)firstIRQNo] & IRQState.Enabled) != 0) ? 1u : 0u;
+                }
                 return result;
             }
         }
@@ -1303,7 +1337,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
-        private void SetOrClearPendingInterrupt(int offset, uint value, bool set)
+        private void SetOrClearPendingInterrupt(int offset, uint value, bool set, bool isSecure)
         {
             lock(irqs)
             {
@@ -1315,6 +1349,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     {
                         if((value & mask) > 0)
                         {
+                            if(!isSecure && !IsInterruptTargetNonSecure(i))
+                            {
+                                this.WarningLog("Cannot {0} pending IRQ {1}, since it targets Secure state, and the access is in Non-secure",
+                                    set ? "set" : "clear", ExceptionToString(i));
+                                continue;
+                            }
                             if (set)
                             {
                                 SetPending(i);
@@ -1570,14 +1610,16 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             return (priorityA & binaryPointMaskA) < (priorityB & binaryPointMaskB);
         }
 
-        private uint GetPending(int offset)
+        private uint GetPending(int offset, bool isSecure)
         {
-            return BitHelper.GetValueFromBitsArray(irqs.Skip(16 + offset * 8).Take(32).Select(irq => (irq & IRQState.Pending) != 0));
+            int startIndex = 16 + offset * 8;
+            return BitHelper.GetValueFromBitsArray(irqs.Skip(startIndex).Take(32).Select((irq, idx) => (isSecure || IsInterruptTargetNonSecure(startIndex + idx)) && ((irq & IRQState.Pending) != 0)));
         }
 
-        private uint GetActive(int offset)
+        private uint GetActive(int offset, bool isSecure)
         {
-            return BitHelper.GetValueFromBitsArray(irqs.Skip(16 + offset * 8).Take(32).Select(irq => (irq & IRQState.Active) != 0));
+            int startIndex = 16 + offset * 8;
+            return BitHelper.GetValueFromBitsArray(irqs.Skip(startIndex).Take(32).Select((irq, idx) => (isSecure || IsInterruptTargetNonSecure(startIndex + idx)) && ((irq & IRQState.Active) != 0)));
         }
 
         private uint GetSecurityTarget(int offset)
