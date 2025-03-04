@@ -367,7 +367,13 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTag("DCME", 9, 1)
                 .WithTag("MPIE", 8, 1)
                 .WithReservedBits(5, 3)
-                .WithFlag(4, out transmitEnabled, name: "TE")
+                .WithFlag(4, out transmitEnabled, name: "TE", writeCallback: (_, val) =>
+                    {
+                        if(!val)
+                        {
+                            conditionCompletedFlag.Value = false;
+                        }
+                    })
                 .WithReservedBits(1, 3)
                 .WithFlag(0, out receiveEnabled, name: "RE")
                 .WithChangeCallback((_, __) =>
@@ -618,7 +624,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
             Registers.SimpleIICStatus.Define(this)
                 .WithReservedBits(4, 28)
-                .WithFlag(3, out conditionCompletedFlag, FieldMode.WriteZeroToClear,name: "IICSTIF")
+                .WithFlag(3, out conditionCompletedFlag, FieldMode.Read, name: "IICSTIF")
                 .WithReservedBits(1, 2)
                 .WithTag("IICACKR", 0, 1);
 
@@ -684,7 +690,13 @@ namespace Antmicro.Renode.Peripherals.UART
 
             Registers.SimpleIICFlagCLear.Define(this)
                 .WithReservedBits(4, 28)
-                .WithTag("IICSTIFC", 3, 1)
+                .WithFlag(3, name: "IICSTIFC", writeCallback: (_, val) =>
+                    {
+                        if(val)
+                        {
+                            conditionCompletedFlag.Value = false;
+                        }
+                    })
                 .WithReservedBits(0, 3);
 
             Registers.FIFOFlagClear.Define(this)
