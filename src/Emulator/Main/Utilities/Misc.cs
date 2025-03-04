@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -472,6 +472,22 @@ namespace Antmicro.Renode.Utilities
             }
             Buffer.BlockCopy(byteArray, 0, outArray, 0, byteLength);
             return true;
+        }
+
+        public static string ToHexString(this byte[] data)
+        {
+            var lookup = hexStringLookup.Value;
+            var builder = new StringBuilder(data.Length * 2);
+            for(var i = 0; i < data.Length; ++i)
+            {
+                builder.Append(lookup[data[i]]);
+            }
+            return builder.ToString();
+        }
+
+        public static string ToHex(this byte value)
+        {
+            return hexStringLookup.Value[value];
         }
 
         public static IEnumerable<int> ConcatRangeFromTo(this IEnumerable<int> enumerable, int start, int stopIncluded)
@@ -1816,6 +1832,16 @@ namespace Antmicro.Renode.Utilities
         public static bool ReturnThenClear(ref bool variable) => ReturnThenAssign(ref variable, false);
 
         public static DateTime UnixEpoch = new DateTime(1970, 1, 1);
+
+        private static readonly Lazy<string[]> hexStringLookup = new Lazy<string[]>(() =>
+        {
+            var lookup = new string[0x100];
+            for(var i = 0; i < lookup.Length; ++i)
+            {
+                lookup[i] = $"{i:X02}";
+            }
+            return lookup;
+        }, isThreadSafe: true);
     }
 
     public class MethodWithAttribute<T> where T : Attribute
