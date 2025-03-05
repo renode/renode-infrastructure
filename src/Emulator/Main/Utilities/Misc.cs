@@ -8,6 +8,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals.Bus;
@@ -438,8 +439,13 @@ namespace Antmicro.Renode.Utilities
             return String.Empty;
         }
 
-        public static byte[] HexStringToByteArray(string hexString, bool reverse = false)
+        public static byte[] HexStringToByteArray(string hexString, bool reverse = false, bool ignoreWhitespace = false)
         {
+            if(ignoreWhitespace)
+            {
+                hexString = Regex.Replace(hexString, @"\s+", "");
+            }
+
             if(hexString.Length % 2 != 0)
             {
                 throw new FormatException($"The length of hex string ({hexString.Length}) is not a multiple of 2.");
