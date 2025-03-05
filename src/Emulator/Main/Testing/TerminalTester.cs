@@ -482,21 +482,28 @@ namespace Antmicro.Renode.Testing
             this.Log(LogLevel.Noisy, "Current line buffer content: >>{0}<<", content);
 #endif
 
-            var isMatch = false;
+            var matchEnd = -1;
             string[] matchGroups = null;
 
             if(regex)
             {
                 var match = Regex.Match(content, pattern);
-                isMatch = match.Success;
-                matchGroups = GetMatchGroups(match);
+                if(match.Success)
+                {
+                    matchEnd = match.Index + match.Length;
+                    matchGroups = GetMatchGroups(match);
+                }
             }
             else
             {
-                isMatch = content.Contains(pattern);
+                var matchStart = content.IndexOf(pattern);
+                if(matchStart != -1)
+                {
+                    matchEnd = matchStart + pattern.Length;
+                }
             }
 
-            if(isMatch)
+            if(matchEnd != -1)
             {
                 return HandleSuccess(eventName, matchingLineId: CurrentLine, matchGroups: matchGroups);
             }
@@ -585,7 +592,7 @@ namespace Antmicro.Renode.Testing
         private const int NoLine = -2;
         private const int CurrentLine = -1;
 
-        private TerminalTesterResult HandleSuccess(string eventName, int matchingLineId, string[] matchGroups = null)
+        private TerminalTesterResult HandleSuccess(string eventName, int matchingLineId, string[] matchGroups = null, int? matchEnd = null)
         {
             lock(lines)
             {
@@ -615,7 +622,7 @@ namespace Antmicro.Renode.Testing
                 {
                     timestamp = machine.ElapsedVirtualTime.TimeElapsed.TotalMilliseconds;
 
-                    content = currentLineBuffer.Unload();
+                    content = currentLineBuffer.Unload(matchEnd);
                 }
                 else if(numberOfLinesToCopy > 0)
                 {
