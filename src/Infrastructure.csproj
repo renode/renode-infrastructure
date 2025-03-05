@@ -1623,7 +1623,6 @@
     <Compile Include="Emulator/Main/Logging/Backends/NetworkBackend.cs" />
     <Compile Include="Emulator/Main/Logging/Backends/LoggerBackend.cs" />
     <Compile Include="Emulator/Main/Logging/Backends/TextBackend.cs" />
-    <Compile Include="Emulator/Main/Logging/Backends/DummyLoggerBackend.cs" />
     <Compile Include="Emulator/Main/Peripherals/Timers/LimitTimer.cs" />
     <Compile Include="Emulator/Main/Peripherals/Bus/ConnectionRegionAttribute.cs" />
     <Compile Include="Emulator/Main/Peripherals/Bus/BusAccess.cs" />
