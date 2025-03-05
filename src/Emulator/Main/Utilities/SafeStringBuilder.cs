@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -39,12 +39,13 @@ namespace Antmicro.Renode.Utilities
             }
         }
 
-        public string Unload()
+        public string Unload(int? count = null)
         {
             lock(buffer)
             {
-                var content = buffer.ToString();
-                buffer.Clear();
+                int toUnload = count ?? buffer.Length;
+                var content = buffer.ToString(0, toUnload);
+                buffer.Remove(0, toUnload);
                 return content;
             }
         }
