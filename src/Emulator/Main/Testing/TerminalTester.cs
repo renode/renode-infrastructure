@@ -173,7 +173,7 @@ namespace Antmicro.Renode.Testing
                     return null;
                 }
 
-                return CheckUnfinishedLine(pattern, treatAsRegex, eventName);
+                return CheckUnfinishedLine(pattern, treatAsRegex, eventName, matchAtStart: matchNextLine);
 
             }, timeout ?? GlobalTimeout, pauseEmulation);
 
@@ -483,7 +483,7 @@ namespace Antmicro.Renode.Testing
             }
         }
 
-        private TerminalTesterResult CheckUnfinishedLine(string pattern, bool regex, string eventName)
+        private TerminalTesterResult CheckUnfinishedLine(string pattern, bool regex, string eventName, bool matchAtStart = false)
         {
             var content = currentLineBuffer.ToString();
 
@@ -491,6 +491,7 @@ namespace Antmicro.Renode.Testing
             this.Log(LogLevel.Noisy, "Current line buffer content: >>{0}<<", content);
 #endif
 
+            var matchStart = -1;
             var matchEnd = -1;
             string[] matchGroups = null;
 
@@ -501,6 +502,7 @@ namespace Antmicro.Renode.Testing
                 var match = Regex.Match(content, pattern, options);
                 if(match.Success)
                 {
+                    matchStart = match.Index;
                     matchEnd = match.Index + match.Length;
                     matchGroups = GetMatchGroups(match);
                 }
@@ -509,16 +511,22 @@ namespace Antmicro.Renode.Testing
             {
                 // In binary mode, use ordinal (here: raw byte value) comparison.
                 var comparisonType = binaryMode ? StringComparison.Ordinal : StringComparison.CurrentCulture;
-                var matchStart = content.IndexOf(pattern, comparisonType);
+                matchStart = content.IndexOf(pattern, comparisonType);
                 if(matchStart != -1)
                 {
                     matchEnd = matchStart + pattern.Length;
                 }
             }
 
+            // If we want a match at the start, then anything other than 0 simply won't cut it.
+            if(matchAtStart && matchStart != 0)
+            {
+                return null;
+            }
+
             // We know the match was successful, but only want to cut the current line buffer exactly when in binary mode.
             // Otherwise, we just throw out the whole thing.
-            if(matchEnd != -1)
+            if(matchStart != -1)
             {
                 return HandleSuccess(eventName, matchingLineId: CurrentLine, matchGroups: matchGroups,
                     matchEnd: binaryMode ? (int?)matchEnd : null);
