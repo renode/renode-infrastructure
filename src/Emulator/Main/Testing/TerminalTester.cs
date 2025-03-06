@@ -632,6 +632,10 @@ namespace Antmicro.Renode.Testing
                 }
 
                 lines.RemoveRange(0, numberOfLinesToCopy);
+                if(content != null)
+                {
+                    content = content.StripNonSafeCharacters();
+                }
 
                 return new TerminalTesterResult(content, timestamp, matchGroups);
             }
@@ -783,7 +787,7 @@ namespace Antmicro.Renode.Testing
     {
         public TerminalTesterResult(string content, double timestamp, string[] groups = null)
         {
-            this.line = content == null ? string.Empty : content.StripNonSafeCharacters();
+            this.line = content ?? string.Empty;
             this.timestamp = timestamp;
             this.groups = groups ?? new string[0];
         }
