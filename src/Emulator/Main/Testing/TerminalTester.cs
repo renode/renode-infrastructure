@@ -529,6 +529,7 @@ namespace Antmicro.Renode.Testing
             if(matchStart != -1)
             {
                 return HandleSuccess(eventName, matchingLineId: CurrentLine, matchGroups: matchGroups,
+                    matchStart: binaryMode ? matchStart : 0,
                     matchEnd: binaryMode ? (int?)matchEnd : null);
             }
 
@@ -616,7 +617,7 @@ namespace Antmicro.Renode.Testing
         private const int NoLine = -2;
         private const int CurrentLine = -1;
 
-        private TerminalTesterResult HandleSuccess(string eventName, int matchingLineId, string[] matchGroups = null, int? matchEnd = null)
+        private TerminalTesterResult HandleSuccess(string eventName, int matchingLineId, string[] matchGroups = null, int matchStart = 0, int? matchEnd = null)
         {
             lock(lines)
             {
@@ -646,7 +647,7 @@ namespace Antmicro.Renode.Testing
                 {
                     timestamp = machine.ElapsedVirtualTime.TimeElapsed.TotalMilliseconds;
 
-                    content = currentLineBuffer.Unload(matchEnd);
+                    content = currentLineBuffer.Unload(matchEnd).Substring(matchStart);
                 }
                 else if(numberOfLinesToCopy > 0)
                 {
