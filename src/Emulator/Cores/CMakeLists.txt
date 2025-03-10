@@ -28,7 +28,7 @@ target_include_directories(tlib PRIVATE
 # Set tlib output filename
 
 set (ENDIAN_STR "le")
-if (TARGET_BIG_ENDIAN)
+if (TARGET_WORDS_BIGENDIAN)
     set (ENDIAN_STR "be")
 endif()
 
