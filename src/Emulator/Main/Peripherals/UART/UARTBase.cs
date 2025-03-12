@@ -63,7 +63,7 @@ namespace Antmicro.Renode.Peripherals.UART
         protected abstract void CharWritten();
         protected abstract void QueueEmptied();
 
-        protected bool TryGetCharacter(out byte character)
+        protected bool TryGetCharacter(out byte character, bool peek = false)
         {
             lock(innerLock)
             {
@@ -72,7 +72,14 @@ namespace Antmicro.Renode.Peripherals.UART
                     character = default(byte);
                     return false;
                 }
-                character = queue.Dequeue();
+                if(peek)
+                {
+                    character = queue.Peek();
+                }
+                else
+                {
+                    character = queue.Dequeue();
+                }
                 if(queue.Count == 0)
                 {
                     QueueEmptied();
