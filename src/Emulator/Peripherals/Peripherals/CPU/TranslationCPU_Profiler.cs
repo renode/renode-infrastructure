@@ -109,6 +109,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         protected void OnStackChange(ulong currentAddress, ulong returnAddress, ulong instructionsCount, int isFrameAdd)
         {
+            // It is possible to execute stack change announcement from a currently executed translation block
+            // even after disabling the profiler and flushing the translation cache
+            if(profiler == null)
+            {
+                return;
+            }
             if(isFrameAdd != 0)
             {
                 profiler.StackFrameAdd(currentAddress, returnAddress, instructionsCount);

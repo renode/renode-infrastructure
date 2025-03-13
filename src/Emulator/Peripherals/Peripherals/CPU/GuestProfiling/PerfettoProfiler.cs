@@ -20,9 +20,10 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
 {
     public class PerfettoProfiler : BaseProfiler
     {
-        public PerfettoProfiler(TranslationCPU cpu, string filename, bool flushInstantly, bool enableMultipleTracks)
+        public PerfettoProfiler(TranslationCPU cpu, string filename, bool flushInstantly, bool enableMultipleTracks, long? fileSizeLimit = null)
             : base(cpu, filename, flushInstantly)
         {
+            this.fileSizeLimit = fileSizeLimit;
             this.enableMultipleTracks = enableMultipleTracks;
             lastInterruptExitTime = ulong.MaxValue;
             fileStream = File.Open(filename, FileMode.OpenOrCreate);
@@ -173,14 +174,28 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
 
         public override void FlushBuffer()
         {
-            if(blockFlush)
+            // DisableProfiler() calls Dispose() which calls FlushBuffer()
+            // `isDisposing` flag is required to prevent an infinite loop
+            if(blockFlush || isDisposing)
             {
                 return;
             }
 
             lock(bufferLock)
             {
-                writer.FlushBuffer(fileStream);
+                // Write to MemoryStream first so we can check the serialized length against the limit
+                var memoryStream = new MemoryStream();
+                writer.FlushBuffer(memoryStream);
+
+                if(fileSizeLimit.HasValue && (fileStream.Length + memoryStream.Length) > fileSizeLimit)
+                {
+                    isDisposing = true;
+                    cpu.Log(LogLevel.Warning, "Profiler: Maximum file size exceeded, removing profiler");
+                    cpu.DisableProfiler();
+                    return;
+                }
+
+                memoryStream.WriteTo(fileStream);
             }
         }
 
@@ -214,9 +229,11 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
         }
 
         private readonly PerfettoTraceWriter writer;
-        private readonly FileStream fileStream;
         private readonly bool enableMultipleTracks;
+        private readonly FileStream fileStream;
+        private readonly long? fileSizeLimit;
 
+        private bool isDisposing;
         private bool blockFlush;
         private ulong lastInterruptExitTime;
         private ulong currentTrack;
