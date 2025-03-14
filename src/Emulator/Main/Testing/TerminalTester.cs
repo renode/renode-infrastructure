@@ -291,6 +291,7 @@ namespace Antmicro.Renode.Testing
 
         public TimeInterval GlobalTimeout { get; set; }
         public TimeSpan WriteCharDelay { get; set; }
+        public bool BinaryMode => binaryMode;
 
         private void HandleDelayedChars()
         {
