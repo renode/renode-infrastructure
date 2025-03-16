@@ -18,14 +18,15 @@ namespace Antmicro.Renode.Peripherals.UART
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class Cadence_UART : UARTBase, IUARTWithBufferState, IDoubleWordPeripheral, IKnownSize
     {
-        public Cadence_UART(IMachine machine, bool clearInterruptStatusOnRead = false, ulong clockFrequency = 50000000) : base(machine)
+        public Cadence_UART(IMachine machine, bool clearInterruptStatusOnRead = false, ulong clockFrequency = 50000000, int fifoCapacity = 64) : base(machine)
         {
+            this.fifoCapacity = fifoCapacity;
             this.clearInterruptStatusOnRead = clearInterruptStatusOnRead;
             this.clockFrequency = clockFrequency;
             registers = new DoubleWordRegisterCollection(this, BuildRegisterMap());
 
             rxFifoOverflow = new CadenceInterruptFlag(() => false);
-            rxFifoFull = new CadenceInterruptFlag(() => Count >= FifoCapacity);
+            rxFifoFull = new CadenceInterruptFlag(() => Count >= fifoCapacity);
             rxFifoTrigger = new CadenceInterruptFlag(() => Count >= (int)rxTriggerLevel.Value && rxTriggerLevel.Value > 0);
             rxFifoEmpty = new CadenceInterruptFlag(() => Count == 0);
             rxTimeoutError = new CadenceInterruptFlag(() => false);
@@ -50,7 +51,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 return;
             }
 
-            if(Count < FifoCapacity)
+            if(Count < fifoCapacity)
             {
                 base.WriteChar(value);
                 UpdateBufferState();
@@ -509,7 +510,7 @@ namespace Antmicro.Renode.Peripherals.UART
         private readonly bool clearInterruptStatusOnRead;
         private readonly ulong clockFrequency;
 
-        private const int FifoCapacity = 64;
+        private int fifoCapacity;
 
         private enum InternalStop
         {
