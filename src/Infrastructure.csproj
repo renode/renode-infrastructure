@@ -1284,6 +1284,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/Analog/SAM4S_ADC.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SAM4S_RSTC.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Timers/SAM4S_WDT.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SAM4S_DACC.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Emulator/Main/Utilities/Packets/Packet.cs" />
