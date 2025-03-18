@@ -70,19 +70,7 @@ namespace Antmicro.Renode.UserInterface
             }
 
             object comm = Scope.GetVariable("mc_" + command_name); // get a method
-            var parameters = command.Skip(1).Select(token =>
-            {
-                var value = token.GetObjectValue();
-                if(token is LiteralToken)
-                {
-                    if(EmulationManager.Instance.CurrentEmulation.TryGetEmulationElementByName(value as string, monitor.Machine, out var emulationElement))
-                    {
-                        return emulationElement;
-                    }
-                    throw new RecoverableException($"No such emulation element: {value}");
-                }
-                return value;
-            }).ToArray();
+            var parameters = command.Skip(1).Select(GetTokenValue).ToArray();
 
             ConfigureOutput(writer);
 
@@ -119,6 +107,20 @@ namespace Antmicro.Renode.UserInterface
             {
                 throw new RecoverableException(String.Format("Line : {0}\n{1}", e.Line, e.Message));
             }
+        }
+
+        private object GetTokenValue(Token token)
+        {
+            var value = token.GetObjectValue();
+            if(token is LiteralToken)
+            {
+                if(EmulationManager.Instance.CurrentEmulation.TryGetEmulationElementByName(value as string, monitor.Machine, out var emulationElement))
+                {
+                    return emulationElement;
+                }
+                throw new RecoverableException($"No such emulation element: {value}");
+            }
+            return value;
         }
 
         private object ExecutePythonScriptInner(ScriptSource script, ICommandInteraction writer)
