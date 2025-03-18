@@ -6,16 +6,16 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Utilities;
 using System.IO;
-using Antmicro.Renode.Exceptions;
 using System.Linq;
-using Antmicro.Renode.UserInterface.Tokenizer;
-using AntShell.Commands;
 using System.Text;
-using Microsoft.Scripting.Hosting;
 using Antmicro.Migrant.Hooks;
+using AntShell.Commands;
+using Microsoft.Scripting.Hosting;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.UserInterface.Tokenizer;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.UserInterface
 {
