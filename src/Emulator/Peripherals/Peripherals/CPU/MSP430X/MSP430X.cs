@@ -525,10 +525,26 @@ namespace Antmicro.Renode.Peripherals.CPU
                 {
                     uint registerValue = GetRegisterValue(register, addressingMode);
                     var offset = (accessWidth != AccessWidth._8bit) || register == Registers.PC ? 2U : 1U;
-                    address = (ulong)registerValue | addressExtension;
-                    address &= 0xFFFFF;
                     SetRegisterValue(register, (uint)(registerValue + offset) & 0xFFFFF);
-                    return PerformMemoryRead(address, accessWidth);
+
+                    if(register == Registers.PC)
+                    {
+                        // NOTE: Immediate addressing (@PC+)
+                        //       Get immediate value @PC and append the extended address
+                        address = (ulong)registerValue;
+                        uint immediate = PerformMemoryRead(registerValue, AccessWidth._16bit);
+                        immediate |= addressExtension;
+                        return immediate;
+                    }
+                    else
+                    {
+                        // NOTE: Indirect addressing (@Rn+)
+                        //       Get address in the register and append the extended address
+                        //       then access the memory
+                        address = (ulong)registerValue | addressExtension;
+                        address &= 0xFFFFF;
+                        return PerformMemoryRead(address, accessWidth);
+                    }
                 }
 
                 default:
