@@ -435,7 +435,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             var interruptVector = InterruptVectorStart - (ulong)interruptNumber * 2U;
             var interruptAddress = (ushort)PerformMemoryRead(interruptVector, AccessWidth._16bit);
 
-            var statusAndPC = ((PC & 0xF0000U) >> 8) | SR;
+            var statusAndPC = ((PC & 0xF0000U) >> 4) | SR;
 
             SP -= 2U;
             PerformMemoryWrite(SP, PC, AccessWidth._16bit);
@@ -861,7 +861,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                                 newPC = PerformMemoryRead(SP, AccessWidth._16bit);
                                 SP += 2U;
-                                newPC |= (ushort)((statusAndPC & 0xF000) << 4);
+                                newPC |= (uint)((statusAndPC & 0xF000) << 4);
                                 PC = newPC;
                             }
                             else
