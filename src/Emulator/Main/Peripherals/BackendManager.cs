@@ -170,6 +170,7 @@ namespace Antmicro.Renode.Peripherals
             }
         }
 
+        [field: Transient]
         public event Action<IAnalyzableBackendAnalyzer> PeripheralBackendAnalyzerCreated;
 
         private IAnalyzableBackendAnalyzer CreateAndAttach(Type analyzerType, object backend)
