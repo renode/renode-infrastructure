@@ -113,6 +113,22 @@ namespace Antmicro.Renode.Tools.Network
             }
         }
 
+        public void EnableBroadcastUnknown()
+        {
+            lock (innerLock)
+            {
+                broadcastUnknown = true;
+            }
+        }
+
+        public void DisableBroadcastUnknown()
+        {
+            lock (innerLock)
+            {
+                broadcastUnknown = false;
+            }
+        }
+
         public void Start()
         {
             Resume();
@@ -147,7 +163,7 @@ namespace Antmicro.Renode.Tools.Network
             {
                 var interestingIfaces = macMapping.TryGetValue(frame.DestinationMAC, out var destIface)
                     ? ifaces.Where(x => (x.PromiscuousMode && x.Interface != sender) || x.Interface == destIface)
-                    : ifaces.Where(x => x.Interface != sender);
+                    : ifaces.Where(x => (frame.DestinationMAC.IsBroadcast || broadcastUnknown) && x.Interface != sender);
 
                 if(!TimeDomainsManager.Instance.TryGetVirtualTimeStamp(out var vts))
                 {
@@ -180,6 +196,7 @@ namespace Antmicro.Renode.Tools.Network
         }
 
         private bool started = true;
+        private bool broadcastUnknown = false;
 
         private readonly object innerLock = new object();
         private readonly HashSet<InterfaceDescriptor> ifaces = new HashSet<InterfaceDescriptor>();
