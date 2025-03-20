@@ -195,7 +195,8 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTaggedFlag("PARITYERRCLR", 14)
                 .WithTaggedFlag("RXNOISECLR", 15)
                 .WithTaggedFlag("ABERRCLR", 16)
-                .WithReservedBits(17, 15);
+                .WithReservedBits(17, 15)
+                .WithWriteCallback((_, __) => UpdateInterrupts());
 
             Registers.BaudRateGenerator.Define(this)
                 .WithValueField(0, 16, out baudDivider, name: "BRGVAL")
