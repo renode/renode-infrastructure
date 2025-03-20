@@ -767,7 +767,12 @@ namespace Antmicro.Renode.Peripherals.CPU
                 else
                 {
                     var sourceRegister = (Registers)((instr & 0x0F00) >> 8);
-                    sourceValue = GetRegisterValue(sourceRegister);
+                    // ADDA R2/3,Rdst and SUBA R2/3,Rdst should read the CG in IndirectRegister mode
+                    if ((sourceRegister == Registers.SR || sourceRegister == Registers.R3) && (funcIdentifier & 0xE) == 0xE) {
+                        sourceValue = GetRegisterValue(sourceRegister, AddressingMode.IndirectRegister);
+                    } else {
+                        sourceValue = GetRegisterValue(sourceRegister);
+                    }
                 }
 
                 switch(funcIdentifier & 0x3)
