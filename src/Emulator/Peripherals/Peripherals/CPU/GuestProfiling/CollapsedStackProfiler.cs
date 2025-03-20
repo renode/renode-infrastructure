@@ -15,8 +15,8 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
 {
     public class CollapsedStackProfiler : BaseProfiler
     {
-        public CollapsedStackProfiler(TranslationCPU cpu, string filename, bool flushInstantly, long? fileSizeLimit = null)
-            : base(cpu, flushInstantly)
+        public CollapsedStackProfiler(TranslationCPU cpu, string filename, bool flushInstantly, long? fileSizeLimit = null, int? maximumNestedContexts = null)
+            : base(cpu, flushInstantly, maximumNestedContexts)
         {
             this.fileSizeLimit = fileSizeLimit;
             stringBuffer = new StringBuilder();
@@ -75,11 +75,11 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
                 return;
             }
 
-            cpu.Log(LogLevel.Debug, "Profiler: Changing context from: 0x{0:X} to 0x{1:X}", currentContextId, newContextId);
-
             var instructionsElapsed = GetInstructionsDelta(cpu.ExecutedInstructions);
             AddStackToBufferWithDelta(instructionsElapsed);
-            currentContext.PushCurrentStack();
+            PushCurrentContextSafe();
+
+            cpu.Log(LogLevel.Debug, "Profiler: Changing context from: 0x{0:X} to 0x{1:X}", currentContextId, newContextId);
 
             if(!wholeExecution.ContainsKey(newContextId))
             {
@@ -97,8 +97,8 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
             var instructionsElapsed = GetInstructionsDelta(cpu.ExecutedInstructions);
             AddStackToBufferWithDelta(instructionsElapsed);
 
-            currentContext.PushCurrentStack();
             cpu.Log(LogLevel.Debug, "Profiler: Interrupt entry (pc 0x{0:X})- saving the stack", cpu.PC);
+            PushCurrentContextSafe();
 
             CheckAndFlushBuffer();
         }

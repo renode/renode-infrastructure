@@ -20,8 +20,8 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
 {
     public class PerfettoProfiler : BaseProfiler
     {
-        public PerfettoProfiler(TranslationCPU cpu, string filename, bool flushInstantly, bool enableMultipleTracks, long? fileSizeLimit = null)
-            : base(cpu, flushInstantly)
+        public PerfettoProfiler(TranslationCPU cpu, string filename, bool flushInstantly, bool enableMultipleTracks, long? fileSizeLimit = null, int? maximumNestedContexts = null)
+            : base(cpu, flushInstantly, maximumNestedContexts)
         {
             this.fileSizeLimit = fileSizeLimit;
             this.enableMultipleTracks = enableMultipleTracks;
@@ -91,7 +91,7 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
             {
                 writer.CreateEventEnd(time, track);
             }
-            currentContext.PushCurrentStack();
+            PushCurrentContextSafe();
 
             // Get the new thread's execution and restore the events
             if(!wholeExecution.ContainsKey(newContextId))
@@ -142,7 +142,7 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
                 FinishCurrentStack(time, currentTrack);
             }
 
-            currentContext.PushCurrentStack();
+            PushCurrentContextSafe();
             cpu.Log(LogLevel.Debug, "Profiler: Interrupt entry (pc 0x{0:X})- saving the stack", cpu.PC);
             CheckAndFlush(time);
         }

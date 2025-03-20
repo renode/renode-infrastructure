@@ -8,16 +8,22 @@ using System;
 using System.Collections.Generic;
 using Antmicro.Migrant;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
 {
     [Transient]
     public abstract class BaseProfiler : IDisposable
     {
-        public BaseProfiler(TranslationCPU cpu, bool flushInstantly)
+        public BaseProfiler(TranslationCPU cpu, bool flushInstantly, int? maximumNestedContexts)
         {
             this.cpu = cpu;
             this.flushInstantly = flushInstantly;
+
+            if(maximumNestedContexts <= 0) {
+                throw new ConstructionException("Optional maximumNestedContexts parameter must be a non-zero, positive integer.");
+            }
+            this.maximumNestedContexts = maximumNestedContexts;
 
             isFirstFrame = true;
             bufferLock = new Object();
@@ -55,6 +61,17 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
             return name;
         }
 
+        protected void PushCurrentContextSafe()
+        {
+            if(maximumNestedContexts.HasValue && currentContext.Count >= maximumNestedContexts)
+            {
+                cpu.Log(LogLevel.Warning, "Profiler: maximum nested contexts exceeded, disabling profiler");
+                cpu.DisableProfiler();
+                return;
+            }
+            currentContext.PushCurrentStack();
+        }
+
         protected readonly TranslationCPU cpu;
         protected readonly bool flushInstantly;
         protected readonly Object bufferLock;
@@ -65,6 +82,8 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
         protected Stack<string> currentStack => currentContext.CurrentStack;
         protected bool isFirstFrame;
         protected ulong currentContextId;
+
+        private readonly int? maximumNestedContexts;
 
         protected class ProfilerContext
         {

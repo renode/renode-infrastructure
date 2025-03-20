@@ -1,4 +1,4 @@
-﻿//
+//
 // Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public abstract partial class TranslationCPU
     {
-        public void EnableProfiler(ProfilerType type, string filename, bool flushInstantly = false, bool enableMultipleTracks = true, long? fileSizeLimit = null)
+        public void EnableProfiler(ProfilerType type, string filename, bool flushInstantly = false, bool enableMultipleTracks = true, long? fileSizeLimit = null, int? maximumNestedContexts = null)
         {
             // Remove the old profiler if it was enabled
             if(profiler != null)
@@ -41,10 +41,10 @@ namespace Antmicro.Renode.Peripherals.CPU
             switch(type)
             {
                 case ProfilerType.CollapsedStack:
-                    profiler = new CollapsedStackProfiler(this, filename, flushInstantly, fileSizeLimit);
+                    profiler = new CollapsedStackProfiler(this, filename, flushInstantly, fileSizeLimit, maximumNestedContexts);
                     break;
                 case ProfilerType.Perfetto:
-                    profiler = new PerfettoProfiler(this, filename, flushInstantly, enableMultipleTracks, fileSizeLimit);
+                    profiler = new PerfettoProfiler(this, filename, flushInstantly, enableMultipleTracks, fileSizeLimit, maximumNestedContexts);
                     break;
                 default:
                     throw new RecoverableException($"{type} is not a valid profiler output type");
@@ -54,15 +54,15 @@ namespace Antmicro.Renode.Peripherals.CPU
             TlibEnableGuestProfiler(1);
         }
 
-        public void EnableProfilerCollapsedStack(string filename, bool flushInstantly = false, long? fileSizeLimit = null)
+        public void EnableProfilerCollapsedStack(string filename, bool flushInstantly = false, long? fileSizeLimit = null, int? maximumNestedContexts = null)
         {
             // CollapsedStack format doesn't support multiple tracks
-            EnableProfiler(ProfilerType.CollapsedStack, filename, flushInstantly, false, fileSizeLimit);
+            EnableProfiler(ProfilerType.CollapsedStack, filename, flushInstantly, false, fileSizeLimit, maximumNestedContexts);
         }
 
-        public void EnableProfilerPerfetto(string filename, bool flushInstantly = false, bool enableMultipleTracks = true, long? fileSizeLimit = null)
+        public void EnableProfilerPerfetto(string filename, bool flushInstantly = false, bool enableMultipleTracks = true, long? fileSizeLimit = null, int? maximumNestedContexts = null)
         {
-            EnableProfiler(ProfilerType.Perfetto, filename, flushInstantly, enableMultipleTracks, fileSizeLimit);
+            EnableProfiler(ProfilerType.Perfetto, filename, flushInstantly, enableMultipleTracks, fileSizeLimit, maximumNestedContexts);
         }
 
         public void DisableProfiler()
