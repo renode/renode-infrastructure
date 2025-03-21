@@ -156,11 +156,9 @@ namespace Antmicro.Renode.UserInterface
             streamToEventConverterForError.BytesWritten += bytes => writer.WriteError(utf8WithoutBom.GetString(bytes).Replace("\n", "\r\n"));
         }
 
-
         private StreamToEventConverter streamToEventConverter;
         private StreamToEventConverter streamToEventConverterForError;
         private readonly Monitor monitor;
         private const string MonitorPyPath = "scripts/monitor.py";
     }
 }
-
