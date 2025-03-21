@@ -448,7 +448,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             InterruptAcknowledged?.Invoke(interruptNumber);
         }
 
-        private uint GetOperandValue(Registers register, AddressingMode addressingMode, out ulong address, AccessWidth accessWidth = AccessWidth._16bit, uint addressExtension = 0)
+        private uint GetOperandValue(Registers register, AddressingMode addressingMode, out ulong address, AccessWidth accessWidth = AccessWidth._16bit, uint addressExtension = 0, bool extended = false)
         {
             address = 0UL;
 
@@ -498,16 +498,16 @@ namespace Antmicro.Renode.Peripherals.CPU
                 case AddressingMode.Indexed:
                 {
                     var registerValue = GetRegisterValue(register, addressingMode);
-                    var index = (short)PerformMemoryRead(PC, AccessWidth._16bit);
+                    var index = PerformMemoryRead(PC, AccessWidth._16bit);
                     PC += 2U;
-
+                    index |= addressExtension;
                     var memoryAddress = (uint)(registerValue + index);
-                    if(registerValue < 64.KB())
+                    if(registerValue < 64.KB() && !extended)
                     {
                         // NOTE: If register value points to lower 64KB, we should truncate the address
+                        // This is not applicable for MSP430X instructions
                         memoryAddress &= 0xFFFF;
                     }
-                    memoryAddress |= addressExtension;
 
                     address = (ulong)memoryAddress;
                     return PerformMemoryRead(address, accessWidth);
@@ -603,7 +603,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             return ExecutionResult.Ok;
         }
 
-        private bool TryEvaluateSingleOperand(ushort instr, int destination, AccessWidth accessWidth, AddressingMode addressingMode, out ExecutionResult executionResult, uint addressExtension = 0, int repetition = 1, bool resetCarry = false)
+        private bool TryEvaluateSingleOperand(ushort instr, int destination, AccessWidth accessWidth, AddressingMode addressingMode, out ExecutionResult executionResult, uint addressExtension = 0, int repetition = 1, bool resetCarry = false, bool extended = false)
         {
             executionResult = ExecutionResult.Aborted;
 
@@ -853,7 +853,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                                 // NOTE: CALLA
                                 // NOTE: Decrement SP before reading the address
                                 SP -= 2;
-                                newPC = GetOperandValue((Registers)destination, addressingMode, out  _, accessWidth: AccessWidth._20bit, addressExtension: addressExtension);
+                                newPC = GetOperandValue((Registers)destination, addressingMode, out  _, accessWidth: AccessWidth._20bit, addressExtension: addressExtension, extended: extended);
 
                                 SP -= 2;
                                 PerformMemoryWrite(SP, PC, AccessWidth._20bit);
@@ -913,7 +913,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                             break;
                     }
 
-                    var operand = GetOperandValue((Registers)destination, addressingMode, out var address, accessWidth: accessWidth, addressExtension: addressExtension);
+                    var operand = GetOperandValue((Registers)destination, addressingMode, out var address, accessWidth: accessWidth, addressExtension: addressExtension, extended: extended);
                     switch(fullOpcode)
                     {
                         case 0x00:
@@ -1073,7 +1073,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             return true;
         }
 
-        private bool TryEvaluateDoubleOperand(uint instr, int destination, AccessWidth accessWidth, AddressingMode addressingMode, out ExecutionResult executionResult, uint destinationExtension = 0, uint sourceExtension = 0, int repetition = 1, bool resetCarry = false)
+        private bool TryEvaluateDoubleOperand(uint instr, int destination, AccessWidth accessWidth, AddressingMode sourceAddressing, AddressingMode destinationAddressing, out ExecutionResult executionResult, uint destinationExtension = 0, uint sourceExtension = 0, int repetition = 1, bool resetCarry = false, bool extended = false)
         {
             var opcode = (instr & 0xF000) >> 12;
             var source = (instr & 0x0F00) >> 8;
@@ -1087,18 +1087,12 @@ namespace Antmicro.Renode.Peripherals.CPU
                     SetStatusFlag(StatusFlags.Carry, false);
                 }
 
-                var operand1 = GetOperandValue((Registers)source, addressingMode, out var sourceAddress, accessWidth: accessWidth, addressExtension: sourceExtension);
-
-                var destinationAddressing = (instr >> 7) & 0x1;
-                var destinationAddress = 0UL;
-                var operand2 = destinationAddressing == 1 ?
-                    GetOperandValue((Registers)destination, AddressingMode.Indexed, out destinationAddress, accessWidth: accessWidth, addressExtension: destinationExtension) :
-                    GetOperandValue((Registers)destination, AddressingMode.Register, out var _)
-                ;
+                var operand1 = GetOperandValue((Registers)source, sourceAddressing, out var sourceAddress, accessWidth: accessWidth, addressExtension: sourceExtension, extended: extended);
+                var operand2 = GetOperandValue((Registers)destination, destinationAddressing, out var destinationAddress, accessWidth: accessWidth, addressExtension: destinationExtension, extended: extended);
 
                 var temporaryValue = 0U;
 
-                this.Log(LogLevel.Debug, "Operand1=0x{0:X} Operand2=0x{1:X} AddressingMode={2}", operand1, operand2, addressingMode);
+                this.Log(LogLevel.Debug, "Operand1=0x{0:X} AddressingMode={1} Operand2=0x{2:X} AddressingMode={3}", operand1, operand2, sourceAddressing, destinationAddressing);
                 this.Log(LogLevel.Debug, "Operand1 address=0x{0:X} extension=0x{1:X} Operand2 address=0x{2:X} extension=0x{3:X}", sourceAddress, sourceExtension, destinationAddress, destinationExtension);
 
                 switch(opcode)
@@ -1242,14 +1236,15 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
 
             var accessWidth = ((instr >> 6) & 0x1) > 0 ? AccessWidth._8bit : AccessWidth._16bit;
-            var sourceAddressing = (instr >> 4) & 0x3;
-            var addressingMode = (AddressingMode)sourceAddressing;
+            var sourceAddressing = (AddressingMode)((instr >> 4) & 0x3);
+            var destinationAddressing = (AddressingMode)((instr >> 7) & 0x1);
             var destination = instr & 0x000F;
             var repetition = 1;
 
             var sourceExtension = 0U;
             var destinationExtension = 0U;
             var resetCarry = false;
+            var extended = extensionWord != 0;
 
             if(extensionWord != 0)
             {
@@ -1262,7 +1257,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
 
                 accessWidth = extendedAccess ? AccessWidth._20bit : accessWidth;
-                if(addressingMode == AddressingMode.Register)
+                var isSingleOperand = (instr & 0xFF00) == 0x1000;
+                if(sourceAddressing == AddressingMode.Register && (destinationAddressing == AddressingMode.Register || isSingleOperand))
                 {
                     // NOTE: When using Register mode, we have to check for amount of repetition
                     var repetitionSource = ((extensionWord >> 7) & 0x1) > 0;
@@ -1290,13 +1286,14 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
 
             // NOTE: Handle single-operand (Format II) instructions first
-            if(TryEvaluateSingleOperand(instr, destination, accessWidth, addressingMode, out var executionResult, addressExtension: destinationExtension, repetition: repetition, resetCarry: resetCarry))
+            // sourceAddressing is used for single-operand instructions
+            if(TryEvaluateSingleOperand(instr, destination, accessWidth, sourceAddressing, out var executionResult, addressExtension: destinationExtension, repetition: repetition, resetCarry: resetCarry, extended: extended))
             {
                 return executionResult;
             }
 
             // NOTE: Handle double-operand (Format I) instructions
-            TryEvaluateDoubleOperand(instr, destination, accessWidth, addressingMode, out executionResult, destinationExtension: destinationExtension, sourceExtension: sourceExtension, repetition: repetition, resetCarry: resetCarry);
+            TryEvaluateDoubleOperand(instr, destination, accessWidth, sourceAddressing, destinationAddressing, out executionResult, destinationExtension: destinationExtension, sourceExtension: sourceExtension, repetition: repetition, resetCarry: resetCarry, extended: extended);
 
             return executionResult;
         }
