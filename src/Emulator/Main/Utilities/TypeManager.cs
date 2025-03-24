@@ -511,7 +511,8 @@ namespace Antmicro.Renode.Utilities
                 Logger.LogAs(this, LogLevel.Noisy, message);
                 return false;
             }
-            var assemblyName = assembly.FullName;
+            // simple assembly name is required for the mechanism in `ResolveAssembly()`
+            var assemblyName = assembly.Name.Name;
             if(!assemblyFromAssemblyName.ContainsKey(assemblyName))
             {
                 assemblyFromAssemblyName.Add(assemblyName, GetAssemblyDescription(assemblyName, path));
