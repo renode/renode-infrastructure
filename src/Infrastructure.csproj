@@ -1324,6 +1324,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/GPIOPort/EFR32xG2_GPIO_1.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/GPIOPort/EFR32xG2_GPIO_3.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Wireless/EFR32xG24_Radio.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SAM4S_EEFC.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Emulator/Main/Utilities/Packets/Packet.cs" />
