@@ -6,6 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -25,6 +26,12 @@ namespace Antmicro.Renode.Peripherals.DMA
     {
         byte? DmaByteRead();
         void DmaByteWrite(byte data);
+    }
+
+    public interface ISamPdcBlockBytePeripheral : ISamPdcPeripheral
+    {
+        byte[] DmaBlockByteRead(int count);
+        void DmaBlockByteWrite(byte[] data);
     }
 
     public interface ISamPdcWordPeripheral : ISamPdcPeripheral
@@ -346,6 +353,12 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         private void TriggerReceiverInner()
         {
+            // Block accesses are preferred, but are optional
+            if(TryBlockRead((int)receiveCounter.Value))
+            {
+                receiveCounter.Value = 0;
+            }
+
             for(; receiveCounter.Value > 0; receiveCounter.Value -= 1)
             {
                 if(!TryRead())
@@ -367,10 +380,48 @@ namespace Antmicro.Renode.Peripherals.DMA
                 StartTransmitterTransfer();
             }
 
+            // Block accesses are preferred, but are optional
+            if(TryBlockWrite((int)transmitCounter.Value))
+            {
+                transmitCounter.Value = 0;
+                return;
+            }
+
             for(; transmitCounter.Value > 0; transmitCounter.Value -= 1)
             {
                 Write();
             }
+        }
+
+        private bool TryBlockWrite(int count)
+        {
+            var buffer = transmitterBuffer.Skip(transmitterBufferOffset);
+            var transferType = parent.DmaWriteAccessWidth;
+
+            switch(transferType)
+            {
+            case TransferType.Byte:
+                if(parent is ISamPdcBlockBytePeripheral bytePeripheral)
+                {
+                    bytePeripheral.DmaBlockByteWrite(buffer.Take(count).ToArray());
+                    break;
+                }
+                return false;
+            case TransferType.Word:
+            case TransferType.DoubleWord:
+            case TransferType.QuadWord:
+                // Not implemented
+                return false;
+            default:
+                throw new Exception("Unreachable");
+            }
+
+            transmitterBufferOffset += (int)transferType * count;
+            if(transmitterBufferOffset == transmitterBuffer.Length)
+            {
+                transmitterBuffer = null;
+            }
+            return true;
         }
 
         private void Write()
@@ -418,6 +469,38 @@ namespace Antmicro.Renode.Peripherals.DMA
             {
                 transmitterBuffer = null;
             }
+        }
+
+        private bool TryBlockRead(int count)
+        {
+            byte[] data = null;
+
+            switch(parent.DmaReadAccessWidth)
+            {
+            case TransferType.Byte:
+                if(parent is ISamPdcBlockBytePeripheral bytePeripheral)
+                {
+                    data = bytePeripheral.DmaBlockByteRead(count);
+                    break;
+                }
+                return false;
+            case TransferType.Word:
+            case TransferType.DoubleWord:
+            case TransferType.QuadWord:
+                // Not implemented
+                return false;
+            default:
+                throw new Exception("Unreachable");
+            }
+
+            if(data == null)
+            {
+                return false;
+            }
+
+            var paddedData = data.Concat(Enumerable.Repeat((byte)0x0, count)).Take(count);
+            receiverBuffer.AddRange(paddedData);
+            return true;
         }
 
         private bool TryRead()
