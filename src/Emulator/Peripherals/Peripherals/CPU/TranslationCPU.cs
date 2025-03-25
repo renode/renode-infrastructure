@@ -68,6 +68,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             decodedIrqs = new Dictionary<Interrupt, HashSet<int>>();
             hooks = new Dictionary<ulong, HookDescriptor>();
             currentMappings = new List<SegmentMapping>();
+            deferred = new Queue<Tuple<int, bool>>();
             InitializeRegisters();
             Init();
             InitDisas();
@@ -258,6 +259,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 base.ExecutionMode = value;
                 UpdateBlockBeginHookPresent();
+                SetDeferredIRQs();
             }
         }
 
@@ -298,6 +300,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             base.OnLeavingResetState();
             TlibOnLeavingResetState();
+        }
+
+        protected override void OnResume()
+        {
+            base.OnResume();
+            SetDeferredIRQs();
         }
 
         protected override void RequestPause()
@@ -357,6 +365,28 @@ namespace Antmicro.Renode.Peripherals.CPU
                 {
                     TlibSetIrqWrapped(number, value);
                     if(EmulationManager.Instance.CurrentEmulation.Mode != Emulation.EmulationMode.SynchronizedIO)
+                    {
+                        sleeper.Interrupt();
+                    }
+                }
+                else
+                {
+                    deferred.Enqueue(new Tuple<int, bool>(number, value));
+                }
+            }
+        }
+
+        private void SetDeferredIRQs()
+        {
+            if(started && (lastTlibResult == TlibExecutionResult.WaitingForInterrupt
+                           || !(DisableInterruptsWhileStepping && IsSingleStepMode)))
+            {
+                Tuple<int, bool> t;
+                while (deferred.TryDequeue(out t))
+                {
+                    TlibSetIrqWrapped(t.Item1, t.Item2);
+                    if(EmulationManager.Instance.CurrentEmulation.Mode !=
+                       Emulation.EmulationMode.SynchronizedIO)
                     {
                         sleeper.Interrupt();
                     }
@@ -445,7 +475,18 @@ namespace Antmicro.Renode.Peripherals.CPU
             TlibClearPageIoAccessed(address);
         }
 
-        public bool DisableInterruptsWhileStepping { get; set; }
+        private bool disableInterruptsWhileStepping;
+        public bool DisableInterruptsWhileStepping {
+            get
+            {
+                return disableInterruptsWhileStepping;
+            }
+            set
+            {
+                disableInterruptsWhileStepping = value;
+                SetDeferredIRQs();
+            }
+        }
 
         // this is just for easier usage in Monitor
         public void LogFunctionNames(bool value, bool removeDuplicates = false)
@@ -2410,6 +2451,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                     this.Trace($"Asked tlib to execute {numberOfInstructionsToExecute}, but did nothing");
                 }
                 DebugHelper.Assert(numberOfExecutedInstructions <= numberOfInstructionsToExecute, "tlib executed more instructions than it was asked to");
+                if (lastTlibResult == TlibExecutionResult.WaitingForInterrupt)
+                {
+                    SetDeferredIRQs();
+                }
             }
 
             switch(lastTlibResult)
@@ -2447,6 +2492,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private Dictionary<ulong, HookDescriptor> hooks;
         private Dictionary<Interrupt, HashSet<int>> decodedIrqs;
         private bool isInterruptLoggingEnabled;
+        private Queue<Tuple<int, bool>> deferred;
 
         private class HookDescriptor
         {
