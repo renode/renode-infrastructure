@@ -49,15 +49,16 @@ namespace Antmicro.Renode.Peripherals.Analog
             channelStream[channelIndex] = this.CreateRESDStream<VoltageSample>(filePath, resdChannel, sampleOffsetType, sampleOffsetTime);
         }
 
-        public decimal DefaultChannelVoltage(int channelIndex, decimal? newVoltage = null)
+        public decimal DefaultChannelVoltage(int channelIndex)
         {
             AssertChannelIndex(channelIndex);
-
-            if(newVoltage.HasValue)
-            {
-                defaultChannelValue[channelIndex] = newVoltage.Value;
-            }
             return defaultChannelValue[channelIndex];
+        }
+
+        public void DefaultChannelVoltage(int channelIndex, decimal newVoltage)
+        {
+            AssertChannelIndex(channelIndex);
+            defaultChannelValue[channelIndex] = newVoltage;
         }
 
         public ushort GetChannelValue(int channelIndex)
