@@ -42,6 +42,7 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
         public abstract void StackFrameAdd(ulong currentAddress, ulong returnAddress, ulong instructionsCount);
         public abstract void StackFramePop(ulong currentAddress, ulong returnAddress, ulong instructionsCount);
         public abstract void OnContextChange(ulong newContextId);
+        public abstract void OnStackPointerChange(ulong address, ulong oldSPValue, ulong newSPValue, ulong instructionsCount);
         public abstract void InterruptEnter(ulong interruptIndex);
         public abstract void InterruptExit(ulong interruptIndex);
         public abstract void FlushBuffer();

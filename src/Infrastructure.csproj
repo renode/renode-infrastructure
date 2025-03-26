@@ -825,7 +825,8 @@
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/TranslationCPU_Profiler.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/Cluster.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/GuestProfiling/BaseProfiler.cs" />
-    <Compile Include="Emulator/Peripherals/Peripherals/CPU/GuestProfiling/CollapsedStackProfiler.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/CPU/GuestProfiling/FrameTrackingCollapsedStackProfiler.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/CPU/GuestProfiling/ControlTrackingCollapsedStackProfiler.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/GuestProfiling/PerfettoProfiler.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/GuestProfiling/ProtoBuf/TracePacket.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/GuestProfiling/ProtoBuf/PerfettoTraceWriter.cs" />

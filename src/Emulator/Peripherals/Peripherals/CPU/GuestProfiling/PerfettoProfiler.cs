@@ -74,6 +74,10 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
             CheckAndFlush(time);
         }
 
+        public override void OnStackPointerChange(ulong address, ulong oldSPValue, ulong newSPValue, ulong instructionsCount)
+        {
+        }
+
         public override void OnContextChange(ulong newContextId)
         {
             if(newContextId == currentContextId)

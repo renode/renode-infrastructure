@@ -13,9 +13,9 @@ using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
 {
-    public class CollapsedStackProfiler : BaseProfiler
+    public class ControlTrackingCollapsedStackProfiler : BaseProfiler
     {
-        public CollapsedStackProfiler(TranslationCPU cpu, string filename, bool flushInstantly, long? fileSizeLimit = null, int? maximumNestedContexts = null)
+        public ControlTrackingCollapsedStackProfiler(TranslationCPU cpu, string filename, bool flushInstantly, long? fileSizeLimit = null, int? maximumNestedContexts = null)
             : base(cpu, flushInstantly, maximumNestedContexts)
         {
             this.fileSizeLimit = fileSizeLimit;
@@ -66,6 +66,10 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
             currentStack.Pop();
 
             CheckAndFlushBuffer();
+        }
+
+        public override void OnStackPointerChange(ulong address, ulong oldPointerValue, ulong newPointerValue, ulong instructionsCount)
+        {
         }
 
         public override void OnContextChange(ulong newContextId)
@@ -139,6 +143,13 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
             }
         }
 
+        public override string GetCurrentStack()
+        {
+            var result = FormatCollapsedStackString(currentStack);
+
+            return result;
+        }
+
         private ulong GetInstructionsDelta(ulong currentInstructionsCount)
         {
             currentInstructionsCount += cpu.SkipInstructions + cpu.SkippedInstructions;
@@ -179,13 +190,6 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
         private string FormatCollapsedStackString(Stack<string> stack)
         {
             return string.Join(";", stack.Reverse());
-        }
-
-        public override string GetCurrentStack()
-        {
-            var result = FormatCollapsedStackString(currentStack);
-
-            return result;
         }
 
         private readonly StringBuilder stringBuffer;

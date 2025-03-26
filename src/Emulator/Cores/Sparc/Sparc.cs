@@ -94,6 +94,18 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        protected override void InitFrameProfilerIgnoredSymbols()
+        {
+            // Guest profiler frame information is based on save and restore instructions.
+            // These are used to create stack frames, but also during window overflow/underflow, which
+            // generates false stack creation/removal events in the frame profiler.
+            // We ignore these events to avoid corrupted profiling output.
+
+            // Zephyr
+            FrameProfilerIgnoredSymbols.Add("__sparc_trap_window_overflow");
+            FrameProfilerIgnoredSymbols.Add("__sparc_trap_window_underflow");
+        }
+
         private GaislerMIC connectedMIC;
 
         public GaislerMIC ConnectedMIC

@@ -73,6 +73,7 @@ EXTERNAL_AS(void, OnMemoryAccess, tlib_on_memory_access, uint64_t, uint32_t, uin
 EXTERNAL_AS(uint32_t, IsInDebugMode, tlib_is_in_debug_mode)
 EXTERNAL_AS(void, MmuFaultExternalHandler, tlib_mmu_fault_external_handler, uint64_t, int32_t, int32_t)
 EXTERNAL_AS(void, OnStackChange, tlib_profiler_announce_stack_change, uint64_t, uint64_t, uint64_t, int32_t)
+EXTERNAL_AS(void, OnStackPointerChange, tlib_profiler_announce_stack_pointer_change, uint64_t, uint64_t, uint64_t, uint64_t)
 EXTERNAL_AS(void, OnContextChange, tlib_profiler_announce_context_change, uint64_t)
 EXTERNAL_AS(void, OnMassBroadcastDirty, tlib_mass_broadcast_dirty, voidptr, int32_t)
 EXTERNAL_AS(voidptr, GetDirty, tlib_get_dirty_addresses_list, voidptr)
