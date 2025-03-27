@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
     public class PerfettoProfiler : BaseProfiler
     {
         public PerfettoProfiler(TranslationCPU cpu, string filename, bool flushInstantly, bool enableMultipleTracks, long? fileSizeLimit = null)
-            : base(cpu, filename, flushInstantly)
+            : base(cpu, flushInstantly)
         {
             this.fileSizeLimit = fileSizeLimit;
             this.enableMultipleTracks = enableMultipleTracks;

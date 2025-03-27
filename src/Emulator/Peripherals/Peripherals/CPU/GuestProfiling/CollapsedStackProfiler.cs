@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
     public class CollapsedStackProfiler : BaseProfiler
     {
         public CollapsedStackProfiler(TranslationCPU cpu, string filename, bool flushInstantly, long? fileSizeLimit = null)
-            : base(cpu, filename, flushInstantly)
+            : base(cpu, flushInstantly)
         {
             this.fileSizeLimit = fileSizeLimit;
             stringBuffer = new StringBuilder();
