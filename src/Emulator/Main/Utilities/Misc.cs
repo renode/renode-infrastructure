@@ -183,12 +183,12 @@ namespace Antmicro.Renode.Utilities
         {
             return 1024 * value.KB();
         }
-        
+
         public static ulong GB(this int value)
         {
             return 1024 * (ulong)value.MB();
         }
-        
+
         public static ulong TB(this int value)
         {
             return 1024 * value.GB();
@@ -636,7 +636,9 @@ namespace Antmicro.Renode.Utilities
             string libraryFile;
             if(nonstandardOutputFilename != null)
             {
-                if(!TemporaryFilesManager.Instance.TryCreateFile(nonstandardOutputFilename, out libraryFile))
+                // Overwrite file if already exists since nonstandard filenames are not unique due to not being prefixed with GUIDs
+                // This can cause issues when running docker containers which can have reproducable PIDs even after restart and persistent /tmp
+                if(!TemporaryFilesManager.Instance.TryCreateFile(nonstandardOutputFilename, out libraryFile, true))
                 {
                     Logging.Logger.Log(Logging.LogLevel.Error, "Could not unpack resource {0} to {1}. This likely signifies an internal error.", resourceName, nonstandardOutputFilename);
                     outputFileFullPath = null;
