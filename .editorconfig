@@ -31,3 +31,6 @@ generated_code = true
 
 [src/Emulator/Peripherals/Peripherals/Timers/EFR32xG2_TIMER_1.Generated.cs]
 generated_code = true
+
+[src/Emulator/Peripherals/Peripherals/I3C/Caliptra_I3C_generated.cs]
+generated_code = true

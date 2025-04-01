@@ -1120,6 +1120,8 @@
     <Compile Include="Emulator/Peripherals/Peripherals/Sensors/AS6221.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Sensors/MAX77818.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/I2C/LC709205F.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/I3C/Caliptra_I3C.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/I3C/Caliptra_I3C_generated.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/CRC/STM32_CRC.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/MTD/STM32L0_FlashController.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/MTD/STM32_FlashController.cs" />
