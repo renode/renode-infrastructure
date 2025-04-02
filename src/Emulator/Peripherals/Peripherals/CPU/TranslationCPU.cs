@@ -1381,7 +1381,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Transient]
-        private Action<ulong> onTranslationBlockFetch;
+        private TranslationBlockFetchCallback onTranslationBlockFetch;
         private byte[] cpuState;
 
         /// <summary>
@@ -1395,6 +1395,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Transient]
         private SimpleMemoryManager memoryManager;
+
+        private delegate void TranslationBlockFetchCallback(ulong pc);
 
         public uint IRQ{ get { return TlibIsIrqSet(); } }
 
