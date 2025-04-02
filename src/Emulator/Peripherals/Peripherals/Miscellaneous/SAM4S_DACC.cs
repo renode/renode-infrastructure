@@ -107,8 +107,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             ;
 
             Registers.Mode.Define(this)
-                .WithTaggedFlag("TRGEN", 0)
-                .WithTag("TRGSEL", 1, 3)
+                // NOTE: We only support free-running mode.
+                .WithFlag(0, name: "TRGEN",
+                    valueProviderCallback: _ => false)
+                // NOTE: We only support free-running mode, therefore this
+                //       field is not used. We are implementing it as value field
+                //       to limit unnecessary logs.
+                .WithValueField(1, 3, name: "TRGSEL")
                 .WithFlag(4, out wordMode, name: "WORD")
                 .WithReservedBits(5, 3)
                 .WithFlag(8, name: "ONE",
@@ -119,7 +124,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithFlag(20, out tagSelectionMode, name: "TAG")
                 .WithTaggedFlag("MAXS", 21)
                 .WithReservedBits(22, 2)
-                .WithTag("STARTUP", 24, 6)
+                // NOTE: We don't implement startup delay.
+                //       This should be implemented alongside trigger mode.
+                .WithValueField(24, 6, name: "STARTUP")
                 .WithReservedBits(30, 2)
             ;
 
