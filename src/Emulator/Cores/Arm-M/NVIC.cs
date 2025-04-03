@@ -1101,9 +1101,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     }
                     break;
                 case RegistersV8.RegionBaseAddressRegister:
-                case RegistersV8.RegionBaseAddressRegisterAlias1:
-                case RegistersV8.RegionBaseAddressRegisterAlias2:
-                case RegistersV8.RegionBaseAddressRegisterAlias3:
                     if(isSecure || !cpu.TrustZoneEnabled)
                     {
                         cpu.PmsaV8Rbar = value;
@@ -1113,10 +1110,37 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         cpu.PmsaV8Rbar_NS = value;
                     }
                     break;
+                case RegistersV8.RegionBaseAddressRegisterAlias1:
+                    if(isSecure || !cpu.TrustZoneEnabled)
+                    {
+                        cpu.PmsaV8RbarAlias1 = value;
+                    }
+                    else
+                    {
+                        cpu.PmsaV8RbarAlias1_NS = value;
+                    }
+                    break;
+                case RegistersV8.RegionBaseAddressRegisterAlias2:
+                    if(isSecure || !cpu.TrustZoneEnabled)
+                    {
+                        cpu.PmsaV8RbarAlias2 = value;
+                    }
+                    else
+                    {
+                        cpu.PmsaV8RbarAlias2_NS = value;
+                    }
+                    break;
+                case RegistersV8.RegionBaseAddressRegisterAlias3:
+                    if(isSecure || !cpu.TrustZoneEnabled)
+                    {
+                        cpu.PmsaV8RbarAlias3 = value;
+                    }
+                    else
+                    {
+                        cpu.PmsaV8RbarAlias3_NS = value;
+                    }
+                    break;
                 case RegistersV8.RegionLimitAddressRegister:
-                case RegistersV8.RegionLimitAddressRegisterAlias1:
-                case RegistersV8.RegionLimitAddressRegisterAlias2:
-                case RegistersV8.RegionLimitAddressRegisterAlias3:
                     if(isSecure || !cpu.TrustZoneEnabled)
                     {
                         cpu.PmsaV8Rlar = value;
@@ -1124,6 +1148,36 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     else
                     {
                         cpu.PmsaV8Rlar_NS = value;
+                    }
+                    break;
+                case RegistersV8.RegionLimitAddressRegisterAlias1:
+                    if(isSecure || !cpu.TrustZoneEnabled)
+                    {
+                        cpu.PmsaV8RlarAlias1 = value;
+                    }
+                    else
+                    {
+                        cpu.PmsaV8RlarAlias1_NS = value;
+                    }
+                    break;
+                case RegistersV8.RegionLimitAddressRegisterAlias2:
+                    if(isSecure || !cpu.TrustZoneEnabled)
+                    {
+                        cpu.PmsaV8RlarAlias2 = value;
+                    }
+                    else
+                    {
+                        cpu.PmsaV8RlarAlias2_NS = value;
+                    }
+                    break;
+                case RegistersV8.RegionLimitAddressRegisterAlias3:
+                    if(isSecure || !cpu.TrustZoneEnabled)
+                    {
+                        cpu.PmsaV8RlarAlias3 = value;
+                    }
+                    else
+                    {
+                        cpu.PmsaV8RlarAlias3_NS = value;
                     }
                     break;
                 case RegistersV8.MemoryAttributeIndirectionRegister0:
@@ -1203,16 +1257,28 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     value = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.PmsaV8Rnr, () => cpu.PmsaV8Rnr_NS);
                     break;
                 case RegistersV8.RegionBaseAddressRegister:
+                    value = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.PmsaV8Rbar, () => cpu.PmsaV8Rbar_NS);
+                    break;
                 case RegistersV8.RegionBaseAddressRegisterAlias1:
+                    value = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.PmsaV8RbarAlias1, () => cpu.PmsaV8RbarAlias1_NS);
+                    break;
                 case RegistersV8.RegionBaseAddressRegisterAlias2:
+                    value = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.PmsaV8RbarAlias2, () => cpu.PmsaV8RbarAlias2_NS);
+                    break;
                 case RegistersV8.RegionBaseAddressRegisterAlias3:
-                    value = GetTrustZoneBankedRegisterValue(isSecure, cpu.PmsaV8Rbar, cpu.PmsaV8Rbar_NS);
+                    value = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.PmsaV8RbarAlias3, () => cpu.PmsaV8RbarAlias3_NS);
                     break;
                 case RegistersV8.RegionLimitAddressRegister:
+                    value = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.PmsaV8Rlar, () => cpu.PmsaV8Rlar_NS);
+                    break;
                 case RegistersV8.RegionLimitAddressRegisterAlias1:
+                    value = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.PmsaV8RlarAlias1, () => cpu.PmsaV8RlarAlias1_NS);
+                    break;
                 case RegistersV8.RegionLimitAddressRegisterAlias2:
+                    value = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.PmsaV8RlarAlias2, () => cpu.PmsaV8RlarAlias2_NS);
+                    break;
                 case RegistersV8.RegionLimitAddressRegisterAlias3:
-                    value = GetTrustZoneBankedRegisterValue(isSecure, cpu.PmsaV8Rlar, cpu.PmsaV8Rlar_NS);
+                    value = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.PmsaV8RlarAlias3, () => cpu.PmsaV8RlarAlias3_NS);
                     break;
                 case RegistersV8.MemoryAttributeIndirectionRegister0:
                     value = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.PmsaV8Mair0, () => cpu.PmsaV8Mair0_NS);
