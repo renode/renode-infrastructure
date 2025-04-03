@@ -1224,7 +1224,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     value = 0x0;
                     break;
             }
-            this.Log(LogLevel.Debug, "MPU: Trying to read {0} (value: 0x{1:X08})", Enum.GetName(typeof(RegistersV7), offset), value);
+            this.Log(LogLevel.Debug, "MPU: Trying to read {0} (value: 0x{1:X08})", Enum.GetName(typeof(RegistersV8), offset), value);
             return value;
         }
 
