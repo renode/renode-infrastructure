@@ -64,6 +64,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             if(cpu.TrustZoneEnabled)
             {
+                if(mpuVersion != MPUVersion.PMSAv8)
+                {
+                    throw new ConstructionException($"Only {nameof(MPUVersion.PMSAv8)} is supported with TrustZone");
+                }
                 systick.SecureVal = new SysTick(machine, this, systick.NonSecureVal.Frequency, true);
             }
 
@@ -163,7 +167,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
             if(offset >= MPUStart && offset < MPUEnd)
             {
-                return HandleMPURead(offset - MPUStart);
+                return HandleMPURead(offset - MPUStart, isSecure);
             }
             if(offset >= SAUStart && offset < SAUEnd)
             {
@@ -278,7 +282,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
             if(offset >= MPUStart && offset < MPUEnd)
             {
-                HandleMPUWrite(offset - MPUStart, value);
+                HandleMPUWrite(offset - MPUStart, value, isSecure);
                 return;
             }
             if(offset >= SAUStart && offset < SAUEnd)
@@ -997,28 +1001,32 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
-        private uint HandleMPURead(long offset)
+        private uint HandleMPURead(long offset, bool isSecure)
         {
             switch(mpuVersion)
             {
                 case MPUVersion.PMSAv7:
+                    // Not supported with TrustZone. That's checked when attaching the CPU
+                    DebugHelper.Assert(!isSecure);
                     return HandleMPUReadV7(offset);
                 case MPUVersion.PMSAv8:
-                    return HandleMPUReadV8(offset);
+                    return HandleMPUReadV8(offset, isSecure);
                 default:
                     throw new Exception("Attempted MPU read, but the MPU version is unknown");
             }
         }
 
-        private void HandleMPUWrite(long offset, uint value)
+        private void HandleMPUWrite(long offset, uint value, bool isSecure)
         {
             switch(mpuVersion)
             {
                 case MPUVersion.PMSAv7:
+                    // Not supported with TrustZone. That's checked when attaching the CPU
+                    DebugHelper.Assert(!isSecure);
                     HandleMPUWriteV7(offset, value);
                     break;
                 case MPUVersion.PMSAv8:
-                    HandleMPUWriteV8(offset, value);
+                    HandleMPUWriteV8(offset, value, isSecure);
                     break;
                 default:
                     throw new Exception("Attempted MPU write, but the mpuVersion is unknown");
@@ -1058,7 +1066,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
-        private void HandleMPUWriteV8(long offset, uint value)
+        private void HandleMPUWriteV8(long offset, uint value, bool isSecure)
         {
             this.Log(LogLevel.Debug, "MPU: Trying to write to {0} (value: 0x{1:X08})", Enum.GetName(typeof(RegistersV8), offset), value);
 
@@ -1073,28 +1081,70 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     this.Log(LogLevel.Warning, "MPU: Trying to write to a read-only register (MPU_TYPE)");
                     break;
                 case RegistersV8.Control:
-                    cpu.PmsaV8Ctrl = value;
+                    if(isSecure || !cpu.TrustZoneEnabled)
+                    {
+                        cpu.PmsaV8Ctrl = value;
+                    }
+                    else
+                    {
+                        cpu.PmsaV8Ctrl_NS = value;
+                    }
                     break;
                 case RegistersV8.RegionNumberRegister:
-                    cpu.PmsaV8Rnr = value;
+                    if(isSecure || !cpu.TrustZoneEnabled)
+                    {
+                        cpu.PmsaV8Rnr = value;
+                    }
+                    else
+                    {
+                        cpu.PmsaV8Rnr_NS = value;
+                    }
                     break;
                 case RegistersV8.RegionBaseAddressRegister:
                 case RegistersV8.RegionBaseAddressRegisterAlias1:
                 case RegistersV8.RegionBaseAddressRegisterAlias2:
                 case RegistersV8.RegionBaseAddressRegisterAlias3:
-                    cpu.PmsaV8Rbar = value;
+                    if(isSecure || !cpu.TrustZoneEnabled)
+                    {
+                        cpu.PmsaV8Rbar = value;
+                    }
+                    else
+                    {
+                        cpu.PmsaV8Rbar_NS = value;
+                    }
                     break;
                 case RegistersV8.RegionLimitAddressRegister:
                 case RegistersV8.RegionLimitAddressRegisterAlias1:
                 case RegistersV8.RegionLimitAddressRegisterAlias2:
                 case RegistersV8.RegionLimitAddressRegisterAlias3:
-                    cpu.PmsaV8Rlar = value;
+                    if(isSecure || !cpu.TrustZoneEnabled)
+                    {
+                        cpu.PmsaV8Rlar = value;
+                    }
+                    else
+                    {
+                        cpu.PmsaV8Rlar_NS = value;
+                    }
                     break;
                 case RegistersV8.MemoryAttributeIndirectionRegister0:
-                    cpu.PmsaV8Mair0 = value;
+                    if(isSecure || !cpu.TrustZoneEnabled)
+                    {
+                        cpu.PmsaV8Mair0 = value;
+                    }
+                    else
+                    {
+                        cpu.PmsaV8Mair0_NS = value;
+                    }
                     break;
                 case RegistersV8.MemoryAttributeIndirectionRegister1:
-                    cpu.PmsaV8Mair1 = value;
+                    if(isSecure || !cpu.TrustZoneEnabled)
+                    {
+                        cpu.PmsaV8Mair1 = value;
+                    }
+                    else
+                    {
+                        cpu.PmsaV8Mair1_NS = value;
+                    }
                     break;
             }
         }
@@ -1133,7 +1183,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             return value;
         }
 
-        private uint HandleMPUReadV8(long offset)
+        private uint HandleMPUReadV8(long offset, bool isSecure)
         {
             if (cpu.NumberOfMPURegions == 0)
             {
@@ -1147,28 +1197,28 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     value = (cpu.NumberOfMPURegions & 0xFF) << 8;
                     break;
                 case RegistersV8.Control:
-                    value = cpu.PmsaV8Ctrl;
+                    value = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.PmsaV8Ctrl, () => cpu.PmsaV8Ctrl_NS);
                     break;
                 case RegistersV8.RegionNumberRegister:
-                    value = cpu.PmsaV8Rnr;
+                    value = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.PmsaV8Rnr, () => cpu.PmsaV8Rnr_NS);
                     break;
                 case RegistersV8.RegionBaseAddressRegister:
                 case RegistersV8.RegionBaseAddressRegisterAlias1:
                 case RegistersV8.RegionBaseAddressRegisterAlias2:
                 case RegistersV8.RegionBaseAddressRegisterAlias3:
-                    value = cpu.PmsaV8Rbar;
+                    value = GetTrustZoneBankedRegisterValue(isSecure, cpu.PmsaV8Rbar, cpu.PmsaV8Rbar_NS);
                     break;
                 case RegistersV8.RegionLimitAddressRegister:
                 case RegistersV8.RegionLimitAddressRegisterAlias1:
                 case RegistersV8.RegionLimitAddressRegisterAlias2:
                 case RegistersV8.RegionLimitAddressRegisterAlias3:
-                    value = cpu.PmsaV8Rlar;
+                    value = GetTrustZoneBankedRegisterValue(isSecure, cpu.PmsaV8Rlar, cpu.PmsaV8Rlar_NS);
                     break;
                 case RegistersV8.MemoryAttributeIndirectionRegister0:
-                    value = cpu.PmsaV8Mair0;
+                    value = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.PmsaV8Mair0, () => cpu.PmsaV8Mair0_NS);
                     break;
                 case RegistersV8.MemoryAttributeIndirectionRegister1:
-                    value = cpu.PmsaV8Mair1;
+                    value = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.PmsaV8Mair1, () => cpu.PmsaV8Mair1_NS);
                     break;
                 default:
                     value = 0x0;
@@ -1632,6 +1682,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             // Is in handler mode or is privileged
             return (cpu.XProgramStatusRegister & InterruptProgramStatusRegisterMask) != 0 || (cpu.Control & 1) == 0;
+        }
+
+        private T GetTrustZoneBankedRegisterValue<T>(bool isSecureAccess, Func<T> reg, Func<T> regNonSecure)
+        {
+            return (isSecureAccess || !cpu.TrustZoneEnabled) ? reg() : regNonSecure();
         }
 
         /* Expect this to return `true` only if the CPU is in Secure state
