@@ -203,20 +203,10 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             get
             {
-                var secure = 0u;
-                if(TrustZoneEnabled)
-                {
-                    secure = SecureState ? 1u : 0u;
-                }
-                return tlibGetInterruptVectorBase(secure);
+                return tlibGetInterruptVectorBase(ShouldAccessBeSecure());
             }
             set
             {
-                var secure = 0u;
-                if(TrustZoneEnabled)
-                {
-                    secure = SecureState ? 1u : 0u;
-                }
                 vtorInitialized = true;
                 if(!machine.SystemBus.IsMemory(value, this))
                 {
@@ -224,7 +214,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     return;
                 }
                 this.NoisyLog("VectorTableOffset set to 0x{0:X}.", value);
-                tlibSetInterruptVectorBase(value, secure);
+                tlibSetInterruptVectorBase(value, ShouldAccessBeSecure());
             }
         }
 
@@ -329,21 +319,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             get
             {
-                var secure = 0u;
-                if(TrustZoneEnabled)
-                {
-                    secure = SecureState ? 1u : 0u;
-                }
-                return tlibGetFaultStatus(secure);
+                return tlibGetFaultStatus(ShouldAccessBeSecure());
             }
             set
             {
-                var secure = 0u;
-                if(TrustZoneEnabled)
-                {
-                    secure = SecureState ? 1u : 0u;
-                }
-                tlibSetFaultStatus(value, secure);
+                tlibSetFaultStatus(value, ShouldAccessBeSecure());
             }
         }
 
@@ -365,12 +345,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             get
             {
-                var secure = 0u;
-                if(TrustZoneEnabled)
-                {
-                    secure = SecureState ? 1u : 0u;
-                }
-                return tlibGetMemoryFaultAddress(secure);
+                return tlibGetMemoryFaultAddress(ShouldAccessBeSecure());
             }
         }
 

@@ -177,32 +177,32 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             switch((Registers)offset)
             {
             case Registers.VectorTableOffset:
-                return (isSecure || !cpu.TrustZoneEnabled) ? cpu.VectorTableOffset : cpu.VectorTableOffsetNonSecure;
+                return GetTrustZoneBankedRegisterValue(isSecure, () => cpu.VectorTableOffset, () => cpu.VectorTableOffsetNonSecure);
             case Registers.CPUID:
                 return cpuId;
             case Registers.CoprocessorAccessControl:
-                return (isSecure || !cpu.TrustZoneEnabled) ? cpu.CPACR : cpu.CPACR_NS;
+                return GetTrustZoneBankedRegisterValue(isSecure, () => cpu.CPACR, () => cpu.CPACR_NS);
             case Registers.FPContextControl:
                 if(!IsPrivilegedMode())
                 {
                     this.Log(LogLevel.Warning, "Tried to read FPContextControl from an unprivileged context. Returning 0.");
                     return 0;
                 }
-                return (isSecure || !cpu.TrustZoneEnabled) ? cpu.FPCCR: cpu.FPCCR_NS;
+                return GetTrustZoneBankedRegisterValue(isSecure, () => cpu.FPCCR, () => cpu.FPCCR_NS);
             case Registers.FPContextAddress:
                 if(!IsPrivilegedMode())
                 {
                     this.Log(LogLevel.Warning, "Tried to read FPContextAddress from an unprivileged context. Returning 0.");
                     return 0;
                 }
-                return isSecure || !cpu.TrustZoneEnabled ? cpu.FPCAR : cpu.FPCAR_NS;
+                return GetTrustZoneBankedRegisterValue(isSecure, () => cpu.FPCAR, () => cpu.FPCAR_NS);
             case Registers.FPDefaultStatusControl:
                 if(!IsPrivilegedMode())
                 {
                     this.Log(LogLevel.Warning, "Tried to read FPDefaultStatusControl from an unprivileged context. Returning 0.");
                     return 0;
                 }
-                return isSecure || !cpu.TrustZoneEnabled ? cpu.FPDSCR : cpu.FPDSCR_NS;
+                return GetTrustZoneBankedRegisterValue(isSecure, () => cpu.FPDSCR, () => cpu.FPDSCR_NS);
             case Registers.ConfigurationAndControl:
                 return ccr.Get(isSecure);
             case Registers.SystemHandlerPriority1:
@@ -210,11 +210,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             case Registers.SystemHandlerPriority3:
                 return HandlePriorityRead(offset - 0xD14, false, isSecure);
             case Registers.ConfigurableFaultStatus:
-                return isSecure || !cpu.TrustZoneEnabled ? cpu.FaultStatus : cpu.FaultStatusNonSecure;
+                return GetTrustZoneBankedRegisterValue(isSecure, () => cpu.FaultStatus, () => cpu.FaultStatusNonSecure);
             case Registers.InterruptControllerType:
                 return 0b0111;
             case Registers.MemoryFaultAddress:
-                return isSecure || !cpu.TrustZoneEnabled ? cpu.MemoryFaultAddress : cpu.MemoryFaultAddressNonSecure;
+                return GetTrustZoneBankedRegisterValue(isSecure, () => cpu.MemoryFaultAddress, () => cpu.MemoryFaultAddressNonSecure);
             default:
                 lock(RegisterCollection)
                 {
