@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Peripherals.CPU.Assembler
 
         public byte[] AssembleBlock(ulong pc, string code, uint flags)
         {
-            LLVMArchitectureMapping.GetTripleAndModelKey(cpu, flags, out var triple, out var model);
+            LLVMArchitectureMapping.GetTripleAndModelKey(cpu, ref flags, out var triple, out var model);
             // We need to initialize the architecture to be used before trying to assemble.
             // It's OK and cheap to initialize it multiple times, as this only sets a few pointers.
             init_llvm_architecture(triple);

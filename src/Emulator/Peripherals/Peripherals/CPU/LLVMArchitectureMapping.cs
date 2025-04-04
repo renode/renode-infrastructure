@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -17,12 +17,21 @@ namespace Antmicro.Renode.Peripherals.CPU
             return SupportedArchitectures.ContainsKey(cpu.Architecture);
         }
 
-        public static void GetTripleAndModelKey(ICPU cpu, uint flags, out string triple, out string model)
+        public static void GetTripleAndModelKey(ICPU cpu, ref uint flags, out string triple, out string model)
         {
             triple = SupportedArchitectures[cpu.Architecture];
             if(triple == "armv7a" && flags > 0)
             {
+                // For armv7a the flags are only 1 bit: 0 = ARM, 1 = thumb
                 triple = "thumb";
+                // The flags as passed to the disassembler are a different sort of flags than the parameter
+                // of this function - the parameter contains disassembly flags reflecting the current state
+                // of the CPU (see CurrentBlockDisassemblyFlags), while the disassembler flags select which
+                // assembly dialect to use. Clear them out here, because the ARM disassembler only supports
+                // dialect 0 (see LLVM's createARMMCInstPrinter). Actually, this would not cause any issues
+                // because LLVM's C API detects this and ignores the alternate dialect flag, but let's pass
+                // a proper value in the first place.
+                flags = 0;
             }
 
             if(!ModelTranslations.TryGetValue(cpu.Model, out model))

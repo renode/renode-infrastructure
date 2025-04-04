@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -72,7 +72,7 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
 
         private IDisassembler GetDisassembler(uint flags)
         {
-            LLVMArchitectureMapping.GetTripleAndModelKey(cpu, flags, out var triple, out var model);
+            LLVMArchitectureMapping.GetTripleAndModelKey(cpu, ref flags, out var triple, out var model);
             var key = $"{triple} {model} {flags}";
             if(!cache.ContainsKey(key))
             {

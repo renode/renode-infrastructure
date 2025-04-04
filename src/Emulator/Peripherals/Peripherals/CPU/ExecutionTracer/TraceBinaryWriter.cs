@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -39,7 +39,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             stream.WriteByte((byte)(IncludeOpcode ? 1 : 0));
             if(IncludeOpcode)
             {
-                LLVMArchitectureMapping.GetTripleAndModelKey(AttachedCPU, 0, out var triple, out var model);
+                var flags = 0u;
+                LLVMArchitectureMapping.GetTripleAndModelKey(AttachedCPU, ref flags, out var triple, out var model);
                 var tripleAndModelString = $"{triple} {model}";
                 usesThumbFlag = tripleAndModelString.Contains("armv7a");
                 var byteCount = Encoding.ASCII.GetByteCount(tripleAndModelString);
