@@ -7,6 +7,7 @@
 //
 
 using System;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Collections.Generic;
@@ -48,7 +49,7 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
             {
                 if(!TryDisassembleInstruction(pc, memory, flags, out var result, memoryOffset: sofar))
                 {
-                    strBldr.AppendLine("Disassembly error detected. The rest of the output will be truncated.");
+                    strBldr.AppendFormat("Disassembly error detected. The rest of the output ({0}) will be truncated.", memory.Skip(sofar).ToLazyHexString());
                     break;
                 }
                 
