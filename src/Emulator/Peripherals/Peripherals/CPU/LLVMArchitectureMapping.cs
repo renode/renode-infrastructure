@@ -34,6 +34,22 @@ namespace Antmicro.Renode.Peripherals.CPU
                 flags = 0;
             }
 
+            if(triple == "arm64")
+            {
+                // For arm64 there are two flags: bit[0] means Thumb and bit[1] means AArch32.
+                // The valid values are 00, 10, and 11 (no 64-bit Thumb).
+                if(flags == 0b10)
+                {
+                    triple = "armv7a";
+                }
+                else if(flags == 0b11)
+                {
+                    triple = "thumb";
+                }
+                // The same logic about not passing these through to LLVM applies.
+                flags = 0;
+            }
+
             if(!ModelTranslations.TryGetValue(cpu.Model, out model))
             {
                 model = cpu.Model.ToLower();
