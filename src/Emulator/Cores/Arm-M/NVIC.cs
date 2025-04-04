@@ -294,14 +294,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             switch((Registers)offset)
             {
             case Registers.VectorTableOffset:
-                if(isSecure || !cpu.TrustZoneEnabled)
-                {
-                    cpu.VectorTableOffset = value & 0xFFFFFF80;
-                }
-                else
-                {
-                    cpu.VectorTableOffsetNonSecure = value & 0xFFFFFF80;
-                }
+                SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.VectorTableOffset = val, (val) => cpu.VectorTableOffsetNonSecure = val, value & 0xFFFFFF80);
                 break;
             case Registers.ApplicationInterruptAndReset:
                 var key = value >> 16;
@@ -347,14 +340,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 //      0b10 Reserved
                 // Any attempted use without access generates a NOCP UsageFault.
                 // same for ARM v7, but if values of CP11 and CP10 differ then effects are unpredictable
-                if(isSecure || !cpu.TrustZoneEnabled)
-                {
-                    cpu.CPACR = value;
-                }
-                else
-                {
-                    cpu.CPACR_NS = value;
-                }
+                SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.CPACR = val, (val) => cpu.CPACR_NS = val, value);
                 // Enable FPU if any access is permitted, privilege checks in tlib use CPACR register.
                 // Similarly, if TrustZone is enabled, CPACR should be used to check if FPU is enabled in respective Security state
                 if((value & 0x100000) == 0x100000)
@@ -385,14 +371,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     this.Log(LogLevel.Warning, "Writing to FPContextControl requires privileged access.");
                     break;
                 }
-                if(isSecure || !cpu.TrustZoneEnabled)
-                {
-                    cpu.FPCCR = value;
-                }
-                else
-                {
-                    cpu.FPCCR_NS = value;
-                }
+                SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.FPCCR = val, (val) => cpu.FPCCR_NS = val, value);
                 break;
             case Registers.FPContextAddress:
                 if(!IsPrivilegedMode())
@@ -401,14 +380,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     break;
                 }
                 // address must be 8-byte aligned
-                if(isSecure || !cpu.TrustZoneEnabled)
-                {
-                    cpu.FPCAR = value & ~0x7u;
-                }
-                else
-                {
-                    cpu.FPCAR_NS = value & ~0x7u;
-                }
+                SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.FPCAR = val, (val) => cpu.FPCAR_NS = val, value & ~0x7u);
                 break;
             case Registers.FPDefaultStatusControl:
                 if(!IsPrivilegedMode())
@@ -417,14 +389,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     break;
                 }
                 // set only not reserved values
-                if(isSecure || !cpu.TrustZoneEnabled)
-                {
-                    cpu.FPDSCR = value & 0x07c00000;
-                }
-                else
-                {
-                    cpu.FPDSCR_NS = value & 0x07c00000;
-                }
+                SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.FPDSCR = val, (val) => cpu.FPDSCR_NS = val, value & 0x07c00000);
                 break;
             case Registers.ConfigurationAndControl:
                 ccr.Get(isSecure) = value;
@@ -1081,124 +1046,40 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     this.Log(LogLevel.Warning, "MPU: Trying to write to a read-only register (MPU_TYPE)");
                     break;
                 case RegistersV8.Control:
-                    if(isSecure || !cpu.TrustZoneEnabled)
-                    {
-                        cpu.PmsaV8Ctrl = value;
-                    }
-                    else
-                    {
-                        cpu.PmsaV8Ctrl_NS = value;
-                    }
+                    SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.PmsaV8Ctrl = val, (val) => cpu.PmsaV8Ctrl_NS = val, value);
                     break;
                 case RegistersV8.RegionNumberRegister:
-                    if(isSecure || !cpu.TrustZoneEnabled)
-                    {
-                        cpu.PmsaV8Rnr = value;
-                    }
-                    else
-                    {
-                        cpu.PmsaV8Rnr_NS = value;
-                    }
+                    SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.PmsaV8Rnr = val, (val) => cpu.PmsaV8Rnr_NS = val, value);
                     break;
                 case RegistersV8.RegionBaseAddressRegister:
-                    if(isSecure || !cpu.TrustZoneEnabled)
-                    {
-                        cpu.PmsaV8Rbar = value;
-                    }
-                    else
-                    {
-                        cpu.PmsaV8Rbar_NS = value;
-                    }
+                    SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.PmsaV8Rbar = val, (val) => cpu.PmsaV8Rbar_NS = val, value);
                     break;
                 case RegistersV8.RegionBaseAddressRegisterAlias1:
-                    if(isSecure || !cpu.TrustZoneEnabled)
-                    {
-                        cpu.PmsaV8RbarAlias1 = value;
-                    }
-                    else
-                    {
-                        cpu.PmsaV8RbarAlias1_NS = value;
-                    }
+                    SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.PmsaV8RbarAlias1 = val, (val) => cpu.PmsaV8RbarAlias1_NS = val, value);
                     break;
                 case RegistersV8.RegionBaseAddressRegisterAlias2:
-                    if(isSecure || !cpu.TrustZoneEnabled)
-                    {
-                        cpu.PmsaV8RbarAlias2 = value;
-                    }
-                    else
-                    {
-                        cpu.PmsaV8RbarAlias2_NS = value;
-                    }
+                    SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.PmsaV8RbarAlias2 = val, (val) => cpu.PmsaV8RbarAlias2_NS = val, value);
                     break;
                 case RegistersV8.RegionBaseAddressRegisterAlias3:
-                    if(isSecure || !cpu.TrustZoneEnabled)
-                    {
-                        cpu.PmsaV8RbarAlias3 = value;
-                    }
-                    else
-                    {
-                        cpu.PmsaV8RbarAlias3_NS = value;
-                    }
+                    SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.PmsaV8RbarAlias3 = val, (val) => cpu.PmsaV8RbarAlias3_NS = val, value);
                     break;
                 case RegistersV8.RegionLimitAddressRegister:
-                    if(isSecure || !cpu.TrustZoneEnabled)
-                    {
-                        cpu.PmsaV8Rlar = value;
-                    }
-                    else
-                    {
-                        cpu.PmsaV8Rlar_NS = value;
-                    }
+                    SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.PmsaV8Rlar = val, (val) => cpu.PmsaV8Rlar_NS = val, value);
                     break;
                 case RegistersV8.RegionLimitAddressRegisterAlias1:
-                    if(isSecure || !cpu.TrustZoneEnabled)
-                    {
-                        cpu.PmsaV8RlarAlias1 = value;
-                    }
-                    else
-                    {
-                        cpu.PmsaV8RlarAlias1_NS = value;
-                    }
+                    SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.PmsaV8RlarAlias1 = val, (val) => cpu.PmsaV8RlarAlias1_NS = val, value);
                     break;
                 case RegistersV8.RegionLimitAddressRegisterAlias2:
-                    if(isSecure || !cpu.TrustZoneEnabled)
-                    {
-                        cpu.PmsaV8RlarAlias2 = value;
-                    }
-                    else
-                    {
-                        cpu.PmsaV8RlarAlias2_NS = value;
-                    }
+                    SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.PmsaV8RlarAlias2 = val, (val) => cpu.PmsaV8RlarAlias2_NS = val, value);
                     break;
                 case RegistersV8.RegionLimitAddressRegisterAlias3:
-                    if(isSecure || !cpu.TrustZoneEnabled)
-                    {
-                        cpu.PmsaV8RlarAlias3 = value;
-                    }
-                    else
-                    {
-                        cpu.PmsaV8RlarAlias3_NS = value;
-                    }
+                    SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.PmsaV8RlarAlias3 = val, (val) => cpu.PmsaV8RlarAlias3_NS = val, value);
                     break;
                 case RegistersV8.MemoryAttributeIndirectionRegister0:
-                    if(isSecure || !cpu.TrustZoneEnabled)
-                    {
-                        cpu.PmsaV8Mair0 = value;
-                    }
-                    else
-                    {
-                        cpu.PmsaV8Mair0_NS = value;
-                    }
+                    SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.PmsaV8Mair0 = val, (val) => cpu.PmsaV8Mair0_NS = val, value);
                     break;
                 case RegistersV8.MemoryAttributeIndirectionRegister1:
-                    if(isSecure || !cpu.TrustZoneEnabled)
-                    {
-                        cpu.PmsaV8Mair1 = value;
-                    }
-                    else
-                    {
-                        cpu.PmsaV8Mair1_NS = value;
-                    }
+                    SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.PmsaV8Mair1 = val, (val) => cpu.PmsaV8Mair1_NS = val, value);
                     break;
             }
         }
@@ -1753,6 +1634,18 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private T GetTrustZoneBankedRegisterValue<T>(bool isSecureAccess, Func<T> reg, Func<T> regNonSecure)
         {
             return (isSecureAccess || !cpu.TrustZoneEnabled) ? reg() : regNonSecure();
+        }
+
+        private void SetTrustZoneBankedRegisterValue<T>(bool isSecureAccess, Action<T> reg, Action<T> regNonSecure, T value)
+        {
+            if(isSecureAccess || !cpu.TrustZoneEnabled)
+            {
+                reg(value);
+            }
+            else
+            {
+                regNonSecure(value);
+            }
         }
 
         /* Expect this to return `true` only if the CPU is in Secure state
