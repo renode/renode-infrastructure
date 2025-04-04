@@ -55,22 +55,19 @@ namespace Antmicro.Renode.Utilities
             }
         }
 
-        public bool TryCreateFile(string fileName, out string path, bool overwriteExistingFile = false)
+        public bool TryCreateFile(string fileName, out string path)
         {
             path = Path.Combine(emulatorTemporaryPath, fileName);
 
+            // check if the file exists, since File.Create would override the file
+            if(File.Exists(path))
+            {
+                path = null;
+                return false;
+            }
+
             try
             {
-                if(File.Exists(path))
-                {
-                    if(!overwriteExistingFile)
-                    {
-                        path = null;
-                        return false;
-                    }
-                    File.Delete(path);
-                }
-
                 using(File.Create(path))
                 {
                     //that's the simplest way to create and NOT have the file open

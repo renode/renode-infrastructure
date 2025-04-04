@@ -636,9 +636,7 @@ namespace Antmicro.Renode.Utilities
             string libraryFile;
             if(nonstandardOutputFilename != null)
             {
-                // Overwrite file if already exists since nonstandard filenames are not unique due to not being prefixed with GUIDs
-                // This can cause issues when running docker containers which can have reproducable PIDs even after restart and persistent /tmp
-                if(!TemporaryFilesManager.Instance.TryCreateFile(nonstandardOutputFilename, out libraryFile, true))
+                if(!TemporaryFilesManager.Instance.TryCreateFile(nonstandardOutputFilename, out libraryFile))
                 {
                     Logging.Logger.Log(Logging.LogLevel.Error, "Could not unpack resource {0} to {1}. This likely signifies an internal error.", resourceName, nonstandardOutputFilename);
                     outputFileFullPath = null;
