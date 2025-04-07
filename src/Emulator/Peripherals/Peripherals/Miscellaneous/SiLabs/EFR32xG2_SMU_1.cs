@@ -610,7 +610,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             Ldma            = 4,
         }
 
-        private enum Registers
+        private enum Registers : long
         {
             IpVersion                                 = 0x0000,
             Status                                    = 0x0004,
