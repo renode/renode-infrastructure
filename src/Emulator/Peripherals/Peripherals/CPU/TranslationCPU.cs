@@ -282,6 +282,11 @@ namespace Antmicro.Renode.Peripherals.CPU
                 logFile = value;
                 LogTranslatedBlocks = (value != null);
 
+                if(value == null)
+                {
+                    return;
+                }
+
                 try
                 {
                     // truncate the file
