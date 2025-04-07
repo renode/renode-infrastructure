@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -23,7 +23,8 @@ namespace Antmicro.Renode.Core.Structure.Registers
         WriteZeroToSet = 1 << 7,
         WriteZeroToToggle = 1 << 8,
         ReadToSet = 1 << 11,
-        WriteToClear = 1 << 12
+        WriteToClear = 1 << 12,
+        WriteToSet = 1 << 13,
     }
 
     public static class FieldModeHelper
@@ -41,7 +42,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
         public static bool IsWritable(this FieldMode mode)
         {
             return (mode & (FieldMode.Write | FieldMode.Set | FieldMode.Toggle | FieldMode.WriteOneToClear | FieldMode.WriteZeroToClear |
-                            FieldMode.WriteZeroToSet | FieldMode.WriteZeroToToggle | FieldMode.WriteToClear)) != 0;
+                            FieldMode.WriteZeroToSet | FieldMode.WriteZeroToToggle | FieldMode.WriteToClear | FieldMode.WriteToSet)) != 0;
         }
 
         public static FieldMode WriteBits(this FieldMode mode)

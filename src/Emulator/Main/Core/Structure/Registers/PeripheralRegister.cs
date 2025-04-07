@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -544,7 +544,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// Defines the value field. Its value is interpreted as a regular number.
         /// </summary>
         /// <param name="position">Offset in the register.</param>
-        /// <param name="width">Maximum width of the value, in terms of binary representation.</param> 
+        /// <param name="width">Maximum width of the value, in terms of binary representation.</param>
         /// <param name="mode">Access modifiers of this field.</param>
         /// <param name="readCallback">Method to be called whenever the containing register is read. The first parameter is the value of this field before read,
         /// the second parameter is the value after read. Note that it will also be called for unreadable fields.</param>
@@ -576,7 +576,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// Defines the enum field. Its value is interpreted as an enumeration
         /// </summary>
         /// <param name="position">Offset in the register.</param>
-        /// <param name="width">Maximum width of the value, in terms of binary representation.</param> 
+        /// <param name="width">Maximum width of the value, in terms of binary representation.</param>
         /// <param name="mode">Access modifiers of this field.</param>
         /// <param name="readCallback">Method to be called whenever the containing register is read. The first parameter is the value of this field before read,
         /// the second parameter is the value after read. Note that it will also be called for unreadable fields.</param>
@@ -585,7 +585,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// <param name="changeCallback">Method to be called whenever this field's value is changed, either due to read or write. The first parameter is the value of this field before change,
         /// the second parameter is the value after change. Note that it will also be called for unwrittable fields.</param>
         /// <param name="valueProviderCallback">Method to be called whenever this field is read. The value passed is the current field's value, that will be overwritten by
-        /// the value returned from it. This returned value is eventually passed as the first parameter of <paramref name="readCallback"/>.</param> 
+        /// the value returned from it. This returned value is eventually passed as the first parameter of <paramref name="readCallback"/>.</param>
         /// <param name="softResettable">Indicates whether the field should be cleared by soft reset.</param>
         /// <param name="name">Ignored parameter, for convenience. Treat it as a comment.</param>
         public IEnumRegisterField<TEnum> DefineEnumField<TEnum>(int position, int width, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<TEnum, TEnum> readCallback = null,
@@ -733,6 +733,13 @@ namespace Antmicro.Renode.Core.Structure.Registers
                         if(BitHelper.AreAnyBitsSet(UnderlyingValue, registerField.position, registerField.width))
                         {
                             BitHelper.ClearBits(ref UnderlyingValue, registerField.position, registerField.width);
+                            changedRegisters.Add(registerField);
+                        }
+                        break;
+                    case FieldMode.WriteToSet:
+                        if(!BitHelper.AreAllBitsSet(UnderlyingValue, registerField.position, registerField.width))
+                        {
+                            BitHelper.SetBits(ref UnderlyingValue, registerField.position, registerField.width);
                             changedRegisters.Add(registerField);
                         }
                         break;
