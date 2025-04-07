@@ -6,6 +6,7 @@
 //
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -71,11 +72,15 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         public IEnumerable<IRegistered<IEndpoint, NullRegistrationPoint>> Children => endpoints.Select(x => Registered.Create(x, NullRegistrationPoint.Instance));
+
         public uint Frequency { get; set; }
+
         public GPIO IRQ { get; } = new GPIO();
+
         public long Size => 0x4000;
 
         public ResourceBlocksManager<Shifter> ShiftersManager { get; }
+
         public ResourceBlocksManager<Timer> TimersManager { get; }
 
         private void DefineRegisters()

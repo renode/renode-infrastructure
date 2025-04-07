@@ -8,15 +8,13 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Time;
-using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 {
@@ -28,7 +26,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         {
             this.machine = machine;
             this.timerFrequency = frequency;
-            
+
             timer = new LimitTimer(machine.ClockSource, timerFrequency, this, "sysrtctimer", 0xFFFFFFFFUL, direction: Direction.Ascending,
                                    enabled: false, workMode: WorkMode.OneShot, eventEnabled: true, autoUpdate: true);
             timer.LimitReached += TimerLimitReached;
@@ -37,9 +35,21 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             registersCollection = BuildRegistersCollection();
         }
 
+        public void WriteDoubleWord(long offset, uint value)
+        {
+            WriteRegister(offset, value);
+        }
+
+        public void CaptureGroup0()
+        {
+            this.Log(LogLevel.Debug, "Capturing SYSRTC Group 0");
+            WriteDoubleWord((long)Registers.Group0Capture0, TimerCounter);
+            capture0Interrupt.Value = true;
+        }
+
         public void Reset()
         {
-            timerIsRunning = false;
+            TimerIsRunning = false;
             timer.Enabled = false;
         }
 
@@ -56,21 +66,211 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             return result;
         }
 
+        public long Size => 0x4000;
+
+        public GPIO IRQ { get; }
+
+        public bool Group0_Capture_Enabled
+        {
+            get
+            {
+                return capture0Enable.Value;
+            }
+        }
+
+        public uint TimerCounter
+        {
+            get
+            {
+                if(TimerIsRunning)
+                {
+                    if(timer.Enabled)
+                    {
+                        TrySyncTime();
+                        return (uint)timer.Value;
+                    }
+                    else
+                    {
+                        return (uint)timer.Limit;
+                    }
+                }
+                return 0;
+            }
+
+            set
+            {
+                timer.Value = value;
+                RestartTimer();
+            }
+        }
+
+        public event Action CompareMatchGroup0Channel0;
+
+        public event Action CompareMatchGroup0Channel1;
+
+        public bool TimerIsRunning = false;
+
+        protected void Lock_Lockkey_Write(ulong val)
+        {
+            if(val == 0x4776)
+            {
+                status_lockstatus_bit.Value = STATUS_LOCKSTATUS.UNLOCKED;
+            }
+            else
+            {
+                status_lockstatus_bit.Value = STATUS_LOCKSTATUS.LOCKED;
+            }
+        }
+
+        protected void ResetRegisters()
+        {
+            foreach(Registers reg in System.Enum.GetValues(typeof(Registers)))
+            {
+                if(reg != (Registers)0x2008 && (uint)reg >= ClearRegisterOffset && (uint)reg < ToggleRegisterOffset)
+                {
+                    WriteDoubleWord((long)reg, 0xFFFFFFFF);
+                }
+                Lock_Lockkey_Write(0x4776);
+            }
+        }
+
+        protected void Swrst_Swrst_Write(bool val)
+        {
+            if(val)
+            {
+                swrst_resetting_bit.Value = true;
+                Reset();
+                ResetRegisters();
+                swrst_resetting_bit.Value = false;
+            }
+        }
+
+        protected IEnumRegisterField<CTRL_GROUP0_CAP0EDGE> ctrl_group0_cap0edge_field;
+
+        private TimeInterval GetTime() => machine.LocalTimeSource.ElapsedVirtualTime;
+
+        private void StartCommand()
+        {
+            TimerIsRunning = true;
+            RestartTimer(true);
+        }
+
+        private void StopCommand()
+        {
+            TimerIsRunning = false;
+            timer.Enabled = false;
+        }
+
+        private bool TrySyncTime()
+        {
+            if(machine.SystemBus.TryGetCurrentCPU(out var cpu))
+            {
+                cpu.SyncTime();
+                return true;
+            }
+            return false;
+        }
+
+        private void RestartTimer(bool restartFromZero = false)
+        {
+            if(!TimerIsRunning)
+            {
+                return;
+            }
+
+            uint currentValue = restartFromZero ? 0 : TimerCounter;
+
+            timer.Enabled = false;
+            uint limit = 0xFFFFFFFF;
+
+            // Compare interrupt fires "on the next cycle", therefore we just set
+            // the timer to the +1 value and fire the interrupt right away when
+            // we hit the limit.
+
+            if(compare0Enable.Value
+                && currentValue < (compare0Value.Value + 1)
+                && (compare0Value.Value + 1) < limit)
+            {
+                limit = (uint)compare0Value.Value + 1;
+            }
+
+            if(compare1Enable.Value
+                && currentValue < (compare1Value.Value + 1)
+                && (compare1Value.Value + 1) < limit)
+            {
+                limit = (uint)compare1Value.Value + 1;
+            }
+
+            // RENODE-65: add support for capture functionality
+
+            timer.Limit = limit;
+            timer.Enabled = true;
+            timer.Value = currentValue;
+        }
+
+        private void UpdateInterrupts()
+        {
+            machine.ClockSource.ExecuteInLock(delegate
+            {
+                var irq = ((overflowInterruptEnable.Value && overflowInterrupt.Value)
+                            || (compare0InterruptEnable.Value && compare0Interrupt.Value)
+                            || (compare1InterruptEnable.Value && compare1Interrupt.Value)
+                            || (capture0InterruptEnable.Value && capture0Interrupt.Value));
+                IRQ.Set(irq);
+            });
+        }
+
+        private void WriteWSTATIC()
+        {
+            if(enable.Value)
+            {
+                this.Log(LogLevel.Error, "Trying to write to a WSTATIC register while peripheral is enabled EN = {0}", enable);
+            }
+        }
+
+        private void TimerLimitReached()
+        {
+            bool restartFromZero = false;
+
+            if(timer.Limit == 0xFFFFFFFF)
+            {
+                overflowInterrupt.Value = true;
+                restartFromZero = true;
+            }
+            if(timer.Limit == compare0Value.Value + 1)
+            {
+                compare0Interrupt.Value = true;
+                //Invoke event (simulated hardware signal)
+                CompareMatchGroup0Channel0?.Invoke();
+            }
+            if(timer.Limit == compare1Value.Value + 1)
+            {
+                compare1Interrupt.Value = true;
+                // Invoke event (simulated hardware signal)
+                CompareMatchGroup0Channel1?.Invoke();
+            }
+
+            // RENODE-65: add support for capture functionality
+            UpdateInterrupts();
+            RestartTimer(restartFromZero);
+        }
+
         private uint ReadRegister(long offset, bool internal_read = false)
         {
             var result = 0U;
             long internal_offset = offset;
 
             // Set, Clear, Toggle registers should only be used for write operations. But just in case we convert here as well.
-            if (offset >= SetRegisterOffset && offset < ClearRegisterOffset) 
+            if(offset >= SetRegisterOffset && offset < ClearRegisterOffset)
             {
                 // Set register
                 internal_offset = offset - SetRegisterOffset;
                 if(!internal_read)
-                {  
+                {
                     this.Log(LogLevel.Noisy, "SET Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}", (Registers)internal_offset, offset, internal_offset);
                 }
-            } else if (offset >= ClearRegisterOffset && offset < ToggleRegisterOffset) 
+            }
+            else if(offset >= ClearRegisterOffset && offset < ToggleRegisterOffset)
             {
                 // Clear register
                 internal_offset = offset - ClearRegisterOffset;
@@ -78,7 +278,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                 {
                     this.Log(LogLevel.Noisy, "CLEAR Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}", (Registers)internal_offset, offset, internal_offset);
                 }
-            } else if (offset >= ToggleRegisterOffset)
+            }
+            else if(offset >= ToggleRegisterOffset)
             {
                 // Toggle register
                 internal_offset = offset - ToggleRegisterOffset;
@@ -106,32 +307,30 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             return result;
         }
 
-        public void WriteDoubleWord(long offset, uint value)
+        private void WriteRegister(long offset, uint value)
         {
-            WriteRegister(offset, value);
-        }
-
-        private void WriteRegister(long offset, uint value, bool internal_write = false)
-        {
-            machine.ClockSource.ExecuteInLock(delegate {
+            machine.ClockSource.ExecuteInLock(delegate
+            {
                 long internal_offset = offset;
                 uint internal_value = value;
 
-                if (offset >= SetRegisterOffset && offset < ClearRegisterOffset) 
+                if(offset >= SetRegisterOffset && offset < ClearRegisterOffset)
                 {
                     // Set register
                     internal_offset = offset - SetRegisterOffset;
                     uint old_value = ReadRegister(internal_offset, true);
                     internal_value = old_value | value;
                     this.Log(LogLevel.Noisy, "SET Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}, SET_value=0x{3:X}, old_value=0x{4:X}, new_value=0x{5:X}", (Registers)internal_offset, offset, internal_offset, value, old_value, internal_value);
-                } else if (offset >= ClearRegisterOffset && offset < ToggleRegisterOffset) 
+                }
+                else if(offset >= ClearRegisterOffset && offset < ToggleRegisterOffset)
                 {
                     // Clear register
                     internal_offset = offset - ClearRegisterOffset;
                     uint old_value = ReadRegister(internal_offset, true);
                     internal_value = old_value & ~value;
                     this.Log(LogLevel.Noisy, "CLEAR Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}, CLEAR_value=0x{3:X}, old_value=0x{4:X}, new_value=0x{5:X}", (Registers)internal_offset, offset, internal_offset, value, old_value, internal_value);
-                } else if (offset >= ToggleRegisterOffset)
+                }
+                else if(offset >= ToggleRegisterOffset)
                 {
                     // Toggle register
                     internal_offset = offset - ToggleRegisterOffset;
@@ -161,19 +360,19 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                 },
                 {(long)Registers.SoftwareReset, new DoubleWordRegister(this)
                     .WithFlag(0, out swrst_swrst_bit, FieldMode.Write,
-                        writeCallback: (_, __) => Swrst_Swrst_Write(_, __),
+                        writeCallback: (_, val) => Swrst_Swrst_Write(val),
                         name: "Swrst")
                     .WithFlag(1, out swrst_resetting_bit, FieldMode.Read,
                             valueProviderCallback: (_) => {
-                                return swrst_resetting_bit.Value;               
+                                return swrst_resetting_bit.Value;
                             },
                             name: "Resetting")
                     .WithReservedBits(2, 30)
                 },
                 {(long)Registers.Config, new DoubleWordRegister(this)
-                    .WithEnumField<DoubleWordRegister, CFG_DEBUGRUN>(0, 1, out cfg_debugrun_bit, 
+                    .WithEnumField<DoubleWordRegister, CFG_DEBUGRUN>(0, 1, out cfg_debugrun_bit,
                     valueProviderCallback: (_) => {
-                        return cfg_debugrun_bit.Value;               
+                        return cfg_debugrun_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSTATIC();
@@ -182,10 +381,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     .WithReservedBits(1, 31)
                 },
                 {(long)Registers.Status, new DoubleWordRegister(this)
-                    .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => timerIsRunning, name: "RUNNING")
+                    .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => TimerIsRunning, name: "RUNNING")
                     .WithEnumField<DoubleWordRegister, STATUS_LOCKSTATUS>(1, 1, out status_lockstatus_bit, FieldMode.Read,
                     valueProviderCallback: (_) => {
-                        return status_lockstatus_bit.Value;               
+                        return status_lockstatus_bit.Value;
                     },
                     name: "Lockstatus")
                     .WithTaggedFlag("FAILDETLOCKSTATUS", 2)
@@ -193,7 +392,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                 },
                 {(long)Registers.Lock, new DoubleWordRegister(this)
                     .WithValueField(0, 16, out lock_lockkey_field, FieldMode.Write,
-                        writeCallback: (_, __) => Lock_Lockkey_Write(_, __),
+                        writeCallback: (_, __) => Lock_Lockkey_Write(__),
                         name: "Lockkey")
                     .WithReservedBits(16, 16)
                 },
@@ -225,19 +424,19 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     .WithFlag(0, out compare0Enable, name: "CMP0EN")
                     .WithFlag(1, out compare1Enable, name: "CMP1EN")
                     .WithFlag(2, out capture0Enable, name: "CAP0EN")
-                    .WithEnumField<DoubleWordRegister, CTRL_GROUP0_CMP0CMOA>(3, 3, out ctrl_group0_cmp0cmoa_field, 
+                    .WithEnumField<DoubleWordRegister, CTRL_GROUP0_CMP0CMOA>(3, 3, out ctrl_group0_cmp0cmoa_field,
                         valueProviderCallback: (_) => {
-                            return ctrl_group0_cmp0cmoa_field.Value;               
+                            return ctrl_group0_cmp0cmoa_field.Value;
                         },
                         name: "Cmp0cmoa")
-                    .WithEnumField<DoubleWordRegister, CTRL_GROUP0_CMP1CMOA>(6, 3, out ctrl_group0_cmp1cmoa_field, 
+                    .WithEnumField<DoubleWordRegister, CTRL_GROUP0_CMP1CMOA>(6, 3, out ctrl_group0_cmp1cmoa_field,
                         valueProviderCallback: (_) => {
-                            return ctrl_group0_cmp1cmoa_field.Value;               
+                            return ctrl_group0_cmp1cmoa_field.Value;
                         },
                         name: "Cmp1cmoa")
-                    .WithEnumField<DoubleWordRegister, CTRL_GROUP0_CAP0EDGE>(9, 2, out ctrl_group0_cap0edge_field, 
+                    .WithEnumField<DoubleWordRegister, CTRL_GROUP0_CAP0EDGE>(9, 2, out ctrl_group0_cap0edge_field,
                         valueProviderCallback: (_) => {
-                            return ctrl_group0_cap0edge_field.Value;               
+                            return ctrl_group0_cap0edge_field.Value;
                         },
                         name: "Cap0edge")
                     .WithReservedBits(11, 21)
@@ -259,232 +458,74 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             return new DoubleWordRegisterCollection(this, registerDictionary);
         }
 
-        public long Size => 0x4000;
-        public GPIO IRQ { get; }
-        private readonly Machine machine;
-        private readonly DoubleWordRegisterCollection registersCollection;
-        private LimitTimer timer;
-        private uint timerFrequency;
-        public bool timerIsRunning = false;
-        private const uint SetRegisterOffset = 0x1000;
-        private const uint ClearRegisterOffset = 0x2000;
-        private const uint ToggleRegisterOffset = 0x3000;
-        public event Action CompareMatchGroup0Channel0;
-        public event Action CompareMatchGroup0Channel1;
-        public bool Group0_Capture_Enabled
-        {
-            get 
-            {
-                return capture0Enable.Value;
-            }
-        }
-
-#region register fields
         private IFlagRegisterField enable;
         private IFlagRegisterField swrst_swrst_bit;
         private IFlagRegisterField swrst_resetting_bit;
         private IEnumRegisterField<CFG_DEBUGRUN> cfg_debugrun_bit;
-        private IValueRegisterField lock_lockkey_field;
+        private IFlagRegisterField compare1Interrupt;
         private IEnumRegisterField<STATUS_LOCKSTATUS> status_lockstatus_bit;
-        private IFlagRegisterField compare0Enable;
+        private IValueRegisterField lock_lockkey_field;
         private IEnumRegisterField<CTRL_GROUP0_CMP0CMOA> ctrl_group0_cmp0cmoa_field;
         private IFlagRegisterField compare1Enable;
         private IEnumRegisterField<CTRL_GROUP0_CMP1CMOA> ctrl_group0_cmp1cmoa_field;
         private IFlagRegisterField capture0Enable;
-        protected IEnumRegisterField<CTRL_GROUP0_CAP0EDGE> ctrl_group0_cap0edge_field;
         private IValueRegisterField compare0Value;
         private IValueRegisterField compare1Value;
         private IValueRegisterField capture0Value;
+        private IFlagRegisterField compare0Enable;
+        private IFlagRegisterField overflowInterruptEnable;
+        private IFlagRegisterField capture0InterruptEnable;
+        private IFlagRegisterField compare1InterruptEnable;
+        private IFlagRegisterField compare0InterruptEnable;
+        private IFlagRegisterField capture0Interrupt;
         // Interrupts
         private IFlagRegisterField overflowInterrupt;
         private IFlagRegisterField compare0Interrupt;
-        private IFlagRegisterField compare1Interrupt;
-        private IFlagRegisterField capture0Interrupt;
-        private IFlagRegisterField overflowInterruptEnable;
-        private IFlagRegisterField compare0InterruptEnable;
-        private IFlagRegisterField compare1InterruptEnable;
-        private IFlagRegisterField capture0InterruptEnable;
-#endregion
+        private readonly LimitTimer timer;
+        private readonly uint timerFrequency;
+        private readonly Machine machine;
+        private readonly DoubleWordRegisterCollection registersCollection;
+        private const uint SetRegisterOffset = 0x1000;
+        private const uint ClearRegisterOffset = 0x2000;
+        private const uint ToggleRegisterOffset = 0x3000;
 
-#region methods
-        private TimeInterval GetTime() => machine.LocalTimeSource.ElapsedVirtualTime;
-        public uint TimerCounter
+        protected enum CTRL_GROUP0_CMP1CMOA
         {
-            get
-            {
-                if (timerIsRunning)
-                {
-                    if (timer.Enabled)
-                    {
-                        TrySyncTime();
-                        return (uint)timer.Value;
-                    }
-                    else
-                    {
-                        return (uint)timer.Limit;
-                    }
-                }
-                return 0;
-            }
-            
-            set
-            {
-                timer.Value = value;
-                RestartTimer();
-            }
+            CLEAR = 0, // Cleared on the next cycle
+            SET = 1, // Set on the next cycle
+            PULSE = 2, // Set on the next cycle, cleared on the cycle after
+            TOGGLE = 3, // Inverted on the next cycle
+            CMPIF = 4, // Export this channel's CMP IF
         }
 
-        private void StartCommand()
+        protected enum CFG_DEBUGRUN
         {
-            timerIsRunning = true;
-            RestartTimer(true);
+            DISABLE = 0, // SYSRTC is frozen in debug mode
+            ENABLE = 1, // SYSRTC is running in debug mode
         }
 
-        private void StopCommand()
+        protected enum STATUS_LOCKSTATUS
         {
-            timerIsRunning = false;
-            timer.Enabled = false;
+            UNLOCKED = 0, // SYSRTC registers are unlocked
+            LOCKED = 1, // SYSRTC registers are locked
         }
 
-        private void TimerLimitReached()
+        protected enum CTRL_GROUP0_CMP0CMOA
         {
-            bool restartFromZero = false;
-
-            if (timer.Limit == 0xFFFFFFFF)
-            {
-                overflowInterrupt.Value = true;
-                restartFromZero = true;
-            }
-            if (timer.Limit == compare0Value.Value + 1)
-            {
-                compare0Interrupt.Value = true;
-                //Invoke event (simulated hardware signal)
-                CompareMatchGroup0Channel0?.Invoke();
-
-            }
-            if (timer.Limit == compare1Value.Value + 1)
-            {
-                compare1Interrupt.Value = true;
-                // Invoke event (simulated hardware signal)
-                CompareMatchGroup0Channel1?.Invoke();
-            }
-
-            // RENODE-65: add support for capture functionality
-            UpdateInterrupts();
-            RestartTimer(restartFromZero);
+            CLEAR = 0, // Cleared on the next cycle
+            SET = 1, // Set on the next cycle
+            PULSE = 2, // Set on the next cycle, cleared on the cycle after
+            TOGGLE = 3, // Inverted on the next cycle
+            CMPIF = 4, // Export this channel's CMP IF
         }
 
-        private void RestartTimer(bool restartFromZero = false)
+        protected enum CTRL_GROUP0_CAP0EDGE
         {
-            if (!timerIsRunning)
-            {
-                return;
-            }
-
-            uint currentValue = restartFromZero ? 0 : TimerCounter;
-
-            timer.Enabled = false;
-            uint limit = 0xFFFFFFFF;
-
-            // Compare interrupt fires "on the next cycle", therefore we just set 
-            // the timer to the +1 value and fire the interrupt right away when
-            // we hit the limit.
-        
-            if (compare0Enable.Value 
-                && currentValue < (compare0Value.Value + 1)
-                && (compare0Value.Value + 1) < limit)
-            {
-                limit = (uint)compare0Value.Value + 1;
-            }
-
-            if (compare1Enable.Value 
-                && currentValue < (compare1Value.Value + 1)
-                && (compare1Value.Value + 1) < limit)
-            {
-                limit = (uint)compare1Value.Value + 1;
-            }
-
-            // RENODE-65: add support for capture functionality
-
-            timer.Limit = limit;
-            timer.Enabled = true;
-            timer.Value = currentValue;
-        }
-        
-        private void UpdateInterrupts()
-        {
-            machine.ClockSource.ExecuteInLock(delegate {
-                var irq = ((overflowInterruptEnable.Value && overflowInterrupt.Value)
-                            || (compare0InterruptEnable.Value && compare0Interrupt.Value)
-                            || (compare1InterruptEnable.Value && compare1Interrupt.Value)
-                            || (capture0InterruptEnable.Value && capture0Interrupt.Value));
-                IRQ.Set(irq);
-            });
+            RISING = 0, // Rising edges detected
+            FALLING = 1, // Falling edges detected
+            BOTH = 2, // Both edges detected
         }
 
-        private bool TrySyncTime()
-        {
-            if(machine.SystemBus.TryGetCurrentCPU(out var cpu))
-            {
-                cpu.SyncTime();
-                return true;
-            }
-            return false;
-        }
-
-        private void WriteWSTATIC()
-        {
-            if(enable.Value)
-            {
-                this.Log(LogLevel.Error, "Trying to write to a WSTATIC register while peripheral is enabled EN = {0}", enable);
-            }
-        }
-
-        protected void Swrst_Swrst_Write(bool a, bool b)
-        {
-            if (b == true)
-            {
-                swrst_resetting_bit.Value = true;
-                Reset();
-                ResetRegisters();
-                swrst_resetting_bit.Value = false;
-            }
-        }
-
-        protected void ResetRegisters()
-        {
-            foreach (Registers reg in System.Enum.GetValues(typeof(Registers)))
-            {
-                if (reg != (Registers)0x2008 && (uint)reg >= ClearRegisterOffset && (uint)reg < ToggleRegisterOffset)
-                {
-                    WriteDoubleWord((long)reg, 0xFFFFFFFF);
-                }
-                Lock_Lockkey_Write(0, 0x4776);
-            }
-        }
-
-        protected void Lock_Lockkey_Write(ulong a, ulong b)
-        {
-            if (b == 0x4776)
-            {
-                status_lockstatus_bit.Value = STATUS_LOCKSTATUS.UNLOCKED;
-            }
-            else
-            {
-                status_lockstatus_bit.Value = STATUS_LOCKSTATUS.LOCKED;
-            }
-        }
-
-        public void CaptureGroup0()
-        {
-            this.Log(LogLevel.Debug, "Capturing SYSRTC Group 0");
-            WriteDoubleWord((long)Registers.Group0Capture0, TimerCounter);
-            capture0Interrupt.Value = true;
-        }
-
-#endregion
-
-#region enums
         private enum Registers
         {
             IpVersion                 = 0x0000,
@@ -563,38 +604,5 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             Group0Capture0_Tgl        = 0x3054,
             Group0SyncBusy_Tgl        = 0x3058,
         }
-        protected enum CFG_DEBUGRUN
-        {
-            DISABLE = 0, // SYSRTC is frozen in debug mode
-            ENABLE = 1, // SYSRTC is running in debug mode
-        }
-        protected enum STATUS_LOCKSTATUS
-        {
-            UNLOCKED = 0, // SYSRTC registers are unlocked
-            LOCKED = 1, // SYSRTC registers are locked
-        }
-        protected enum CTRL_GROUP0_CMP0CMOA
-        {
-            CLEAR = 0, // Cleared on the next cycle
-            SET = 1, // Set on the next cycle
-            PULSE = 2, // Set on the next cycle, cleared on the cycle after
-            TOGGLE = 3, // Inverted on the next cycle
-            CMPIF = 4, // Export this channel's CMP IF
-        }
-        protected enum CTRL_GROUP0_CMP1CMOA
-        {
-            CLEAR = 0, // Cleared on the next cycle
-            SET = 1, // Set on the next cycle
-            PULSE = 2, // Set on the next cycle, cleared on the cycle after
-            TOGGLE = 3, // Inverted on the next cycle
-            CMPIF = 4, // Export this channel's CMP IF
-        }
-        protected enum CTRL_GROUP0_CAP0EDGE
-        {
-            RISING = 0, // Rising edges detected
-            FALLING = 1, // Falling edges detected
-            BOTH = 2, // Both edges detected
-        }
-#endregion        
     }
 }

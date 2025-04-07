@@ -6,10 +6,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Logging;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
+
 using Antmicro.Renode.Debug;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Plugins.TracePlugin.Handlers
@@ -49,4 +50,3 @@ namespace Antmicro.Renode.Plugins.TracePlugin.Handlers
         private static readonly IEnumerable<FunctionCallParameter> callParameters = new []{ new FunctionCallParameter{ Type = FunctionCallParameterType.String } };
     }
 }
-

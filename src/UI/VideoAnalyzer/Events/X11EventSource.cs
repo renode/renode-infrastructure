@@ -6,10 +6,12 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Xwt;
-using Antmicro.Renode.Logging;
+
 using Antmicro.Renode.Backends.Display.XInput;
 using Antmicro.Renode.Extensions.Analyzers.Video.Handlers;
+using Antmicro.Renode.Logging;
+
+using Xwt;
 
 namespace Antmicro.Renode.Extensions.Analyzers.Video.Events
 {
@@ -122,19 +124,19 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Events
             }
         }
 
+        public int X { get { return lastX ?? 0; } }
+
+        public int Y { get { return lastY ?? 0; } }
+
         public bool Stop { get; set; }
 
         public bool CursorFixed { get { return true; } }
 
-        private FrameBufferDisplayWidget source;
         private IOHandler handler;
 
         private int? lastX;
         private int? lastY;
 
-        public int X { get { return lastX ?? 0; } }
-        public int Y { get { return lastY ?? 0; } }
-
+        private readonly FrameBufferDisplayWidget source;
     }
 }
-

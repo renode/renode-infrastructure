@@ -7,29 +7,26 @@
 //
 #if PLATFORM_LINUX
 using System;
+using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
 using System.Text;
-using Mono.Unix.Native;
-using Mono.Unix;
-using Antmicro.Renode.Utilities;
-using System.Net.NetworkInformation;
+
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.TAPHelper
 {
     public class TAPTools
     {
-        private const int O_RDWR                  = 2;
-        private const int IFNAMSIZ                = 0x10;
-        private const int TUNSETIFF               = 1074025674;
-        private const int TUNSETPERSIST           = 0x400454cb;
-        private const UInt16 IFF_TUN              = 0x1;
-        private const UInt16 IFF_TAP_IFF_NO_PI    = 0x0002 | 0x1000;
-        private const int IFR_SIZE                = 80;
+        public static int OpenTUN(IntPtr dev, bool persistent = false)
+        {
+            return Open_TUNTAP(dev, IFF_TUN, persistent);
+        }
 
-        private const int SIOCSIFFLAGS            = 0x8914;
-        private const int SIOCGIFFLAGS            = 0x8913;
-        private const UInt16 IFF_UP               = 1;
+        public static int OpenTAP(IntPtr dev, bool persistent = false)
+        {
+            return Open_TUNTAP(dev, IFF_TAP_IFF_NO_PI, persistent);
+        }
 
         private static bool DoesInterfaceExist(string name)
         {
@@ -138,7 +135,7 @@ namespace Antmicro.Renode.TAPHelper
                         return err;
                     }
                 }
-                
+
                 // If TAP was created by us, we try to bring it up
                 if(!exists)
                 {
@@ -160,15 +157,17 @@ namespace Antmicro.Renode.TAPHelper
             return fd;
         }
 
-        public static int OpenTUN(IntPtr dev, bool persistent = false)
-        {
-            return Open_TUNTAP(dev, IFF_TUN, persistent);
-        }
+        private const int O_RDWR                  = 2;
+        private const int IFNAMSIZ                = 0x10;
+        private const int TUNSETIFF               = 1074025674;
+        private const int TUNSETPERSIST           = 0x400454cb;
+        private const UInt16 IFF_TUN              = 0x1;
+        private const UInt16 IFF_TAP_IFF_NO_PI    = 0x0002 | 0x1000;
+        private const int IFR_SIZE                = 80;
 
-        public static int OpenTAP(IntPtr dev, bool persistent = false)
-        {
-            return Open_TUNTAP(dev, IFF_TAP_IFF_NO_PI, persistent);
-        }
+        private const int SIOCSIFFLAGS            = 0x8914;
+        private const int SIOCGIFFLAGS            = 0x8913;
+        private const UInt16 IFF_UP               = 1;
     }
 }
 #endif

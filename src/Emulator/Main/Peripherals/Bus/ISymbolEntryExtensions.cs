@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using ELFSharp.ELF.Sections;
 
 namespace Antmicro.Renode.Peripherals.Bus

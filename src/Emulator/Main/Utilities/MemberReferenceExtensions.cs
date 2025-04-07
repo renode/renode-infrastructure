@@ -4,8 +4,9 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Mono.Cecil;
 using System;
+
+using Mono.Cecil;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -13,7 +14,7 @@ namespace Antmicro.Renode.Utilities
     {
         public static String GetFullNameOfMember(this MemberReference definition)
         {
-            return definition.FullName.Replace('/', '+');            
-        }        
+            return definition.FullName.Replace('/', '+');
+        }
     }
 }

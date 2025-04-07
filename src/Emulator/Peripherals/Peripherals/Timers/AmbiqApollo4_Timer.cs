@@ -4,15 +4,15 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Time;
-using System;
-using System.Linq;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -62,81 +62,81 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             switch(clockSelect)
             {
-                case ClockSelect.HFRCDiv16:
-                    frequency = HFRCFrequency;
-                    divider = 16;
-                    break;
-                case ClockSelect.HFRCDiv64:
-                    frequency = HFRCFrequency;
-                    divider = 64;
-                    break;
-                case ClockSelect.HFRCDiv256:
-                    frequency = HFRCFrequency;
-                    divider = 256;
-                    break;
-                case ClockSelect.HFRCDiv1024:
-                    frequency = HFRCFrequency;
-                    divider = 1024;
-                    break;
-                case ClockSelect.HFRCDiv4K:
-                    frequency = HFRCFrequency;
-                    divider = 4096;
-                    break;
-                case ClockSelect.LFRC:
-                    frequency = LFRCFrequency;
-                    break;
-                case ClockSelect.LFRCDiv2:
-                    frequency = LFRCFrequency;
-                    divider = 2;
-                    break;
-                case ClockSelect.LFRCDiv32:
-                    frequency = LFRCFrequency;
-                    divider = 32;
-                    break;
-                case ClockSelect.LFRCDiv1K:
-                    frequency = LFRCFrequency;
-                    divider = 1024;
-                    break;
-                case ClockSelect.XT:
-                    frequency = XTFrequency;
-                    break;
-                case ClockSelect.XTDiv2:
-                    frequency = XTFrequency;
-                    divider = 2;
-                    break;
-                case ClockSelect.XTDiv4:
-                    frequency = XTFrequency;
-                    divider = 4;
-                    break;
-                case ClockSelect.XTDiv8:
-                    frequency = XTFrequency;
-                    divider = 8;
-                    break;
-                case ClockSelect.XTDiv16:
-                    frequency = XTFrequency;
-                    divider = 16;
-                    break;
-                case ClockSelect.XTDiv32:
-                    frequency = XTFrequency;
-                    divider = 32;
-                    break;
-                case ClockSelect.XTDiv128:
-                    frequency = XTFrequency;
-                    divider = 128;
-                    break;
-                case ClockSelect.RTC_100HZ:
-                    frequency = 100;
-                    break;
-                default:
-                    this.Log(LogLevel.Warning, "{0} is not supported; set default frequency of 1Hz", clockSelect);
-                    break;
+            case ClockSelect.HFRCDiv16:
+                frequency = HFRCFrequency;
+                divider = 16;
+                break;
+            case ClockSelect.HFRCDiv64:
+                frequency = HFRCFrequency;
+                divider = 64;
+                break;
+            case ClockSelect.HFRCDiv256:
+                frequency = HFRCFrequency;
+                divider = 256;
+                break;
+            case ClockSelect.HFRCDiv1024:
+                frequency = HFRCFrequency;
+                divider = 1024;
+                break;
+            case ClockSelect.HFRCDiv4K:
+                frequency = HFRCFrequency;
+                divider = 4096;
+                break;
+            case ClockSelect.LFRC:
+                frequency = LFRCFrequency;
+                break;
+            case ClockSelect.LFRCDiv2:
+                frequency = LFRCFrequency;
+                divider = 2;
+                break;
+            case ClockSelect.LFRCDiv32:
+                frequency = LFRCFrequency;
+                divider = 32;
+                break;
+            case ClockSelect.LFRCDiv1K:
+                frequency = LFRCFrequency;
+                divider = 1024;
+                break;
+            case ClockSelect.XT:
+                frequency = XTFrequency;
+                break;
+            case ClockSelect.XTDiv2:
+                frequency = XTFrequency;
+                divider = 2;
+                break;
+            case ClockSelect.XTDiv4:
+                frequency = XTFrequency;
+                divider = 4;
+                break;
+            case ClockSelect.XTDiv8:
+                frequency = XTFrequency;
+                divider = 8;
+                break;
+            case ClockSelect.XTDiv16:
+                frequency = XTFrequency;
+                divider = 16;
+                break;
+            case ClockSelect.XTDiv32:
+                frequency = XTFrequency;
+                divider = 32;
+                break;
+            case ClockSelect.XTDiv128:
+                frequency = XTFrequency;
+                divider = 128;
+                break;
+            case ClockSelect.RTC_100HZ:
+                frequency = 100;
+                break;
+            default:
+                this.Log(LogLevel.Warning, "{0} is not supported; set default frequency of 1Hz", clockSelect);
+                break;
             }
             return frequency;
         }
 
         private void UpdateTimerActiveStatus()
         {
-            for(var i = 0 ; i < TimersCount; ++i)
+            for(var i = 0; i < TimersCount; ++i)
             {
                 internalTimers[i].Enabled = timerEnabled[i].Value && globalTimerEnabled[i].Value;
             }
@@ -179,7 +179,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                 .WithFlags(0, 16, out globalTimerEnabled, name: "ENB")
                 .WithChangeCallback((_, __) => UpdateTimerActiveStatus())
             ;
-
             {
                 var interruptEnable = Registers.InterruptEnable.Define(this)
                     .WithWriteCallback((_, __) => UpdateInterrupts());
@@ -263,15 +262,15 @@ namespace Antmicro.Renode.Peripherals.Timers
                         {
                             switch(value)
                             {
-                                case FunctionSelect.Continous:
-                                    internalTimers[index].OneShot = false;
-                                    break;
-                                case FunctionSelect.Upcount:
-                                    internalTimers[index].OneShot = true;
-                                    break;
-                                default:
-                                    this.Log(LogLevel.Error, "Timer{0}: {1} function mode is not supported", index, value);
-                                    break;
+                            case FunctionSelect.Continous:
+                                internalTimers[index].OneShot = false;
+                                break;
+                            case FunctionSelect.Upcount:
+                                internalTimers[index].OneShot = true;
+                                break;
+                            default:
+                                this.Log(LogLevel.Error, "Timer{0}: {1} function mode is not supported", index, value);
+                                break;
                             }
                         })
                     .WithEnumField<DoubleWordRegister, ClockSelect>(8, 8, name: $"TMR{index}CLK",
@@ -331,16 +330,17 @@ namespace Antmicro.Renode.Peripherals.Timers
             }, stepInBytes: TimerStructureSize);
         }
 
-        private readonly InternalTimer[] internalTimers;
-
-        private IFlagRegisterField[] timerEnabled;
         private IFlagRegisterField[] globalTimerEnabled;
 
-        private IEnumRegisterField<PadOutput>[] padOutput;
+        private readonly IFlagRegisterField[] timerEnabled;
 
-        private IEnumRegisterField<FunctionSelect>[] functionSelect;
-        private IEnumRegisterField<TriggerMode>[] triggerMode;
-        private IEnumRegisterField<TriggerSource>[] triggerSource;
+        private readonly IEnumRegisterField<PadOutput>[] padOutput;
+
+        private readonly IEnumRegisterField<FunctionSelect>[] functionSelect;
+        private readonly IEnumRegisterField<TriggerMode>[] triggerMode;
+        private readonly IEnumRegisterField<TriggerSource>[] triggerSource;
+
+        private readonly InternalTimer[] internalTimers;
 
         private const int TimerStructureSize = 0x20;
         private const int TimersCount = 16;
@@ -437,6 +437,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
 
             public bool Compare0Event { get; set; }
+
             public bool Compare1Event { get; set; }
 
             public bool Compare0Interrupt

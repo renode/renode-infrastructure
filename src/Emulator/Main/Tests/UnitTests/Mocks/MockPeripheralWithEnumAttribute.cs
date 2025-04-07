@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
 
@@ -33,6 +34,7 @@ namespace Antmicro.Renode.Tests.UnitTests.Mocks
         }
 
         public MockEnum MockEnumValue { get; set; }
+
         public MockEnumWithAttribute MockEnumWithAttributeValue { get; set; }
 
         public enum MockEnum : byte

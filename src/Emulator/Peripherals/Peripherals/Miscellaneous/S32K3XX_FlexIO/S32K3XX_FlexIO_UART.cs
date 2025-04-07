@@ -6,11 +6,12 @@
 //
 using System;
 using System.Collections.Generic;
+
 using Antmicro.Migrant;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.UART;
 using Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel;
+using Antmicro.Renode.Peripherals.UART;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
@@ -66,12 +67,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             receiver.WriteChar(value);
         }
 
+        public uint BaudRate => LogWarningWhenDirectionsDiffer(GetBaudRate(receiver), GetBaudRate(transmitter), "BaudRate") ?? 0;
+
+        public Bits StopBits => LogWarningWhenDirectionsDiffer(receiver?.StopBits, transmitter?.StopBits, "StopBits") ?? Bits.None;
+
+        public Parity ParityBit => Parity.None;
+
         [field: Transient]
         public event Action<byte> CharReceived;
-
-        public uint BaudRate => LogWarningWhenDirectionsDiffer(GetBaudRate(receiver), GetBaudRate(transmitter), "BaudRate") ?? 0;
-        public Bits StopBits => LogWarningWhenDirectionsDiffer(receiver?.StopBits, transmitter?.StopBits, "StopBits") ?? Bits.None;
-        public Parity ParityBit => Parity.None;
 
         private bool TryReserveShifter(S32K3XX_FlexIO flexIO, uint? id, out Shifter shifter, IList<string> errors, string parameterName)
         {

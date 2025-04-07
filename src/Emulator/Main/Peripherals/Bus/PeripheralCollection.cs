@@ -8,13 +8,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading;
+
 using Antmicro.Migrant;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals;
-using System.Text;
 
 namespace Antmicro.Renode.Peripherals.Bus
 {
@@ -23,7 +23,9 @@ namespace Antmicro.Renode.Peripherals.Bus
         private interface IReadOnlyPeripheralCollection
         {
             IEnumerable<IBusRegistered<IBusPeripheral>> Peripherals { get; }
+
             PeripheralAccessMethods FindAccessMethods(ulong address, out ulong startAddress, out ulong endAddress);
+
 #if DEBUG
             void ShowStatistics();
 #endif
@@ -39,27 +41,6 @@ namespace Antmicro.Renode.Peripherals.Bus
                 sync = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
                 InvalidateLastBlock();
                 RefreshPeripheralsCache();
-            }
-
-            public void Dispose()
-            {
-                sync.Dispose();
-            }
-
-            public IEnumerable<IBusRegistered<IBusPeripheral>> Peripherals
-            {
-                get
-                {
-                    sync.EnterReadLock();
-                    try
-                    {
-                        return peripherals;
-                    }
-                    finally
-                    {
-                        sync.ExitReadLock();
-                    }
-                }
             }
 
             public void Add(ulong start, ulong end, IBusRegistered<IBusPeripheral> peripheral, PeripheralAccessMethods accessMethods)
@@ -96,7 +77,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     }
                     if(goToArray)
                     {
-                        blocks = blocks.Union(new [] { block }).OrderBy(x => x.Start).ToArray();
+                        blocks = blocks.Union(new[] { block }).OrderBy(x => x.Start).ToArray();
                         sysbus.NoisyLog("Added {0} to binary search array.", name);
                     }
                     if(!goToDictionary)
@@ -253,7 +234,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 Interlocked.Increment(ref queryCount);
 #endif
                 /// Note `< End` - End is currently one past the end in reality. Please also change <see cref="ICoalescable{T}.Coalesce"> after changing this.
-                if (address >= lastBlock.Start && address < lastBlock.End)
+                if(address >= lastBlock.Start && address < lastBlock.End)
                 {
 #if DEBUG
                     Interlocked.Increment(ref lastPeripheralCount);
@@ -319,6 +300,27 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
 #endif
 
+            public void Dispose()
+            {
+                sync.Dispose();
+            }
+
+            public IEnumerable<IBusRegistered<IBusPeripheral>> Peripherals
+            {
+                get
+                {
+                    sync.EnterReadLock();
+                    try
+                    {
+                        return peripherals;
+                    }
+                    finally
+                    {
+                        sync.ExitReadLock();
+                    }
+                }
+            }
+
             private void RefreshPeripheralsCache()
             {
                 peripherals = blocks
@@ -339,11 +341,11 @@ namespace Antmicro.Renode.Peripherals.Bus
                 do
                 {
                     var current = (min + max) / 2;
-                    if (offset >= blocks[current].End)
+                    if(offset >= blocks[current].End)
                     {
                         min = current + 1;
                     }
-                    else if (offset < blocks[current].Start)
+                    else if(offset < blocks[current].Start)
                     {
                         max = current - 1;
                     }
@@ -361,13 +363,6 @@ namespace Antmicro.Renode.Peripherals.Bus
                 lastBlockStorage = new ThreadLocal<Block>();
             }
 
-            private Dictionary<ulong, Block> shortBlocks;
-            private Block[] blocks;
-            [Constructor]
-            private ThreadLocal<Block> lastBlockStorage;
-            private readonly ReaderWriterLockSlim sync;
-            private readonly SystemBus sysbus;
-
             private IBusRegistered<IBusPeripheral>[] peripherals = Array.Empty<IBusRegistered<IBusPeripheral>>();
 
 #if DEBUG
@@ -376,6 +371,13 @@ namespace Antmicro.Renode.Peripherals.Bus
             private long dictionaryCount;
             private long binarySearchCount;
 #endif
+
+            private Dictionary<ulong, Block> shortBlocks;
+            private Block[] blocks;
+            [Constructor]
+            private ThreadLocal<Block> lastBlockStorage;
+            private readonly ReaderWriterLockSlim sync;
+            private readonly SystemBus sysbus;
 
             private const ulong PageSize = 1 << 11;
             private const ulong PageAlign = PageSize - 1;
@@ -391,4 +393,3 @@ namespace Antmicro.Renode.Peripherals.Bus
         }
     }
 }
-

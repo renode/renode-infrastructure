@@ -6,16 +6,16 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
+using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using System;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
     public class PeriodicInterruptTimer : IDoubleWordPeripheral
     {
-
         public PeriodicInterruptTimer(IMachine machine)
         {
             this.machine = machine;
@@ -23,19 +23,21 @@ namespace Antmicro.Renode.Peripherals.Timers
             Reset();
         }
 
-        public GPIO IRQ { get; private set; }
-
         public uint ReadDoubleWord(long offset)
         {
-            if (offset < 0x100) {
+            if(offset < 0x100)
+            {
                 return 0;
             }
             var returnValue = 0u;
             var timer_no = (int) ((offset - 0x100) / 0x10);
             var noffset = (long) (offset - 0x100 - 0x10*timer_no);
-            if (timer_no < 8) {
+            if(timer_no < 8)
+            {
                 returnValue = ReadTimer(timer_no, noffset);
-            } else {
+            }
+            else
+            {
                 this.LogUnhandledRead(offset);
             }
             return returnValue;
@@ -43,12 +45,14 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public void WriteDoubleWord(long offset, uint value)
         {
-            if (offset < 0x100) {
+            if(offset < 0x100)
+            {
                 return;
             }
             var timer_no = (int) ((offset - 0x100) / 0x10);
             var noffset = (long) (offset - 0x100 - 0x10*timer_no);
-            if (timer_no < 8) {
+            if(timer_no < 8)
+            {
                 WriteTimer(timer_no, noffset, value);
             }
             else
@@ -69,6 +73,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                 timers[i].CoreTimer.LimitReached += () => UpdateInterrupt(j, true);
             }
         }
+
+        public GPIO IRQ { get; private set; }
 
         private uint ReadTimer(int timerNo, long offset)
         {
@@ -132,8 +138,10 @@ namespace Antmicro.Renode.Peripherals.Timers
         private InnerTimer[] timers;
         private readonly IMachine machine;
 
+        private const int TimerFrequency = 66000000;
+
         private struct InnerTimer
-        {      
+        {
             public LimitTimer CoreTimer;
 
             public ControlRegister Control
@@ -145,6 +153,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                         return control;
                     }
                 }
+
                 set
                 {
                     lock(CoreTimer)
@@ -165,8 +174,8 @@ namespace Antmicro.Renode.Peripherals.Timers
             public enum ControlRegister
             {
                 ChainMode       = (1 << 2),
-                InterruptEnable = (1 << 1), 
-                Enable          = (1 << 0) 
+                InterruptEnable = (1 << 1),
+                Enable          = (1 << 0)
             }
         }
 
@@ -177,7 +186,5 @@ namespace Antmicro.Renode.Peripherals.Timers
             Control             =   0x008,
             Flag                =   0x00C,
         }
-
-        private const int TimerFrequency = 66000000;
     }
 }

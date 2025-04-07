@@ -5,16 +5,17 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
+using System;
 using System.Collections.Generic;
+using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Debugging;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.GPIOPort;
-using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
-using System;
-using System.Linq;
-using Antmicro.Renode.Debugging;
 
 namespace Antmicro.Renode.Peripherals.IRQControllers
 {
@@ -30,7 +31,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             gpioManager = new GPIOInterruptManager(GPIOIrq, State);
             gpioManager.DeassertActiveInterruptTrigger = true;
 
-            externalIrqConfig = new [] { SRAMIrq, UARTIrq, TimerIrq, WatchdogIrq,
+            externalIrqConfig = new[] { SRAMIrq, UARTIrq, TimerIrq, WatchdogIrq,
                 WatchdogResetIrq, BusTimeoutIrq, FPUIrq, PacketFIFOIrq, ReservedI2SIrq, ReservedAudioIrq,
                 SPIMasterIrq, ConfigDMAIrq, PMUTimerIrq, ADCIrq, RTCIrq, ResetIrq, FFE0Irq, WatchdogFFEIrq,
                 ApBootIrq, LDO30Irq, LDO50Irq, ReservedSRAMIrq, LPSDIrq, DMicIrq }.Select((x, i) => new InterruptConfig(x, this, i)).ToArray();
@@ -51,7 +52,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 var i = j;
                 gpioManager.PinDirection[i] = GPIOInterruptManager.Direction.Input | GPIOInterruptManager.Direction.Output;
-                gpioReg.DefineFlagField(i, writeCallback: (_, value) => { if(value) { gpioManager.ClearInterrupt(i); }},
+                gpioReg.DefineFlagField(i, writeCallback: (_, value) => { if(value) { gpioManager.ClearInterrupt(i); } },
                     valueProviderCallback: _ => gpioManager.ActiveInterrupts.ElementAt(i),
                     name: $"GPIO_{i}_INTR");
                 gpioRawReg.DefineFlagField(i, FieldMode.Read, valueProviderCallback: _ => State[i], name: $"GPIO_{i}_INTR_RAW");
@@ -85,10 +86,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 {(long)Registers.GPIOInterruptType, gpioTypeReg},
                 {(long)Registers.GPIOInterruptPolarity, gpioPolarityReg},
                 {(long)Registers.GPIOInterruptEnableM4, gpioEnableM4Reg},
-
                 {(long)Registers.OtherInterrupts, otherInterruptsReg},
                 {(long)Registers.OtherInterruptsEnableM4, otherInterruptsEnabledM4Reg},
-
                 {(long)Registers.SoftwareInterrupt1, new DoubleWordRegister(this)
                     .WithFlag(0, writeCallback: (_, value) => softwareInterrupt1Config.Active = value,
                         valueProviderCallback: _ => softwareInterrupt1Config.Active,
@@ -199,33 +198,61 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         public long Size => 0x400;
 
         public GPIO SoftwareIrq2 { get; } = new GPIO();
+
         public GPIO SoftwareIrq1 { get; } = new GPIO();
+
         public GPIO FFE0MessageIrq { get; } = new GPIO();
+
         public GPIO FabricIrq { get; } = new GPIO();
+
         public GPIO GPIOIrq { get; } = new GPIO();
+
         public GPIO SRAMIrq { get; } = new GPIO();
+
         public GPIO UARTIrq { get; } = new GPIO();
+
         public GPIO TimerIrq { get; } = new GPIO();
+
         public GPIO WatchdogIrq { get; } = new GPIO();
+
         public GPIO WatchdogResetIrq { get; } = new GPIO();
+
         public GPIO BusTimeoutIrq { get; } = new GPIO();
+
         public GPIO FPUIrq { get; } = new GPIO();
+
         public GPIO PacketFIFOIrq { get; } = new GPIO();
+
         public GPIO ReservedI2SIrq { get; } = new GPIO();
+
         public GPIO ReservedAudioIrq { get; } = new GPIO();
+
         public GPIO SPIMasterIrq { get; } = new GPIO();
+
         public GPIO ConfigDMAIrq { get; } = new GPIO();
+
         public GPIO PMUTimerIrq { get; } = new GPIO();
+
         public GPIO ADCIrq { get; } = new GPIO();
+
         public GPIO RTCIrq { get; } = new GPIO();
+
         public GPIO ResetIrq { get; } = new GPIO();
+
         public GPIO FFE0Irq { get; } = new GPIO();
+
         public GPIO WatchdogFFEIrq { get; } = new GPIO();
+
         public GPIO ApBootIrq { get; } = new GPIO();
+
         public GPIO LDO30Irq { get; } = new GPIO();
+
         public GPIO LDO50Irq { get; } = new GPIO();
+
         public GPIO ReservedSRAMIrq { get; } = new GPIO();
+
         public GPIO LPSDIrq { get; } = new GPIO();
+
         public GPIO DMicIrq { get; } = new GPIO();
 
         private void UpdateOutputBits(byte value)
@@ -340,6 +367,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 private get; set;
             }
+
             private bool detected;
             private bool active;
             private readonly EOSS3_IntrCtrl parent;

@@ -6,11 +6,11 @@
 //
 namespace Antmicro.Renode.Core.USB
 {
-        public enum PacketSize : byte
-        {
-            Size8 = 8,
-            Size16 = 16,
-            Size32 = 32,
-            Size64 = 64
-        }
+    public enum PacketSize : byte
+    {
+        Size8 = 8,
+        Size16 = 16,
+        Size32 = 32,
+        Size64 = 64
+    }
 }

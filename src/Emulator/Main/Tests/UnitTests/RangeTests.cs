@@ -6,10 +6,10 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System;
-using NUnit.Framework;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
+
+using NUnit.Framework;
 
 using Range = Antmicro.Renode.Core.Range;
 
@@ -127,7 +127,7 @@ namespace Antmicro.Renode.UnitTests
         {
             var range = new Range(0x1600, 0xA00);
             var sub = new Range(0x1000, 0x200);
-            CollectionAssert.AreEquivalent(new [] { range }, range.Subtract(sub));
+            CollectionAssert.AreEquivalent(new[] { range }, range.Subtract(sub));
         }
 
         [Test]
@@ -151,7 +151,7 @@ namespace Antmicro.Renode.UnitTests
             var range = new Range(0x1600, 0xA00);
             var sub = new Range(0x1000, 0x800);
             var expected = new Range(0x1800, 0x800);
-            CollectionAssert.AreEquivalent(new [] { expected }, range.Subtract(sub));
+            CollectionAssert.AreEquivalent(new[] { expected }, range.Subtract(sub));
         }
 
         [Test]
@@ -160,7 +160,7 @@ namespace Antmicro.Renode.UnitTests
             var range = new Range(0x1600, 0xA00);
             var sub = new Range(0x1800, 0x800);
             var expected = new Range(0x1600, 0x200);
-            CollectionAssert.AreEquivalent(new [] { expected }, range.Subtract(sub));
+            CollectionAssert.AreEquivalent(new[] { expected }, range.Subtract(sub));
         }
 
         [Test]
@@ -170,7 +170,7 @@ namespace Antmicro.Renode.UnitTests
             var sub = new Range(0x1800, 0x200);
             var expected1 = new Range(0x1600, 0x200);
             var expected2 = new Range(0x1A00, 0x600);
-            CollectionAssert.AreEquivalent(new [] { expected1, expected2 }, range.Subtract(sub));
+            CollectionAssert.AreEquivalent(new[] { expected1, expected2 }, range.Subtract(sub));
         }
 
         [Test]
@@ -193,7 +193,7 @@ namespace Antmicro.Renode.UnitTests
             Assert.AreEqual(ranges.Count, 1);
 
             var expected = new Range(0x0, 0x2400);
-            CollectionAssert.AreEquivalent(new [] { expected }, ranges);
+            CollectionAssert.AreEquivalent(new[] { expected }, ranges);
         }
 
         [Test]
@@ -207,7 +207,7 @@ namespace Antmicro.Renode.UnitTests
             Assert.IsFalse(ranges.Remove(new Range(0x2000, 0x1000)));
             Assert.IsFalse(ranges.Remove(new Range(0x8000, 0x1000)));
 
-            CollectionAssert.AreEquivalent(new [] { range }, ranges);
+            CollectionAssert.AreEquivalent(new[] { range }, ranges);
         }
 
         [Test]
@@ -225,8 +225,7 @@ namespace Antmicro.Renode.UnitTests
 
             var expected1 = new Range(0x1000, 0x400);
             var expected2 = new Range(0x1C00, 0x400);
-            CollectionAssert.AreEquivalent(new [] { expected1, expected2, untouchedRange }, ranges);
+            CollectionAssert.AreEquivalent(new[] { expected1, expected2, untouchedRange }, ranges);
         }
     }
 }
-

@@ -5,13 +5,7 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Peripherals.Timers;
-using Antmicro.Renode.Time;
-
 /*
 0x000 TIMERn_CTRL RW Control Register
 0x004 TIMERn_CMD W1 Command Register
@@ -27,6 +21,8 @@ using Antmicro.Renode.Time;
 0x030 TIMERn_CC0_CTRL RW CC Channel Control Register
 */
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -38,15 +34,8 @@ namespace Antmicro.Renode.Peripherals.Timers
             IRQ = new GPIO();
         }
 
-        public GPIO IRQ { get; private set; }
-
-        protected override void OnLimitReached()
-        {
-            IRQ.Set(true);
-        }
-
         public uint ReadDoubleWord(long offset)
-        {   
+        {
             if(offset == 0x24)
             {
                 return (uint)(Value);
@@ -66,7 +55,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                 if((value & 0x3) == 0)
                 {
                     Direction = Direction.Ascending;
-                } else
+                }
+                else
                 {
                     Direction = Direction.Descending;
                 }
@@ -81,7 +71,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                         Enabled = true;
                     }
                     this.NoisyLog("Timer started");
-                } 
+                }
                 else if((value & 0x2) == 0x2)
                 {
                     IRQ.Set(false);
@@ -95,9 +85,10 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     // underflow irq
                     EventEnabled = true;
-                    
+
                     this.NoisyLog("IRQ ENABLED");
-                } else
+                }
+                else
                 {
                     EventEnabled = false;
                     IRQ.Set(false);
@@ -110,7 +101,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                     ClearInterrupt();
                     IRQ.Set(false);
                 }
-
             }
             if(offset == 0x24)
             {
@@ -118,6 +108,11 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
+        public GPIO IRQ { get; private set; }
+
+        protected override void OnLimitReached()
+        {
+            IRQ.Set(true);
+        }
     }
 }
-

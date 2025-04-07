@@ -13,19 +13,23 @@ namespace Antmicro.Renode.Core
         public Platform()
         {
             HasMemory = true;
-        }       
+        }
 
         public override string ToString()
         {
             return Name;
         }
 
-        public string Name        { get; set; }
-        public string ScriptPath  { get; set; }
-        public bool   HasFlash    { get; set; }
-        public bool   HasPendrive { get; set; }
-        public bool   HasMemory   { get; set; }
+        public string Name { get; set; }
+
+        public string ScriptPath { get; set; }
+
+        public bool HasFlash { get; set; }
+
+        public bool HasPendrive { get; set; }
+
+        public bool HasMemory { get; set; }
+
         public string IconResource { get; set; }
     }
 }
-

@@ -91,10 +91,10 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             ;
         }
 
-        private const int NumberOfPinsPerPort = 8;
-
         private IFlagRegisterField[] pinDirection;
         private IFlagRegisterField[] pinLockControl;
+
+        private const int NumberOfPinsPerPort = 8;
 
         private enum Registers
         {

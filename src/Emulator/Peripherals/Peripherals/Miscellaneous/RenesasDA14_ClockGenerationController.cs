@@ -167,13 +167,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                                 systemBus.Register(this.eflashDataText, new BusPointRegistration(RomRemapAddress));
                                 // SP is register is not available in the interface, so we have to set it manually
                                 // ArmRegisters is in another project, so we can't use it here
-                                const int SP = 13;
-                                const int PCValueInELF = 0x4;
-                                const int SPValueInELF = 0x0;
-                                cpuWithRegisters.PC = systemBus.ReadDoubleWord(PCValueInELF);
-                                cpuWithRegisters.SetRegister(SP, systemBus.ReadDoubleWord(SPValueInELF));
+                                const int sp = 13;
+                                const int pcValueInELF = 0x4;
+                                const int spValueInELF = 0x0;
+                                cpuWithRegisters.PC = systemBus.ReadDoubleWord(pcValueInELF);
+                                cpuWithRegisters.SetRegister(sp, systemBus.ReadDoubleWord(spValueInELF));
                                 cpuWithRegisters.Log(LogLevel.Info, "Successfully remapped eflash to address 0x{0:X}, restarting machine", RomRemapAddress);
-                                cpuWithRegisters.Log(LogLevel.Info, "PC set to 0x{0:X}, SP set to 0x{1:X}", cpuWithRegisters.PC.RawValue, cpuWithRegisters.GetRegister(SP).RawValue);
+                                cpuWithRegisters.Log(LogLevel.Info, "PC set to 0x{0:X}, SP set to 0x{1:X}", cpuWithRegisters.PC.RawValue, cpuWithRegisters.GetRegister(sp).RawValue);
                                 cpuWithRegisters.IsHalted = false;
                             });
                         })
@@ -315,11 +315,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithFlag(7, name: "LDO_LOW_HIGH_CURRENT")
                 .WithFlag(8, name: "LDO_LOW_ENABLE_SLEEP")
                 .WithFlag(9, name: "LDO_CORE_RET_ENABLE_ACTIVE")
-                .WithFlag(10,name: "LDO_CORE_RET_ENABLE_SLEEP")
-                .WithFlag(11,name: "DCDC_ENABLE_SLEEP")
-                .WithFlag(12,name: "LDO_VREF_HOLD_FORCE")
-                .WithFlag(13,name: "LDO_IO_RET_VREF_ENABLE")
-                .WithFlag(14,name: "LDO_CORE_RET_VREF_ENABLE")
+                .WithFlag(10, name: "LDO_CORE_RET_ENABLE_SLEEP")
+                .WithFlag(11, name: "DCDC_ENABLE_SLEEP")
+                .WithFlag(12, name: "LDO_VREF_HOLD_FORCE")
+                .WithFlag(13, name: "LDO_IO_RET_VREF_ENABLE")
+                .WithFlag(14, name: "LDO_CORE_RET_VREF_ENABLE")
                 .WithReservedBits(15, 17);
 
             Registers.PowerLevel.Define(this)
@@ -343,11 +343,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(10, 22);
         }
 
-        private IMachine machine;
-        private RenesasDA14_XTAL32MRegisters xtal32m;
-        private MappedMemory rom;
-        private MappedMemory eflashDataText;
-
         private IEnumRegisterField<SystemClock> systemClock;
         private IFlagRegisterField periphSleep;
         private IFlagRegisterField radioSleep;
@@ -363,6 +358,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private IFlagRegisterField bodVdcdcOkSyncRd;
         private IFlagRegisterField bodVdddOkSyncRd;
         private IFlagRegisterField bodVddioOkSyncRd;
+
+        private readonly IMachine machine;
+        private readonly RenesasDA14_XTAL32MRegisters xtal32m;
+        private readonly MappedMemory rom;
+        private readonly MappedMemory eflashDataText;
 
         private const int RomRemapAddress = 0x0;
 

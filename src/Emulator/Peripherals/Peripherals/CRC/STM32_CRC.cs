@@ -8,27 +8,27 @@
 
 using System;
 using System.Collections.Generic;
-using Antmicro.Renode.Peripherals;
-using Antmicro.Renode.Peripherals.Bus;
+
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.CRC
 {
     public class STM32_CRC : IBytePeripheral, IWordPeripheral, IDoubleWordPeripheral, IKnownSize
     {
-        public STM32_CRC(STM32Series series, bool configurablePoly=false)
+        public STM32_CRC(STM32Series series, bool configurablePoly = false)
         {
             STM32Config conf;
             if(!this.setupConfig.TryGetValue(series, out conf))
             {
                 throw new ConstructionException($"Unknown STM32 series value: {series}!");
             }
-            
+
             this.configurablePoly = configurablePoly;
-            this.configurableInitialValue = conf.configurableInitialValue;
+            this.configurableInitialValue = conf.ConfigurableInitialValue;
 
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {
@@ -47,10 +47,10 @@ namespace Antmicro.Renode.Peripherals.CRC
                         valueProviderCallback: _ => false,
                         name: "RESET")
                     .WithReservedBits(1, 2)
-                    .If(conf.hasPolySizeBits)
+                    .If(conf.HasPolySizeBits)
                         .Then(r => r.WithEnumField<DoubleWordRegister, PolySize>(3, 2, out polySize, name: "POLYSIZE"))
                         .Else(r => r.WithReservedBits(3, 2))
-                    .If(conf.reversibleIO)
+                    .If(conf.ReversibleIO)
                         .Then(r => { r.WithEnumField<DoubleWordRegister, BitReversal>(5, 2, out reverseInputData, name: "REV_IN");
                                      r.WithFlag(7, out reverseOutputData, name: "REV_OUT"); })
                         .Else(r => r.WithReservedBits(5, 3))
@@ -70,9 +70,9 @@ namespace Antmicro.Renode.Peripherals.CRC
                     .WithWriteCallback((_, __) => { crcConfigDirty = true; })
                 },
                 {(long)Registers.IndependentData, new DoubleWordRegister(this)
-                    .WithTag("CRC_IDR", 0, (int)conf.independentDataWidth)
-                    .If((int)conf.independentDataWidth != 32)
-                        .Then(r => r.WithReservedBits((int)conf.independentDataWidth, 32 - (int)conf.independentDataWidth))
+                    .WithTag("CRC_IDR", 0, (int)conf.IndependentDataWidth)
+                    .If((int)conf.IndependentDataWidth != 32)
+                        .Then(r => r.WithReservedBits((int)conf.IndependentDataWidth, 32 - (int)conf.IndependentDataWidth))
                         .Else(_ => {})
                 }
             };
@@ -134,26 +134,20 @@ namespace Antmicro.Renode.Peripherals.CRC
 
         public long Size => 0x400;
 
-        public enum IndependentDataWidth
-        {
-            Bits8 = 8,
-            Bits32 = 32, 
-        }
-
         private static int PolySizeToCRCWidth(PolySize poly)
         {
             switch(poly)
             {
-                case PolySize.CRC32:
-                    return 32;
-                case PolySize.CRC16:
-                    return 16;
-                case PolySize.CRC8:
-                    return 8;
-                case PolySize.CRC7:
-                    return 7;
-                default:
-                    throw new ArgumentException($"Unknown PolySize value: {poly}!");
+            case PolySize.CRC32:
+                return 32;
+            case PolySize.CRC16:
+                return 16;
+            case PolySize.CRC8:
+                return 8;
+            case PolySize.CRC7:
+                return 7;
+            default:
+                throw new ArgumentException($"Unknown PolySize value: {poly}!");
             }
         }
 
@@ -167,28 +161,28 @@ namespace Antmicro.Renode.Peripherals.CRC
             {
                 switch(bytesCount)
                 {
-                    case 1:
-                        value = BitHelper.ReverseBitsByByte(value);
-                        break;
-                    case 2:
-                    case 4:
-                        value = BitHelper.ReverseBitsByWord(value);
-                        break;
+                case 1:
+                    value = BitHelper.ReverseBitsByByte(value);
+                    break;
+                case 2:
+                case 4:
+                    value = BitHelper.ReverseBitsByWord(value);
+                    break;
                 }
             }
             else if(reverseInputData.Value == BitReversal.ByDoubleWord)
             {
                 switch(bytesCount)
                 {
-                    case 1:
-                        value = BitHelper.ReverseBitsByByte(value);
-                        break;
-                    case 2:
-                        value = BitHelper.ReverseBitsByWord(value);
-                        break;
-                    case 4:
-                        value = BitHelper.ReverseBits(value);
-                        break;
+                case 1:
+                    value = BitHelper.ReverseBitsByByte(value);
+                    break;
+                case 2:
+                    value = BitHelper.ReverseBitsByWord(value);
+                    break;
+                case 4:
+                    value = BitHelper.ReverseBits(value);
+                    break;
                 }
             }
             CRC.Update(BitHelper.GetBytesFromValue(value, bytesCount));
@@ -198,7 +192,7 @@ namespace Antmicro.Renode.Peripherals.CRC
         {
             var config = new CRCConfig(
                 (uint)polynomial.Value,
-                PolySizeToCRCWidth(polySize?.Value ?? PolySize.CRC32), 
+                PolySizeToCRCWidth(polySize?.Value ?? PolySize.CRC32),
                 reflectInput: false,
                 reflectOutput: reverseOutputData?.Value ?? false,
                 init: (uint)initialValue.Value,
@@ -214,7 +208,7 @@ namespace Antmicro.Renode.Peripherals.CRC
             }
             crcConfigDirty = false;
         }
-        
+
         private CRCEngine CRC
         {
             get
@@ -227,14 +221,15 @@ namespace Antmicro.Renode.Peripherals.CRC
             }
         }
 
-        private IFlagRegisterField reverseOutputData;
         private IEnumRegisterField<BitReversal> reverseInputData;
+
+        private IFlagRegisterField reverseOutputData;
         private IEnumRegisterField<PolySize> polySize;
-        private IValueRegisterField initialValue;
-        private IValueRegisterField polynomial;
+        private CRCEngine crc;
 
         private bool crcConfigDirty;
-        private CRCEngine crc;
+        private readonly IValueRegisterField initialValue;
+        private readonly IValueRegisterField polynomial;
 
         private readonly Dictionary<STM32Series, STM32Config> setupConfig = new Dictionary<STM32Series, STM32Config> ()
         {
@@ -242,42 +237,58 @@ namespace Antmicro.Renode.Peripherals.CRC
                 STM32Series.F0,
                 new STM32Config()
                 {
-                    configurablePoly = false,
-                    configurableInitialValue = true,
-                    hasPolySizeBits = true,
-                    reversibleIO = true,
-                    independentDataWidth = IndependentDataWidth.Bits8,
+                    ConfigurablePoly = false,
+                    ConfigurableInitialValue = true,
+                    HasPolySizeBits = true,
+                    ReversibleIO = true,
+                    IndependentDataWidth = IndependentDataWidth.Bits8,
                 }
             },
             {
                 STM32Series.F4,
                 new STM32Config()
                 {
-                    configurablePoly = false,
-                    configurableInitialValue = false,
-                    hasPolySizeBits = false,
-                    reversibleIO = false,
-                    independentDataWidth = IndependentDataWidth.Bits8,
+                    ConfigurablePoly = false,
+                    ConfigurableInitialValue = false,
+                    HasPolySizeBits = false,
+                    ReversibleIO = false,
+                    IndependentDataWidth = IndependentDataWidth.Bits8,
                 }
             },
             {
                 STM32Series.WBA,
                 new STM32Config()
                 {
-                    configurablePoly = true,
-                    configurableInitialValue = true,
-                    hasPolySizeBits = true,
-                    reversibleIO = true,
-                    independentDataWidth = IndependentDataWidth.Bits32,
+                    ConfigurablePoly = true,
+                    ConfigurableInitialValue = true,
+                    HasPolySizeBits = true,
+                    ReversibleIO = true,
+                    IndependentDataWidth = IndependentDataWidth.Bits32,
                 }
             }
         };
+
         private readonly bool configurablePoly;
         private readonly bool configurableInitialValue;
         private readonly DoubleWordRegisterCollection registers;
+        private const uint DefaultPolymonial = 0x04C11DB7;
 
         private const uint DefaultInitialValue = 0xFFFFFFFF;
-        private const uint DefaultPolymonial = 0x04C11DB7;
+
+        public enum IndependentDataWidth
+        {
+            Bits8 = 8,
+            Bits32 = 32,
+        }
+
+        private struct STM32Config
+        {
+            public bool ConfigurablePoly;
+            public bool ConfigurableInitialValue;
+            public bool HasPolySizeBits;
+            public bool ReversibleIO;
+            public IndependentDataWidth IndependentDataWidth;
+        }
 
         private enum BitReversal
         {
@@ -302,15 +313,6 @@ namespace Antmicro.Renode.Peripherals.CRC
             CRC16,
             CRC8,
             CRC7
-        }
-
-        private struct STM32Config
-        {
-            public bool configurablePoly;
-            public bool configurableInitialValue;
-            public bool hasPolySizeBits;
-            public bool reversibleIO;
-            public IndependentDataWidth independentDataWidth;
         }
     }
 }

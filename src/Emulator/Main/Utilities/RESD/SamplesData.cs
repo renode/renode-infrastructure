@@ -4,9 +4,7 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.IO;
-using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Utilities.RESD
 {
@@ -89,6 +87,10 @@ namespace Antmicro.Renode.Utilities.RESD
             return true;
         }
 
+        public T LastSample => lastSample;
+
+        public long SampleDataOffset { get; }
+
         private void ReadCurrentSample()
         {
             if(!currentSample.TryReadFromStream(reader))
@@ -97,13 +99,10 @@ namespace Antmicro.Renode.Utilities.RESD
             }
         }
 
-        public T LastSample => lastSample;
-
-        public long SampleDataOffset { get; }
+        private T lastSample;
 
         private bool sampleReady;
-        private T currentSample;
-        private T lastSample;
+        private readonly T currentSample;
         private readonly SafeBinaryReader reader;
     }
 }

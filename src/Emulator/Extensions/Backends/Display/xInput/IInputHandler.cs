@@ -7,18 +7,20 @@
 //
 namespace Antmicro.Renode.Backends.Display.XInput
 {
-	public interface IInputHandler
-	{
+    public interface IInputHandler
+    {
         void ButtonPressed(int button);
+
         void ButtonReleased(int button);
 
         void KeyPressed(int key);
+
         void KeyReleased(int key);
 
-		void MouseMoved(int x, int y, int dx, int dy);
+        void MouseMoved(int x, int y, int dx, int dy);
 
-		bool Stop { get; set; }
-		bool CursorFixed { get; }
-	}
+        bool Stop { get; set; }
+
+        bool CursorFixed { get; }
+    }
 }
-

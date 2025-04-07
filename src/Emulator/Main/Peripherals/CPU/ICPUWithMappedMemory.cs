@@ -11,15 +11,20 @@ using Range = Antmicro.Renode.Core.Range;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public interface ICPUWithMappedMemory: ICPU
+    public interface ICPUWithMappedMemory : ICPU
     {
         void MapMemory(IMappedSegment segment);
+
         void RegisterAccessFlags(ulong startAddress, ulong size, bool isIoMemory = false);
+
         void SetMappedMemoryEnabled(Range range, bool enabled);
+
         void UnmapMemory(Range range);
+
         void SetPageAccessViaIo(ulong address);
+
         void ClearPageAccessViaIo(ulong address);
+
         void SetBroadcastDirty(bool enable);
     }
 }
-

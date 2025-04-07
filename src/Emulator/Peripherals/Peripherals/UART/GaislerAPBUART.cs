@@ -5,18 +5,20 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
 using System.Collections.Generic;
+
+using Antmicro.Migrant;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Migrant;
+#pragma warning disable IDE0005
+using Antmicro.Renode.Utilities;
+#pragma warning restore IDE0005
 
 namespace Antmicro.Renode.Peripherals.UART
 {
-    public class GaislerAPBUART: BasicDoubleWordPeripheral, IUART, IGaislerAPB
+    public class GaislerAPBUART : BasicDoubleWordPeripheral, IUART, IGaislerAPB
     {
         public GaislerAPBUART(IMachine machine, uint fifoDepth = 8, uint frequency = 25000000) : base(machine)
         {
@@ -24,6 +26,14 @@ namespace Antmicro.Renode.Peripherals.UART
             this.frequency = frequency;
             DefineRegisters();
         }
+
+        public uint GetVendorID() => VendorID;
+
+        public uint GetDeviceID() => DeviceID;
+
+        public GaislerAPBPlugAndPlayRecord.SpaceType GetSpaceType() => GaislerAPBPlugAndPlayRecord.SpaceType.APBIOSpace;
+
+        public uint GetInterruptNumber() => this.GetCpuInterruptNumber(IRQ);
 
         public void WriteChar(byte value)
         {
@@ -53,7 +63,7 @@ namespace Antmicro.Renode.Peripherals.UART
             get
             {
                 var divisor = scaler.Value * 8;
-                return divisor == 0 ? 0 : frequency / (uint) divisor;
+                return divisor == 0 ? 0 : frequency / (uint)divisor;
             }
         }
 
@@ -69,14 +79,6 @@ namespace Antmicro.Renode.Peripherals.UART
 
         [field: Transient]
         public event Action<byte> CharReceived;
-
-        public uint GetVendorID() => vendorID;
-
-        public uint GetDeviceID() => deviceID;
-
-        public GaislerAPBPlugAndPlayRecord.SpaceType GetSpaceType() => GaislerAPBPlugAndPlayRecord.SpaceType.APBIOSpace;
-
-        public uint GetInterruptNumber() => this.GetCpuInterruptNumber(IRQ);
 
         private void DefineRegisters()
         {
@@ -118,7 +120,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithFlag(10, FieldMode.Read, valueProviderCallback: _ => receiveFifo.Count >= fifoDepth, name: "RF")
                 .WithReservedBits(11, 9)
                 .WithValueField(20, 6, FieldMode.Read, valueProviderCallback: _ => 0, name: "TCNT")
-                .WithValueField(26, 6, FieldMode.Read, valueProviderCallback: _ => (ulong) Math.Min(receiveFifo.Count, fifoDepth), name: "RCNT")
+                .WithValueField(26, 6, FieldMode.Read, valueProviderCallback: _ => (ulong)Math.Min(receiveFifo.Count, fifoDepth), name: "RCNT")
             ;
 
             Registers.Control.Define(this, name: "CONTROL")
@@ -137,7 +139,7 @@ namespace Antmicro.Renode.Peripherals.UART
                                 this.Log(LogLevel.Error, "Attempted to set peripheral into external clock mode, which is unsupported!");
                             }
                         })
-                .WithFlag(9,  out transmitterFifoInterruptEnable, name: "TF", softResettable: false)
+                .WithFlag(9, out transmitterFifoInterruptEnable, name: "TF", softResettable: false)
                 .WithFlag(10, out receiverFifoInterruptEnable, name: "RF", softResettable: false)
                 .WithFlag(11, name: "DB", softResettable: false)
                 .WithFlag(12, name: "BI", softResettable: false)
@@ -177,6 +179,7 @@ namespace Antmicro.Renode.Peripherals.UART
         }
 
         private bool TxHalfEmpty => true;
+
         private bool RxHalfFull => receiveFifo.Count > (fifoDepth - 1) / 2;
 
         private IFlagRegisterField transmitterEnable;
@@ -195,8 +198,8 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private readonly Queue<byte> receiveFifo = new Queue<byte>();
 
-        private const uint vendorID = 0x01; // Aeroflex Gaisler
-        private const uint deviceID = 0x0c; // GRLIB APBUART
+        private const uint VendorID = 0x01; // Aeroflex Gaisler
+        private const uint DeviceID = 0x0c; // GRLIB APBUART
 
         private enum ParitySelect
         {

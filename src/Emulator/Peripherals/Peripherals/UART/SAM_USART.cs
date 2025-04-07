@@ -5,7 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -52,13 +52,17 @@ namespace Antmicro.Renode.Peripherals.UART
         }
 
         public byte? DmaByteRead() => ReadBuffer();
+
         public void DmaByteWrite(byte data) => Transmit(data);
 
         public long Size { get; }
+
         public GPIO IRQ { get; }
+
         public DoubleWordRegisterCollection RegistersCollection { get; }
 
         public TransferType DmaReadAccessWidth => TransferType.Byte;
+
         public TransferType DmaWriteAccessWidth => TransferType.Byte;
 
         public override uint BaudRate => 115200;

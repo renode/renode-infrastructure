@@ -4,8 +4,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Core;
-
 namespace Antmicro.Renode.Peripherals.IRQControllers
 {
     public class PULP_EventController : IIRQController

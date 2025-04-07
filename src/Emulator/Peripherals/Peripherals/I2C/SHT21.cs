@@ -7,16 +7,14 @@
 //
 using System;
 using System.Linq;
-using System.Collections.Generic;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Logging;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.I2C
 {
     public class SHT21 : II2CPeripheral
     {
-        public double MeanHumidity { get; set; }
         public SHT21()
         {
             MeanHumidity = 75.0;
@@ -74,7 +72,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                 case Registers.TemperaturePoll:
                     GetTemperature();
                     // Polling issues Write and then reads directly without writing read command
-                    // so it is necessary to prepare send data here 
+                    // so it is necessary to prepare send data here
                     result = new byte[3] { 0, 0, 0 };
                     result[0] = resultArray[0];
                     result[1] = resultArray[1];
@@ -89,7 +87,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                 case Registers.HumidityPoll:
                     GetHumidity();
                     // Polling issues Write and then reads directly without writing read command
-                    // so it is necessary to prepare send data here 
+                    // so it is necessary to prepare send data here
                     result = new byte[3] { 0, 0, 0 };
                     result[0] = resultArray[0];
                     result[1] = resultArray[1];
@@ -170,6 +168,10 @@ namespace Antmicro.Renode.Peripherals.I2C
         {
         }
 
+        public double MeanHumidity { get; set; }
+
+        private static readonly PseudorandomNumberGenerator random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
+
         private double SensorData(double mean, double sigma)
         {
             // mean = mean value of Gaussian (Normal) distribution and sigma = standard deviation
@@ -195,7 +197,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             // bit 1 indicates measurement type, 0 for Temperature, 1 for Humidity
             // bit 0 is currently not assigned - shall be zero
             // bits 2 and 3 unused - shall be zero
-            // TODO: T is scaled to avoid truncating since precision < 16 bits 
+            // TODO: T is scaled to avoid truncating since precision < 16 bits
             // Generated sensor data needs to be verified against real hardware
             double temperature = SensorData(25.0, 1.0);
             double result = (temperature + 46.85) * 65536.0 / 17572.0;
@@ -270,7 +272,7 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         private byte GetSTH21CRC(byte[] array, int nrOfBytes)
         {
-            const uint POLYNOMIAL = 0x131;  // P(x)=x^8+x^5+x^4+1 = 100110001
+            const uint polynomial = 0x131;  // P(x)=x^8+x^5+x^4+1 = 100110001
             byte crc = 0;
             for(byte i = 0; i < nrOfBytes; ++i)
             {
@@ -279,7 +281,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                 {
                     if((crc & 0x80) == 0x80)
                     {
-                        crc = (byte)(((uint)crc << 1) ^ POLYNOMIAL);
+                        crc = (byte)(((uint)crc << 1) ^ polynomial);
                     }
                     else
                     {
@@ -304,7 +306,6 @@ namespace Antmicro.Renode.Peripherals.I2C
             return crc;
         }
 
-        private byte[] resultArray = new byte[2] { 0, 0 };
         private byte user;
 
         private uint state;
@@ -312,7 +313,7 @@ namespace Antmicro.Renode.Peripherals.I2C
         private byte registerData;
         private byte[] sendData;
 
-        private static PseudorandomNumberGenerator random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
+        private readonly byte[] resultArray = new byte[2] { 0, 0 };
 
         private enum UserControls
         {
@@ -344,4 +345,3 @@ namespace Antmicro.Renode.Peripherals.I2C
         }
     }
 }
-

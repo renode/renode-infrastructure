@@ -4,17 +4,13 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.I2C;
 using Antmicro.Renode.Peripherals.Sensor;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Peripherals.Sensors
 {
@@ -154,7 +150,9 @@ namespace Antmicro.Renode.Peripherals.Sensors
         }
 
         public ByteRegisterCollection RegistersCollection { get; }
+
         public GPIO IRQ0 { get; }
+
         public GPIO IRQ1 { get; }
 
         private void DefineRegisters()
@@ -222,7 +220,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithFlag(3, out readyPendingYIrq[0, 1], FieldMode.Read, name: "YH_IRQ")
                 .WithFlag(4, out readyPendingZIrq[0, 0], FieldMode.Read, name: "ZL_IRQ")
                 .WithFlag(5, out readyPendingZIrq[0, 1], FieldMode.Read, name: "ZH_IRQ")
-                .WithFlag(6, out activeIrq[0] , FieldMode.Read, name: "IRQ_ACTIVE")
+                .WithFlag(6, out activeIrq[0], FieldMode.Read, name: "IRQ_ACTIVE")
                 .WithTaggedFlag("PREREQ", 7);
 
             Registers.Interrupt2Config.Define(this, 0x3F) //RW
@@ -261,21 +259,21 @@ namespace Antmicro.Renode.Peripherals.Sensors
             ushort sensitivity = 0; // [mg/LSB]
             switch(fullScale.Value)
             {
-                case 0:
-                    sensitivity = 1;
-                    break;
-                case 1:
-                    sensitivity = 2;
-                    break;
-                case 2:
-                    sensitivity = 4;
-                    break;
-                case 3:
-                    sensitivity = 12;
-                    break;
-                default:
-                    this.Log(LogLevel.Warning, "Unsupported value of sensor sensitivity.");
-                    break;
+            case 0:
+                sensitivity = 1;
+                break;
+            case 1:
+                sensitivity = 2;
+                break;
+            case 2:
+                sensitivity = 4;
+                break;
+            case 3:
+                sensitivity = 12;
+                break;
+            default:
+                this.Log(LogLevel.Warning, "Unsupported value of sensor sensitivity.");
+                break;
             }
             return sensitivity;
         }
@@ -334,6 +332,10 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
+        private decimal accelarationX;
+        private decimal accelarationY;
+        private decimal accelarationZ;
+
         private Registers registerAddress;
         private bool multipleOperation;
 
@@ -343,18 +345,14 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private IFlagRegisterField xAxisEnable, yAxisEnable, zAxisEnable;
         private IFlagRegisterField xDataAvailable, yDataAvailable, zDataAvailable;
 
-        private GPIO[] irqs = new GPIO[IrqAmount];
-        private IFlagRegisterField[] activeIrq = new IFlagRegisterField[IrqAmount];
-        private IFlagRegisterField[,] readyEnabledXIrq = new IFlagRegisterField[IrqAmount, AxisBytes];
-        private IFlagRegisterField[,] readyEnabledYIrq = new IFlagRegisterField[IrqAmount, AxisBytes];
-        private IFlagRegisterField[,] readyEnabledZIrq = new IFlagRegisterField[IrqAmount, AxisBytes];
-        private IFlagRegisterField[,] readyPendingXIrq = new IFlagRegisterField[IrqAmount, AxisBytes];
-        private IFlagRegisterField[,] readyPendingYIrq = new IFlagRegisterField[IrqAmount, AxisBytes];
-        private IFlagRegisterField[,] readyPendingZIrq = new IFlagRegisterField[IrqAmount, AxisBytes];
-
-        private decimal accelarationX;
-        private decimal accelarationY;
-        private decimal accelarationZ;
+        private readonly GPIO[] irqs = new GPIO[IrqAmount];
+        private readonly IFlagRegisterField[] activeIrq = new IFlagRegisterField[IrqAmount];
+        private readonly IFlagRegisterField[,] readyEnabledXIrq = new IFlagRegisterField[IrqAmount, AxisBytes];
+        private readonly IFlagRegisterField[,] readyEnabledYIrq = new IFlagRegisterField[IrqAmount, AxisBytes];
+        private readonly IFlagRegisterField[,] readyEnabledZIrq = new IFlagRegisterField[IrqAmount, AxisBytes];
+        private readonly IFlagRegisterField[,] readyPendingXIrq = new IFlagRegisterField[IrqAmount, AxisBytes];
+        private readonly IFlagRegisterField[,] readyPendingYIrq = new IFlagRegisterField[IrqAmount, AxisBytes];
+        private readonly IFlagRegisterField[,] readyPendingZIrq = new IFlagRegisterField[IrqAmount, AxisBytes];
 
         private const decimal MinAcceleration = -19.0m;
         private const decimal MaxAcceleration = 19.0m;

@@ -5,14 +5,14 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using System.Linq;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Core.Structure;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using Antmicro.Renode.UserInterface;
+using System.Linq;
+
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
@@ -22,6 +22,16 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         IPeripheralRegister<IGPIOSender, NullRegistrationPoint>, IPeripheralRegister<IGPIOReceiver, NumberRegistrationPoint<int>>,
         IPeripheral, IGPIOReceiver, IPeripheralRegister<IGPIOSender, NumberRegistrationPoint<int>>
     {
+        public virtual void OnGPIO(int number, bool value)
+        {
+            if(!CheckPinNumber(number))
+            {
+                return;
+            }
+
+            State[number] = value;
+        }
+
         public void Register(IGPIOSender peripheral, NumberRegistrationPoint<int> registrationPoint)
         {
             machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
@@ -59,7 +69,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         }
 
         public void Register(IGPIOReceiver peripheral, NumberRegistrationPoint<int> registrationPoint)
-        {          
+        {
             machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
         }
 
@@ -74,6 +84,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 State[i] = false;
             }
         }
+
+        public IReadOnlyDictionary<int, IGPIO> Connections { get; }
 
         protected BaseGPIOPort(IMachine machine, int numberOfConnections)
         {
@@ -118,21 +130,9 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             return true;
         }
 
-        public virtual void OnGPIO(int number, bool value)
-        {
-            if(!CheckPinNumber(number))
-            {
-                return;
-            }
-
-            State[number] = value;
-        }
-
-        public IReadOnlyDictionary<int, IGPIO> Connections { get; }
+        protected bool[] State;
 
         protected readonly int NumberOfConnections;
-        protected bool[] State;
         protected readonly IMachine machine;
     }
 }
-

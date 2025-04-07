@@ -5,17 +5,18 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System.Linq;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Logging;
 using System;
 using System.Collections.Generic;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Utilities;
+using System.Linq;
+
 using Antmicro.Migrant;
-using Antmicro.Renode.Peripherals.Wireless.IEEE802_15_4;
-using Antmicro.Renode.Peripherals.Wireless.CC2538;
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Wireless.CC2538;
+using Antmicro.Renode.Peripherals.Wireless.IEEE802_15_4;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Wireless
 {
@@ -298,44 +299,44 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 {
                     switch(frame.SourceAddressingMode)
                     {
-                        case AddressingMode.ShortAddress:
-                            for(var i = 0u; i < srcShortEnabled.Length; i++)
+                    case AddressingMode.ShortAddress:
+                        for(var i = 0u; i < srcShortEnabled.Length; i++)
+                        {
+                            if(!srcShortEnabled[i])
                             {
-                                if(!srcShortEnabled[i])
+                                continue;
+                            }
+                            if(frame.AddressInformation.SourcePan == GetShortPanIdFromRamTable(i)
+                               && frame.AddressInformation.SourceAddress.GetValue() == GetShortSourceAddressFromRamTable(i))
+                            {
+                                matchedSourceAddresses[i] = true;
+                                autoPendingBit |= srcShortPendEnabled[i];
+                                if(index == NoSourceIndex)
                                 {
-                                    continue;
-                                }
-                                if(frame.AddressInformation.SourcePan == GetShortPanIdFromRamTable(i)
-                                   && frame.AddressInformation.SourceAddress.GetValue() == GetShortSourceAddressFromRamTable(i))
-                                {
-                                    matchedSourceAddresses[i] = true;
-                                    autoPendingBit |= srcShortPendEnabled[i];
-                                    if(index == NoSourceIndex)
-                                    {
-                                        index = i;
-                                    }
+                                    index = i;
                                 }
                             }
-                            break;
-                        case AddressingMode.ExtendedAddress:
-                            for(var i = 0u; i < srcExtendedEnabled.Length; i++)
+                        }
+                        break;
+                    case AddressingMode.ExtendedAddress:
+                        for(var i = 0u; i < srcExtendedEnabled.Length; i++)
+                        {
+                            if(!srcExtendedEnabled[i])
                             {
-                                if(!srcExtendedEnabled[i])
+                                continue;
+                            }
+                            if(frame.AddressInformation.SourceAddress.GetValue() == GetExtendedSourceAddressFromRamTable(i))
+                            {
+                                matchedSourceAddresses[2 * i] = true;
+                                matchedSourceAddresses[2 * i + 1] = true;
+                                autoPendingBit |= srcExtendedPendEnabled[i];
+                                if(index == NoSourceIndex)
                                 {
-                                    continue;
-                                }
-                                if(frame.AddressInformation.SourceAddress.GetValue() == GetExtendedSourceAddressFromRamTable(i))
-                                {
-                                    matchedSourceAddresses[2 * i] = true;
-                                    matchedSourceAddresses[2 * i + 1] = true;
-                                    autoPendingBit |= srcExtendedPendEnabled[i];
-                                    if(index == NoSourceIndex)
-                                    {
-                                        index = i | 0x20;
-                                    }
+                                    index = i | 0x20;
                                 }
                             }
-                            break;
+                        }
+                        break;
                     }
 
                     matchedSourceIndexField.Value = index;
@@ -392,22 +393,16 @@ namespace Antmicro.Renode.Peripherals.Wireless
             irqHandler.RequestInterrupt(InterruptSource.RxPktDone);
         }
 
-        public int Channel { get; set; }
-        public event Action<IRadio, byte[]> FrameSent;
         public GPIO IRQ { get; private set; }
+
         public long Size { get { return 0x1000; } }
-        
-	private uint GetRxFifoBytesCount()
-        {
-            lock(rxLock)
-            {
-                //takes only first packet into account plus 1 byte that indicates its size
-                return rxQueue.Count > 0 ? (uint)rxQueue.Peek().Bytes.Length + 1 : 0u;
-	    }
-	}
-        
-	private static DoubleWordRegister[] CreateRegistersGroup(int size, IPeripheral parent, int position, int width,
-            FieldMode mode = FieldMode.Read | FieldMode.Write, Action<int, uint> writeCallback = null, Func<int, uint> valueProviderCallback = null, string name = null)
+
+        public int Channel { get; set; }
+
+        public event Action<IRadio, byte[]> FrameSent;
+
+        private static DoubleWordRegister[] CreateRegistersGroup(int size, IPeripheral parent, int position, int width,
+                FieldMode mode = FieldMode.Read | FieldMode.Write, Action<int, uint> writeCallback = null, Func<int, uint> valueProviderCallback = null, string name = null)
         {
             var result = new DoubleWordRegister[size];
             for(var i = 0; i < size; i++)
@@ -439,6 +434,15 @@ namespace Antmicro.Renode.Peripherals.Wireless
             for(var i = 0; i < group.Length; i++)
             {
                 collection.Add(initialAddress + 0x4 * i, group[i]);
+            }
+        }
+
+        private uint GetRxFifoBytesCount()
+        {
+            lock(rxLock)
+            {
+                //takes only first packet into account plus 1 byte that indicates its size
+                return rxQueue.Count > 0 ? (uint)rxQueue.Peek().Bytes.Length + 1 : 0u;
             }
         }
 
@@ -560,34 +564,34 @@ namespace Antmicro.Renode.Peripherals.Wireless
         {
             switch((CSPInstructions)value)
             {
-                case CSPInstructions.TxOn:
-                    fsmState = FSMStates.Tx;
-                    txPendingCounter = TxPendingCounterInitialValue;
-                    SendData();
-                    break;
-                case CSPInstructions.RxOn:
-                    fsmState = FSMStates.Rx;
-                    break;
-                case CSPInstructions.RfOff:
-                    fsmState = FSMStates.Idle;
-                    break;
-                case CSPInstructions.RxFifoFlush:
-                    lock(rxLock)
+            case CSPInstructions.TxOn:
+                fsmState = FSMStates.Tx;
+                txPendingCounter = TxPendingCounterInitialValue;
+                SendData();
+                break;
+            case CSPInstructions.RxOn:
+                fsmState = FSMStates.Rx;
+                break;
+            case CSPInstructions.RfOff:
+                fsmState = FSMStates.Idle;
+                break;
+            case CSPInstructions.RxFifoFlush:
+                lock(rxLock)
+                {
+                    if(rxQueue.Count != 0)
                     {
-                        if(rxQueue.Count != 0)
-                        {
-                            this.Log(LogLevel.Warning, "Dropping unreceived frame.");
-                            currentFrameOffset = -1;
-                            rxQueue.Clear();
-                        }
+                        this.Log(LogLevel.Warning, "Dropping unreceived frame.");
+                        currentFrameOffset = -1;
+                        rxQueue.Clear();
                     }
-                    break;
-                case CSPInstructions.TxFifoFlush:
-                    txQueue.Clear();
-                    break;
-                default:
-                    this.Log(LogLevel.Warning, "Unsupported CSP instruction {0}.", value);
-                    break;
+                }
+                break;
+            case CSPInstructions.TxFifoFlush:
+                txQueue.Clear();
+                break;
+            default:
+                this.Log(LogLevel.Warning, "Unsupported CSP instruction {0}.", value);
+                break;
             }
         }
 
@@ -711,46 +715,46 @@ namespace Antmicro.Renode.Peripherals.Wireless
             //todo: not implemented reserved types (implemented in cc2520)
             switch(frame.Type)
             {
-                case FrameType.Beacon:
-                    if(!acceptBeaconFrames.Value
-                        || frame.Length < 9
-                        || frame.DestinationAddressingMode != AddressingMode.None
-                        || (frame.SourceAddressingMode != AddressingMode.ShortAddress && frame.SourceAddressingMode != AddressingMode.ExtendedAddress)
-                        || (frame.AddressInformation.SourcePan != BroadcastPanIdentifier && frame.AddressInformation.SourcePan != GetPanId()))
-                    {
-                        this.Log(LogLevel.Noisy, "Wrong beacon frame.");
-                        return false;
-                    }
-                    break;
-                case FrameType.Data:
-                    if(!acceptDataFrames.Value
-                        || frame.Length < 9
-                        || (frame.DestinationAddressingMode == AddressingMode.None
-                            && (!isPanCoordinator.Value || frame.AddressInformation.SourcePan != GetPanId())))
-                    {
-                        this.Log(LogLevel.Noisy, "Wrong data frame.");
-                        return false;
-                    }
-                    break;
-                case FrameType.ACK:
-                    if(!acceptAckFrames.Value || frame.Length != 5)
-                    {
-                        this.Log(LogLevel.Noisy, "Wrong ACK frame.");
-                        return false;
-                    }
-                    break;
-                case FrameType.MACControl:
-                    if(!acceptMacCmdFrames.Value
-                        || frame.Length < 9
-                        || (frame.DestinationAddressingMode == AddressingMode.None
-                            && (!isPanCoordinator.Value || frame.AddressInformation.SourcePan != GetPanId())))
-                    {
-                        this.Log(LogLevel.Noisy, "Wrong MAC control frame.");
-                        return false;
-                    }
-                    break;
-                default:
+            case FrameType.Beacon:
+                if(!acceptBeaconFrames.Value
+                    || frame.Length < 9
+                    || frame.DestinationAddressingMode != AddressingMode.None
+                    || (frame.SourceAddressingMode != AddressingMode.ShortAddress && frame.SourceAddressingMode != AddressingMode.ExtendedAddress)
+                    || (frame.AddressInformation.SourcePan != BroadcastPanIdentifier && frame.AddressInformation.SourcePan != GetPanId()))
+                {
+                    this.Log(LogLevel.Noisy, "Wrong beacon frame.");
                     return false;
+                }
+                break;
+            case FrameType.Data:
+                if(!acceptDataFrames.Value
+                    || frame.Length < 9
+                    || (frame.DestinationAddressingMode == AddressingMode.None
+                        && (!isPanCoordinator.Value || frame.AddressInformation.SourcePan != GetPanId())))
+                {
+                    this.Log(LogLevel.Noisy, "Wrong data frame.");
+                    return false;
+                }
+                break;
+            case FrameType.ACK:
+                if(!acceptAckFrames.Value || frame.Length != 5)
+                {
+                    this.Log(LogLevel.Noisy, "Wrong ACK frame.");
+                    return false;
+                }
+                break;
+            case FrameType.MACControl:
+                if(!acceptMacCmdFrames.Value
+                    || frame.Length < 9
+                    || (frame.DestinationAddressingMode == AddressingMode.None
+                        && (!isPanCoordinator.Value || frame.AddressInformation.SourcePan != GetPanId())))
+                {
+                    this.Log(LogLevel.Noisy, "Wrong MAC control frame.");
+                    return false;
+                }
+                break;
+            default:
+                return false;
             }
 
             return true;
@@ -873,4 +877,3 @@ namespace Antmicro.Renode.Peripherals.Wireless
         }
     }
 }
-

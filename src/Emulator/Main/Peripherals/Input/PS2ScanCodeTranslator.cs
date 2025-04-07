@@ -11,12 +11,12 @@ namespace Antmicro.Renode.Peripherals.Input
 {
     public sealed class PS2ScanCodeTranslator
     {
-        public static PS2ScanCodeTranslator Instance { get; private set; }
-
         static PS2ScanCodeTranslator()
         {
             Instance = new PS2ScanCodeTranslator();
         }
+
+        public static PS2ScanCodeTranslator Instance { get; private set; }
 
         public int GetCode(KeyScanCode scanCode)
         {
@@ -28,7 +28,7 @@ namespace Antmicro.Renode.Peripherals.Input
             return result;
         }
 
-        private PS2ScanCodeTranslator() 
+        private PS2ScanCodeTranslator()
         {
             mapping = new Dictionary<KeyScanCode, int>();
 
@@ -50,21 +50,21 @@ namespace Antmicro.Renode.Peripherals.Input
             mapping.Add(KeyScanCode.Y, 0x35);
             mapping.Add(KeyScanCode.U, 0x3C);
             mapping.Add(KeyScanCode.I, 0x43);
-            mapping.Add(KeyScanCode.O, 0x44);            
+            mapping.Add(KeyScanCode.O, 0x44);
             mapping.Add(KeyScanCode.P, 0x4D);
-            mapping.Add(KeyScanCode.A, 0x1C);            
+            mapping.Add(KeyScanCode.A, 0x1C);
             mapping.Add(KeyScanCode.S, 0x1B);
             mapping.Add(KeyScanCode.D, 0x23);
             mapping.Add(KeyScanCode.F, 0x2B);
             mapping.Add(KeyScanCode.G, 0x34);
             mapping.Add(KeyScanCode.H, 0x33);
-            mapping.Add(KeyScanCode.J, 0x3B);            
+            mapping.Add(KeyScanCode.J, 0x3B);
             mapping.Add(KeyScanCode.K, 0x42);
-            mapping.Add(KeyScanCode.L, 0x4B);            
+            mapping.Add(KeyScanCode.L, 0x4B);
             mapping.Add(KeyScanCode.Z, 0x1A);
             mapping.Add(KeyScanCode.X, 0x22);
             mapping.Add(KeyScanCode.C, 0x21);
-            mapping.Add(KeyScanCode.V, 0x2A);            
+            mapping.Add(KeyScanCode.V, 0x2A);
             mapping.Add(KeyScanCode.B, 0x32);
             mapping.Add(KeyScanCode.N, 0x31);
             mapping.Add(KeyScanCode.M, 0x3A);
@@ -112,7 +112,7 @@ namespace Antmicro.Renode.Peripherals.Input
             mapping.Add(KeyScanCode.Keypad8, 0x75);
             mapping.Add(KeyScanCode.Keypad9, 0x7D);
             mapping.Add(KeyScanCode.Keypad0, 0x70);
-      //    mapping.Add(KeyScanCode.KDiv, 0x4A);
+            //    mapping.Add(KeyScanCode.KDiv, 0x4A);
             mapping.Add(KeyScanCode.KeypadMultiply, 0x7C);
             mapping.Add(KeyScanCode.KeypadMinus, 0x7B);
             mapping.Add(KeyScanCode.KeypadPlus, 0x79);
@@ -140,4 +140,3 @@ namespace Antmicro.Renode.Peripherals.Input
         private readonly Dictionary<KeyScanCode, int> mapping;
     }
 }
-

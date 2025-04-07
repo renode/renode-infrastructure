@@ -5,11 +5,9 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-
 namespace Antmicro.Renode.UserInterface.Tokenizer
 {
-    public class RightBraceToken : Token 
+    public class RightBraceToken : Token
     {
         public RightBraceToken(string token) : base(token)
         {
@@ -26,4 +24,3 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
         }
     }
 }
-

@@ -6,16 +6,13 @@
 //
 
 using System;
-using System.Linq;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
-
-using Antmicro.Renode.Peripherals.Bus;
-
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.SD
 {
@@ -143,14 +140,14 @@ namespace Antmicro.Renode.Peripherals.SD
 
                     switch(responseTypeField.Value)
                     {
-                        case ResponseType.Short:
-                        case ResponseType.ShortBusy:
-                            expectedResponseLength = 4;
-                            break;
+                    case ResponseType.Short:
+                    case ResponseType.ShortBusy:
+                        expectedResponseLength = 4;
+                        break;
 
-                        case ResponseType.Long:
-                            expectedResponseLength = 16;
-                            break;
+                    case ResponseType.Long:
+                        expectedResponseLength = 16;
+                        break;
                     }
 
                     if(resp.Length != expectedResponseLength)
@@ -158,7 +155,7 @@ namespace Antmicro.Renode.Peripherals.SD
                         this.Log(LogLevel.Warning, "Expected response of length {0} bytes, but received {1} bytes", expectedResponseLength, resp.Length);
                         return;
                     }
-                    
+
                     for(var i = 0; i < resp.Length; i++)
                     {
                         responseBuffer[ResponseBufferLength - 1 - i] = resp[i];
@@ -167,19 +164,19 @@ namespace Antmicro.Renode.Peripherals.SD
 
                     switch(transferTypeField.Value)
                     {
-                        case TransferType.Read:
-                            if(dmaReaderEnabled.Value)
-                            {
-                                ReadData();
-                            }
-                            break;
+                    case TransferType.Read:
+                        if(dmaReaderEnabled.Value)
+                        {
+                            ReadData();
+                        }
+                        break;
 
-                        case TransferType.Write:
-                            if(dmaWriterEnabled.Value)
-                            {
-                                WriteData();
-                            }
-                            break;
+                    case TransferType.Write:
+                        if(dmaWriterEnabled.Value)
+                        {
+                            WriteData();
+                        }
+                        break;
                     }
                 })
                 .WithReservedBits(1, 7)
@@ -188,8 +185,8 @@ namespace Antmicro.Renode.Peripherals.SD
             CoreRegisters.Response.DefineMany(coreRegistersCollection, ResponseBufferLength / 4, (register, idx) =>
             {
                 register
-                    .WithValueField(0,  8, FieldMode.Read, name: $"Response{(4 * idx + 0)}", valueProviderCallback: _ => responseBuffer[4 * idx + 3])
-                    .WithValueField(8,  8, FieldMode.Read, name: $"Response{(4 * idx + 1)}", valueProviderCallback: _ => responseBuffer[4 * idx + 2])
+                    .WithValueField(0, 8, FieldMode.Read, name: $"Response{(4 * idx + 0)}", valueProviderCallback: _ => responseBuffer[4 * idx + 3])
+                    .WithValueField(8, 8, FieldMode.Read, name: $"Response{(4 * idx + 1)}", valueProviderCallback: _ => responseBuffer[4 * idx + 2])
                     .WithValueField(16, 8, FieldMode.Read, name: $"Response{(4 * idx + 2)}", valueProviderCallback: _ => responseBuffer[4 * idx + 1])
                     .WithValueField(24, 8, FieldMode.Read, name: $"Response{(4 * idx + 3)}", valueProviderCallback: _ => responseBuffer[4 * idx + 0]);
             });
@@ -300,7 +297,7 @@ namespace Antmicro.Renode.Peripherals.SD
         private IFlagRegisterField dmaReaderEnabled;
         private IValueRegisterField argumentValue;
 
-        private byte[] responseBuffer;
+        private readonly byte[] responseBuffer;
 
         private readonly IBusController sysbus;
         private readonly DoubleWordRegisterCollection phyRegistersCollection;

@@ -5,14 +5,16 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Peripherals.MemoryControllers;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.MemoryControllers;
 using Antmicro.Renode.Utilities;
+
 using Org.BouncyCastle.Crypto.Macs;
 using Org.BouncyCastle.Crypto.Parameters;
 
@@ -96,14 +98,26 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Array.Clear(softwareShareOutput, 0, softwareShareOutput.Length);
         }
 
+        public byte[] CalculateKMAC(IEnumerable<byte> data, int outputLength)
+        {
+            var mac = new KMac(KmacBitLength, null);
+            mac.Init(new KeyParameter(internalKey));
+            var dataArray = data.ToArray();
+            mac.BlockUpdate(dataArray, 0, dataArray.Length);
+            var output = new byte[outputLength];
+            mac.DoFinal(output, 0, outputLength);
+            return output;
+        }
+
         public long Size => 0x1000;
 
         public GPIO OperationDoneIRQ { get; }
 
         public GPIO FatalAlert { get; }
+
         public GPIO RecoverableAlert { get; }
 
-        static private byte[] ConstructorParseHexstringArgument(string fieldName, string value, int expectedLength)
+        private static byte[] ConstructorParseHexstringArgument(string fieldName, string value, int expectedLength)
         {
             byte[] field;
             var lengthInBytes = value.Length / 2;
@@ -122,9 +136,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             return field;
         }
 
-        private static WorkingState[] IllegalForAdvance = { WorkingState.Invalid, WorkingState.Disabled };
-        private static WorkingState[] IllegalForDisable = { WorkingState.Invalid, WorkingState.Disabled };
-        private static WorkingState[] IllegalForGenerate = { WorkingState.Invalid, WorkingState.Disabled, WorkingState.Init };
+        private static readonly WorkingState[] IllegalForAdvance = { WorkingState.Invalid, WorkingState.Disabled };
+        private static readonly WorkingState[] IllegalForDisable = { WorkingState.Invalid, WorkingState.Disabled };
+        private static readonly WorkingState[] IllegalForGenerate = { WorkingState.Invalid, WorkingState.Disabled, WorkingState.Init };
 
         private void RunCommand()
         {
@@ -139,56 +153,56 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             switch(command)
             {
-                case OperationMode.Advance:
-                    if(CheckLegality(IllegalForAdvance))
-                    {
-                        AdvanceState();
-                    }
-                    break;
-                case OperationMode.GenerateID:
-                    if(CheckLegality(IllegalForGenerate))
-                    {
-                        softwareShareOutput = CalculateKMAC(IdentitySeed, softwareShareOutput.Length);
-                    }
-                    break;
-                case OperationMode.GenerateHWOutput:
-                    if(CheckLegality(IllegalForGenerate) && CheckKeyVersion())
-                    {
-                        var data = BitConverter.GetBytes((uint)keyVersion.Value)
+            case OperationMode.Advance:
+                if(CheckLegality(IllegalForAdvance))
+                {
+                    AdvanceState();
+                }
+                break;
+            case OperationMode.GenerateID:
+                if(CheckLegality(IllegalForGenerate))
+                {
+                    softwareShareOutput = CalculateKMAC(IdentitySeed, softwareShareOutput.Length);
+                }
+                break;
+            case OperationMode.GenerateHWOutput:
+                if(CheckLegality(IllegalForGenerate) && CheckKeyVersion())
+                {
+                    var data = BitConverter.GetBytes((uint)keyVersion.Value)
                             .Concat(salt)
                             .Concat(DestinationCipherSeed)
                             .Concat(hardOutputSeed);
-                        var length = destination.Value == Destination.OTBN ? SideloadKeyLengthOTBN : SideloadKeyLength;
-                        var output = CalculateKMAC(data, length);
-                        if(destinations.TryGetValue(destination.Value, out var dest))
-                        {
-                            dest.SideloadKey = output;
-                        }
-                        else
-                        {
-                            this.Log(LogLevel.Warning, "Sideload key for {0} is not possible, peripheral is not specified", destination.Value);
-                        }
-                    }
-                    break;
-                case OperationMode.GenerateSWOutput:
-                    if(CheckLegality(IllegalForGenerate) && CheckKeyVersion())
+                    var length = destination.Value == Destination.OTBN ? SideloadKeyLengthOTBN : SideloadKeyLength;
+                    var output = CalculateKMAC(data, length);
+                    if(destinations.TryGetValue(destination.Value, out var dest))
                     {
-                        var data = BitConverter.GetBytes((uint)keyVersion.Value)
+                        dest.SideloadKey = output;
+                    }
+                    else
+                    {
+                        this.Log(LogLevel.Warning, "Sideload key for {0} is not possible, peripheral is not specified", destination.Value);
+                    }
+                }
+                break;
+            case OperationMode.GenerateSWOutput:
+                if(CheckLegality(IllegalForGenerate) && CheckKeyVersion())
+                {
+                    var data = BitConverter.GetBytes((uint)keyVersion.Value)
                             .Concat(salt)
                             .Concat(DestinationCipherSeed)
                             .Concat(softOutputSeed);
-                        softwareShareOutput = CalculateKMAC(data, softwareShareOutput.Length);
-                    }
-                    break;
-                case OperationMode.Disable:
-                    if(CheckLegality(IllegalForDisable))
-                    {
-                        state.Value = WorkingState.Disabled;
-                    }
-                    break;
-                default:
-                    this.Log(LogLevel.Warning, "Unsupported {0} operation", state.Value);
-                    break;
+                    softwareShareOutput = CalculateKMAC(data, softwareShareOutput.Length);
+                }
+                break;
+            case OperationMode.Disable:
+                if(CheckLegality(IllegalForDisable))
+                {
+                    state.Value = WorkingState.Disabled;
+                }
+                break;
+            default:
+                this.Log(LogLevel.Warning, "Unsupported {0} operation", state.Value);
+                break;
             }
         }
 
@@ -235,61 +249,50 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             switch(state.Value)
             {
-                case WorkingState.Reset:
-                    state.Value++;
-                    internalKey = rootKey;
-                    break;
-                case WorkingState.Init:
-                    state.Value++;
-                    data = SoftwareBinding
-                        .Concat(revisionSeed)
-                        .Concat(deviceId)
-                        .Concat(lifeCycleDiversificationConstant)
-                        .Concat(romController.Digest)
-                        .Concat(creatorKey);
-                    creatorRootStateKey = CalculateKMAC(data, RootKeyExpectedLength);
-                    internalKey = creatorRootStateKey;
-                    break;
-                case WorkingState.CreatorRootKey:
-                    state.Value++;
-                    data = SoftwareBinding
-                        .Concat(ownerKey);
-                    ownerIntermediateStateKey = CalculateKMAC(data, RootKeyExpectedLength);
-                    internalKey = ownerIntermediateStateKey;
-                    break;
-                case WorkingState.OwnerIntermediateKey:
-                    state.Value++;
-                    data = SoftwareBinding;
-                    ownerStateKey = CalculateKMAC(data, RootKeyExpectedLength);
-                    internalKey = ownerStateKey;
-                    break;
-                case WorkingState.OwnerKey:
-                    state.Value++;
-                    break;
-                case WorkingState.Disabled:
-                    Invalidate();
-                    break;
-                case WorkingState.Invalid:
-                    // This is a proper state, no additonal logging is required
-                    break;
-                default:
-                    this.Log(LogLevel.Warning, "Reached unexpected state: {0}", state.Value);
-                    break;
+            case WorkingState.Reset:
+                state.Value++;
+                internalKey = rootKey;
+                break;
+            case WorkingState.Init:
+                state.Value++;
+                data = SoftwareBinding
+                    .Concat(revisionSeed)
+                    .Concat(deviceId)
+                    .Concat(lifeCycleDiversificationConstant)
+                    .Concat(romController.Digest)
+                    .Concat(creatorKey);
+                creatorRootStateKey = CalculateKMAC(data, RootKeyExpectedLength);
+                internalKey = creatorRootStateKey;
+                break;
+            case WorkingState.CreatorRootKey:
+                state.Value++;
+                data = SoftwareBinding
+                    .Concat(ownerKey);
+                ownerIntermediateStateKey = CalculateKMAC(data, RootKeyExpectedLength);
+                internalKey = ownerIntermediateStateKey;
+                break;
+            case WorkingState.OwnerIntermediateKey:
+                state.Value++;
+                data = SoftwareBinding;
+                ownerStateKey = CalculateKMAC(data, RootKeyExpectedLength);
+                internalKey = ownerStateKey;
+                break;
+            case WorkingState.OwnerKey:
+                state.Value++;
+                break;
+            case WorkingState.Disabled:
+                Invalidate();
+                break;
+            case WorkingState.Invalid:
+                // This is a proper state, no additonal logging is required
+                break;
+            default:
+                this.Log(LogLevel.Warning, "Reached unexpected state: {0}", state.Value);
+                break;
             }
 
             this.Log(LogLevel.Debug, "WorkingState advanced to '{0}'", state.Value);
             status.Value = Status.Idle;
-        }
-
-        public byte[] CalculateKMAC(IEnumerable<byte> data, int outputLength)
-        {
-            var mac = new KMac(KmacBitLength, null);
-            mac.Init(new KeyParameter(internalKey));
-            var dataArray = data.ToArray();
-            mac.BlockUpdate(dataArray, 0, dataArray.Length);
-            var output = new byte[outputLength];
-            mac.DoFinal(output, 0, outputLength);
-            return output;
         }
 
         private void DefineRegisters()
@@ -319,7 +322,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithIgnoredBits(1, 31);
 
             Registers.OperationControls.Define(this)
-                .WithFlag(0, writeCallback: (_, val) => { if (val) RunCommand(); }, valueProviderCallback: _ => false, name: "START")
+                .WithFlag(0, writeCallback: (_, val) => { if(val) RunCommand(); }, valueProviderCallback: _ => false, name: "START")
                 .WithReservedBits(1, 3)
                 .WithEnumField<DoubleWordRegister, OperationMode>(4, 3, out operationMode, name: "OPERATION")
                 .WithEnumField<DoubleWordRegister, CDISetting>(7, 1, out cdiSetting, name: "CDI_SEL")
@@ -438,17 +441,17 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 switch(destination.Value)
                 {
-                    case Destination.None:
-                        return destinationNoneSeed;
-                    case Destination.AES:
-                        return destinationAesSeed;
-                    case Destination.KMAC:
-                        return destinationKmacSeed;
-                    case Destination.OTBN:
-                        return destinationOtbnSeed;
-                    default:
-                        this.Log(LogLevel.Error, "Invalid state, destination's value is 0x{0:X}", destination.Value);
-                        return Enumerable.Empty<byte>();
+                case Destination.None:
+                    return destinationNoneSeed;
+                case Destination.AES:
+                    return destinationAesSeed;
+                case Destination.KMAC:
+                    return destinationKmacSeed;
+                case Destination.OTBN:
+                    return destinationOtbnSeed;
+                default:
+                    this.Log(LogLevel.Error, "Invalid state, destination's value is 0x{0:X}", destination.Value);
+                    return Enumerable.Empty<byte>();
                 }
             }
         }
@@ -459,14 +462,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 switch(state.Value)
                 {
-                    case WorkingState.CreatorRootKey:
-                        return creatorIdentitySeed;
-                    case WorkingState.OwnerIntermediateKey:
-                        return ownerIntermediateIdentitySeed;
-                    case WorkingState.OwnerKey:
-                    default:
-                        this.Log(LogLevel.Error, "Invalid state for getting `IdentitySeed`, state's value is 0x{0:X}", state.Value);
-                        return Enumerable.Empty<byte>();
+                case WorkingState.CreatorRootKey:
+                    return creatorIdentitySeed;
+                case WorkingState.OwnerIntermediateKey:
+                    return ownerIntermediateIdentitySeed;
+                case WorkingState.OwnerKey:
+                default:
+                    this.Log(LogLevel.Error, "Invalid state for getting `IdentitySeed`, state's value is 0x{0:X}", state.Value);
+                    return Enumerable.Empty<byte>();
                 }
             }
         }
@@ -477,15 +480,15 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 switch(state.Value)
                 {
-                    case WorkingState.CreatorRootKey:
-                        return (uint)maxCreatorKeyVersion.Value;
-                    case WorkingState.OwnerIntermediateKey:
-                        return (uint)maxOwnerIntermediateKeyVersion.Value;
-                    case WorkingState.OwnerKey:
-                        return (uint)maxOwnerKeyVersion.Value;
-                    default:
-                        this.Log(LogLevel.Error, "Invalid state for getting `MaxKeyVersion`, state's value is 0x{0:X}", state.Value);
-                        return 0;
+                case WorkingState.CreatorRootKey:
+                    return (uint)maxCreatorKeyVersion.Value;
+                case WorkingState.OwnerIntermediateKey:
+                    return (uint)maxOwnerIntermediateKeyVersion.Value;
+                case WorkingState.OwnerKey:
+                    return (uint)maxOwnerKeyVersion.Value;
+                default:
+                    this.Log(LogLevel.Error, "Invalid state for getting `MaxKeyVersion`, state's value is 0x{0:X}", state.Value);
+                    return 0;
                 }
             }
         }

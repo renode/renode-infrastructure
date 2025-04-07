@@ -5,13 +5,15 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using ELFSharp.ELF;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Utilities.Binding;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Time;
+using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Utilities.Binding;
+
+using ELFSharp.ELF;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -91,24 +93,41 @@ namespace Antmicro.Renode.Peripherals.CPU
         // this CPU does not implement Privileged Architecture spec
         // so those CSRs should not be available at all
         public new RegisterValue SSTATUS => 0;
+
         public new RegisterValue SIE => 0;
+
         public new RegisterValue STVEC => 0;
+
         public new RegisterValue SSCRATCH => 0;
+
         public new RegisterValue SEPC => 0;
+
         public new RegisterValue SCAUSE => 0;
+
         public new RegisterValue STVAL => 0;
+
         public new RegisterValue SIP => 0;
 
         public new RegisterValue MSTATUS => 0;
+
         public new RegisterValue MISA => 0;
+
         public new RegisterValue MEDELEG => 0;
+
         public new RegisterValue MIDELEG => 0;
+
         public new RegisterValue MIE => 0;
+
         public new RegisterValue MTVEC => 0;
+
         public new RegisterValue MSCRATCH => 0;
+
         public new RegisterValue MEPC => 0;
+
         public new RegisterValue MCAUSE => 0;
+
         public new RegisterValue MTVAL => 0;
+
         public new RegisterValue MIP => 0;
 
         protected override bool ExecutionFinished(ExecutionResult result)
@@ -119,24 +138,24 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 switch((Result)result)
                 {
-                    case Result.IllegalInstruction:
-                    case Result.EBreak:
-                    case Result.ECall:
-                        pendingInterrupts |= (1u << EBreakECallIllegalInstructionInterruptSource);
-                        break;
+                case Result.IllegalInstruction:
+                case Result.EBreak:
+                case Result.ECall:
+                    pendingInterrupts |= (1u << EBreakECallIllegalInstructionInterruptSource);
+                    break;
 
-                    case Result.LoadAddressMisaligned:
-                    case Result.StoreAddressMisaligned:
-                        pendingInterrupts |= (1u << UnalignedMemoryAccessInterruptSource);
-                        break;
+                case Result.LoadAddressMisaligned:
+                case Result.StoreAddressMisaligned:
+                    pendingInterrupts |= (1u << UnalignedMemoryAccessInterruptSource);
+                    break;
 
-                    case (Result)ExecutionResult.Ok:
-                        // to avoid warning
-                        break;
+                case (Result)ExecutionResult.Ok:
+                    // to avoid warning
+                    break;
 
-                    default:
-                        this.Log(LogLevel.Warning, "Unexpected execution result: {0}", result);
-                        break;
+                default:
+                    this.Log(LogLevel.Warning, "Unexpected execution result: {0}", result);
+                    break;
                 }
 
                 if(IrqIsPending(out var interruptsToHandle))
@@ -265,28 +284,26 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             this.Log(LogLevel.Noisy, "Handling timer instruction: setting new value 0x{0:X} read from register X[{1}]; old value 0x{2:X} written to X[{3}]", newValue, rs, previousValue, rd);
         }
+#pragma warning restore 649
 
         private bool interruptsMasked;
         private uint pendingInterrupts;
         private uint disabledInterrupts;
         private uint irqState;
 
+#pragma warning disable 649
+        // 649:  Field '...' is never assigned to, and will always have its default value null
+        [Import]
+        private readonly Action TlibEnterWfi;
+
+        [Import]
+        private readonly Func<int, int> TlibSetReturnOnException;
+
         private readonly bool latchedIrqs;
         private readonly uint resetVectorAddress;
         private readonly uint[] qRegisters;
         private readonly LimitTimer internalTimer;
         private readonly object irqLock = new object();
-
-// 649:  Field '...' is never assigned to, and will always have its default value null
-#pragma warning disable 649
-
-        [Import]
-        private Action TlibEnterWfi;
-
-        [Import]
-        private Func<int, int> TlibSetReturnOnException;
-
-#pragma warning restore 649
 
         private const uint NumberOfQRegisters = 4;
 

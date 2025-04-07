@@ -7,10 +7,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
+
 using Org.BouncyCastle.Crypto.Engines;
 using Org.BouncyCastle.Crypto.Modes;
 using Org.BouncyCastle.Crypto.Parameters;
@@ -182,17 +184,17 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
         {
             switch(dataType.Value)
             {
-                case DataType.Bit32:
-                    // No byte swapping
-                    return value;
-                case DataType.Bit16:
-                    return BitHelper.ReverseWords(value);
-                case DataType.Bit8:
-                    return BitHelper.ReverseBytes(value);
-                case DataType.Bit1:
-                    return BitHelper.ReverseBits(value);
-                default:
-                    throw new InvalidOperationException($"Invalid byte swap option selected: {dataType.Value}");
+            case DataType.Bit32:
+                // No byte swapping
+                return value;
+            case DataType.Bit16:
+                return BitHelper.ReverseWords(value);
+            case DataType.Bit8:
+                return BitHelper.ReverseBytes(value);
+            case DataType.Bit1:
+                return BitHelper.ReverseBits(value);
+            default:
+                throw new InvalidOperationException($"Invalid byte swap option selected: {dataType.Value}");
             }
         }
 
@@ -235,26 +237,26 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
                 this.Log(LogLevel.Debug, "Switching to GCM phase {0}", phaseGCMOrCCM.Value);
                 switch(phaseGCMOrCCM.Value)
                 {
-                    case GCMOrCCMPhase.Initialization:
-                        algorithmState.InitializeInitializationPhase(
-                            keys.Select(ks => (uint)ks.Value).Skip(keySizeToAesSkip[keySize.Value]).Reverse().SelectMany(e => BitConverter.GetBytes(e)).Reverse().ToArray(),
-                            initialVectors.Select(ks => (uint)ks.Value).Reverse().SelectMany(e => BitConverter.GetBytes(e)).Reverse().ToArray()
-                        );
-                        // According to the docs:
-                        // "This bit is automatically cleared by hardware when the key preparation process ends (ALGOMODE = 0111) or after GCM/GMAC or CCM Initialization phase."
-                        enabled.Value = false;
-                        return;
-                    case GCMOrCCMPhase.Header:
-                        algorithmState.InitializeHeaderPhase();
-                        return;
-                    case GCMOrCCMPhase.Payload:
-                        algorithmState.InitializePayloadPhase();
-                        return;
-                    case GCMOrCCMPhase.Final:
-                        algorithmState.InitializeFinalPhase();
-                        return;
-                    default:
-                        throw new InvalidOperationException($"Invalid GCM phase: {phaseGCMOrCCM.Value}");
+                case GCMOrCCMPhase.Initialization:
+                    algorithmState.InitializeInitializationPhase(
+                        keys.Select(ks => (uint)ks.Value).Skip(keySizeToAesSkip[keySize.Value]).Reverse().SelectMany(e => BitConverter.GetBytes(e)).Reverse().ToArray(),
+                        initialVectors.Select(ks => (uint)ks.Value).Reverse().SelectMany(e => BitConverter.GetBytes(e)).Reverse().ToArray()
+                    );
+                    // According to the docs:
+                    // "This bit is automatically cleared by hardware when the key preparation process ends (ALGOMODE = 0111) or after GCM/GMAC or CCM Initialization phase."
+                    enabled.Value = false;
+                    return;
+                case GCMOrCCMPhase.Header:
+                    algorithmState.InitializeHeaderPhase();
+                    return;
+                case GCMOrCCMPhase.Payload:
+                    algorithmState.InitializePayloadPhase();
+                    return;
+                case GCMOrCCMPhase.Final:
+                    algorithmState.InitializeFinalPhase();
+                    return;
+                default:
+                    throw new InvalidOperationException($"Invalid GCM phase: {phaseGCMOrCCM.Value}");
                 }
             }
             catch(Exception e)
@@ -288,9 +290,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
             return true;
         }
 
-        private readonly Queue<uint> inputFIFO = new Queue<uint>();
-        private readonly Queue<uint> outputFIFO = new Queue<uint>();
-
         private IFlagRegisterField outputFifoIrqMask;
         private IFlagRegisterField inputFifoIrqMask;
         private IFlagRegisterField outputFifoIrqRaw;
@@ -304,15 +303,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
         private IEnumRegisterField<KeySize> keySize;
         private IEnumRegisterField<GCMOrCCMPhase> phaseGCMOrCCM;
 
-        // These are expected to be stored in big-endian format
-        private readonly IValueRegisterField[] keys = new IValueRegisterField[8];
-        private readonly IValueRegisterField[] initialVectors = new IValueRegisterField[4];
-
         private FourPhaseState algorithmState;
         private AlgorithmMode currentMode;
-        private readonly object executeLock = new object();
-
-        private const int MaximumFifoDepth = 8;
 
         private readonly Dictionary<KeySize, int> keySizeToAesSkip = new Dictionary<KeySize, int>()
         {
@@ -321,18 +313,15 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
             {KeySize.Bit128, 4},
         };
 
-        private abstract class FourPhaseState
-        {
-            abstract public void InitializeInitializationPhase(byte[] key, byte[] iv);
-            abstract public void InitializeHeaderPhase();
-            abstract public void InitializePayloadPhase();
-            abstract public void InitializeFinalPhase();
+        private readonly Queue<uint> inputFIFO = new Queue<uint>();
+        private readonly Queue<uint> outputFIFO = new Queue<uint>();
 
-            // Feed data from input FIFO
-            abstract public void FeedThePhase(uint value);
+        // These are expected to be stored in big-endian format
+        private readonly IValueRegisterField[] keys = new IValueRegisterField[8];
+        private readonly IValueRegisterField[] initialVectors = new IValueRegisterField[4];
+        private readonly object executeLock = new object();
 
-            protected STM32H7_CRYPTO parent;
-        }
+        private const int MaximumFifoDepth = 8;
 
         private class RSA_GCM_State : FourPhaseState
         {
@@ -340,8 +329,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
             {
                 this.parent = parent;
             }
-
-            public bool ExecutingWorkaround { get; private set; }
 
             public override void FeedThePhase(uint value)
             {
@@ -354,15 +341,15 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
 
                 switch(currentPhase)
                 {
-                    case GCMOrCCMPhase.Header:
-                        ProcessHeader(bytes);
-                        break;
-                    case GCMOrCCMPhase.Payload:
-                        ProcessPayload(bytes);
-                        break;
-                    case GCMOrCCMPhase.Final:
-                        ProcessFinal(value);
-                        break;
+                case GCMOrCCMPhase.Header:
+                    ProcessHeader(bytes);
+                    break;
+                case GCMOrCCMPhase.Payload:
+                    ProcessPayload(bytes);
+                    break;
+                case GCMOrCCMPhase.Final:
+                    ProcessFinal(value);
+                    break;
                 }
             }
 
@@ -418,6 +405,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
             {
                 ExecutingWorkaround = true;
             }
+
+            public bool ExecutingWorkaround { get; private set; }
 
             private void ProcessHeader(byte[] bytes)
             {
@@ -524,9 +513,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
 
             private bool IsEncryption => parent.algorithmDirection.Value == false;
 
-            private const int BlockSizeInBytes = 128 / 8;
-            private const int MacSizeInBytes = BlockSizeInBytes;
-
             private bool isInitialized;
             private int payloadCounter;
             private GcmBlockCipher gcm;
@@ -536,6 +522,25 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
             private byte[] iv;
             private KeyParameter keyParameters;
             private AeadParameters finalParameters;
+
+            private const int BlockSizeInBytes = 128 / 8;
+            private const int MacSizeInBytes = BlockSizeInBytes;
+        }
+
+        private abstract class FourPhaseState
+        {
+            public abstract void InitializeInitializationPhase(byte[] key, byte[] iv);
+
+            public abstract void InitializeHeaderPhase();
+
+            public abstract void InitializePayloadPhase();
+
+            public abstract void InitializeFinalPhase();
+
+            // Feed data from input FIFO
+            public abstract void FeedThePhase(uint value);
+
+            protected STM32H7_CRYPTO parent;
         }
 
         private enum GCMOrCCMPhase

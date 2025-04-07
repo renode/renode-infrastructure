@@ -5,7 +5,6 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Collections.Generic;
 
 namespace Antmicro.Renode.Utilities.RESD
 {
@@ -39,7 +38,7 @@ namespace Antmicro.Renode.Utilities.RESD
 
         public Type InnerType => innerValue.GetType();
 
-        private object innerValue;
+        private readonly object innerValue;
     }
 
     public enum MetadataValueType

@@ -12,5 +12,5 @@ namespace Antmicro.Renode.UI
     public interface IHasWidget
     {
         Widget Widget { get; }
-    }   
+    }
 }

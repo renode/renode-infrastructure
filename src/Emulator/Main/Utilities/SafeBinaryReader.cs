@@ -230,7 +230,9 @@ namespace Antmicro.Renode.Utilities
         }
 
         public long Length { get; }
+
         public bool EOF => BaseStream.Position >= Length;
+
         public IDisposable Checkpoint
         {
             get

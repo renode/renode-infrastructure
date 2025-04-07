@@ -7,12 +7,15 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.Helpers;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Helpers;
+#pragma warning disable IDE0005
 using Antmicro.Renode.Utilities;
+#pragma warning restore IDE0005
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -110,29 +113,36 @@ namespace Antmicro.Renode.Peripherals.UART
             UpdateInterrupts();
         }
 
+        public override Bits StopBits => ConvertInternalStop(stopBitsField.Value);
+
+        public override Parity ParityBit => ConvertInternalParity(parityField.Value);
+
+        public override uint BaudRate => (uint)(clockFrequency / (clockSource.Value ? 8U : 1U) / baudGenerator.Value / (baudDivider.Value + 1));
+
         public long Size => 0x80;
+
         public BufferState BufferState { get; private set; }
 
         [DefaultInterrupt]
         public GPIO IRQ { get; } = new GPIO();
 
         public GPIO RxFifoFullIRQ { get; } = new GPIO();
+
         public GPIO RxFifoFillLevelTriggerIRQ { get; } = new GPIO();
+
         public GPIO RxFifoEmptyIRQ { get; } = new GPIO();
 
         public GPIO TxFifoEmptyIRQ { get; } = new GPIO();
+
         public GPIO TxFifoFullIRQ { get; } = new GPIO();
+
         public GPIO TxFifoFillLevelTriggerIRQ { get; } = new GPIO();
+
         public GPIO TxFifoNearlyFullIRQ { get; } = new GPIO();
+
         public GPIO TxFifoOverflowIRQ { get; } = new GPIO();
 
         public event Action<BufferState> BufferStateChanged;
-
-        public override Bits StopBits => ConvertInternalStop(stopBitsField.Value);
-
-        public override Parity ParityBit => ConvertInternalParity(parityField.Value);
-
-        public override uint BaudRate => (uint)(clockFrequency / (clockSource.Value ? 8U : 1U) / baudGenerator.Value / (baudDivider.Value + 1));
 
         protected override void CharWritten()
         {
@@ -149,13 +159,13 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             switch(stop)
             {
-                default:
-                case InternalStop.One:
-                    return Bits.One;
-                case InternalStop.OneAndHalf:
-                    return Bits.OneAndAHalf;
-                case InternalStop.Two:
-                    return Bits.Two;
+            default:
+            case InternalStop.One:
+                return Bits.One;
+            case InternalStop.OneAndHalf:
+                return Bits.OneAndAHalf;
+            case InternalStop.Two:
+                return Bits.Two;
             }
         }
 
@@ -163,16 +173,16 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             switch(parity)
             {
-                case InternalParity.Even:
-                    return Parity.Even;
-                case InternalParity.Odd:
-                    return Parity.Odd;
-                case InternalParity.Forced0:
-                    return Parity.Forced0;
-                case InternalParity.Forced1:
-                    return Parity.Forced1;
-                default:
-                    return Parity.None;
+            case InternalParity.Even:
+                return Parity.Even;
+            case InternalParity.Odd:
+                return Parity.Odd;
+            case InternalParity.Forced0:
+                return Parity.Forced0;
+            case InternalParity.Forced1:
+                return Parity.Forced1;
+            default:
+                return Parity.None;
             }
         }
 
@@ -605,6 +615,7 @@ namespace Antmicro.Renode.Peripherals.UART
         }
 
         private bool TxEnabled => txEnabledReg.Value && !txDisabledReg.Value;
+
         private bool RxEnabled => rxEnabledReg.Value && !rxDisabledReg.Value;
 
         private IFlagRegisterField txDisabledReg;
@@ -618,6 +629,8 @@ namespace Antmicro.Renode.Peripherals.UART
         private IValueRegisterField rxTriggerLevel;
         private IValueRegisterField txTriggerLevel;
         private IValueRegisterField baudDivider;
+
+        private readonly int fifoCapacity;
 
         private readonly Queue<byte> txQueue;
         private readonly CadenceInterruptFlag txFifoOverflow;
@@ -634,8 +647,6 @@ namespace Antmicro.Renode.Peripherals.UART
         private readonly DoubleWordRegisterCollection registers;
         private readonly bool clearInterruptStatusOnRead;
         private readonly ulong clockFrequency;
-
-        private int fifoCapacity;
 
         private enum InternalStop
         {

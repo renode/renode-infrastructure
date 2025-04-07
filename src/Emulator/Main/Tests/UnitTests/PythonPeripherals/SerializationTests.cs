@@ -6,11 +6,14 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.IO;
+
 using Antmicro.Migrant;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals.Python;
 using Antmicro.Renode.Utilities;
+
 using IronPython.Runtime;
+
 using NUnit.Framework;
 
 namespace Antmicro.Renode.UnitTests.PythonPeripherals
@@ -22,11 +25,11 @@ namespace Antmicro.Renode.UnitTests.PythonPeripherals
         public void ShouldSerializeSimplePyDev()
         {
             var source = @"
-if request.isInit:
+if request.IsInit:
 	num = 4
 	str = 'napis'
-if request.isRead:
-	request.value = num + len(str)
+if request.IsRead:
+	request.Value = num + len(str)
 ";
             var pyDev = new PythonPeripheral(100, true, script: source);
             var copy = Serializer.DeepClone(pyDev);
@@ -37,14 +40,14 @@ if request.isRead:
         public void ShouldSerializePyDevWithListAndDictionary()
         {
             var source = @"
-if request.isInit:
+if request.IsInit:
 	some_list = [ 'a', 666 ]
 	some_dict = { 'lion': 'yellow', 'kitty': 'red' }
-if request.isRead:
-	if request.offset == 0:
-		request.value = some_list[1]
-	if request.offset == 4:
-		request.value = len(some_dict['kitty'])
+if request.IsRead:
+	if request.Offset == 0:
+		request.Value = some_list[1]
+	if request.Offset == 4:
+		request.Value = len(some_dict['kitty'])
 ";
             var pyDev = new PythonPeripheral(100, true, script: source);
             var serializer = new Serializer();
@@ -64,8 +67,8 @@ if request.isRead:
             var source = @"
 import time
 
-if request.isRead:
-	request.value = time.localtime().tm_hour
+if request.IsRead:
+	request.Value = time.localtime().tm_hour
 ";
             var pyDev = new PythonPeripheral(100, true, script: source);
             var copy = Serializer.DeepClone(pyDev);
@@ -74,13 +77,13 @@ if request.isRead:
 
         [Test]
         public void ShouldSerializeMachineWithSimplePyDev()
-        {            
+        {
             var source = @"
-if request.isInit:
+if request.IsInit:
     num = 4
     str = 'napis'
-if request.isRead:
-    request.value = num + len(str)
+if request.IsRead:
+    request.Value = num + len(str)
 ";
             var pyDev = new PythonPeripheral(100, true, script: source);
             var sysbus = machine.SystemBus;

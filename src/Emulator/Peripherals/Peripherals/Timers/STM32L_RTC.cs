@@ -4,11 +4,12 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Core.Structure.Registers;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Timers;
 
 namespace Antmicro.Renode.Peripherals
@@ -80,13 +81,17 @@ namespace Antmicro.Renode.Peripherals
                 Limit = value;
             });
 
-            var registerDictionary = new Dictionary<long, DoubleWordRegister> { 
+            var registerDictionary = new Dictionary<long, DoubleWordRegister> {
                 { (long)Registers.Control, control },
                 { (long)Registers.InitializationStatus, initializationStatus },
                 { (long)Registers.WakeupTimer, wakeupTimer }
             };
             registers = new DoubleWordRegisterCollection(this, registerDictionary);
         }
+
+        private DoubleWordRegisterCollection registers;
+        private IFlagRegisterField wakeupTimerFlag;
+        private IFlagRegisterField wakeupTimerInterruptEnable;
 
         private enum ClockMode
         {
@@ -106,10 +111,5 @@ namespace Antmicro.Renode.Peripherals
             InitializationStatus = 0xC,
             WakeupTimer = 0x14
         }
-
-        private DoubleWordRegisterCollection registers;
-        private IFlagRegisterField wakeupTimerFlag;
-        private IFlagRegisterField wakeupTimerInterruptEnable;
     }
 }
-

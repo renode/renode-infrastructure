@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.Bus;
@@ -596,7 +597,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         // Some modules share a single power domain, e.g. enabling IOM1 powers on all IOM0..3 modules.
         private bool PowerStatusIOM0_3 => powerEnableFlagsIOM0_3.Any(flag => flag.Value);
+
         private bool PowerStatusIOM4_7 => powerEnableFlagsIOM4_7.Any(flag => flag.Value);
+
         private bool PowerStatusUart0_3 => powerEnableFlagsUart0_3.Any(flag => flag.Value);
 
         private IFlagRegisterField powerEnableFlagADC;

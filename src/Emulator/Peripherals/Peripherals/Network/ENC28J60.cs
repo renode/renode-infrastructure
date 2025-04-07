@@ -7,6 +7,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -29,9 +30,11 @@ namespace Antmicro.Renode.Peripherals.Network
                                               .WithFlag(3, FieldMode.Read, writeCallback: (_, value) => { if(value) TransmitPacket(); }, name: "TXRTS")
                                               .WithFlag(7, name: "TXRST");
 
-            var econ2 = new ByteRegister(this, 0x80).WithFlag(6, FieldMode.Read, writeCallback: delegate { 
-                                                        waitingPacketCount = Math.Max(0, waitingPacketCount - 1);
-                                                        RefreshInterruptStatus(); }, name: "PKTDEC")
+            var econ2 = new ByteRegister(this, 0x80).WithFlag(6, FieldMode.Read, writeCallback: delegate
+            {
+                waitingPacketCount = Math.Max(0, waitingPacketCount - 1);
+                RefreshInterruptStatus();
+            }, name: "PKTDEC")
                                                     .WithFlag(7, out autoIncrement, name: "AUTOINC");
 
             var estat = new ByteRegister(this, 1).WithReadCallback(delegate { transmitPacketInterrupt.Value = false; RefreshInterruptStatus(); }) // not sure
@@ -200,10 +203,6 @@ namespace Antmicro.Renode.Peripherals.Network
             IRQ.Set(); // the interrupt output is negated
         }
 
-        public event Action<EthernetFrame> FrameReady;
-
-        public MACAddress MAC { get; set; }
-
         public void ReceiveFrame(EthernetFrame frame)
         {
             lock(sync)
@@ -276,7 +275,32 @@ namespace Antmicro.Renode.Peripherals.Network
             }
         }
 
+        public MACAddress MAC { get; set; }
+
         public GPIO IRQ { get; private set; }
+
+        public event Action<EthernetFrame> FrameReady;
+
+        private static void SetLowByteOf(ref int ofWhat, byte with)
+        {
+            ofWhat = (ofWhat & 0xFF00) | with;
+        }
+
+        private static void SetHighByteOf(ref int ofWhat, byte with)
+        {
+            ofWhat = (with << 8) | (ofWhat & 0xFF);
+        }
+
+        // methods below return uint because of the register infrastructure (it is more convenient)
+        private static uint GetLowByteOf(int ofWhat)
+        {
+            return (uint)(ofWhat & 0xFF);
+        }
+
+        private static uint GetHighByteOf(int ofWhat)
+        {
+            return (uint)((ofWhat >> 8) & 0x1F);
+        }
 
         private void ResetPointers()
         {
@@ -300,28 +324,28 @@ namespace Antmicro.Renode.Peripherals.Network
             selectedRegister = data & 0x1F;
             switch(commandType)
             {
-                case 0:
-                    currentMode = MacOrMiiRegisters.Contains(Tuple.Create((int)currentBank.Value, selectedRegister)) 
-                        ? Mode.ReadMacOrMiiRegister : Mode.ReadControlRegister;
-                    break;
-                case 1:
-                    currentMode = Mode.ReadBufferMemory;
-                    break;
-                case 2:
-                    currentMode = Mode.WriteControlRegister;
-                    break;
-                case 3:
-                    currentMode = Mode.WriteBufferMemory;
-                    break;
-                case 4:
-                    currentMode = Mode.RegisterBitSet;
-                    break;
-                case 5:
-                    currentMode = Mode.RegisterBitClear;
-                    break;
-                default:
-                    this.Log(LogLevel.Error, "Unhandled command type: {0}.", commandType);
-                    break;
+            case 0:
+                currentMode = MacOrMiiRegisters.Contains(Tuple.Create((int)currentBank.Value, selectedRegister))
+                    ? Mode.ReadMacOrMiiRegister : Mode.ReadControlRegister;
+                break;
+            case 1:
+                currentMode = Mode.ReadBufferMemory;
+                break;
+            case 2:
+                currentMode = Mode.WriteControlRegister;
+                break;
+            case 3:
+                currentMode = Mode.WriteBufferMemory;
+                break;
+            case 4:
+                currentMode = Mode.RegisterBitSet;
+                break;
+            case 5:
+                currentMode = Mode.RegisterBitClear;
+                break;
+            default:
+                this.Log(LogLevel.Error, "Unhandled command type: {0}.", commandType);
+                break;
             }
             return 0x00;
         }
@@ -442,7 +466,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
         private void RefreshInterruptStatus()
         {
-            SetInterrupt(interruptsEnabled.Value && 
+            SetInterrupt(interruptsEnabled.Value &&
                          (IsReceiveInterruptActive() || (transmitPacketInterrupt.Value && transmitPacketInterruptEnabled.Value)));
         }
 
@@ -478,7 +502,7 @@ namespace Antmicro.Renode.Peripherals.Network
             }
             var packetWithHeader = new byte[packetPlusHeadersLength];
             BitConverter.GetBytes((ushort)nextReceiveWritePointer).CopyTo(packetWithHeader, 0);
-            BitConverter.GetBytes((ushort)data.Length).CopyTo(packetWithHeader, 2); 
+            BitConverter.GetBytes((ushort)data.Length).CopyTo(packetWithHeader, 2);
             BitConverter.GetBytes((ushort)(1 << 7)).CopyTo(packetWithHeader, 4);
             data.CopyTo(packetWithHeader, 6);
 
@@ -512,29 +536,6 @@ namespace Antmicro.Renode.Peripherals.Network
             RefreshInterruptStatus();
         }
 
-        private static void SetLowByteOf(ref int ofWhat, byte with)
-        {
-            ofWhat = (ofWhat & 0xFF00) | with;
-        }
-
-        private static void SetHighByteOf(ref int ofWhat, byte with)
-        {
-            ofWhat = (with << 8) | (ofWhat & 0xFF);
-        }
-
-        // methods below return uint because of the register infrastructure (it is more convenient)
-        private static uint GetLowByteOf(int ofWhat)
-        {
-            return (uint)(ofWhat & 0xFF);
-        }
-
-        private static uint GetHighByteOf(int ofWhat)
-        {
-            return (uint)((ofWhat >> 8) & 0x1F);
-        }
-
-        private Mode currentMode;
-        private IValueRegisterField currentBank;
         private int selectedRegister;
         private int receiveBufferStart;
         private int receiveBufferEnd;
@@ -545,18 +546,21 @@ namespace Antmicro.Renode.Peripherals.Network
         private byte bufferedLowByteOfReceiveReadPointer;
         private int receiveReadPointer;
         private int currentReceiveWritePointer;
-        private IFlagRegisterField macReceiveEnabled;
-        private IValueRegisterField miiRegisterAddress;
         private ushort lastReadPhyRegisterValue;
-        private IValueRegisterField phyWriteLow;
-        private IFlagRegisterField interruptsEnabled;
-        private IFlagRegisterField receivePacketInterruptEnabled;
-        private IFlagRegisterField transmitPacketInterruptEnabled;
-        private IFlagRegisterField transmitPacketInterrupt;
-        private IFlagRegisterField ethernetReceiveEnabled;
-        private IFlagRegisterField autoIncrement;
         private int waitingPacketCount;
-        private IFlagRegisterField crcEnabled;
+
+        private Mode currentMode;
+        private readonly IValueRegisterField currentBank;
+        private readonly IFlagRegisterField macReceiveEnabled;
+        private readonly IValueRegisterField miiRegisterAddress;
+        private readonly IValueRegisterField phyWriteLow;
+        private readonly IFlagRegisterField interruptsEnabled;
+        private readonly IFlagRegisterField receivePacketInterruptEnabled;
+        private readonly IFlagRegisterField transmitPacketInterruptEnabled;
+        private readonly IFlagRegisterField transmitPacketInterrupt;
+        private readonly IFlagRegisterField ethernetReceiveEnabled;
+        private readonly IFlagRegisterField autoIncrement;
+        private readonly IFlagRegisterField crcEnabled;
 
         private readonly WordRegisterCollection phyRegisters;
         private readonly ByteRegisterCollection[] registers;

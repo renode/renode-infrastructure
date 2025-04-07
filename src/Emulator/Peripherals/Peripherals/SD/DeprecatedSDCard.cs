@@ -5,12 +5,13 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-﻿using System;
+using System;
+using System.IO;
+
+using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Storage;
 using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Logging;
-using System.IO;
-using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Peripherals.SD
 {
@@ -185,11 +186,10 @@ namespace Antmicro.Renode.Peripherals.SD
             set;
         }
 
-        private readonly uint cardAddress = 0xaaaa;
-        private uint[] cardSpecificData, cardIdentification;
         private bool opAppInitialized, opCodeChecked, lastAppOpCodeNormal;
-        private readonly SerializableStreamView file;
+        private readonly uint[] cardSpecificData, cardIdentification;
 
+        private readonly uint cardAddress = 0xaaaa;
+        private readonly SerializableStreamView file;
     }
 }
-

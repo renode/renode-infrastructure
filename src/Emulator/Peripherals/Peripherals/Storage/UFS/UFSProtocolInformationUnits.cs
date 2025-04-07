@@ -144,6 +144,7 @@ namespace Antmicro.Renode.Peripherals.Storage
         [PacketField, Offset(bytes: 0, bits: 6), Width(1)]
         public bool Read;
     }
+
     public struct DataInUPIU
     {
         [PacketField, Offset(doubleWords: 0, bits: 0), Width(6)]

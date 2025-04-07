@@ -6,11 +6,12 @@
 //
 
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.I2C
@@ -56,6 +57,7 @@ namespace Antmicro.Renode.Peripherals.I2C
         public DoubleWordRegisterCollection RegistersCollection { get; }
 
         public GPIO TxEvent { get; }
+
         public GPIO RxEvent { get; }
 
         private void DefineRegisters()
@@ -157,33 +159,33 @@ namespace Antmicro.Renode.Peripherals.I2C
             {
                 switch(state)
                 {
-                    case State.WaitForCommand:
+                case State.WaitForCommand:
+                {
+                    var result = HandleCommand((Command)(data[index] >> 4), data, index + 1);
+                    if(result == -1)
                     {
-                        var result = HandleCommand((Command)(data[index] >> 4), data, index + 1);
-                        if(result == -1)
-                        {
-                            // there was an error
-                            return false;
-                        }
-                        index += result + 1; 
-                    }
-                    break;
-
-                    case State.WaitForData:
-                    {
-                        var result = HandleData(data, index);
-                        if(result == -1)
-                        {
-                            // there was an error
-                            return false;
-                        }
-                        index += result; 
-                    }
-                    break;
-
-                    default:
-                        this.Log(LogLevel.Warning, "Received data in an unexpected state: {0}", state);
+                        // there was an error
                         return false;
+                    }
+                    index += result + 1;
+                }
+                break;
+
+                case State.WaitForData:
+                {
+                    var result = HandleData(data, index);
+                    if(result == -1)
+                    {
+                        // there was an error
+                        return false;
+                    }
+                    index += result;
+                }
+                break;
+
+                default:
+                    this.Log(LogLevel.Warning, "Received data in an unexpected state: {0}", state);
+                    return false;
                 }
             }
 
@@ -203,49 +205,49 @@ namespace Antmicro.Renode.Peripherals.I2C
             int argumentBytesConsumed;
             switch(command)
             {
-                case Command.Start:
-                case Command.Stop:
-                    argumentBytesConsumed = 0;
-                    // it might be a repeated start
-                    TrySendToDevice(finishTransmission: true, generateWarningOnEmptyBuffer: false);
-                    break;
+            case Command.Start:
+            case Command.Stop:
+                argumentBytesConsumed = 0;
+                // it might be a repeated start
+                TrySendToDevice(finishTransmission: true, generateWarningOnEmptyBuffer: false);
+                break;
 
-                case Command.ReadAck:
-                    argumentBytesConsumed = 0;
-                    bytesToRead += repeatCounter;
-                    break;
+            case Command.ReadAck:
+                argumentBytesConsumed = 0;
+                bytesToRead += repeatCounter;
+                break;
 
-                case Command.ReadNotAck:
-                    argumentBytesConsumed = 0;
-                    bytesToRead++;
-                    TryReadFromDevice();
-                    break;
+            case Command.ReadNotAck:
+                argumentBytesConsumed = 0;
+                bytesToRead++;
+                TryReadFromDevice();
+                break;
 
-                case Command.EndOfTransmission:
-                    argumentBytesConsumed = 0;
-                    break;
+            case Command.EndOfTransmission:
+                argumentBytesConsumed = 0;
+                break;
 
-                case Command.Write:
-                    argumentBytesConsumed = 0;
-                    dataBytesLeft = repeatCounter;
-                    state = State.WaitForData;
-                    this.Log(LogLevel.Debug, "Write command detected with {0} bytes of data", repeatCounter);
-                    break;
+            case Command.Write:
+                argumentBytesConsumed = 0;
+                dataBytesLeft = repeatCounter;
+                state = State.WaitForData;
+                this.Log(LogLevel.Debug, "Write command detected with {0} bytes of data", repeatCounter);
+                break;
 
-                case Command.Configure:
-                    // skip the div value, we don't simulate it anyway
-                    argumentBytesConsumed = 2;
-                    break;
+            case Command.Configure:
+                // skip the div value, we don't simulate it anyway
+                argumentBytesConsumed = 2;
+                break;
 
-                case Command.Repeat:
-                    repeatCounter = data[argumentOffset];
-                    argumentBytesConsumed = 1;
-                    break;
+            case Command.Repeat:
+                repeatCounter = data[argumentOffset];
+                argumentBytesConsumed = 1;
+                break;
 
-                default:
-                    this.Log(LogLevel.Warning, "Unhandled command: {0} (0x{0:X})", command);
-                    argumentBytesConsumed = -1;
-                    break;
+            default:
+                this.Log(LogLevel.Warning, "Unhandled command: {0} (0x{0:X})", command);
+                argumentBytesConsumed = -1;
+                break;
             }
 
             if(command != Command.Repeat)

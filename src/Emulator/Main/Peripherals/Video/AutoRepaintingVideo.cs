@@ -6,6 +6,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Migrant;
 using Antmicro.Renode.Backends.Display;
 using Antmicro.Renode.Core;
@@ -18,15 +19,6 @@ namespace Antmicro.Renode.Peripherals.Video
     [Icon("lcd")]
     public abstract class AutoRepaintingVideo : IVideo, IDisposable
     {
-        protected AutoRepaintingVideo(IMachine machine)
-        {
-            innerLock = new object();
-            // we use synchronized thread since some deriving classes can generate interrupt on repainting
-            this.machine = machine;
-            repainter = machine.ObtainManagedThread(DoRepaint, FramesPerVirtualSecond);
-            Endianess = ELFSharp.ELF.Endianess.LittleEndian;
-        }
-
         public RawImageData TakeScreenshot()
         {
             if(buffer == null)
@@ -46,8 +38,7 @@ namespace Antmicro.Renode.Peripherals.Video
             repainter.Dispose();
         }
 
-        [field: Transient]
-        public event Action<byte[]> FrameRendered;
+        public abstract void Reset();
 
         public uint FramesPerVirtualSecond
         {
@@ -55,6 +46,7 @@ namespace Antmicro.Renode.Peripherals.Video
             {
                 return framesPerVirtualSecond;
             }
+
             set
             {
                 repainter.Dispose();
@@ -67,11 +59,28 @@ namespace Antmicro.Renode.Peripherals.Video
                 framesPerVirtualSecond = value;
             }
         }
+
         public int Width { get; private set; }
+
         public int Height { get; private set; }
+
         public PixelFormat Format { get; private set; }
+
         public ELFSharp.ELF.Endianess Endianess { get; protected set; }
+
         public bool RepainterIsRunning { get; private set; }
+
+        [field: Transient]
+        public event Action<byte[]> FrameRendered;
+
+        protected AutoRepaintingVideo(IMachine machine)
+        {
+            innerLock = new object();
+            // we use synchronized thread since some deriving classes can generate interrupt on repainting
+            this.machine = machine;
+            repainter = machine.ObtainManagedThread(DoRepaint, FramesPerVirtualSecond);
+            Endianess = ELFSharp.ELF.Endianess.LittleEndian;
+        }
 
         public event Action<int, int, PixelFormat, ELFSharp.ELF.Endianess> ConfigurationChanged
         {
@@ -90,7 +99,21 @@ namespace Antmicro.Renode.Peripherals.Video
             }
         }
 
-        public abstract void Reset();
+        protected void DoRepaint()
+        {
+            if(buffer != null)
+            {
+                Repaint();
+                var fr = FrameRendered;
+                if(fr != null)
+                {
+                    lock(innerLock)
+                    {
+                        fr(buffer);
+                    }
+                }
+            }
+        }
 
         protected void Reconfigure(int? width = null, int? height = null, PixelFormat? format = null, bool autoRepaint = true)
         {
@@ -145,30 +168,13 @@ namespace Antmicro.Renode.Peripherals.Video
 
         protected abstract void Repaint();
 
-        protected void DoRepaint()
-        {
-            if(buffer != null)
-            {
-                Repaint();
-                var fr = FrameRendered;
-                if(fr != null)
-                {
-                    lock(innerLock)
-                    {
-                        fr(buffer);
-                    }
-                }
-            }
-        }
-
         protected byte[] buffer;
+        private uint framesPerVirtualSecond = 25;
 
         private IManagedThread repainter;
         [Transient]
         private Action<int, int, PixelFormat, ELFSharp.ELF.Endianess> configurationChanged;
         private readonly object innerLock;
         private readonly IMachine machine;
-        private uint framesPerVirtualSecond = 25;
     }
 }
-

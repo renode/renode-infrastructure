@@ -6,8 +6,8 @@
 //
 
 using System;
+
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.I2C;
 using Antmicro.Renode.Peripherals.Sensor;
@@ -15,7 +15,7 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Sensors
 {
-    public class LSM9DS1_IMU: II2CPeripheral, IProvidesRegisterCollection<ByteRegisterCollection>, ITemperatureSensor
+    public class LSM9DS1_IMU : II2CPeripheral, IProvidesRegisterCollection<ByteRegisterCollection>, ITemperatureSensor
     {
         public LSM9DS1_IMU()
         {
@@ -59,20 +59,20 @@ namespace Antmicro.Renode.Peripherals.Sensors
         {
             switch(state)
             {
-                case State.Idle:
-                    address = BitHelper.GetValue(b, offset: 0, size: 7);
-                    this.Log(LogLevel.Noisy, "Setting register address to {0} (0x{0:X})", (Registers)address);
-                    state = State.Processing;
-                    break;
+            case State.Idle:
+                address = BitHelper.GetValue(b, offset: 0, size: 7);
+                this.Log(LogLevel.Noisy, "Setting register address to {0} (0x{0:X})", (Registers)address);
+                state = State.Processing;
+                break;
 
-                case State.Processing:
-                    this.Log(LogLevel.Noisy, "Writing value 0x{0:X} to register {1} (0x{1:X})", b, (Registers)address);
-                    RegistersCollection.Write(address, b);
-                    TryIncrementAddress();
-                    break;
+            case State.Processing:
+                this.Log(LogLevel.Noisy, "Writing value 0x{0:X} to register {1} (0x{1:X})", b, (Registers)address);
+                RegistersCollection.Write(address, b);
+                TryIncrementAddress();
+                break;
 
-                default:
-                    throw new ArgumentException($"Unexpected state: {state}");
+            default:
+                throw new ArgumentException($"Unexpected state: {state}");
             }
         }
 
@@ -81,18 +81,18 @@ namespace Antmicro.Renode.Peripherals.Sensors
             var dequeued = false;
             switch(address)
             {
-                case (byte)Registers.AccelerometerOutputXLow:
-                    dequeued = accelerationFifo.TryDequeueNewSample();
-                    break;
+            case (byte)Registers.AccelerometerOutputXLow:
+                dequeued = accelerationFifo.TryDequeueNewSample();
+                break;
 
-                case (byte)Registers.GyroscopeOutputXLow:
-                    dequeued = angularRateFifo.TryDequeueNewSample();
-                    break;
+            case (byte)Registers.GyroscopeOutputXLow:
+                dequeued = angularRateFifo.TryDequeueNewSample();
+                break;
 
-                case (byte)Registers.TemperatureOutputLow:
-                    // temperature data is not queued
-                    temperatureFifo.TryDequeueNewSample();
-                    break;
+            case (byte)Registers.TemperatureOutputLow:
+                // temperature data is not queued
+                temperatureFifo.TryDequeueNewSample();
+                break;
             }
 
             if(dequeued)
@@ -107,7 +107,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             this.NoisyLog("Reading register {1} (0x{1:X}) from device: 0x{0:X}", result, (Registers)address);
             TryIncrementAddress();
 
-            return new byte [] { result };
+            return new byte[] { result };
         }
 
         public void FeedAccelerationSample(decimal x, decimal y, decimal z, uint repeat = 1)
@@ -119,7 +119,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 accelerationFifo.FeedSample(sample);
             }
         }
-        
+
         public void FeedAccelerationSample(string path)
         {
             accelerationFifo.FeedSamplesFromFile(path);
@@ -134,7 +134,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 angularRateFifo.FeedSample(sample);
             }
         }
-        
+
         public void FeedAgularRateSample(string path)
         {
             angularRateFifo.FeedSamplesFromFile(path);
@@ -149,7 +149,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 temperatureFifo.FeedSample(sample);
             }
         }
-        
+
         public void FeedTemperatureSample(string path)
         {
             temperatureFifo.FeedSamplesFromFile(path);
@@ -292,7 +292,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             Registers.TemperatureOutputLow.Define(this)
                 .WithValueField(0, 8, FieldMode.Read, name: "OUT_TEMP_L", valueProviderCallback: _ => GetScaledTemperatureValue(upperByte: false))
             ;
-            
+
             Registers.TemperatureOutputHigh.Define(this)
                 .WithValueField(0, 8, FieldMode.Read, name: "OUT_TEMP_H", valueProviderCallback: _ => GetScaledTemperatureValue(upperByte: true))
             ;
@@ -350,33 +350,33 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     {
                         switch(angularRateSensitivity)
                         {
-                            case AngularRateSensitivity.DPS245:
-                                return 0;
-                            case AngularRateSensitivity.DPS500:
-                                return 1;
-                            case AngularRateSensitivity.DPS2000:
-                                return 3;
-                            default:
-                                this.Log(LogLevel.Error, "Selected a not supported angular rate sensitivity");
-                                return 2;
+                        case AngularRateSensitivity.DPS245:
+                            return 0;
+                        case AngularRateSensitivity.DPS500:
+                            return 1;
+                        case AngularRateSensitivity.DPS2000:
+                            return 3;
+                        default:
+                            this.Log(LogLevel.Error, "Selected a not supported angular rate sensitivity");
+                            return 2;
                         }
                     },
                     writeCallback: (_, val) =>
                     {
                         switch(val)
                         {
-                            case 0:
-                                angularRateSensitivity = AngularRateSensitivity.DPS245;
-                                break;
-                            case 1:
-                                angularRateSensitivity = AngularRateSensitivity.DPS500;
-                                break;
-                            case 3:
-                                angularRateSensitivity = AngularRateSensitivity.DPS2000;
-                                break;
-                            default:
-                                this.Log(LogLevel.Warning, "Tried to set a not supported angular rate sensitivity");
-                                break;
+                        case 0:
+                            angularRateSensitivity = AngularRateSensitivity.DPS245;
+                            break;
+                        case 1:
+                            angularRateSensitivity = AngularRateSensitivity.DPS500;
+                            break;
+                        case 3:
+                            angularRateSensitivity = AngularRateSensitivity.DPS2000;
+                            break;
+                        default:
+                            this.Log(LogLevel.Warning, "Tried to set a not supported angular rate sensitivity");
+                            break;
                         }
                     })
                 .WithTag("ODR: Gyroscope output data rate", 5, 3)
@@ -390,34 +390,34 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     {
                         switch(accelerationSensitivity)
                         {
-                            case AccelerationSensitivity.G2:
-                                return 0;
-                            case AccelerationSensitivity.G16:
-                                return 1;
-                            case AccelerationSensitivity.G4:
-                                return 2;
-                            case AccelerationSensitivity.G8:
-                                return 3;
-                            default:
-                                throw new ArgumentException("This should never happen");
+                        case AccelerationSensitivity.G2:
+                            return 0;
+                        case AccelerationSensitivity.G16:
+                            return 1;
+                        case AccelerationSensitivity.G4:
+                            return 2;
+                        case AccelerationSensitivity.G8:
+                            return 3;
+                        default:
+                            throw new ArgumentException("This should never happen");
                         }
                     },
                     writeCallback: (_, val) =>
                     {
                         switch(val)
                         {
-                            case 0:
-                                accelerationSensitivity = AccelerationSensitivity.G2;
-                                break;
-                            case 1:
-                                accelerationSensitivity = AccelerationSensitivity.G16;
-                                break;
-                            case 2:
-                                accelerationSensitivity = AccelerationSensitivity.G4;
-                                break;
-                            case 3:
-                                accelerationSensitivity = AccelerationSensitivity.G8;
-                                break;
+                        case 0:
+                            accelerationSensitivity = AccelerationSensitivity.G2;
+                            break;
+                        case 1:
+                            accelerationSensitivity = AccelerationSensitivity.G16;
+                            break;
+                        case 2:
+                            accelerationSensitivity = AccelerationSensitivity.G4;
+                            break;
+                        case 3:
+                            accelerationSensitivity = AccelerationSensitivity.G8;
+                            break;
                         }
                     })
                 .WithTag("ODR_XL: Accelerometer output data rate", 5, 3)
@@ -434,7 +434,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithTaggedFlag("BOOT: Reboot memory", 7)
             ;
         }
-        
+
         private byte GetScaledTemperatureValue(bool upperByte)
         {
             // temperature read is 0 for 25C
@@ -463,7 +463,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private readonly SensorSamplesFifo<Vector3DSample> accelerationFifo;
         private readonly SensorSamplesFifo<Vector3DSample> angularRateFifo;
         private readonly SensorSamplesFifo<ScalarSample> temperatureFifo;
-        
+
         private enum AccelerationSensitivity : ushort
         {
             G2 = 16384,
@@ -485,11 +485,11 @@ namespace Antmicro.Renode.Peripherals.Sensors
             Processing
         }
 
-        private enum Registers: byte
+        private enum Registers : byte
         {
             // 0x0 - 0x03 are reserved
-            ActivityThreshold = 0x04,            
-            ActivityDuration = 0x05, 
+            ActivityThreshold = 0x04,
+            ActivityDuration = 0x05,
             AccelerometerInterruptGeneratorConfig = 0x06,
             AccelerometerInterruptGeneratorThresholdX = 0x07,
             AccelerometerInterruptGeneratorThresholdY = 0x08,

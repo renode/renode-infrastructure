@@ -4,6 +4,8 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
@@ -11,7 +13,6 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
-using System;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -126,7 +127,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public long Size => 0x210;
 
-        static private int CalculateYear(bool centuryBit, int yearsOfCentury)
+        private static int CalculateYear(bool centuryBit, int yearsOfCentury)
         {
             // The century bit set indicates "1900s/2100s" according to the documentation.
             // To make it specific, the range supported has to be 200 years. The arbitrarily chosen range is 1970-2169
@@ -330,39 +331,39 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
-        private readonly RTCTimer internalTimer;
-
         private bool interruptStatus;
-        private ulong lastUpdateTimerValue;
-        private bool writeBusy;
-        private ulong valueReadWithCountersLower;
-
-        private BCDValueField alarmDay;
-        private BCDValueField alarmHours;
-        private BCDValueField alarmMinutes;
-        private BCDValueField alarmMonth;
-        private BCDValueField alarmSeconds;
-        private BCDValueField alarmSecondHundredths;
-        private BCDValueField alarmWeekday;
-        private BCDValueField day;
-        private BCDValueField hours;
-        private BCDValueField minutes;
-        private BCDValueField month;
-        private BCDValueField secondHundredths;  // 0.01s
-        private BCDValueField seconds;
-        private BCDValueField weekday;
-        private BCDValueField yearsOfCentury;
+        private IFlagRegisterField counterWritesEnabled;
+        private IFlagRegisterField centuryChangeEnabled;
+        private IFlagRegisterField centuryBit;
 
         private IEnumRegisterField<AlarmRepeatIntervals> alarmRepeatInterval;
-        private IFlagRegisterField centuryBit;
-        private IFlagRegisterField centuryChangeEnabled;
-        private IFlagRegisterField counterWritesEnabled;
+        private BCDValueField yearsOfCentury;
+        private BCDValueField weekday;
+        private BCDValueField seconds;
+        private BCDValueField secondHundredths;  // 0.01s
+        private BCDValueField month;
+        private BCDValueField minutes;
         private IFlagRegisterField interruptEnable;
+        private BCDValueField hours;
+        private BCDValueField alarmWeekday;
+        private BCDValueField alarmSecondHundredths;
+        private BCDValueField alarmSeconds;
+        private BCDValueField alarmMonth;
+        private BCDValueField alarmMinutes;
+        private BCDValueField alarmHours;
+
+        private BCDValueField alarmDay;
+        private ulong valueReadWithCountersLower;
+        private bool writeBusy;
+        private ulong lastUpdateTimerValue;
+        private BCDValueField day;
         private IFlagRegisterField readError;
+
+        private readonly RTCTimer internalTimer;
 
         private class BCDValueField
         {
-            static public implicit operator int(BCDValueField field)
+            public static implicit operator int(BCDValueField field)
             {
                 return field.GetInteger();
             }
@@ -407,12 +408,12 @@ namespace Antmicro.Renode.Peripherals.Timers
                 return $"{value:X}";
             }
 
+            private byte value;
+
             private readonly string fieldTypeName;
             private readonly byte maxValueBCD;
             private readonly IPeripheral owner;
             private readonly bool zeroAllowed;
-
-            private byte value;
         }
 
         private class RTCTimer : LimitTimer
@@ -484,48 +485,48 @@ namespace Antmicro.Renode.Peripherals.Timers
                 DateTime firstAlarm, intervalDateTime;
                 switch(interval)
                 {
-                    case AlarmRepeatIntervals.Second:
-                        firstAlarm = new DateTime(currentDateTime.Year, currentDateTime.Month, currentDateTime.Day,
-                            currentDateTime.Hour, currentDateTime.Minute, currentDateTime.Second, millisecond);
-                        intervalDateTime = new DateTime().AddSeconds(1);
-                        break;
-                    case AlarmRepeatIntervals.Minute:
-                        firstAlarm = new DateTime(currentDateTime.Year, currentDateTime.Month, currentDateTime.Day,
-                            currentDateTime.Hour, currentDateTime.Minute, second, millisecond);
-                        intervalDateTime = new DateTime().AddMinutes(1);
-                        break;
-                    case AlarmRepeatIntervals.Hour:
-                        firstAlarm = new DateTime(currentDateTime.Year, currentDateTime.Month, currentDateTime.Day,
-                            currentDateTime.Hour, minute, second, millisecond);
-                        intervalDateTime = new DateTime().AddHours(1);
-                        break;
-                    case AlarmRepeatIntervals.Day:
-                        firstAlarm = new DateTime(currentDateTime.Year, currentDateTime.Month, currentDateTime.Day, hour,
-                            minute, second, millisecond);
-                        intervalDateTime = new DateTime().AddDays(1);
-                        break;
-                    case AlarmRepeatIntervals.Week:
-                        firstAlarm = new DateTime(currentDateTime.Year, currentDateTime.Month, currentDateTime.Day, hour,
-                            minute, second, millisecond);
-                        // This can take us "back in time" but we're always adjusting such a 'firstAlarm' nevertheless.
-                        var daysToTheNearestAlarmWeekday = weekday - (int)firstAlarm.DayOfWeek;
-                        firstAlarm = firstAlarm.AddDays(daysToTheNearestAlarmWeekday);
-                        intervalDateTime = new DateTime().AddDays(7);
-                        break;
-                    case AlarmRepeatIntervals.Month:
-                        firstAlarm = new DateTime(currentDateTime.Year, currentDateTime.Month, day, hour, minute, second,
-                            millisecond);
-                        intervalDateTime = new DateTime().AddMonths(1);
-                        break;
-                    case AlarmRepeatIntervals.Year:
-                        firstAlarm = new DateTime(currentDateTime.Year, month, day, hour, minute, second, millisecond);
-                        intervalDateTime = new DateTime().AddYears(1);
-                        break;
-                    case AlarmRepeatIntervals.Disabled:
-                        ResetAlarm();
-                        return;
-                    default:
-                        throw new ArgumentException("Something's very wrong; this should never happen.");
+                case AlarmRepeatIntervals.Second:
+                    firstAlarm = new DateTime(currentDateTime.Year, currentDateTime.Month, currentDateTime.Day,
+                        currentDateTime.Hour, currentDateTime.Minute, currentDateTime.Second, millisecond);
+                    intervalDateTime = new DateTime().AddSeconds(1);
+                    break;
+                case AlarmRepeatIntervals.Minute:
+                    firstAlarm = new DateTime(currentDateTime.Year, currentDateTime.Month, currentDateTime.Day,
+                        currentDateTime.Hour, currentDateTime.Minute, second, millisecond);
+                    intervalDateTime = new DateTime().AddMinutes(1);
+                    break;
+                case AlarmRepeatIntervals.Hour:
+                    firstAlarm = new DateTime(currentDateTime.Year, currentDateTime.Month, currentDateTime.Day,
+                        currentDateTime.Hour, minute, second, millisecond);
+                    intervalDateTime = new DateTime().AddHours(1);
+                    break;
+                case AlarmRepeatIntervals.Day:
+                    firstAlarm = new DateTime(currentDateTime.Year, currentDateTime.Month, currentDateTime.Day, hour,
+                        minute, second, millisecond);
+                    intervalDateTime = new DateTime().AddDays(1);
+                    break;
+                case AlarmRepeatIntervals.Week:
+                    firstAlarm = new DateTime(currentDateTime.Year, currentDateTime.Month, currentDateTime.Day, hour,
+                        minute, second, millisecond);
+                    // This can take us "back in time" but we're always adjusting such a 'firstAlarm' nevertheless.
+                    var daysToTheNearestAlarmWeekday = weekday - (int)firstAlarm.DayOfWeek;
+                    firstAlarm = firstAlarm.AddDays(daysToTheNearestAlarmWeekday);
+                    intervalDateTime = new DateTime().AddDays(7);
+                    break;
+                case AlarmRepeatIntervals.Month:
+                    firstAlarm = new DateTime(currentDateTime.Year, currentDateTime.Month, day, hour, minute, second,
+                        millisecond);
+                    intervalDateTime = new DateTime().AddMonths(1);
+                    break;
+                case AlarmRepeatIntervals.Year:
+                    firstAlarm = new DateTime(currentDateTime.Year, month, day, hour, minute, second, millisecond);
+                    intervalDateTime = new DateTime().AddYears(1);
+                    break;
+                case AlarmRepeatIntervals.Disabled:
+                    ResetAlarm();
+                    return;
+                default:
+                    throw new ArgumentException("Something's very wrong; this should never happen.");
                 }
 
                 // Before this adjustment 'firstAlarm' can be in the past.
@@ -559,7 +560,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 set => base.Value = value;
             }
 
-            static private readonly ulong TimerTickToDateTimeTicks = (ulong)new DateTime().AddSeconds(1.0 / Frequency).Ticks;
+            private static readonly ulong TimerTickToDateTimeTicks = (ulong)new DateTime().AddSeconds(1.0 / Frequency).Ticks;
 
             private void AlarmHandler()
             {
@@ -597,13 +598,13 @@ namespace Antmicro.Renode.Peripherals.Timers
                 return new DateTime(baseDateTimeTicks + (long)dateTimeTicksPassed);
             }
 
+            private ulong alarmIntervalTicks;
+            private ulong nextAlarmValue;
+
             private readonly Action alarmAction;
             private readonly long baseDateTimeTicks;
             private readonly IPeripheral owner;
             private readonly IBusController systemBus;
-
-            private ulong alarmIntervalTicks;
-            private ulong nextAlarmValue;
 
             private new const long Frequency = 100;
         }

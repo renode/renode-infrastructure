@@ -6,12 +6,15 @@
 * appropriate *.tt file.
 *
 */
+#pragma warning disable IDE0005
 using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
+
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.CPU.Registers;
 using Antmicro.Renode.Utilities.Binding;
-using Antmicro.Renode.Exceptions;
+#pragma warning restore IDE0005
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -48,11 +51,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue64((int)X86_64KVMRegisters.RAX);
             }
+
             set
             {
                 SetRegisterValue64((int)X86_64KVMRegisters.RAX, value);
             }
         }
+
         [Register]
         public RegisterValue RCX
         {
@@ -60,11 +65,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue64((int)X86_64KVMRegisters.RCX);
             }
+
             set
             {
                 SetRegisterValue64((int)X86_64KVMRegisters.RCX, value);
             }
         }
+
         [Register]
         public RegisterValue RDX
         {
@@ -72,11 +79,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue64((int)X86_64KVMRegisters.RDX);
             }
+
             set
             {
                 SetRegisterValue64((int)X86_64KVMRegisters.RDX, value);
             }
         }
+
         [Register]
         public RegisterValue RBX
         {
@@ -84,11 +93,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue64((int)X86_64KVMRegisters.RBX);
             }
+
             set
             {
                 SetRegisterValue64((int)X86_64KVMRegisters.RBX, value);
             }
         }
+
         [Register]
         public RegisterValue RSP
         {
@@ -96,11 +107,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue64((int)X86_64KVMRegisters.RSP);
             }
+
             set
             {
                 SetRegisterValue64((int)X86_64KVMRegisters.RSP, value);
             }
         }
+
         [Register]
         public RegisterValue RBP
         {
@@ -108,11 +121,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue64((int)X86_64KVMRegisters.RBP);
             }
+
             set
             {
                 SetRegisterValue64((int)X86_64KVMRegisters.RBP, value);
             }
         }
+
         [Register]
         public RegisterValue RSI
         {
@@ -120,11 +135,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue64((int)X86_64KVMRegisters.RSI);
             }
+
             set
             {
                 SetRegisterValue64((int)X86_64KVMRegisters.RSI, value);
             }
         }
+
         [Register]
         public RegisterValue RDI
         {
@@ -132,11 +149,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue64((int)X86_64KVMRegisters.RDI);
             }
+
             set
             {
                 SetRegisterValue64((int)X86_64KVMRegisters.RDI, value);
             }
         }
+
         [Register]
         public RegisterValue RIP
         {
@@ -144,11 +163,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue64((int)X86_64KVMRegisters.RIP);
             }
+
             set
             {
                 SetRegisterValue64((int)X86_64KVMRegisters.RIP, value);
             }
         }
+
         [Register]
         public RegisterValue EFLAGS
         {
@@ -156,11 +177,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue64((int)X86_64KVMRegisters.EFLAGS);
             }
+
             set
             {
                 SetRegisterValue64((int)X86_64KVMRegisters.EFLAGS, value);
             }
         }
+
         [Register]
         public RegisterValue CS
         {
@@ -168,11 +191,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue64((int)X86_64KVMRegisters.CS);
             }
+
             set
             {
                 SetRegisterValue64((int)X86_64KVMRegisters.CS, value);
             }
         }
+
         [Register]
         public RegisterValue SS
         {
@@ -180,11 +205,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue64((int)X86_64KVMRegisters.SS);
             }
+
             set
             {
                 SetRegisterValue64((int)X86_64KVMRegisters.SS, value);
             }
         }
+
         [Register]
         public RegisterValue DS
         {
@@ -192,11 +219,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue64((int)X86_64KVMRegisters.DS);
             }
+
             set
             {
                 SetRegisterValue64((int)X86_64KVMRegisters.DS, value);
             }
         }
+
         [Register]
         public RegisterValue ES
         {
@@ -204,11 +233,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue64((int)X86_64KVMRegisters.ES);
             }
+
             set
             {
                 SetRegisterValue64((int)X86_64KVMRegisters.ES, value);
             }
         }
+
         [Register]
         public RegisterValue FS
         {
@@ -216,11 +247,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue64((int)X86_64KVMRegisters.FS);
             }
+
             set
             {
                 SetRegisterValue64((int)X86_64KVMRegisters.FS, value);
             }
         }
+
         [Register]
         public RegisterValue GS
         {
@@ -228,11 +261,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue64((int)X86_64KVMRegisters.GS);
             }
+
             set
             {
                 SetRegisterValue64((int)X86_64KVMRegisters.GS, value);
             }
         }
+
         [Register]
         public RegisterValue CR0
         {
@@ -240,11 +275,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue64((int)X86_64KVMRegisters.CR0);
             }
+
             set
             {
                 SetRegisterValue64((int)X86_64KVMRegisters.CR0, value);
             }
         }
+
         [Register]
         public RegisterValue CR1
         {
@@ -252,11 +289,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue64((int)X86_64KVMRegisters.CR1);
             }
+
             set
             {
                 SetRegisterValue64((int)X86_64KVMRegisters.CR1, value);
             }
         }
+
         [Register]
         public RegisterValue CR2
         {
@@ -264,11 +303,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue64((int)X86_64KVMRegisters.CR2);
             }
+
             set
             {
                 SetRegisterValue64((int)X86_64KVMRegisters.CR2, value);
             }
         }
+
         [Register]
         public RegisterValue CR3
         {
@@ -276,11 +317,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue64((int)X86_64KVMRegisters.CR3);
             }
+
             set
             {
                 SetRegisterValue64((int)X86_64KVMRegisters.CR3, value);
             }
         }
+
         [Register]
         public RegisterValue CR4
         {
@@ -288,11 +331,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue64((int)X86_64KVMRegisters.CR4);
             }
+
             set
             {
                 SetRegisterValue64((int)X86_64KVMRegisters.CR4, value);
             }
         }
+
         [Register]
         public RegisterValue CR8
         {
@@ -300,11 +345,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue64((int)X86_64KVMRegisters.CR8);
             }
+
             set
             {
                 SetRegisterValue64((int)X86_64KVMRegisters.CR8, value);
             }
         }
+
         [Register]
         public RegisterValue EFER
         {
@@ -312,11 +359,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue64((int)X86_64KVMRegisters.EFER);
             }
+
             set
             {
                 SetRegisterValue64((int)X86_64KVMRegisters.EFER, value);
             }
         }
+
         [Register]
         public override RegisterValue PC
         {
@@ -324,25 +373,27 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue64((int)X86_64KVMRegisters.PC);
             }
+
             set
             {
                 SetRegisterValue64((int)X86_64KVMRegisters.PC, value);
             }
         }
 
+#pragma warning disable SA1508
         protected override void InitializeRegisters()
         {
         }
+#pragma warning restore SA1508
 
+#pragma warning disable 649
         // 649:  Field '...' is never assigned to, and will always have its default value null
-        #pragma warning disable 649
-
         [Import(Name = "kvm_set_register_value_64")]
         protected Action<int, ulong> SetRegisterValue64;
+
         [Import(Name = "kvm_get_register_value_64")]
         protected Func<int, ulong> GetRegisterValue64;
-
-        #pragma warning restore 649
+#pragma warning restore 649
 
         private static readonly Dictionary<X86_64KVMRegisters, CPURegister> mapping = new Dictionary<X86_64KVMRegisters, CPURegister>
         {

@@ -6,16 +6,16 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-
 namespace Antmicro.Renode.Peripherals
 {
-	public interface IHasOwnLife
-	{
-		void Start();
-		void Pause();
-		void Resume();
+    public interface IHasOwnLife
+    {
+        void Start();
 
-		bool IsPaused { get; }
-	}
+        void Pause();
+
+        void Resume();
+
+        bool IsPaused { get; }
+    }
 }
-

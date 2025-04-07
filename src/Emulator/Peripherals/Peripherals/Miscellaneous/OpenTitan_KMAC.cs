@@ -7,12 +7,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
+
 using Org.BouncyCastle.Crypto.Digests;
 using Org.BouncyCastle.Crypto.Macs;
 using Org.BouncyCastle.Crypto.Parameters;
@@ -430,41 +432,41 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             var written = state.Length;
             switch(command)
             {
-                case Command.None:
-                    return;
-                case Command.Start:
-                    ClearHasher();
-                    if(!CheckModeAndStrength())
-                    {
-                        errorCode.Value = (uint)ErrorCode.UnexpectedModeStrength;
-                        interruptKmacError.Value = true;
-                        this.Log(LogLevel.Warning, "Failed to run `Start` command, unexpexted mode strength");
-                    }
-                    else
-                    {
-                        InitHasher();
-                    }
-                    sha3Absorb.Value = true;
-                    sha3Squeeze.Value = false;
-                    break;
-                case Command.Process:
-                    var data = fifo.ToArray();
-                    fifo.Clear();
-                    written = RunFirstHasher(data);
-                    sha3Absorb.Value = false;
-                    sha3Squeeze.Value = true;
-                    break;
-                case Command.Run:
-                    written = RunHasher();
-                    break;
-                case Command.Done:
-                    sha3Absorb.Value = false;
-                    sha3Squeeze.Value = false;
-                    ClearHasher();
-                    break;
-                default:
-                    this.Log(LogLevel.Warning, "Incorrect command 0x{0:X}", command);
-                    return;
+            case Command.None:
+                return;
+            case Command.Start:
+                ClearHasher();
+                if(!CheckModeAndStrength())
+                {
+                    errorCode.Value = (uint)ErrorCode.UnexpectedModeStrength;
+                    interruptKmacError.Value = true;
+                    this.Log(LogLevel.Warning, "Failed to run `Start` command, unexpexted mode strength");
+                }
+                else
+                {
+                    InitHasher();
+                }
+                sha3Absorb.Value = true;
+                sha3Squeeze.Value = false;
+                break;
+            case Command.Process:
+                var data = fifo.ToArray();
+                fifo.Clear();
+                written = RunFirstHasher(data);
+                sha3Absorb.Value = false;
+                sha3Squeeze.Value = true;
+                break;
+            case Command.Run:
+                written = RunHasher();
+                break;
+            case Command.Done:
+                sha3Absorb.Value = false;
+                sha3Squeeze.Value = false;
+                ClearHasher();
+                break;
+            default:
+                this.Log(LogLevel.Warning, "Incorrect command 0x{0:X}", command);
+                return;
             }
             Array.Clear(state, written, state.Length - written);
         }
@@ -488,25 +490,25 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             switch(hashingMode.Value)
             {
-                case HashingMode.SHA3:
-                    sha3 = new Sha3Digest(HashBitLength);
-                    break;
-                case HashingMode.SHAKE:
-                    shake = new ShakeDigest(HashBitLength);
-                    break;
-                case HashingMode.CSHAKE:
-                    if(TryDecodePrefix(out var functionName, out var customization))
-                    {
-                        cshake = new CShakeDigest(HashBitLength, functionName, customization);
-                    }
-                    else
-                    {
-                        this.Log(LogLevel.Warning, "Failed to run `Start` command, unexpexted prefix value for cSHAKE");
-                    }
-                    break;
-                default:
-                    this.Log(LogLevel.Warning, "Hashing mode is in reserved state");
-                    break;
+            case HashingMode.SHA3:
+                sha3 = new Sha3Digest(HashBitLength);
+                break;
+            case HashingMode.SHAKE:
+                shake = new ShakeDigest(HashBitLength);
+                break;
+            case HashingMode.CSHAKE:
+                if(TryDecodePrefix(out var functionName, out var customization))
+                {
+                    cshake = new CShakeDigest(HashBitLength, functionName, customization);
+                }
+                else
+                {
+                    this.Log(LogLevel.Warning, "Failed to run `Start` command, unexpexted prefix value for cSHAKE");
+                }
+                break;
+            default:
+                this.Log(LogLevel.Warning, "Hashing mode is in reserved state");
+                break;
             }
         }
 
@@ -550,30 +552,30 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             switch(hashingMode.Value)
             {
-                case HashingMode.SHA3:
-                    if(sha3 != null)
-                    {
-                        sha3.BlockUpdate(data, 0, data.Length);
-                        return sha3.DoFinal(state, 0);
-                    }
-                    break;
-                case HashingMode.SHAKE:
-                    if(shake != null)
-                    {
-                        shake.BlockUpdate(data, 0, data.Length);
-                        return shake.DoOutput(state, 0, shake.GetByteLength());
-                    }
-                    break;
-                case HashingMode.CSHAKE:
-                    if(cshake != null)
-                    {
-                        cshake.BlockUpdate(data, 0, data.Length);
-                        return cshake.DoOutput(state, 0, cshake.GetByteLength());
-                    }
-                    break;
-                default:
-                    this.Log(LogLevel.Warning, "Hashing mode is in reserved state");
-                    return 0;
+            case HashingMode.SHA3:
+                if(sha3 != null)
+                {
+                    sha3.BlockUpdate(data, 0, data.Length);
+                    return sha3.DoFinal(state, 0);
+                }
+                break;
+            case HashingMode.SHAKE:
+                if(shake != null)
+                {
+                    shake.BlockUpdate(data, 0, data.Length);
+                    return shake.DoOutput(state, 0, shake.GetByteLength());
+                }
+                break;
+            case HashingMode.CSHAKE:
+                if(cshake != null)
+                {
+                    cshake.BlockUpdate(data, 0, data.Length);
+                    return cshake.DoOutput(state, 0, cshake.GetByteLength());
+                }
+                break;
+            default:
+                this.Log(LogLevel.Warning, "Hashing mode is in reserved state");
+                return 0;
             }
 
             this.Log(LogLevel.Warning, "Attempted to run `Process` command in {0} after failed initialization", hashingMode.Value);
@@ -602,23 +604,23 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             switch(hashingMode.Value)
             {
-                case HashingMode.SHAKE:
-                    if(shake != null)
-                    {
-                        return shake.DoOutput(state, 0, shake.GetByteLength());
-                    }
-                    break;
-                case HashingMode.CSHAKE:
-                    if(cshake != null)
-                    {
-                        return cshake.DoOutput(state, 0, cshake.GetByteLength());
-                    }
-                    break;
-                default:
-                    errorCode.Value = (uint)ErrorCode.SwCmdSequence | (uint)Command.Run;
-                    interruptKmacError.Value = true;
-                    this.Log(LogLevel.Warning, "Unexpected hashing mode ({0}) for `Run` command", hashingMode.Value);
-                    return 0;
+            case HashingMode.SHAKE:
+                if(shake != null)
+                {
+                    return shake.DoOutput(state, 0, shake.GetByteLength());
+                }
+                break;
+            case HashingMode.CSHAKE:
+                if(cshake != null)
+                {
+                    return cshake.DoOutput(state, 0, cshake.GetByteLength());
+                }
+                break;
+            default:
+                errorCode.Value = (uint)ErrorCode.SwCmdSequence | (uint)Command.Run;
+                interruptKmacError.Value = true;
+                this.Log(LogLevel.Warning, "Unexpected hashing mode ({0}) for `Run` command", hashingMode.Value);
+                return 0;
             }
 
             this.Log(LogLevel.Warning, "Attempted to run `Run` command in {0} after failed initialization", hashingMode.Value);
@@ -638,21 +640,21 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             var error = false;
             switch(command)
             {
-                case Command.None:
-                    return;
-                case Command.Start:
-                    error = previousCommand != Command.Done;
-                    break;
-                case Command.Process:
-                    error = previousCommand != Command.Start;
-                    break;
-                case Command.Run:
-                case Command.Done:
-                    error = previousCommand != Command.Process && previousCommand != Command.Run;
-                    break;
-                default:
-                    error = true;
-                    break;
+            case Command.None:
+                return;
+            case Command.Start:
+                error = previousCommand != Command.Done;
+                break;
+            case Command.Process:
+                error = previousCommand != Command.Start;
+                break;
+            case Command.Run:
+            case Command.Done:
+                error = previousCommand != Command.Process && previousCommand != Command.Run;
+                break;
+            default:
+                error = true;
+                break;
             }
             errorCode.Value = (uint)ErrorCode.SwCmdSequence | (uint)command;
             interruptKmacError.Value = true;
@@ -664,29 +666,29 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             var mode = kmacEnable.Value ? HashingMode.CSHAKE : hashingMode.Value;
             switch(mode)
             {
-                case HashingMode.SHA3:
-                    switch(HashBitLength)
-                    {
-                        case 224:
-                        case 256:
-                        case 384:
-                        case 512:
-                            return true;
-                        default:
-                            return false;
-                    }
-                case HashingMode.SHAKE:
-                case HashingMode.CSHAKE:
-                    switch(HashBitLength)
-                    {
-                        case 128:
-                        case 256:
-                            return true;
-                        default:
-                            return false;
-                    }
+            case HashingMode.SHA3:
+                switch(HashBitLength)
+                {
+                case 224:
+                case 256:
+                case 384:
+                case 512:
+                    return true;
                 default:
                     return false;
+                }
+            case HashingMode.SHAKE:
+            case HashingMode.CSHAKE:
+                switch(HashBitLength)
+                {
+                case 128:
+                case 256:
+                    return true;
+                default:
+                    return false;
+                }
+            default:
+                return false;
             }
         }
 
@@ -732,19 +734,19 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 switch(hashingStrength.Value)
                 {
-                    case HashingStrength.L128:
-                        return 128;
-                    case HashingStrength.L224:
-                        return 224;
-                    case HashingStrength.L256:
-                        return 256;
-                    case HashingStrength.L384:
-                        return 384;
-                    case HashingStrength.L512:
-                        return 512;
-                    default:
-                        this.Log(LogLevel.Warning, "Hashing strength set to reserved value, 0x{0:X}", hashingStrength.Value);
-                        return 0;
+                case HashingStrength.L128:
+                    return 128;
+                case HashingStrength.L224:
+                    return 224;
+                case HashingStrength.L256:
+                    return 256;
+                case HashingStrength.L384:
+                    return 384;
+                case HashingStrength.L512:
+                    return 512;
+                default:
+                    this.Log(LogLevel.Warning, "Hashing strength set to reserved value, 0x{0:X}", hashingStrength.Value);
+                    return 0;
                 }
             }
         }
@@ -755,22 +757,27 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 switch(keyLength.Value)
                 {
-                    case KeyLength.Key128:
-                        return 128 / 8;
-                    case KeyLength.Key192:
-                        return 192 / 8;
-                    case KeyLength.Key256:
-                        return 256 / 8;
-                    case KeyLength.Key384:
-                        return 284 / 8;
-                    case KeyLength.Key512:
-                        return 512 / 8;
-                    default:
-                        this.Log(LogLevel.Warning, "Key length set to reserved value, 0x{0:X}", keyLength.Value);
-                        return 0;
+                case KeyLength.Key128:
+                    return 128 / 8;
+                case KeyLength.Key192:
+                    return 192 / 8;
+                case KeyLength.Key256:
+                    return 256 / 8;
+                case KeyLength.Key384:
+                    return 284 / 8;
+                case KeyLength.Key512:
+                    return 512 / 8;
+                default:
+                    this.Log(LogLevel.Warning, "Key length set to reserved value, 0x{0:X}", keyLength.Value);
+                    return 0;
                 }
             }
         }
+
+        private Sha3Digest sha3;
+        private ShakeDigest shake;
+        private CShakeDigest cshake;
+        private KMac kmac;
 
         private IFlagRegisterField interruptKmacDone;
         private IFlagRegisterField interruptFifoEmpty;
@@ -790,11 +797,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private Command previousCommand;
         private byte[] sideloadKey;
         private Queue<byte[]> stateBuffer;
-        private byte[] stateMask;
-        private Sha3Digest sha3;
-        private ShakeDigest shake;
-        private CShakeDigest cshake;
-        private KMac kmac;
+        private readonly byte[] stateMask;
 
         private readonly DoubleWordRegisterCollection registers;
         private readonly byte[][] keyShare;

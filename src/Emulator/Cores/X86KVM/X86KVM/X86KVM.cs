@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Utilities.Binding;
 
@@ -21,12 +22,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         public override string Architecture => "x86";
 
         // 649:  Field '...' is never assigned to, and will always have its default value null
-        #pragma warning disable 649
+#pragma warning disable 649
 
         [Import]
         protected Action<uint> KvmSet64BitBehaviour;
 
-        #pragma warning restore 649
+#pragma warning restore 649
 
         public enum Detected64BitBehaviour
         {

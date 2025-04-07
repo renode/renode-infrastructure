@@ -5,9 +5,8 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Extensions;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -21,15 +20,22 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 {
     public class CoreLocalInterruptController : IBytePeripheral, IDoubleWordPeripheral, IIndirectCSRPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IProvidesRegisterCollection<ByteRegisterCollection>, IGPIOReceiver
     {
-        public CoreLocalInterruptController(IMachine machine, BaseRiscV cpu, uint numberOfInterrupts = 4096,
-            ulong machineLevelBits = 8, // MNLBITS
-            ulong supervisorLevelBits = 8, // SNLBITS
-            ulong modeBits = 2, // NMBITS
-            ulong interruptInputControlBits = 8, // CLICINTCTLBITS
+        public CoreLocalInterruptController(
+            IMachine machine,
+            BaseRiscV cpu,
+            uint numberOfInterrupts = 4096,
+            // MNLBITS
+            ulong machineLevelBits = 8,
+            // SNLBITS
+            ulong supervisorLevelBits = 8,
+            // NMBITS
+            ulong modeBits = 2,
+            // CLICINTCTLBITS
             // add the nvbits field to the configuration register to match the legacy layout from the 2022-09-27 specification,
             // as found in some hardware implementations
+            ulong interruptInputControlBits = 8,
             bool configurationHasNvbits = true
-            )
+        )
         {
             this.machine = machine;
 
@@ -259,122 +265,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             this.DebugLog("Acknowledged interrupt #{0}", acknowledgedInterrupt);
         }
 
-        private PrivilegeLevel GetInterruptPrivilege(int number)
-        {
-            if(number == NoInterrupt)
-            {
-                return PrivilegeLevel.User;
-            }
-
-            var itMode = mode[number].Value;
-            switch(modeBits.Value)
-            {
-                case 0:
-                    return PrivilegeLevel.Machine;
-                case 1:
-                    return (itMode & 0b10) == 0 ? PrivilegeLevel.Supervisor : PrivilegeLevel.Machine;
-                case 2:
-                    return (PrivilegeLevel)itMode; // matching representation
-                default: // the reserved value 3 will be remapped on write, so this is unreachable
-                    throw new InvalidOperationException($"Encountered reserved interrupt privilege {modeBits.Value}, should not happen");
-            }
-        }
-
-        private int GetInterruptLevel(int number)
-        {
-            if(number == NoInterrupt)
-            {
-                return MinLevel; // MinLevel - normal execution, not in ISR
-            }
-
-            var privilege = GetInterruptPrivilege(number);
-            var levelBits = (int)(privilege == PrivilegeLevel.Machine || configurationHasNvbits ? machineLevelBits.Value : supervisorLevelBits.Value);
-            var otherBits = (int)MaxInterruptInputControlBits - levelBits;
-            // left-justify and append 1s to fill the unused bits on the right
-            return (int)(BitHelper.GetValue(inputControl[number], otherBits, levelBits) << otherBits) | ((1 << otherBits) - 1);
-        }
-
-        private int GetInterruptPriority(int number)
-        {
-            if(number == NoInterrupt)
-            {
-                return -1; // below lowest valid priority
-            }
-
-            var privilege = GetInterruptPrivilege(number);
-            var levelBits = (int)(privilege == PrivilegeLevel.Machine || configurationHasNvbits ? machineLevelBits.Value : supervisorLevelBits.Value);
-            var priorityBits = (int)interruptInputControlBits - levelBits;
-            if(priorityBits <= 0)
-            {
-                // No priority bits are available. All interrupts will have the same priority.
-                // The spec doesn't define what the value should be; the below is consistent with the behavior 
-                // when priority bits are available. We assume all the unimplemented bits are 1
-                // and remaining bits are 0. This should not matter anyway, as all priorities are the same in this case.
-                return (1 << unimplementedInputControlBits) - 1;
-            }
-            return (int)(BitHelper.GetValue(inputControl[number], unimplementedInputControlBits, priorityBits) << unimplementedInputControlBits) | ((1 << unimplementedInputControlBits) - 1);
-        }
-
-        private bool UpdateInterrupt()
-        {
-            // Clear the previous best interrupt if it is not enabled or pending anymore
-            if(bestInterrupt != NoInterrupt)
-            {
-                if(!(interruptEnable[bestInterrupt].Value && interruptPending[bestInterrupt].Value))
-                {
-                    bestInterrupt = NoInterrupt;
-                }
-            }
-            var bestPrivilege = GetInterruptPrivilege(bestInterrupt);
-            var bestLevel = GetInterruptLevel(bestInterrupt);
-            var bestPriority = GetInterruptPriority(bestInterrupt);
-            for(int i = 0; i < numberOfInterrupts; ++i)
-            {
-                if(!interruptEnable[i].Value || !interruptPending[i].Value)
-                {
-                    continue;
-                }
-                var currentPrivilege = GetInterruptPrivilege(i);
-                var currentLevel = GetInterruptLevel(i);
-                var currentPriority = GetInterruptPriority(i);
-                // If the privilege or level is higher, take it as the best interrupt. If it only differs in priority, only take it if the core hasn't
-                // already started handling the previous best interrupt, as priority does not cause preemption.
-                if(currentPrivilege > bestPrivilege ||
-                   currentLevel > bestLevel ||
-                   (currentPrivilege == bestPrivilege && currentLevel == bestLevel && currentPriority > bestPriority && acknowledgedInterrupt == NoInterrupt))
-                {
-                    bestInterrupt = i;
-                    bestLevel = currentLevel;
-                    bestPriority = currentPriority;
-                    bestPrivilege = currentPrivilege;
-                }
-            }
-            if(bestInterrupt != NoInterrupt)
-            {
-                var bestVectored = vectored[bestInterrupt].Value;
-                cpu.ClicPresentInterrupt(bestInterrupt, bestVectored, bestLevel, bestPrivilege);
-                this.DebugLog("Presenting interrupt #{0} to core, vectored {1} level {2} priority {3} privilege {4}", bestInterrupt, bestVectored, bestLevel, bestPriority, bestPrivilege);
-                return true;
-            }
-            else
-            {
-                cpu.ClicPresentInterrupt(NoInterrupt, false, MinLevel, PrivilegeLevel.User);
-                this.DebugLog("Clearing current interrupt state - no interrupt pending");
-                acknowledgedInterrupt = NoInterrupt;
-                return false;
-            }
-        }
-
-        private void LogUnhandledIndirectCSRRead(uint iselect, uint ireg)
-        {
-            this.WarningLog("Unhandled read from register via indirect CSR access (iselect 0x{0:x}, ireg {1})", iselect, ireg);
-        }
-
-        private void LogUnhandledIndirectCSRWrite(uint iselect, uint ireg)
-        {
-            this.WarningLog("Unhandled write to register via indirect CSR access (iselect 0x{0:x}, ireg {1})", iselect, ireg);
-        }
-
         protected void DefineRegisters()
         {
             var this_dword = this as IProvidesRegisterCollection<DoubleWordRegisterCollection>;
@@ -496,11 +386,133 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }, 4);
         }
 
+        private PrivilegeLevel GetInterruptPrivilege(int number)
+        {
+            if(number == NoInterrupt)
+            {
+                return PrivilegeLevel.User;
+            }
+
+            var itMode = mode[number].Value;
+            switch(modeBits.Value)
+            {
+            case 0:
+                return PrivilegeLevel.Machine;
+            case 1:
+                return (itMode & 0b10) == 0 ? PrivilegeLevel.Supervisor : PrivilegeLevel.Machine;
+            case 2:
+                return (PrivilegeLevel)itMode; // matching representation
+            default: // the reserved value 3 will be remapped on write, so this is unreachable
+                throw new InvalidOperationException($"Encountered reserved interrupt privilege {modeBits.Value}, should not happen");
+            }
+        }
+
+        private int GetInterruptLevel(int number)
+        {
+            if(number == NoInterrupt)
+            {
+                return MinLevel; // MinLevel - normal execution, not in ISR
+            }
+
+            var privilege = GetInterruptPrivilege(number);
+            var levelBits = (int)(privilege == PrivilegeLevel.Machine || configurationHasNvbits ? machineLevelBits.Value : supervisorLevelBits.Value);
+            var otherBits = (int)MaxInterruptInputControlBits - levelBits;
+            // left-justify and append 1s to fill the unused bits on the right
+            return (int)(BitHelper.GetValue(inputControl[number], otherBits, levelBits) << otherBits) | ((1 << otherBits) - 1);
+        }
+
+        private int GetInterruptPriority(int number)
+        {
+            if(number == NoInterrupt)
+            {
+                return -1; // below lowest valid priority
+            }
+
+            var privilege = GetInterruptPrivilege(number);
+            var levelBits = (int)(privilege == PrivilegeLevel.Machine || configurationHasNvbits ? machineLevelBits.Value : supervisorLevelBits.Value);
+            var priorityBits = (int)interruptInputControlBits - levelBits;
+            if(priorityBits <= 0)
+            {
+                // No priority bits are available. All interrupts will have the same priority.
+                // The spec doesn't define what the value should be; the below is consistent with the behavior
+                // when priority bits are available. We assume all the unimplemented bits are 1
+                // and remaining bits are 0. This should not matter anyway, as all priorities are the same in this case.
+                return (1 << unimplementedInputControlBits) - 1;
+            }
+            return (int)(BitHelper.GetValue(inputControl[number], unimplementedInputControlBits, priorityBits) << unimplementedInputControlBits) | ((1 << unimplementedInputControlBits) - 1);
+        }
+
+        private bool UpdateInterrupt()
+        {
+            // Clear the previous best interrupt if it is not enabled or pending anymore
+            if(bestInterrupt != NoInterrupt)
+            {
+                if(!(interruptEnable[bestInterrupt].Value && interruptPending[bestInterrupt].Value))
+                {
+                    bestInterrupt = NoInterrupt;
+                }
+            }
+            var bestPrivilege = GetInterruptPrivilege(bestInterrupt);
+            var bestLevel = GetInterruptLevel(bestInterrupt);
+            var bestPriority = GetInterruptPriority(bestInterrupt);
+            for(int i = 0; i < numberOfInterrupts; ++i)
+            {
+                if(!interruptEnable[i].Value || !interruptPending[i].Value)
+                {
+                    continue;
+                }
+                var currentPrivilege = GetInterruptPrivilege(i);
+                var currentLevel = GetInterruptLevel(i);
+                var currentPriority = GetInterruptPriority(i);
+                // If the privilege or level is higher, take it as the best interrupt. If it only differs in priority, only take it if the core hasn't
+                // already started handling the previous best interrupt, as priority does not cause preemption.
+                if(currentPrivilege > bestPrivilege ||
+                   currentLevel > bestLevel ||
+                   (currentPrivilege == bestPrivilege && currentLevel == bestLevel && currentPriority > bestPriority && acknowledgedInterrupt == NoInterrupt))
+                {
+                    bestInterrupt = i;
+                    bestLevel = currentLevel;
+                    bestPriority = currentPriority;
+                    bestPrivilege = currentPrivilege;
+                }
+            }
+            if(bestInterrupt != NoInterrupt)
+            {
+                var bestVectored = vectored[bestInterrupt].Value;
+                cpu.ClicPresentInterrupt(bestInterrupt, bestVectored, bestLevel, bestPrivilege);
+                this.DebugLog("Presenting interrupt #{0} to core, vectored {1} level {2} priority {3} privilege {4}", bestInterrupt, bestVectored, bestLevel, bestPriority, bestPrivilege);
+                return true;
+            }
+            else
+            {
+                cpu.ClicPresentInterrupt(NoInterrupt, false, MinLevel, PrivilegeLevel.User);
+                this.DebugLog("Clearing current interrupt state - no interrupt pending");
+                acknowledgedInterrupt = NoInterrupt;
+                return false;
+            }
+        }
+
+        private void LogUnhandledIndirectCSRRead(uint iselect, uint ireg)
+        {
+            this.WarningLog("Unhandled read from register via indirect CSR access (iselect 0x{0:x}, ireg {1})", iselect, ireg);
+        }
+
+        private void LogUnhandledIndirectCSRWrite(uint iselect, uint ireg)
+        {
+            this.WarningLog("Unhandled write to register via indirect CSR access (iselect 0x{0:x}, ireg {1})", iselect, ireg);
+        }
+
         DoubleWordRegisterCollection IProvidesRegisterCollection<DoubleWordRegisterCollection>.RegistersCollection => DoubleWordRegisters;
+
         ByteRegisterCollection IProvidesRegisterCollection<ByteRegisterCollection>.RegistersCollection => ByteRegisters;
 
         private DoubleWordRegisterCollection DoubleWordRegisters { get; }
+
         private ByteRegisterCollection ByteRegisters { get; }
+
+        private IValueRegisterField machineLevelBits;
+        private IValueRegisterField supervisorLevelBits;
+        private IValueRegisterField modeBits;
 
         private int bestInterrupt;
         private int acknowledgedInterrupt;
@@ -512,9 +524,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private readonly IFlagRegisterField[] negative;
         private readonly IValueRegisterField[] mode;
         private readonly ulong[] inputControl;
-        private IValueRegisterField machineLevelBits;
-        private IValueRegisterField supervisorLevelBits;
-        private IValueRegisterField modeBits;
 
         private readonly IMachine machine;
         private readonly BaseRiscV cpu;

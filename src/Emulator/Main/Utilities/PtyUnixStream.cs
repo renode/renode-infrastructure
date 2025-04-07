@@ -7,14 +7,16 @@
 //
 #if !PLATFORM_WINDOWS
 using System;
-using Mono.Unix.Native;
-using Mono.Unix;
-using System.Runtime.InteropServices;
 using System.IO;
-using Antmicro.Migrant;
-using Antmicro.Migrant.Hooks;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+
+using Antmicro.Migrant;
+using Antmicro.Migrant.Hooks;
+
+using Mono.Unix;
+using Mono.Unix.Native;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -27,7 +29,7 @@ namespace Antmicro.Renode.Utilities
 
         public override int ReadByte()
         {
-            try 
+            try
             {
                 if(ReadTimeout > 0)
                 {
@@ -88,14 +90,14 @@ namespace Antmicro.Renode.Utilities
 
         public override int ReadTimeout { get; set; }
 
-        public override long Position 
+        public override long Position
         {
             get { return Stream.Position; }
             set { Stream.Position = value; }
         }
 
-        public string SlaveName 
-        { 
+        public string SlaveName
+        {
             get { return slaveName; }
             private set { slaveName = value; }
         }
@@ -109,6 +111,31 @@ namespace Antmicro.Renode.Utilities
             Syscall.close(slaveFd);
             disposed = true;
         }
+
+        [DllImport("libc", EntryPoint = "getpt")]
+        private static extern int Getpt();
+
+        [DllImport("libc", EntryPoint = "grantpt")]
+        private static extern int Grantpt(int fd);
+
+        [DllImport("libc", EntryPoint = "unlockpt")]
+        private static extern int Unlockpt(int fd);
+
+        [DllImport("libc", EntryPoint = "cfmakeraw")]
+        private static extern void Cfmakeraw(IntPtr termios); // TODO: this is non-posix, but should work on BSD
+
+        [DllImport("libc", EntryPoint = "tcgetattr")]
+        private static extern void Tcgetattr(int fd, IntPtr termios);
+
+        [DllImport("libc", EntryPoint = "tcsetattr")]
+        private static extern void Tcsetattr(int fd, int attr, IntPtr termios);
+
+#if PLATFORM_LINUX
+        [DllImport("libutil.so.1", EntryPoint = "openpty")]
+#else
+        [DllImport("util", EntryPoint = "openpty")]
+#endif
+        private static extern int Openpty(IntPtr amaster, IntPtr aslave, IntPtr name, IntPtr termp, IntPtr winp);
 
         private static string OpenNewSlavePty(out int masterFd, out int slaveFd)
         {
@@ -194,11 +221,11 @@ namespace Antmicro.Renode.Utilities
             SlaveName = OpenNewSlavePty(out masterFd, out slaveFd);
         }
 
-        private UnixStream Stream 
+        private UnixStream Stream
         {
-            get 
+            get
             {
-                if(stream == null) 
+                if(stream == null)
                 {
                     stream = new UnixStream(masterFd, true);
                 }
@@ -206,33 +233,8 @@ namespace Antmicro.Renode.Utilities
             }
         }
 
-        [DllImport("libc", EntryPoint = "getpt")]
-        private extern static int Getpt();
-     
-        [DllImport("libc", EntryPoint = "grantpt")]
-        private extern static int Grantpt(int fd);
-
-        [DllImport("libc", EntryPoint = "unlockpt")]
-        private extern static int Unlockpt(int fd);
-
-        [DllImport("libc", EntryPoint="ptsname")]
-        extern static IntPtr Ptsname(int fd);
-
-        [DllImport("libc", EntryPoint = "cfmakeraw")]
-        private extern static void Cfmakeraw(IntPtr termios); // TODO: this is non-posix, but should work on BSD
-
-        [DllImport("libc", EntryPoint = "tcgetattr")]
-        private extern static void Tcgetattr(int fd, IntPtr termios);
-
-        [DllImport("libc", EntryPoint = "tcsetattr")]
-        private extern static void Tcsetattr(int fd, int attr, IntPtr termios);
-
-#if PLATFORM_LINUX
-        [DllImport("libutil.so.1", EntryPoint = "openpty")]
-#else
-        [DllImport("util", EntryPoint = "openpty")]
-#endif
-        private extern static int Openpty(IntPtr amaster, IntPtr aslave, IntPtr name, IntPtr termp, IntPtr winp);
+        [DllImport("libc", EntryPoint = "ptsname")]
+        static extern IntPtr Ptsname(int fd);
 
         [Transient]
         private UnixStream stream;

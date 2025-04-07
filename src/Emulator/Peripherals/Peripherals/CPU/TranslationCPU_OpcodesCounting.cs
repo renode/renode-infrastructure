@@ -6,8 +6,8 @@
 //
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.IO;
+
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
@@ -17,14 +17,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public abstract partial class TranslationCPU
     {
-        public bool EnableOpcodesCounting
-        {
-            set
-            {
-                TlibEnableOpcodesCounting(value ? 1 : 0u);
-            }
-        }
-        
         public void InstallOpcodeCounterPattern(string name, string pattern)
         {
             if(pattern.Length != 16 && pattern.Length != 32)
@@ -45,7 +37,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 throw new RecoverableException($"Opcode '{name}' already registered");
             }
-            
+
             var id = TlibInstallOpcodeCounter(opcode, mask);
             if(id == 0)
             {
@@ -73,7 +65,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                            x => x.Key,
                            x => TlibGetOpcodeCounter(x.Value).ToString()).ToArray();
         }
-        
+
         public void SaveAllOpcodesCounters(string path)
         {
             using(var outputFile = new StreamWriter(path))
@@ -90,23 +82,28 @@ namespace Antmicro.Renode.Peripherals.CPU
             TlibResetOpcodeCounters();
         }
 
-        private readonly Dictionary<string, uint> opcodesMap = new Dictionary<string, uint>();
-        
-        #pragma warning disable 649
+        public bool EnableOpcodesCounting
+        {
+            set
+            {
+                TlibEnableOpcodesCounting(value ? 1 : 0u);
+            }
+        }
+
+#pragma warning disable 649
+        [Import]
+        private readonly Action<uint> TlibEnableOpcodesCounting;
 
         [Import]
-        private Action<uint> TlibEnableOpcodesCounting;
-        
+        private readonly Func<uint, ulong> TlibGetOpcodeCounter;
+
         [Import]
-        private Func<uint, ulong> TlibGetOpcodeCounter;
-        
+        private readonly Func<ulong, ulong, uint> TlibInstallOpcodeCounter;
+
         [Import]
-        private Func<ulong, ulong, uint> TlibInstallOpcodeCounter;
-        
-        [Import]
-        private Action TlibResetOpcodeCounters;
-        
-        #pragma warning restore 649
+        private readonly Action TlibResetOpcodeCounters;
+#pragma warning restore 649
+
+        private readonly Dictionary<string, uint> opcodesMap = new Dictionary<string, uint>();
     }
 }
-

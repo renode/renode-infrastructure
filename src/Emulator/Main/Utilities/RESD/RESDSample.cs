@@ -38,10 +38,11 @@ namespace Antmicro.Renode.Utilities.RESD
             return this.MemberwiseClone();
         }
 
-        public abstract int? Width { get; }
         public abstract bool TryReadFromStream(SafeBinaryReader reader);
 
         public virtual IDictionary<string, MetadataValue> Metadata { get; private set; }
+
+        public abstract int? Width { get; }
 
         // Ensure decimal dots are always used regardless of the system locale
         // for consistent output formatting.
@@ -93,7 +94,9 @@ namespace Antmicro.Renode.Utilities.RESD
         public override int? Width => 4 * 3;
 
         public int AccelerationX => accelerationX;
+
         public int AccelerationY => accelerationY;
+
         public int AccelerationZ => accelerationZ;
 
         private int accelerationX;
@@ -123,7 +126,9 @@ namespace Antmicro.Renode.Utilities.RESD
         public override int? Width => 4 * 3;
 
         public int AngularRateX => angularRateX;
+
         public int AngularRateY => angularRateY;
+
         public int AngularRateZ => angularRateZ;
 
         private int angularRateX;
@@ -229,7 +234,9 @@ namespace Antmicro.Renode.Utilities.RESD
         public override int? Width => 4 * 3;
 
         public int MagneticFluxDensityX => magneticFluxDensityX;
+
         public int MagneticFluxDensityY => magneticFluxDensityY;
+
         public int MagneticFluxDensityZ => magneticFluxDensityZ;
 
         private int magneticFluxDensityX;

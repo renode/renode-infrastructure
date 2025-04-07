@@ -59,7 +59,9 @@ namespace Antmicro.Renode.Peripherals.Sensors
         }
 
         public decimal X { get; set; }
+
         public decimal Y { get; set; }
+
         public decimal Z { get; set; }
 
         public const int Dimensions = 3;

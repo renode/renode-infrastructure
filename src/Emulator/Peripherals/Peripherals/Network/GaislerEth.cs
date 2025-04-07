@@ -6,13 +6,14 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Network;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
+
 using MiscUtil.Conversion;
 
 namespace Antmicro.Renode.Peripherals.Network
@@ -28,15 +29,13 @@ namespace Antmicro.Renode.Peripherals.Network
 
         public override void Reset()
         {
-            registers = new regsValues();
+            registers = new RegsValues();
             MAC = new MACAddress();
             transmitDescriptorBase = 0;
             transmitDescriptorOffset = 0;
             receiveDescriptorBase = 0;
             transmitDescriptorOffset = 0;
         }
-
-        public GPIO IRQ { get; private set; }
 
         #region IDoubleWordPeripheral implementation
 
@@ -81,7 +80,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 }
                 if((value & 0x01u) != 0)
                 {
-                    this.transmitFrame();
+                    this.TransmitFrame();
                 }
                 registers.Control = value;
                 break;
@@ -155,7 +154,6 @@ namespace Antmicro.Renode.Peripherals.Network
 
         #endregion
 
-
         #region IGaislerAPB implementation
 
         public uint GetVendorID()
@@ -178,25 +176,6 @@ namespace Antmicro.Renode.Peripherals.Network
             return GaislerAPBPlugAndPlayRecord.SpaceType.APBIOSpace;
         }
 
-        public event Action<EthernetFrame> FrameReady;
-
-        private readonly uint vendorID = 0x01;
-        // Aeroflex Gaisler
-        private readonly uint deviceID = 0x1D;
-        // GRLIB GRETH
-
-        #endregion
-
-        #region IKnownSize implementation
-
-        public long Size
-        {
-            get
-            {
-                return 0x100;
-            }
-        }
-
         #endregion
 
         #region INetworkInterface implementation
@@ -209,7 +188,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 return;
             }
 
-            var rd = new receiveDescriptor(sysbus);
+            var rd = new ReceiveDescriptor(sysbus);
 
             if(!EthernetFrame.CheckCRC(frame.Bytes))
             {
@@ -253,10 +232,33 @@ namespace Antmicro.Renode.Peripherals.Network
             rd.Wrap = false;
             rd.WriteBack();
         }
+        // GRLIB GRETH
 
-        private void transmitFrame()
+        #endregion
+
+        #region IKnownSize implementation
+
+        public long Size
         {
-            var td = new transmitDescriptor(sysbus);
+            get
+            {
+                return 0x100;
+            }
+        }
+
+        #endregion
+
+        #region IMACInterface implementation
+
+        public MACAddress MAC { get; set; }
+
+        public GPIO IRQ { get; private set; }
+
+        public event Action<EthernetFrame> FrameReady;
+
+        private void TransmitFrame()
+        {
+            var td = new TransmitDescriptor(sysbus);
             td.Fetch(transmitDescriptorBase | transmitDescriptorOffset);
 
             if(!td.Enable)
@@ -306,48 +308,11 @@ namespace Antmicro.Renode.Peripherals.Network
             td.UnderrunError = false;
             td.AttemptLimitError = false;
             td.WriteBack();
-
         }
-
-        #endregion
-
-        #region IMACInterface implementation
-
-        public MACAddress MAC { get; set; }
-
-        #endregion
-
-        private readonly IBusController sysbus;
 
         #region registers
 
-        private regsValues registers;
-
-        private class regsValues
-        {
-            public uint Control = 1u << 7;
-            public uint Status;
-            public uint MacAddresHi;
-            public uint MacAddresLo;
-            public uint MDIOControlStatus;
-            public uint TxDescriptorPointer;
-            public uint RxDescriptorPointer;
-            public uint HashTableHi;
-            public uint HashTableLo;
-        }
-
-        private enum Registers : uint
-        {
-            Control = 0x00,
-            Status = 0x04,
-            MacAddressHi = 0x08,
-            MacAddressLo = 0x0C,
-            MDIOControlStatus = 0x10,
-            TxDescriptorPointer = 0x14,
-            RxDescriptorPointer = 0x18,
-            HashTableHi = 0x20,
-            HashTableLo = 0x24
-        }
+        private RegsValues registers;
 
         #endregion
 
@@ -359,26 +324,20 @@ namespace Antmicro.Renode.Peripherals.Network
         private uint receiveDescriptorBase;
         private uint receiveDescriptorOffset;
 
-        private class transmitDescriptor
+        private readonly uint vendorID = 0x01;
+        // Aeroflex Gaisler
+        private readonly uint deviceID = 0x1D;
+
+        #endregion
+
+        private readonly IBusController sysbus;
+
+        private class TransmitDescriptor
         {
-            public transmitDescriptor(IBusController sysbus)
+            public TransmitDescriptor(IBusController sysbus)
             {
                 sbus = sysbus;
             }
-
-            private IBusController sbus;
-
-            private uint word0;
-            private uint word1;
-            private uint ramAddress;
-
-            public bool AttemptLimitError;
-            public bool UnderrunError;
-            public bool InterruptEnable;
-            public bool Wrap;
-            public bool Enable;
-            public uint Length;
-            public uint PacketAddress;
 
             public void Fetch(uint address)
             {
@@ -407,32 +366,28 @@ namespace Antmicro.Renode.Peripherals.Network
                 sbus.WriteDoubleWord(ramAddress, word0);
                 sbus.WriteDoubleWord(ramAddress + 4, word1);
             }
-        }
 
-        private class receiveDescriptor
-        {
-            public receiveDescriptor(IBusController sysbus)
-            {
-                sbus = sysbus;
-            }
-
-            private IBusController sbus;
-            
-            private uint word0;
-            private uint word1;
-            private uint ramAddress;
-
-            public bool MulticastAddress;
-            public bool LengthError;
-            public bool OverrunError;
-            public bool CRCError;
-            public bool FrameTooLong;
-            public bool AlignmentError;
+            public bool AttemptLimitError;
+            public bool UnderrunError;
             public bool InterruptEnable;
             public bool Wrap;
             public bool Enable;
             public uint Length;
             public uint PacketAddress;
+
+            private uint word0;
+            private uint word1;
+            private uint ramAddress;
+
+            private readonly IBusController sbus;
+        }
+
+        private class ReceiveDescriptor
+        {
+            public ReceiveDescriptor(IBusController sysbus)
+            {
+                sbus = sysbus;
+            }
 
             public void Fetch(uint address)
             {
@@ -465,9 +420,52 @@ namespace Antmicro.Renode.Peripherals.Network
                 sbus.WriteDoubleWord(ramAddress, word0);
                 sbus.WriteDoubleWord(ramAddress + 4, word1);
             }
+
+            public bool MulticastAddress;
+            public bool LengthError;
+            public bool OverrunError;
+            public bool CRCError;
+            public bool FrameTooLong;
+            public bool AlignmentError;
+            public bool InterruptEnable;
+            public bool Wrap;
+            public bool Enable;
+            public uint Length;
+            public uint PacketAddress;
+
+            private uint word0;
+            private uint word1;
+            private uint ramAddress;
+
+            private readonly IBusController sbus;
+        }
+
+        private class RegsValues
+        {
+            public uint Control = 1u << 7;
+            public uint Status;
+            public uint MacAddresHi;
+            public uint MacAddresLo;
+            public uint MDIOControlStatus;
+            public uint TxDescriptorPointer;
+            public uint RxDescriptorPointer;
+            public uint HashTableHi;
+            public uint HashTableLo;
+        }
+
+        private enum Registers : uint
+        {
+            Control = 0x00,
+            Status = 0x04,
+            MacAddressHi = 0x08,
+            MacAddressLo = 0x0C,
+            MDIOControlStatus = 0x10,
+            TxDescriptorPointer = 0x14,
+            RxDescriptorPointer = 0x18,
+            HashTableHi = 0x20,
+            HashTableLo = 0x24
         }
 
         #endregion
     }
 }
-

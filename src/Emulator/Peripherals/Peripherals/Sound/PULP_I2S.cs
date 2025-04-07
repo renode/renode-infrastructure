@@ -8,18 +8,16 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.IO;
-using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Sound;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Sound
 {
-    public class PULP_I2S: BasicDoubleWordPeripheral, IDisposable, IKnownSize, INumberedGPIOOutput
+    public class PULP_I2S : BasicDoubleWordPeripheral, IDisposable, IKnownSize, INumberedGPIOOutput
     {
         public PULP_I2S(IMachine machine) : base(machine)
         {
@@ -37,7 +35,7 @@ namespace Antmicro.Renode.Peripherals.Sound
             base.Reset();
             decoder?.Reset();
             encoder?.FlushBuffer();
-            
+
             rxThread = null;
             txThread = null;
             rxChannels = 1;
@@ -58,8 +56,11 @@ namespace Antmicro.Renode.Peripherals.Sound
         }
 
         public string InputFile { get; set; }
+
         public string OutputFile { get; set; }
+
         public uint RxSampleFrequency { get; set; }
+
         public uint TxSampleFrequency { get; set; }
 
         public IReadOnlyDictionary<int, IGPIO> Connections { get; }
@@ -71,7 +72,7 @@ namespace Antmicro.Renode.Peripherals.Sound
             // All three flags must be set to start the acquisition, as they are stored in 3 separate registers this function will be called two times before we are ready to start
             if(rxEnabled.Value == false || slaveEnabled.Value == false || slaveClockEnabled.Value == false)
             {
-                this.Log(LogLevel.Debug, 
+                this.Log(LogLevel.Debug,
                          @"Reception has not been started - it needs I2S_RX_CFG.ENABLE, I2S_SLV_SETUP.SLAVE_EN and I2S_CLKCFG_SETUP.SLAVE_CLK_EN to be set.
                          Current state: I2S_RX_CFG.ENABLE             = {0}, 
                                         I2S_SLV_SETUP.SLAVE_EN        = {1},
@@ -87,7 +88,7 @@ namespace Antmicro.Renode.Peripherals.Sound
             }
             decoder = new PCMDecoder(rxSampleWidth, RxSampleFrequency, rxChannels, false, this);
             decoder.LoadFile(InputFile);
-            
+
             this.Log(LogLevel.Debug, "Starting reception");
             if(rxContinuous.Value)
             {
@@ -110,7 +111,7 @@ namespace Antmicro.Renode.Peripherals.Sound
             // All three flags must be set to start the transmission, as they are stored in 3 separate registers this function will be called two times before we are ready to start
             if(txEnabled.Value == false || masterEnabled.Value == false || masterClockEnabled.Value == false)
             {
-                this.Log(LogLevel.Debug, 
+                this.Log(LogLevel.Debug,
                          @"Transmission has not been started - it needs I2S_TX_CFG.ENABLE, I2S_MST_SETUP.MASTER_EN and I2S_CLKCFG_SETUP.MASTER_CLK_EN to be set.
                          Current state: I2S_TX_CFG.ENABLE              = {0}, 
                                         I2S_MST_SETUP.MASTER_EN        = {1}, 
@@ -167,20 +168,20 @@ namespace Antmicro.Renode.Peripherals.Sound
                     this.Log(LogLevel.Warning, "The I2S_TX_SIZE ({0} bytes) is misaligned to I2S_TX_CFG.DATASIZE ({1} bytes). This model will read bits form outside of the buffer, expect that your program will fail soon.",
                              bufferSizeBackup, bufferStep);
                 }
-                    
+
                 switch(txSampleWidth)
                 {
-                    case 8:
-                        sample = sysbus.ReadByte(txBufferPointer.Value);
-                        break;
-                    case 16:
-                        sample = sysbus.ReadWord(txBufferPointer.Value);
-                        break;
-                    case 32:
-                        sample = sysbus.ReadDoubleWord(txBufferPointer.Value);
-                        break;
-                    default:
-                        throw new ArgumentException(String.Format("Invalid TX sample width: {}", txSampleWidth));
+                case 8:
+                    sample = sysbus.ReadByte(txBufferPointer.Value);
+                    break;
+                case 16:
+                    sample = sysbus.ReadWord(txBufferPointer.Value);
+                    break;
+                case 32:
+                    sample = sysbus.ReadDoubleWord(txBufferPointer.Value);
+                    break;
+                default:
+                    throw new ArgumentException(String.Format("Invalid TX sample width: {}", txSampleWidth));
                 }
 
                 encoder.AcceptSample(sample);
@@ -223,7 +224,7 @@ namespace Antmicro.Renode.Peripherals.Sound
                 // In case of some interrupt with higher priority we make sure we have buffer pointer and remaining buffer size updated
                 rxBufferPointer.Value += 4;
                 rxBufferSize.Value -= 4;
-             }
+            }
 
             Connections[(int)Events.Rx].Blink();
             //  At the end of the buffer the uDMA reloads the address and size and starts a new transfer
@@ -245,7 +246,8 @@ namespace Antmicro.Renode.Peripherals.Sound
             Registers.RxConfig.Define(this, 0x4)
                 .WithFlag(0, out rxContinuous, name: "CONTINOUS")
                 .WithValueField(1, 2, out rxDataSize,
-                    writeCallback: (_, val) => {
+                    writeCallback: (_, val) =>
+                    {
                         // b00 (8 bits)
                         // b01 (16 bits)
                         // b10 (32 bits)
@@ -278,7 +280,8 @@ namespace Antmicro.Renode.Peripherals.Sound
             Registers.TxConfig.Define(this, 0x4)
                 .WithFlag(0, out txContinuous, name: "CONTINOUS")
                 .WithValueField(1, 2, out txDataSize,
-                    writeCallback: (_, val) => {
+                    writeCallback: (_, val) =>
+                    {
                         // b00 (8 bits)
                         // b01 (16 bits)
                         // b10 (32 bits)
@@ -287,7 +290,7 @@ namespace Antmicro.Renode.Peripherals.Sound
                             this.Log(LogLevel.Warning, "Trying to set forbidden TX DataSize. Setting to default");
                             val = 0b10;
                         }
-                    txSampleWidth = (uint)(8 << (int)val);
+                        txSampleWidth = (uint)(8 << (int)val);
                     }, name: "DATASIZE")
                 .WithReservedBits(3, 1)
                 .WithFlag(4, out txEnabled,
@@ -328,7 +331,7 @@ namespace Antmicro.Renode.Peripherals.Sound
                 .WithTag("MASTER_LSB", 16, 1)
                 .WithFlag(17, writeCallback: (_, val) => { txChannels = val ? 2u : 1u; }, name: "MASTER_2CH")
                 .WithReservedBits(18, 13)
-                .WithFlag(31, out masterEnabled, writeCallback: (_, val) => { if(val) StartTx(); }, name:"MASTER_EN");
+                .WithFlag(31, out masterEnabled, writeCallback: (_, val) => { if(val) StartTx(); }, name: "MASTER_EN");
             Registers.PdmConfig.Define(this)
                 .WithTag("PDM_SHIFT", 0, 3)
                 .WithTag("PDM_DECIMATION", 3, 10)
@@ -371,7 +374,7 @@ namespace Antmicro.Renode.Peripherals.Sound
             Extra = 2,
         }
 
-        private enum Registers :long
+        private enum Registers : long
         {
             RxBufferPointer    = 0x0,  //    RX Channel 0 I2S uDMA transfer address of associated buffer
             RxBufferSize       = 0x4,  //    RX Channel 0 I2S uDMA transfer size of buffer

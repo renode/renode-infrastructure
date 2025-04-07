@@ -12,7 +12,7 @@
 
 /* Here is the template for your defined by hand class. Don't forget to add your eventual constructor with extra parameter.
 
-* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 using System;
 using System.IO;
 using System.Collections.Generic;
@@ -90,23 +90,23 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             base.Reset();
             HFXO_Reset();
         }
-        
+
         protected enum TRIM_VTRREGTCANA
         {
-            ADJ0 = 0, // 
-            NONFLASH = 1, // 
-            FLASH = 2, // 
-            ADJ3 = 3, // 
+            ADJ0 = 0, //
+            NONFLASH = 1, //
+            FLASH = 2, //
+            ADJ3 = 3, //
         }
-        
+
         protected enum TRIM_VTRCORETCANA
         {
-            ADJ0 = 0, // 
-            NONFLASH = 1, // 
-            FLASH = 2, // 
-            ADJ3 = 3, // 
+            ADJ0 = 0, //
+            NONFLASH = 1, //
+            FLASH = 2, //
+            ADJ3 = 3, //
         }
-        
+
         protected enum XTALCFG_TIMEOUTSTEADY
         {
             T4US = 0, // The steady state timeout is set to 16 us minimum.  The maximum can be +40%.
@@ -126,7 +126,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             T2500US = 14, // The steady state timeout is set to 4166 us minimum.  The maximum can be +40%.
             T4166US = 15, // The steady state timeout is set to 7500 us minimum.  The maximum can be +40%.
         }
-        
+
         protected enum XTALCFG_TIMEOUTCBLSB
         {
             T8US = 0, // The core bias LSB change timeout is set to 8 us minimum.  The maximum can be +40%.
@@ -146,7 +146,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             T2083US = 14, // The core bias LSB change timeout is set to 2083 us minimum.  The maximum can be +40%.
             T3750US = 15, // The core bias LSB change timeout is set to 3750 us minimum.  The maximum can be +40%.
         }
-        
+
         protected enum XTALCTRL_CTUNEFIXANA
         {
             NONE = 0, // Remove fixed capacitance on XI and XO nodes
@@ -154,7 +154,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             XO = 2, // Adds fixed capacitance on XO node
             BOTH = 3, // Adds fixed capacitance on both XI and XO nodes
         }
-        
+
         protected enum XTALCTRL_COREDGENANA
         {
             NONE = 0, // Do not apply core degeneration resistence
@@ -162,32 +162,32 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             DGEN50 = 2, // Apply 50 ohm core degeneration resistence
             DGEN100 = 3, // Apply 100 ohm core degeneration resistence
         }
-        
+
         protected enum CFG_MODE
         {
             XTAL = 0, // crystal oscillator
             EXTCLK = 1, // external sinusoidal clock can be supplied on XI pin.
             EXTCLKPKDET = 2, // external sinusoidal clock can be supplied on XI pin (peak detector used).
         }
-        
+
         protected enum CFG_SQBUFSCHTRGANA
         {
             DISABLE = 0, // Squaring buffer schmitt trigger is disabled
             ENABLE = 1, // Squaring buffer schmitt trigger is enabled
         }
-        
+
         protected enum CTRL_FORCEXI2GNDANA
         {
             DISABLE = 0, // Disabled (not pulled)
             ENABLE = 1, // Enabled (pulled)
         }
-        
+
         protected enum CTRL_FORCEXO2GNDANA
         {
             DISABLE = 0, // Disabled (not pulled)
             ENABLE = 1, // Enabled (pulled)
         }
-        
+
         protected enum CTRL_PRSSTATUSSEL0
         {
             DISABLED = 0, // PRS mux outputs 0
@@ -204,7 +204,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             CLKINTRA0HWREQ = 11, // PRS mux outputs oscillator requested by intra-clock 0 request status
             CLKINTRA1HWREQ = 12, // PRS mux outputs oscillator requested by intra-clock 1 request status
         }
-        
+
         protected enum CTRL_PRSSTATUSSEL1
         {
             DISABLED = 0, // PRS mux outputs 0
@@ -221,47 +221,47 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             CLKINTRA0HWREQ = 11, // PRS mux outputs oscillator requested by intra-clock 0 request status
             CLKINTRA1HWREQ = 12, // PRS mux outputs oscillator requested by intra-clock 1 request status
         }
-        
+
         protected enum LOWPWRCTRL_SQBUFBIASRESANA
         {
-            R13K = 0, // 
-            R20K = 1, // 
-            R40K = 2, // 
-            R80K = 3, // 
+            R13K = 0, //
+            R20K = 1, //
+            R40K = 2, //
+            R80K = 3, //
         }
-        
+
         protected enum LOWPWRCTRL_SQBUFBIASANA
         {
-            I20UA = 0, // 
-            I40UA = 1, // 
-            I60UA = 2, // 
-            I80UA = 3, // 
-            I100UA = 4, // 
-            I120UA = 5, // 
-            I140UA = 6, // 
-            I160UA = 7, // 
+            I20UA = 0, //
+            I40UA = 1, //
+            I60UA = 2, //
+            I80UA = 3, //
+            I100UA = 4, //
+            I120UA = 5, //
+            I140UA = 6, //
+            I160UA = 7, //
         }
-        
+
         protected enum LOWPWRCTRL_SHUNTBIASANA
         {
-            I20UA = 0, // 
-            I30UA = 1, // 
-            I40UA = 2, // 
-            I50UA = 3, // 
-            I60UA = 4, // 
-            I70UA = 5, // 
-            I80UA = 6, // 
-            I90UA = 7, // 
-            I100UA = 8, // 
-            I110UA = 9, // 
-            I120UA = 10, // 
-            I130UA = 11, // 
-            I140UA = 12, // 
-            I150UA = 13, // 
-            I160UA = 14, // 
-            I170UA = 15, // 
+            I20UA = 0, //
+            I30UA = 1, //
+            I40UA = 2, //
+            I50UA = 3, //
+            I60UA = 4, //
+            I70UA = 5, //
+            I80UA = 6, //
+            I90UA = 7, //
+            I100UA = 8, //
+            I110UA = 9, //
+            I120UA = 10, //
+            I130UA = 11, //
+            I140UA = 12, //
+            I150UA = 13, //
+            I160UA = 14, //
+            I170UA = 15, //
         }
-        
+
         protected enum LOWPWRCTRL_TIMEOUTWARM
         {
             T0US = 0, // The keep-warm startup timeout is set to 0 us minimum.  The maximum can be +40%.
@@ -273,105 +273,105 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             T83US = 6, // The keep-warm startup timeout is set to 83 us minimum.  The maximum can be +40%.
             T125US = 7, // The keep-warm startup timeout is set to 125 us minimum.  The maximum can be +40%.
         }
-        
+
         protected enum PKDETCTRL_PKDETNODEANA
         {
             XI = 0, // Apply peak detection to XI node
             XO = 1, // Apply peak detection to XO node
         }
-        
+
         protected enum PKDETCTRL_PKDETNODESTARTUPI
         {
             XI = 0, // Apply peak detection to XI node
             XO = 1, // Apply peak detection to XO node
         }
-        
+
         protected enum PKDETCTRL_PKDETNODESTARTUP
         {
             XI = 0, // Apply peak detection to XI node
             XO = 1, // Apply peak detection to XO node
         }
-        
+
         protected enum PKDETCTRL_PKDETTHANA
         {
-            V105MV = 0, // 
-            V132MV = 1, // 
-            V157MV = 2, // 
-            V184MV = 3, // 
-            V210MV = 4, // 
-            V236MV = 5, // 
-            V262MV = 6, // 
-            V289MV = 7, // 
-            V315MV = 8, // 
-            V341MV = 9, // 
-            V367MV = 10, // 
-            V394MV = 11, // 
-            V420MV = 12, // 
-            V446MV = 13, // 
-            V472MV = 14, // 
-            V499MV = 15, // 
+            V105MV = 0, //
+            V132MV = 1, //
+            V157MV = 2, //
+            V184MV = 3, //
+            V210MV = 4, //
+            V236MV = 5, //
+            V262MV = 6, //
+            V289MV = 7, //
+            V315MV = 8, //
+            V341MV = 9, //
+            V367MV = 10, //
+            V394MV = 11, //
+            V420MV = 12, //
+            V446MV = 13, //
+            V472MV = 14, //
+            V499MV = 15, //
         }
-        
+
         protected enum PKDETCTRL_PKDETTHSTARTUPI
         {
-            V105MV = 0, // 
-            V132MV = 1, // 
-            V157MV = 2, // 
-            V184MV = 3, // 
-            V210MV = 4, // 
-            V236MV = 5, // 
-            V262MV = 6, // 
-            V289MV = 7, // 
-            V315MV = 8, // 
-            V341MV = 9, // 
-            V367MV = 10, // 
-            V394MV = 11, // 
-            V420MV = 12, // 
-            V446MV = 13, // 
-            V472MV = 14, // 
-            V499MV = 15, // 
+            V105MV = 0, //
+            V132MV = 1, //
+            V157MV = 2, //
+            V184MV = 3, //
+            V210MV = 4, //
+            V236MV = 5, //
+            V262MV = 6, //
+            V289MV = 7, //
+            V315MV = 8, //
+            V341MV = 9, //
+            V367MV = 10, //
+            V394MV = 11, //
+            V420MV = 12, //
+            V446MV = 13, //
+            V472MV = 14, //
+            V499MV = 15, //
         }
-        
+
         protected enum PKDETCTRL_PKDETTHSTARTUP
         {
-            V105MV = 0, // 
-            V132MV = 1, // 
-            V157MV = 2, // 
-            V184MV = 3, // 
-            V210MV = 4, // 
-            V236MV = 5, // 
-            V262MV = 6, // 
-            V289MV = 7, // 
-            V315MV = 8, // 
-            V341MV = 9, // 
-            V367MV = 10, // 
-            V394MV = 11, // 
-            V420MV = 12, // 
-            V446MV = 13, // 
-            V472MV = 14, // 
-            V499MV = 15, // 
+            V105MV = 0, //
+            V132MV = 1, //
+            V157MV = 2, //
+            V184MV = 3, //
+            V210MV = 4, //
+            V236MV = 5, //
+            V262MV = 6, //
+            V289MV = 7, //
+            V315MV = 8, //
+            V341MV = 9, //
+            V367MV = 10, //
+            V394MV = 11, //
+            V420MV = 12, //
+            V446MV = 13, //
+            V472MV = 14, //
+            V499MV = 15, //
         }
-        
+
         protected enum PKDETCTRL_PKDETTHHIGH
         {
-            V105MV = 0, // 
-            V132MV = 1, // 
-            V157MV = 2, // 
-            V184MV = 3, // 
-            V210MV = 4, // 
-            V236MV = 5, // 
-            V262MV = 6, // 
-            V289MV = 7, // 
-            V315MV = 8, // 
-            V341MV = 9, // 
-            V367MV = 10, // 
-            V394MV = 11, // 
-            V420MV = 12, // 
-            V446MV = 13, // 
-            V472MV = 14, // 
-            V499MV = 15, // 
+            V105MV = 0, //
+            V132MV = 1, //
+            V157MV = 2, //
+            V184MV = 3, //
+            V210MV = 4, //
+            V236MV = 5, //
+            V262MV = 6, //
+            V289MV = 7, //
+            V315MV = 8, //
+            V341MV = 9, //
+            V367MV = 10, //
+            V394MV = 11, //
+            V420MV = 12, //
+            V446MV = 13, //
+            V472MV = 14, //
+            V499MV = 15, //
         }
-        
+
         protected enum PKDETCTRL_TIMEOUTPKDET
         {
             T4US = 0, // The peak detector timeout is set to 4 us minimum.  The maximum can be +40%.
@@ -379,83 +379,83 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             T16US = 2, // The peak detector timeout is set to 16 us minimum.  The maximum can be +40%.
             T33US = 3, // The peak detector timeout is set to 33 us minimum.  The maximum can be +40%.
         }
-        
+
         protected enum PKDETCTRL_REGLVLANA
         {
-            V1P39 = 0, // 
-            V1P43 = 1, // 
-            V1P47 = 2, // 
-            V1P51 = 3, // 
-            V1P54 = 4, // 
-            V1P57 = 5, // 
-            V1P61 = 6, // 
-            V1P64 = 7, // 
+            V1P39 = 0, //
+            V1P43 = 1, //
+            V1P47 = 2, //
+            V1P51 = 3, //
+            V1P54 = 4, //
+            V1P57 = 5, //
+            V1P61 = 6, //
+            V1P64 = 7, //
         }
-        
+
         protected enum PKDETCTRL_REGLVLSTARTUP
         {
-            V1P39 = 0, // 
-            V1P43 = 1, // 
-            V1P47 = 2, // 
-            V1P51 = 3, // 
-            V1P54 = 4, // 
-            V1P57 = 5, // 
-            V1P61 = 6, // 
-            V1P64 = 7, // 
+            V1P39 = 0, //
+            V1P43 = 1, //
+            V1P47 = 2, //
+            V1P51 = 3, //
+            V1P54 = 4, //
+            V1P57 = 5, //
+            V1P61 = 6, //
+            V1P64 = 7, //
         }
-        
+
         protected enum INTERNALCTRL_SQBUFFILTANA
         {
-            BYPASS = 0, // 
-            FILT1 = 1, // 
-            FILT2 = 2, // 
-            FILT3 = 3, // 
+            BYPASS = 0, //
+            FILT1 = 1, //
+            FILT2 = 2, //
+            FILT3 = 3, //
         }
-        
+
         protected enum INTERNALCTRL_VTRCOREDISSTARTUPANA
         {
-            OFF = 0, // 
-            DISABLE = 1, // 
+            OFF = 0, //
+            DISABLE = 1, //
         }
-        
+
         protected enum INTERNALCTRL_VTRCOREFORCESTARTUPANA
         {
-            OFF = 0, // 
-            FORCE = 1, // 
+            OFF = 0, //
+            FORCE = 1, //
         }
-        
+
         protected enum INTERNALCTRL_VTRREGDISSTARTUPANA
         {
-            OFF = 0, // 
-            DISABLE = 1, // 
+            OFF = 0, //
+            DISABLE = 1, //
         }
-        
+
         protected enum INTERNALCTRL_VTRREGFORCESTARTUPANA
         {
-            OFF = 0, // 
-            FORCE = 1, // 
+            OFF = 0, //
+            FORCE = 1, //
         }
-        
+
         protected enum BUFOUTCTRL_PEAKDETTHRESANA
         {
-            V105MV = 0, // 
-            V132MV = 1, // 
-            V157MV = 2, // 
-            V184MV = 3, // 
-            V210MV = 4, // 
-            V236MV = 5, // 
-            V262MV = 6, // 
-            V289MV = 7, // 
-            V315MV = 8, // 
-            V341MV = 9, // 
-            V367MV = 10, // 
-            V394MV = 11, // 
-            V420MV = 12, // 
-            V446MV = 13, // 
-            V472MV = 14, // 
-            V499MV = 15, // 
+            V105MV = 0, //
+            V132MV = 1, //
+            V157MV = 2, //
+            V184MV = 3, //
+            V210MV = 4, //
+            V236MV = 5, //
+            V262MV = 6, //
+            V289MV = 7, //
+            V315MV = 8, //
+            V341MV = 9, //
+            V367MV = 10, //
+            V394MV = 11, //
+            V420MV = 12, //
+            V446MV = 13, //
+            V472MV = 14, //
+            V499MV = 15, //
         }
-        
+
         protected enum BUFOUTCTRL_TIMEOUTCTUNE
         {
             T2US = 0, // The tuning cap change timeout is set to 2 us minimum.  The maximum can be +40%.
@@ -475,7 +475,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             T521US = 14, // The tuning cap change timeout is set to 521 us minimum.  The maximum can be +40%.
             T938US = 15, // The tuning cap change timeout is set to 938 us minimum.  The maximum can be +40%.
         }
-        
+
         protected enum BUFOUTCTRL_TIMEOUTSTARTUP
         {
             T42US = 0, // The oscillator startup timeout is set to 42 us minimum.  The maximum can be +40%.
@@ -495,44 +495,44 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             T500US = 14, // The oscillator startup timeout is set to 500 us minimum.  The maximum can be +40%.
             T667US = 15, // The oscillator startup timeout is set to 667 us minimum.  The maximum can be +40%.
         }
-        
+
         protected enum STATUS_LOCK
         {
             UNLOCKED = 0, // Configuration lock is unlocked
             LOCKED = 1, // Configuration lock is locked
         }
-        
+
         protected enum DBGSTATUS_PKDETSTATUS
         {
             BELOW = 0, // Oscillator amplitude is below peak detection threshold.
             ABOVE = 1, // Oscillator amplitude is above peak detection threshold.
         }
-        
+
         protected enum DBGSTATUS_XOUTPKDETSTATUS
         {
             BELOW = 0, // BUFOUT amplitude is below peak detection threshold.
             ABOVE = 1, // BUFOUT amplitude is above peak detection threshold.
         }
-        
+
         // Ipversion - Offset : 0x0
         protected DoubleWordRegister  GenerateIpversionRegister() => new DoubleWordRegister(this, 0x3)
             .WithValueField(0, 32, out ipversion_ipversion_field, FieldMode.Read,
                     valueProviderCallback: (_) => {
                         Ipversion_Ipversion_ValueProvider(_);
-                        return ipversion_ipversion_field.Value;               
+                        return ipversion_ipversion_field.Value;
                     },
                     readCallback: (_, __) => Ipversion_Ipversion_Read(_, __),
                     name: "Ipversion")
             .WithReadCallback((_, __) => Ipversion_Read(_, __))
             .WithWriteCallback((_, __) => Ipversion_Write(_, __));
-        
+
         // Trim - Offset : 0x4
         protected DoubleWordRegister  GenerateTrimRegister() => new DoubleWordRegister(this, 0x8770200)
             .WithReservedBits(0, 8)
-            .WithEnumField<DoubleWordRegister, TRIM_VTRREGTCANA>(8, 2, out trim_vtrregtcana_field, 
+            .WithEnumField<DoubleWordRegister, TRIM_VTRREGTCANA>(8, 2, out trim_vtrregtcana_field,
                     valueProviderCallback: (_) => {
                         Trim_Vtrregtcana_ValueProvider(_);
-                        return trim_vtrregtcana_field.Value;               
+                        return trim_vtrregtcana_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -540,10 +540,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Trim_Vtrregtcana_Read(_, __),
                     name: "Vtrregtcana")
-            .WithEnumField<DoubleWordRegister, TRIM_VTRCORETCANA>(10, 2, out trim_vtrcoretcana_field, 
+            .WithEnumField<DoubleWordRegister, TRIM_VTRCORETCANA>(10, 2, out trim_vtrcoretcana_field,
                     valueProviderCallback: (_) => {
                         Trim_Vtrcoretcana_ValueProvider(_);
-                        return trim_vtrcoretcana_field.Value;               
+                        return trim_vtrcoretcana_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -552,10 +552,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     readCallback: (_, __) => Trim_Vtrcoretcana_Read(_, __),
                     name: "Vtrcoretcana")
             .WithReservedBits(12, 4)
-            .WithValueField(16, 4, out trim_vtrcoretrimana_field, 
+            .WithValueField(16, 4, out trim_vtrcoretrimana_field,
                     valueProviderCallback: (_) => {
                         Trim_Vtrcoretrimana_ValueProvider(_);
-                        return trim_vtrcoretrimana_field.Value;               
+                        return trim_vtrcoretrimana_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -563,10 +563,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Trim_Vtrcoretrimana_Read(_, __),
                     name: "Vtrcoretrimana")
-            .WithValueField(20, 4, out trim_vtrregtrimana_field, 
+            .WithValueField(20, 4, out trim_vtrregtrimana_field,
                     valueProviderCallback: (_) => {
                         Trim_Vtrregtrimana_ValueProvider(_);
-                        return trim_vtrregtrimana_field.Value;               
+                        return trim_vtrregtrimana_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -574,10 +574,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Trim_Vtrregtrimana_Read(_, __),
                     name: "Vtrregtrimana")
-            .WithValueField(24, 4, out trim_shuntlvlana_field, 
+            .WithValueField(24, 4, out trim_shuntlvlana_field,
                     valueProviderCallback: (_) => {
                         Trim_Shuntlvlana_ValueProvider(_);
-                        return trim_shuntlvlana_field.Value;               
+                        return trim_shuntlvlana_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -588,7 +588,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             .WithReservedBits(28, 4)
             .WithReadCallback((_, __) => Trim_Read(_, __))
             .WithWriteCallback((_, __) => Trim_Write(_, __));
-        
+
         // Swrst - Offset : 0x8
         protected DoubleWordRegister  GenerateSwrstRegister() => new DoubleWordRegister(this, 0x0)
             .WithFlag(0, out swrst_swrst_bit, FieldMode.Write,
@@ -597,20 +597,20 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             .WithFlag(1, out swrst_resetting_bit, FieldMode.Read,
                     valueProviderCallback: (_) => {
                         Swrst_Resetting_ValueProvider(_);
-                        return swrst_resetting_bit.Value;               
+                        return swrst_resetting_bit.Value;
                     },
                     readCallback: (_, __) => Swrst_Resetting_Read(_, __),
                     name: "Resetting")
             .WithReservedBits(2, 30)
             .WithReadCallback((_, __) => Swrst_Read(_, __))
             .WithWriteCallback((_, __) => Swrst_Write(_, __));
-        
+
         // Xouttrim - Offset : 0xC
         protected DoubleWordRegister  GenerateXouttrimRegister() => new DoubleWordRegister(this, 0x44534)
-            .WithValueField(0, 3, out xouttrim_vregbiastrimibndioana_field, 
+            .WithValueField(0, 3, out xouttrim_vregbiastrimibndioana_field,
                     valueProviderCallback: (_) => {
                         Xouttrim_Vregbiastrimibndioana_ValueProvider(_);
-                        return xouttrim_vregbiastrimibndioana_field.Value;               
+                        return xouttrim_vregbiastrimibndioana_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -619,10 +619,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     readCallback: (_, __) => Xouttrim_Vregbiastrimibndioana_Read(_, __),
                     name: "Vregbiastrimibndioana")
             .WithReservedBits(3, 1)
-            .WithValueField(4, 3, out xouttrim_vregbiastrimibcoreana_field, 
+            .WithValueField(4, 3, out xouttrim_vregbiastrimibcoreana_field,
                     valueProviderCallback: (_) => {
                         Xouttrim_Vregbiastrimibcoreana_ValueProvider(_);
-                        return xouttrim_vregbiastrimibcoreana_field.Value;               
+                        return xouttrim_vregbiastrimibcoreana_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -631,10 +631,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     readCallback: (_, __) => Xouttrim_Vregbiastrimibcoreana_Read(_, __),
                     name: "Vregbiastrimibcoreana")
             .WithReservedBits(7, 1)
-            .WithValueField(8, 2, out xouttrim_xoutcasbiasana_field, 
+            .WithValueField(8, 2, out xouttrim_xoutcasbiasana_field,
                     valueProviderCallback: (_) => {
                         Xouttrim_Xoutcasbiasana_ValueProvider(_);
-                        return xouttrim_xoutcasbiasana_field.Value;               
+                        return xouttrim_xoutcasbiasana_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -642,10 +642,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Xouttrim_Xoutcasbiasana_Read(_, __),
                     name: "Xoutcasbiasana")
-            .WithValueField(10, 2, out xouttrim_xoutpdiocasana_field, 
+            .WithValueField(10, 2, out xouttrim_xoutpdiocasana_field,
                     valueProviderCallback: (_) => {
                         Xouttrim_Xoutpdiocasana_ValueProvider(_);
-                        return xouttrim_xoutpdiocasana_field.Value;               
+                        return xouttrim_xoutpdiocasana_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -653,10 +653,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Xouttrim_Xoutpdiocasana_Read(_, __),
                     name: "Xoutpdiocasana")
-            .WithValueField(12, 4, out xouttrim_xoutcmfiltresana_field, 
+            .WithValueField(12, 4, out xouttrim_xoutcmfiltresana_field,
                     valueProviderCallback: (_) => {
                         Xouttrim_Xoutcmfiltresana_ValueProvider(_);
-                        return xouttrim_xoutcmfiltresana_field.Value;               
+                        return xouttrim_xoutcmfiltresana_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -664,10 +664,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Xouttrim_Xoutcmfiltresana_Read(_, __),
                     name: "Xoutcmfiltresana")
-            .WithValueField(16, 3, out xouttrim_vtrtcana_field, 
+            .WithValueField(16, 3, out xouttrim_vtrtcana_field,
                     valueProviderCallback: (_) => {
                         Xouttrim_Vtrtcana_ValueProvider(_);
-                        return xouttrim_vtrtcana_field.Value;               
+                        return xouttrim_vtrtcana_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -678,13 +678,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             .WithReservedBits(19, 13)
             .WithReadCallback((_, __) => Xouttrim_Read(_, __))
             .WithWriteCallback((_, __) => Xouttrim_Write(_, __));
-        
+
         // Xtalcfg - Offset : 0x10
         protected DoubleWordRegister  GenerateXtalcfgRegister() => new DoubleWordRegister(this, 0xBB00820)
-            .WithValueField(0, 6, out xtalcfg_corebiasstartupi_field, 
+            .WithValueField(0, 6, out xtalcfg_corebiasstartupi_field,
                     valueProviderCallback: (_) => {
                         Xtalcfg_Corebiasstartupi_ValueProvider(_);
-                        return xtalcfg_corebiasstartupi_field.Value;               
+                        return xtalcfg_corebiasstartupi_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -692,10 +692,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Xtalcfg_Corebiasstartupi_Read(_, __),
                     name: "Corebiasstartupi")
-            .WithValueField(6, 6, out xtalcfg_corebiasstartup_field, 
+            .WithValueField(6, 6, out xtalcfg_corebiasstartup_field,
                     valueProviderCallback: (_) => {
                         Xtalcfg_Corebiasstartup_ValueProvider(_);
-                        return xtalcfg_corebiasstartup_field.Value;               
+                        return xtalcfg_corebiasstartup_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -703,10 +703,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Xtalcfg_Corebiasstartup_Read(_, __),
                     name: "Corebiasstartup")
-            .WithValueField(12, 4, out xtalcfg_ctunexistartup_field, 
+            .WithValueField(12, 4, out xtalcfg_ctunexistartup_field,
                     valueProviderCallback: (_) => {
                         Xtalcfg_Ctunexistartup_ValueProvider(_);
-                        return xtalcfg_ctunexistartup_field.Value;               
+                        return xtalcfg_ctunexistartup_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -714,10 +714,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Xtalcfg_Ctunexistartup_Read(_, __),
                     name: "Ctunexistartup")
-            .WithValueField(16, 4, out xtalcfg_ctunexostartup_field, 
+            .WithValueField(16, 4, out xtalcfg_ctunexostartup_field,
                     valueProviderCallback: (_) => {
                         Xtalcfg_Ctunexostartup_ValueProvider(_);
-                        return xtalcfg_ctunexostartup_field.Value;               
+                        return xtalcfg_ctunexostartup_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -725,10 +725,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Xtalcfg_Ctunexostartup_Read(_, __),
                     name: "Ctunexostartup")
-            .WithEnumField<DoubleWordRegister, XTALCFG_TIMEOUTSTEADY>(20, 4, out xtalcfg_timeoutsteady_field, 
+            .WithEnumField<DoubleWordRegister, XTALCFG_TIMEOUTSTEADY>(20, 4, out xtalcfg_timeoutsteady_field,
                     valueProviderCallback: (_) => {
                         Xtalcfg_Timeoutsteady_ValueProvider(_);
-                        return xtalcfg_timeoutsteady_field.Value;               
+                        return xtalcfg_timeoutsteady_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -736,10 +736,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Xtalcfg_Timeoutsteady_Read(_, __),
                     name: "Timeoutsteady")
-            .WithEnumField<DoubleWordRegister, XTALCFG_TIMEOUTCBLSB>(24, 4, out xtalcfg_timeoutcblsb_field, 
+            .WithEnumField<DoubleWordRegister, XTALCFG_TIMEOUTCBLSB>(24, 4, out xtalcfg_timeoutcblsb_field,
                     valueProviderCallback: (_) => {
                         Xtalcfg_Timeoutcblsb_ValueProvider(_);
-                        return xtalcfg_timeoutcblsb_field.Value;               
+                        return xtalcfg_timeoutcblsb_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -750,13 +750,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             .WithReservedBits(28, 4)
             .WithReadCallback((_, __) => Xtalcfg_Read(_, __))
             .WithWriteCallback((_, __) => Xtalcfg_Write(_, __));
-        
+
         // Xtalctrl - Offset : 0x18
         protected DoubleWordRegister  GenerateXtalctrlRegister() => new DoubleWordRegister(this, 0x33C3C3C)
-            .WithValueField(0, 8, out xtalctrl_corebiasana_field, 
+            .WithValueField(0, 8, out xtalctrl_corebiasana_field,
                     valueProviderCallback: (_) => {
                         Xtalctrl_Corebiasana_ValueProvider(_);
-                        return xtalctrl_corebiasana_field.Value;               
+                        return xtalctrl_corebiasana_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteRWSYNC();
@@ -764,10 +764,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Xtalctrl_Corebiasana_Read(_, __),
                     name: "Corebiasana")
-            .WithValueField(8, 8, out xtalctrl_ctunexiana_field, 
+            .WithValueField(8, 8, out xtalctrl_ctunexiana_field,
                     valueProviderCallback: (_) => {
                         Xtalctrl_Ctunexiana_ValueProvider(_);
-                        return xtalctrl_ctunexiana_field.Value;               
+                        return xtalctrl_ctunexiana_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -775,10 +775,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Xtalctrl_Ctunexiana_Read(_, __),
                     name: "Ctunexiana")
-            .WithValueField(16, 8, out xtalctrl_ctunexoana_field, 
+            .WithValueField(16, 8, out xtalctrl_ctunexoana_field,
                     valueProviderCallback: (_) => {
                         Xtalctrl_Ctunexoana_ValueProvider(_);
-                        return xtalctrl_ctunexoana_field.Value;               
+                        return xtalctrl_ctunexoana_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -786,10 +786,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Xtalctrl_Ctunexoana_Read(_, __),
                     name: "Ctunexoana")
-            .WithEnumField<DoubleWordRegister, XTALCTRL_CTUNEFIXANA>(24, 2, out xtalctrl_ctunefixana_field, 
+            .WithEnumField<DoubleWordRegister, XTALCTRL_CTUNEFIXANA>(24, 2, out xtalctrl_ctunefixana_field,
                     valueProviderCallback: (_) => {
                         Xtalctrl_Ctunefixana_ValueProvider(_);
-                        return xtalctrl_ctunefixana_field.Value;               
+                        return xtalctrl_ctunefixana_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -797,10 +797,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Xtalctrl_Ctunefixana_Read(_, __),
                     name: "Ctunefixana")
-            .WithEnumField<DoubleWordRegister, XTALCTRL_COREDGENANA>(26, 2, out xtalctrl_coredgenana_field, 
+            .WithEnumField<DoubleWordRegister, XTALCTRL_COREDGENANA>(26, 2, out xtalctrl_coredgenana_field,
                     valueProviderCallback: (_) => {
                         Xtalctrl_Coredgenana_ValueProvider(_);
-                        return xtalctrl_coredgenana_field.Value;               
+                        return xtalctrl_coredgenana_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -809,10 +809,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     readCallback: (_, __) => Xtalctrl_Coredgenana_Read(_, __),
                     name: "Coredgenana")
             .WithReservedBits(28, 3)
-            .WithFlag(31, out xtalctrl_skipcorebiasopt_bit, 
+            .WithFlag(31, out xtalctrl_skipcorebiasopt_bit,
                     valueProviderCallback: (_) => {
                         Xtalctrl_Skipcorebiasopt_ValueProvider(_);
-                        return xtalctrl_skipcorebiasopt_bit.Value;               
+                        return xtalctrl_skipcorebiasopt_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteRWSYNC();
@@ -822,13 +822,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     name: "Skipcorebiasopt")
             .WithReadCallback((_, __) => Xtalctrl_Read(_, __))
             .WithWriteCallback((_, __) => Xtalctrl_Write(_, __));
-        
+
         // Xtalctrl1 - Offset : 0x1C
         protected DoubleWordRegister  GenerateXtalctrl1Register() => new DoubleWordRegister(this, 0x3C)
-            .WithValueField(0, 8, out xtalctrl1_ctunexibufoutana_field, 
+            .WithValueField(0, 8, out xtalctrl1_ctunexibufoutana_field,
                     valueProviderCallback: (_) => {
                         Xtalctrl1_Ctunexibufoutana_ValueProvider(_);
-                        return xtalctrl1_ctunexibufoutana_field.Value;               
+                        return xtalctrl1_ctunexibufoutana_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -839,13 +839,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             .WithReservedBits(8, 24)
             .WithReadCallback((_, __) => Xtalctrl1_Read(_, __))
             .WithWriteCallback((_, __) => Xtalctrl1_Write(_, __));
-        
+
         // Cfg - Offset : 0x20
         protected DoubleWordRegister  GenerateCfgRegister() => new DoubleWordRegister(this, 0x10000000)
-            .WithEnumField<DoubleWordRegister, CFG_MODE>(0, 2, out cfg_mode_field, 
+            .WithEnumField<DoubleWordRegister, CFG_MODE>(0, 2, out cfg_mode_field,
                     valueProviderCallback: (_) => {
                         Cfg_Mode_ValueProvider(_);
-                        return cfg_mode_field.Value;               
+                        return cfg_mode_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -853,10 +853,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Cfg_Mode_Read(_, __),
                     name: "Mode")
-            .WithFlag(2, out cfg_enxidcbiasana_bit, 
+            .WithFlag(2, out cfg_enxidcbiasana_bit,
                     valueProviderCallback: (_) => {
                         Cfg_Enxidcbiasana_ValueProvider(_);
-                        return cfg_enxidcbiasana_bit.Value;               
+                        return cfg_enxidcbiasana_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -864,10 +864,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Cfg_Enxidcbiasana_Read(_, __),
                     name: "Enxidcbiasana")
-            .WithEnumField<DoubleWordRegister, CFG_SQBUFSCHTRGANA>(3, 1, out cfg_sqbufschtrgana_bit, 
+            .WithEnumField<DoubleWordRegister, CFG_SQBUFSCHTRGANA>(3, 1, out cfg_sqbufschtrgana_bit,
                     valueProviderCallback: (_) => {
                         Cfg_Sqbufschtrgana_ValueProvider(_);
-                        return cfg_sqbufschtrgana_bit.Value;               
+                        return cfg_sqbufschtrgana_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -876,10 +876,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     readCallback: (_, __) => Cfg_Sqbufschtrgana_Read(_, __),
                     name: "Sqbufschtrgana")
             .WithReservedBits(4, 24)
-            .WithFlag(28, out cfg_forcelftimeout_bit, 
+            .WithFlag(28, out cfg_forcelftimeout_bit,
                     valueProviderCallback: (_) => {
                         Cfg_Forcelftimeout_ValueProvider(_);
-                        return cfg_forcelftimeout_bit.Value;               
+                        return cfg_forcelftimeout_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -887,10 +887,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Cfg_Forcelftimeout_Read(_, __),
                     name: "Forcelftimeout")
-            .WithFlag(29, out cfg_forcehftimeout_bit, 
+            .WithFlag(29, out cfg_forcehftimeout_bit,
                     valueProviderCallback: (_) => {
                         Cfg_Forcehftimeout_ValueProvider(_);
-                        return cfg_forcehftimeout_bit.Value;               
+                        return cfg_forcehftimeout_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -899,10 +899,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     readCallback: (_, __) => Cfg_Forcehftimeout_Read(_, __),
                     name: "Forcehftimeout")
             .WithReservedBits(30, 1)
-            .WithFlag(31, out cfg_disfsm_bit, 
+            .WithFlag(31, out cfg_disfsm_bit,
                     valueProviderCallback: (_) => {
                         Cfg_Disfsm_ValueProvider(_);
-                        return cfg_disfsm_bit.Value;               
+                        return cfg_disfsm_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -912,13 +912,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     name: "Disfsm")
             .WithReadCallback((_, __) => Cfg_Read(_, __))
             .WithWriteCallback((_, __) => Cfg_Write(_, __));
-        
+
         // Ctrl - Offset : 0x28
         protected DoubleWordRegister  GenerateCtrlRegister() => new DoubleWordRegister(this, 0x7000040)
-            .WithFlag(0, out ctrl_bufoutfreeze_bit, 
+            .WithFlag(0, out ctrl_bufoutfreeze_bit,
                     valueProviderCallback: (_) => {
                         Ctrl_Bufoutfreeze_ValueProvider(_);
-                        return ctrl_bufoutfreeze_bit.Value;               
+                        return ctrl_bufoutfreeze_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -927,10 +927,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     readCallback: (_, __) => Ctrl_Bufoutfreeze_Read(_, __),
                     name: "Bufoutfreeze")
             .WithReservedBits(1, 1)
-            .WithFlag(2, out ctrl_keepwarm_bit, 
+            .WithFlag(2, out ctrl_keepwarm_bit,
                     valueProviderCallback: (_) => {
                         Ctrl_Keepwarm_ValueProvider(_);
-                        return ctrl_keepwarm_bit.Value;               
+                        return ctrl_keepwarm_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -938,10 +938,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Ctrl_Keepwarm_Read(_, __),
                     name: "Keepwarm")
-            .WithFlag(3, out ctrl_em23ondemand_bit, 
+            .WithFlag(3, out ctrl_em23ondemand_bit,
                     valueProviderCallback: (_) => {
                         Ctrl_Em23ondemand_ValueProvider(_);
-                        return ctrl_em23ondemand_bit.Value;               
+                        return ctrl_em23ondemand_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -949,10 +949,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Ctrl_Em23ondemand_Read(_, __),
                     name: "Em23ondemand")
-            .WithEnumField<DoubleWordRegister, CTRL_FORCEXI2GNDANA>(4, 1, out ctrl_forcexi2gndana_bit, 
+            .WithEnumField<DoubleWordRegister, CTRL_FORCEXI2GNDANA>(4, 1, out ctrl_forcexi2gndana_bit,
                     valueProviderCallback: (_) => {
                         Ctrl_Forcexi2gndana_ValueProvider(_);
-                        return ctrl_forcexi2gndana_bit.Value;               
+                        return ctrl_forcexi2gndana_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -960,10 +960,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Ctrl_Forcexi2gndana_Read(_, __),
                     name: "Forcexi2gndana")
-            .WithEnumField<DoubleWordRegister, CTRL_FORCEXO2GNDANA>(5, 1, out ctrl_forcexo2gndana_bit, 
+            .WithEnumField<DoubleWordRegister, CTRL_FORCEXO2GNDANA>(5, 1, out ctrl_forcexo2gndana_bit,
                     valueProviderCallback: (_) => {
                         Ctrl_Forcexo2gndana_ValueProvider(_);
-                        return ctrl_forcexo2gndana_bit.Value;               
+                        return ctrl_forcexo2gndana_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -971,10 +971,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Ctrl_Forcexo2gndana_Read(_, __),
                     name: "Forcexo2gndana")
-            .WithFlag(6, out ctrl_forcectunemax_bit, 
+            .WithFlag(6, out ctrl_forcectunemax_bit,
                     valueProviderCallback: (_) => {
                         Ctrl_Forcectunemax_ValueProvider(_);
-                        return ctrl_forcectunemax_bit.Value;               
+                        return ctrl_forcectunemax_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteRWSYNC();
@@ -983,10 +983,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     readCallback: (_, __) => Ctrl_Forcectunemax_Read(_, __),
                     name: "Forcectunemax")
             .WithReservedBits(7, 1)
-            .WithEnumField<DoubleWordRegister, CTRL_PRSSTATUSSEL0>(8, 4, out ctrl_prsstatussel0_field, 
+            .WithEnumField<DoubleWordRegister, CTRL_PRSSTATUSSEL0>(8, 4, out ctrl_prsstatussel0_field,
                     valueProviderCallback: (_) => {
                         Ctrl_Prsstatussel0_ValueProvider(_);
-                        return ctrl_prsstatussel0_field.Value;               
+                        return ctrl_prsstatussel0_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -994,10 +994,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Ctrl_Prsstatussel0_Read(_, __),
                     name: "Prsstatussel0")
-            .WithEnumField<DoubleWordRegister, CTRL_PRSSTATUSSEL1>(12, 4, out ctrl_prsstatussel1_field, 
+            .WithEnumField<DoubleWordRegister, CTRL_PRSSTATUSSEL1>(12, 4, out ctrl_prsstatussel1_field,
                     valueProviderCallback: (_) => {
                         Ctrl_Prsstatussel1_ValueProvider(_);
-                        return ctrl_prsstatussel1_field.Value;               
+                        return ctrl_prsstatussel1_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1005,10 +1005,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Ctrl_Prsstatussel1_Read(_, __),
                     name: "Prsstatussel1")
-            .WithFlag(16, out ctrl_forceen_bit, 
+            .WithFlag(16, out ctrl_forceen_bit,
                     valueProviderCallback: (_) => {
                         Ctrl_Forceen_ValueProvider(_);
-                        return ctrl_forceen_bit.Value;               
+                        return ctrl_forceen_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1016,10 +1016,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Ctrl_Forceen_Read(_, __),
                     name: "Forceen")
-            .WithFlag(17, out ctrl_forceenprs_bit, 
+            .WithFlag(17, out ctrl_forceenprs_bit,
                     valueProviderCallback: (_) => {
                         Ctrl_Forceenprs_ValueProvider(_);
-                        return ctrl_forceenprs_bit.Value;               
+                        return ctrl_forceenprs_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1027,10 +1027,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Ctrl_Forceenprs_Read(_, __),
                     name: "Forceenprs")
-            .WithFlag(18, out ctrl_forceenbufout_bit, 
+            .WithFlag(18, out ctrl_forceenbufout_bit,
                     valueProviderCallback: (_) => {
                         Ctrl_Forceenbufout_ValueProvider(_);
-                        return ctrl_forceenbufout_bit.Value;               
+                        return ctrl_forceenbufout_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1039,10 +1039,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     readCallback: (_, __) => Ctrl_Forceenbufout_Read(_, __),
                     name: "Forceenbufout")
             .WithReservedBits(19, 5)
-            .WithFlag(24, out ctrl_disondemand_bit, 
+            .WithFlag(24, out ctrl_disondemand_bit,
                     valueProviderCallback: (_) => {
                         Ctrl_Disondemand_ValueProvider(_);
-                        return ctrl_disondemand_bit.Value;               
+                        return ctrl_disondemand_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1050,10 +1050,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Ctrl_Disondemand_Read(_, __),
                     name: "Disondemand")
-            .WithFlag(25, out ctrl_disondemandprs_bit, 
+            .WithFlag(25, out ctrl_disondemandprs_bit,
                     valueProviderCallback: (_) => {
                         Ctrl_Disondemandprs_ValueProvider(_);
-                        return ctrl_disondemandprs_bit.Value;               
+                        return ctrl_disondemandprs_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1061,10 +1061,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Ctrl_Disondemandprs_Read(_, __),
                     name: "Disondemandprs")
-            .WithFlag(26, out ctrl_disondemandbufout_bit, 
+            .WithFlag(26, out ctrl_disondemandbufout_bit,
                     valueProviderCallback: (_) => {
                         Ctrl_Disondemandbufout_ValueProvider(_);
-                        return ctrl_disondemandbufout_bit.Value;               
+                        return ctrl_disondemandbufout_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1073,10 +1073,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     readCallback: (_, __) => Ctrl_Disondemandbufout_Read(_, __),
                     name: "Disondemandbufout")
             .WithReservedBits(27, 4)
-            .WithFlag(31, out ctrl_forcerawclk_bit, 
+            .WithFlag(31, out ctrl_forcerawclk_bit,
                     valueProviderCallback: (_) => {
                         Ctrl_Forcerawclk_ValueProvider(_);
-                        return ctrl_forcerawclk_bit.Value;               
+                        return ctrl_forcerawclk_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1086,13 +1086,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     name: "Forcerawclk")
             .WithReadCallback((_, __) => Ctrl_Read(_, __))
             .WithWriteCallback((_, __) => Ctrl_Write(_, __));
-        
+
         // Pkdetctrl1 - Offset : 0x2C
         protected DoubleWordRegister  GeneratePkdetctrl1Register() => new DoubleWordRegister(this, 0x0)
-            .WithFlag(0, out pkdetctrl1_notimeouterr_bit, 
+            .WithFlag(0, out pkdetctrl1_notimeouterr_bit,
                     valueProviderCallback: (_) => {
                         Pkdetctrl1_Notimeouterr_ValueProvider(_);
-                        return pkdetctrl1_notimeouterr_bit.Value;               
+                        return pkdetctrl1_notimeouterr_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1103,13 +1103,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             .WithReservedBits(1, 31)
             .WithReadCallback((_, __) => Pkdetctrl1_Read(_, __))
             .WithWriteCallback((_, __) => Pkdetctrl1_Write(_, __));
-        
+
         // Lowpwrctrl - Offset : 0x30
         protected DoubleWordRegister  GenerateLowpwrctrlRegister() => new DoubleWordRegister(this, 0xC32F)
-            .WithValueField(0, 4, out lowpwrctrl_lowpowermodeana_field, 
+            .WithValueField(0, 4, out lowpwrctrl_lowpowermodeana_field,
                     valueProviderCallback: (_) => {
                         Lowpwrctrl_Lowpowermodeana_ValueProvider(_);
-                        return lowpwrctrl_lowpowermodeana_field.Value;               
+                        return lowpwrctrl_lowpowermodeana_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1117,10 +1117,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Lowpwrctrl_Lowpowermodeana_Read(_, __),
                     name: "Lowpowermodeana")
-            .WithEnumField<DoubleWordRegister, LOWPWRCTRL_SQBUFBIASRESANA>(4, 2, out lowpwrctrl_sqbufbiasresana_field, 
+            .WithEnumField<DoubleWordRegister, LOWPWRCTRL_SQBUFBIASRESANA>(4, 2, out lowpwrctrl_sqbufbiasresana_field,
                     valueProviderCallback: (_) => {
                         Lowpwrctrl_Sqbufbiasresana_ValueProvider(_);
-                        return lowpwrctrl_sqbufbiasresana_field.Value;               
+                        return lowpwrctrl_sqbufbiasresana_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1129,10 +1129,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     readCallback: (_, __) => Lowpwrctrl_Sqbufbiasresana_Read(_, __),
                     name: "Sqbufbiasresana")
             .WithReservedBits(6, 2)
-            .WithEnumField<DoubleWordRegister, LOWPWRCTRL_SQBUFBIASANA>(8, 3, out lowpwrctrl_sqbufbiasana_field, 
+            .WithEnumField<DoubleWordRegister, LOWPWRCTRL_SQBUFBIASANA>(8, 3, out lowpwrctrl_sqbufbiasana_field,
                     valueProviderCallback: (_) => {
                         Lowpwrctrl_Sqbufbiasana_ValueProvider(_);
-                        return lowpwrctrl_sqbufbiasana_field.Value;               
+                        return lowpwrctrl_sqbufbiasana_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1141,10 +1141,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     readCallback: (_, __) => Lowpwrctrl_Sqbufbiasana_Read(_, __),
                     name: "Sqbufbiasana")
             .WithReservedBits(11, 1)
-            .WithEnumField<DoubleWordRegister, LOWPWRCTRL_SHUNTBIASANA>(12, 4, out lowpwrctrl_shuntbiasana_field, 
+            .WithEnumField<DoubleWordRegister, LOWPWRCTRL_SHUNTBIASANA>(12, 4, out lowpwrctrl_shuntbiasana_field,
                     valueProviderCallback: (_) => {
                         Lowpwrctrl_Shuntbiasana_ValueProvider(_);
-                        return lowpwrctrl_shuntbiasana_field.Value;               
+                        return lowpwrctrl_shuntbiasana_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1152,10 +1152,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Lowpwrctrl_Shuntbiasana_Read(_, __),
                     name: "Shuntbiasana")
-            .WithEnumField<DoubleWordRegister, LOWPWRCTRL_TIMEOUTWARM>(16, 3, out lowpwrctrl_timeoutwarm_field, 
+            .WithEnumField<DoubleWordRegister, LOWPWRCTRL_TIMEOUTWARM>(16, 3, out lowpwrctrl_timeoutwarm_field,
                     valueProviderCallback: (_) => {
                         Lowpwrctrl_Timeoutwarm_ValueProvider(_);
-                        return lowpwrctrl_timeoutwarm_field.Value;               
+                        return lowpwrctrl_timeoutwarm_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1166,13 +1166,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             .WithReservedBits(19, 13)
             .WithReadCallback((_, __) => Lowpwrctrl_Read(_, __))
             .WithWriteCallback((_, __) => Lowpwrctrl_Write(_, __));
-        
+
         // Pkdetctrl - Offset : 0x34
         protected DoubleWordRegister  GeneratePkdetctrlRegister() => new DoubleWordRegister(this, 0x81B78558)
-            .WithFlag(0, out pkdetctrl_enpkdetana_bit, 
+            .WithFlag(0, out pkdetctrl_enpkdetana_bit,
                     valueProviderCallback: (_) => {
                         Pkdetctrl_Enpkdetana_ValueProvider(_);
-                        return pkdetctrl_enpkdetana_bit.Value;               
+                        return pkdetctrl_enpkdetana_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1180,10 +1180,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Pkdetctrl_Enpkdetana_Read(_, __),
                     name: "Enpkdetana")
-            .WithEnumField<DoubleWordRegister, PKDETCTRL_PKDETNODEANA>(1, 1, out pkdetctrl_pkdetnodeana_bit, 
+            .WithEnumField<DoubleWordRegister, PKDETCTRL_PKDETNODEANA>(1, 1, out pkdetctrl_pkdetnodeana_bit,
                     valueProviderCallback: (_) => {
                         Pkdetctrl_Pkdetnodeana_ValueProvider(_);
-                        return pkdetctrl_pkdetnodeana_bit.Value;               
+                        return pkdetctrl_pkdetnodeana_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1191,10 +1191,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Pkdetctrl_Pkdetnodeana_Read(_, __),
                     name: "Pkdetnodeana")
-            .WithEnumField<DoubleWordRegister, PKDETCTRL_PKDETNODESTARTUPI>(2, 1, out pkdetctrl_pkdetnodestartupi_bit, 
+            .WithEnumField<DoubleWordRegister, PKDETCTRL_PKDETNODESTARTUPI>(2, 1, out pkdetctrl_pkdetnodestartupi_bit,
                     valueProviderCallback: (_) => {
                         Pkdetctrl_Pkdetnodestartupi_ValueProvider(_);
-                        return pkdetctrl_pkdetnodestartupi_bit.Value;               
+                        return pkdetctrl_pkdetnodestartupi_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1202,10 +1202,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Pkdetctrl_Pkdetnodestartupi_Read(_, __),
                     name: "Pkdetnodestartupi")
-            .WithEnumField<DoubleWordRegister, PKDETCTRL_PKDETNODESTARTUP>(3, 1, out pkdetctrl_pkdetnodestartup_bit, 
+            .WithEnumField<DoubleWordRegister, PKDETCTRL_PKDETNODESTARTUP>(3, 1, out pkdetctrl_pkdetnodestartup_bit,
                     valueProviderCallback: (_) => {
                         Pkdetctrl_Pkdetnodestartup_ValueProvider(_);
-                        return pkdetctrl_pkdetnodestartup_bit.Value;               
+                        return pkdetctrl_pkdetnodestartup_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteRWSYNC();
@@ -1213,10 +1213,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Pkdetctrl_Pkdetnodestartup_Read(_, __),
                     name: "Pkdetnodestartup")
-            .WithEnumField<DoubleWordRegister, PKDETCTRL_PKDETTHANA>(4, 4, out pkdetctrl_pkdetthana_field, 
+            .WithEnumField<DoubleWordRegister, PKDETCTRL_PKDETTHANA>(4, 4, out pkdetctrl_pkdetthana_field,
                     valueProviderCallback: (_) => {
                         Pkdetctrl_Pkdetthana_ValueProvider(_);
-                        return pkdetctrl_pkdetthana_field.Value;               
+                        return pkdetctrl_pkdetthana_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1224,10 +1224,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Pkdetctrl_Pkdetthana_Read(_, __),
                     name: "Pkdetthana")
-            .WithEnumField<DoubleWordRegister, PKDETCTRL_PKDETTHSTARTUPI>(8, 4, out pkdetctrl_pkdetthstartupi_field, 
+            .WithEnumField<DoubleWordRegister, PKDETCTRL_PKDETTHSTARTUPI>(8, 4, out pkdetctrl_pkdetthstartupi_field,
                     valueProviderCallback: (_) => {
                         Pkdetctrl_Pkdetthstartupi_ValueProvider(_);
-                        return pkdetctrl_pkdetthstartupi_field.Value;               
+                        return pkdetctrl_pkdetthstartupi_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1235,10 +1235,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Pkdetctrl_Pkdetthstartupi_Read(_, __),
                     name: "Pkdetthstartupi")
-            .WithEnumField<DoubleWordRegister, PKDETCTRL_PKDETTHSTARTUP>(12, 4, out pkdetctrl_pkdetthstartup_field, 
+            .WithEnumField<DoubleWordRegister, PKDETCTRL_PKDETTHSTARTUP>(12, 4, out pkdetctrl_pkdetthstartup_field,
                     valueProviderCallback: (_) => {
                         Pkdetctrl_Pkdetthstartup_ValueProvider(_);
-                        return pkdetctrl_pkdetthstartup_field.Value;               
+                        return pkdetctrl_pkdetthstartup_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1246,10 +1246,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Pkdetctrl_Pkdetthstartup_Read(_, __),
                     name: "Pkdetthstartup")
-            .WithEnumField<DoubleWordRegister, PKDETCTRL_PKDETTHHIGH>(16, 4, out pkdetctrl_pkdetthhigh_field, 
+            .WithEnumField<DoubleWordRegister, PKDETCTRL_PKDETTHHIGH>(16, 4, out pkdetctrl_pkdetthhigh_field,
                     valueProviderCallback: (_) => {
                         Pkdetctrl_Pkdetthhigh_ValueProvider(_);
-                        return pkdetctrl_pkdetthhigh_field.Value;               
+                        return pkdetctrl_pkdetthhigh_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1257,10 +1257,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Pkdetctrl_Pkdetthhigh_Read(_, __),
                     name: "Pkdetthhigh")
-            .WithValueField(20, 3, out pkdetctrl_pkdetstep_field, 
+            .WithValueField(20, 3, out pkdetctrl_pkdetstep_field,
                     valueProviderCallback: (_) => {
                         Pkdetctrl_Pkdetstep_ValueProvider(_);
-                        return pkdetctrl_pkdetstep_field.Value;               
+                        return pkdetctrl_pkdetstep_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteRWSYNC();
@@ -1268,10 +1268,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Pkdetctrl_Pkdetstep_Read(_, __),
                     name: "Pkdetstep")
-            .WithFlag(23, out pkdetctrl_enpkdetfsm_bit, 
+            .WithFlag(23, out pkdetctrl_enpkdetfsm_bit,
                     valueProviderCallback: (_) => {
                         Pkdetctrl_Enpkdetfsm_ValueProvider(_);
-                        return pkdetctrl_enpkdetfsm_bit.Value;               
+                        return pkdetctrl_enpkdetfsm_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteRWSYNC();
@@ -1279,10 +1279,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Pkdetctrl_Enpkdetfsm_Read(_, __),
                     name: "Enpkdetfsm")
-            .WithEnumField<DoubleWordRegister, PKDETCTRL_TIMEOUTPKDET>(24, 2, out pkdetctrl_timeoutpkdet_field, 
+            .WithEnumField<DoubleWordRegister, PKDETCTRL_TIMEOUTPKDET>(24, 2, out pkdetctrl_timeoutpkdet_field,
                     valueProviderCallback: (_) => {
                         Pkdetctrl_Timeoutpkdet_ValueProvider(_);
-                        return pkdetctrl_timeoutpkdet_field.Value;               
+                        return pkdetctrl_timeoutpkdet_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1290,10 +1290,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Pkdetctrl_Timeoutpkdet_Read(_, __),
                     name: "Timeoutpkdet")
-            .WithEnumField<DoubleWordRegister, PKDETCTRL_REGLVLANA>(26, 3, out pkdetctrl_reglvlana_field, 
+            .WithEnumField<DoubleWordRegister, PKDETCTRL_REGLVLANA>(26, 3, out pkdetctrl_reglvlana_field,
                     valueProviderCallback: (_) => {
                         Pkdetctrl_Reglvlana_ValueProvider(_);
-                        return pkdetctrl_reglvlana_field.Value;               
+                        return pkdetctrl_reglvlana_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1301,10 +1301,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Pkdetctrl_Reglvlana_Read(_, __),
                     name: "Reglvlana")
-            .WithEnumField<DoubleWordRegister, PKDETCTRL_REGLVLSTARTUP>(29, 3, out pkdetctrl_reglvlstartup_field, 
+            .WithEnumField<DoubleWordRegister, PKDETCTRL_REGLVLSTARTUP>(29, 3, out pkdetctrl_reglvlstartup_field,
                     valueProviderCallback: (_) => {
                         Pkdetctrl_Reglvlstartup_ValueProvider(_);
-                        return pkdetctrl_reglvlstartup_field.Value;               
+                        return pkdetctrl_reglvlstartup_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1314,13 +1314,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     name: "Reglvlstartup")
             .WithReadCallback((_, __) => Pkdetctrl_Read(_, __))
             .WithWriteCallback((_, __) => Pkdetctrl_Write(_, __));
-        
+
         // Internalctrl - Offset : 0x38
         protected DoubleWordRegister  GenerateInternalctrlRegister() => new DoubleWordRegister(this, 0x9029F)
-            .WithFlag(0, out internalctrl_enregvtrana_bit, 
+            .WithFlag(0, out internalctrl_enregvtrana_bit,
                     valueProviderCallback: (_) => {
                         Internalctrl_Enregvtrana_ValueProvider(_);
-                        return internalctrl_enregvtrana_bit.Value;               
+                        return internalctrl_enregvtrana_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1328,10 +1328,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Internalctrl_Enregvtrana_Read(_, __),
                     name: "Enregvtrana")
-            .WithFlag(1, out internalctrl_enregana_bit, 
+            .WithFlag(1, out internalctrl_enregana_bit,
                     valueProviderCallback: (_) => {
                         Internalctrl_Enregana_ValueProvider(_);
-                        return internalctrl_enregana_bit.Value;               
+                        return internalctrl_enregana_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1339,10 +1339,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Internalctrl_Enregana_Read(_, __),
                     name: "Enregana")
-            .WithFlag(2, out internalctrl_encorevtrana_bit, 
+            .WithFlag(2, out internalctrl_encorevtrana_bit,
                     valueProviderCallback: (_) => {
                         Internalctrl_Encorevtrana_ValueProvider(_);
-                        return internalctrl_encorevtrana_bit.Value;               
+                        return internalctrl_encorevtrana_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1350,10 +1350,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Internalctrl_Encorevtrana_Read(_, __),
                     name: "Encorevtrana")
-            .WithFlag(3, out internalctrl_ensqbufana_bit, 
+            .WithFlag(3, out internalctrl_ensqbufana_bit,
                     valueProviderCallback: (_) => {
                         Internalctrl_Ensqbufana_ValueProvider(_);
-                        return internalctrl_ensqbufana_bit.Value;               
+                        return internalctrl_ensqbufana_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1361,10 +1361,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Internalctrl_Ensqbufana_Read(_, __),
                     name: "Ensqbufana")
-            .WithFlag(4, out internalctrl_encoreana_bit, 
+            .WithFlag(4, out internalctrl_encoreana_bit,
                     valueProviderCallback: (_) => {
                         Internalctrl_Encoreana_ValueProvider(_);
-                        return internalctrl_encoreana_bit.Value;               
+                        return internalctrl_encoreana_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteRWSYNC();
@@ -1373,10 +1373,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     readCallback: (_, __) => Internalctrl_Encoreana_Read(_, __),
                     name: "Encoreana")
             .WithReservedBits(5, 1)
-            .WithFlag(6, out internalctrl_shortxi2xoana_bit, 
+            .WithFlag(6, out internalctrl_shortxi2xoana_bit,
                     valueProviderCallback: (_) => {
                         Internalctrl_Shortxi2xoana_ValueProvider(_);
-                        return internalctrl_shortxi2xoana_bit.Value;               
+                        return internalctrl_shortxi2xoana_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1384,10 +1384,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Internalctrl_Shortxi2xoana_Read(_, __),
                     name: "Shortxi2xoana")
-            .WithFlag(7, out internalctrl_shortxi2xofsm_bit, 
+            .WithFlag(7, out internalctrl_shortxi2xofsm_bit,
                     valueProviderCallback: (_) => {
                         Internalctrl_Shortxi2xofsm_ValueProvider(_);
-                        return internalctrl_shortxi2xofsm_bit.Value;               
+                        return internalctrl_shortxi2xofsm_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteRWSYNC();
@@ -1395,10 +1395,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Internalctrl_Shortxi2xofsm_Read(_, __),
                     name: "Shortxi2xofsm")
-            .WithFlag(8, out internalctrl_enhighgmmodeana_bit, 
+            .WithFlag(8, out internalctrl_enhighgmmodeana_bit,
                     valueProviderCallback: (_) => {
                         Internalctrl_Enhighgmmodeana_ValueProvider(_);
-                        return internalctrl_enhighgmmodeana_bit.Value;               
+                        return internalctrl_enhighgmmodeana_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1406,10 +1406,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Internalctrl_Enhighgmmodeana_Read(_, __),
                     name: "Enhighgmmodeana")
-            .WithFlag(9, out internalctrl_enhighgmmodefsm_bit, 
+            .WithFlag(9, out internalctrl_enhighgmmodefsm_bit,
                     valueProviderCallback: (_) => {
                         Internalctrl_Enhighgmmodefsm_ValueProvider(_);
-                        return internalctrl_enhighgmmodefsm_bit.Value;               
+                        return internalctrl_enhighgmmodefsm_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteRWSYNC();
@@ -1417,10 +1417,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Internalctrl_Enhighgmmodefsm_Read(_, __),
                     name: "Enhighgmmodefsm")
-            .WithEnumField<DoubleWordRegister, INTERNALCTRL_SQBUFFILTANA>(10, 2, out internalctrl_sqbuffiltana_field, 
+            .WithEnumField<DoubleWordRegister, INTERNALCTRL_SQBUFFILTANA>(10, 2, out internalctrl_sqbuffiltana_field,
                     valueProviderCallback: (_) => {
                         Internalctrl_Sqbuffiltana_ValueProvider(_);
-                        return internalctrl_sqbuffiltana_field.Value;               
+                        return internalctrl_sqbuffiltana_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1428,10 +1428,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Internalctrl_Sqbuffiltana_Read(_, __),
                     name: "Sqbuffiltana")
-            .WithFlag(12, out internalctrl_enclkdifana_bit, 
+            .WithFlag(12, out internalctrl_enclkdifana_bit,
                     valueProviderCallback: (_) => {
                         Internalctrl_Enclkdifana_ValueProvider(_);
-                        return internalctrl_enclkdifana_bit.Value;               
+                        return internalctrl_enclkdifana_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1440,10 +1440,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     readCallback: (_, __) => Internalctrl_Enclkdifana_Read(_, __),
                     name: "Enclkdifana")
             .WithReservedBits(13, 3)
-            .WithFlag(16, out internalctrl_enclkdigana_bit, 
+            .WithFlag(16, out internalctrl_enclkdigana_bit,
                     valueProviderCallback: (_) => {
                         Internalctrl_Enclkdigana_ValueProvider(_);
-                        return internalctrl_enclkdigana_bit.Value;               
+                        return internalctrl_enclkdigana_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1451,10 +1451,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Internalctrl_Enclkdigana_Read(_, __),
                     name: "Enclkdigana")
-            .WithFlag(17, out internalctrl_enclkauxadcana_bit, 
+            .WithFlag(17, out internalctrl_enclkauxadcana_bit,
                     valueProviderCallback: (_) => {
                         Internalctrl_Enclkauxadcana_ValueProvider(_);
-                        return internalctrl_enclkauxadcana_bit.Value;               
+                        return internalctrl_enclkauxadcana_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1462,10 +1462,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Internalctrl_Enclkauxadcana_Read(_, __),
                     name: "Enclkauxadcana")
-            .WithFlag(18, out internalctrl_enclkclkmultana_bit, 
+            .WithFlag(18, out internalctrl_enclkclkmultana_bit,
                     valueProviderCallback: (_) => {
                         Internalctrl_Enclkclkmultana_ValueProvider(_);
-                        return internalctrl_enclkclkmultana_bit.Value;               
+                        return internalctrl_enclkclkmultana_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1473,10 +1473,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Internalctrl_Enclkclkmultana_Read(_, __),
                     name: "Enclkclkmultana")
-            .WithFlag(19, out internalctrl_enclksyana_bit, 
+            .WithFlag(19, out internalctrl_enclksyana_bit,
                     valueProviderCallback: (_) => {
                         Internalctrl_Enclksyana_ValueProvider(_);
-                        return internalctrl_enclksyana_bit.Value;               
+                        return internalctrl_enclksyana_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1484,10 +1484,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Internalctrl_Enclksyana_Read(_, __),
                     name: "Enclksyana")
-            .WithFlag(20, out internalctrl_enclktxana_bit, 
+            .WithFlag(20, out internalctrl_enclktxana_bit,
                     valueProviderCallback: (_) => {
                         Internalctrl_Enclktxana_ValueProvider(_);
-                        return internalctrl_enclktxana_bit.Value;               
+                        return internalctrl_enclktxana_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1496,10 +1496,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     readCallback: (_, __) => Internalctrl_Enclktxana_Read(_, __),
                     name: "Enclktxana")
             .WithReservedBits(21, 1)
-            .WithFlag(22, out internalctrl_invclkdigana_bit, 
+            .WithFlag(22, out internalctrl_invclkdigana_bit,
                     valueProviderCallback: (_) => {
                         Internalctrl_Invclkdigana_ValueProvider(_);
-                        return internalctrl_invclkdigana_bit.Value;               
+                        return internalctrl_invclkdigana_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1507,10 +1507,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Internalctrl_Invclkdigana_Read(_, __),
                     name: "Invclkdigana")
-            .WithFlag(23, out internalctrl_invclkauxadcana_bit, 
+            .WithFlag(23, out internalctrl_invclkauxadcana_bit,
                     valueProviderCallback: (_) => {
                         Internalctrl_Invclkauxadcana_ValueProvider(_);
-                        return internalctrl_invclkauxadcana_bit.Value;               
+                        return internalctrl_invclkauxadcana_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1518,10 +1518,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Internalctrl_Invclkauxadcana_Read(_, __),
                     name: "Invclkauxadcana")
-            .WithFlag(24, out internalctrl_invclkclkmultana_bit, 
+            .WithFlag(24, out internalctrl_invclkclkmultana_bit,
                     valueProviderCallback: (_) => {
                         Internalctrl_Invclkclkmultana_ValueProvider(_);
-                        return internalctrl_invclkclkmultana_bit.Value;               
+                        return internalctrl_invclkclkmultana_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1529,10 +1529,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Internalctrl_Invclkclkmultana_Read(_, __),
                     name: "Invclkclkmultana")
-            .WithFlag(25, out internalctrl_invclksyana_bit, 
+            .WithFlag(25, out internalctrl_invclksyana_bit,
                     valueProviderCallback: (_) => {
                         Internalctrl_Invclksyana_ValueProvider(_);
-                        return internalctrl_invclksyana_bit.Value;               
+                        return internalctrl_invclksyana_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1540,10 +1540,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Internalctrl_Invclksyana_Read(_, __),
                     name: "Invclksyana")
-            .WithFlag(26, out internalctrl_invclktxana_bit, 
+            .WithFlag(26, out internalctrl_invclktxana_bit,
                     valueProviderCallback: (_) => {
                         Internalctrl_Invclktxana_ValueProvider(_);
-                        return internalctrl_invclktxana_bit.Value;               
+                        return internalctrl_invclktxana_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1552,10 +1552,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     readCallback: (_, __) => Internalctrl_Invclktxana_Read(_, __),
                     name: "Invclktxana")
             .WithReservedBits(27, 1)
-            .WithEnumField<DoubleWordRegister, INTERNALCTRL_VTRCOREDISSTARTUPANA>(28, 1, out internalctrl_vtrcoredisstartupana_bit, 
+            .WithEnumField<DoubleWordRegister, INTERNALCTRL_VTRCOREDISSTARTUPANA>(28, 1, out internalctrl_vtrcoredisstartupana_bit,
                     valueProviderCallback: (_) => {
                         Internalctrl_Vtrcoredisstartupana_ValueProvider(_);
-                        return internalctrl_vtrcoredisstartupana_bit.Value;               
+                        return internalctrl_vtrcoredisstartupana_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1563,10 +1563,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Internalctrl_Vtrcoredisstartupana_Read(_, __),
                     name: "Vtrcoredisstartupana")
-            .WithEnumField<DoubleWordRegister, INTERNALCTRL_VTRCOREFORCESTARTUPANA>(29, 1, out internalctrl_vtrcoreforcestartupana_bit, 
+            .WithEnumField<DoubleWordRegister, INTERNALCTRL_VTRCOREFORCESTARTUPANA>(29, 1, out internalctrl_vtrcoreforcestartupana_bit,
                     valueProviderCallback: (_) => {
                         Internalctrl_Vtrcoreforcestartupana_ValueProvider(_);
-                        return internalctrl_vtrcoreforcestartupana_bit.Value;               
+                        return internalctrl_vtrcoreforcestartupana_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1574,10 +1574,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Internalctrl_Vtrcoreforcestartupana_Read(_, __),
                     name: "Vtrcoreforcestartupana")
-            .WithEnumField<DoubleWordRegister, INTERNALCTRL_VTRREGDISSTARTUPANA>(30, 1, out internalctrl_vtrregdisstartupana_bit, 
+            .WithEnumField<DoubleWordRegister, INTERNALCTRL_VTRREGDISSTARTUPANA>(30, 1, out internalctrl_vtrregdisstartupana_bit,
                     valueProviderCallback: (_) => {
                         Internalctrl_Vtrregdisstartupana_ValueProvider(_);
-                        return internalctrl_vtrregdisstartupana_bit.Value;               
+                        return internalctrl_vtrregdisstartupana_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1585,10 +1585,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Internalctrl_Vtrregdisstartupana_Read(_, __),
                     name: "Vtrregdisstartupana")
-            .WithEnumField<DoubleWordRegister, INTERNALCTRL_VTRREGFORCESTARTUPANA>(31, 1, out internalctrl_vtrregforcestartupana_bit, 
+            .WithEnumField<DoubleWordRegister, INTERNALCTRL_VTRREGFORCESTARTUPANA>(31, 1, out internalctrl_vtrregforcestartupana_bit,
                     valueProviderCallback: (_) => {
                         Internalctrl_Vtrregforcestartupana_ValueProvider(_);
-                        return internalctrl_vtrregforcestartupana_bit.Value;               
+                        return internalctrl_vtrregforcestartupana_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1598,13 +1598,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     name: "Vtrregforcestartupana")
             .WithReadCallback((_, __) => Internalctrl_Read(_, __))
             .WithWriteCallback((_, __) => Internalctrl_Write(_, __));
-        
+
         // Internalxoutctrl - Offset : 0x3C
         protected DoubleWordRegister  GenerateInternalxoutctrlRegister() => new DoubleWordRegister(this, 0x153)
-            .WithFlag(0, out internalxoutctrl_envregbiasana_bit, 
+            .WithFlag(0, out internalxoutctrl_envregbiasana_bit,
                     valueProviderCallback: (_) => {
                         Internalxoutctrl_Envregbiasana_ValueProvider(_);
-                        return internalxoutctrl_envregbiasana_bit.Value;               
+                        return internalxoutctrl_envregbiasana_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1612,10 +1612,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Internalxoutctrl_Envregbiasana_Read(_, __),
                     name: "Envregbiasana")
-            .WithFlag(1, out internalxoutctrl_envregana_bit, 
+            .WithFlag(1, out internalxoutctrl_envregana_bit,
                     valueProviderCallback: (_) => {
                         Internalxoutctrl_Envregana_ValueProvider(_);
-                        return internalxoutctrl_envregana_bit.Value;               
+                        return internalxoutctrl_envregana_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1623,10 +1623,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Internalxoutctrl_Envregana_Read(_, __),
                     name: "Envregana")
-            .WithFlag(2, out internalxoutctrl_vtrforcestartupana_bit, 
+            .WithFlag(2, out internalxoutctrl_vtrforcestartupana_bit,
                     valueProviderCallback: (_) => {
                         Internalxoutctrl_Vtrforcestartupana_ValueProvider(_);
-                        return internalxoutctrl_vtrforcestartupana_bit.Value;               
+                        return internalxoutctrl_vtrforcestartupana_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1634,10 +1634,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Internalxoutctrl_Vtrforcestartupana_Read(_, __),
                     name: "Vtrforcestartupana")
-            .WithFlag(3, out internalxoutctrl_vtrforcestartupfsm_bit, 
+            .WithFlag(3, out internalxoutctrl_vtrforcestartupfsm_bit,
                     valueProviderCallback: (_) => {
                         Internalxoutctrl_Vtrforcestartupfsm_ValueProvider(_);
-                        return internalxoutctrl_vtrforcestartupfsm_bit.Value;               
+                        return internalxoutctrl_vtrforcestartupfsm_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1645,10 +1645,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Internalxoutctrl_Vtrforcestartupfsm_Read(_, __),
                     name: "Vtrforcestartupfsm")
-            .WithFlag(4, out internalxoutctrl_enxoutana_bit, 
+            .WithFlag(4, out internalxoutctrl_enxoutana_bit,
                     valueProviderCallback: (_) => {
                         Internalxoutctrl_Enxoutana_ValueProvider(_);
-                        return internalxoutctrl_enxoutana_bit.Value;               
+                        return internalxoutctrl_enxoutana_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1656,10 +1656,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Internalxoutctrl_Enxoutana_Read(_, __),
                     name: "Enxoutana")
-            .WithFlag(5, out internalxoutctrl_enpeakdetana_bit, 
+            .WithFlag(5, out internalxoutctrl_enpeakdetana_bit,
                     valueProviderCallback: (_) => {
                         Internalxoutctrl_Enpeakdetana_ValueProvider(_);
-                        return internalxoutctrl_enpeakdetana_bit.Value;               
+                        return internalxoutctrl_enpeakdetana_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1667,10 +1667,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Internalxoutctrl_Enpeakdetana_Read(_, __),
                     name: "Enpeakdetana")
-            .WithFlag(6, out internalxoutctrl_enpeakdetfsm_bit, 
+            .WithFlag(6, out internalxoutctrl_enpeakdetfsm_bit,
                     valueProviderCallback: (_) => {
                         Internalxoutctrl_Enpeakdetfsm_ValueProvider(_);
-                        return internalxoutctrl_enpeakdetfsm_bit.Value;               
+                        return internalxoutctrl_enpeakdetfsm_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1678,10 +1678,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Internalxoutctrl_Enpeakdetfsm_Read(_, __),
                     name: "Enpeakdetfsm")
-            .WithFlag(7, out internalxoutctrl_enib2p5uapana_bit, 
+            .WithFlag(7, out internalxoutctrl_enib2p5uapana_bit,
                     valueProviderCallback: (_) => {
                         Internalxoutctrl_Enib2p5uapana_ValueProvider(_);
-                        return internalxoutctrl_enib2p5uapana_bit.Value;               
+                        return internalxoutctrl_enib2p5uapana_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1689,10 +1689,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Internalxoutctrl_Enib2p5uapana_Read(_, __),
                     name: "Enib2p5uapana")
-            .WithFlag(8, out internalxoutctrl_enib2p5uapfsm_bit, 
+            .WithFlag(8, out internalxoutctrl_enib2p5uapfsm_bit,
                     valueProviderCallback: (_) => {
                         Internalxoutctrl_Enib2p5uapfsm_ValueProvider(_);
-                        return internalxoutctrl_enib2p5uapfsm_bit.Value;               
+                        return internalxoutctrl_enib2p5uapfsm_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1700,10 +1700,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Internalxoutctrl_Enib2p5uapfsm_Read(_, __),
                     name: "Enib2p5uapfsm")
-            .WithFlag(9, out internalxoutctrl_envregloadana_bit, 
+            .WithFlag(9, out internalxoutctrl_envregloadana_bit,
                     valueProviderCallback: (_) => {
                         Internalxoutctrl_Envregloadana_ValueProvider(_);
-                        return internalxoutctrl_envregloadana_bit.Value;               
+                        return internalxoutctrl_envregloadana_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1714,13 +1714,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             .WithReservedBits(10, 22)
             .WithReadCallback((_, __) => Internalxoutctrl_Read(_, __))
             .WithWriteCallback((_, __) => Internalxoutctrl_Write(_, __));
-        
+
         // Bufouttrim - Offset : 0x40
         protected DoubleWordRegister  GenerateBufouttrimRegister() => new DoubleWordRegister(this, 0x8)
-            .WithValueField(0, 4, out bufouttrim_vtrtrimana_field, 
+            .WithValueField(0, 4, out bufouttrim_vtrtrimana_field,
                     valueProviderCallback: (_) => {
                         Bufouttrim_Vtrtrimana_ValueProvider(_);
-                        return bufouttrim_vtrtrimana_field.Value;               
+                        return bufouttrim_vtrtrimana_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1731,13 +1731,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             .WithReservedBits(4, 28)
             .WithReadCallback((_, __) => Bufouttrim_Read(_, __))
             .WithWriteCallback((_, __) => Bufouttrim_Write(_, __));
-        
+
         // Bufoutctrl - Offset : 0x44
         protected DoubleWordRegister  GenerateBufoutctrlRegister() => new DoubleWordRegister(this, 0x643C15)
-            .WithValueField(0, 4, out bufoutctrl_xoutbiasana_field, 
+            .WithValueField(0, 4, out bufoutctrl_xoutbiasana_field,
                     valueProviderCallback: (_) => {
                         Bufoutctrl_Xoutbiasana_ValueProvider(_);
-                        return bufoutctrl_xoutbiasana_field.Value;               
+                        return bufoutctrl_xoutbiasana_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1745,10 +1745,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Bufoutctrl_Xoutbiasana_Read(_, __),
                     name: "Xoutbiasana")
-            .WithValueField(4, 4, out bufoutctrl_xoutcfana_field, 
+            .WithValueField(4, 4, out bufoutctrl_xoutcfana_field,
                     valueProviderCallback: (_) => {
                         Bufoutctrl_Xoutcfana_ValueProvider(_);
-                        return bufoutctrl_xoutcfana_field.Value;               
+                        return bufoutctrl_xoutcfana_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1756,10 +1756,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Bufoutctrl_Xoutcfana_Read(_, __),
                     name: "Xoutcfana")
-            .WithValueField(8, 4, out bufoutctrl_xoutgmana_field, 
+            .WithValueField(8, 4, out bufoutctrl_xoutgmana_field,
                     valueProviderCallback: (_) => {
                         Bufoutctrl_Xoutgmana_ValueProvider(_);
-                        return bufoutctrl_xoutgmana_field.Value;               
+                        return bufoutctrl_xoutgmana_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1767,10 +1767,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Bufoutctrl_Xoutgmana_Read(_, __),
                     name: "Xoutgmana")
-            .WithEnumField<DoubleWordRegister, BUFOUTCTRL_PEAKDETTHRESANA>(12, 4, out bufoutctrl_peakdetthresana_field, 
+            .WithEnumField<DoubleWordRegister, BUFOUTCTRL_PEAKDETTHRESANA>(12, 4, out bufoutctrl_peakdetthresana_field,
                     valueProviderCallback: (_) => {
                         Bufoutctrl_Peakdetthresana_ValueProvider(_);
-                        return bufoutctrl_peakdetthresana_field.Value;               
+                        return bufoutctrl_peakdetthresana_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1778,10 +1778,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Bufoutctrl_Peakdetthresana_Read(_, __),
                     name: "Peakdetthresana")
-            .WithEnumField<DoubleWordRegister, BUFOUTCTRL_TIMEOUTCTUNE>(16, 4, out bufoutctrl_timeoutctune_field, 
+            .WithEnumField<DoubleWordRegister, BUFOUTCTRL_TIMEOUTCTUNE>(16, 4, out bufoutctrl_timeoutctune_field,
                     valueProviderCallback: (_) => {
                         Bufoutctrl_Timeoutctune_ValueProvider(_);
-                        return bufoutctrl_timeoutctune_field.Value;               
+                        return bufoutctrl_timeoutctune_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1789,10 +1789,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Bufoutctrl_Timeoutctune_Read(_, __),
                     name: "Timeoutctune")
-            .WithEnumField<DoubleWordRegister, BUFOUTCTRL_TIMEOUTSTARTUP>(20, 4, out bufoutctrl_timeoutstartup_field, 
+            .WithEnumField<DoubleWordRegister, BUFOUTCTRL_TIMEOUTSTARTUP>(20, 4, out bufoutctrl_timeoutstartup_field,
                     valueProviderCallback: (_) => {
                         Bufoutctrl_Timeoutstartup_ValueProvider(_);
-                        return bufoutctrl_timeoutstartup_field.Value;               
+                        return bufoutctrl_timeoutstartup_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1801,10 +1801,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     readCallback: (_, __) => Bufoutctrl_Timeoutstartup_Read(_, __),
                     name: "Timeoutstartup")
             .WithReservedBits(24, 6)
-            .WithFlag(30, out bufoutctrl_allowcorebiasopt_bit, 
+            .WithFlag(30, out bufoutctrl_allowcorebiasopt_bit,
                     valueProviderCallback: (_) => {
                         Bufoutctrl_Allowcorebiasopt_ValueProvider(_);
-                        return bufoutctrl_allowcorebiasopt_bit.Value;               
+                        return bufoutctrl_allowcorebiasopt_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1812,10 +1812,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     },
                     readCallback: (_, __) => Bufoutctrl_Allowcorebiasopt_Read(_, __),
                     name: "Allowcorebiasopt")
-            .WithFlag(31, out bufoutctrl_minimumstartupdelay_bit, 
+            .WithFlag(31, out bufoutctrl_minimumstartupdelay_bit,
                     valueProviderCallback: (_) => {
                         Bufoutctrl_Minimumstartupdelay_ValueProvider(_);
-                        return bufoutctrl_minimumstartupdelay_bit.Value;               
+                        return bufoutctrl_minimumstartupdelay_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSYNC();
@@ -1825,7 +1825,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     name: "Minimumstartupdelay")
             .WithReadCallback((_, __) => Bufoutctrl_Read(_, __))
             .WithWriteCallback((_, __) => Bufoutctrl_Write(_, __));
-        
+
         // Cmd - Offset : 0x50
         protected DoubleWordRegister  GenerateCmdRegister() => new DoubleWordRegister(this, 0x0)
             .WithFlag(0, out cmd_corebiasopt_bit, FieldMode.Write,
@@ -1837,34 +1837,34 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             .WithReservedBits(1, 31)
             .WithReadCallback((_, __) => Cmd_Read(_, __))
             .WithWriteCallback((_, __) => Cmd_Write(_, __));
-        
+
         // Status - Offset : 0x58
         protected DoubleWordRegister  GenerateStatusRegister() => new DoubleWordRegister(this, 0x0)
             .WithFlag(0, out status_rdy_bit, FieldMode.Read,
                     valueProviderCallback: (_) => {
                         Status_Rdy_ValueProvider(_);
-                        return status_rdy_bit.Value;               
+                        return status_rdy_bit.Value;
                     },
                     readCallback: (_, __) => Status_Rdy_Read(_, __),
                     name: "Rdy")
             .WithFlag(1, out status_corebiasoptrdy_bit, FieldMode.Read,
                     valueProviderCallback: (_) => {
                         Status_Corebiasoptrdy_ValueProvider(_);
-                        return status_corebiasoptrdy_bit.Value;               
+                        return status_corebiasoptrdy_bit.Value;
                     },
                     readCallback: (_, __) => Status_Corebiasoptrdy_Read(_, __),
                     name: "Corebiasoptrdy")
             .WithFlag(2, out status_prsrdy_bit, FieldMode.Read,
                     valueProviderCallback: (_) => {
                         Status_Prsrdy_ValueProvider(_);
-                        return status_prsrdy_bit.Value;               
+                        return status_prsrdy_bit.Value;
                     },
                     readCallback: (_, __) => Status_Prsrdy_Read(_, __),
                     name: "Prsrdy")
             .WithFlag(3, out status_bufoutrdy_bit, FieldMode.Read,
                     valueProviderCallback: (_) => {
                         Status_Bufoutrdy_ValueProvider(_);
-                        return status_bufoutrdy_bit.Value;               
+                        return status_bufoutrdy_bit.Value;
                     },
                     readCallback: (_, __) => Status_Bufoutrdy_Read(_, __),
                     name: "Bufoutrdy")
@@ -1872,49 +1872,49 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             .WithFlag(15, out status_bufoutfrozen_bit, FieldMode.Read,
                     valueProviderCallback: (_) => {
                         Status_Bufoutfrozen_ValueProvider(_);
-                        return status_bufoutfrozen_bit.Value;               
+                        return status_bufoutfrozen_bit.Value;
                     },
                     readCallback: (_, __) => Status_Bufoutfrozen_Read(_, __),
                     name: "Bufoutfrozen")
             .WithFlag(16, out status_ens_bit, FieldMode.Read,
                     valueProviderCallback: (_) => {
                         Status_Ens_ValueProvider(_);
-                        return status_ens_bit.Value;               
+                        return status_ens_bit.Value;
                     },
                     readCallback: (_, __) => Status_Ens_Read(_, __),
                     name: "Ens")
             .WithFlag(17, out status_hwreq_bit, FieldMode.Read,
                     valueProviderCallback: (_) => {
                         Status_Hwreq_ValueProvider(_);
-                        return status_hwreq_bit.Value;               
+                        return status_hwreq_bit.Value;
                     },
                     readCallback: (_, __) => Status_Hwreq_Read(_, __),
                     name: "Hwreq")
             .WithFlag(18, out status_isforced_bit, FieldMode.Read,
                     valueProviderCallback: (_) => {
                         Status_Isforced_ValueProvider(_);
-                        return status_isforced_bit.Value;               
+                        return status_isforced_bit.Value;
                     },
                     readCallback: (_, __) => Status_Isforced_Read(_, __),
                     name: "Isforced")
             .WithFlag(19, out status_iswarm_bit, FieldMode.Read,
                     valueProviderCallback: (_) => {
                         Status_Iswarm_ValueProvider(_);
-                        return status_iswarm_bit.Value;               
+                        return status_iswarm_bit.Value;
                     },
                     readCallback: (_, __) => Status_Iswarm_Read(_, __),
                     name: "Iswarm")
             .WithFlag(20, out status_prshwreq_bit, FieldMode.Read,
                     valueProviderCallback: (_) => {
                         Status_Prshwreq_ValueProvider(_);
-                        return status_prshwreq_bit.Value;               
+                        return status_prshwreq_bit.Value;
                     },
                     readCallback: (_, __) => Status_Prshwreq_Read(_, __),
                     name: "Prshwreq")
             .WithFlag(21, out status_bufouthwreq_bit, FieldMode.Read,
                     valueProviderCallback: (_) => {
                         Status_Bufouthwreq_ValueProvider(_);
-                        return status_bufouthwreq_bit.Value;               
+                        return status_bufouthwreq_bit.Value;
                     },
                     readCallback: (_, __) => Status_Bufouthwreq_Read(_, __),
                     name: "Bufouthwreq")
@@ -1922,255 +1922,255 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             .WithFlag(30, out status_syncbusy_bit, FieldMode.Read,
                     valueProviderCallback: (_) => {
                         Status_Syncbusy_ValueProvider(_);
-                        return status_syncbusy_bit.Value;               
+                        return status_syncbusy_bit.Value;
                     },
                     readCallback: (_, __) => Status_Syncbusy_Read(_, __),
                     name: "Syncbusy")
             .WithEnumField<DoubleWordRegister, STATUS_LOCK>(31, 1, out status_lock_bit, FieldMode.Read,
                     valueProviderCallback: (_) => {
                         Status_Lock_ValueProvider(_);
-                        return status_lock_bit.Value;               
+                        return status_lock_bit.Value;
                     },
                     readCallback: (_, __) => Status_Lock_Read(_, __),
                     name: "Lock")
             .WithReadCallback((_, __) => Status_Read(_, __))
             .WithWriteCallback((_, __) => Status_Write(_, __));
-        
+
         // Dbgstatus - Offset : 0x5C
         protected DoubleWordRegister  GenerateDbgstatusRegister() => new DoubleWordRegister(this, 0x0)
             .WithEnumField<DoubleWordRegister, DBGSTATUS_PKDETSTATUS>(0, 1, out dbgstatus_pkdetstatus_bit, FieldMode.Read,
                     valueProviderCallback: (_) => {
                         Dbgstatus_Pkdetstatus_ValueProvider(_);
-                        return dbgstatus_pkdetstatus_bit.Value;               
+                        return dbgstatus_pkdetstatus_bit.Value;
                     },
                     readCallback: (_, __) => Dbgstatus_Pkdetstatus_Read(_, __),
                     name: "Pkdetstatus")
             .WithFlag(1, out dbgstatus_startupdone_bit, FieldMode.Read,
                     valueProviderCallback: (_) => {
                         Dbgstatus_Startupdone_ValueProvider(_);
-                        return dbgstatus_startupdone_bit.Value;               
+                        return dbgstatus_startupdone_bit.Value;
                     },
                     readCallback: (_, __) => Dbgstatus_Startupdone_Read(_, __),
                     name: "Startupdone")
             .WithEnumField<DoubleWordRegister, DBGSTATUS_XOUTPKDETSTATUS>(2, 1, out dbgstatus_xoutpkdetstatus_bit, FieldMode.Read,
                     valueProviderCallback: (_) => {
                         Dbgstatus_Xoutpkdetstatus_ValueProvider(_);
-                        return dbgstatus_xoutpkdetstatus_bit.Value;               
+                        return dbgstatus_xoutpkdetstatus_bit.Value;
                     },
                     readCallback: (_, __) => Dbgstatus_Xoutpkdetstatus_Read(_, __),
                     name: "Xoutpkdetstatus")
             .WithReservedBits(3, 29)
             .WithReadCallback((_, __) => Dbgstatus_Read(_, __))
             .WithWriteCallback((_, __) => Dbgstatus_Write(_, __));
-        
+
         // If - Offset : 0x70
         protected DoubleWordRegister  GenerateIfRegister() => new DoubleWordRegister(this, 0x0)
-            .WithFlag(0, out if_rdy_bit, 
+            .WithFlag(0, out if_rdy_bit,
                     valueProviderCallback: (_) => {
                         If_Rdy_ValueProvider(_);
-                        return if_rdy_bit.Value;               
+                        return if_rdy_bit.Value;
                     },
                     writeCallback: (_, __) => If_Rdy_Write(_, __),
                     readCallback: (_, __) => If_Rdy_Read(_, __),
                     name: "Rdy")
-            .WithFlag(1, out if_corebiasoptrdy_bit, 
+            .WithFlag(1, out if_corebiasoptrdy_bit,
                     valueProviderCallback: (_) => {
                         If_Corebiasoptrdy_ValueProvider(_);
-                        return if_corebiasoptrdy_bit.Value;               
+                        return if_corebiasoptrdy_bit.Value;
                     },
                     writeCallback: (_, __) => If_Corebiasoptrdy_Write(_, __),
                     readCallback: (_, __) => If_Corebiasoptrdy_Read(_, __),
                     name: "Corebiasoptrdy")
-            .WithFlag(2, out if_prsrdy_bit, 
+            .WithFlag(2, out if_prsrdy_bit,
                     valueProviderCallback: (_) => {
                         If_Prsrdy_ValueProvider(_);
-                        return if_prsrdy_bit.Value;               
+                        return if_prsrdy_bit.Value;
                     },
                     writeCallback: (_, __) => If_Prsrdy_Write(_, __),
                     readCallback: (_, __) => If_Prsrdy_Read(_, __),
                     name: "Prsrdy")
-            .WithFlag(3, out if_bufoutrdy_bit, 
+            .WithFlag(3, out if_bufoutrdy_bit,
                     valueProviderCallback: (_) => {
                         If_Bufoutrdy_ValueProvider(_);
-                        return if_bufoutrdy_bit.Value;               
+                        return if_bufoutrdy_bit.Value;
                     },
                     writeCallback: (_, __) => If_Bufoutrdy_Write(_, __),
                     readCallback: (_, __) => If_Bufoutrdy_Read(_, __),
                     name: "Bufoutrdy")
             .WithReservedBits(4, 11)
-            .WithFlag(15, out if_bufoutfrozen_bit, 
+            .WithFlag(15, out if_bufoutfrozen_bit,
                     valueProviderCallback: (_) => {
                         If_Bufoutfrozen_ValueProvider(_);
-                        return if_bufoutfrozen_bit.Value;               
+                        return if_bufoutfrozen_bit.Value;
                     },
                     writeCallback: (_, __) => If_Bufoutfrozen_Write(_, __),
                     readCallback: (_, __) => If_Bufoutfrozen_Read(_, __),
                     name: "Bufoutfrozen")
             .WithReservedBits(16, 4)
-            .WithFlag(20, out if_prserr_bit, 
+            .WithFlag(20, out if_prserr_bit,
                     valueProviderCallback: (_) => {
                         If_Prserr_ValueProvider(_);
-                        return if_prserr_bit.Value;               
+                        return if_prserr_bit.Value;
                     },
                     writeCallback: (_, __) => If_Prserr_Write(_, __),
                     readCallback: (_, __) => If_Prserr_Read(_, __),
                     name: "Prserr")
-            .WithFlag(21, out if_bufouterr_bit, 
+            .WithFlag(21, out if_bufouterr_bit,
                     valueProviderCallback: (_) => {
                         If_Bufouterr_ValueProvider(_);
-                        return if_bufouterr_bit.Value;               
+                        return if_bufouterr_bit.Value;
                     },
                     writeCallback: (_, __) => If_Bufouterr_Write(_, __),
                     readCallback: (_, __) => If_Bufouterr_Read(_, __),
                     name: "Bufouterr")
             .WithReservedBits(22, 5)
-            .WithFlag(27, out if_bufoutfreezeerr_bit, 
+            .WithFlag(27, out if_bufoutfreezeerr_bit,
                     valueProviderCallback: (_) => {
                         If_Bufoutfreezeerr_ValueProvider(_);
-                        return if_bufoutfreezeerr_bit.Value;               
+                        return if_bufoutfreezeerr_bit.Value;
                     },
                     writeCallback: (_, __) => If_Bufoutfreezeerr_Write(_, __),
                     readCallback: (_, __) => If_Bufoutfreezeerr_Read(_, __),
                     name: "Bufoutfreezeerr")
-            .WithFlag(28, out if_bufoutdnserr_bit, 
+            .WithFlag(28, out if_bufoutdnserr_bit,
                     valueProviderCallback: (_) => {
                         If_Bufoutdnserr_ValueProvider(_);
-                        return if_bufoutdnserr_bit.Value;               
+                        return if_bufoutdnserr_bit.Value;
                     },
                     writeCallback: (_, __) => If_Bufoutdnserr_Write(_, __),
                     readCallback: (_, __) => If_Bufoutdnserr_Read(_, __),
                     name: "Bufoutdnserr")
-            .WithFlag(29, out if_dnserr_bit, 
+            .WithFlag(29, out if_dnserr_bit,
                     valueProviderCallback: (_) => {
                         If_Dnserr_ValueProvider(_);
-                        return if_dnserr_bit.Value;               
+                        return if_dnserr_bit.Value;
                     },
                     writeCallback: (_, __) => If_Dnserr_Write(_, __),
                     readCallback: (_, __) => If_Dnserr_Read(_, __),
                     name: "Dnserr")
-            .WithFlag(30, out if_lftimeouterr_bit, 
+            .WithFlag(30, out if_lftimeouterr_bit,
                     valueProviderCallback: (_) => {
                         If_Lftimeouterr_ValueProvider(_);
-                        return if_lftimeouterr_bit.Value;               
+                        return if_lftimeouterr_bit.Value;
                     },
                     writeCallback: (_, __) => If_Lftimeouterr_Write(_, __),
                     readCallback: (_, __) => If_Lftimeouterr_Read(_, __),
                     name: "Lftimeouterr")
-            .WithFlag(31, out if_corebiasopterr_bit, 
+            .WithFlag(31, out if_corebiasopterr_bit,
                     valueProviderCallback: (_) => {
                         If_Corebiasopterr_ValueProvider(_);
-                        return if_corebiasopterr_bit.Value;               
+                        return if_corebiasopterr_bit.Value;
                     },
                     writeCallback: (_, __) => If_Corebiasopterr_Write(_, __),
                     readCallback: (_, __) => If_Corebiasopterr_Read(_, __),
                     name: "Corebiasopterr")
             .WithReadCallback((_, __) => If_Read(_, __))
             .WithWriteCallback((_, __) => If_Write(_, __));
-        
+
         // Ien - Offset : 0x74
         protected DoubleWordRegister  GenerateIenRegister() => new DoubleWordRegister(this, 0x0)
-            .WithFlag(0, out ien_rdy_bit, 
+            .WithFlag(0, out ien_rdy_bit,
                     valueProviderCallback: (_) => {
                         Ien_Rdy_ValueProvider(_);
-                        return ien_rdy_bit.Value;               
+                        return ien_rdy_bit.Value;
                     },
                     writeCallback: (_, __) => Ien_Rdy_Write(_, __),
                     readCallback: (_, __) => Ien_Rdy_Read(_, __),
                     name: "Rdy")
-            .WithFlag(1, out ien_corebiasoptrdy_bit, 
+            .WithFlag(1, out ien_corebiasoptrdy_bit,
                     valueProviderCallback: (_) => {
                         Ien_Corebiasoptrdy_ValueProvider(_);
-                        return ien_corebiasoptrdy_bit.Value;               
+                        return ien_corebiasoptrdy_bit.Value;
                     },
                     writeCallback: (_, __) => Ien_Corebiasoptrdy_Write(_, __),
                     readCallback: (_, __) => Ien_Corebiasoptrdy_Read(_, __),
                     name: "Corebiasoptrdy")
-            .WithFlag(2, out ien_prsrdy_bit, 
+            .WithFlag(2, out ien_prsrdy_bit,
                     valueProviderCallback: (_) => {
                         Ien_Prsrdy_ValueProvider(_);
-                        return ien_prsrdy_bit.Value;               
+                        return ien_prsrdy_bit.Value;
                     },
                     writeCallback: (_, __) => Ien_Prsrdy_Write(_, __),
                     readCallback: (_, __) => Ien_Prsrdy_Read(_, __),
                     name: "Prsrdy")
-            .WithFlag(3, out ien_bufoutrdy_bit, 
+            .WithFlag(3, out ien_bufoutrdy_bit,
                     valueProviderCallback: (_) => {
                         Ien_Bufoutrdy_ValueProvider(_);
-                        return ien_bufoutrdy_bit.Value;               
+                        return ien_bufoutrdy_bit.Value;
                     },
                     writeCallback: (_, __) => Ien_Bufoutrdy_Write(_, __),
                     readCallback: (_, __) => Ien_Bufoutrdy_Read(_, __),
                     name: "Bufoutrdy")
             .WithReservedBits(4, 11)
-            .WithFlag(15, out ien_bufoutfrozen_bit, 
+            .WithFlag(15, out ien_bufoutfrozen_bit,
                     valueProviderCallback: (_) => {
                         Ien_Bufoutfrozen_ValueProvider(_);
-                        return ien_bufoutfrozen_bit.Value;               
+                        return ien_bufoutfrozen_bit.Value;
                     },
                     writeCallback: (_, __) => Ien_Bufoutfrozen_Write(_, __),
                     readCallback: (_, __) => Ien_Bufoutfrozen_Read(_, __),
                     name: "Bufoutfrozen")
             .WithReservedBits(16, 4)
-            .WithFlag(20, out ien_prserr_bit, 
+            .WithFlag(20, out ien_prserr_bit,
                     valueProviderCallback: (_) => {
                         Ien_Prserr_ValueProvider(_);
-                        return ien_prserr_bit.Value;               
+                        return ien_prserr_bit.Value;
                     },
                     writeCallback: (_, __) => Ien_Prserr_Write(_, __),
                     readCallback: (_, __) => Ien_Prserr_Read(_, __),
                     name: "Prserr")
-            .WithFlag(21, out ien_bufouterr_bit, 
+            .WithFlag(21, out ien_bufouterr_bit,
                     valueProviderCallback: (_) => {
                         Ien_Bufouterr_ValueProvider(_);
-                        return ien_bufouterr_bit.Value;               
+                        return ien_bufouterr_bit.Value;
                     },
                     writeCallback: (_, __) => Ien_Bufouterr_Write(_, __),
                     readCallback: (_, __) => Ien_Bufouterr_Read(_, __),
                     name: "Bufouterr")
             .WithReservedBits(22, 5)
-            .WithFlag(27, out ien_bufoutfreezeerr_bit, 
+            .WithFlag(27, out ien_bufoutfreezeerr_bit,
                     valueProviderCallback: (_) => {
                         Ien_Bufoutfreezeerr_ValueProvider(_);
-                        return ien_bufoutfreezeerr_bit.Value;               
+                        return ien_bufoutfreezeerr_bit.Value;
                     },
                     writeCallback: (_, __) => Ien_Bufoutfreezeerr_Write(_, __),
                     readCallback: (_, __) => Ien_Bufoutfreezeerr_Read(_, __),
                     name: "Bufoutfreezeerr")
-            .WithFlag(28, out ien_bufoutdnserr_bit, 
+            .WithFlag(28, out ien_bufoutdnserr_bit,
                     valueProviderCallback: (_) => {
                         Ien_Bufoutdnserr_ValueProvider(_);
-                        return ien_bufoutdnserr_bit.Value;               
+                        return ien_bufoutdnserr_bit.Value;
                     },
                     writeCallback: (_, __) => Ien_Bufoutdnserr_Write(_, __),
                     readCallback: (_, __) => Ien_Bufoutdnserr_Read(_, __),
                     name: "Bufoutdnserr")
-            .WithFlag(29, out ien_dnserr_bit, 
+            .WithFlag(29, out ien_dnserr_bit,
                     valueProviderCallback: (_) => {
                         Ien_Dnserr_ValueProvider(_);
-                        return ien_dnserr_bit.Value;               
+                        return ien_dnserr_bit.Value;
                     },
                     writeCallback: (_, __) => Ien_Dnserr_Write(_, __),
                     readCallback: (_, __) => Ien_Dnserr_Read(_, __),
                     name: "Dnserr")
-            .WithFlag(30, out ien_lftimeouterr_bit, 
+            .WithFlag(30, out ien_lftimeouterr_bit,
                     valueProviderCallback: (_) => {
                         Ien_Lftimeouterr_ValueProvider(_);
-                        return ien_lftimeouterr_bit.Value;               
+                        return ien_lftimeouterr_bit.Value;
                     },
                     writeCallback: (_, __) => Ien_Lftimeouterr_Write(_, __),
                     readCallback: (_, __) => Ien_Lftimeouterr_Read(_, __),
                     name: "Lftimeouterr")
-            .WithFlag(31, out ien_corebiasopterr_bit, 
+            .WithFlag(31, out ien_corebiasopterr_bit,
                     valueProviderCallback: (_) => {
                         Ien_Corebiasopterr_ValueProvider(_);
-                        return ien_corebiasopterr_bit.Value;               
+                        return ien_corebiasopterr_bit.Value;
                     },
                     writeCallback: (_, __) => Ien_Corebiasopterr_Write(_, __),
                     readCallback: (_, __) => Ien_Corebiasopterr_Read(_, __),
                     name: "Corebiasopterr")
             .WithReadCallback((_, __) => Ien_Read(_, __))
             .WithWriteCallback((_, __) => Ien_Write(_, __));
-        
+
         // Lock - Offset : 0x80
         protected DoubleWordRegister  GenerateLockRegister() => new DoubleWordRegister(this, 0x580E)
             .WithValueField(0, 16, out lock_lockkey_field, FieldMode.Write,
@@ -2179,7 +2179,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             .WithReservedBits(16, 16)
             .WithReadCallback((_, __) => Lock_Read(_, __))
             .WithWriteCallback((_, __) => Lock_Write(_, __));
-        
+
 
         private uint ReadWFIFO()
         {
@@ -2199,7 +2199,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             return 0x0;
         }
 
-        
+
 
         private void WriteWSYNC()
         {
@@ -2224,7 +2224,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Ipversion_Write(uint a, uint b);
         partial void Ipversion_Read(uint a, uint b);
-        
+
         // Trim - Offset : 0x4
         protected IEnumRegisterField<TRIM_VTRREGTCANA> trim_vtrregtcana_field;
         partial void Trim_Vtrregtcana_Write(TRIM_VTRREGTCANA a, TRIM_VTRREGTCANA b);
@@ -2249,7 +2249,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Trim_Write(uint a, uint b);
         partial void Trim_Read(uint a, uint b);
-        
+
         // Swrst - Offset : 0x8
         protected IFlagRegisterField swrst_swrst_bit;
         partial void Swrst_Swrst_Write(bool a, bool b);
@@ -2260,7 +2260,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Swrst_Write(uint a, uint b);
         partial void Swrst_Read(uint a, uint b);
-        
+
         // Xouttrim - Offset : 0xC
         protected IValueRegisterField xouttrim_vregbiastrimibndioana_field;
         partial void Xouttrim_Vregbiastrimibndioana_Write(ulong a, ulong b);
@@ -2289,7 +2289,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Xouttrim_Write(uint a, uint b);
         partial void Xouttrim_Read(uint a, uint b);
-        
+
         // Xtalcfg - Offset : 0x10
         protected IValueRegisterField xtalcfg_corebiasstartupi_field;
         partial void Xtalcfg_Corebiasstartupi_Write(ulong a, ulong b);
@@ -2318,7 +2318,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Xtalcfg_Write(uint a, uint b);
         partial void Xtalcfg_Read(uint a, uint b);
-        
+
         // Xtalctrl - Offset : 0x18
         protected IValueRegisterField xtalctrl_corebiasana_field;
         partial void Xtalctrl_Corebiasana_Write(ulong a, ulong b);
@@ -2347,7 +2347,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Xtalctrl_Write(uint a, uint b);
         partial void Xtalctrl_Read(uint a, uint b);
-        
+
         // Xtalctrl1 - Offset : 0x1C
         protected IValueRegisterField xtalctrl1_ctunexibufoutana_field;
         partial void Xtalctrl1_Ctunexibufoutana_Write(ulong a, ulong b);
@@ -2356,7 +2356,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Xtalctrl1_Write(uint a, uint b);
         partial void Xtalctrl1_Read(uint a, uint b);
-        
+
         // Cfg - Offset : 0x20
         protected IEnumRegisterField<CFG_MODE> cfg_mode_field;
         partial void Cfg_Mode_Write(CFG_MODE a, CFG_MODE b);
@@ -2385,7 +2385,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Cfg_Write(uint a, uint b);
         partial void Cfg_Read(uint a, uint b);
-        
+
         // Ctrl - Offset : 0x28
         protected IFlagRegisterField ctrl_bufoutfreeze_bit;
         partial void Ctrl_Bufoutfreeze_Write(bool a, bool b);
@@ -2450,7 +2450,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Ctrl_Write(uint a, uint b);
         partial void Ctrl_Read(uint a, uint b);
-        
+
         // Pkdetctrl1 - Offset : 0x2C
         protected IFlagRegisterField pkdetctrl1_notimeouterr_bit;
         partial void Pkdetctrl1_Notimeouterr_Write(bool a, bool b);
@@ -2459,7 +2459,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Pkdetctrl1_Write(uint a, uint b);
         partial void Pkdetctrl1_Read(uint a, uint b);
-        
+
         // Lowpwrctrl - Offset : 0x30
         protected IValueRegisterField lowpwrctrl_lowpowermodeana_field;
         partial void Lowpwrctrl_Lowpowermodeana_Write(ulong a, ulong b);
@@ -2484,7 +2484,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Lowpwrctrl_Write(uint a, uint b);
         partial void Lowpwrctrl_Read(uint a, uint b);
-        
+
         // Pkdetctrl - Offset : 0x34
         protected IFlagRegisterField pkdetctrl_enpkdetana_bit;
         partial void Pkdetctrl_Enpkdetana_Write(bool a, bool b);
@@ -2541,7 +2541,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Pkdetctrl_Write(uint a, uint b);
         partial void Pkdetctrl_Read(uint a, uint b);
-        
+
         // Internalctrl - Offset : 0x38
         protected IFlagRegisterField internalctrl_enregvtrana_bit;
         partial void Internalctrl_Enregvtrana_Write(bool a, bool b);
@@ -2646,7 +2646,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Internalctrl_Write(uint a, uint b);
         partial void Internalctrl_Read(uint a, uint b);
-        
+
         // Internalxoutctrl - Offset : 0x3C
         protected IFlagRegisterField internalxoutctrl_envregbiasana_bit;
         partial void Internalxoutctrl_Envregbiasana_Write(bool a, bool b);
@@ -2691,7 +2691,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Internalxoutctrl_Write(uint a, uint b);
         partial void Internalxoutctrl_Read(uint a, uint b);
-        
+
         // Bufouttrim - Offset : 0x40
         protected IValueRegisterField bufouttrim_vtrtrimana_field;
         partial void Bufouttrim_Vtrtrimana_Write(ulong a, ulong b);
@@ -2700,7 +2700,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Bufouttrim_Write(uint a, uint b);
         partial void Bufouttrim_Read(uint a, uint b);
-        
+
         // Bufoutctrl - Offset : 0x44
         protected IValueRegisterField bufoutctrl_xoutbiasana_field;
         partial void Bufoutctrl_Xoutbiasana_Write(ulong a, ulong b);
@@ -2737,7 +2737,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Bufoutctrl_Write(uint a, uint b);
         partial void Bufoutctrl_Read(uint a, uint b);
-        
+
         // Cmd - Offset : 0x50
         protected IFlagRegisterField cmd_corebiasopt_bit;
         partial void Cmd_Corebiasopt_Write(bool a, bool b);
@@ -2745,7 +2745,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Cmd_Write(uint a, uint b);
         partial void Cmd_Read(uint a, uint b);
-        
+
         // Status - Offset : 0x58
         protected IFlagRegisterField status_rdy_bit;
         partial void Status_Rdy_Read(bool a, bool b);
@@ -2789,7 +2789,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Status_Write(uint a, uint b);
         partial void Status_Read(uint a, uint b);
-        
+
         // Dbgstatus - Offset : 0x5C
         protected IEnumRegisterField<DBGSTATUS_PKDETSTATUS> dbgstatus_pkdetstatus_bit;
         partial void Dbgstatus_Pkdetstatus_Read(DBGSTATUS_PKDETSTATUS a, DBGSTATUS_PKDETSTATUS b);
@@ -2803,7 +2803,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Dbgstatus_Write(uint a, uint b);
         partial void Dbgstatus_Read(uint a, uint b);
-        
+
         // If - Offset : 0x70
         protected IFlagRegisterField if_rdy_bit;
         partial void If_Rdy_Write(bool a, bool b);
@@ -2856,7 +2856,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void If_Write(uint a, uint b);
         partial void If_Read(uint a, uint b);
-        
+
         // Ien - Offset : 0x74
         protected IFlagRegisterField ien_rdy_bit;
         partial void Ien_Rdy_Write(bool a, bool b);
@@ -2909,7 +2909,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Ien_Write(uint a, uint b);
         partial void Ien_Read(uint a, uint b);
-        
+
         // Lock - Offset : 0x80
         protected IValueRegisterField lock_lockkey_field;
         partial void Lock_Lockkey_Write(ulong a, ulong b);
@@ -2917,17 +2917,17 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Lock_Write(uint a, uint b);
         partial void Lock_Read(uint a, uint b);
-        
+
         partial void HFXO_Reset();
 
         partial void EFR32xG2_HFXO_3_Constructor();
 
         public bool Enabled
         {
-            get 
+            get
             {
                 // Your boolean which you have to define in your partial class file
-                return isEnabled;
+                return IsEnabled;
             }
         }
 
@@ -2982,7 +2982,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                 default:
                     this.Log(LogLevel.Error, "writing doubleWord to non existing offset {0:X}, case : {1:X}", address, address & 0x3000);
                     break;
-            }           
+            }
         }
 
         protected enum Registers
@@ -3009,7 +3009,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             If = 0x70,
             Ien = 0x74,
             Lock = 0x80,
-            
+
             Ipversion_SET = 0x1000,
             Trim_SET = 0x1004,
             Swrst_SET = 0x1008,
@@ -3032,7 +3032,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             If_SET = 0x1070,
             Ien_SET = 0x1074,
             Lock_SET = 0x1080,
-            
+
             Ipversion_CLR = 0x2000,
             Trim_CLR = 0x2004,
             Swrst_CLR = 0x2008,
@@ -3055,7 +3055,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             If_CLR = 0x2070,
             Ien_CLR = 0x2074,
             Lock_CLR = 0x2080,
-            
+
             Ipversion_TGL = 0x3000,
             Trim_TGL = 0x3004,
             Swrst_TGL = 0x3008,
@@ -3078,8 +3078,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             If_TGL = 0x3070,
             Ien_TGL = 0x3074,
             Lock_TGL = 0x3080,
-        }   
-        
+        }
+
         public long Size => 0x4000;
 
         protected DoubleWordRegisterCollection registers;

@@ -5,8 +5,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-
 namespace Antmicro.Renode.Core
 {
     public sealed class GPIOEndpoint
@@ -18,7 +16,7 @@ namespace Antmicro.Renode.Core
         }
 
         public IGPIOReceiver Receiver { get; private set; }
+
         public int Number { get; private set; }
     }
 }
-

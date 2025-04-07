@@ -87,16 +87,16 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             status = RequestResult.Success;
             switch(opcode)
             {
-                case Commands.SerialNumberService:
-                    GenerateSerialNumber(offset);
-                    break;
-                case Commands.SPICopy:
-                    CopyData(offset);
-                    break;
-                default:
-                    this.Log(LogLevel.Warning, "Unknown request: {0}", opcode);
-                    status = RequestResult.Error;
-                    break;
+            case Commands.SerialNumberService:
+                GenerateSerialNumber(offset);
+                break;
+            case Commands.SPICopy:
+                CopyData(offset);
+                break;
+            default:
+                this.Log(LogLevel.Warning, "Unknown request: {0}", opcode);
+                status = RequestResult.Error;
+                break;
             }
         }
 

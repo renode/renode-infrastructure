@@ -6,16 +6,21 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Collections.Generic;
-using Antmicro.Renode.UserInterface.Tokenizer;
-using AntShell.Commands;
-using Antmicro.Renode.Logging;
+
 using Antmicro.Renode.Core;
+
+using AntShell.Commands;
 
 namespace Antmicro.Renode.UserInterface.Commands
 {
     public class QuitCommand : Command
     {
+        public QuitCommand(Monitor monitor, Action<Machine> setCurrentMachine, Func<Action> quitted) : base(monitor, "quit", "quits the emulator.", "q")
+        {
+            SetCurrentMachine = setCurrentMachine;
+            Quitted = quitted;
+        }
+
         [Runnable]
         public void Run(ICommandInteraction writer)
         {
@@ -25,14 +30,8 @@ namespace Antmicro.Renode.UserInterface.Commands
             writer.QuitEnvironment = true;
         }
 
-        private Action<Machine> SetCurrentMachine;
-        private event Func<Action> Quitted;
+        private readonly Action<Machine> SetCurrentMachine;
 
-        public QuitCommand(Monitor monitor, Action<Machine> setCurrentMachine, Func<Action> quitted) : base(monitor, "quit", "quits the emulator.", "q")
-        {
-            SetCurrentMachine = setCurrentMachine;
-            Quitted = quitted;
-        }
+        private event Func<Action> Quitted;
     }
 }
-

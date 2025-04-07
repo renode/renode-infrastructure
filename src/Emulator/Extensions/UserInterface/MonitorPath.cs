@@ -7,9 +7,10 @@
 //
 
 using System;
-using System.Linq;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Utilities;
 
@@ -17,15 +18,18 @@ namespace Antmicro.Renode.UserInterface
 {
     public class MonitorPath
     {
-        private List<string> pathEntries = new List<string>();
-        private List<string> defaultPath = new List<string>();
-        private readonly string startingWorkingDirectory;
-        private readonly char[] pathSeparator = new []{';'};
-        private Stack<string> workingDirectory = new Stack<string>();
-
-        public String CurrentWorkingDirectory
+        public MonitorPath(string currentWorkingDirectory)
         {
-            get{ return workingDirectory.Peek();}
+            startingWorkingDirectory = currentWorkingDirectory;
+            if(Misc.TryGetRootDirectory(out var rootDirectory))
+            {
+                defaultPath = new List<string> { rootDirectory };
+            }
+            else
+            {
+                DefaultPath = ".";
+            }
+            Reset();
         }
 
         public void PushWorkingDirectory(string path)
@@ -40,52 +44,6 @@ namespace Antmicro.Renode.UserInterface
             return Environment.CurrentDirectory;
         }
 
-        public IEnumerable<string> PathElements
-        {
-            get{ return pathEntries;}
-        }
-
-        private List<string> GetDirEntries(string path)
-        {
-            var split = path.Split(pathSeparator, StringSplitOptions.RemoveEmptyEntries).Distinct();
-            var current = new List<string>();
-            foreach (string entry in split)
-            {
-                var curentry = entry;//System.IO.Path.Combine(Environment.CurrentDirectory, entry);
-                if (curentry.StartsWith("./"))
-                {
-                    curentry = curentry.Length > 2 ? curentry.Substring(2) : ".";
-                }
-                if (!Directory.Exists(curentry))
-                {
-                    throw new RecoverableException(String.Format("Entry {0} does not exist or is not a directory.", curentry));
-                }
-                current.Add(curentry);
-            }
-            return current;
-        }
-
-        public String Path
-        {
-            get
-            {
-                return pathEntries.Aggregate((x,y) => x + ';' + y);
-            }
-            set
-            {
-                pathEntries = GetDirEntries(value);
-            }
-        }
-
-        public String DefaultPath
-        {
-            get{ return defaultPath.Aggregate((x,y) => x + ';' + y);}
-            private set
-            {
-                defaultPath = GetDirEntries(value);
-            }
-        }
-
         public void Append(string path)
         {
             pathEntries.AddRange(GetDirEntries(path));
@@ -98,19 +56,63 @@ namespace Antmicro.Renode.UserInterface
             Append(CurrentWorkingDirectory);
         }
 
-        public MonitorPath(string currentWorkingDirectory)
+        public String CurrentWorkingDirectory
         {
-            startingWorkingDirectory = currentWorkingDirectory;
-            if(Misc.TryGetRootDirectory(out var rootDirectory))
-            {
-                defaultPath = new List<string> { rootDirectory };
-            }
-            else
-            {
-                DefaultPath = ".";
-            }
-            Reset();
+            get { return workingDirectory.Peek(); }
         }
+
+        public IEnumerable<string> PathElements
+        {
+            get { return pathEntries; }
+        }
+
+        public String Path
+        {
+            get
+            {
+                return pathEntries.Aggregate((x, y) => x + ';' + y);
+            }
+
+            set
+            {
+                pathEntries = GetDirEntries(value);
+            }
+        }
+
+        public String DefaultPath
+        {
+            get { return defaultPath.Aggregate((x, y) => x + ';' + y); }
+
+            private set
+            {
+                defaultPath = GetDirEntries(value);
+            }
+        }
+
+        private List<string> GetDirEntries(string path)
+        {
+            var split = path.Split(pathSeparator, StringSplitOptions.RemoveEmptyEntries).Distinct();
+            var current = new List<string>();
+            foreach(string entry in split)
+            {
+                var curentry = entry;//System.IO.Path.Combine(Environment.CurrentDirectory, entry);
+                if(curentry.StartsWith("./"))
+                {
+                    curentry = curentry.Length > 2 ? curentry.Substring(2) : ".";
+                }
+                if(!Directory.Exists(curentry))
+                {
+                    throw new RecoverableException(String.Format("Entry {0} does not exist or is not a directory.", curentry));
+                }
+                current.Add(curentry);
+            }
+            return current;
+        }
+
+        private List<string> pathEntries = new List<string>();
+        private List<string> defaultPath = new List<string>();
+        private readonly Stack<string> workingDirectory = new Stack<string>();
+        private readonly string startingWorkingDirectory;
+        private readonly char[] pathSeparator = new []{';'};
     }
 }
-

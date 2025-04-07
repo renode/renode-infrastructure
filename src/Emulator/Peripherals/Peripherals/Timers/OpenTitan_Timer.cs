@@ -42,6 +42,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         public ulong TimerValue => underlyingTimer.Value;
 
         public GPIO IRQ { get; }
+
         public GPIO FatalAlert { get; }
 
         private void DefineRegisters()

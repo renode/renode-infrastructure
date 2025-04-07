@@ -11,7 +11,7 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
 {
     public class HexToken : DecimalIntegerToken
     {
-        public HexToken(string value):base(Convert.ToInt64(value.Split('x')[1], 16).ToString())
+        public HexToken(string value) : base(Convert.ToInt64(value.Split('x')[1], 16).ToString())
         {
         }
 
@@ -21,4 +21,3 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
         }
     }
 }
-

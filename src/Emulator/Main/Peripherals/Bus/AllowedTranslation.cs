@@ -26,4 +26,3 @@ namespace Antmicro.Renode.Peripherals.Bus
         QuadWordToDoubleWord = 1 << 11,
     }
 }
-

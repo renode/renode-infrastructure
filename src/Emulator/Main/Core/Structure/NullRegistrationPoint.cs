@@ -11,7 +11,17 @@ namespace Antmicro.Renode.Core.Structure
 {
     public sealed class NullRegistrationPoint : ITheOnlyPossibleRegistrationPoint, IJsonSerializable
     {
+        static NullRegistrationPoint()
+        {
+            Instance = new NullRegistrationPoint();
+        }
+
         public static NullRegistrationPoint Instance { get; private set; }
+
+        public override string ToString()
+        {
+            return "[-]";
+        }
 
         public Object SerializeJson()
         {
@@ -29,19 +39,8 @@ namespace Antmicro.Renode.Core.Structure
             }
         }
 
-        public override string ToString()
-        {
-            return "[-]";
-        }
-
-        static NullRegistrationPoint()
-        {
-            Instance = new NullRegistrationPoint();
-        }
-
         private NullRegistrationPoint()
         {
         }
     }
 }
-

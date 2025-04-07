@@ -5,24 +5,24 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Core.Structure;
+
 using static Antmicro.Renode.Peripherals.SPI.Cadence_xSPI;
 
 namespace Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands
 {
     internal abstract class Command
     {
-        static public Command CreateCommand(Cadence_xSPI controller, CommandPayload payload)
+        public static Command CreateCommand(Cadence_xSPI controller, CommandPayload payload)
         {
             switch(controller.Mode)
             {
-                case ControllerMode.SoftwareTriggeredInstructionGenerator:
-                    return STIGCommand.CreateSTIGCommand(controller, payload);
-                case ControllerMode.AutoCommand:
-                    return AutoCommand.CreateAutoCommand(controller, payload);
-                default:
-                    controller.Log(LogLevel.Warning, "Unable to create the command, unknown controller mode 0x{0:x}", controller.Mode);
-                    return null;
+            case ControllerMode.SoftwareTriggeredInstructionGenerator:
+                return STIGCommand.CreateSTIGCommand(controller, payload);
+            case ControllerMode.AutoCommand:
+                return AutoCommand.CreateAutoCommand(controller, payload);
+            default:
+                controller.Log(LogLevel.Warning, "Unable to create the command, unknown controller mode 0x{0:x}", controller.Mode);
+                return null;
             }
         }
 
@@ -49,10 +49,15 @@ namespace Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands
         public abstract void Transmit();
 
         public bool TransmissionFinished { get; protected set; }
+
         public bool Completed { get; protected set; }
+
         public bool CRCError { get; protected set; }
+
         public bool BusError { get; protected set; }
+
         public bool InvalidCommandError { get; protected set; }
+
         public bool Failed => CRCError || BusError || InvalidCommandError;
 
         public abstract uint ChipSelect { get; }

@@ -6,6 +6,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Migrant;
 using Antmicro.Renode.Core;
 
@@ -78,11 +79,17 @@ namespace Antmicro.Renode.Logging
         }
 
         public ulong Id { get; set; }
+
         public int SourceId { get; private set; }
+
         public string Message { get; private set; }
+
         public int? ThreadId { get; private set; }
+
         public DateTime Time { get; private set; }
+
         public int Count { get; set; }
+
         public LogLevel Type
         {
             get
@@ -90,6 +97,7 @@ namespace Antmicro.Renode.Logging
                 return (LogLevel)numericLogLevel;
             }
         }
+
         public string FullMessage
         {
             get
@@ -140,4 +148,3 @@ namespace Antmicro.Renode.Logging
         private const int NoSource = -1;
     }
 }
-

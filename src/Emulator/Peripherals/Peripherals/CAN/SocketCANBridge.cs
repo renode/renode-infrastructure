@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading;
+
 using Antmicro.Migrant;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.CAN;
@@ -16,7 +17,6 @@ using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Utilities.Packets;
 
 namespace Antmicro.Renode.Peripherals.CAN
 {
@@ -188,13 +188,14 @@ namespace Antmicro.Renode.Peripherals.CAN
             }
         }
 
-        private int canSocket;
         [Transient]
         private CancellationTokenSource cancellationTokenSource;
         [Transient]
         private Thread thread;
 
-        private int maximumTransmissionUnit;
+        private readonly int canSocket;
+
+        private readonly int maximumTransmissionUnit;
 
         // PF_CAN
         private const int ProtocolFamilyCan = 29;

@@ -6,7 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
-using Antmicro.Renode.Core.Structure;
+
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
@@ -1300,63 +1300,63 @@ namespace Antmicro.Renode.Peripherals.Network
 
             switch(miiOperation.Value)
             {
-                case MIIOperation.Read:
-                    if(clause45PhyEnable.Value)
+            case MIIOperation.Read:
+                if(clause45PhyEnable.Value)
+                {
+                    if(!TryGetPhy<Clause45Address, ushort>((uint)miiPhy.Value, out var phy))
                     {
-                        if(!TryGetPhy<Clause45Address, ushort>((uint)miiPhy.Value, out var phy))
-                        {
-                            this.Log(LogLevel.Debug, "Read access to unknown phy {0} via Clause 45.", miiPhy.Value);
-                            break;
-                        }
-                        var c45Address = new Clause45Address((byte)miiRegisterOrDeviceAddress.Value, (ushort)miiAddress.Value);
-                        miiData.Value = phy.Read(c45Address);
-                        this.Log(LogLevel.Noisy, "Read ({1}, 0x{2:X}) access to phy {0} via Clause 45.", miiPhy.Value, c45Address, miiData.Value);
-                    }
-                    else
-                    {
-                        if(!TryGetPhy<ushort>((uint)miiPhy.Value, out var phy))
-                        {
-                            this.Log(LogLevel.Debug, "Read access to unknown phy {0} via Clause 22.", miiPhy.Value);
-                            break;
-                        }
-                        miiData.Value = phy.Read((ushort)miiRegisterOrDeviceAddress.Value);
-                        this.Log(LogLevel.Noisy, "Read ({1}, 0x{2:X}) access to phy {0} via Clause 22.", miiPhy.Value, miiRegisterOrDeviceAddress.Value, miiData.Value);
-                    }
-                    break;
-                case MIIOperation.Write:
-                    if(clause45PhyEnable.Value)
-                    {
-                        if(!TryGetPhy<Clause45Address, ushort>((uint)miiPhy.Value, out var phy))
-                        {
-                            this.Log(LogLevel.Debug, "Write access to unknown phy {0} via Clause 45.", miiPhy.Value);
-                            break;
-                        }
-                        var c45Address = new Clause45Address((byte)miiRegisterOrDeviceAddress.Value, (ushort)miiAddress.Value);
-                        this.Log(LogLevel.Noisy, "Write ({1}, 0x{2:X}) access to phy {0} via Clause 45.", miiPhy.Value, c45Address, miiData.Value);
-                        phy.Write(c45Address, (ushort)miiData.Value);
-                    }
-                    else
-                    {
-                        if(!TryGetPhy<ushort>((uint)miiPhy.Value, out var phy))
-                        {
-                            this.Log(LogLevel.Debug, "Write access to unknown phy {0} via Clause 22.", miiPhy.Value);
-                            break;
-                        }
-                        this.Log(LogLevel.Noisy, "Write ({1}, 0x{2:X}) access to phy {0} via Clause 22.", miiPhy.Value, miiRegisterOrDeviceAddress.Value, miiData.Value);
-                        phy.Write((ushort)miiRegisterOrDeviceAddress.Value, (ushort)miiData.Value);
-                    }
-                    break;
-                case MIIOperation.PostReadAddressIncrement:
-                    if(!clause45PhyEnable.Value)
-                    {
-                        this.Log(LogLevel.Warning, "Invalid MII Command: Post Read Increment Address is valid only for Clause 45 PHY.");
+                        this.Log(LogLevel.Debug, "Read access to unknown phy {0} via Clause 45.", miiPhy.Value);
                         break;
                     }
-                    this.Log(LogLevel.Warning, "Unimplemented Command: Post Read Increment Address.");
+                    var c45Address = new Clause45Address((byte)miiRegisterOrDeviceAddress.Value, (ushort)miiAddress.Value);
+                    miiData.Value = phy.Read(c45Address);
+                    this.Log(LogLevel.Noisy, "Read ({1}, 0x{2:X}) access to phy {0} via Clause 45.", miiPhy.Value, c45Address, miiData.Value);
+                }
+                else
+                {
+                    if(!TryGetPhy<ushort>((uint)miiPhy.Value, out var phy))
+                    {
+                        this.Log(LogLevel.Debug, "Read access to unknown phy {0} via Clause 22.", miiPhy.Value);
+                        break;
+                    }
+                    miiData.Value = phy.Read((ushort)miiRegisterOrDeviceAddress.Value);
+                    this.Log(LogLevel.Noisy, "Read ({1}, 0x{2:X}) access to phy {0} via Clause 22.", miiPhy.Value, miiRegisterOrDeviceAddress.Value, miiData.Value);
+                }
+                break;
+            case MIIOperation.Write:
+                if(clause45PhyEnable.Value)
+                {
+                    if(!TryGetPhy<Clause45Address, ushort>((uint)miiPhy.Value, out var phy))
+                    {
+                        this.Log(LogLevel.Debug, "Write access to unknown phy {0} via Clause 45.", miiPhy.Value);
+                        break;
+                    }
+                    var c45Address = new Clause45Address((byte)miiRegisterOrDeviceAddress.Value, (ushort)miiAddress.Value);
+                    this.Log(LogLevel.Noisy, "Write ({1}, 0x{2:X}) access to phy {0} via Clause 45.", miiPhy.Value, c45Address, miiData.Value);
+                    phy.Write(c45Address, (ushort)miiData.Value);
+                }
+                else
+                {
+                    if(!TryGetPhy<ushort>((uint)miiPhy.Value, out var phy))
+                    {
+                        this.Log(LogLevel.Debug, "Write access to unknown phy {0} via Clause 22.", miiPhy.Value);
+                        break;
+                    }
+                    this.Log(LogLevel.Noisy, "Write ({1}, 0x{2:X}) access to phy {0} via Clause 22.", miiPhy.Value, miiRegisterOrDeviceAddress.Value, miiData.Value);
+                    phy.Write((ushort)miiRegisterOrDeviceAddress.Value, (ushort)miiData.Value);
+                }
+                break;
+            case MIIOperation.PostReadAddressIncrement:
+                if(!clause45PhyEnable.Value)
+                {
+                    this.Log(LogLevel.Warning, "Invalid MII Command: Post Read Increment Address is valid only for Clause 45 PHY.");
                     break;
-                default:
-                    this.Log(LogLevel.Warning, "Invalid MII Command: Reserved Operation (0x{0:X}).", miiOperation.Value);
-                    break;
+                }
+                this.Log(LogLevel.Warning, "Unimplemented Command: Post Read Increment Address.");
+                break;
+            default:
+                this.Log(LogLevel.Warning, "Invalid MII Command: Reserved Operation (0x{0:X}).", miiOperation.Value);
+                break;
             }
         }
 

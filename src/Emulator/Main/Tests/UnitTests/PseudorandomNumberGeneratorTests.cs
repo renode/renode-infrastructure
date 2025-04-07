@@ -4,12 +4,13 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using NUnit.Framework;
-using Antmicro.Renode.Core;
 using System.Collections.Generic;
-using System.Threading;
+
 using Antmicro.Migrant;
+using Antmicro.Renode.Core;
 using Antmicro.Renode.UnitTests.Utilities;
+
+using NUnit.Framework;
 
 namespace Antmicro.Renode.UnitTests
 {
@@ -24,12 +25,12 @@ namespace Antmicro.Renode.UnitTests
 
             generator.ResetSeed(Seed);
 
-            for (var i = 0; i < 10; ++i)
+            for(var i = 0; i < 10; ++i)
             {
                 result1.Add((int)tester.Execute(thread1, () => generator.Next()).ShouldFinish().Result);
             }
 
-            for (var i = 0; i < 10; ++i)
+            for(var i = 0; i < 10; ++i)
             {
                 result2.Add((int)tester.Execute(thread2, () => generator.Next()).ShouldFinish().Result);
             }
@@ -46,7 +47,7 @@ namespace Antmicro.Renode.UnitTests
 
             generator.ResetSeed(Seed);
 
-            for (var i = 0; i < 10; ++i)
+            for(var i = 0; i < 10; ++i)
             {
                 result1.Add((int)tester.Execute(thread1, () => generator.Next()).ShouldFinish().Result);
                 result2.Add((int)tester.Execute(thread2, () => generator.Next()).ShouldFinish().Result);
@@ -75,14 +76,14 @@ namespace Antmicro.Renode.UnitTests
             thread2 = tester.ObtainThread(Thread2Name);
             generator.ResetSeed(Seed);
 
-            for (var i = 0; i < 10; ++i)
+            for(var i = 0; i < 10; ++i)
             {
                 thread1Results.Add((int)tester.Execute(thread1, () => generator.Next()).ShouldFinish().Result);
             }
 
-            for (var i = 0; i < 10; ++i)
+            for(var i = 0; i < 10; ++i)
             {
-                thread2Results.Add((int)tester.Execute(thread2, ()  => generator.Next()).ShouldFinish().Result);
+                thread2Results.Add((int)tester.Execute(thread2, () => generator.Next()).ShouldFinish().Result);
             }
         }
 

@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -71,7 +72,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithFlag(25, FieldMode.Read, valueProviderCallback: _ => pll1Enable.Value)
                 .WithReservedBits(26, 6)
                 .WithChangeCallback((_, __) => UpdateClocks());
-                ;
+            ;
 
             Registers.InternalClockSourcesCalibration3.Define(this, 0x100000)
                 .WithTag("HSICAL", 0, 12)
@@ -89,7 +90,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithValueField(28, 3, name: "MCOPRE")
                 .WithReservedBits(31, 1)
                 .WithChangeCallback((_, __) => UpdateClocks());
-                ;
+            ;
 
             Registers.ClockConfiguration2.Define(this)
                 .WithValueField(0, 3, out ahbPrescaler, name: "HPRE")
@@ -99,14 +100,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithValueField(8, 3, out apb2Prescaler, name: "PPRE2")
                 .WithReservedBits(11, 21)
                 .WithChangeCallback((_, __) => UpdateClocks());
-                ;
+            ;
 
             Registers.ClockConfiguration3.Define(this)
                 .WithReservedBits(0, 4)
                 .WithValueField(4, 3, out apb7Prescaler, name: "PPRE7")
                 .WithReservedBits(7, 25)
                 .WithChangeCallback((_, __) => UpdateClocks());
-                ;
+            ;
 
             Registers.Pll1Configuration.Define(this)
                 .WithEnumField(0, 2, out pll1Source, name: "PLL1SRC")
@@ -124,7 +125,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithFlag(22, FieldMode.Read, valueProviderCallback: _ => !pll1SysclkDivide.Value, name: "PLL1RCLKPRERDY") // 1 - not divided
                 .WithReservedBits(23, 9)
                 .WithChangeCallback((_, __) => UpdateClocks());
-                ;
+            ;
 
             Registers.Pll1Dividers.Define(this, 0x01010280)
                 .WithValueField(0, 9, out pll1Multiplier, name: "PLL1N")
@@ -134,7 +135,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithValueField(24, 7, out pll1DividerR, name: "PLL1R")
                 .WithReservedBits(31, 1)
                 .WithChangeCallback((_, __) => UpdateClocks());
-                ;
+            ;
 
             Registers.Pll1FractionalDivider.Define(this)
                 .WithReservedBits(0, 3)
@@ -448,7 +449,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(24, 7)
                 .WithFlag(31, name: "TIMICSEL")
                 .WithChangeCallback((_, __) => UpdateClocks());
-                ;
+            ;
 
             Registers.PeripheralsIndependentClockConfiguration2.Define(this)
                 .WithReservedBits(0, 12)
@@ -467,7 +468,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithValueField(12, 3, name: "ADCSEL")
                 .WithReservedBits(15, 17)
                 .WithChangeCallback((_, __) => UpdateClocks());
-                ;
+            ;
 
             Registers.BackupDomainControl1.Define(this, 0x8)
                 .WithFlag(0, out var lseEnable, name: "LSEON")
@@ -556,7 +557,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithValueField(16, 6, name: "HSETRIM")
                 .WithReservedBits(22, 10)
                 ;
-
         }
 
         private long PrescaleApbAhb(long input, IValueRegisterField prescaler)
@@ -576,65 +576,78 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             switch(source)
             {
-                case LpTimerClockSource.Apb:
-                    return apbFrequency;
-                case LpTimerClockSource.Lsi:
-                    return lsiFrequency;
-                case LpTimerClockSource.Hsi16:
-                    return Hsi16Frequency;
-                case LpTimerClockSource.Lse:
-                    return lseFrequency;
-                default:
-                    throw new ArgumentException("Unreachable: Invalid LpTimer clock source");
+            case LpTimerClockSource.Apb:
+                return apbFrequency;
+            case LpTimerClockSource.Lsi:
+                return lsiFrequency;
+            case LpTimerClockSource.Hsi16:
+                return Hsi16Frequency;
+            case LpTimerClockSource.Lse:
+                return lseFrequency;
+            default:
+                throw new ArgumentException("Unreachable: Invalid LpTimer clock source");
             }
         }
 
         // Clock tree
         private long DividedHse32 => hseFrequency / (hsePrescaler.Value ? 2 : 1);
+
         private long Pll1Source
         {
             get
             {
                 switch(pll1Source.Value)
                 {
-                    default:
-                        this.Log(LogLevel.Warning, "PLL1 frequency was required without a valid PLL source configured");
-                        goto case PllEntryClockSource.Hsi16;
-                    case PllEntryClockSource.None:
-                        return 0;
-                    case PllEntryClockSource.DividedHse32:
-                        return DividedHse32;
-                    case PllEntryClockSource.Hsi16:
-                        return Hsi16Frequency;
+                default:
+                    this.Log(LogLevel.Warning, "PLL1 frequency was required without a valid PLL source configured");
+                    goto case PllEntryClockSource.Hsi16;
+                case PllEntryClockSource.None:
+                    return 0;
+                case PllEntryClockSource.DividedHse32:
+                    return DividedHse32;
+                case PllEntryClockSource.Hsi16:
+                    return Hsi16Frequency;
                 }
             }
         }
+
         private long Pll1VcoInput => Pll1Source / ((long)pll1Prescaler.Value + 1);
+
         private long Pll1VcoOutput => Pll1VcoInput * ((long)pll1Multiplier.Value + 1);
+
         private long Pll1Pclk => Pll1VcoOutput / ((long)pll1DividerP.Value + 1);
+
         private long Pll1Qclk => Pll1VcoOutput / ((long)pll1DividerQ.Value + 1);
+
         private long Pll1Rclk => Pll1VcoOutput / ((long)pll1DividerR.Value + 1);
+
         private long SystemClock
         {
             get
             {
                 switch(systemClockSwitch.Value)
                 {
-                    default:
-                    case SystemClockSource.Hsi16:
-                        return Hsi16Frequency;
-                    case SystemClockSource.DividedHse32:
-                        return DividedHse32;
-                    case SystemClockSource.Pll1Rclk:
-                        return Pll1Rclk;
+                default:
+                case SystemClockSource.Hsi16:
+                    return Hsi16Frequency;
+                case SystemClockSource.DividedHse32:
+                    return DividedHse32;
+                case SystemClockSource.Pll1Rclk:
+                    return Pll1Rclk;
                 }
             }
         }
+
         private long AhbClock => PrescaleApbAhb(SystemClock, ahbPrescaler); // hclk1
+
         private long Apb1Clock => PrescaleApbAhb(AhbClock, apb1Prescaler); // pclk1
+
         private long Apb2Clock => PrescaleApbAhb(AhbClock, apb2Prescaler); // pclk2
+
         private long Apb7Clock => PrescaleApbAhb(AhbClock, apb7Prescaler); // pclk7
+
         private long LpTimer1Clock => GetLpTimerClock(lpTimer1Clock.Value, Apb7Clock);
+
         private long LpTimer2Clock => GetLpTimerClock(lpTimer2Clock.Value, Apb1Clock);
 
         private IFlagRegisterField hsePrescaler;

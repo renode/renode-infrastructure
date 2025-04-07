@@ -5,13 +5,14 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.I2C;
@@ -789,7 +790,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
         }
 
-        private void Register<T>(Dictionary<int, T> container, T peripheral, TypedNumberRegistrationPoint<int> registrationPoint) where T: IPeripheral
+        private void Register<T>(Dictionary<int, T> container, T peripheral, TypedNumberRegistrationPoint<int> registrationPoint) where T : IPeripheral
         {
             if(container.ContainsKey(registrationPoint.Address))
             {
@@ -799,7 +800,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
         }
 
-        private void Unregister<T>(Dictionary<int, T> container, T peripheral) where T: IPeripheral
+        private void Unregister<T>(Dictionary<int, T> container, T peripheral) where T : IPeripheral
         {
             var toRemove = container.Where(x => x.Value.Equals(peripheral)).Select(x => x.Key).ToList(); //ToList required, as we remove from the source
             if(toRemove.Count == 0)
@@ -1003,10 +1004,15 @@ namespace Antmicro.Renode.Peripherals.SPI
             public Action<Fifo, uint, uint> CountChangeAction { get; set; }
 
             public uint BytesCapacity => DoubleWordCapacity * 4;
+
             public uint BytesCount => Count * 4;
+
             public uint BytesLeft => (DoubleWordCapacity * 4) - BytesCount;
+
             public bool Empty => Count == 0;
+
             public bool Full => Count == DoubleWordCapacity;
+
             public uint Pointer => (uint)headIndex;
 
             public bool ResetFlag

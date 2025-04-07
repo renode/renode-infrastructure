@@ -9,6 +9,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+
 using Antmicro.Migrant;
 using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Core;
@@ -65,6 +66,38 @@ namespace Antmicro.Renode.Peripherals.CPU
             this.isSynchronous = isSynchronous;
 
             AttachedCPU.SetHookAtBlockEnd(HandleBlockEndHook);
+        }
+
+        public void TrackMemoryAccesses()
+        {
+            if(AttachedCPU.Architecture == "i386")
+            {
+                throw new RecoverableException("This feature is not yet available on the X86 platforms.");
+            }
+            AttachedCPU.SetHookAtMemoryAccess((pc, operation, virtualAddress, physicalAddress, value) =>
+            {
+                if(operation != MemoryOperation.InsnFetch)
+                {
+                    currentAdditionalData.Enqueue(new MemoryAccessAdditionalData(pc, operation, virtualAddress, physicalAddress, value));
+                }
+            });
+        }
+
+        public void TrackVectorConfiguration()
+        {
+            if(!(AttachedCPU is ICPUWithPostOpcodeExecutionHooks) || !(AttachedCPU.Architecture.StartsWith("riscv")))
+            {
+                throw new RecoverableException("This feature is not available on this platform");
+            }
+            var cpuWithPostOpcodeExecutionHooks = AttachedCPU as ICPUWithPostOpcodeExecutionHooks;
+            cpuWithPostOpcodeExecutionHooks.EnablePostOpcodeExecutionHooks(1u);
+            // 0x7057 it the fixed part of the vcfg opcodes
+            cpuWithPostOpcodeExecutionHooks.AddPostOpcodeExecutionHook(0x7057, 0x7057, (pc) =>
+            {
+                var vl = AttachedCPU.GetRegister(RiscVVlRegisterIndex);
+                var vtype = AttachedCPU.GetRegister(RiscVVtypeRegisterIndex);
+                currentAdditionalData.Enqueue(new RiscVVectorConfigurationData(pc, vl.RawValue, vtype.RawValue));
+            });
         }
 
         public void Dispose()
@@ -161,38 +194,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             writer.Dispose();
         }
 
-        public void TrackMemoryAccesses()
-        {
-            if(AttachedCPU.Architecture == "i386")
-            {
-                throw new RecoverableException("This feature is not yet available on the X86 platforms.");
-            }
-            AttachedCPU.SetHookAtMemoryAccess((pc, operation, virtualAddress, physicalAddress, value) =>
-            {
-                if(operation != MemoryOperation.InsnFetch)
-                {
-                    currentAdditionalData.Enqueue(new MemoryAccessAdditionalData(pc, operation, virtualAddress, physicalAddress, value));
-                }
-            });
-        }
-
-        public void TrackVectorConfiguration()
-        {
-            if(!(AttachedCPU is ICPUWithPostOpcodeExecutionHooks) || !(AttachedCPU.Architecture.StartsWith("riscv")))
-            {
-                throw new RecoverableException("This feature is not available on this platform");
-            }
-            var cpuWithPostOpcodeExecutionHooks = AttachedCPU as ICPUWithPostOpcodeExecutionHooks;
-            cpuWithPostOpcodeExecutionHooks.EnablePostOpcodeExecutionHooks(1u);
-            // 0x7057 it the fixed part of the vcfg opcodes
-            cpuWithPostOpcodeExecutionHooks.AddPostOpcodeExecutionHook(0x7057, 0x7057, (pc) =>
-            {
-                var vl = AttachedCPU.GetRegister(RiscVVlRegisterIndex);
-                var vtype = AttachedCPU.GetRegister(RiscVVtypeRegisterIndex);
-                currentAdditionalData.Enqueue(new RiscVVectorConfigurationData(pc, vl.RawValue, vtype.RawValue));
-            });
-        }
-
         private void HandleBlockEndHook(ulong pc, uint instructionsInBlock)
         {
             if(instructionsInBlock == 0 || wasStopped)
@@ -232,12 +233,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             currentAdditionalData = new Queue<AdditionalData>();
         }
 
+        private bool IsRunning => wasStarted && !wasStopped;
+
         [Transient]
         private TraceWriter writer;
         [Transient]
         private Thread underlyingThread;
-
-        private bool IsRunning => wasStarted && !wasStopped;
 
         private BlockingCollection<Block> blocks;
         private Queue<AdditionalData> currentAdditionalData;

@@ -6,7 +6,6 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Collections.Generic;
 using System.Text;
 
 namespace Antmicro.Renode.Core
@@ -40,7 +39,7 @@ namespace Antmicro.Renode.Core
                     if(String.IsNullOrEmpty(value))
                     {
                         var bldr = new StringBuilder();
-                        while (true)
+                        while(true)
                         {
                             current++;
                             if(!(buffer[current].StartsWith(" ") || buffer[current].StartsWith("\t")))
@@ -60,8 +59,8 @@ namespace Antmicro.Renode.Core
             return null;
         }
 
-        private string[] buffer;
         private int current;
+
+        private readonly string[] buffer;
     }
 }
-

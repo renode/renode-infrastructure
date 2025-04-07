@@ -6,9 +6,9 @@
 //
 using System;
 using System.Collections.Generic;
-using Antmicro.Renode.Peripherals;
-using Antmicro.Renode.Peripherals.I2C;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Peripherals.I2C;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Extensions.Mocks

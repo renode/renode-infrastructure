@@ -7,10 +7,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Core.Extensions;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.GPIOPort;
@@ -101,7 +102,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
 
             var mapping = eirqToPadMapping
-                .Select((Pads, Index) => new { Pads, Index })
+                .Select((pads, index) => new { Pads = pads, Index = index })
                 .Where(item => item.Pads.Contains(number))
                 .FirstOrDefault();
 
@@ -156,12 +157,17 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         public long Size => 0x4000;
+
         public GPIO IRQ1 { get; }
+
         public GPIO IRQ2 { get; }
+
         public GPIO IRQ3 { get; }
+
         public GPIO IRQ4 { get; }
 
         DoubleWordRegisterCollection IProvidesRegisterCollection<DoubleWordRegisterCollection>.RegistersCollection => doubleWordRegisterCollection;
+
         ByteRegisterCollection IProvidesRegisterCollection<ByteRegisterCollection>.RegistersCollection => byteRegisterCollection;
 
         private void UpdateInterrupts()
@@ -382,12 +388,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 // Bits are in reversed order
                 switch(peripheralEndianness)
                 {
-                    case Endianness.LittleEndian:
-                        startPadIndex += (1 - byteIndex) * 8;
-                        break;
-                    case Endianness.BigEndian:
-                        startPadIndex += byteIndex * 8;
-                        break;
+                case Endianness.LittleEndian:
+                    startPadIndex += (1 - byteIndex) * 8;
+                    break;
+                case Endianness.BigEndian:
+                    startPadIndex += byteIndex * 8;
+                    break;
                 }
 
                 return startPadIndex;
@@ -456,6 +462,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             });
         }
 
+        private readonly InterruptType[] interruptType;
+
         private readonly HashSet<int> validPadIndexes =
             new HashSet<int>(Enumerable.Empty<int>()
                 .ConcatRangeFromTo(0, 37)
@@ -506,8 +514,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private const uint ExternalInterruptCount = 32;
         private const uint MuxCount = 3;
         private const int PadDataCount = 15;
-
-        private readonly InterruptType[] interruptType;
 
         [Flags]
         private enum InterruptType

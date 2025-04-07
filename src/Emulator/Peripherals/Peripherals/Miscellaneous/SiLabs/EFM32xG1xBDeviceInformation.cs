@@ -12,7 +12,7 @@ using Antmicro.Renode.Peripherals.Memory;
 namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
-    public class EFM32xG1xBDeviceInformation: DeviceInformation, IDoubleWordPeripheral, IKnownSize
+    public class EFM32xG1xBDeviceInformation : DeviceInformation, IDoubleWordPeripheral, IKnownSize
     {
         public EFM32xG1xBDeviceInformation(DeviceFamily deviceFamily, ushort deviceNumber, MappedMemory flashDevice, MappedMemory sramDevice, byte productRevision = 0)
             : base(deviceFamily, deviceNumber, flashDevice, sramDevice, productRevision)

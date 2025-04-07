@@ -19,6 +19,7 @@ namespace Antmicro.Renode.Core.Structure
         }
 
         public TPeripheral Peripheral { get; private set; }
+
         public TRegistrationPoint RegistrationPoint { get; private set; }
     }
 
@@ -26,7 +27,7 @@ namespace Antmicro.Renode.Core.Structure
     {
         public static Registered<TPeripheral, TRegistrationPoint> Create<TPeripheral, TRegistrationPoint>
             (TPeripheral peripheral, TRegistrationPoint registrationPoint)
-            where TPeripheral : IPeripheral  where TRegistrationPoint : IRegistrationPoint
+            where TPeripheral : IPeripheral where TRegistrationPoint : IRegistrationPoint
         {
             return new Registered<TPeripheral, TRegistrationPoint>(peripheral, registrationPoint);
         }

@@ -5,15 +5,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
-using Antmicro.Renode.Debugging;
-using Antmicro.Renode.Exceptions;
+
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Utilities.Binding;
+
 using PerfettoTraceWriter = Antmicro.Renode.Peripherals.CPU.GuestProfiling.ProtoBuf.PerfettoTraceWriter;
 
 namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
@@ -49,11 +45,11 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
                 // We have to add the first frame, form which the first jump happened
                 // To infer this frame we use the current PC value, which should point to the jump instruction that triggered this event
                 var prevSymbol = GetSymbolName(cpu.PC.RawValue);
-                currentStack.Push(prevSymbol);
+                CurrentStack.Push(prevSymbol);
                 writer.CreateEventBegin(0, prevSymbol, currentTrack);
             }
 
-            currentStack.Push(currentSymbol);
+            CurrentStack.Push(currentSymbol);
             ulong time = InstructionCountToNs(instructionsCount);
             writer.CreateEventBegin(time, currentSymbol, currentTrack);
             CheckAndFlush(time);
@@ -62,7 +58,7 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
         public override void StackFramePop(ulong currentAddress, ulong returnAddress, ulong instructionsCount)
         {
             cpu.Log(LogLevel.Debug, "Profiler: Trying to pop frame with returnAddress: 0x{0:X} ({1}); currentAddress: 0x{2:X}", returnAddress, GetSymbolName(returnAddress), currentAddress);
-            if(currentStack.Count == 0)
+            if(CurrentStack.Count == 0)
             {
                 cpu.Log(LogLevel.Error, "Profiler: Trying to return from frame while internal stack tracking is empty");
                 return;
@@ -70,7 +66,7 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
 
             ulong time = InstructionCountToNs(instructionsCount);
             writer.CreateEventEnd(time, currentTrack);
-            currentStack.Pop();
+            CurrentStack.Pop();
             CheckAndFlush(time);
         }
 
@@ -91,7 +87,7 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
             ulong time = InstructionCountToNs(cpu.ExecutedInstructions);
 
             // End the current thread's stack frame
-            for(int i = 0; i < currentStack.Count; i++)
+            for(int i = 0; i < CurrentStack.Count; i++)
             {
                 writer.CreateEventEnd(time, track);
             }
@@ -110,18 +106,18 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
             currentContextId = newContextId;
 
             ulong newTrack = enableMultipleTracks ? newContextId : MainTrack;
-            if(currentContext.Count > 0)
+            if(CurrentContext.Count > 0)
             {
-                currentContext.PopCurrentStack();
+                CurrentContext.PopCurrentStack();
                 // Restore events from the previous visit to this context
-                foreach(var frame in currentStack.Reverse())
+                foreach(var frame in CurrentStack.Reverse())
                 {
                     writer.CreateEventBegin(time, frame, newTrack);
                 }
             }
             else
             {
-                currentContext.PopCurrentStack();
+                CurrentContext.PopCurrentStack();
             }
 
             currentTrack = newTrack;
@@ -137,7 +133,7 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
                 // If we entered another interrupt just after exiting the previous one
                 // We have to remove the start packets so the trace doesn't show a stack
                 // with the duration of 0
-                writer.RemoveLastNPackets(currentStack.Count);
+                writer.RemoveLastNPackets(CurrentStack.Count);
             }
             else
             {
@@ -160,18 +156,18 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
             blockFlush = true;
 
             cpu.Log(LogLevel.Debug, "Profiler: Interrupt exit - restoring the stack");
-            if(currentContext.Count > 0)
+            if(CurrentContext.Count > 0)
             {
-                currentContext.PopCurrentStack();
+                CurrentContext.PopCurrentStack();
                 // Restart functions on the current stack
-                foreach(var frame in currentStack.Reverse())
+                foreach(var frame in CurrentStack.Reverse())
                 {
                     writer.CreateEventBegin(time, frame, currentTrack);
                 }
             }
             else
             {
-                currentContext.PopCurrentStack();
+                CurrentContext.PopCurrentStack();
             }
             CheckAndFlush(time);
         }
@@ -205,7 +201,7 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
 
         private void FinishCurrentStack(ulong time, ulong trackId)
         {
-            for(int i = 0; i < currentStack.Count; i++)
+            for(int i = 0; i < CurrentStack.Count; i++)
             {
                 writer.CreateEventEnd(time, trackId);
             }
@@ -232,16 +228,16 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
             return (1000 * instructionCount) / cpu.PerformanceInMips;
         }
 
+        private bool isDisposing;
+        private bool blockFlush;
+        private ulong lastInterruptExitTime;
+        private ulong currentTrack;
+
         private readonly PerfettoTraceWriter writer;
         private readonly bool enableMultipleTracks;
         private readonly FileStream fileStream;
         private readonly long? fileSizeLimit;
 
-        private bool isDisposing;
-        private bool blockFlush;
-        private ulong lastInterruptExitTime;
-        private ulong currentTrack;
-        
         private const ulong MainTrack = 0;
         private const int BufferFlushLevel = 10000;
     }

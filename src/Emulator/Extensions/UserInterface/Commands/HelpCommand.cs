@@ -7,23 +7,30 @@
 //
 using System;
 using System.Collections.Generic;
-using Antmicro.Renode.UserInterface.Tokenizer;
-using AntShell.Commands;
 using System.Linq;
+
+using Antmicro.Renode.UserInterface.Tokenizer;
+
+using AntShell.Commands;
 
 namespace Antmicro.Renode.UserInterface.Commands
 {
     public class HelpCommand : Command
     {
+        public HelpCommand(Monitor monitor, Func<IEnumerable<ICommandDescription>> getCommands) : base(monitor, "help", "prints this help message or info about specified command.", "?", "h")
+        {
+            GetCommands = getCommands;
+        }
+
         [Runnable]
         public void GeneralHelp(ICommandInteraction writer)
         {
             writer.WriteLine("Available commands:");
             writer.WriteLine(string.Format("{0,-18}| {1}", "Name", "Description"));
             writer.WriteLine("================================================================================");
-            foreach(var item in GetCommands().OrderBy(x=>x.Name))
+            foreach(var item in GetCommands().OrderBy(x => x.Name))
             {
-                writer.WriteLine(string.Format("{0,-18}: {1}", item.Name, item.Description));    
+                writer.WriteLine(string.Format("{0,-18}: {1}", item.Name, item.Description));
             }
             writer.WriteLine();
             writer.WriteLine("You can also provide a device name to access its methods.");
@@ -43,11 +50,5 @@ namespace Antmicro.Renode.UserInterface.Commands
         }
 
         private readonly Func<IEnumerable<ICommandDescription>> GetCommands;
-
-        public HelpCommand(Monitor monitor, Func<IEnumerable<ICommandDescription>> getCommands) : base(monitor, "help", "prints this help message or info about specified command.", "?", "h")
-        {
-            GetCommands = getCommands;
-        }
     }
 }
-

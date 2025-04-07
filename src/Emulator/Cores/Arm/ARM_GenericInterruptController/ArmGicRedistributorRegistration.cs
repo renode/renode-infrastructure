@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU;
@@ -19,6 +20,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             Cpu = attachedCPU;
         }
 
+        public override string ToString()
+        {
+            return $"{base.ToString()} GIC redistributor, attached CPU: {Cpu}";
+        }
+
         public override Action<long, byte> GetWriteByteMethod(IBusPeripheral peripheral)
         {
             GetGICAndCPUEntry(peripheral, out var gic, out var entry);
@@ -26,7 +32,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 gic.LockExecuteAndUpdate(() =>
                     {
-                        var registerExists = IsByteAccessible(offset) && Utils.TryWriteByteToDoubleWordCollection(entry.RedistributorDoubleWordRegisters, offset, value, gic);
+                        var registerExists = IsByteAccessible(offset) && Utils.TryWriteByteToDoubleWordCollection(entry.RedistributorDoubleWordRegisters, offset, value);
                         gic.LogWriteAccess(registerExists, value, "Redistributor (byte access)", offset, (ARM_GenericInterruptController.RedistributorRegisters)offset);
                     }
                 );
@@ -41,7 +47,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 byte value = 0;
                 gic.LockExecuteAndUpdate(() =>
                     {
-                        var registerExists = IsByteAccessible(offset) && Utils.TryReadByteFromDoubleWordCollection(entry.RedistributorDoubleWordRegisters, offset, out value, gic);
+                        var registerExists = IsByteAccessible(offset) && Utils.TryReadByteFromDoubleWordCollection(entry.RedistributorDoubleWordRegisters, offset, out value);
                         gic.LogReadAccess(registerExists, value, "Redistributor (byte access)", offset, (ARM_GenericInterruptController.RedistributorRegisters)offset);
                     }
                 );
@@ -112,6 +118,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             RegisterForEachContextInner(register, visibleTo => new ArmGicRedistributorRegistration(Cpu, Range.StartAddress, visibleTo));
         }
 
+        public IARMSingleSecurityStateCPU Cpu { get; }
+
         private void GetGICAndCPUEntry(IBusPeripheral peripheral, out ARM_GenericInterruptController gic, out ARM_GenericInterruptController.CPUEntry entry)
         {
             gic = peripheral as ARM_GenericInterruptController;
@@ -129,17 +137,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
-        public override string ToString()
-        {
-            return $"{base.ToString()} GIC redistributor, attached CPU: {Cpu}";
-        }
-
         private bool IsByteAccessible(long offset)
         {
             const long maxByteOffset = 3;
             return (long)ARM_GenericInterruptController.RedistributorRegisters.InterruptPriority_0 <= offset && offset <= (long)ARM_GenericInterruptController.RedistributorRegisters.InterruptPriority_7 + maxByteOffset;
         }
-
-        public IARMSingleSecurityStateCPU Cpu { get; }
     }
 }

@@ -5,10 +5,10 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Memory;
-using Antmicro.Renode.Core.Structure.Registers;
 
 namespace Antmicro.Renode.Peripherals.MTD
 {
@@ -43,6 +43,10 @@ namespace Antmicro.Renode.Peripherals.MTD
             }
             base.WriteDoubleWord(offset, value);
         }
+
+        public long Size => 0x1000;
+
+        public GPIO NonSecureInterrupt { get; }
 
         private void DefineRegisters()
         {
@@ -295,9 +299,6 @@ namespace Antmicro.Renode.Peripherals.MTD
             var operationError = operationErrorInterruptEnable.Value && operationErrorInterruptStatus.Value;
             NonSecureInterrupt.Set(operationCompleted || operationError);
         }
-
-        public long Size => 0x1000;
-        public GPIO NonSecureInterrupt { get; }
 
         private IFlagRegisterField nonSecurePageEraseEnabled;
         private IFlagRegisterField nonSecureMassEraseEnabled;

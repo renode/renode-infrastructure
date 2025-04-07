@@ -4,11 +4,10 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System.Collections.Generic;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -27,6 +26,42 @@ namespace Antmicro.Renode.Peripherals.UART
             {
                 DefineBasicModeRegisters();
             }
+        }
+
+        public override void Reset()
+        {
+            base.Reset();
+            registers.Reset();
+        }
+
+        public uint ReadDoubleWord(long offset)
+        {
+            return registers.Read(offset); ;
+        }
+
+        public void WriteDoubleWord(long offset, uint value)
+        {
+            registers.Write(offset, value);
+        }
+
+        public override uint BaudRate => 115200;
+
+        public override Parity ParityBit => Parity.None;
+
+        public override Bits StopBits => Bits.One;
+
+        public GPIO IRQ { get; }
+
+        public long Size => 0x400;
+
+        protected override void CharWritten()
+        {
+            // intentionally left blank
+        }
+
+        protected override void QueueEmptied()
+        {
+            // intentionally left blank
         }
 
         private void DefineBasicModeRegisters()
@@ -109,40 +144,6 @@ namespace Antmicro.Renode.Peripherals.UART
             ;
         }
 
-        public override void Reset()
-        {
-            base.Reset();
-            registers.Reset();
-        }
-
-        public uint ReadDoubleWord(long offset)
-        {
-            return registers.Read(offset);;
-        }
-
-        public void WriteDoubleWord(long offset, uint value)
-        {
-            registers.Write(offset, value);
-        }
-
-        public GPIO IRQ { get; }
-
-        public override uint BaudRate => 115200;
-        public override Parity ParityBit => Parity.None;
-        public override Bits StopBits => Bits.One;
-
-        public long Size => 0x400;
-
-        protected override void CharWritten()
-        {
-            // intentionally left blank
-        }
-
-        protected override void QueueEmptied()
-        {
-            // intentionally left blank
-        }
-
         private readonly DoubleWordRegisterCollection registers;
 
         private enum BasicModeRegisters
@@ -177,4 +178,3 @@ namespace Antmicro.Renode.Peripherals.UART
         }
     }
 }
-

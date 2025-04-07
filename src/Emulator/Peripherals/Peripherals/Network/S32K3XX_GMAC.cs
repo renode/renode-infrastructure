@@ -49,10 +49,15 @@ namespace Antmicro.Renode.Peripherals.Network
         public override long Size => 0x1300;
 
         public GPIO Channel0TX => dmaChannels[0].TxIRQ;
+
         public GPIO Channel0RX => dmaChannels[0].RxIRQ;
+
         public GPIO Channel1TX => dmaChannels[1].TxIRQ;
+
         public GPIO Channel1RX => dmaChannels[1].RxIRQ;
+
         public GPIO Channel2TX => dmaChannels[2].TxIRQ;
+
         public GPIO Channel2RX => dmaChannels[2].RxIRQ;
 
         // Base model configuration:
@@ -62,7 +67,9 @@ namespace Antmicro.Renode.Peripherals.Network
             (long)Registers.DMAChannel1Control - (long)Registers.DMAMode,
             (long)Registers.DMAChannel2Control - (long)Registers.DMAMode,
         };
+
         protected override int RxQueueSize => 16384;
+
         protected override bool SeparateDMAInterrupts => true;
 
         private enum Registers

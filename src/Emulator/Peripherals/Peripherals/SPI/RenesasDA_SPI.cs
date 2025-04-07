@@ -6,13 +6,16 @@
 //
 using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+#pragma warning disable IDE0005
 using Antmicro.Renode.Utilities;
+#pragma warning restore IDE0005
 
 namespace Antmicro.Renode.Peripherals.SPI
 {
@@ -49,9 +52,12 @@ namespace Antmicro.Renode.Peripherals.SPI
             RegistersCollection.Write(offset, value);
         }
 
-        public DoubleWordRegisterCollection RegistersCollection { get; } 
+        public DoubleWordRegisterCollection RegistersCollection { get; }
+
         public GPIO IRQ { get; }
+
         public long Size => 0x100;
+
         public bool ChipSelectEnableValue { get; set; }
 
         private Dictionary<long, DoubleWordRegister> BuildRegisterMap()
@@ -79,12 +85,10 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithTaggedFlag("SPI_SWAP_BYTES", 7)
                     .WithReservedBits(8, 24)
                 },
-
                 {(long)Registers.Clock, new DoubleWordRegister(this)
                     .WithTag("SPI_CLK_DIV", 0, 7)
                     .WithReservedBits(7, 25)
                 },
-
                 {(long)Registers.Configuration, new DoubleWordRegister(this)
                     .WithTag("SPI_MODE", 0, 2)
                     .WithValueField(2, 5, out wordBits, name: "SPI_WORD_LENGTH",
@@ -100,26 +104,22 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithTaggedFlag("SPI_SLAVE_EN", 7)
                     .WithReservedBits(8, 24)
                 },
-
                 {(long)Registers.FifoConfiguration, new DoubleWordRegister(this)
                     .WithTag("SPI_TX_TL", 0, 4)
                     .WithValueField(4, 4, out receiveFIFOThresholdLevel, name: "SPI_RX_TL", changeCallback: (_, __) => UpdateInterrupts())
                     .WithReservedBits(8, 24)
                 },
-
                 {(long)Registers.InterruptMask, new DoubleWordRegister(this)
                     .WithFlag(0, out fifoTransmitEmptyInterruptEnabled, name: "SPI_IRQ_MASK_TX_EMPTY")
                     .WithFlag(1, out fifoReceiveFullInterruptEnabled, name: "SPI_IRQ_MASK_RX_FULL")
                     .WithReservedBits(2, 30)
                     .WithChangeCallback((_, __) => UpdateInterrupts())
                 },
-
                 {(long)Registers.Status, new DoubleWordRegister(this)
                     .WithFlag(0, FieldMode.Read, name: "SPI_STATUS_TX_EMPTY", valueProviderCallback: _ => true)
                     .WithFlag(1, FieldMode.Read, name: "SPI_STATUS_RX_FULL", valueProviderCallback: _ => IsReceiveFIFOFull)
                     .WithReservedBits(2, 30)
                 },
-
                 {(long)Registers.FifoStatus, new DoubleWordRegister(this)
                     .WithValueField(0, 6, FieldMode.Read, name: "SPI_RX_FIFO_LEVEL", valueProviderCallback: _ => (ulong)Math.Min(fifoDepth, receiveQueue.Count))
                     .WithValueField(6, 6, FieldMode.Read, name: "SPI_TX_FIFO_LEVEL", valueProviderCallback: _ => 0)
@@ -129,7 +129,6 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithFlag(15, FieldMode.Read, name: "SPI_TRANSACTION_ACTIVE", valueProviderCallback: _ => false)
                     .WithReservedBits(16, 16)
                 },
-
                 {(long)Registers.FifoRead, new DoubleWordRegister(this)
                     .WithValueField(0, 32, FieldMode.Read, name: "SPI_FIFO_READ",
                         valueProviderCallback: _ =>
@@ -155,7 +154,6 @@ namespace Antmicro.Renode.Peripherals.SPI
                             return result;
                         })
                 },
-
                 {(long)Registers.FifoWrite, new DoubleWordRegister(this)
                     .WithValueField(0, 32, FieldMode.Write, name: "SPI_FIFO_WRITE",
                         writeCallback: (_, value) =>
@@ -182,13 +180,11 @@ namespace Antmicro.Renode.Peripherals.SPI
                             UpdateInterrupts();
                         })
                 },
-
                 {(long)Registers.CsConfiguration, new DoubleWordRegister(this)
                     .WithEnumField<DoubleWordRegister, ChipSelect>(0, 3, name: "SPI_CS_SELECT",
                         changeCallback: (_, value) => SwitchActivePeripheral(value))
                     .WithReservedBits(3, 29)
                 },
-
                 {(long)Registers.TXBufferForce, new DoubleWordRegister(this)
                     .WithTag("SPI_TXBUFFER_FORCE", 0, 32)
                 }
@@ -208,51 +204,51 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             switch(value)
             {
-                case ChipSelect.None:
+            case ChipSelect.None:
+            {
+                if(selectedPeripheral is IGPIOReceiver receiver)
                 {
-                    if(selectedPeripheral is IGPIOReceiver receiver)
-                    {
-                        receiver.OnGPIO(0, !ChipSelectEnableValue);
-                    }
-                    else
-                    {
-                        selectedPeripheral?.FinishTransmission();
-                    }
+                    receiver.OnGPIO(0, !ChipSelectEnableValue);
+                }
+                else
+                {
+                    selectedPeripheral?.FinishTransmission();
+                }
+                selectedPeripheral = null;
+                return;
+            }
+            case ChipSelect.SPIEnable:
+            case ChipSelect.SPIEnable2:
+            case ChipSelect.GPIO:
+            {
+                if(selectedPeripheral is IGPIOReceiver oldReceiver)
+                {
+                    oldReceiver.OnGPIO(0, !ChipSelectEnableValue);
+                }
+                else
+                {
+                    selectedPeripheral?.FinishTransmission();
+                }
+
+                var address = ChipSelectToAddress(value);
+                if(!TryGetByAddress(address, out var peripheral))
+                {
+                    this.WarningLog("No peripheral with address {0} exists (Chip select: {1})", address, value);
                     selectedPeripheral = null;
                     return;
                 }
-                case ChipSelect.SPIEnable:
-                case ChipSelect.SPIEnable2:
-                case ChipSelect.GPIO:
+
+                if(peripheral is IGPIOReceiver newReceiver)
                 {
-                    if(selectedPeripheral is IGPIOReceiver oldReceiver)
-                    {
-                        oldReceiver.OnGPIO(0, !ChipSelectEnableValue);
-                    }
-                    else
-                    {
-                        selectedPeripheral?.FinishTransmission();
-                    }
-                    
-                    var address = ChipSelectToAddress(value);
-                    if(!TryGetByAddress(address, out var peripheral))
-                    {
-                        this.WarningLog("No peripheral with address {0} exists (Chip select: {1})", address, value);
-                        selectedPeripheral = null;
-                        return;
-                    }
-
-                    if(peripheral is IGPIOReceiver newReceiver)
-                    {
-                        newReceiver.OnGPIO(0, ChipSelectEnableValue);
-                    }
-
-                    selectedPeripheral = peripheral;
-                    return;
+                    newReceiver.OnGPIO(0, ChipSelectEnableValue);
                 }
-                default:
-                    this.ErrorLog("Invalid chip select value 0x{0:X}", value);
-                    return;
+
+                selectedPeripheral = peripheral;
+                return;
+            }
+            default:
+                this.ErrorLog("Invalid chip select value 0x{0:X}", value);
+                return;
             }
         }
 
@@ -260,21 +256,18 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             switch(chipSelect)
             {
-                case ChipSelect.SPIEnable:
-                    return 1;
-                case ChipSelect.SPIEnable2:
-                    return 2;
-                case ChipSelect.GPIO:
-                    return 3;
-                default:
-                    return -1;
+            case ChipSelect.SPIEnable:
+                return 1;
+            case ChipSelect.SPIEnable2:
+                return 2;
+            case ChipSelect.GPIO:
+                return 3;
+            default:
+                return -1;
             }
         }
 
         private bool IsReceiveFIFOFull => (ulong)receiveQueue.Count >= (receiveFIFOThresholdLevel.Value + 1);
-
-        private readonly Queue<byte> receiveQueue;
-        private readonly int fifoDepth;
 
         private ISPIPeripheral selectedPeripheral;
 
@@ -285,6 +278,9 @@ namespace Antmicro.Renode.Peripherals.SPI
         private IFlagRegisterField fifoReceiveFullInterruptEnabled;
         private IValueRegisterField receiveFIFOThresholdLevel;
         private IValueRegisterField wordBits;
+
+        private readonly Queue<byte> receiveQueue;
+        private readonly int fifoDepth;
 
         private const int DefaultFifoDepth = 4;
         private const int WordBitsOffset = 1;

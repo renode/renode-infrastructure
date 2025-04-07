@@ -6,6 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -82,10 +83,13 @@ namespace Antmicro.Renode.Peripherals.SPI
         }
 
         public DoubleWordRegisterCollection RegistersCollection { get; }
+
         public GPIO IRQ { get; }
+
         public long Size => 0x128;
 
         public TransferType DmaWriteAccessWidth { get; private set; }
+
         public TransferType DmaReadAccessWidth { get; private set; }
 
         private void DefineRegisters()
@@ -120,7 +124,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithFlag(7, FieldMode.Write,
                     writeCallback: (_, val) =>
                     {
-                        if (val)
+                        if(val)
                         {
                             SWReset();
                         }
@@ -380,11 +384,6 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private ulong SelectedSlaveByteMask => (ulong)((1 << (int)txLengths[SelectedSlaveRegisterNumber]) - 1);
 
-        private bool writeProtection;
-        private int selectedSlaveAddr;
-        private ulong rawChipSelect;
-        private ulong[] txLengths = {0, 0, 0, 0};
-        private Queue<byte> transmitBuffer;
         private IValueRegisterField receiveBuffer;
         private IValueRegisterField transmitData;
         private IValueRegisterField writeProtectionViolationSource;
@@ -395,6 +394,12 @@ namespace Antmicro.Renode.Peripherals.SPI
         private IFlagRegisterField localLoopback;
         private IEnumRegisterField<SPIMode> mode;
         private IEnumRegisterField<PeripheralSelectMode> peripheralSelectMode;
+
+        private bool writeProtection;
+        private int selectedSlaveAddr;
+        private ulong rawChipSelect;
+        private readonly ulong[] txLengths = {0, 0, 0, 0};
+        private readonly Queue<byte> transmitBuffer;
         private readonly InterruptManager<Interrupts> irqManager;
         private readonly SAM_PDC pdc;
         private readonly List<long> writeProtected = new List<long>
@@ -405,6 +410,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             (long)Registers.ChipSelect2,
             (long)Registers.ChipSelect3,
         };
+
         private const int NumberOfChipSelectRegisters = 4;
         private const int WriteProtectionPasswd = 0x535049; // ASCII: "SPI"
 
@@ -465,4 +471,3 @@ namespace Antmicro.Renode.Peripherals.SPI
         }
     }
 }
-

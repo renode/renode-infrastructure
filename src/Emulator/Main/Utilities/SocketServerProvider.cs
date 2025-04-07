@@ -14,9 +14,9 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
+
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Sockets;
-using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -33,7 +33,7 @@ namespace Antmicro.Renode.Utilities
 
         public void Start(int port)
         {
-            server = SocketsManager.Instance.AcquireSocket(null ,AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp, new IPEndPoint(IPAddress.Any, port), listeningBacklog: 1, nameAppendix: this.serverName);
+            server = SocketsManager.Instance.AcquireSocket(null, AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp, new IPEndPoint(IPAddress.Any, port), listeningBacklog: 1, nameAppendix: this.serverName);
 
             listenerThread = new Thread(ListenerThreadBody)
             {
@@ -95,8 +95,11 @@ namespace Antmicro.Renode.Utilities
         public int? Port => (server?.LocalEndPoint as IPEndPoint)?.Port;
 
         public event Action ConnectionClosed;
+
         public event Action<Stream> ConnectionAccepted;
+
         public event Action<int> DataReceived;
+
         public event Action<byte[]> DataBlockReceived;
 
         private void WriterThreadBody(Stream stream)
@@ -121,7 +124,7 @@ namespace Antmicro.Renode.Utilities
                             {
                                 // If we're in telnetMode and we discover the IACEscape byte, we should double it
                                 stream.Write(dequeued, 0, iacEscapePosition + 1);
-                                stream.Write(new byte[]{ IACEscape }, 0, 1);
+                                stream.Write(new byte[] { IACEscape }, 0, 1);
                                 var lengthOfRest = dequeued.Length - (iacEscapePosition + 1);
                                 if(lengthOfRest > 0)
                                 {
@@ -315,13 +318,6 @@ namespace Antmicro.Renode.Utilities
             listenerThread = null;
         }
 
-        private ConcurrentQueue<byte[]> queue;
-
-        private CancellationTokenSource cancellationToken;
-        private AutoResetEvent enqueuedEvent;
-        private bool telnetMode;
-        private bool flushOnConnect;
-        private readonly string serverName;
         private volatile bool stopRequested;
         private Thread listenerThread;
         private Thread readerThread;
@@ -330,6 +326,14 @@ namespace Antmicro.Renode.Utilities
         private Socket socket;
         private int bytesToIgnore;
         private bool iacEscapeSpotted;
+
+        private ConcurrentQueue<byte[]> queue;
+
+        private CancellationTokenSource cancellationToken;
+        private readonly AutoResetEvent enqueuedEvent;
+        private readonly bool telnetMode;
+        private readonly bool flushOnConnect;
+        private readonly string serverName;
 
         private const int IACEscape = 255;
         private const int IACCommandBytes = 3;

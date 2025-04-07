@@ -79,4 +79,3 @@ namespace Antmicro.Renode.Utilities
         }
     }
 }
-

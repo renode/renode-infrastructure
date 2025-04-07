@@ -14,4 +14,3 @@ namespace Antmicro.Renode.Utilities
     {
     }
 }
-

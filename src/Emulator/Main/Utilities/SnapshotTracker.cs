@@ -4,13 +4,13 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Collections.Generic;
+
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Time;
-using Antmicro.Renode.Core;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -107,6 +107,7 @@ namespace Antmicro.Renode.Utilities
             }
 
             public TimeInterval TimeStamp { get; }
+
             public string Path { get; }
         }
 
@@ -119,4 +120,3 @@ namespace Antmicro.Renode.Utilities
         }
     }
 }
-

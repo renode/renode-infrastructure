@@ -6,16 +6,22 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using AntShell.Commands;
-using Antmicro.Renode.UserInterface.Tokenizer;
-using Antmicro.Renode.Peripherals;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Peripherals;
+using Antmicro.Renode.UserInterface.Tokenizer;
+
+using AntShell.Commands;
 
 namespace Antmicro.Renode.UserInterface.Commands
 {
     public class AnalyzersCommand : AutoLoadCommand
     {
+        public AnalyzersCommand(Monitor monitor) : base(monitor, "analyzers", "shows available analyzers for peripheral.")
+        {
+        }
+
         public override void PrintHelp(AntShell.Commands.ICommandInteraction writer)
         {
             writer.WriteLine("Usage:");
@@ -58,7 +64,7 @@ namespace Antmicro.Renode.UserInterface.Commands
         }
 
         [Runnable]
-        public void Run(ICommandInteraction writer, [Values("default")] LiteralToken @default, LiteralToken peripheralName)
+        public void Run(ICommandInteraction writer, [Values("default")] LiteralToken _, LiteralToken peripheralName)
         {
             var emu = EmulationManager.Instance.CurrentEmulation;
             IPeripheral p;
@@ -81,10 +87,5 @@ namespace Antmicro.Renode.UserInterface.Commands
             var def = emu.BackendManager.GetPreferredAnalyzerFor(backend);
             writer.WriteLine(def ?? "No default analyzer found.");
         }
-
-        public AnalyzersCommand(Monitor monitor) : base(monitor, "analyzers", "shows available analyzers for peripheral.")
-        {
-        }
     }
 }
-

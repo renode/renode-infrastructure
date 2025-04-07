@@ -54,7 +54,9 @@ namespace Antmicro.Renode.Logging
         }
 
         protected abstract void SetColor(ConsoleColor color);
+
         protected abstract void ResetColor();
+
         protected abstract void WriteLine(string line);
 
         protected static readonly byte[][] ANSIColorControlSequence = {

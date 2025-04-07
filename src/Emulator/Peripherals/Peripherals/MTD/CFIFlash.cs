@@ -6,14 +6,14 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.IO;
+
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Storage;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Exceptions;
-using System.IO;
-using Antmicro.Renode.Core;
 using Antmicro.Renode.UserInterface;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.MTD
 {
@@ -38,64 +38,6 @@ namespace Antmicro.Renode.Peripherals.MTD
             }
             Init(fileName, size, nonPersistent);
             CheckBuffer(0);
-        }
-
-        public long Size
-        {
-            get
-            {
-                return size;
-            }
-        }
-
-        /// <summary>
-        /// Gets or sets the size of the erase block.
-        /// </summary>
-        /// <value>
-        /// The size of the erase block in bytes.
-        /// </value>
-        /// <exception cref='ArgumentException'>
-        /// Thrown when erase block size is not divisible by 256 or greater than 16776960 or it
-        /// does not divide whole flash size.
-        /// </exception>
-        public int EraseBlockSize
-        {
-            get
-            {
-                return 256 * eraseBlockSizeDivided;
-            }
-            set
-            {
-                if(value % 256 != 0)
-                {
-                    throw new ArgumentException("Erase block size has to be divisible by 256.");
-                }
-                if(size % value != 0)
-                {
-                    throw new ArgumentException(string.Format(
-                        "Erase block has to divide flash size, which is {0}B.", Misc.NormalizeBinary(size))
-                    );
-                }
-                if(size / value > ushort.MaxValue + 1)
-                {
-                    throw new ArgumentException(string.Format(
-                        "Erase block cannot be smaller than {0}B for given flash size {1}B.",
-                        Misc.NormalizeBinary(size / (ushort.MaxValue + 1)),
-                        Misc.NormalizeBinary(Size))
-                    );
-                }
-                if(value / 256 > ushort.MaxValue)
-                {
-                    throw new ArgumentException(string.Format(
-                        "Erase block cannot be larger than {0}B ({2}B was given) for given flash size {1}B.",
-                        256 * ushort.MaxValue,
-                        Misc.NormalizeBinary(Size),
-                        value)
-                    );
-                }
-                eraseBlockSizeDivided = (ushort)(value / 256);
-                eraseBlockCountMinusOne = (ushort)(size / value - 1);
-            }
         }
 
         public byte ReadByte(long offset)
@@ -250,6 +192,65 @@ namespace Antmicro.Renode.Peripherals.MTD
             this.NoisyLog("Dispose: flushing buffer and closing underlying stream.");
             FlushBuffer();
             stream.Dispose();
+        }
+
+        public long Size
+        {
+            get
+            {
+                return size;
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the size of the erase block.
+        /// </summary>
+        /// <value>
+        /// The size of the erase block in bytes.
+        /// </value>
+        /// <exception cref='ArgumentException'>
+        /// Thrown when erase block size is not divisible by 256 or greater than 16776960 or it
+        /// does not divide whole flash size.
+        /// </exception>
+        public int EraseBlockSize
+        {
+            get
+            {
+                return 256 * eraseBlockSizeDivided;
+            }
+
+            set
+            {
+                if(value % 256 != 0)
+                {
+                    throw new ArgumentException("Erase block size has to be divisible by 256.");
+                }
+                if(size % value != 0)
+                {
+                    throw new ArgumentException(string.Format(
+                        "Erase block has to divide flash size, which is {0}B.", Misc.NormalizeBinary(size))
+                    );
+                }
+                if(size / value > ushort.MaxValue + 1)
+                {
+                    throw new ArgumentException(string.Format(
+                        "Erase block cannot be smaller than {0}B for given flash size {1}B.",
+                        Misc.NormalizeBinary(size / (ushort.MaxValue + 1)),
+                        Misc.NormalizeBinary(Size))
+                    );
+                }
+                if(value / 256 > ushort.MaxValue)
+                {
+                    throw new ArgumentException(string.Format(
+                        "Erase block cannot be larger than {0}B ({2}B was given) for given flash size {1}B.",
+                        256 * ushort.MaxValue,
+                        Misc.NormalizeBinary(Size),
+                        value)
+                    );
+                }
+                eraseBlockSizeDivided = (ushort)(value / 256);
+                eraseBlockCountMinusOne = (ushort)(size / value - 1);
+            }
         }
 
         private void Init(string fileName, int? requestedSize, bool nonPersistent)
@@ -595,6 +596,26 @@ namespace Antmicro.Renode.Peripherals.MTD
             }
         }
 
+        private State state;
+        private int size;
+        private byte size2n;
+        private StatusRegister statusRegister;
+        private ushort eraseBlockCountMinusOne;
+        private ushort eraseBlockSizeDivided;
+        private int writtenCount;
+        private long writeBufferStart;
+        private int currentBufferSize;
+        private bool dirty;
+        private byte[] buffer;
+        private SerializableStreamView stream;
+        private long currentBufferStart;
+        private byte[] writeBuffer;
+        private readonly int busWidth;
+        private const int CopyBufferSize = 256 * 1024;
+        private const int DefaultEraseBlockSize = 256 * 1024;
+
+        private const int DesiredBufferSize = 100 * 1024;
+
         private class Command
         {
             public const byte ReadArray = 0xFF;
@@ -633,25 +654,6 @@ namespace Antmicro.Renode.Peripherals.MTD
             ActionDone = 128
         }
 
-        private const int DesiredBufferSize = 100 * 1024;
-        private const int DefaultEraseBlockSize = 256 * 1024;
-        private const int CopyBufferSize = 256 * 1024;
-        private long currentBufferStart;
-        private int currentBufferSize;
-        private byte[] buffer;
-        private bool dirty;
-        private byte[] writeBuffer;
-        private long writeBufferStart;
-        private int writtenCount;
-        private ushort eraseBlockSizeDivided;
-        private ushort eraseBlockCountMinusOne;
-        private StatusRegister statusRegister;
-        private byte size2n;
-        private int size;
-        private State state;
-        private SerializableStreamView stream;
-        private readonly int busWidth;
         private static readonly bool likeFlashProgramming = true;
     }
 }
-

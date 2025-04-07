@@ -50,6 +50,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             {
                 return temperature;
             }
+
             set
             {
                 if(MinTemperature > value || value > MaxTemperature)

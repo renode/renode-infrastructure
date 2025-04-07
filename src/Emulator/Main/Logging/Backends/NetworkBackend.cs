@@ -6,6 +6,7 @@
 //
 using System;
 using System.Text;
+
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Logging

@@ -7,8 +7,9 @@
 using System;
 using System.Globalization;
 using System.Text.RegularExpressions;
-using Antmicro.Renode.Exceptions;
+
 using Antmicro.Renode.Debugging;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Time
@@ -245,9 +246,13 @@ namespace Antmicro.Renode.Time
         }
 
         public ulong Ticks => ticks;
+
         public ulong TotalNanoseconds => ticks / TicksPerNanosecond;
+
         public double TotalMicroseconds => ticks / (double)TicksPerMicrosecond;
+
         public double TotalMilliseconds => ticks / (double)TicksPerMillisecond;
+
         public double TotalSeconds => ticks / (double)TicksPerSecond;
 
         public const ulong TicksPerSecond = TicksPerMillisecond * 1000;
@@ -267,6 +272,6 @@ namespace Antmicro.Renode.Time
             this.ticks = ticks;
         }
 
-        private ulong ticks;
+        private readonly ulong ticks;
     }
 }

@@ -7,6 +7,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.Bus;
@@ -99,6 +100,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         }
 
         public GPIO IRQ { get; private set; }
+
         public long Size => 0x1000;
 
         private void PrepareRegisters()
@@ -233,13 +235,13 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             return BitHelper.GetValueFromBitsArray(result);
         }
 
-        private DoubleWordRegisterCollection registers;
-        private readonly GPIOInterruptManager irqManager;
-        private readonly object locker;
-
         private IValueRegisterField interruptSenseField;
         private IValueRegisterField interruptBothEdgeField;
         private IValueRegisterField interruptEventField;
+
+        private DoubleWordRegisterCollection registers;
+        private readonly GPIOInterruptManager irqManager;
+        private readonly object locker;
 
         private const int NumberOfGPIOs = 8;
 

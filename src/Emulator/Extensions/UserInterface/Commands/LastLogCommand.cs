@@ -4,17 +4,22 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Logging.Backends;
 using Antmicro.Renode.UserInterface.Tokenizer;
+
 using AntShell.Commands;
 
 namespace Antmicro.Renode.UserInterface.Commands
 {
     public class LastLogCommand : AutoLoadCommand
     {
+        public LastLogCommand(Monitor monitor)
+            : base(monitor, "lastLog", "Logs last n logs.")
+        {
+        }
+
         public override void PrintHelp(ICommandInteraction writer)
         {
             base.PrintHelp(writer);
@@ -59,11 +64,6 @@ namespace Antmicro.Renode.UserInterface.Commands
             {
                 writer.WriteLine($"{entry.DateTime:HH:mm:ss.ffff} [{entry.Type}] {entry.Message}", entry.Type.Color);
             }
-        }
-
-        public LastLogCommand(Monitor monitor)
-            : base(monitor, "lastLog", "Logs last n logs.")
-        {
         }
 
         private const int DefaultNumberOfEntries = 20;

@@ -5,7 +5,6 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -13,7 +12,7 @@ namespace Antmicro.Renode.Utilities
     {
         // For cryptographic purposes use provided constants, more info: https://eprint.iacr.org/2012/529.pdf
 
-        static public ulong Scramble(ulong data, ulong k1, ulong k0, int width = OriginalDataWidth, uint rounds = NumberOfRounds)
+        public static ulong Scramble(ulong data, ulong k1, ulong k0, int width = OriginalDataWidth, uint rounds = NumberOfRounds)
         {
             if(rounds > NumberOfRounds)
             {
@@ -56,7 +55,7 @@ namespace Antmicro.Renode.Utilities
             return state ^ k0Prime ^ k1 ^ roundConstant[NumberOfRounds];
         }
 
-        static private ulong Substitute(ulong data, int width, ulong[] coefficients)
+        private static ulong Substitute(ulong data, int width, ulong[] coefficients)
         {
             var mask = ulong.MaxValue >> (64 - width);
             var substitutionMask = ulong.MaxValue >> (64 - (width & ~0x3));
@@ -71,7 +70,7 @@ namespace Antmicro.Renode.Utilities
             return state;
         }
 
-        static private ulong Multiply(ulong data)
+        private static ulong Multiply(ulong data)
         {
             var state = 0UL;
             for(var i = 0; i < 4; ++i)
@@ -91,7 +90,7 @@ namespace Antmicro.Renode.Utilities
             return state;
         }
 
-        static private ulong ShiftRows(ulong data, bool inverse)
+        private static ulong ShiftRows(ulong data, bool inverse)
         {
             // 0x0123456789ABCDEF -> 0x05AF49E38D27C16B
             var mask = 0xF000F000F000F000;

@@ -7,14 +7,9 @@
 //
 
 using System;
-using System.IO;
-using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Time;
-using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
@@ -49,31 +44,45 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             uint sourcesel = (b >> SOURCESEL_OFFSET) & SOURCESEL_MASK;
 
             // Subscribing to an event according to the sourcesel and sigsel
-            if (sourcesel == (uint)PRS_ASYNC_CH_CTRL_SOURCESEL.SYSRTC0)
+            if(sourcesel == (uint)PRS_ASYNC_CH_CTRL_SOURCESEL.SYSRTC0)
             {
-                if (sigsel == (uint)PRS_SYSRTC_SIGSEL.Group0Compare1)   
+                if(sigsel == (uint)PRS_SYSRTC_SIGSEL.Group0Compare1)
                 {
                     // Unsubscribe from all events then subscribe to sysrtc group0 channel 1 compare event
                     this.Log(LogLevel.Info, "Subscribing to Sysrtc CompareMatchGroup0Channel1 event on channel {0}", index);
-                    machine.ClockSource.ExecuteInLock(delegate {
+                    machine.ClockSource.ExecuteInLock(delegate
+                    {
                         UnsubscribeFromAllEvents(index);
                         sysrtc.CompareMatchGroup0Channel1 += asyncSignalHandlers[index];
                     });
                 }
             }
 
-            if (sourcesel == (uint)PRS_ASYNC_CH_CTRL_SOURCESEL.HFXO0L) 
+            if(sourcesel == (uint)PRS_ASYNC_CH_CTRL_SOURCESEL.HFXO0L)
             {
-                if (sigsel == (uint)PRS_HFXO_SIGSEL.ENS) 
+                if(sigsel == (uint)PRS_HFXO_SIGSEL.ENS)
                 {
                     // Unsubscribe from all events then subscribe to hfxo enabled event
                     this.Log(LogLevel.Debug, "Subscribing to Hfxo HfxoEnabled event on channel {0}", index);
-                    machine.ClockSource.ExecuteInLock(delegate {
+                    machine.ClockSource.ExecuteInLock(delegate
+                    {
                         UnsubscribeFromAllEvents(index);
                         hfxo.HfxoEnabled += asyncSignalHandlers[index];
                     });
                 }
             }
+        }
+
+        public void HfxoTriggerEarlyWakeup()
+        {
+            this.Log(LogLevel.Debug, "Triggering HFXO EM2 Wakeup");
+            hfxo.OnEm2Wakeup();
+        }
+
+        public void SysrtcCaptureGroup0()
+        {
+            this.Log(LogLevel.Debug, "Triggering SYSRTC Capture");
+            sysrtc.CaptureGroup0();
         }
 
         private void UnsubscribeFromAllEvents(ulong channel)
@@ -89,12 +98,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         {
             this.Log(LogLevel.Debug, "Async signal on channel {0}", channel);
             // Triggers all consumers which are subscribed to the specified channel
-            if (consumer_hfxo0_oscreq_prssel_field.Value == channel)
+            if(consumer_hfxo0_oscreq_prssel_field.Value == channel)
             {
                 HfxoTriggerEarlyWakeup();
             }
 
-            if (consumer_sysrtc0_in0_prssel_field.Value == channel)
+            if(consumer_sysrtc0_in0_prssel_field.Value == channel)
             {
                 SysrtcCaptureGroup0();
             }
@@ -107,17 +116,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             OnAsyncSignalReceived(3);
         }
 
-        public void HfxoTriggerEarlyWakeup()
-        {
-            this.Log(LogLevel.Debug, "Triggering HFXO EM2 Wakeup");
-            hfxo.OnEm2Wakeup();
-        }
-
-        public void SysrtcCaptureGroup0()
-        {
-            this.Log(LogLevel.Debug, "Triggering SYSRTC Capture");
-            sysrtc.CaptureGroup0();
-        }
+        // An array of methods which handle an async signal on a given channel
+        private Action[] asyncSignalHandlers;
 
         // A reference to sysrtc so that the prs can subscribe to events the sysrtc produces
         private readonly EFR32xG2_SYSRTC_1 sysrtc;
@@ -128,9 +128,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         private const uint SIGSEL_MASK = 0x7;
         private const int SOURCESEL_OFFSET = 8;
         private const uint SOURCESEL_MASK = 0x7F;
-
-        // An array of methods which handle an async signal on a given channel
-        private Action[] asyncSignalHandlers;  
 
         // From efr32mg24_prs_signals.h in gsdk
         private enum PRS_ASYNC_CH_CTRL_SOURCESEL

@@ -5,22 +5,22 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using AntShell.Commands;
 using Antmicro.Renode.Core;
+
+using AntShell.Commands;
 
 namespace Antmicro.Renode.UserInterface.Commands
 {
     public class VersionCommand : AutoLoadCommand
     {
+        public VersionCommand(Monitor monitor) : base(monitor, "version", "shows version information.")
+        {
+        }
+
         [Runnable]
         public void Run(ICommandInteraction writer)
         {
             writer.WriteLine(EmulationManager.Instance.VersionString);
         }
-
-        public VersionCommand(Monitor monitor) : base(monitor, "version", "shows version information.")
-        {
-        }
     }
 }
-

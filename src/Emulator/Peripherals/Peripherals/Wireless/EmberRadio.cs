@@ -6,11 +6,12 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Linq;
+using System.Security.Cryptography;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using System.Security.Cryptography;
-using System.Linq;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Wireless
@@ -32,10 +33,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
             Reset();
         }
 
-        public int Channel { get; set; }
-
-        uint macRxConfig;
-
         public void Reset()
         {
             Array.Clear(currentKey, 0, currentKey.Length);
@@ -50,7 +47,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
         {
             switch((EncryptorRegister)offset)
             {
-            case EncryptorRegister.Value: 
+            case EncryptorRegister.Value:
                 if(valueToEncryptHasChanged)
                 {
                     Encrypt();
@@ -168,14 +165,11 @@ namespace Antmicro.Renode.Peripherals.Wireless
             }
         }
 
-        uint[] irqStatus;
-        uint INT_MGMTFLAG;
-
-     /*   public void ReceiveFakePacket()
-        {
-            //ReceivePacket("41C8003412FFFFBA1F000002E1800081000080E10200001FBA48656C6C6F001F5B");
-            ReceivePacket("41C8003412FFFFBA1F000002E1800081000080E10200001FBA48656C6C6F001F5B");//208041C8
-        }*/
+        /*   public void ReceiveFakePacket()
+           {
+               //ReceivePacket("41C8003412FFFFBA1F000002E1800081000080E10200001FBA48656C6C6F001F5B");
+               ReceivePacket("41C8003412FFFFBA1F000002E1800081000080E10200001FBA48656C6C6F001F5B");//208041C8
+           }*/
 
         [ConnectionRegion("irq")]
         public void WriteDoubleWordIRQ(long offset, uint value)
@@ -185,7 +179,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
             case 0x18:
                 INT_MGMTFLAG = value;
                 break;
-
             }
 
             irqStatus[offset] = value;
@@ -196,7 +189,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
             this.Log(LogLevel.Warning, "WriteDoubleWordIRQ({0:X}, {1:X})", offset, value);
         }
-
 
         public void WriteDoubleWord(long offset, uint value)
         {
@@ -210,15 +202,15 @@ namespace Antmicro.Renode.Peripherals.Wireless
             case 0x1000: // MAC_RX_ST_ADDR_A
                 MAC_RX_ST_ADDR_A = value;
                 break;
-                /*case 0x1004: // MAC_RX_END_ADDR_A
-                MAC_RX_END_ADDR_A = value;
-                break;*/
+            /*case 0x1004: // MAC_RX_END_ADDR_A
+            MAC_RX_END_ADDR_A = value;
+            break;*/
             case 0x1008: // MAC_RX_ST_ADDR_B
                 MAC_RX_ST_ADDR_B = value;
                 break;
-                /* case 0x100C: // MAC_RX_END_ADDR_B
-                MAC_RX_END_ADDR_B = value;
-                break;*/
+            /* case 0x100C: // MAC_RX_END_ADDR_B
+            MAC_RX_END_ADDR_B = value;
+            break;*/
             case 0x1010: // MAC_TX_ST_ADDR_A
                 MAC_TX_ST_ADDR_A = value;
                 this.Log(LogLevel.Warning, "Setting MAC_TX_ST_A to {0:X}", value);
@@ -227,12 +219,12 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 MAC_TX_END_ADDR_A = value;
                 this.Log(LogLevel.Noisy, "Setting MAC_TX_END_A to {0:X}", value);
                 break;
-                /* case 0x1018: // MAC_TX_ST_ADDR_B
-                MAC_TX_ST_ADDR_B = value;
-                break;
-            case 0x101C: // MAC_TX_END_ADDR_B
-                MAC_TX_END_ADDR_B = value;
-                break;*/
+            /* case 0x1018: // MAC_TX_ST_ADDR_B
+            MAC_TX_ST_ADDR_B = value;
+            break;
+        case 0x101C: // MAC_TX_END_ADDR_B
+            MAC_TX_END_ADDR_B = value;
+            break;*/
 
             case 0x1060:
                 // MAC_TX_STROBE
@@ -251,7 +243,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
                     for(uint j = 0; j < packet_len; j++)
                     {
                         dataToSend[j] = sysbus.ReadByte(MAC_TX_ST_ADDR_A + j + 1);
-                    //    s = s + string.Format("{0:X2}", sysbus.ReadByte(MAC_TX_ST_ADDR_A + j + 1));
+                        //    s = s + string.Format("{0:X2}", sysbus.ReadByte(MAC_TX_ST_ADDR_A + j + 1));
                     }
                     this.Log(LogLevel.Info, "data = {0}", dataToSend.Select(x => x.ToString("X")).Stringify());
                     var frameSent = FrameSent;
@@ -276,12 +268,11 @@ namespace Antmicro.Renode.Peripherals.Wireless
                     for(uint j = 0; j < packet_len; j++)
                         data[j] = sysbus.ReadByte(MAC_TX_ST_ADDR_A + 1 + j);
 
-                    ushort crc = count_crc(data);
+                    ushort crc = CountCrc(data);
                     this.Log(LogLevel.Noisy, "Counted CRC = {0:X}", crc);
 
                     sysbus.WriteByte((ulong)(MAC_TX_ST_ADDR_A + packet_len - 1), (byte)(crc & 0xFF));
                     sysbus.WriteByte((ulong)(MAC_TX_ST_ADDR_A + packet_len), (byte)((crc >> 8) & 0xFF));
-
                 }
                 break;
             case 0x1084:
@@ -292,10 +283,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 break;
             }
         }
-
-        #region IRadio implementation
-
-        public event Action<IRadio, byte[]> FrameSent;
 
         public void ReceiveFrame(byte[] frame, IRadio sender)
         {
@@ -321,15 +308,31 @@ namespace Antmicro.Renode.Peripherals.Wireless
             Tim.Set();
         }
 
+        public GPIO Rx { get; private set; }
+
+        public GPIO Tim { get; private set; }
+
+        public GPIO Tx { get; private set; }
+
+        public int Channel { get; set; }
+
+        uint macRxConfig;
+
+        readonly uint[] irqStatus;
+        uint INT_MGMTFLAG;
+
+        #region IRadio implementation
+
+        public event Action<IRadio, byte[]> FrameSent;
+
         #endregion
 
-        private static ushort count_crc(byte[] data)
-        {        
+        private static ushort CountCrc(byte[] data)
+        {
             ushort crc = 0;
             uint j;
             for(j = 0; j < data.Length; j++)
             {
-
                 crc = (ushort)(crc ^ data[j] << 8);
                 var b = 8;
                 do
@@ -348,17 +351,16 @@ namespace Antmicro.Renode.Peripherals.Wireless
             return crc;
         }
 
-      /*  public void ReceivePacket(string packetData)
-        {
-            // TODO: have some mechanism to determine to what ADDR we should put the data (ADDR_A/ADDR_B)
-            this.Log(LogLevel.Warning, "TODO: should put packet '{0}' of len {3} to bufs @ {1:X} & @ {2:X}", packetData, MAC_RX_ST_ADDR_A, MAC_RX_ST_ADDR_B, packetData.Length);
+        /*  public void ReceivePacket(string packetData)
+          {
+              // TODO: have some mechanism to determine to what ADDR we should put the data (ADDR_A/ADDR_B)
+              this.Log(LogLevel.Warning, "TODO: should put packet '{0}' of len {3} to bufs @ {1:X} & @ {2:X}", packetData, MAC_RX_ST_ADDR_A, MAC_RX_ST_ADDR_B, packetData.Length);
 
-            byte[] data;
-            var ind = 0;
-            data = packetData.GroupBy(x => ind++ / 2).Select(x => Convert.ToByte(string.Format("{0}{1}", x.First(), x.Skip(1).First()), 16)).ToArray();
-            ReceiveFrame(data);
-        }*/
-
+              byte[] data;
+              var ind = 0;
+              data = packetData.GroupBy(x => ind++ / 2).Select(x => Convert.ToByte(string.Format("{0}{1}", x.First(), x.Skip(1).First()), 16)).ToArray();
+              ReceiveFrame(data);
+          }*/
 
         private void Encrypt()
         {
@@ -371,17 +373,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
             encryptor.TransformFinalBlock(currentData, 0, 16).CopyTo(currentValue, 0);
         }
 
-        public GPIO Tx { get; private set; }
-
-        public GPIO Rx { get; private set; }
-
-        public GPIO Tim { get; private set; }
-
-        private uint mac_timer;
-
-        private readonly byte[] currentKey;
-        private readonly byte[] currentData;
-        private readonly byte[] currentValue;
         private bool valueToEncryptHasChanged;
         private int dataPointer;
         private int valuePointer;
@@ -393,10 +384,19 @@ namespace Antmicro.Renode.Peripherals.Wireless
         private uint MAC_RX_ST_ADDR_A = 0x20000000;
         private uint MAC_RX_ST_ADDR_B = 0x20000000;
 
+        private uint mac_timer;
+
+        private readonly byte[] currentKey;
+        private readonly byte[] currentData;
+        private readonly byte[] currentValue;
+
         private readonly IMachine machine;
         private readonly IBusController sysbus;
 
-       // public event Action<string> SendPacket;
+        private const int EncryptorKeyRegisterBegin = 0x38;
+        private const int EncryptorKeyRegisterEnd = 0x48;
+
+        // public event Action<string> SendPacket;
 
         private enum EncryptorRegister
         {
@@ -404,10 +404,5 @@ namespace Antmicro.Renode.Peripherals.Wireless
             Data = 0x28,
             Value = 0x30
         }
-
-        private const int EncryptorKeyRegisterBegin = 0x38;
-        private const int EncryptorKeyRegisterEnd = 0x48;
-
     }
 }
-

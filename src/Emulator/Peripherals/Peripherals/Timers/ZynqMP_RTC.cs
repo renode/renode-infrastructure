@@ -42,8 +42,20 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
 
         public GPIO SecondIRQ { get; }
+
         public GPIO AlarmIRQ { get; }
+
         public long Size => 0x100;
+
+        private static DateTime UnixTimestampToDateTime(ulong timestamp)
+        {
+            return Misc.UnixEpoch.AddSeconds(timestamp);
+        }
+
+        private static ulong DateTimeToUnixTimestamp(DateTime dateTime)
+        {
+            return (ulong)(dateTime - Misc.UnixEpoch).TotalSeconds;
+        }
 
         private void DefineRegisters()
         {
@@ -163,16 +175,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                 this.DebugLog("Setting {0} to {1}", nameof(AlarmIRQ), newAlarm);
                 AlarmIRQ.Set(newAlarm);
             }
-        }
-
-        private static DateTime UnixTimestampToDateTime(ulong timestamp)
-        {
-            return Misc.UnixEpoch.AddSeconds(timestamp);
-        }
-
-        private static ulong DateTimeToUnixTimestamp(DateTime dateTime)
-        {
-            return (ulong)(dateTime - Misc.UnixEpoch).TotalSeconds;
         }
 
         private IValueRegisterField setTime;

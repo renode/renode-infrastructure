@@ -6,6 +6,7 @@
 //
 
 using System.Linq;
+
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Peripherals.Bus;
 
@@ -13,15 +14,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public class TCMConfiguration
     {
-        public TCMConfiguration(uint address, ulong size, uint regionIndex, uint interfaceIndex = 0, IMemory memory = null)
-        {
-            Address = address;
-            Size = size;
-            InterfaceIndex = interfaceIndex;
-            Memory = memory;
-            RegionIndex = regionIndex;
-        }
-
         public static bool TryCreate(ICPU cpu, IMemory memory, uint regionIndex, out TCMConfiguration configuration, uint interfaceIndex = 0)
         {
             if(!TCMConfiguration.TryFindRegistrationAddress(cpu.GetMachine().SystemBus, cpu, memory, out var address))
@@ -50,10 +42,23 @@ namespace Antmicro.Renode.Peripherals.CPU
             return true;
         }
 
+        public TCMConfiguration(uint address, ulong size, uint regionIndex, uint interfaceIndex = 0, IMemory memory = null)
+        {
+            Address = address;
+            Size = size;
+            InterfaceIndex = interfaceIndex;
+            Memory = memory;
+            RegionIndex = regionIndex;
+        }
+
         public uint Address { get; }
+
         public ulong Size { get; }
+
         public uint InterfaceIndex { get; }
+
         public uint RegionIndex { get; }
+
         public IMemory Memory { get; }
     }
 }

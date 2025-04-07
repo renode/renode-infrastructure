@@ -6,15 +6,16 @@
 //
 
 using System;
+using System.Collections.Generic;
+
+using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU;
-using System.Collections.Generic;
 using Antmicro.Renode.Peripherals.Timers;
-using Antmicro.Renode.Core.Structure;
-using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
@@ -70,6 +71,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         public long Size => 0x20000;
+
         public DoubleWordRegisterCollection RegistersCollection { get; }
 
         private Dictionary<long, DoubleWordRegister> BuildRegisterMap()
@@ -757,7 +759,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             registerMap.Add((long)Registers.CortexA55Core1PowerStatusControl, new DoubleWordRegister(this)
                 .WithFlag(0, out cortexA55Core1PowerTransitionReq, name: "PREQ1_SET")
                 .WithReservedBits(1, 15)
-                .WithEnumField(16, 6, out cortexA55Core1PowerTransitionState, name:"PSTATE1_SET")
+                .WithEnumField(16, 6, out cortexA55Core1PowerTransitionState, name: "PSTATE1_SET")
                 .WithReservedBits(22, 10)
                 .WithWriteCallback((_, __) =>
                 {
@@ -773,22 +775,22 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     }
                     switch(cortexA55Core1PowerTransitionState.Value)
                     {
-                        case PowerTransitionState.Off:
-                        case PowerTransitionState.OffEmulated:
-                            cpu1.IsHalted = true;
-                            this.DebugLog("Stopping CPU1");
-                            break;
-                        case PowerTransitionState.On:
-                            cpu1.PC = CortexA55Core1ResetVector;
-                            cpu1.IsHalted = false;
-                            this.DebugLog("Starting CPU1 at 0x{0:X}", CortexA55Core1ResetVector);
-                            break;
-                        default:
-                            this.WarningLog(
-                                "Trying to trigger power state transition of cpu1 to invalid state 0x{0:X}",
-                                cortexA55Core1PowerTransitionState.Value
-                            );
-                            break;
+                    case PowerTransitionState.Off:
+                    case PowerTransitionState.OffEmulated:
+                        cpu1.IsHalted = true;
+                        this.DebugLog("Stopping CPU1");
+                        break;
+                    case PowerTransitionState.On:
+                        cpu1.PC = CortexA55Core1ResetVector;
+                        cpu1.IsHalted = false;
+                        this.DebugLog("Starting CPU1 at 0x{0:X}", CortexA55Core1ResetVector);
+                        break;
+                    default:
+                        this.WarningLog(
+                            "Trying to trigger power state transition of cpu1 to invalid state 0x{0:X}",
+                            cortexA55Core1PowerTransitionState.Value
+                        );
+                        break;
                     }
                 })
             );
@@ -896,7 +898,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     });
                 }
             };
-         }
+        }
 
         private Action<uint, uint> CreateResetControlWriteCallback(Registers register, IFlagRegisterField[] resetApplied)
         {
@@ -967,6 +969,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         private ulong CortexA55Core1ResetVector => (cortexA55Core1ResetVectorLow.Value << 2) | (cortexA55Core1ResetVectorHigh.Value << 32);
+
         private bool HasTwoCortexA55Cores => cpu1 != null;
 
         private IFlagRegisterField cortexA55Core1PowerTransitionReq;
@@ -974,7 +977,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private IValueRegisterField cortexA55Core1ResetVectorLow;
         private IValueRegisterField cortexA55Core1ResetVectorHigh;
 
-        private RenesasRZG_Watchdog[] watchdogs = new RenesasRZG_Watchdog[MaxWatchdogCount];
+        private readonly RenesasRZG_Watchdog[] watchdogs = new RenesasRZG_Watchdog[MaxWatchdogCount];
 
         private readonly ICPU cpu0;
         private readonly ICPU cpu1;

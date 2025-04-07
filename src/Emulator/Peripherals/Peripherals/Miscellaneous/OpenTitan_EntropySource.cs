@@ -5,23 +5,25 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
 using System.Collections.Generic;
-using Org.BouncyCastle.Crypto.Digests;
+using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
 
+using Org.BouncyCastle.Crypto.Digests;
+
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
-    public class OpenTitan_EntropySource: BasicDoubleWordPeripheral, IKnownSize
+    public class OpenTitan_EntropySource : BasicDoubleWordPeripheral, IKnownSize
     {
-        public OpenTitan_EntropySource(IMachine machine): base(machine)
+        public OpenTitan_EntropySource(IMachine machine) : base(machine)
         {
             entropySource = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
             sha3Conditioner = new Sha3Conditioner();
-            
+
             observeFifo = new Queue<uint>(ObserveFifoDepth);
             preConditionerPackerFifo = new Queue<uint>(PreConditionerPackerFifoDepth);
             preEsfinalPackerFifo = new Queue<uint>(PreEsfinalPackerFifoDepth);
@@ -36,7 +38,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             EsHealthTestFailedIRQ = new GPIO();
             EsObserveFifoReadyIRQ = new GPIO();
             EsFatalErrIRQ = new GPIO();
-            
+
             DefineRegisters();
             Reset();
         }
@@ -68,6 +70,18 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             sha3Conditioner.Reset();
         }
 
+        public GPIO EsEntropyValidIRQ { get; }
+
+        public GPIO EsHealthTestFailedIRQ { get; }
+
+        public GPIO EsObserveFifoReadyIRQ { get; }
+
+        public GPIO EsFatalErrIRQ { get; }
+
+        public GPIO RecoverableAlert { get; }
+
+        public GPIO FatalAlert { get; }
+
         public long Size => 0x100;
 
         private void FillBuffers()
@@ -84,12 +98,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             var value = (uint)entropySource.Next();
 
-            RunHealthTests(value);
+            RunHealthTests();
             ObserveDataPath(value);
             InsertIntoEntropyFlow(value, Mode.Normal);
         }
 
-        private void RunHealthTests(uint value)
+        private void RunHealthTests()
         {
             // It is a mock implementation: no health tests are currently performed.
             // TODO: Implement the following tests: Adaptive Proportion, Repetition Count, Bucket, Markov, Mailbox.
@@ -130,26 +144,26 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             switch(BypassModeSelect)
             {
-                case BypassMode.Sha3ConditionedEntropy:
-                    preConditionerPackerFifo.Enqueue(value);
-                    if(preConditionerPackerFifo.Count == PreConditionerPackerFifoDepth)
-                    {
-                        var data = preConditionerPackerFifo.DequeueAll();
-                        sha3Conditioner.AddData(data);
-                    }
-                    break;
-                case BypassMode.RawEntropy:
-                    if(preEsfinalPackerFifo.Count < PreEsfinalPackerFifoDepth)
-                    {
-                        preEsfinalPackerFifo.Enqueue(value);
-                    }
-                    else
-                    {
-                        this.Log(LogLevel.Warning, "Dropping entropy data due to full FIFO");
-                    }
-                    break;
+            case BypassMode.Sha3ConditionedEntropy:
+                preConditionerPackerFifo.Enqueue(value);
+                if(preConditionerPackerFifo.Count == PreConditionerPackerFifoDepth)
+                {
+                    var data = preConditionerPackerFifo.DequeueAll();
+                    sha3Conditioner.AddData(data);
+                }
+                break;
+            case BypassMode.RawEntropy:
+                if(preEsfinalPackerFifo.Count < PreEsfinalPackerFifoDepth)
+                {
+                    preEsfinalPackerFifo.Enqueue(value);
+                }
+                else
+                {
+                    this.Log(LogLevel.Warning, "Dropping entropy data due to full FIFO");
+                }
+                break;
             }
-            
+
             OutputPath();
         }
 
@@ -157,29 +171,29 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             switch(BypassModeSelect)
             {
-                case BypassMode.Sha3ConditionedEntropy:
-                    if(sha3Conditioner.HasConditionedData && esfinalFifo.Count <= EsfinalFifoDepth - sha3Conditioner.Sha3OutputLengthBits / 32)
-                    {
-                        var conditionedData = sha3Conditioner.GetConditionedData();
-                        esfinalFifo.EnqueueRange(conditionedData);
-                    }
-                    break;
-                case BypassMode.RawEntropy:
-                    if(preEsfinalPackerFifo.Count == PreEsfinalPackerFifoDepth && esfinalFifo.Count <= EsfinalFifoDepth - PreEsfinalPackerFifoDepth)
-                    {
-                        esfinalFifo.EnqueueRange(preEsfinalPackerFifo.DequeueAll());
-                    }
-                    break;
+            case BypassMode.Sha3ConditionedEntropy:
+                if(sha3Conditioner.HasConditionedData && esfinalFifo.Count <= EsfinalFifoDepth - sha3Conditioner.Sha3OutputLengthBits / 32)
+                {
+                    var conditionedData = sha3Conditioner.GetConditionedData();
+                    esfinalFifo.EnqueueRange(conditionedData);
+                }
+                break;
+            case BypassMode.RawEntropy:
+                if(preEsfinalPackerFifo.Count == PreEsfinalPackerFifoDepth && esfinalFifo.Count <= EsfinalFifoDepth - PreEsfinalPackerFifoDepth)
+                {
+                    esfinalFifo.EnqueueRange(preEsfinalPackerFifo.DequeueAll());
+                }
+                break;
             }
 
             switch(PathSelect)
             {
-                case Route.HardwareInterface:
-                    HardwareInterfacePath();
-                    break;
-                case Route.FirmwareInterface:
-                    FirmwareInterfacePath();
-                    break;
+            case Route.HardwareInterface:
+                HardwareInterfacePath();
+                break;
+            case Route.FirmwareInterface:
+                FirmwareInterfacePath();
+                break;
             }
         }
 
@@ -209,22 +223,22 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private void DefineRegisters()
         {
             Registers.InterruptState.Define(this)
-                .WithFlag(0, out entropyValidInterruptState, FieldMode.Read | FieldMode.WriteOneToClear, name: "es_entropy_valid", writeCallback: (_, val) => 
+                .WithFlag(0, out entropyValidInterruptState, FieldMode.Read | FieldMode.WriteOneToClear, name: "es_entropy_valid", writeCallback: (_, val) =>
                 {
                     if(val && entropyUnpackerFifo.Count > 0)
                     {
-                        // if there is still entropy available, the interrupt state is set again. 
+                        // if there is still entropy available, the interrupt state is set again.
                         entropyValidInterruptState.Value = true;
                     }
-                 })
+                })
                 .WithFlag(1, out healthTestFailedInterruptState, FieldMode.Read | FieldMode.WriteOneToClear, name: "es_health_test_failed")
-                .WithFlag(2, out observeFifoReadyInterruptState, FieldMode.Read | FieldMode.WriteOneToClear, name: "es_observe_fifo_ready", writeCallback: (_, val) => 
+                .WithFlag(2, out observeFifoReadyInterruptState, FieldMode.Read | FieldMode.WriteOneToClear, name: "es_observe_fifo_ready", writeCallback: (_, val) =>
                 {
                     if(val && observeFifo.Count >= (int)observeFifoThreshold.Value)
                     {
                         observeFifoReadyInterruptState.Value = true;
                     }
-                 })
+                })
                 .WithFlag(3, out fatalErrorInterruptState, FieldMode.Read | FieldMode.WriteOneToClear, name: "es_fatal_err")
                 .WithReservedBits(4, 28)
                 .WithWriteCallback((_, __) => UpdateInterrupts());
@@ -238,10 +252,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithWriteCallback((_, __) => UpdateInterrupts());
 
             Registers.InterruptTest.Define(this)
-                .WithFlag(0, FieldMode.Write, writeCallback: (_, val) => { if(val) entropyValidInterruptState.Value = true;     }, name: "es_entropy_valid")
+                .WithFlag(0, FieldMode.Write, writeCallback: (_, val) => { if(val) entropyValidInterruptState.Value = true; }, name: "es_entropy_valid")
                 .WithFlag(1, FieldMode.Write, writeCallback: (_, val) => { if(val) healthTestFailedInterruptState.Value = true; }, name: "es_health_test_failed")
                 .WithFlag(2, FieldMode.Write, writeCallback: (_, val) => { if(val) observeFifoReadyInterruptState.Value = true; }, name: "es_observe_fifo_ready")
-                .WithFlag(3, FieldMode.Write, writeCallback: (_, val) => { if(val) fatalErrorInterruptState.Value = true;       }, name: "es_fatal_err")
+                .WithFlag(3, FieldMode.Write, writeCallback: (_, val) => { if(val) fatalErrorInterruptState.Value = true; }, name: "es_fatal_err")
                 .WithReservedBits(4, 28)
                 .WithWriteCallback((_, __) => UpdateInterrupts());
 
@@ -252,7 +266,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             // Some registers are protected from writes by the means of write enable registers.
             // It is a security countermeasure that adds checks before writing to the registers.
-            // Sometimes the write enable register is not taken into account in the model and marked as Tag, 
+            // Sometimes the write enable register is not taken into account in the model and marked as Tag,
             // because it is not needed for the functional simulation.
             Registers.RegisterWriteEnableForModuleEnable.Define(this, 0x1)
                 .WithFlag(0, out moduleEnableRegisterWriteEnable, FieldMode.Read | FieldMode.WriteZeroToClear, name: "ME_REGWEN")
@@ -464,7 +478,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(8, 24);
 
             Registers.FirmwareOverrideSHA3BlockStartControl.Define(this, 0x9)
-                .WithEnumField(0, 4, out firmwareOverrideInsertStart , name: "FW_OV_INSERT_START", writeCallback: (_, value) => 
+                .WithEnumField(0, 4, out firmwareOverrideInsertStart, name: "FW_OV_INSERT_START", writeCallback: (_, value) =>
                 {
                     if(value == MultiBitBool4.True)
                     {
@@ -603,13 +617,35 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             hardwareOutputFifo.Clear();
         }
 
-        public GPIO EsEntropyValidIRQ { get; }
-        public GPIO EsHealthTestFailedIRQ { get; }
-        public GPIO EsObserveFifoReadyIRQ { get; }
-        public GPIO EsFatalErrIRQ { get; }
+        private BypassMode BypassModeSelect => bypassModeSelect.Value == MultiBitBool4.True ? BypassMode.RawEntropy : BypassMode.Sha3ConditionedEntropy;
 
-        public GPIO RecoverableAlert { get; }
-        public GPIO FatalAlert { get; }
+        private Mode ModeOverride => firmwareOverrideMode.Value == MultiBitBool4.True ? Mode.FirmwareOverride : Mode.Normal;
+
+        private Route PathSelect => routeSelect.Value == MultiBitBool4.True ? Route.FirmwareInterface : Route.HardwareInterface;
+
+        private Mode ModeSelect => firmwareOverrideEntropyInsert.Value == MultiBitBool4.True ? Mode.FirmwareOverride : Mode.Normal;
+
+        private IEnumRegisterField<MultiBitBool4> firmwareOverrideEntropyInsert;
+        private IFlagRegisterField writeFifoFullStatus;
+        private IEnumRegisterField<MultiBitBool4> bypassModeSelect;
+        private IEnumRegisterField<MultiBitBool4> routeSelect;
+        private IFlagRegisterField observeFifoOverflowStatus;
+        private IEnumRegisterField<StateMachine> mainMachineState;
+        private IEnumRegisterField<MultiBitBool4> firmwareOverrideInsertStart;
+        private IEnumRegisterField<MultiBitBool4> firmwareOverrideMode;
+        private IFlagRegisterField moduleEnableRegisterWriteEnable;
+        private IEnumRegisterField<MultiBitBool4> entropyDataRegisterEnable;
+        private IFlagRegisterField fatalErrorInterruptEnable;
+        private IFlagRegisterField observeFifoReadyInterruptEnable;
+        private IFlagRegisterField healthTestFailedInterruptEnable;
+        private IFlagRegisterField entropyValidInterruptEnable;
+        private IFlagRegisterField fatalErrorInterruptState;
+        private IFlagRegisterField observeFifoReadyInterruptState;
+        private IFlagRegisterField healthTestFailedInterruptState;
+        private IFlagRegisterField entropyValidInterruptState;
+
+        private IValueRegisterField observeFifoThreshold;
+        private IEnumRegisterField<MultiBitBool4> moduleEnable;
 
         private readonly PseudorandomNumberGenerator entropySource;
         private readonly Sha3Conditioner sha3Conditioner;
@@ -620,32 +656,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private readonly Queue<uint> esfinalFifo;
         private readonly Queue<uint> entropyUnpackerFifo;
         private readonly Queue<uint> hardwareOutputFifo;
-        
-        private IValueRegisterField observeFifoThreshold;
-        private IFlagRegisterField entropyValidInterruptState;
-        private IFlagRegisterField healthTestFailedInterruptState;
-        private IFlagRegisterField observeFifoReadyInterruptState;
-        private IFlagRegisterField fatalErrorInterruptState;
-        private IFlagRegisterField entropyValidInterruptEnable;
-        private IFlagRegisterField healthTestFailedInterruptEnable;
-        private IFlagRegisterField observeFifoReadyInterruptEnable;
-        private IFlagRegisterField fatalErrorInterruptEnable;
-        private IFlagRegisterField moduleEnableRegisterWriteEnable;
-        private IEnumRegisterField<MultiBitBool4> entropyDataRegisterEnable;
-        private IEnumRegisterField<MultiBitBool4> moduleEnable;
-        private IEnumRegisterField<MultiBitBool4> firmwareOverrideMode;
-        private IEnumRegisterField<MultiBitBool4> firmwareOverrideEntropyInsert;
-        private IEnumRegisterField<MultiBitBool4> firmwareOverrideInsertStart;
-        private IEnumRegisterField<StateMachine> mainMachineState;
-        private IFlagRegisterField observeFifoOverflowStatus;
-        private IEnumRegisterField<MultiBitBool4> routeSelect;
-        private IEnumRegisterField<MultiBitBool4> bypassModeSelect;
-        private IFlagRegisterField writeFifoFullStatus;
-
-        private Mode ModeOverride => firmwareOverrideMode.Value == MultiBitBool4.True ? Mode.FirmwareOverride : Mode.Normal;
-        private Mode ModeSelect => firmwareOverrideEntropyInsert.Value == MultiBitBool4.True ? Mode.FirmwareOverride : Mode.Normal;
-        private Route PathSelect => routeSelect.Value == MultiBitBool4.True ? Route.FirmwareInterface : Route.HardwareInterface;
-        private BypassMode BypassModeSelect => bypassModeSelect.Value == MultiBitBool4.True ? BypassMode.RawEntropy : BypassMode.Sha3ConditionedEntropy;
 
         // Depth is in 32-bit units
         private const int ObserveFifoDepth = 64;
@@ -653,7 +663,68 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private const int PreEsfinalPackerFifoDepth = 12;
         private const int EsfinalFifoDepth = 48;
         private const int EntropyUnpackerFifoDepth = 12;
-        
+
+        public enum Registers
+        {
+            InterruptState = 0x0,
+            InterruptEnable = 0x4,
+            InterruptTest = 0x8,
+            AlertTest = 0xc,
+            RegisterWriteEnableForModuleEnable = 0x10,
+            RegisterWriteEnableForControlAndThresholds = 0x14,
+            RegisterWriteEnableForAllControls = 0x18,
+            Revision = 0x1c,
+            ModuleEnable = 0x20,
+            Configuration = 0x24,
+            EntropyControl = 0x28,
+            EntropyDataBits = 0x2c,
+            HealthTestWindows = 0x30,
+            RepetitionCountTestThresholds = 0x34,
+            RepetitionCountSymbolTestThresholds = 0x38,
+            AdaptiveProportionTestHighThresholds = 0x3c,
+            AdaptiveProportionTestLowThresholds = 0x40,
+            BucketTestThresholds = 0x44,
+            MarkovTestHighThresholds = 0x48,
+            MarkovTestLowThresholds = 0x4c,
+            ExternalHealthTestHighThresholds = 0x50,
+            ExternalHealthTestLowThresholds = 0x54,
+            RepetitionCountTestHighWatermarks = 0x58,
+            RepetitionCountSymbolTestHighWatermarks = 0x5c,
+            AdaptiveProportionTestHighWatermarks = 0x60,
+            AdaptiveProportionTestLowWatermarks = 0x64,
+            ExternalHealthTestHighWatermarks = 0x68,
+            ExternalHealthTestLowWatermarks = 0x6c,
+            BucketTestHighWatermarks = 0x70,
+            MarkovTestHighWatermarks = 0x74,
+            MarkovTestLowWatermarks = 0x78,
+            RepetitionCountTestFailureCounter = 0x7c,
+            RepetitionCountSymbolTestFailureCounter = 0x80,
+            AdaptiveProportionHighTestFailureCounter = 0x84,
+            AdaptiveProportionLowTestFailureCounter = 0x88,
+            BucketTestFailureCounter = 0x8c,
+            MarkovHighTestFailureCounter = 0x90,
+            MarkovLowTestFailureCounter = 0x94,
+            ExternalHealthTestHighThresholdFailureCounter = 0x98,
+            ExternalHealthTestLowThresholdFailureCounter = 0x9c,
+            AlertThreshold = 0xa0,
+            AlertSummaryFailureCounts = 0xa4,
+            AlertFailureCounts = 0xa8,
+            ExternalHealthTestAlertFailureCounts = 0xac,
+            FirmwareOverrideControl = 0xb0,
+            FirmwareOverrideSHA3BlockStartControl = 0xb4,
+            FirmwareOverrideFIFOWriteFullStatus = 0xb8,
+            FirmwareOverrideObserveFIFOOverflowStatus = 0xbc,
+            FirmwareOverrideObserveFIFORead = 0xc0,
+            FirmwareOverrideFIFOWrite = 0xc4,
+            ObserveFIFOThreshold = 0xc8,
+            ObserveFIFODepth = 0xcc,
+            DebugStatus = 0xd0,
+            RecoverableAlertStatus = 0xd4,
+            HardwareDetectionOfErrorConditionsStatus = 0xd8,
+            TestErrorConditions = 0xdc,
+            MainStateMachineStateDebug = 0xe0,
+        }
+
         private class Sha3Conditioner
         {
             public Sha3Conditioner(int outputLength = 384)
@@ -681,7 +752,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
                 var hash = new byte[Sha3OutputLengthBits / 8];
                 var written = sha3.DoFinal(hash, 0);
-                
+
                 var output = new uint[Sha3OutputLengthBits / 32];
                 for(var i = 0; i < output.Length; i++)
                 {
@@ -755,67 +826,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             AlertState        = 0b111111011, // if some alert condition occurs, pulse an alert indication
             AlertHang         = 0b101011100, // after pulsing alert signal, hang here until sw handles
             Error             = 0b100111101  // illegal state reached and hang
-        }
-
-        public enum Registers
-        {
-            InterruptState = 0x0,
-            InterruptEnable = 0x4,
-            InterruptTest = 0x8,
-            AlertTest = 0xc,
-            RegisterWriteEnableForModuleEnable = 0x10,
-            RegisterWriteEnableForControlAndThresholds = 0x14,
-            RegisterWriteEnableForAllControls = 0x18,
-            Revision = 0x1c,
-            ModuleEnable = 0x20,
-            Configuration = 0x24,
-            EntropyControl = 0x28,
-            EntropyDataBits = 0x2c,
-            HealthTestWindows = 0x30,
-            RepetitionCountTestThresholds = 0x34,
-            RepetitionCountSymbolTestThresholds = 0x38,
-            AdaptiveProportionTestHighThresholds = 0x3c,
-            AdaptiveProportionTestLowThresholds = 0x40,
-            BucketTestThresholds = 0x44,
-            MarkovTestHighThresholds = 0x48,
-            MarkovTestLowThresholds = 0x4c,
-            ExternalHealthTestHighThresholds = 0x50,
-            ExternalHealthTestLowThresholds = 0x54,
-            RepetitionCountTestHighWatermarks = 0x58,
-            RepetitionCountSymbolTestHighWatermarks = 0x5c,
-            AdaptiveProportionTestHighWatermarks = 0x60,
-            AdaptiveProportionTestLowWatermarks = 0x64,
-            ExternalHealthTestHighWatermarks = 0x68,
-            ExternalHealthTestLowWatermarks = 0x6c,
-            BucketTestHighWatermarks = 0x70,
-            MarkovTestHighWatermarks = 0x74,
-            MarkovTestLowWatermarks = 0x78,
-            RepetitionCountTestFailureCounter = 0x7c,
-            RepetitionCountSymbolTestFailureCounter = 0x80,
-            AdaptiveProportionHighTestFailureCounter = 0x84,
-            AdaptiveProportionLowTestFailureCounter = 0x88,
-            BucketTestFailureCounter = 0x8c,
-            MarkovHighTestFailureCounter = 0x90,
-            MarkovLowTestFailureCounter = 0x94,
-            ExternalHealthTestHighThresholdFailureCounter = 0x98,
-            ExternalHealthTestLowThresholdFailureCounter = 0x9c,
-            AlertThreshold = 0xa0,
-            AlertSummaryFailureCounts = 0xa4,
-            AlertFailureCounts = 0xa8,
-            ExternalHealthTestAlertFailureCounts = 0xac,
-            FirmwareOverrideControl = 0xb0,
-            FirmwareOverrideSHA3BlockStartControl = 0xb4,
-            FirmwareOverrideFIFOWriteFullStatus = 0xb8,
-            FirmwareOverrideObserveFIFOOverflowStatus = 0xbc,
-            FirmwareOverrideObserveFIFORead = 0xc0,
-            FirmwareOverrideFIFOWrite = 0xc4,
-            ObserveFIFOThreshold = 0xc8,
-            ObserveFIFODepth = 0xcc,
-            DebugStatus = 0xd0,
-            RecoverableAlertStatus = 0xd4,
-            HardwareDetectionOfErrorConditionsStatus = 0xd8,
-            TestErrorConditions = 0xdc,
-            MainStateMachineStateDebug = 0xe0,
         }
     }
 }

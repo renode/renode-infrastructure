@@ -27,7 +27,7 @@ namespace Antmicro.Renode.Utilities.Crypto
         {
             return new AesProvider(CipherMode.CBC, PaddingMode.None, key, iv);
         }
-        
+
         public AesProvider(CipherMode mode, PaddingMode padding, byte[] key, byte[] iv = null)
         {
             aesEngine = Aes.Create();
@@ -93,10 +93,10 @@ namespace Antmicro.Renode.Utilities.Crypto
         private readonly Aes aesEngine;
         private readonly byte[] key;
         private readonly byte[] iv;
-        
+
         private const int AesBlockSizeInBytes = 16;
     }
-    
+
     public class Block
     {
         public static Block WithCopiedBytes(byte[] bytes)
@@ -163,8 +163,12 @@ namespace Antmicro.Renode.Utilities.Crypto
         }
 
         public int SpaceLeft { get { return buffer.Length - Index; } }
+
         public byte[] Buffer { get { return buffer; } }
+
         public int Index { get; set; }
+
+        protected readonly byte[] buffer;
 
         private Block(byte[] buffer)
         {
@@ -175,7 +179,5 @@ namespace Antmicro.Renode.Utilities.Crypto
         {
             buffer = new byte[size];
         }
-
-        protected readonly byte[] buffer;
     }
 }

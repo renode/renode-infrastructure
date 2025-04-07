@@ -57,21 +57,21 @@ namespace Antmicro.Renode.Peripherals.Analog
         {
             switch(currentChannel.Value)
             {
-                case Channels.AIn0:
-                    return AIn0;
-                case Channels.AIn1:
-                    return AIn1;
-                case Channels.AIn2:
-                    return AIn2;
-                case Channels.AIn3:
-                    return AIn3;
-                case Channels.AIn0Div5:
-                    return AIn0 / 5;
-                case Channels.AIn1Div5:
-                    return AIn1 / 5;
-                default:
-                    this.Log(LogLevel.Warning, "{0} is not supported; ignoring", currentChannel.Value);
-                    return 0x00;
+            case Channels.AIn0:
+                return AIn0;
+            case Channels.AIn1:
+                return AIn1;
+            case Channels.AIn2:
+                return AIn2;
+            case Channels.AIn3:
+                return AIn3;
+            case Channels.AIn0Div5:
+                return AIn0 / 5;
+            case Channels.AIn1Div5:
+                return AIn1 / 5;
+            default:
+                this.Log(LogLevel.Warning, "{0} is not supported; ignoring", currentChannel.Value);
+                return 0x00;
             }
         }
 
@@ -194,9 +194,6 @@ namespace Antmicro.Renode.Peripherals.Analog
             }
         }
 
-        private const int LimitRegistersCount = 4;
-        private const uint ADCDataMask = 0x3FF;
-
         private IEnumRegisterField<Alignment> dataAlignment;
         private IEnumRegisterField<Channels> currentChannel;
 
@@ -211,6 +208,9 @@ namespace Antmicro.Renode.Peripherals.Analog
         private uint aIn1;
         private uint aIn2;
         private uint aIn3;
+
+        private const int LimitRegistersCount = 4;
+        private const uint ADCDataMask = 0x3FF;
 
         private enum Alignment
         {

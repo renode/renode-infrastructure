@@ -6,6 +6,7 @@
 //
 
 using System.Text;
+
 using Antmicro.Renode.Utilities.Packets;
 
 namespace Antmicro.Renode.Core.ACPI

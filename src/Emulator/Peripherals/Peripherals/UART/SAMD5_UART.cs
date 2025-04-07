@@ -4,11 +4,10 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -75,11 +74,11 @@ namespace Antmicro.Renode.Peripherals.UART
                         {
                             return b;
                         }
-                        
+
                         this.Log(LogLevel.Warning, "Tried to read DATA, but there is nothing in the queue");
                         return 0;
                     },
-                    writeCallback: (_, val) => 
+                    writeCallback: (_, val) =>
                     {
                         TransmitCharacter((byte)val);
                         transmitComplete.Value = true;
@@ -98,7 +97,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTaggedFlag("ERROR", 7)
                 .WithWriteCallback((_, __) => UpdateInterrupt())
             ;
-            
+
             Registers.InterruptEnableClear.Define(this)
                 .WithFlag(0, out dataRegisterEmptyInterruptEnable, FieldMode.Read | FieldMode.WriteOneToClear, name: "DRE - Data Register Empty Interrupt Enable")
                 .WithFlag(1, out transmitCompleteInterruptEnable, FieldMode.Read | FieldMode.WriteOneToClear, name: "TXC - Transmit Complete Interrupt Enable")
@@ -138,7 +137,7 @@ namespace Antmicro.Renode.Peripherals.UART
         private IFlagRegisterField transmitComplete;
         private IFlagRegisterField receiveComplete;
         private IFlagRegisterField receiveStart;
-        
+
         private IFlagRegisterField dataRegisterEmptyInterruptEnable;
         private IFlagRegisterField transmitCompleteInterruptEnable;
         private IFlagRegisterField receiveCompleteInterruptEnable;
@@ -181,4 +180,3 @@ namespace Antmicro.Renode.Peripherals.UART
         }
     }
 }
-

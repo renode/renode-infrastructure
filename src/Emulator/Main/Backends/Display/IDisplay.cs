@@ -12,8 +12,9 @@ namespace Antmicro.Renode.Backends.Display
     public interface IDisplay
     {
         void DrawFrame(byte[] frame);
+
         void DrawFrame(IntPtr pointer);
+
         void SetDisplayParameters(int width, int height, PixelFormat colorFormat);
     }
 }
-

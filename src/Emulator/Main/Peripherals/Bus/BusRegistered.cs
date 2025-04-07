@@ -8,22 +8,21 @@
 
 namespace Antmicro.Renode.Peripherals.Bus
 {
-	public class BusRegistered<T> : IBusRegistered<T> where T : IBusPeripheral
-	{
-		public BusRegistered(T what, BusRangeRegistration where)
-        {			
-			Peripheral = what;
+    public class BusRegistered<T> : IBusRegistered<T> where T : IBusPeripheral
+    {
+        public BusRegistered(T what, BusRangeRegistration where)
+        {
+            Peripheral = what;
             RegistrationPoint = where;
-		}
+        }
 
         public override string ToString()
         {
             return $"{Peripheral.GetName()} registered at {RegistrationPoint}";
         }
 
-		public T Peripheral { get; private set; }
-        public BusRangeRegistration RegistrationPoint { get; private set; }
-		
-	}
-}
+        public T Peripheral { get; private set; }
 
+        public BusRangeRegistration RegistrationPoint { get; private set; }
+    }
+}

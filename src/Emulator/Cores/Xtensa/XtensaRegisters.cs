@@ -6,12 +6,15 @@
 * appropriate *.tt file.
 *
 */
+#pragma warning disable IDE0005
 using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
+
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.CPU.Registers;
 using Antmicro.Renode.Utilities.Binding;
-using Antmicro.Renode.Exceptions;
+#pragma warning restore IDE0005
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -52,11 +55,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)XtensaRegisters.PC);
             }
+
             set
             {
                 SetRegisterValue32((int)XtensaRegisters.PC, value);
             }
         }
+
         [Register]
         public RegisterValue SAR
         {
@@ -64,11 +69,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)XtensaRegisters.SAR);
             }
+
             set
             {
                 SetRegisterValue32((int)XtensaRegisters.SAR, value);
             }
         }
+
         [Register]
         public RegisterValue WINDOWBASE
         {
@@ -76,11 +83,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)XtensaRegisters.WINDOWBASE);
             }
+
             set
             {
                 SetRegisterValue32((int)XtensaRegisters.WINDOWBASE, value);
             }
         }
+
         [Register]
         public RegisterValue WINDOWSTART
         {
@@ -88,11 +97,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)XtensaRegisters.WINDOWSTART);
             }
+
             set
             {
                 SetRegisterValue32((int)XtensaRegisters.WINDOWSTART, value);
             }
         }
+
         [Register]
         public RegisterValue PS
         {
@@ -100,11 +111,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)XtensaRegisters.PS);
             }
+
             set
             {
                 SetRegisterValue32((int)XtensaRegisters.PS, value);
             }
         }
+
         [Register]
         public RegisterValue EXPSTATE
         {
@@ -112,11 +125,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)XtensaRegisters.EXPSTATE);
             }
+
             set
             {
                 SetRegisterValue32((int)XtensaRegisters.EXPSTATE, value);
             }
         }
+
         [Register]
         public RegisterValue MMID
         {
@@ -124,11 +139,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)XtensaRegisters.MMID);
             }
+
             set
             {
                 SetRegisterValue32((int)XtensaRegisters.MMID, value);
             }
         }
+
         [Register]
         public RegisterValue IBREAKENABLE
         {
@@ -136,11 +153,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)XtensaRegisters.IBREAKENABLE);
             }
+
             set
             {
                 SetRegisterValue32((int)XtensaRegisters.IBREAKENABLE, value);
             }
         }
+
         [Register]
         public RegisterValue ATOMCTL
         {
@@ -148,11 +167,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)XtensaRegisters.ATOMCTL);
             }
+
             set
             {
                 SetRegisterValue32((int)XtensaRegisters.ATOMCTL, value);
             }
         }
+
         [Register]
         public RegisterValue DDR
         {
@@ -160,11 +181,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)XtensaRegisters.DDR);
             }
+
             set
             {
                 SetRegisterValue32((int)XtensaRegisters.DDR, value);
             }
         }
+
         [Register]
         public RegisterValue DEPC
         {
@@ -172,11 +195,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)XtensaRegisters.DEPC);
             }
+
             set
             {
                 SetRegisterValue32((int)XtensaRegisters.DEPC, value);
             }
         }
+
         [Register]
         public RegisterValue INTERRUPT
         {
@@ -184,11 +209,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)XtensaRegisters.INTERRUPT);
             }
+
             set
             {
                 SetRegisterValue32((int)XtensaRegisters.INTERRUPT, value);
             }
         }
+
         [Register]
         public RegisterValue INTSET
         {
@@ -196,11 +223,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)XtensaRegisters.INTSET);
             }
+
             set
             {
                 SetRegisterValue32((int)XtensaRegisters.INTSET, value);
             }
         }
+
         [Register]
         public RegisterValue INTCLEAR
         {
@@ -208,11 +237,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)XtensaRegisters.INTCLEAR);
             }
+
             set
             {
                 SetRegisterValue32((int)XtensaRegisters.INTCLEAR, value);
             }
         }
+
         [Register]
         public RegisterValue INTENABLE
         {
@@ -220,11 +251,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)XtensaRegisters.INTENABLE);
             }
+
             set
             {
                 SetRegisterValue32((int)XtensaRegisters.INTENABLE, value);
             }
         }
+
         [Register]
         public RegisterValue VECBASE
         {
@@ -232,11 +265,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)XtensaRegisters.VECBASE);
             }
+
             set
             {
                 SetRegisterValue32((int)XtensaRegisters.VECBASE, value);
             }
         }
+
         [Register]
         public RegisterValue EXCCAUSE
         {
@@ -244,11 +279,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)XtensaRegisters.EXCCAUSE);
             }
+
             set
             {
                 SetRegisterValue32((int)XtensaRegisters.EXCCAUSE, value);
             }
         }
+
         [Register]
         public RegisterValue DEBUGCAUSE
         {
@@ -256,11 +293,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)XtensaRegisters.DEBUGCAUSE);
             }
+
             set
             {
                 SetRegisterValue32((int)XtensaRegisters.DEBUGCAUSE, value);
             }
         }
+
         [Register]
         public RegisterValue CCOUNT
         {
@@ -268,11 +307,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)XtensaRegisters.CCOUNT);
             }
+
             set
             {
                 SetRegisterValue32((int)XtensaRegisters.CCOUNT, value);
             }
         }
+
         [Register]
         public RegisterValue PRID
         {
@@ -280,11 +321,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)XtensaRegisters.PRID);
             }
+
             set
             {
                 SetRegisterValue32((int)XtensaRegisters.PRID, value);
             }
         }
+
         [Register]
         public RegisterValue ICOUNT
         {
@@ -292,11 +335,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)XtensaRegisters.ICOUNT);
             }
+
             set
             {
                 SetRegisterValue32((int)XtensaRegisters.ICOUNT, value);
             }
         }
+
         [Register]
         public RegisterValue ICOUNTLEVEL
         {
@@ -304,11 +349,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)XtensaRegisters.ICOUNTLEVEL);
             }
+
             set
             {
                 SetRegisterValue32((int)XtensaRegisters.ICOUNTLEVEL, value);
             }
         }
+
         [Register]
         public RegisterValue EXCVADDR
         {
@@ -316,11 +363,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)XtensaRegisters.EXCVADDR);
             }
+
             set
             {
                 SetRegisterValue32((int)XtensaRegisters.EXCVADDR, value);
             }
         }
+
         [Register]
         public RegisterValue PSINTLEVEL
         {
@@ -328,11 +377,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)XtensaRegisters.PSINTLEVEL);
             }
+
             set
             {
                 SetRegisterValue32((int)XtensaRegisters.PSINTLEVEL, value);
             }
         }
+
         [Register]
         public RegisterValue PSUM
         {
@@ -340,11 +391,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)XtensaRegisters.PSUM);
             }
+
             set
             {
                 SetRegisterValue32((int)XtensaRegisters.PSUM, value);
             }
         }
+
         [Register]
         public RegisterValue PSWOE
         {
@@ -352,11 +405,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)XtensaRegisters.PSWOE);
             }
+
             set
             {
                 SetRegisterValue32((int)XtensaRegisters.PSWOE, value);
             }
         }
+
         [Register]
         public RegisterValue PSEXCM
         {
@@ -364,11 +419,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)XtensaRegisters.PSEXCM);
             }
+
             set
             {
                 SetRegisterValue32((int)XtensaRegisters.PSEXCM, value);
             }
         }
+
         [Register]
         public RegisterValue PSCALLINC
         {
@@ -376,11 +433,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)XtensaRegisters.PSCALLINC);
             }
+
             set
             {
                 SetRegisterValue32((int)XtensaRegisters.PSCALLINC, value);
             }
         }
+
         [Register]
         public RegisterValue PSOWB
         {
@@ -388,24 +447,38 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)XtensaRegisters.PSOWB);
             }
+
             set
             {
                 SetRegisterValue32((int)XtensaRegisters.PSOWB, value);
             }
         }
+
         public RegistersGroup AR { get; private set; }
+
         public RegistersGroup CONFIGID { get; private set; }
+
         public RegistersGroup SCOMPARE { get; private set; }
+
         public RegistersGroup IBREAKA { get; private set; }
+
         public RegistersGroup DBREAKA { get; private set; }
+
         public RegistersGroup DBREAKC { get; private set; }
+
         public RegistersGroup EPC { get; private set; }
+
         public RegistersGroup EPS { get; private set; }
+
         public RegistersGroup EXCSAVE { get; private set; }
+
         public RegistersGroup CCOMPARE { get; private set; }
+
         public RegistersGroup MISC { get; private set; }
+
         public RegistersGroup A { get; private set; }
 
+#pragma warning disable SA1508
         protected override void InitializeRegisters()
         {
             var indexValueMapAR = new Dictionary<int, XtensaRegisters>
@@ -587,16 +660,16 @@ namespace Antmicro.Renode.Peripherals.CPU
                 (i, v) => SetRegister((int)indexValueMapA[i], v));
 
         }
+#pragma warning restore SA1508
 
+#pragma warning disable 649
         // 649:  Field '...' is never assigned to, and will always have its default value null
-        #pragma warning disable 649
-
         [Import(Name = "tlib_set_register_value_32")]
         protected Action<int, uint> SetRegisterValue32;
+
         [Import(Name = "tlib_get_register_value_32")]
         protected Func<int, uint> GetRegisterValue32;
-
-        #pragma warning restore 649
+#pragma warning restore 649
 
         private static readonly Dictionary<XtensaRegisters, CPURegister> mapping = new Dictionary<XtensaRegisters, CPURegister>
         {

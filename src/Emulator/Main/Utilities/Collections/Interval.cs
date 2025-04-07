@@ -86,4 +86,3 @@ namespace Antmicro.Renode.Utilities.Collections
         public TScalar End { get; set; }
     }
 }
-

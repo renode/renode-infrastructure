@@ -5,11 +5,16 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+
+#pragma warning disable IDE0005
 using System;
 using System.Runtime.InteropServices;
-using Xwt;
-using Antmicro.Renode.Logging;
+#pragma warning restore IDE0005
+
 using Antmicro.Renode.Extensions.Analyzers.Video.Handlers;
+using Antmicro.Renode.Logging;
+
+using Xwt;
 
 namespace Antmicro.Renode.Extensions.Analyzers.Video.Events
 {
@@ -18,6 +23,17 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Events
         public XWTEventSource(Widget source)
         {
             this.source = source;
+        }
+
+        public void DetachHandler()
+        {
+            source.MouseMoved -= HandleMouseMoved;
+            source.ButtonPressed -= HandleButtonPressed;
+            source.ButtonReleased -= HandleButtonReleased;
+            source.KeyPressed -= HandleKeyPressed;
+            source.KeyReleased -= HandleKeyReleased;
+
+            handler = null;
         }
 
         public void AttachHandler(IOHandler h)
@@ -30,6 +46,10 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Events
             source.KeyPressed += HandleKeyPressed;
             source.KeyReleased += HandleKeyReleased;
         }
+
+        public int X { get { return lastX ?? 0; } }
+
+        public int Y { get { return lastY ?? 0; } }
 
         private void HandleKeyReleased(object sender, KeyEventArgs e)
         {
@@ -109,25 +129,12 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Events
             lastY = (int)e.Y;
         }
 
-        public void DetachHandler()
-        {
-            source.MouseMoved -= HandleMouseMoved;
-            source.ButtonPressed -= HandleButtonPressed;
-            source.ButtonReleased -= HandleButtonReleased;
-            source.KeyPressed -= HandleKeyPressed;
-            source.KeyReleased -= HandleKeyReleased;
-
-            handler = null;
-        }
-
-        private Widget source;
         private IOHandler handler;
 
         private int? lastX;
         private int? lastY;
 
-        public int X { get { return lastX ?? 0; } }
-        public int Y { get { return lastY ?? 0; } }
+        private readonly Widget source;
 
 #if PLATFORM_WINDOWS
         [DllImport("user32.dll")]

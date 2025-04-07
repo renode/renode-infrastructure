@@ -6,14 +6,15 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Core;
-using System.Collections.Generic;
-using Antmicro.Renode.Backends.Display;
-using Antmicro.Renode.Core.Structure.Registers;
 using System;
+using System.Collections.Generic;
+
 using Antmicro.Migrant;
 using Antmicro.Migrant.Hooks;
+using Antmicro.Renode.Backends.Display;
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.DMA
 {
@@ -52,9 +53,6 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
         }
 
-        private byte[] foregroundClut;
-        private byte[] backgroundClut;
-
         private STM32DMA2D()
         {
             var controlRegister = new DoubleWordRegister(this)
@@ -76,8 +74,10 @@ namespace Antmicro.Renode.Peripherals.DMA
             ;
 
             var interruptFlagClearRegister = new DoubleWordRegister(this)
-                .WithFlag(1, FieldMode.Read | FieldMode.WriteOneToClear, name: "CTCIF", writeCallback: (_, val) => {
-                    if(val) { IRQ.Unset(); transferCompleteFlag.Value = false; }})
+                .WithFlag(1, FieldMode.Read | FieldMode.WriteOneToClear, name: "CTCIF", writeCallback: (_, val) =>
+                {
+                    if(val) { IRQ.Unset(); transferCompleteFlag.Value = false; }
+                })
             ;
 
             var numberOfLineRegister = new DoubleWordRegister(this)
@@ -258,112 +258,112 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             switch(dma2dMode.Value)
             {
-                case Mode.RegisterToMemory:
-                    var colorBytes = BitConverter.GetBytes(outputColorRegister.Value);
-                    var colorDepth = outputFormat.GetColorDepth();
+            case Mode.RegisterToMemory:
+                var colorBytes = BitConverter.GetBytes(outputColorRegister.Value);
+                var colorDepth = outputFormat.GetColorDepth();
 
-                    // fill area with the color defined in output color register
-                    for(var i = 0; i < outputBuffer.Length; i++)
-                    {
-                        outputBuffer[i] = colorBytes[i % colorDepth];
-                    }
+                // fill area with the color defined in output color register
+                for(var i = 0; i < outputBuffer.Length; i++)
+                {
+                    outputBuffer[i] = colorBytes[i % colorDepth];
+                }
 
-                    if(outputLineOffsetField.Value == 0)
+                if(outputLineOffsetField.Value == 0)
+                {
+                    // we can copy everything at once - it might be faster
+                    sysbus.WriteBytes(outputBuffer, outputMemoryAddressRegister.Value);
+                }
+                else
+                {
+                    // we have to copy per line
+                    var lineWidth = (int)pixelsPerLineField.Value * outputFormat.GetColorDepth();
+                    var offset = lineWidth + ((int)outputLineOffsetField.Value * outputFormat.GetColorDepth());
+                    for(var line = 0; line < (int)numberOfLineField.Value; line++)
                     {
-                        // we can copy everything at once - it might be faster
-                        sysbus.WriteBytes(outputBuffer, outputMemoryAddressRegister.Value);
+                        sysbus.WriteBytes(outputBuffer, (ulong)(outputMemoryAddressRegister.Value + line * offset), line * lineWidth, lineWidth);
                     }
-                    else
-                    {
-                        // we have to copy per line
-                        var lineWidth = (int)pixelsPerLineField.Value * outputFormat.GetColorDepth();
-                        var offset = lineWidth + ((int)outputLineOffsetField.Value * outputFormat.GetColorDepth());
-                        for(var line = 0; line < (int)numberOfLineField.Value; line++)
-                        {
-                            sysbus.WriteBytes(outputBuffer, (ulong)(outputMemoryAddressRegister.Value + line * offset), line * lineWidth, lineWidth);
-                        }
-                    }
-                    break;
-                case Mode.MemoryToMemoryWithBlending:
-                    var bgBlendingMode = backgroundAlphaMode.Value.ToPixelBlendingMode();
-                    var fgBlendingMode = foregroundAlphaMode.Value.ToPixelBlendingMode();
-                    var bgAlpha = (byte)backgroundAlphaField.Value;
-                    var fgAlpha = (byte)foregroundAlphaField.Value;
+                }
+                break;
+            case Mode.MemoryToMemoryWithBlending:
+                var bgBlendingMode = backgroundAlphaMode.Value.ToPixelBlendingMode();
+                var fgBlendingMode = foregroundAlphaMode.Value.ToPixelBlendingMode();
+                var bgAlpha = (byte)backgroundAlphaField.Value;
+                var fgAlpha = (byte)foregroundAlphaField.Value;
 
-                    if(outputLineOffsetField.Value == 0 && foregroundLineOffsetField.Value == 0 && backgroundLineOffsetField.Value == 0)
-                    {
-                        // we can optimize here and copy everything at once
-                        DoCopy(foregroundMemoryAddressRegister.Value, outputMemoryAddressRegister.Value, foregroundBuffer,
-                               converter: (localForegroundBuffer, line) =>
-                               {
-                                   sysbus.ReadBytes(backgroundMemoryAddressRegister.Value, backgroundBuffer.Length, backgroundBuffer, 0);
-                                   // per-pixel alpha blending
-                                   blender.Blend(backgroundBuffer, backgroundClut, localForegroundBuffer, foregroundClut, ref outputBuffer, new Pixel(0, 0, 0, 0xFF), bgAlpha, bgBlendingMode, fgAlpha, fgBlendingMode);
-                                   return outputBuffer;
-                               });
-                    }
-                    else
-                    {
-                        var backgroundFormat = backgroundColorModeField.Value.ToPixelFormat();
-                        DoCopy(foregroundMemoryAddressRegister.Value, outputMemoryAddressRegister.Value,
-                               foregroundLineBuffer,
-                               (int)foregroundLineOffsetField.Value * foregroundFormat.GetColorDepth(),
-                               (int)outputLineOffsetField.Value * outputFormat.GetColorDepth(),
-                               (int)numberOfLineField.Value,
-                               (localForegroundBuffer, line) =>
-                                {
-                                    sysbus.ReadBytes((ulong)(backgroundMemoryAddressRegister.Value + line * (uint)(backgroundLineOffsetField.Value + pixelsPerLineField.Value) * backgroundFormat.GetColorDepth()), backgroundLineBuffer.Length, backgroundLineBuffer, 0);
-                                    blender.Blend(backgroundLineBuffer, backgroundClut, localForegroundBuffer, foregroundClut, ref outputLineBuffer, null, bgAlpha, bgBlendingMode, fgAlpha, fgBlendingMode);
-                                    return outputLineBuffer;
-                                });
-                    }
-                    break;
-                case Mode.MemoryToMemoryWithPfc:
-                    fgAlpha = (byte)foregroundAlphaField.Value;
-                    fgBlendingMode = foregroundAlphaMode.Value.ToPixelBlendingMode();
+                if(outputLineOffsetField.Value == 0 && foregroundLineOffsetField.Value == 0 && backgroundLineOffsetField.Value == 0)
+                {
+                    // we can optimize here and copy everything at once
+                    DoCopy(foregroundMemoryAddressRegister.Value, outputMemoryAddressRegister.Value, foregroundBuffer,
+                           converter: (localForegroundBuffer, line) =>
+                           {
+                               sysbus.ReadBytes(backgroundMemoryAddressRegister.Value, backgroundBuffer.Length, backgroundBuffer, 0);
+                               // per-pixel alpha blending
+                               blender.Blend(backgroundBuffer, backgroundClut, localForegroundBuffer, foregroundClut, ref outputBuffer, new Pixel(0, 0, 0, 0xFF), bgAlpha, bgBlendingMode, fgAlpha, fgBlendingMode);
+                               return outputBuffer;
+                           });
+                }
+                else
+                {
+                    var backgroundFormat = backgroundColorModeField.Value.ToPixelFormat();
+                    DoCopy(foregroundMemoryAddressRegister.Value, outputMemoryAddressRegister.Value,
+                           foregroundLineBuffer,
+                           (int)foregroundLineOffsetField.Value * foregroundFormat.GetColorDepth(),
+                           (int)outputLineOffsetField.Value * outputFormat.GetColorDepth(),
+                           (int)numberOfLineField.Value,
+                           (localForegroundBuffer, line) =>
+                            {
+                                sysbus.ReadBytes((ulong)(backgroundMemoryAddressRegister.Value + line * (uint)(backgroundLineOffsetField.Value + pixelsPerLineField.Value) * backgroundFormat.GetColorDepth()), backgroundLineBuffer.Length, backgroundLineBuffer, 0);
+                                blender.Blend(backgroundLineBuffer, backgroundClut, localForegroundBuffer, foregroundClut, ref outputLineBuffer, null, bgAlpha, bgBlendingMode, fgAlpha, fgBlendingMode);
+                                return outputLineBuffer;
+                            });
+                }
+                break;
+            case Mode.MemoryToMemoryWithPfc:
+                fgAlpha = (byte)foregroundAlphaField.Value;
+                fgBlendingMode = foregroundAlphaMode.Value.ToPixelBlendingMode();
 
-                    if(outputLineOffsetField.Value == 0 && foregroundLineOffsetField.Value == 0 && backgroundLineOffsetField.Value == 0)
-                    {
-                        DoCopy(foregroundMemoryAddressRegister.Value, outputMemoryAddressRegister.Value,
-                                foregroundBuffer,
-                                converter: (localForegroundBuffer, line) =>
-                                {
-                                    fgConverter.Convert(localForegroundBuffer, foregroundClut, fgAlpha, fgBlendingMode, ref outputBuffer);
-                                    return outputBuffer;
-                                });
-                    }
-                    else
-                    {
-                        DoCopy(foregroundMemoryAddressRegister.Value, outputMemoryAddressRegister.Value,
-                                foregroundLineBuffer,
-                                (int)foregroundLineOffsetField.Value * foregroundFormat.GetColorDepth(),
-                                (int)outputLineOffsetField.Value * outputFormat.GetColorDepth(),
-                                (int)numberOfLineField.Value,
-                                (localForegroundBuffer, line) =>
-                                {
-                                    fgConverter.Convert(localForegroundBuffer, foregroundClut, fgAlpha, fgBlendingMode, ref outputLineBuffer);
-                                    return outputLineBuffer;
-                                });
-                    }
-                    break;
-                case Mode.MemoryToMemory:
-                    if(outputLineOffsetField.Value == 0 && foregroundLineOffsetField.Value == 0)
-                    {
-                        // we can optimize here and copy everything at once
-                        DoCopy(foregroundMemoryAddressRegister.Value, outputMemoryAddressRegister.Value, foregroundBuffer);
-                    }
-                    else
-                    {
-                        // in this mode no graphical data transformation is performed
-                        // color format is stored in foreground pfc control register
+                if(outputLineOffsetField.Value == 0 && foregroundLineOffsetField.Value == 0 && backgroundLineOffsetField.Value == 0)
+                {
+                    DoCopy(foregroundMemoryAddressRegister.Value, outputMemoryAddressRegister.Value,
+                            foregroundBuffer,
+                            converter: (localForegroundBuffer, line) =>
+                            {
+                                fgConverter.Convert(localForegroundBuffer, foregroundClut, fgAlpha, fgBlendingMode, ref outputBuffer);
+                                return outputBuffer;
+                            });
+                }
+                else
+                {
+                    DoCopy(foregroundMemoryAddressRegister.Value, outputMemoryAddressRegister.Value,
+                            foregroundLineBuffer,
+                            (int)foregroundLineOffsetField.Value * foregroundFormat.GetColorDepth(),
+                            (int)outputLineOffsetField.Value * outputFormat.GetColorDepth(),
+                            (int)numberOfLineField.Value,
+                            (localForegroundBuffer, line) =>
+                            {
+                                fgConverter.Convert(localForegroundBuffer, foregroundClut, fgAlpha, fgBlendingMode, ref outputLineBuffer);
+                                return outputLineBuffer;
+                            });
+                }
+                break;
+            case Mode.MemoryToMemory:
+                if(outputLineOffsetField.Value == 0 && foregroundLineOffsetField.Value == 0)
+                {
+                    // we can optimize here and copy everything at once
+                    DoCopy(foregroundMemoryAddressRegister.Value, outputMemoryAddressRegister.Value, foregroundBuffer);
+                }
+                else
+                {
+                    // in this mode no graphical data transformation is performed
+                    // color format is stored in foreground pfc control register
 
-                        DoCopy(foregroundMemoryAddressRegister.Value, outputMemoryAddressRegister.Value,
-                                       foregroundLineBuffer,
-                                       (int)foregroundLineOffsetField.Value * foregroundFormat.GetColorDepth(),
-                                       (int)outputLineOffsetField.Value * foregroundFormat.GetColorDepth(),
-                                       (int)numberOfLineField.Value);
-                    }
-                    break;
+                    DoCopy(foregroundMemoryAddressRegister.Value, outputMemoryAddressRegister.Value,
+                                   foregroundLineBuffer,
+                                   (int)foregroundLineOffsetField.Value * foregroundFormat.GetColorDepth(),
+                                   (int)outputLineOffsetField.Value * foregroundFormat.GetColorDepth(),
+                                   (int)numberOfLineField.Value);
+                }
+                break;
             }
 
             startFlag.Value = false;
@@ -386,6 +386,25 @@ namespace Antmicro.Renode.Peripherals.DMA
                 currentDestination += (ulong)(destinationBuffer.Length + destinationOffset);
             }
         }
+
+        private byte[] outputBuffer;
+        private byte[] outputLineBuffer;
+
+        private byte[] foregroundBuffer;
+        private byte[] foregroundLineBuffer;
+
+        private byte[] backgroundBuffer;
+        private byte[] backgroundLineBuffer;
+
+        [Transient]
+        private IPixelBlender blender;
+        [Transient]
+        private IPixelConverter bgConverter;
+        [Transient]
+        private IPixelConverter fgConverter;
+
+        private byte[] foregroundClut;
+        private byte[] backgroundClut;
 
         private readonly IBusController sysbus;
         private readonly IFlagRegisterField startFlag;
@@ -416,22 +435,6 @@ namespace Antmicro.Renode.Peripherals.DMA
         private readonly IEnumRegisterField<Dma2DColorMode> foregroundClutColorModeField;
         private readonly IEnumRegisterField<Dma2DColorMode> backgroundClutColorModeField;
         private readonly DoubleWordRegisterCollection registers;
-
-        private byte[] outputBuffer;
-        private byte[] outputLineBuffer;
-
-        private byte[] foregroundBuffer;
-        private byte[] foregroundLineBuffer;
-
-        private byte[] backgroundBuffer;
-        private byte[] backgroundLineBuffer;
-
-        [Transient]
-        private IPixelBlender blender;
-        [Transient]
-        private IPixelConverter bgConverter;
-        [Transient]
-        private IPixelConverter fgConverter;
 
         private const ELFSharp.ELF.Endianess Endianness = ELFSharp.ELF.Endianess.LittleEndian;
 

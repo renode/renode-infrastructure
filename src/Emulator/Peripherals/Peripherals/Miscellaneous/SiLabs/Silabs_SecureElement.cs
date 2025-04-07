@@ -8,23 +8,17 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.IO;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.Timers;
-using Antmicro.Renode.Time;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Utilities.Packets;
+
 using Org.BouncyCastle.Crypto;
-using Org.BouncyCastle.Crypto.Engines;
-using Org.BouncyCastle.Crypto.Modes;
-using Org.BouncyCastle.Crypto.Macs;
-using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Crypto.Digests;
+using Org.BouncyCastle.Crypto.Engines;
+using Org.BouncyCastle.Crypto.Macs;
+using Org.BouncyCastle.Crypto.Modes;
+using Org.BouncyCastle.Crypto.Parameters;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 {
@@ -35,8 +29,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         {
         }
 
-        public Silabs_SecureElement(Machine machine, IDoubleWordPeripheral parent, Queue<uint> txFifo, Queue<uint> rxFifo, bool series3, 
-                            uint flashSize, uint flashPageSize, uint flashRegionSize, uint flashCodeRegionStart, uint flashCodeRegionEnd=0, uint flashDataRegionStart=0)
+        public Silabs_SecureElement(Machine machine, IDoubleWordPeripheral parent, Queue<uint> txFifo, Queue<uint> rxFifo, bool series3,
+                            uint flashSize, uint flashPageSize, uint flashRegionSize, uint flashCodeRegionStart, uint flashCodeRegionEnd = 0, uint flashDataRegionStart = 0)
         {
             this.machine = machine;
             this.parent = parent;
@@ -49,54 +43,36 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             this.flashCodeRegionStart = flashCodeRegionStart;
             this.flashCodeRegionEnd = flashCodeRegionEnd;
             this.flashDataRegionStart = flashDataRegionStart;
-            
-            // TODO: the SE adds an internal key at slot 246 used for NVM3 encryption operations. 
+
+            // TODO: the SE adds an internal key at slot 246 used for NVM3 encryption operations.
             // We just add an arbitrary key here to faciliate all NVM3 operations.
             byte[] key = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF};
             volatileKeys[246] = key;
         }
 
-#region fields
-        private readonly Machine machine;
-        private readonly IDoubleWordPeripheral parent;
-        private const uint NullDescriptor = 1;
-        private readonly bool series3;
-        private static PseudorandomNumberGenerator random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
-        private Queue<uint> txFifo;
-        private Queue<uint> rxFifo;
-        private uint wordsLeftToBeReceived;
-        // TODO: This is a HACK: the Bouncy Castle hash function implementation does not allow to
-        // set the state, which is needed for HASH_UPDATE commands.
-        // The solution is to keep around the hash engine until the HASH_FINAL command is called,
-        // but this requires all these commands to happen sequentially, hence the hack.
-        private IDigest currentHashEngine = null;
-        // Series3 specific value.
-        // Related to PSEC-5391, once that gets resolved, we might need to update this accordingly.
-        private const uint QspiFlashHostBase = 0x1000000;
-        private readonly uint flashSize;
-        private readonly uint flashPageSize;
-        private readonly uint flashRegionSize;
-        private readonly uint flashCodeRegionStart;
-        private readonly uint flashCodeRegionEnd;
-        private readonly uint flashDataRegionStart;
-        private Dictionary<uint, byte[]> volatileKeys = new Dictionary<uint, byte[]>();
-#endregion
-
-#region public methods
-        public void Reset()
+        public bool TxFifoEnqueueCallback(uint _)
         {
-            wordsLeftToBeReceived = 0;
-        }
+            if(wordsLeftToBeReceived == 0)
+            {
+                parent.Log(LogLevel.Error, "TxFifoEnqueueCallback: 0 words left");
+                return false;
+            }
 
-        public uint GetDefaultErrorStatus()
-        {
-            return (uint)ResponseCode.InternalError;
+            wordsLeftToBeReceived--;
+
+            if(wordsLeftToBeReceived == 0)
+            {
+                ProcessCommand();
+                return true;
+            }
+
+            return false;
         }
 
         public void TxHeaderSetCallback(uint header)
         {
             // Setting the TX header starts a new "transaction".
-            // The TX header as per HOST code, appears to be simply the number of 
+            // The TX header as per HOST code, appears to be simply the number of
             // bytes (multiple of 4) that constitute the message.
             // At minimum a message contains:
             // - The header itself
@@ -107,272 +83,43 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             wordsLeftToBeReceived = header / 4;
         }
 
-        public bool TxFifoEnqueueCallback(uint word)
+        public uint GetDefaultErrorStatus()
         {
-            if (wordsLeftToBeReceived == 0)
-            {
-                parent.Log(LogLevel.Error, "TxFifoEnqueueCallback: 0 words left");
-                return false;
-            }
-            
-            wordsLeftToBeReceived--;
-            
-            if (wordsLeftToBeReceived == 0)
-            {
-                ProcessCommand();
-                return true;
-            }
-
-            return false;
-        }
-#endregion
-
-#region private methods
-        private void ProcessCommand()
-        {
-            uint commandHandle = 0;
-
-            if (txFifo.Count == 0)
-            {
-                parent.Log(LogLevel.Error, "ProcessCommand(): Queue is EMPTY!");                
-                WriteResponse(ResponseCode.InvalidParameter, commandHandle);
-            }
-
-            uint header = txFifo.Dequeue();
-            // First 2 bytes of the header is the number of bytes in the message (header included)
-            uint wordsCount = (header & 0xFFFF)/4;
-            
-            if (txFifo.Count < wordsCount - 1)
-            {
-                parent.Log(LogLevel.Error, "ProcessCommand(): Not enough words FifoSize={0}, expectedWords={1}", txFifo.Count, wordsCount - 1);
-                WriteResponse(ResponseCode.InvalidParameter, commandHandle);
-            }
-            
-            if (series3)
-            {
-                commandHandle = txFifo.Dequeue();
-            }
-
-            uint commandOptions = txFifo.Dequeue();
-            var commandId = (CommandId)(commandOptions >> 16);
-            commandOptions &= 0xFFFF;
-            uint inputDmaDescriptorPtr = txFifo.Dequeue();
-            uint outputDmaDescriptorPtr = txFifo.Dequeue();
-            uint commandParamsCount = wordsCount - (series3 ? 5U : 4U);
-            uint[] commandParams = new uint[13];            
-            for(var i = 0; i < commandParamsCount; i ++)
-            {
-                commandParams[i] = txFifo.Dequeue();
-            }
-
-            parent.Log(LogLevel.Info, "ProcessCommand(): command ID={0} command Options=0x{1:X} command params count={2}", commandId, commandOptions, commandParamsCount);
-
-            ResponseCode responseCode;
-
-            switch(commandId)
-            {
-                case CommandId.ImportKey:
-                    responseCode = HandleImportKeyCommand(inputDmaDescriptorPtr, outputDmaDescriptorPtr, commandParams, commandParamsCount);
-                    break;
-                case CommandId.ExportKey:
-                    responseCode = HandleExportKeyCommand(inputDmaDescriptorPtr, outputDmaDescriptorPtr, commandParams, commandParamsCount, series3);
-                    break;
-                case CommandId.Hash:
-                    responseCode = HandleHashCommand(inputDmaDescriptorPtr, outputDmaDescriptorPtr, commandParams, commandParamsCount, commandOptions);
-                    break;
-                case CommandId.HashUpdate:
-                case CommandId.HashFinish:
-                    responseCode = HandleHashUpdateOrFinishCommand(inputDmaDescriptorPtr, outputDmaDescriptorPtr, commandParams, commandParamsCount, commandOptions, (commandId == CommandId.HashFinish));
-                    break;
-                case CommandId.AesEncrypt:
-                case CommandId.AesDecrypt:
-                    responseCode = HandleAesEncryptOrDecryptCommand(inputDmaDescriptorPtr, outputDmaDescriptorPtr, commandParams, commandParamsCount, commandOptions, (commandId == CommandId.AesEncrypt));
-                    break;
-                case CommandId.AesCmac:
-                    responseCode = HandleAesCmacCommand(inputDmaDescriptorPtr, outputDmaDescriptorPtr, commandParams, commandParamsCount);
-                    break;
-                case CommandId.AesCcmEncrypt:
-                    responseCode = HandleAesCcmEncryptCommand(inputDmaDescriptorPtr, outputDmaDescriptorPtr, commandParams, commandParamsCount);
-                    break;
-                case CommandId.AesCcmDecrypt:
-                    responseCode = HandleAesCcmDecryptCommand(inputDmaDescriptorPtr, outputDmaDescriptorPtr, commandParams, commandParamsCount);
-                    break;
-                case CommandId.AesGcmEncrypt:
-                    responseCode = HandleAesGcmEncryptCommand(inputDmaDescriptorPtr, outputDmaDescriptorPtr, commandParams, commandParamsCount, commandOptions);
-                    break;
-                case CommandId.AesGcmDecrypt:
-                    responseCode = HandleAesGcmDecryptCommand(inputDmaDescriptorPtr, outputDmaDescriptorPtr, commandParams, commandParamsCount, commandOptions);
-                    break;
-                case CommandId.Random:
-                    responseCode = HandleRandomCommand(inputDmaDescriptorPtr, outputDmaDescriptorPtr, commandParams, commandParamsCount);
-                    break;
-                case CommandId.ReadDeviceData:
-                    responseCode = HandleReadDeviceDataCommand(inputDmaDescriptorPtr, outputDmaDescriptorPtr, commandParams, commandParamsCount, commandOptions);
-                    break;
-                case CommandId.FlashEraseDataRegion:
-                    responseCode = HandleFlashEraseDataRegionCommand(inputDmaDescriptorPtr, outputDmaDescriptorPtr, commandParams, commandParamsCount, commandOptions);
-                    break;
-                case CommandId.FlashWriteDataRegion:
-                    responseCode = HandleFlashWriteDataRegionCommand(inputDmaDescriptorPtr, outputDmaDescriptorPtr, commandParams, commandParamsCount, commandOptions);
-                    break;
-                case CommandId.FlashGetDataRegionLocation:
-                    responseCode = HandleFlashGetDataRegionLocationCommand(inputDmaDescriptorPtr, outputDmaDescriptorPtr, commandParams, commandParamsCount, commandOptions);
-                    break;
-                case CommandId.FlashGetCodeRegionConfig:
-                    responseCode = HandleFlashGetCodeRegionConfigCommand(inputDmaDescriptorPtr, outputDmaDescriptorPtr, commandParams, commandParamsCount, commandOptions);
-                    break;
-                case CommandId.ConfigureQspiRefClock:
-                    responseCode = HandleConfigureQspiRefClockCommand(inputDmaDescriptorPtr, outputDmaDescriptorPtr, commandParams, commandParamsCount, commandOptions);
-                    break;
-                default:
-                    responseCode = ResponseCode.InvalidCommand;
-                    parent.Log(LogLevel.Error, "ProcessCommand(): Command ID 0x{0:X} not handled!", (uint)commandId);
-                    break;
-            }
-
-            if (responseCode != ResponseCode.Ok)
-            {
-                parent.Log(LogLevel.Info, "ProcessCommand(): Response code {0}", responseCode);
-            }
-
-            WriteResponse(responseCode, commandHandle);
+            return (uint)ResponseCode.InternalError;
         }
 
-        private void WriteResponse(ResponseCode code, uint commandHandle)
+        public void Reset()
         {
-            rxFifo.Enqueue((uint)code);
-            if (series3)
-            {
-                rxFifo.Enqueue(commandHandle);
-            }
-        }
-#endregion
-
-#region command handlers
-        private ResponseCode HandleImportKeyCommand(uint inputDma, uint outputDma, uint[] commandParams, uint commandParamsCount)
-        {
-            if (commandParamsCount != 1)
-            {
-                parent.Log(LogLevel.Error, "IMPORT_KEY: invalid parameter count");
-                return ResponseCode.Abort;
-            }
-
-            KeyMode keyMode;
-            KeyType keyType;
-            KeyRestriction keyRestriction;
-            uint keyIndex;
-            UnpackKeyMetadata(commandParams[0], out keyIndex, out keyType, out keyMode, out keyRestriction);
-            
-            parent.Log(LogLevel.Noisy, "IMPORT_KEY: keyIndex={0} keyType={1} keyMode={2} keyRestriction={3}",
-                     keyIndex, keyType, keyMode, keyRestriction);
-
-            if (keyMode == KeyMode.Unprotected || keyMode == KeyMode.WrappedAntiReplay)
-            {
-                parent.Log(LogLevel.Error, "HandleImportKeyCommand: invalid key mode");
-                return ResponseCode.Abort;
-            }
-
-            // First input DMA descriptor contains the plaintext key
-            uint plaintextKeyPtr;
-            uint keyLength;
-            DmaTranferOptions transferOptions;
-            uint nextDescriptorPtr;
-            UnpackDmaDescriptor(inputDma, out plaintextKeyPtr, out keyLength, out transferOptions, out nextDescriptorPtr, machine);
-            parent.Log(LogLevel.Noisy, "IMPORT_KEY: keyPtr=0x{0:X} keyLength={1} options={2} nextDescriptorPtr=0x{3:X}",
-                     plaintextKeyPtr, keyLength, transferOptions, nextDescriptorPtr);
-            byte[] key = new byte[keyLength];
-            FetchFromRam(plaintextKeyPtr, key, 0, keyLength);
-            parent.Log(LogLevel.Noisy, "Key=[{0}]", BitConverter.ToString(key));
-            
-            // Input DMA has actually a second descriptor containing 8 bytes all set to zeros. I assume that is the auth_data[8] field,
-            // TODO: For now we don't use the auth_data to do anything so we just ignore it.
-            if (keyMode == KeyMode.Volatile)
-            {
-                // if keyMode == KeyMode.Volatile, we store the key in a dictionary, 
-                // since no data will be returned and the key will be transferred into an internal slot or KSU.
-                // in our case, dictionary within SE model.
-                // TODO: Double check if when doing FetchFromRam we need to account for offset.
-                parent.Log(LogLevel.Noisy, "Assigning VOLATILE key to index {0}", keyIndex);
-                volatileKeys[keyIndex] = key;
-                
-                return ResponseCode.Ok;
-            }
-            else if (keyMode == KeyMode.Wrapped)
-            {
-                uint outputDataPtr;
-                uint outputDataLength;
-                DmaTranferOptions outputTransferOptions;
-                UnpackDmaDescriptor(outputDma, out outputDataPtr, out outputDataLength, out outputTransferOptions, out nextDescriptorPtr, machine);
-
-                // Output DMA is expected to be structured as follows:
-                // - 12 bytes: random IV assigned at time of wrapping
-                // - var bytes: encrypted key data
-                // - 16 bytes: AESGCM authentication tag
-                if (outputDataLength != (12 + keyLength + 16))
-                {
-                    return ResponseCode.InvalidParameter;
-                }
-
-                // All other key modes write a wrapped-up flavor of the key to the output DMA.
-                // TODO: for now we simply copy the plaintext key to the output DMA. 
-                // Random IV and AESGCM tags are assigned to special markers.
-                uint offset = 0;
-                machine.SystemBus.WriteDoubleWord(outputDataPtr + offset, 0);
-                machine.SystemBus.WriteDoubleWord(outputDataPtr + 4, 0);
-                machine.SystemBus.WriteDoubleWord(outputDataPtr + 8, 0);
-                // random IV
-                for(uint i = 0; i < 3; i++)
-                {
-                    machine.SystemBus.WriteDoubleWord(outputDataPtr + offset, 0x15151515);
-                    offset += 4;
-                }
-                // "encrypted" key data
-                for(uint i = 0; i < keyLength/4; i++)
-                {
-                    uint keyWord = (uint)machine.SystemBus.ReadDoubleWord(plaintextKeyPtr + i*4);
-                    machine.SystemBus.WriteDoubleWord(outputDataPtr + offset, keyWord);
-                    offset += 4;
-                }
-                // AESGCM authentication tag
-                for(uint i = 0; i < 4; i++)
-                {
-                    machine.SystemBus.WriteDoubleWord(outputDataPtr + offset, 0x5C5D5E5F);
-                    offset += 4;
-                }
-                
-                return ResponseCode.Ok;
-            }
-
-            return ResponseCode.InvalidParameter;
+            wordsLeftToBeReceived = 0;
         }
 
         protected virtual ResponseCode HandleExportKeyCommand(uint inputDma, uint outputDma, uint[] commandParams, uint commandParamsCount, bool series3)
         {
-            if (commandParamsCount != 1)
+            if(commandParamsCount != 1)
             {
                 parent.Log(LogLevel.Error, "EXPORT_KEY: invalid parameter count");
                 return ResponseCode.Abort;
-            }            
+            }
 
             KeyMode keyMode;
             KeyType keyType;
             KeyRestriction keyRestriction;
             uint keyIndex;
             UnpackKeyMetadata(commandParams[0], out keyIndex, out keyType, out keyMode, out keyRestriction);
-            
+
             parent.Log(LogLevel.Noisy, "EXPORT_KEY: keyIndex={0} keyType={1} keyMode={2} keyRestriction={3}",
                        keyIndex, keyType, keyMode, keyRestriction);
 
-            if (keyMode == KeyMode.Unprotected || keyMode == KeyMode.WrappedAntiReplay)
+            if(keyMode == KeyMode.Unprotected || keyMode == KeyMode.WrappedAntiReplay)
             {
                 parent.Log(LogLevel.Error, "HandleExportKeyCommand: invalid key mode");
                 return ResponseCode.Abort;
             }
 
-            if (keyMode == KeyMode.Volatile)
+            if(keyMode == KeyMode.Volatile)
             {
                 // key must be present in the dictionary to be exported.
-                if (!volatileKeys.ContainsKey(keyIndex))
+                if(!volatileKeys.ContainsKey(keyIndex))
                 {
                     return ResponseCode.InvalidParameter;
                 }
@@ -387,22 +134,22 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                 parent.Log(LogLevel.Noisy, "EXPORT_VOLATILE_KEY: keyPtr=0x{0:X} keyLength={1} options={2} nextDescriptorPtr=0x{3:X}",
                     outputDataPtr, key.Length, transferOptions, nextDescriptorPtr);
 
-                if (outputDataLength != key.Length)
+                if(outputDataLength != key.Length)
                 {
                     return ResponseCode.InvalidParameter;
                 }
 
-                for (uint i = 0; i < key.Length / 4; i++)
+                for(uint i = 0; i < key.Length / 4; i++)
                 {
                     machine.SystemBus.WriteDoubleWord(outputDataPtr + i * 4, BitConverter.ToUInt32(key, (int)i * 4));
                 }
 
                 return ResponseCode.Ok;
             }
-            else if (keyMode == KeyMode.Wrapped)
+            else if(keyMode == KeyMode.Wrapped)
             {
                 // Only "unlocked" keys can be exported.
-                if (keyRestriction != KeyRestriction.Unlocked)
+                if(keyRestriction != KeyRestriction.Unlocked)
                 {
                     return ResponseCode.AuthorizationError;
                 }
@@ -415,7 +162,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                 uint wrappedKeyPtr;
                 uint keyLength;
                 uint authDataPtr;
-                uint authDataLength;            
+                uint authDataLength;
                 DmaTranferOptions transferOptions;
                 uint nextDescriptorPtr;
 
@@ -436,80 +183,29 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                 UnpackDmaDescriptor(outputDma, out outputDataPtr, out outputDataLength, out outputTransferOptions, out nextDescriptorPtr, machine);
 
                 // Output DMA is expected to contain the plaintext raw key
-                if (outputDataLength != keyLength)
+                if(outputDataLength != keyLength)
                 {
                     return ResponseCode.InvalidParameter;
                 }
 
                 // Since for now we store the decrypted key "as is" in the ImportKey command, we can simply copy that as "decrypted" key data.
-                for(uint i = 0; i < keyLength/4; i++)
-                {   
+                for(uint i = 0; i < keyLength / 4; i++)
+                {
                     uint keyWord = (uint)machine.SystemBus.ReadDoubleWord(wrappedKeyPtr + 12 + i*4);
-                    machine.SystemBus.WriteDoubleWord(outputDataPtr + i*4, keyWord);
+                    machine.SystemBus.WriteDoubleWord(outputDataPtr + i * 4, keyWord);
                 }
-                
+
                 return ResponseCode.Ok;
             }
 
             return ResponseCode.InvalidParameter;
         }
 
-        private ResponseCode HandleHashCommand(uint inputDma, uint outputDma, uint[] commandParams, uint commandParamsCount, uint commandOptions)
-        {
-            if (commandParamsCount != 1)
-            {
-                parent.Log(LogLevel.Error, "HASH: invalid parameter count");
-                return ResponseCode.Abort;
-            }
-
-            ShaMode hashMode = (ShaMode)((commandOptions & 0xF00) >> 8);
-            uint dataSize = commandParams[0];
-
-            parent.Log(LogLevel.Noisy, "HASH: mode={0} dataSize={1}", hashMode, dataSize); 
-
-            DmaTranferOptions transferOptions;
-            uint inputPayloadDescriptorPtr;
-            uint inputPayloadLength;
-            uint nextDescriptorPtr;
-            UnpackDmaDescriptor(inputDma, out inputPayloadDescriptorPtr, out inputPayloadLength, out transferOptions, out nextDescriptorPtr, machine);
-            parent.Log(LogLevel.Noisy, "HASH: INPUT0: payloadPtr=0x{0:X} payloadLength={1} options={2} nextDescriptorPtr=0x{3:X}",
-                    inputPayloadDescriptorPtr, inputPayloadLength, transferOptions, nextDescriptorPtr);
-            byte[] payload = new byte[inputPayloadLength];
-            FetchFromRam(inputPayloadDescriptorPtr, payload, 0, inputPayloadLength);
-            parent.Log(LogLevel.Noisy, "Payload=[{0}]", BitConverter.ToString(payload));
-
-            uint outputDigestDescriptorPtr;
-            uint outputDigestLength;
-            UnpackDmaDescriptor(outputDma, out outputDigestDescriptorPtr, out outputDigestLength, out transferOptions, out nextDescriptorPtr, machine);
-            parent.Log(LogLevel.Noisy, "HASH: OUTPUT0: payloadPtr=0x{0:X} payloadLength={1} options={2} nextDescriptorPtr=0x{3:X}",
-                    outputDigestDescriptorPtr, outputDigestLength, transferOptions, nextDescriptorPtr);
-            byte[] digest = new byte[outputDigestLength];
-
-            IDigest hashEngine = CreateHashEngine(hashMode);
-
-            if(hashEngine == null)
-            {
-                parent.Log(LogLevel.Error, "HASH: unable to create hashing engine");
-                return ResponseCode.Abort;
-            }
-
-            if (hashEngine.GetDigestSize() != outputDigestLength)
-            {
-                parent.Log(LogLevel.Error, "HASH: digest size mismatch");
-                return ResponseCode.Abort;
-            }
-
-            hashEngine.BlockUpdate(payload, 0, (int)inputPayloadLength);
-            hashEngine.DoFinal(digest, 0);
-
-            parent.Log(LogLevel.Noisy, "Digest=[{0}]", BitConverter.ToString(digest));
-            WriteToRam(digest, 0, outputDigestDescriptorPtr, outputDigestLength);
-            return ResponseCode.Ok;
-        }
+        private static readonly PseudorandomNumberGenerator random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
 
         private ResponseCode HandleHashUpdateOrFinishCommand(uint inputDma, uint outputDma, uint[] commandParams, uint commandParamsCount, uint commandOptions, bool doFinish)
         {
-            if (commandParamsCount != 1 && commandParamsCount != 2)
+            if(commandParamsCount != 1 && commandParamsCount != 2)
             {
                 parent.Log(LogLevel.Error, "HASH_UPDATE/FINISH: invalid parameter count");
                 return ResponseCode.Abort;
@@ -519,13 +215,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             uint dataSize = commandParams[0];
             uint counter = (commandParamsCount == 2) ? commandParams[1] : 0;
 
-            parent.Log(LogLevel.Noisy, "HASH_UPDATE/FINISH: mode={0} dataSize={1} counter={2}", hashMode, dataSize, counter); 
+            parent.Log(LogLevel.Noisy, "HASH_UPDATE/FINISH: mode={0} dataSize={1} counter={2}", hashMode, dataSize, counter);
 
             DmaTranferOptions transferOptions;
             uint inputStateDescriptorPtr;
             uint inputStateLength;
             uint nextDescriptorPtr;
-            // TODO: we don't use the input state, we just keep the hashing engine object around 
+            // TODO: we don't use the input state, we just keep the hashing engine object around
             // until the HASH_FINISH command is called.
             UnpackDmaDescriptor(inputDma, out inputStateDescriptorPtr, out inputStateLength, out transferOptions, out nextDescriptorPtr, machine);
             parent.Log(LogLevel.Noisy, "HASH_UPDATE/FINISH: INPUT0: statePtr=0x{0:X} inputStateLength={1} options={2} nextDescriptorPtr=0x{3:X}",
@@ -546,8 +242,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             parent.Log(LogLevel.Noisy, "HASH_UPDATE/FINISH: OUTPUT0: payloadPtr=0x{0:X} payloadLength={1} options={2} nextDescriptorPtr=0x{3:X}",
                     outputDescriptorPtr, outputLength, transferOptions, nextDescriptorPtr);
             byte[] output = new byte[outputLength];
-            
-            if (currentHashEngine == null)
+
+            if(currentHashEngine == null)
             {
                 currentHashEngine = CreateHashEngine(hashMode);
                 if(currentHashEngine == null)
@@ -556,29 +252,29 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     return ResponseCode.Abort;
                 }
             }
-            else if (!CheckHashEngine(currentHashEngine, hashMode))
+            else if(!CheckHashEngine(currentHashEngine, hashMode))
             {
-                // We make sure the current engine is the one we expect. 
+                // We make sure the current engine is the one we expect.
                 parent.Log(LogLevel.Error, "HASH_UPDATE/FINISH: current hashing engine mismatch");
                 return ResponseCode.Abort;
             }
-            
+
             currentHashEngine.BlockUpdate(payload, 0, (int)inputPayloadLength);
 
-            // TODO: we don't use the input state, we just keep the hashing engine object around 
+            // TODO: we don't use the input state, we just keep the hashing engine object around
             // until the HASH_FINISH command is called. So we don't write the output state either.
 
-            if (doFinish)
+            if(doFinish)
             {
-                if (currentHashEngine.GetDigestSize() != outputLength)
+                if(currentHashEngine.GetDigestSize() != outputLength)
                 {
                     parent.Log(LogLevel.Error, "HASH_UPDATE/FINISH: digest size mismatch");
                     return ResponseCode.Abort;
                 }
-                
+
                 currentHashEngine.DoFinal(output, 0);
                 currentHashEngine = null;
-                
+
                 parent.Log(LogLevel.Noisy, "Digest=[{0}]", BitConverter.ToString(output));
                 WriteToRam(output, 0, outputDescriptorPtr, outputLength);
             }
@@ -587,7 +283,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         private ResponseCode HandleAesEncryptOrDecryptCommand(uint inputDma, uint outputDma, uint[] commandParams, uint commandParamsCount, uint commandOptions, bool encrypt)
         {
-            if (commandParamsCount != 2)
+            if(commandParamsCount != 2)
             {
                 parent.Log(LogLevel.Error, "AES_ENCRYPT/DECRYPT: invalid parameter count");
                 return ResponseCode.Abort;
@@ -609,11 +305,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             parent.Log(LogLevel.Noisy, "AES_ENCRYPT/DECRYPT: dataSize={0}", dataSize);
 
             // Check that the length is compatible with the crypto mode
-            if (!IsDataLengthValid(dataSize, cryptoMode))
+            if(!IsDataLengthValid(dataSize, cryptoMode))
             {
                 return ResponseCode.InvalidParameter;
             }
-            
+
             // First input DMA descriptor is the authorization data
             uint authPtr;
             uint authLength;
@@ -632,11 +328,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             byte[] key = CheckAndRetrieveKey(keyType, keyMode, keyIndex, keyPtr);
             parent.Log(LogLevel.Noisy, "Key=[{0}]", BitConverter.ToString(key));
             KeyParameter keyParameter = new KeyParameter(key);
-            
+
             // Third input DMA descriptor contains the IV (for whole or start of message) or context (for middle/end)
             // The input IV/Context size is 0 for ECB mode and 16 for all other modes
             ParametersWithIV parametersWithIV = null;
-            if (cryptoMode != CryptoMode.Ecb)
+            if(cryptoMode != CryptoMode.Ecb)
             {
                 uint inputIvPtr = 0;
                 uint inputIvLength = 0;
@@ -655,12 +351,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             byte[] inputData = new byte[dataSize];
             uint inputDataOffset = 0;
 
-            while (inputDataOffset < dataSize)
+            while(inputDataOffset < dataSize)
             {
                 UnpackDmaDescriptor(nextDescriptorPtr, out inputDataPtr, out inputDataLength, out transferOptions, out nextDescriptorPtr, machine);
                 parent.Log(LogLevel.Noisy, "AES_ENCRYPT/DECRYPT: INPUT3: inputDataPtr=0x{0:X} inputDataLength={1} options={2} nextDescriptorPtr=0x{3:X}",
                         inputDataPtr, inputDataLength, transferOptions, nextDescriptorPtr);
-                if (transferOptions != DmaTranferOptions.Discard)
+                if(transferOptions != DmaTranferOptions.Discard)
                 {
                     FetchFromRam(inputDataPtr, inputData, inputDataOffset, inputDataLength);
                     parent.Log(LogLevel.Noisy, "InputData=[{0}]", BitConverter.ToString(inputData));
@@ -672,12 +368,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             byte[] outputData = new byte[dataSize];
             uint outputDataOffset = 0;
             nextDescriptorPtr = outputDma;
-            
-            while (outputDataOffset < dataSize)
+
+            while(outputDataOffset < dataSize)
             {
                 uint tempOutputDataPtr;
                 uint tempOutputDataLength;
-                UnpackDmaDescriptor(nextDescriptorPtr, out tempOutputDataPtr, out tempOutputDataLength, out transferOptions, out nextDescriptorPtr, machine);            
+                UnpackDmaDescriptor(nextDescriptorPtr, out tempOutputDataPtr, out tempOutputDataLength, out transferOptions, out nextDescriptorPtr, machine);
                 parent.Log(LogLevel.Noisy, "AES_ENCRYPT/DECRYPT: OUTPUT0: outputDataPtr=0x{0:X} outputDataLength={1} options={2} nextDescriptorPtr=0x{3:X}",
                         tempOutputDataPtr, tempOutputDataLength, transferOptions, nextDescriptorPtr);
                 outputDataOffset += tempOutputDataLength;
@@ -687,7 +383,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             // The output context length is 0 if ECB mode is used or the mode is last/whole. It is 16 otherwise
             uint outputContextPtr = 0;
             uint outputContextLength = 0;
-            if (cryptoMode != CryptoMode.Ecb && contextMode != ContextMode.WholeMessage && contextMode != ContextMode.EndOfMessage)
+            if(cryptoMode != CryptoMode.Ecb && contextMode != ContextMode.WholeMessage && contextMode != ContextMode.EndOfMessage)
             {
                 UnpackDmaDescriptor(nextDescriptorPtr, out outputContextPtr, out outputContextLength, out transferOptions, out nextDescriptorPtr, machine);
                 parent.Log(LogLevel.Noisy, "AES_ENCRYPT/DECRYPT: OUTPUT1: outputContextPtr=0x{0:X} outputContextLength={1} options={2} nextDescriptorPtr=0x{3:X}",
@@ -697,23 +393,23 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             IBlockCipher cipher;
             switch(cryptoMode)
             {
-                case CryptoMode.Cbc:
-                    cipher = new CbcBlockCipher(new AesEngine());
-                    cipher.Init(encrypt, parametersWithIV);
+            case CryptoMode.Cbc:
+                cipher = new CbcBlockCipher(new AesEngine());
+                cipher.Init(encrypt, parametersWithIV);
                 break;
-                case CryptoMode.Ecb: 
-                    cipher = new AesEngine();
-                    // The input IV length is always 0 when using ECB
-                    cipher.Init(encrypt, keyParameter);
+            case CryptoMode.Ecb:
+                cipher = new AesEngine();
+                // The input IV length is always 0 when using ECB
+                cipher.Init(encrypt, keyParameter);
                 break;
-                case CryptoMode.Ctr: // TODOs
-                case CryptoMode.Cfb:
-                case CryptoMode.Ofb:
-                default:
-                    parent.Log(LogLevel.Error, "AES_ENCRYPT/DECRYPT: invalid crypto mode");
-                    return ResponseCode.Abort;
+            case CryptoMode.Ctr: // TODOs
+            case CryptoMode.Cfb:
+            case CryptoMode.Ofb:
+            default:
+                parent.Log(LogLevel.Error, "AES_ENCRYPT/DECRYPT: invalid crypto mode");
+                return ResponseCode.Abort;
             }
-            
+
             for(int i = 0; i < dataSize; i += 16)
             {
                 cipher.ProcessBlock(inputData, i, outputData, i);
@@ -722,12 +418,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             outputDataOffset = 0;
             nextDescriptorPtr = outputDma;
 
-            while (outputDataOffset < dataSize)
+            while(outputDataOffset < dataSize)
             {
                 uint tempOutputDataPtr;
                 uint tempOutputDataLength;
-                UnpackDmaDescriptor(nextDescriptorPtr, out tempOutputDataPtr, out tempOutputDataLength, out transferOptions, out nextDescriptorPtr, machine);            
-                if (transferOptions != DmaTranferOptions.Discard)
+                UnpackDmaDescriptor(nextDescriptorPtr, out tempOutputDataPtr, out tempOutputDataLength, out transferOptions, out nextDescriptorPtr, machine);
+                if(transferOptions != DmaTranferOptions.Discard)
                 {
                     WriteToRam(outputData, outputDataOffset, tempOutputDataPtr, tempOutputDataLength);
                     parent.Log(LogLevel.Noisy, "AES_ENCRYPT/DECRYPT: Writing output data: length={0} offset={1} at location {2:X}",
@@ -739,18 +435,18 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             parent.Log(LogLevel.Noisy, "AES_ENCRYPT/DECRYPT: Output data=[{0}]", BitConverter.ToString(outputData));
 
             // The output iv_size is 0 if ECB mode is used or the mode is last/whole. It is 16 otherwise
-            if (cryptoMode != CryptoMode.Ecb && contextMode != ContextMode.EndOfMessage && contextMode != ContextMode.WholeMessage)
+            if(cryptoMode != CryptoMode.Ecb && contextMode != ContextMode.EndOfMessage && contextMode != ContextMode.WholeMessage)
             {
                 // TODO: Write the output IV
                 // - RENODE-46: For CBC mode, the output IV is the cbcV
-                
+
                 // For now we just do a +1 on the input IV
                 byte[] iv = parametersWithIV.GetIV();
-                for (uint i=0; i<outputContextLength; i++)
+                for(uint i = 0; i < outputContextLength; i++)
                 {
                     iv[i] = (byte)(iv[i] + 1);
                 }
-                WriteToRam(iv, 0, outputContextPtr, outputContextLength);        
+                WriteToRam(iv, 0, outputContextPtr, outputContextLength);
                 parent.Log(LogLevel.Noisy, "AES_ENCRYPT/DECRYPT: Output context=[{0}]", BitConverter.ToString(iv));
             }
             return ResponseCode.Ok;
@@ -758,10 +454,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         private ResponseCode HandleAesCmacCommand(uint inputDma, uint outputDma, uint[] commandParams, uint commandParamsCount)
         {
-            if (commandParamsCount != 2)
+            if(commandParamsCount != 2)
             {
-               parent.Log(LogLevel.Error, "AES_CMAC: invalid parameter count");
-               return ResponseCode.Abort;
+                parent.Log(LogLevel.Error, "AES_CMAC: invalid parameter count");
+                return ResponseCode.Abort;
             }
 
             KeyMode keyMode;
@@ -783,13 +479,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             parent.Log(LogLevel.Noisy, "AES_CMAC: INPUT0: authPtr=0x{0:X} authLength={1} options={2} nextDescriptorPtr=0x{3:X}",
                      authPtr, authLength, transferOptions, nextDescriptorPtr);
 
-            // Second input DMA descriptor contains the key. 
+            // Second input DMA descriptor contains the key.
             uint keyPtr;
             uint keyLength;
             UnpackDmaDescriptor(nextDescriptorPtr, out keyPtr, out keyLength, out transferOptions, out nextDescriptorPtr, machine);
             parent.Log(LogLevel.Noisy, "AES_CMAC: INPUT1: keyPtr=0x{0:X} keyLength={1} options={2} nextDescriptorPtr=0x{3:X}",
                      keyPtr, keyLength, transferOptions, nextDescriptorPtr);
-            byte[] key = CheckAndRetrieveKey(keyType, keyMode, keyIndex, keyPtr);                     
+            byte[] key = CheckAndRetrieveKey(keyType, keyMode, keyIndex, keyPtr);
             parent.Log(LogLevel.Noisy, "Key=[{0}]", BitConverter.ToString(key));
             KeyParameter keyParameter = new KeyParameter(key);
 
@@ -822,10 +518,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         private ResponseCode HandleAesCcmEncryptCommand(uint inputDma, uint outputDma, uint[] commandParams, uint commandParamsCount)
         {
-            if (commandParamsCount != 4)
+            if(commandParamsCount != 4)
             {
-               parent.Log(LogLevel.Error, "AES_CCM_ENCRYPT: invalid parameter count");
-               return ResponseCode.Abort;
+                parent.Log(LogLevel.Error, "AES_CCM_ENCRYPT: invalid parameter count");
+                return ResponseCode.Abort;
             }
 
             KeyMode keyMode;
@@ -842,7 +538,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             parent.Log(LogLevel.Noisy, "AES_CCM_ENCRYPT: Other Command Params: tagSize={0} nonceSize={1} aadSize={2} inputDataSize={3}",
                      tagSize, nonceSize, associatedAuthenticatedDataSize, inputDataSize);
 
-            if (!IsTagSizeValid(tagSize) || !IsNonceSizeValid(nonceSize))
+            if(!IsTagSizeValid(tagSize) || !IsNonceSizeValid(nonceSize))
             {
                 return ResponseCode.InvalidParameter;
             }
@@ -862,10 +558,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             UnpackDmaDescriptor(nextDescriptorPtr, out keyPtr, out keyLength, out transferOptions, out nextDescriptorPtr, machine);
             parent.Log(LogLevel.Noisy, "AES_CCM_ENCRYPT: INPUT1: keyPtr=0x{0:X} keyLength={1} options={2} nextDescriptorPtr=0x{3:X}",
                      keyPtr, keyLength, transferOptions, nextDescriptorPtr);
-            byte[] key = CheckAndRetrieveKey(keyType, keyMode, keyIndex, keyPtr);                     
+            byte[] key = CheckAndRetrieveKey(keyType, keyMode, keyIndex, keyPtr);
             parent.Log(LogLevel.Noisy, "Key=[{0}]", BitConverter.ToString(key));
             KeyParameter keyParameter = new KeyParameter(key);
-            
+
             // Third input DMA descriptor contains the nonce data
             uint noncePtr;
             uint nonceLength;
@@ -906,7 +602,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             // Second output DMA descriptor contains the output tag
             uint outputTagPtr;
             uint outputTagLength;
-            UnpackDmaDescriptor(nextDescriptorPtr, out outputTagPtr, out outputTagLength, out transferOptions, out nextDescriptorPtr, machine); 
+            UnpackDmaDescriptor(nextDescriptorPtr, out outputTagPtr, out outputTagLength, out transferOptions, out nextDescriptorPtr, machine);
             parent.Log(LogLevel.Noisy, "AES_CCM_ENCRYPT: OUTPUT1: outputTagPtr=0x{0:X} outputTagLength={1} options={2} nextDescriptorPtr=0x{3:X}",
                      outputTagPtr, outputTagLength, transferOptions, nextDescriptorPtr);
 
@@ -915,17 +611,17 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             cipher.Init(true, parameters);
 
             byte[] outputDataAndTag = new byte[outputDataLength + outputTagLength];
-            cipher.ProcessPacket(inputData, 0, (int)inputDataLength, outputDataAndTag, 0);            
+            cipher.ProcessPacket(inputData, 0, (int)inputDataLength, outputDataAndTag, 0);
             parent.Log(LogLevel.Noisy, "EncryptedDataAndTag=[{0}]", BitConverter.ToString(outputDataAndTag));
 
             WriteToRam(outputDataAndTag, 0, outputDataPtr, outputDataLength);
-            WriteToRam(outputDataAndTag, outputDataLength, outputTagPtr, outputTagLength);  
+            WriteToRam(outputDataAndTag, outputDataLength, outputTagPtr, outputTagLength);
             return ResponseCode.Ok;
         }
 
         private ResponseCode HandleAesCcmDecryptCommand(uint inputDma, uint outputDma, uint[] commandParams, uint commandParamsCount)
         {
-            if (commandParamsCount != 4)
+            if(commandParamsCount != 4)
             {
                 parent.Log(LogLevel.Error, "AES_CCM_DECRYPT: invalid parameter count");
                 return ResponseCode.Abort;
@@ -945,7 +641,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             parent.Log(LogLevel.Noisy, "AES_CCM_DECRYPT: Other Command Params: tagSize={0} nonceSize={1} aadSize={2} inputDataSize={3}",
                      tagSize, nonceSize, associatedAuthenticatedDataSize, inputDataSize);
 
-            if (!IsTagSizeValid(tagSize) || !IsNonceSizeValid(nonceSize))
+            if(!IsTagSizeValid(tagSize) || !IsNonceSizeValid(nonceSize))
             {
                 return ResponseCode.InvalidParameter;
             }
@@ -968,7 +664,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             byte[] key = CheckAndRetrieveKey(keyType, keyMode, keyIndex, keyPtr);
             parent.Log(LogLevel.Noisy, "Key=[{0}]", BitConverter.ToString(key));
             KeyParameter keyParameter = new KeyParameter(key);
-            
+
             // Third input DMA descriptor contains the nonce data
             uint noncePtr;
             uint nonceLength;
@@ -985,7 +681,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             UnpackDmaDescriptor(nextDescriptorPtr, out aadPtr, out aadLength, out transferOptions, out nextDescriptorPtr, machine);
             parent.Log(LogLevel.Noisy, "AES_CCM_DECRYPT: INPUT3: aadPtr=0x{0:X} aadLength={1} options={2} nextDescriptorPtr=0x{3:X}",
                      aadPtr, aadLength, transferOptions, nextDescriptorPtr);
-            byte[] aad = new byte[aadLength];         
+            byte[] aad = new byte[aadLength];
             FetchFromRam(aadPtr, aad, 0, aadLength);
             parent.Log(LogLevel.Noisy, "Aad=[{0}]", BitConverter.ToString(aad));
 
@@ -1023,11 +719,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
             try
             {
-                cipher.ProcessPacket(inputDataAndTag, 0, (int)(inputDataLength+tagLength), outputData, 0);
+                cipher.ProcessPacket(inputDataAndTag, 0, (int)(inputDataLength + tagLength), outputData, 0);
             }
-            catch (Exception e)
+            catch(Exception e)
             {
-                if (e is InvalidCipherTextException)
+                if(e is InvalidCipherTextException)
                 {
                     tagMatch = false;
                 }
@@ -1039,13 +735,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
             WriteToRam(outputData, 0, outputDataPtr, outputDataLength);
             parent.Log(LogLevel.Noisy, "Decrypted data=[{0}] tagMatch={1}", BitConverter.ToString(outputData), tagMatch);
-            
-            return tagMatch ? ResponseCode.Ok : ResponseCode.CryptoError;            
+
+            return tagMatch ? ResponseCode.Ok : ResponseCode.CryptoError;
         }
 
         private ResponseCode HandleAesGcmEncryptCommand(uint inputDma, uint outputDma, uint[] commandParams, uint commandParamsCount, uint commandOptions)
         {
-            if (commandParamsCount != 3)
+            if(commandParamsCount != 3)
             {
                 parent.Log(LogLevel.Error, "AES_GCM_ENCRYPT: invalid parameter count");
                 return ResponseCode.Abort;
@@ -1068,7 +764,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             parent.Log(LogLevel.Noisy, "AES_GCM_ENCRYPT: Command Params: aadSize={0} inputDataSize={1} Command Options: contextMode={2} tagLength={3}",
                     associatedAuthenticatedDataSize, inputDataSize, contextMode, tagLength);
 
-            if (contextMode != ContextMode.WholeMessage)
+            if(contextMode != ContextMode.WholeMessage)
             {
                 parent.Log(LogLevel.Error, "AES_GCM_ENCRYPT: only support WholeMessage context mode");
                 return ResponseCode.Abort;
@@ -1105,7 +801,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
             // The iv_size is 12 for Whole and Start of message (= initial IV) and 32 for Middle/End of message (= context input).
             // For now we only support Whole, so iv_size should always be 12.
-            if (ivLength != 12)
+            if(ivLength != 12)
             {
                 parent.Log(LogLevel.Error, "AES_GCM_ENCRYPT: invalid IV length");
                 return ResponseCode.Abort;
@@ -1134,14 +830,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             // Sixth input DMA descriptor contains the len(A)||len(C) (if applicable)
             uint lenAlenCPtr = 0;
             uint lenAlenCLength = 0;
-            if (nextDescriptorPtr != NullDescriptor)
+            if(nextDescriptorPtr != NullDescriptor)
             {
                 UnpackDmaDescriptor(nextDescriptorPtr, out lenAlenCPtr, out lenAlenCLength, out transferOptions, out nextDescriptorPtr, machine);
                 parent.Log(LogLevel.Noisy, "AES_GCM_ENCRYPT: INPUT5: lenAlenCPtr=0x{0:X} lenAlenCLength={1} options={2} nextDescriptorPtr=0x{3:X}",
                         lenAlenCPtr, lenAlenCLength, transferOptions, nextDescriptorPtr);
             }
             byte[] lenAlenC = new byte[lenAlenCLength];
-            if (lenAlenCLength > 0)
+            if(lenAlenCLength > 0)
             {
                 FetchFromRam(lenAlenCPtr, lenAlenC, 0, lenAlenCLength);
                 parent.Log(LogLevel.Noisy, "LenAlenC=[{0}]", BitConverter.ToString(lenAlenC));
@@ -1180,7 +876,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         private ResponseCode HandleAesGcmDecryptCommand(uint inputDma, uint outputDma, uint[] commandParams, uint commandParamsCount, uint commandOptions)
         {
-            if (commandParamsCount != 3)
+            if(commandParamsCount != 3)
             {
                 parent.Log(LogLevel.Error, "AES_GCM_DECRYPT: invalid parameter count");
                 return ResponseCode.Abort;
@@ -1203,7 +899,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             parent.Log(LogLevel.Noisy, "AES_GCM_DECRYPT: Command Params: aadSize={0} inputDataSize={1} Command Options: contextMode={2} tagLength={3}",
                     associatedAuthenticatedDataSize, inputDataSize, contextMode, tagLength);
 
-            if (contextMode != ContextMode.WholeMessage)
+            if(contextMode != ContextMode.WholeMessage)
             {
                 parent.Log(LogLevel.Error, "AES_GCM_DECRYPT: only support WholeMessage context mode");
                 return ResponseCode.Abort;
@@ -1240,7 +936,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
             // The iv_size is 12 for Whole and Start of message (= initial IV) and 32 for Middle/End of message (= context input).
             // For now we only support Whole, so iv_size should always be 12.
-            if (ivLength != 12)
+            if(ivLength != 12)
             {
                 parent.Log(LogLevel.Error, "AES_GCM_DECRYPT: invalid IV length");
                 return ResponseCode.Abort;
@@ -1266,7 +962,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             // Sixth input DMA descriptor contains the MAC (End/Whole only)
             uint macPtr = 0;
             uint macLength = 0;
-            if (nextDescriptorPtr != NullDescriptor)
+            if(nextDescriptorPtr != NullDescriptor)
             {
                 UnpackDmaDescriptor(nextDescriptorPtr, out macPtr, out macLength, out transferOptions, out nextDescriptorPtr, machine);
                 parent.Log(LogLevel.Noisy, "AES_GCM_DECRYPT: INPUT5: macPtr=0x{0:X} macLength={1} options={2} nextDescriptorPtr=0x{3:X}",
@@ -1276,14 +972,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             // Seventh input DMA descriptor contains the len(A)||len(C) (End only)
             uint lenAlenCPtr = 0;
             uint lenAlenCLength = 0;
-            if (nextDescriptorPtr != NullDescriptor)
+            if(nextDescriptorPtr != NullDescriptor)
             {
                 UnpackDmaDescriptor(nextDescriptorPtr, out lenAlenCPtr, out lenAlenCLength, out transferOptions, out nextDescriptorPtr, machine);
                 parent.Log(LogLevel.Noisy, "AES_GCM_DECRYPT: INPUT6: lenAlenCPtr=0x{0:X} lenAlenCLength={1} options={2} nextDescriptorPtr=0x{3:X}",
                         lenAlenCPtr, lenAlenCLength, transferOptions, nextDescriptorPtr);
             }
             byte[] lenAlenC = new byte[lenAlenCLength];
-            if (lenAlenCLength > 0)
+            if(lenAlenCLength > 0)
             {
                 FetchFromRam(lenAlenCPtr, lenAlenC, 0, lenAlenCLength);
                 parent.Log(LogLevel.Noisy, "LenAlenC=[{0}]", BitConverter.ToString(lenAlenC));
@@ -1305,7 +1001,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             // Second output DMA descriptor contains the context
             uint outputContextPtr = 0;
             uint outputContextLength = 0;
-            if (nextDescriptorPtr != NullDescriptor)
+            if(nextDescriptorPtr != NullDescriptor)
             {
                 UnpackDmaDescriptor(nextDescriptorPtr, out outputContextPtr, out outputContextLength, out transferOptions, out nextDescriptorPtr, machine);
                 parent.Log(LogLevel.Noisy, "AES_GCM_DECRYPT: OUTPUT1: outputContextPtr=0x{0:X} outputContextLength={1} options={2} nextDescriptorPtr=0x{3:X}",
@@ -1315,7 +1011,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             GcmBlockCipher cipher = new GcmBlockCipher(new AesEngine());
             AeadParameters parameters = new AeadParameters(keyParameter, (int)tagLength*8, iv, aad);
             cipher.Init(false, parameters);
-            
+
             bool tagMatch = true;
             int len = cipher.ProcessBytes(inputDataAndTag, 0, (int)(inputDataLength+tagLength), outputData, 0);
 
@@ -1323,9 +1019,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             {
                 len += cipher.DoFinal(outputData, len);
             }
-            catch (Exception e)
+            catch(Exception e)
             {
-                if (e is InvalidCipherTextException)
+                if(e is InvalidCipherTextException)
                 {
                     tagMatch = false;
                 }
@@ -1339,13 +1035,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             parent.Log(LogLevel.Noisy, "DecryptedData=[{0}] tagMatch={1}", BitConverter.ToString(outputData), tagMatch);
 
             // TODO: write the output context here when we implement Start/Middle mode.
-            
+
             return tagMatch ? ResponseCode.Ok : ResponseCode.CryptoError;
         }
 
-        private ResponseCode HandleRandomCommand(uint inputDma, uint outputDma, uint[] commandParams, uint commandParamsCount)
+        private ResponseCode HandleRandomCommand(uint _, uint outputDma, uint[] commandParams, uint commandParamsCount)
         {
-            if (commandParamsCount != 1)
+            if(commandParamsCount != 1)
             {
                 parent.Log(LogLevel.Error, "RANDOM: invalid param count {0}", commandParamsCount);
                 return ResponseCode.InvalidParameter;
@@ -1369,12 +1065,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                 byte b = (byte)random.Next();
                 machine.SystemBus.WriteByte(outputDataPtr + i, b);
             }
-            return ResponseCode.Ok;                     
+            return ResponseCode.Ok;
         }
 
-        private ResponseCode HandleReadDeviceDataCommand(uint inputDma, uint outputDma, uint[] commandParams, uint commandParamsCount, uint commandOptions)
+        private ResponseCode HandleReadDeviceDataCommand(uint _, uint outputDma, uint[] __, uint commandParamsCount, uint commandOptions)
         {
-            if (commandParamsCount < 1 || commandParamsCount > 2)
+            if(commandParamsCount < 1 || commandParamsCount > 2)
             {
                 parent.Log(LogLevel.Error, "ReadDeviceData: invalid param count {0}", commandParamsCount);
                 return ResponseCode.InvalidParameter;
@@ -1385,50 +1081,50 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
             switch(readLocationType)
             {
-                case ReadDeviceDataLocationType.CC:
-                    //update location offset to CC
-                    break;
-                case ReadDeviceDataLocationType.DI:
-                    //update location offset to DI
-                    break;
-                case ReadDeviceDataLocationType.WaferProbe:
-                    //update location offset to WaferProbe
-                    break;
-                default:
-                    return ResponseCode.InvalidParameter;
-            }  
+            case ReadDeviceDataLocationType.CC:
+                //update location offset to CC
+                break;
+            case ReadDeviceDataLocationType.DI:
+                //update location offset to DI
+                break;
+            case ReadDeviceDataLocationType.WaferProbe:
+                //update location offset to WaferProbe
+                break;
+            default:
+                return ResponseCode.InvalidParameter;
+            }
 
             DeviceDataReadSize readSize = (DeviceDataReadSize)(commandOptions & 0xFF);
             uint output = 1;
 
             switch(readSize)
             {
-                case DeviceDataReadSize.WholeElement:
-                    //Get whole element data, size will depend on the readLocationType
-                    break;
-                case DeviceDataReadSize.ChunkOfElement:
-                    if (commandParamsCount != 2)
-                    {
-                        parent.Log(LogLevel.Error, "ReadDeviceData: invalid param count for ChunkOfElement read size");
-                        return ResponseCode.Abort;
-                    }
-                    //Get chunk of element, need to check if we remain in bounds
-                    break;
-                case DeviceDataReadSize.OneWord:
-                    //Get one word from specified offset
-                    break;
-                case DeviceDataReadSize.GetSize:
-                    //Get size of element
-                    break;
-                case DeviceDataReadSize.GetValue:
-                    if (readLocation != 0)
-                    {
-                        return ResponseCode.InvalidParameter;
-                    }
-                    //Get value corresponding to address (only for CC section)
-                    break;
-                default:
+            case DeviceDataReadSize.WholeElement:
+                //Get whole element data, size will depend on the readLocationType
+                break;
+            case DeviceDataReadSize.ChunkOfElement:
+                if(commandParamsCount != 2)
+                {
+                    parent.Log(LogLevel.Error, "ReadDeviceData: invalid param count for ChunkOfElement read size");
+                    return ResponseCode.Abort;
+                }
+                //Get chunk of element, need to check if we remain in bounds
+                break;
+            case DeviceDataReadSize.OneWord:
+                //Get one word from specified offset
+                break;
+            case DeviceDataReadSize.GetSize:
+                //Get size of element
+                break;
+            case DeviceDataReadSize.GetValue:
+                if(readLocation != 0)
+                {
                     return ResponseCode.InvalidParameter;
+                }
+                //Get value corresponding to address (only for CC section)
+                break;
+            default:
+                return ResponseCode.InvalidParameter;
             }
 
             // First output DMA descriptor contains the location to which we send the data
@@ -1442,19 +1138,19 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
             // For now, return 1 regardless of the location/option selected
             machine.SystemBus.WriteDoubleWord(outputDataPtr, output);
-            return ResponseCode.Ok;                     
-        }   
+            return ResponseCode.Ok;
+        }
 
-        private ResponseCode HandleFlashEraseDataRegionCommand(uint inputDma, uint outputDma, uint[] commandParams, uint commandParamsCount, uint commandOptions)
+        private ResponseCode HandleFlashEraseDataRegionCommand(uint _, uint __, uint[] commandParams, uint commandParamsCount, uint ___)
         {
-            if (commandParamsCount != 2)
+            if(commandParamsCount != 2)
             {
                 parent.Log(LogLevel.Error, "FlashEraseDataRegion: invalid param count {0}", commandParamsCount);
                 return ResponseCode.InvalidParameter;
             }
 
             // check that flash is properly initialized
-            if (series3 && (flashSize == 0 || flashPageSize == 0))
+            if(series3 && (flashSize == 0 || flashPageSize == 0))
             {
                 parent.Log(LogLevel.Error, "flashSize = {0} and flashPageSize = {1}. These must be initialized with non-zero values.", flashSize, flashPageSize);
                 return ResponseCode.Abort;
@@ -1466,10 +1162,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
             parent.Log(LogLevel.Noisy, "FLASH_ERASE_DATA_REGION: startAddress=0x{0:X} sectorNumber={1}", startAddress, sectorsCount);
 
-            machine.ClockSource.ExecuteInLock(delegate {
-                for (uint i = 0; i < sectorsCount; i++)
+            machine.ClockSource.ExecuteInLock(delegate
+            {
+                for(uint i = 0; i < sectorsCount; i++)
                 {
-                    for(uint addr = startAddress + i*flashPageSize; addr < startAddress + (i+1)*flashPageSize; addr += 4)
+                    for(uint addr = startAddress + i * flashPageSize; addr < startAddress + (i + 1) * flashPageSize; addr += 4)
                     {
                         machine.SystemBus.WriteDoubleWord(addr, 0xFFFFFFFF);
                     }
@@ -1478,15 +1175,15 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             return ResponseCode.Ok;
         }
 
-        private ResponseCode HandleFlashWriteDataRegionCommand(uint inputDma, uint outputDma, uint[] commandParams, uint commandParamsCount, uint commandOptions)
+        private ResponseCode HandleFlashWriteDataRegionCommand(uint inputDma, uint _, uint[] commandParams, uint commandParamsCount, uint __)
         {
-            if (commandParamsCount != 2)
+            if(commandParamsCount != 2)
             {
                 parent.Log(LogLevel.Error, "FlashWriteDataRegion: invalid param count {0}", commandParamsCount);
                 return ResponseCode.InvalidParameter;
             }
             // check that flash is properly initialized
-            if (series3 && (flashSize == 0 || flashPageSize == 0))
+            if(series3 && (flashSize == 0 || flashPageSize == 0))
             {
                 parent.Log(LogLevel.Error, "flashSize = {0} and flashPageSize = {1}. These must be initialized with non-zero values.", flashSize, flashPageSize);
                 return ResponseCode.Abort;
@@ -1505,9 +1202,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             UnpackDmaDescriptor(inputDma, out inputDataPtr, out inputDataLength, out transferOptions, out nextDescriptorPtr, machine);
             parent.Log(LogLevel.Noisy, "FLASH_WRITE_DATA: INPUT0: inputDataPtr=0x{0:X} inputDataLength={1} options={2} nextDescriptorPtr=0x{3:X}",
                      inputDataPtr, inputDataLength, transferOptions, nextDescriptorPtr);
-            
-            machine.ClockSource.ExecuteInLock(delegate {
-                for(uint i = 0; i<writeLength; i+=4)
+
+            machine.ClockSource.ExecuteInLock(delegate
+            {
+                for(uint i = 0; i < writeLength; i += 4)
                 {
                     uint word = machine.SystemBus.ReadDoubleWord(inputDataPtr + i);
                     machine.SystemBus.WriteDoubleWord(startAddress + i, word);
@@ -1516,9 +1214,168 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             return ResponseCode.Ok;
         }
 
-        private ResponseCode HandleFlashGetDataRegionLocationCommand(uint inputDma, uint outputDma, uint[] commandParams, uint commandParamsCount, uint commandOptions)
+        private ResponseCode HandleImportKeyCommand(uint inputDma, uint outputDma, uint[] commandParams, uint commandParamsCount)
         {
-            if (commandParamsCount != 0)
+            if(commandParamsCount != 1)
+            {
+                parent.Log(LogLevel.Error, "IMPORT_KEY: invalid parameter count");
+                return ResponseCode.Abort;
+            }
+
+            KeyMode keyMode;
+            KeyType keyType;
+            KeyRestriction keyRestriction;
+            uint keyIndex;
+            UnpackKeyMetadata(commandParams[0], out keyIndex, out keyType, out keyMode, out keyRestriction);
+
+            parent.Log(LogLevel.Noisy, "IMPORT_KEY: keyIndex={0} keyType={1} keyMode={2} keyRestriction={3}",
+                     keyIndex, keyType, keyMode, keyRestriction);
+
+            if(keyMode == KeyMode.Unprotected || keyMode == KeyMode.WrappedAntiReplay)
+            {
+                parent.Log(LogLevel.Error, "HandleImportKeyCommand: invalid key mode");
+                return ResponseCode.Abort;
+            }
+
+            // First input DMA descriptor contains the plaintext key
+            uint plaintextKeyPtr;
+            uint keyLength;
+            DmaTranferOptions transferOptions;
+            uint nextDescriptorPtr;
+            UnpackDmaDescriptor(inputDma, out plaintextKeyPtr, out keyLength, out transferOptions, out nextDescriptorPtr, machine);
+            parent.Log(LogLevel.Noisy, "IMPORT_KEY: keyPtr=0x{0:X} keyLength={1} options={2} nextDescriptorPtr=0x{3:X}",
+                     plaintextKeyPtr, keyLength, transferOptions, nextDescriptorPtr);
+            byte[] key = new byte[keyLength];
+            FetchFromRam(plaintextKeyPtr, key, 0, keyLength);
+            parent.Log(LogLevel.Noisy, "Key=[{0}]", BitConverter.ToString(key));
+
+            // Input DMA has actually a second descriptor containing 8 bytes all set to zeros. I assume that is the auth_data[8] field,
+            // TODO: For now we don't use the auth_data to do anything so we just ignore it.
+            if(keyMode == KeyMode.Volatile)
+            {
+                // if keyMode == KeyMode.Volatile, we store the key in a dictionary,
+                // since no data will be returned and the key will be transferred into an internal slot or KSU.
+                // in our case, dictionary within SE model.
+                // TODO: Double check if when doing FetchFromRam we need to account for offset.
+                parent.Log(LogLevel.Noisy, "Assigning VOLATILE key to index {0}", keyIndex);
+                volatileKeys[keyIndex] = key;
+
+                return ResponseCode.Ok;
+            }
+            else if(keyMode == KeyMode.Wrapped)
+            {
+                uint outputDataPtr;
+                uint outputDataLength;
+                DmaTranferOptions outputTransferOptions;
+                UnpackDmaDescriptor(outputDma, out outputDataPtr, out outputDataLength, out outputTransferOptions, out nextDescriptorPtr, machine);
+
+                // Output DMA is expected to be structured as follows:
+                // - 12 bytes: random IV assigned at time of wrapping
+                // - var bytes: encrypted key data
+                // - 16 bytes: AESGCM authentication tag
+                if(outputDataLength != (12 + keyLength + 16))
+                {
+                    return ResponseCode.InvalidParameter;
+                }
+
+                // All other key modes write a wrapped-up flavor of the key to the output DMA.
+                // TODO: for now we simply copy the plaintext key to the output DMA.
+                // Random IV and AESGCM tags are assigned to special markers.
+                uint offset = 0;
+                machine.SystemBus.WriteDoubleWord(outputDataPtr + offset, 0);
+                machine.SystemBus.WriteDoubleWord(outputDataPtr + 4, 0);
+                machine.SystemBus.WriteDoubleWord(outputDataPtr + 8, 0);
+                // random IV
+                for(uint i = 0; i < 3; i++)
+                {
+                    machine.SystemBus.WriteDoubleWord(outputDataPtr + offset, 0x15151515);
+                    offset += 4;
+                }
+                // "encrypted" key data
+                for(uint i = 0; i < keyLength / 4; i++)
+                {
+                    uint keyWord = (uint)machine.SystemBus.ReadDoubleWord(plaintextKeyPtr + i*4);
+                    machine.SystemBus.WriteDoubleWord(outputDataPtr + offset, keyWord);
+                    offset += 4;
+                }
+                // AESGCM authentication tag
+                for(uint i = 0; i < 4; i++)
+                {
+                    machine.SystemBus.WriteDoubleWord(outputDataPtr + offset, 0x5C5D5E5F);
+                    offset += 4;
+                }
+
+                return ResponseCode.Ok;
+            }
+
+            return ResponseCode.InvalidParameter;
+        }
+
+        private void WriteResponse(ResponseCode code, uint commandHandle)
+        {
+            rxFifo.Enqueue((uint)code);
+            if(series3)
+            {
+                rxFifo.Enqueue(commandHandle);
+            }
+        }
+
+        private ResponseCode HandleHashCommand(uint inputDma, uint outputDma, uint[] commandParams, uint commandParamsCount, uint commandOptions)
+        {
+            if(commandParamsCount != 1)
+            {
+                parent.Log(LogLevel.Error, "HASH: invalid parameter count");
+                return ResponseCode.Abort;
+            }
+
+            ShaMode hashMode = (ShaMode)((commandOptions & 0xF00) >> 8);
+            uint dataSize = commandParams[0];
+
+            parent.Log(LogLevel.Noisy, "HASH: mode={0} dataSize={1}", hashMode, dataSize);
+
+            DmaTranferOptions transferOptions;
+            uint inputPayloadDescriptorPtr;
+            uint inputPayloadLength;
+            uint nextDescriptorPtr;
+            UnpackDmaDescriptor(inputDma, out inputPayloadDescriptorPtr, out inputPayloadLength, out transferOptions, out nextDescriptorPtr, machine);
+            parent.Log(LogLevel.Noisy, "HASH: INPUT0: payloadPtr=0x{0:X} payloadLength={1} options={2} nextDescriptorPtr=0x{3:X}",
+                    inputPayloadDescriptorPtr, inputPayloadLength, transferOptions, nextDescriptorPtr);
+            byte[] payload = new byte[inputPayloadLength];
+            FetchFromRam(inputPayloadDescriptorPtr, payload, 0, inputPayloadLength);
+            parent.Log(LogLevel.Noisy, "Payload=[{0}]", BitConverter.ToString(payload));
+
+            uint outputDigestDescriptorPtr;
+            uint outputDigestLength;
+            UnpackDmaDescriptor(outputDma, out outputDigestDescriptorPtr, out outputDigestLength, out transferOptions, out nextDescriptorPtr, machine);
+            parent.Log(LogLevel.Noisy, "HASH: OUTPUT0: payloadPtr=0x{0:X} payloadLength={1} options={2} nextDescriptorPtr=0x{3:X}",
+                    outputDigestDescriptorPtr, outputDigestLength, transferOptions, nextDescriptorPtr);
+            byte[] digest = new byte[outputDigestLength];
+
+            IDigest hashEngine = CreateHashEngine(hashMode);
+
+            if(hashEngine == null)
+            {
+                parent.Log(LogLevel.Error, "HASH: unable to create hashing engine");
+                return ResponseCode.Abort;
+            }
+
+            if(hashEngine.GetDigestSize() != outputDigestLength)
+            {
+                parent.Log(LogLevel.Error, "HASH: digest size mismatch");
+                return ResponseCode.Abort;
+            }
+
+            hashEngine.BlockUpdate(payload, 0, (int)inputPayloadLength);
+            hashEngine.DoFinal(digest, 0);
+
+            parent.Log(LogLevel.Noisy, "Digest=[{0}]", BitConverter.ToString(digest));
+            WriteToRam(digest, 0, outputDigestDescriptorPtr, outputDigestLength);
+            return ResponseCode.Ok;
+        }
+
+        private ResponseCode HandleFlashGetDataRegionLocationCommand(uint _, uint outputDma, uint[] __, uint commandParamsCount, uint ___)
+        {
+            if(commandParamsCount != 0)
             {
                 parent.Log(LogLevel.Error, "FlashGetDataRegionLocation: invalid param count {0}", commandParamsCount);
                 return ResponseCode.InvalidParameter;
@@ -1536,13 +1393,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             // Second output DMA descriptor contains the data region length
             uint outputDataRegionLengthPtr;
             uint outputDataRegionLengthLength;
-            UnpackDmaDescriptor(nextDescriptorPtr, out outputDataRegionLengthPtr, out outputDataRegionLengthLength, out transferOptions, out nextDescriptorPtr, machine); 
+            UnpackDmaDescriptor(nextDescriptorPtr, out outputDataRegionLengthPtr, out outputDataRegionLengthLength, out transferOptions, out nextDescriptorPtr, machine);
             parent.Log(LogLevel.Noisy, "FLASH_GET_DATA_REGION_LOC: OUTPUT1: outputDataRegionLengthPtr=0x{0:X} outputDataRegionLengthLength={1} options={2} nextDescriptorPtr=0x{3:X}",
                      outputDataRegionLengthPtr, outputDataRegionLengthLength, transferOptions, nextDescriptorPtr);
-                        
-                        
+
             // check that flash is properly initialized
-            if (series3 && (flashSize == 0 || flashPageSize == 0))
+            if(series3 && (flashSize == 0 || flashPageSize == 0))
             {
                 parent.Log(LogLevel.Error, "flashSize = {0} and flashPageSize = {1}. These must be initialized with non-zero values.", flashSize, flashPageSize);
                 return ResponseCode.Abort;
@@ -1553,104 +1409,63 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             return ResponseCode.Ok;
         }
 
-        private ResponseCode HandleFlashGetCodeRegionConfigCommand(uint inputDma, uint outputDma, uint[] commandParams, uint commandParamsCount, uint commandOptions)
+        private ResponseCode HandleConfigureQspiRefClockCommand(uint _, uint __, uint[] commandParams, uint commandParamsCount, uint commandOptions)
         {
-            if (commandParamsCount != 0)
+            switch(commandOptions)
             {
-                parent.Log(LogLevel.Error, "HandleFlashGetCodeRegionConfigCommand: invalid param count {0}", commandParamsCount);
-                return ResponseCode.InvalidParameter;
-            }
-
-            // Output DMA descriptor contains the region config array
-            uint outputCodeRegionConfigAddressPtr;
-            uint outputCodeRegionConfigAddressLength;
-            DmaTranferOptions transferOptions;
-            uint nextDescriptorPtr;
-            UnpackDmaDescriptor(outputDma, out outputCodeRegionConfigAddressPtr, out outputCodeRegionConfigAddressLength, out transferOptions, out nextDescriptorPtr, machine);
-            parent.Log(LogLevel.Noisy, "FLASH_GET_CODE_REGION_CONFIG: OUTPUT0: outputCodeRegionConfigAddressPtr=0x{0:X} outputCodeRegionConfigAddressLength={1} options={2} nextDescriptorPtr=0x{3:X}",
-                     outputCodeRegionConfigAddressPtr, outputCodeRegionConfigAddressLength, transferOptions, nextDescriptorPtr);
-                        
-            // check that flash is properly initialized
-            if (series3 && (flashSize == 0 || flashPageSize == 0))
-            {
-                parent.Log(LogLevel.Error, "flashSize = {0} and flashPageSize = {1}. These must be initialized with non-zero values.", flashSize, flashPageSize);
-                return ResponseCode.Abort;
-            }
-
-            uint regionSize = (outputCodeRegionConfigAddressPtr & 0xFFF) * 32 * 1024; // Bits 0:11
-            uint protectionMode = (outputCodeRegionConfigAddressPtr >> 12) & 0x3; // Bits 12:13
-            bool bankSwappingEnabled = ((outputCodeRegionConfigAddressPtr >> 14) & 0x1) == 1; // Bit 14
-            bool regionClosed = ((outputCodeRegionConfigAddressPtr >> 15) & 0x1) == 1; // Bit 15
-
-            uint data = (regionSize / (32 * 1024)) & 0xFFF; // Bits 0:11
-            data |= (protectionMode & 0x3) << 12; // Bits 12:13
-            data |= (bankSwappingEnabled ? 1u : 0u) << 14; // Bit 14
-            data |= (regionClosed ? 1u : 0u) << 15; // Bit 15
-
-            machine.SystemBus.WriteDoubleWord(outputCodeRegionConfigAddressPtr, data);
-
-            return ResponseCode.Ok;
-        }  
-
-        private ResponseCode HandleConfigureQspiRefClockCommand(uint inputDma, uint outputDma, uint[] commandParams, uint commandParamsCount, uint commandOptions)
-        {
-            switch (commandOptions)
-            {
-                case 0x01:
-                case 0x0100:
-                    // Set FSRCO as the QSPI controller clock source
-                    if (commandParamsCount != 0)
-                    {
-                        parent.Log(LogLevel.Error, "ConfigureQspiRefClock: invalid param count {0} for option 0x01", commandParamsCount);
-                        return ResponseCode.InvalidParameter;
-                    }
-                    parent.Log(LogLevel.Noisy, "QSPI Clock Source set to FSRCO");
-                    break;
-
-                case 0x02:
-                case 0x0200:
-                    // Set FLPLL as the QSPI controller clock source
-                    if (commandParamsCount != 4)
-                    {
-                        parent.Log(LogLevel.Error, "ConfigureQspiRefClock: invalid param count {0} for option 0x02", commandParamsCount);
-                        return ResponseCode.InvalidParameter;
-                    }
-
-                    uint flpllRefClock = commandParams[0];
-                    uint intDiv = (commandParams[1] >> 16) & 0xFFFF;
-                    uint fracDiv = commandParams[1] & 0xFFFF;
-                    uint flpllFreqRange = commandParams[2] & 0xF;
-                    uint qspiClockPrescaler = (commandParams[2] >> 4) & 0xF;
-
-                    if (flpllRefClock != 0x0 && flpllRefClock != 0x2)
-                    {
-                        parent.Log(LogLevel.Error, "ConfigureQspiRefClock: invalid FLPLL reference clock {0}", flpllRefClock);
-                        return ResponseCode.InvalidParameter;
-                    }
-                    if (fracDiv >= 2048 || intDiv <= 5 || intDiv >= 12)
-                    {
-                        parent.Log(LogLevel.Error, "ConfigureQspiRefClock: invalid INT_DIV {0} or FRAC_DIV {1}", intDiv, fracDiv);
-                        return ResponseCode.InvalidParameter;
-                    }
-
-                    parent.Log(LogLevel.Noisy, "QSPI Clock Source set to FLPLL");
-                    parent.Log(LogLevel.Noisy, "FLPLL Ref Clock: {0}, INT_DIV: {1}, FRAC_DIV: {2}, Freq Range: {3}, Prescaler: {4}",
-                        flpllRefClock, intDiv, fracDiv, flpllFreqRange, qspiClockPrescaler);
-                    break;
-
-                default:
-                    parent.Log(LogLevel.Error, "ConfigureQspiRefClock: invalid command option {0}", commandOptions);
+            case 0x01:
+            case 0x0100:
+                // Set FSRCO as the QSPI controller clock source
+                if(commandParamsCount != 0)
+                {
+                    parent.Log(LogLevel.Error, "ConfigureQspiRefClock: invalid param count {0} for option 0x01", commandParamsCount);
                     return ResponseCode.InvalidParameter;
+                }
+                parent.Log(LogLevel.Noisy, "QSPI Clock Source set to FSRCO");
+                break;
+
+            case 0x02:
+            case 0x0200:
+                // Set FLPLL as the QSPI controller clock source
+                if(commandParamsCount != 4)
+                {
+                    parent.Log(LogLevel.Error, "ConfigureQspiRefClock: invalid param count {0} for option 0x02", commandParamsCount);
+                    return ResponseCode.InvalidParameter;
+                }
+
+                uint flpllRefClock = commandParams[0];
+                uint intDiv = (commandParams[1] >> 16) & 0xFFFF;
+                uint fracDiv = commandParams[1] & 0xFFFF;
+                uint flpllFreqRange = commandParams[2] & 0xF;
+                uint qspiClockPrescaler = (commandParams[2] >> 4) & 0xF;
+
+                if(flpllRefClock != 0x0 && flpllRefClock != 0x2)
+                {
+                    parent.Log(LogLevel.Error, "ConfigureQspiRefClock: invalid FLPLL reference clock {0}", flpllRefClock);
+                    return ResponseCode.InvalidParameter;
+                }
+                if(fracDiv >= 2048 || intDiv <= 5 || intDiv >= 12)
+                {
+                    parent.Log(LogLevel.Error, "ConfigureQspiRefClock: invalid INT_DIV {0} or FRAC_DIV {1}", intDiv, fracDiv);
+                    return ResponseCode.InvalidParameter;
+                }
+
+                parent.Log(LogLevel.Noisy, "QSPI Clock Source set to FLPLL");
+                parent.Log(LogLevel.Noisy, "FLPLL Ref Clock: {0}, INT_DIV: {1}, FRAC_DIV: {2}, Freq Range: {3}, Prescaler: {4}",
+                    flpllRefClock, intDiv, fracDiv, flpllFreqRange, qspiClockPrescaler);
+                break;
+
+            default:
+                parent.Log(LogLevel.Error, "ConfigureQspiRefClock: invalid command option {0}", commandOptions);
+                return ResponseCode.InvalidParameter;
             }
 
             return ResponseCode.Ok;
         }
-#endregion
 
-#region command utility methods
         private void FetchFromRam(uint sourcePointer, byte[] destination, uint destinationOffset, uint length)
         {
-            for (uint i=0; i<length; i++)
+            for(uint i = 0; i < length; i++)
             {
                 destination[destinationOffset + i] = (byte)machine.SystemBus.ReadByte(sourcePointer + i);
             }
@@ -1658,7 +1473,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         private void WriteToRam(byte[] source, uint sourceOffset, uint destinationPointer, uint length)
         {
-            for (uint i=0; i<length; i++)
+            for(uint i = 0; i < length; i++)
             {
                 machine.SystemBus.WriteByte(destinationPointer + i, source[sourceOffset + i]);
             }
@@ -1671,12 +1486,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             var word2 = (uint)machine.SystemBus.ReadDoubleWord(dmaPointer + 8);
             dataSize = word2 & 0xFFFFFFF;
             options = (DmaTranferOptions)(word2 >> 28);
-            
+
             parent.Log(LogLevel.Noisy, "UnpackDmaDescriptor(): dataPointer=0x{0:X} dataSize={1} options={2} nextDescriptorPtr=0x{3:X}",
                      dataPointer, dataSize, options, nextDescriptorPtr);
-            for(uint i = 0; i < dataSize; i+=4)
+            for(uint i = 0; i < dataSize; i += 4)
             {
-                parent.Log(LogLevel.Noisy, "UnpackDmaDescriptor(): DATA word{0}=0x{1:X}", i/4, machine.SystemBus.ReadDoubleWord(dataPointer+i));
+                parent.Log(LogLevel.Noisy, "UnpackDmaDescriptor(): DATA word{0}=0x{1:X}", i / 4, machine.SystemBus.ReadDoubleWord(dataPointer + i));
             }
         }
 
@@ -1695,30 +1510,252 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                      keyMetadata, index, type, mode, restriction);
         }
 
+        private byte[] CheckAndRetrieveKey(KeyType keyType, KeyMode keyMode, uint keyIndex, uint keyPointer)
+        {
+            byte[] key = new byte[16];
+
+            // TODO: for now we only support "raw" key type.
+            if(keyType != KeyType.Raw)
+            {
+                parent.Log(LogLevel.Error, "Key TYPE not supported");
+                return key;
+            }
+
+            // TODO: for now we don't support "WrappedAntiReplay" key mode.
+            if(keyMode == KeyMode.WrappedAntiReplay)
+            {
+                parent.Log(LogLevel.Error, "Key MODE WrappedAntiReplay not supported");
+                return key;
+            }
+
+            if(keyMode == KeyMode.Unprotected || keyMode == KeyMode.Wrapped)
+            {
+                // IV - 12 bytes
+                // Actual key
+                // AESGCM tag - 16 bytes
+                uint keyOffset = 12;
+                FetchFromRam(keyPointer + keyOffset, key, 0, 16);
+            }
+            else if(keyMode == KeyMode.Volatile)
+            {
+                if(!volatileKeys.ContainsKey(keyIndex))
+                {
+                    parent.Log(LogLevel.Error, "Volatile key not found");
+                    return key;
+                }
+
+                key = volatileKeys[keyIndex];
+                parent.Log(LogLevel.Noisy, "CheckAndRetrieveKey (volatile): keyIndex={0} key=[{1}]", keyIndex, BitConverter.ToString(key));
+            }
+
+            return key;
+        }
+
+        private void ProcessCommand()
+        {
+            uint commandHandle = 0;
+
+            if(txFifo.Count == 0)
+            {
+                parent.Log(LogLevel.Error, "ProcessCommand(): Queue is EMPTY!");
+                WriteResponse(ResponseCode.InvalidParameter, commandHandle);
+            }
+
+            uint header = txFifo.Dequeue();
+            // First 2 bytes of the header is the number of bytes in the message (header included)
+            uint wordsCount = (header & 0xFFFF)/4;
+
+            if(txFifo.Count < wordsCount - 1)
+            {
+                parent.Log(LogLevel.Error, "ProcessCommand(): Not enough words FifoSize={0}, expectedWords={1}", txFifo.Count, wordsCount - 1);
+                WriteResponse(ResponseCode.InvalidParameter, commandHandle);
+            }
+
+            if(series3)
+            {
+                commandHandle = txFifo.Dequeue();
+            }
+
+            uint commandOptions = txFifo.Dequeue();
+            var commandId = (CommandId)(commandOptions >> 16);
+            commandOptions &= 0xFFFF;
+            uint inputDmaDescriptorPtr = txFifo.Dequeue();
+            uint outputDmaDescriptorPtr = txFifo.Dequeue();
+            uint commandParamsCount = wordsCount - (series3 ? 5U : 4U);
+            uint[] commandParams = new uint[13];
+            for(var i = 0; i < commandParamsCount; i++)
+            {
+                commandParams[i] = txFifo.Dequeue();
+            }
+
+            parent.Log(LogLevel.Info, "ProcessCommand(): command ID={0} command Options=0x{1:X} command params count={2}", commandId, commandOptions, commandParamsCount);
+
+            ResponseCode responseCode;
+
+            switch(commandId)
+            {
+            case CommandId.ImportKey:
+                responseCode = HandleImportKeyCommand(inputDmaDescriptorPtr, outputDmaDescriptorPtr, commandParams, commandParamsCount);
+                break;
+            case CommandId.ExportKey:
+                responseCode = HandleExportKeyCommand(inputDmaDescriptorPtr, outputDmaDescriptorPtr, commandParams, commandParamsCount, series3);
+                break;
+            case CommandId.Hash:
+                responseCode = HandleHashCommand(inputDmaDescriptorPtr, outputDmaDescriptorPtr, commandParams, commandParamsCount, commandOptions);
+                break;
+            case CommandId.HashUpdate:
+            case CommandId.HashFinish:
+                responseCode = HandleHashUpdateOrFinishCommand(inputDmaDescriptorPtr, outputDmaDescriptorPtr, commandParams, commandParamsCount, commandOptions, (commandId == CommandId.HashFinish));
+                break;
+            case CommandId.AesEncrypt:
+            case CommandId.AesDecrypt:
+                responseCode = HandleAesEncryptOrDecryptCommand(inputDmaDescriptorPtr, outputDmaDescriptorPtr, commandParams, commandParamsCount, commandOptions, (commandId == CommandId.AesEncrypt));
+                break;
+            case CommandId.AesCmac:
+                responseCode = HandleAesCmacCommand(inputDmaDescriptorPtr, outputDmaDescriptorPtr, commandParams, commandParamsCount);
+                break;
+            case CommandId.AesCcmEncrypt:
+                responseCode = HandleAesCcmEncryptCommand(inputDmaDescriptorPtr, outputDmaDescriptorPtr, commandParams, commandParamsCount);
+                break;
+            case CommandId.AesCcmDecrypt:
+                responseCode = HandleAesCcmDecryptCommand(inputDmaDescriptorPtr, outputDmaDescriptorPtr, commandParams, commandParamsCount);
+                break;
+            case CommandId.AesGcmEncrypt:
+                responseCode = HandleAesGcmEncryptCommand(inputDmaDescriptorPtr, outputDmaDescriptorPtr, commandParams, commandParamsCount, commandOptions);
+                break;
+            case CommandId.AesGcmDecrypt:
+                responseCode = HandleAesGcmDecryptCommand(inputDmaDescriptorPtr, outputDmaDescriptorPtr, commandParams, commandParamsCount, commandOptions);
+                break;
+            case CommandId.Random:
+                responseCode = HandleRandomCommand(inputDmaDescriptorPtr, outputDmaDescriptorPtr, commandParams, commandParamsCount);
+                break;
+            case CommandId.ReadDeviceData:
+                responseCode = HandleReadDeviceDataCommand(inputDmaDescriptorPtr, outputDmaDescriptorPtr, commandParams, commandParamsCount, commandOptions);
+                break;
+            case CommandId.FlashEraseDataRegion:
+                responseCode = HandleFlashEraseDataRegionCommand(inputDmaDescriptorPtr, outputDmaDescriptorPtr, commandParams, commandParamsCount, commandOptions);
+                break;
+            case CommandId.FlashWriteDataRegion:
+                responseCode = HandleFlashWriteDataRegionCommand(inputDmaDescriptorPtr, outputDmaDescriptorPtr, commandParams, commandParamsCount, commandOptions);
+                break;
+            case CommandId.FlashGetDataRegionLocation:
+                responseCode = HandleFlashGetDataRegionLocationCommand(inputDmaDescriptorPtr, outputDmaDescriptorPtr, commandParams, commandParamsCount, commandOptions);
+                break;
+            case CommandId.FlashGetCodeRegionConfig:
+                responseCode = HandleFlashGetCodeRegionConfigCommand(inputDmaDescriptorPtr, outputDmaDescriptorPtr, commandParams, commandParamsCount, commandOptions);
+                break;
+            case CommandId.ConfigureQspiRefClock:
+                responseCode = HandleConfigureQspiRefClockCommand(inputDmaDescriptorPtr, outputDmaDescriptorPtr, commandParams, commandParamsCount, commandOptions);
+                break;
+            default:
+                responseCode = ResponseCode.InvalidCommand;
+                parent.Log(LogLevel.Error, "ProcessCommand(): Command ID 0x{0:X} not handled!", (uint)commandId);
+                break;
+            }
+
+            if(responseCode != ResponseCode.Ok)
+            {
+                parent.Log(LogLevel.Info, "ProcessCommand(): Response code {0}", responseCode);
+            }
+
+            WriteResponse(responseCode, commandHandle);
+        }
+
+        private ResponseCode HandleFlashGetCodeRegionConfigCommand(uint _, uint outputDma, uint[] __, uint commandParamsCount, uint ___)
+        {
+            if(commandParamsCount != 0)
+            {
+                parent.Log(LogLevel.Error, "HandleFlashGetCodeRegionConfigCommand: invalid param count {0}", commandParamsCount);
+                return ResponseCode.InvalidParameter;
+            }
+
+            // Output DMA descriptor contains the region config array
+            uint outputCodeRegionConfigAddressPtr;
+            uint outputCodeRegionConfigAddressLength;
+            DmaTranferOptions transferOptions;
+            uint nextDescriptorPtr;
+            UnpackDmaDescriptor(outputDma, out outputCodeRegionConfigAddressPtr, out outputCodeRegionConfigAddressLength, out transferOptions, out nextDescriptorPtr, machine);
+            parent.Log(LogLevel.Noisy, "FLASH_GET_CODE_REGION_CONFIG: OUTPUT0: outputCodeRegionConfigAddressPtr=0x{0:X} outputCodeRegionConfigAddressLength={1} options={2} nextDescriptorPtr=0x{3:X}",
+                     outputCodeRegionConfigAddressPtr, outputCodeRegionConfigAddressLength, transferOptions, nextDescriptorPtr);
+
+            // check that flash is properly initialized
+            if(series3 && (flashSize == 0 || flashPageSize == 0))
+            {
+                parent.Log(LogLevel.Error, "flashSize = {0} and flashPageSize = {1}. These must be initialized with non-zero values.", flashSize, flashPageSize);
+                return ResponseCode.Abort;
+            }
+
+            uint regionSize = (outputCodeRegionConfigAddressPtr & 0xFFF) * 32 * 1024; // Bits 0:11
+            uint protectionMode = (outputCodeRegionConfigAddressPtr >> 12) & 0x3; // Bits 12:13
+            bool bankSwappingEnabled = ((outputCodeRegionConfigAddressPtr >> 14) & 0x1) == 1; // Bit 14
+            bool regionClosed = ((outputCodeRegionConfigAddressPtr >> 15) & 0x1) == 1; // Bit 15
+
+            uint data = (regionSize / (32 * 1024)) & 0xFFF; // Bits 0:11
+            data |= (protectionMode & 0x3) << 12; // Bits 12:13
+            data |= (bankSwappingEnabled ? 1u : 0u) << 14; // Bit 14
+            data |= (regionClosed ? 1u : 0u) << 15; // Bit 15
+
+            machine.SystemBus.WriteDoubleWord(outputCodeRegionConfigAddressPtr, data);
+
+            return ResponseCode.Ok;
+        }
+
+        private uint GetInitialDataSpaceLength
+        {
+            get
+            {
+                return flashSize - flashDataRegionStart;
+            }
+        }
+
+        // TODO: This is a HACK: the Bouncy Castle hash function implementation does not allow to
+        // set the state, which is needed for HASH_UPDATE commands.
+        // The solution is to keep around the hash engine until the HASH_FINAL command is called,
+        // but this requires all these commands to happen sequentially, hence the hack.
+        private IDigest currentHashEngine = null;
+        private uint wordsLeftToBeReceived;
+        private readonly Dictionary<uint, byte[]> volatileKeys = new Dictionary<uint, byte[]>();
+        private readonly Queue<uint> rxFifo;
+        private readonly Queue<uint> txFifo;
+        private readonly bool series3;
+        private readonly uint flashCodeRegionEnd;
+        private readonly uint flashCodeRegionStart;
+        private readonly uint flashRegionSize;
+        private readonly uint flashPageSize;
+        private readonly uint flashSize;
+        private readonly uint flashDataRegionStart;
+
+        private readonly Machine machine;
+        private readonly IDoubleWordPeripheral parent;
+        private const uint NullDescriptor = 1;
+        // Series3 specific value.
+        // Related to PSEC-5391, once that gets resolved, we might need to update this accordingly.
+        private const uint QspiFlashHostBase = 0x1000000;
+
         IDigest CreateHashEngine(ShaMode hashMode)
         {
             IDigest ret = null;
 
             switch(hashMode)
             {
-                case ShaMode.Sha1:
-                    ret = new Sha1Digest();
-                    break;
-                case ShaMode.Sha224:
-                    ret = new Sha224Digest();
-                    break;
-                case ShaMode.Sha256:
-                    ret = new Sha256Digest();
-                    break;
-                case ShaMode.Sha384:
-                    ret = new Sha384Digest();
-                    break;
-                case ShaMode.Sha512:
-                    ret = new Sha512Digest();
-                    break;
-                default:
-                    parent.Log(LogLevel.Error, "CreateHashEngine(): invalid hash mode");
-                    break;
+            case ShaMode.Sha1:
+                ret = new Sha1Digest();
+                break;
+            case ShaMode.Sha224:
+                ret = new Sha224Digest();
+                break;
+            case ShaMode.Sha256:
+                ret = new Sha256Digest();
+                break;
+            case ShaMode.Sha384:
+                ret = new Sha384Digest();
+                break;
+            case ShaMode.Sha512:
+                ret = new Sha512Digest();
+                break;
+            default:
+                parent.Log(LogLevel.Error, "CreateHashEngine(): invalid hash mode");
+                break;
             }
             return ret;
         }
@@ -1729,39 +1766,39 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
             switch(hashMode)
             {
-                case ShaMode.Sha1:
-                    if (hashEngine is Sha1Digest)
-                    {
-                        ret = true;
-                    }
-                    break;
-                case ShaMode.Sha224:
-                    if (hashEngine is Sha224Digest)
-                    {
-                        ret = true;
-                    }
-                    break;
-                case ShaMode.Sha256:
-                    if (hashEngine is Sha256Digest)
-                    {
-                        ret = true;
-                    }
-                    break;
-                case ShaMode.Sha384:
-                    if (hashEngine is Sha384Digest)
-                    {
-                        ret = true;
-                    }
-                    break;
-                case ShaMode.Sha512:
-                    if (hashEngine is Sha512Digest)
-                    {
-                        ret = true;
-                    }                    
-                    break;
-                default:
-                    parent.Log(LogLevel.Error, "CheckHashEngine(): invalid hash mode");
-                    break;
+            case ShaMode.Sha1:
+                if(hashEngine is Sha1Digest)
+                {
+                    ret = true;
+                }
+                break;
+            case ShaMode.Sha224:
+                if(hashEngine is Sha224Digest)
+                {
+                    ret = true;
+                }
+                break;
+            case ShaMode.Sha256:
+                if(hashEngine is Sha256Digest)
+                {
+                    ret = true;
+                }
+                break;
+            case ShaMode.Sha384:
+                if(hashEngine is Sha384Digest)
+                {
+                    ret = true;
+                }
+                break;
+            case ShaMode.Sha512:
+                if(hashEngine is Sha512Digest)
+                {
+                    ret = true;
+                }
+                break;
+            default:
+                parent.Log(LogLevel.Error, "CheckHashEngine(): invalid hash mode");
+                break;
             }
             return ret;
         }
@@ -1782,20 +1819,20 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             bool lengthOk = false;
             switch(cryptoMode)
             {
-                case CryptoMode.Ecb:
-                case CryptoMode.Cfb:
-                case CryptoMode.Ofb:
-                    // Must be > 0 and multiple of 16
-                    lengthOk = ((dataSize > 0) && ((dataSize & 0xF) == 0));
-                    break;
-                case CryptoMode.Cbc:
-                    // Must be > 16
-                    lengthOk = (dataSize >= 16);
-                    break;
-                case CryptoMode.Ctr:
-                    // Must be > 0
-                    lengthOk = (dataSize > 0);
-                    break;                
+            case CryptoMode.Ecb:
+            case CryptoMode.Cfb:
+            case CryptoMode.Ofb:
+                // Must be > 0 and multiple of 16
+                lengthOk = ((dataSize > 0) && ((dataSize & 0xF) == 0));
+                break;
+            case CryptoMode.Cbc:
+                // Must be > 16
+                lengthOk = (dataSize >= 16);
+                break;
+            case CryptoMode.Ctr:
+                // Must be > 0
+                lengthOk = (dataSize > 0);
+                break;
             }
             return lengthOk;
         }
@@ -1803,84 +1840,50 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         uint GetTagLength(uint tagLengthOption)
         {
             uint tagLength;
-            switch (tagLengthOption)
+            switch(tagLengthOption)
             {
-                case 0x4:
-                    tagLength = 4;
-                    break;
-                case 0x8:
-                    tagLength = 8;
-                    break;
-                case 0xC:
-                    tagLength = 12;
-                    break;
-                case 0xD:
-                    tagLength = 13;
-                    break;
-                case 0xE:
-                    tagLength = 14;
-                    break;
-                case 0xF:
-                    tagLength = 15;
-                    break;
-                default:
-                    tagLength = 16;
-                    break;
+            case 0x4:
+                tagLength = 4;
+                break;
+            case 0x8:
+                tagLength = 8;
+                break;
+            case 0xC:
+                tagLength = 12;
+                break;
+            case 0xD:
+                tagLength = 13;
+                break;
+            case 0xE:
+                tagLength = 14;
+                break;
+            case 0xF:
+                tagLength = 15;
+                break;
+            default:
+                tagLength = 16;
+                break;
             }
             return tagLength;
         }
 
-        private byte[] CheckAndRetrieveKey(KeyType keyType, KeyMode keyMode, uint keyIndex, uint keyPointer)
+        public enum ResponseCode
         {
-            byte[] key = new byte[16];
-
-            // TODO: for now we only support "raw" key type.
-            if (keyType != KeyType.Raw)
-            {
-                parent.Log(LogLevel.Error, "Key TYPE not supported");
-                return key;
-            }
-            
-            // TODO: for now we don't support "WrappedAntiReplay" key mode.
-            if (keyMode == KeyMode.WrappedAntiReplay)
-            {
-                parent.Log(LogLevel.Error, "Key MODE WrappedAntiReplay not supported");
-                return key;
-            }
-
-            if (keyMode == KeyMode.Unprotected || keyMode == KeyMode.Wrapped)
-            {
-                // IV - 12 bytes
-                // Actual key
-                // AESGCM tag - 16 bytes
-                uint keyOffset = 12;                
-                FetchFromRam(keyPointer + keyOffset, key, 0, 16);
-            }
-            else if (keyMode == KeyMode.Volatile)
-            {
-                if (!volatileKeys.ContainsKey(keyIndex))
-                {
-                    parent.Log(LogLevel.Error, "Volatile key not found");
-                    return key;
-                }
-
-                key = volatileKeys[keyIndex];
-                parent.Log(LogLevel.Noisy, "CheckAndRetrieveKey (volatile): keyIndex={0} key=[{1}]", keyIndex, BitConverter.ToString(key));
-            }
-
-            return key;
+            Ok                 = 0x00000000,
+            InvalidCommand     = 0x00010000,
+            AuthorizationError = 0x00020000,
+            InvalidSignature   = 0x00030000,
+            BusError           = 0x00040000,
+            InternalError      = 0x00050000,
+            CryptoError        = 0x00060000,
+            InvalidParameter   = 0x00070000,
+            SecureBootError    = 0x00090000,
+            SelfTestError      = 0x000A0000,
+            NotInitialized     = 0x000B0000,
+            MailboxInvalid     = 0x00FE0000,
+            Abort              = 0x00FF0000,
         }
 
-        private uint GetInitialDataSpaceLength
-        {
-            get
-            {
-                return flashSize - flashDataRegionStart;
-            }
-        }
-#endregion
-
-#region enums
         private enum CommandId
         {
             ImportKey                       = 0x0100,
@@ -1935,14 +1938,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             StartOfMessage  = 0x1,
             EndOfMessage    = 0x2,
             MiddleOfMessage = 0x3,
-        }     
+        }
 
         private enum DmaTranferOptions
         {
             Register       = 0x1,
             MemoryRealign  = 0x2,
             Discard        = 0x4,
-        }   
+        }
 
         private enum KeyRestriction
         {
@@ -1968,28 +1971,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             Ed25519                     = 0xC,
         }
 
-        public enum ResponseCode
-        {
-            Ok                 = 0x00000000,
-            InvalidCommand     = 0x00010000,
-            AuthorizationError = 0x00020000,
-            InvalidSignature   = 0x00030000,
-            BusError           = 0x00040000,
-            InternalError      = 0x00050000,
-            CryptoError        = 0x00060000,
-            InvalidParameter   = 0x00070000,
-            SecureBootError    = 0x00090000,
-            SelfTestError      = 0x000A0000,
-            NotInitialized     = 0x000B0000,
-            MailboxInvalid     = 0x00FE0000,
-            Abort              = 0x00FF0000,
-        }
-
         private enum ReadDeviceDataLocationType
         {
             CC         = 0x0,
             DI         = 0x1,
-            WaferProbe = 0x2, 
+            WaferProbe = 0x2,
         }
 
         private enum DeviceDataReadSize
@@ -2000,6 +1986,5 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             GetSize        = 0x03,
             GetValue       = 0x04,
         }
-#endregion
     }
 }

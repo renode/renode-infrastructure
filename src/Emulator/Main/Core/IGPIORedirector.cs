@@ -19,6 +19,14 @@ namespace Antmicro.Renode.Core
             this.disconnector = disconnector;
         }
 
+        public IEnumerator<KeyValuePair<int, IGPIO>> GetEnumerator()
+        {
+            for(int i = 0; i < Count; i++)
+            {
+                yield return new KeyValuePair<int, IGPIO>(i, new GPIOWrapper(i, connector, disconnector));
+            }
+        }
+
         public bool ContainsKey(int key)
         {
             return key >= 0 && key < Count;
@@ -70,14 +78,6 @@ namespace Antmicro.Renode.Core
             }
         }
 
-        public IEnumerator<KeyValuePair<int, IGPIO>> GetEnumerator()
-        {
-            for(int i = 0; i < Count; i++)
-            {
-                yield return new KeyValuePair<int, IGPIO>(i, new GPIOWrapper(i, connector, disconnector));
-            }
-        }
-
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
         {
             return GetEnumerator();
@@ -116,7 +116,7 @@ namespace Antmicro.Renode.Core
 
             public void Disconnect()
             {
-                if (disconnector != null)
+                if(disconnector != null)
                 {
                     disconnector(id);
                     return;
@@ -161,4 +161,3 @@ namespace Antmicro.Renode.Core
         }
     }
 }
-

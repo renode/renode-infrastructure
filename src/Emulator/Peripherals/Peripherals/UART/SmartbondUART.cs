@@ -4,13 +4,11 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
-using Antmicro.Migrant;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -56,7 +54,9 @@ namespace Antmicro.Renode.Peripherals.UART
         }
 
         public override uint BaudRate => 0;
+
         public override Parity ParityBit => Parity.None;
+
         public override Bits StopBits => Bits.None;
 
         public long Size => 0x100;
@@ -84,4 +84,3 @@ namespace Antmicro.Renode.Peripherals.UART
         }
     }
 }
-

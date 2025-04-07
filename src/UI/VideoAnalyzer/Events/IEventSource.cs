@@ -12,10 +12,11 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Events
     internal interface IEventSource
     {
         void AttachHandler(IOHandler h);
+
         void DetachHandler();
 
         int X { get; }
+
         int Y { get; }
     }
 }
-

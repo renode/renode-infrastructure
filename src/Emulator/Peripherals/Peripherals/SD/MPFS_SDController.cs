@@ -7,6 +7,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Extensions;
 using Antmicro.Renode.Core.Structure;
@@ -59,7 +60,7 @@ namespace Antmicro.Renode.Peripherals.SD
             if(ByteRegistersCollection.TryRead(offset, out byte low))
             {
                 ushort high =  ByteRegistersCollection.Read(offset + 1);
-                return (ushort) ((high << 8) + low);
+                return (ushort)((high << 8) + low);
             };
 
             return this.ReadWordUsingDoubleWord(offset);
@@ -67,9 +68,9 @@ namespace Antmicro.Renode.Peripherals.SD
 
         public void WriteWord(long offset, ushort value)
         {
-            if(ByteRegistersCollection.TryWrite(offset, (byte) value))
+            if(ByteRegistersCollection.TryWrite(offset, (byte)value))
             {
-                ByteRegistersCollection.Write(offset+1, (byte) (value >> 8));
+                ByteRegistersCollection.Write(offset + 1, (byte)(value >> 8));
                 return;
             };
 
@@ -121,7 +122,6 @@ namespace Antmicro.Renode.Peripherals.SD
             if(phy != peripheral)
             {
                 throw new RegistrationException("Trying to unregister PHY that is currently not registered in this controller");
-
             }
             phy = null;
         }
@@ -134,12 +134,15 @@ namespace Antmicro.Renode.Peripherals.SD
         public long Size => 0x2000;
 
         public DoubleWordRegisterCollection RegistersCollection { get; }
+
         public ByteRegisterCollection ByteRegistersCollection { get; }
+
         DoubleWordRegisterCollection IProvidesRegisterCollection<DoubleWordRegisterCollection>.RegistersCollection => RegistersCollection;
+
         ByteRegisterCollection IProvidesRegisterCollection<ByteRegisterCollection>.RegistersCollection => ByteRegistersCollection;
 
         IEnumerable<IRegistered<IPhysicalLayer<byte>, NullRegistrationPoint>> IPeripheralContainer<IPhysicalLayer<byte>, NullRegistrationPoint>.Children => phy != null
-            ? new [] { Registered.Create(phy, NullRegistrationPoint.Instance) }
+            ? new[] { Registered.Create(phy, NullRegistrationPoint.Instance) }
             : new IRegistered<IPhysicalLayer<byte>, NullRegistrationPoint>[0];
 
         private void InitializeRegisters()
@@ -217,50 +220,50 @@ namespace Antmicro.Renode.Peripherals.SD
                     var responseType = responseTypeSelectField.Value;
                     switch(responseType)
                     {
-                        case ResponseType.NoResponse:
-                            if(commandResult.Length != 0)
-                            {
-                                this.Log(LogLevel.Warning, "Expected no response, but {0} bits received", commandResult.Length);
-                                return;
-                            }
-                            break;
-                        case ResponseType.Response136Bits:
-                            // our response does not contain 8 bits:
-                            // * start bit
-                            // * transmission bit
-                            // * command index / reserved bits (6 bits)
-                            if(commandResult.Length != 128)
-                            {
-                                this.Log(LogLevel.Warning, "Unexpected a response of length 128 bits (excluding control bits), but {0} received", commandResult.Length);
-                                return;
-                            }
-                            // the following bits are considered a part of returned register, but are not included in the response buffer:
-                            // * CRC7 (7 bits)
-                            // * end bit
-                            // that's why we are skipping the initial 8-bits
-                            responseFields[0].Value = commandResult.AsUInt32(8);
-                            responseFields[1].Value = commandResult.AsUInt32(40);
-                            responseFields[2].Value = commandResult.AsUInt32(72);
-                            responseFields[3].Value = commandResult.AsUInt32(104, 24);
-                            break;
-                        case ResponseType.Response48Bits:
-                        case ResponseType.Response48BitsWithBusy:
-                            // our response does not contain 16 bits:
-                            // * start bit
-                            // * transmission bit
-                            // * command index / reserved bits (6 bits)
-                            // * CRC7 (7 bits)
-                            // * end bit
-                            if(commandResult.Length != 32)
-                            {
-                                this.Log(LogLevel.Warning, "Expected a response of length {0} bits (excluding control bits and CRC), but {1} received", 32, commandResult.Length);
-                                return;
-                            }
-                            responseFields[0].Value = commandResult.AsUInt32();
-                            break;
-                        default:
-                            this.Log(LogLevel.Warning, "Unexpected response type selected: {0}. Ignoring the command response.", responseTypeSelectField.Value);
+                    case ResponseType.NoResponse:
+                        if(commandResult.Length != 0)
+                        {
+                            this.Log(LogLevel.Warning, "Expected no response, but {0} bits received", commandResult.Length);
                             return;
+                        }
+                        break;
+                    case ResponseType.Response136Bits:
+                        // our response does not contain 8 bits:
+                        // * start bit
+                        // * transmission bit
+                        // * command index / reserved bits (6 bits)
+                        if(commandResult.Length != 128)
+                        {
+                            this.Log(LogLevel.Warning, "Unexpected a response of length 128 bits (excluding control bits), but {0} received", commandResult.Length);
+                            return;
+                        }
+                        // the following bits are considered a part of returned register, but are not included in the response buffer:
+                        // * CRC7 (7 bits)
+                        // * end bit
+                        // that's why we are skipping the initial 8-bits
+                        responseFields[0].Value = commandResult.AsUInt32(8);
+                        responseFields[1].Value = commandResult.AsUInt32(40);
+                        responseFields[2].Value = commandResult.AsUInt32(72);
+                        responseFields[3].Value = commandResult.AsUInt32(104, 24);
+                        break;
+                    case ResponseType.Response48Bits:
+                    case ResponseType.Response48BitsWithBusy:
+                        // our response does not contain 16 bits:
+                        // * start bit
+                        // * transmission bit
+                        // * command index / reserved bits (6 bits)
+                        // * CRC7 (7 bits)
+                        // * end bit
+                        if(commandResult.Length != 32)
+                        {
+                            this.Log(LogLevel.Warning, "Expected a response of length {0} bits (excluding control bits and CRC), but {1} received", 32, commandResult.Length);
+                            return;
+                        }
+                        responseFields[0].Value = commandResult.AsUInt32();
+                        break;
+                    default:
+                        this.Log(LogLevel.Warning, "Unexpected response type selected: {0}. Ignoring the command response.", responseTypeSelectField.Value);
+                        return;
                     }
 
                     ProcessCommand(sdCard, commandIndex.Value);
@@ -374,7 +377,7 @@ namespace Antmicro.Renode.Peripherals.SD
 
             Registers.ErrorNormalInterruptStatus_SRS12.Bind(this, irqManager.GetRegister<DoubleWordRegister>(
                 valueProviderCallback: (irq, _) => irqManager.IsSet(irq),
-                writeCallback: (irq, prev, curr) => { if(curr) irqManager.ClearInterrupt(irq); } ))
+                writeCallback: (irq, prev, curr) => { if(curr) irqManager.ClearInterrupt(irq); }))
             ;
 
             Registers.ErrorNormalStatusEnable_SRS13.Bind(this, irqManager.GetRegister<DoubleWordRegister>(
@@ -436,12 +439,12 @@ namespace Antmicro.Renode.Peripherals.SD
         {
             switch(command)
             {
-                case SDCardCommand.CheckSwitchableFunction:
-                    internalBuffer.EnqueueRange(sdCard.ReadSwitchFunctionStatusRegister());
-                    return;
-                case SDCardCommand.SendInterfaceConditionCommand:
-                    internalBuffer.EnqueueRange(sdCard.ReadExtendedCardSpecificDataRegister());
-                    return;
+            case SDCardCommand.CheckSwitchableFunction:
+                internalBuffer.EnqueueRange(sdCard.ReadSwitchFunctionStatusRegister());
+                return;
+            case SDCardCommand.SendInterfaceConditionCommand:
+                internalBuffer.EnqueueRange(sdCard.ReadExtendedCardSpecificDataRegister());
+                return;
             }
 
             // early exit if no data is present
@@ -453,15 +456,15 @@ namespace Antmicro.Renode.Peripherals.SD
             var bytesCount = (uint)(blockCountField.Value * blockSizeField.Value);
             switch(dataTransferDirectionSelect.Value)
             {
-                case DataTransferDirectionSelect.Read:
-                    ReadCard(sdCard, bytesCount);
-                    break;
-                case DataTransferDirectionSelect.Write:
-                    WriteCard(sdCard, bytesCount);
-                    break;
-                default:
-                    this.Log(LogLevel.Warning, "Invalid data transfer direction {};", dataTransferDirectionSelect.Value);
-                    break;
+            case DataTransferDirectionSelect.Read:
+                ReadCard(sdCard, bytesCount);
+                break;
+            case DataTransferDirectionSelect.Write:
+                WriteCard(sdCard, bytesCount);
+                break;
+            default:
+                this.Log(LogLevel.Warning, "Invalid data transfer direction {};", dataTransferDirectionSelect.Value);
+                break;
             }
         }
 
@@ -547,7 +550,7 @@ namespace Antmicro.Renode.Peripherals.SD
 
         private uint bytesRead;
         private IPhysicalLayer<byte> phy;
-        private Queue<byte> internalBuffer;
+        private readonly Queue<byte> internalBuffer;
 
         private readonly IBusController sysbus;
         private readonly InterruptManager<Interrupts> irqManager;
@@ -624,7 +627,8 @@ namespace Antmicro.Renode.Peripherals.SD
             CommandResponseArgument_CQRS23 = 0x45C
         }
 
-        private enum ByteRegisters {
+        private enum ByteRegisters
+        {
             CommandTransferMode_SRS03_0 = 0x20C,
             CommandTransferMode_SRS03_1 = 0x20D,
             CommandTransferMode_SRS03_2 = 0x20E,

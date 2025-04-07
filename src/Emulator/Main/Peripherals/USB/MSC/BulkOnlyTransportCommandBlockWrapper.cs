@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Utilities.Packets;
 
 namespace Antmicro.Renode.Core.USB.MSC
@@ -39,7 +40,7 @@ namespace Antmicro.Renode.Core.USB.MSC
         public uint Tag { get; private set; }
 
         [PacketField]
-        public uint DataTransferLength  { get; private set; }
+        public uint DataTransferLength { get; private set; }
 
         [PacketField]
         public byte Flags { get; private set; }

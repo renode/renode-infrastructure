@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -41,6 +42,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         public long Size => 0x100;
 
         public GPIO IRQ { get; }
+
         public GPIO FatalAlert { get; }
 
         public event Action<bool> LowPowerStateChanged;
@@ -73,7 +75,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Registers.AlertTest.Define(this)
                 .WithFlag(0, FieldMode.Write, writeCallback: (_, val) => { if(val) FatalAlert.Blink(); }, name: "fatal_fault")
                 .WithIgnoredBits(1, 31);
-            
+
             Registers.ControlConfigRegWriteEnable.Define(this, 0x1)
                 .WithFlag(0, out controlConfigRegWriteEnable, FieldMode.Read, name: "CTRL_CFG_REGWEN.EN")
                 .WithIgnoredBits(1, 31);
@@ -90,9 +92,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithWriteCallback((_, __) => LogPowerState());
 
             Registers.ConfigClockDomainSync.Define(this)
-                .WithFlag(0, name: "SYNC", 
-                    valueProviderCallback: _ => false, 
-                    writeCallback: (_, val) => 
+                .WithFlag(0, name: "SYNC",
+                    valueProviderCallback: _ => false,
+                    writeCallback: (_, val) =>
                     {
                         if(val)
                         {
@@ -107,7 +109,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         }
                     })
                 .WithReservedBits(1, 31);
-            
+
             Registers.WakeupEnableRegWriteEnable.Define(this, 0x1)
                 .WithTaggedFlag("WAKEUP_EN_REGWEN.EN", 0)
                 .WithReservedBits(1, 31);
@@ -151,7 +153,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             this.Log(LogLevel.Debug, "LowPowerHint:{0}, CoreClockEnable:{1}, " +
                                      "IoClockEnable:{2}, UsbClockEnableLowPower:{3}, " +
-                                     "UsbClockEnableActive: {4}, MainPowerDown: {5}", 
+                                     "UsbClockEnableActive: {4}, MainPowerDown: {5}",
                                      lowPowerHint.Value, coreClockEnable.Value,
                                      ioClockEnable.Value, usbClockEnableLowPower.Value,
                                      usbClockEnableActive.Value, mainPowerDown.Value);
@@ -161,7 +163,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private IFlagRegisterField wakeupEnable;
 
         private IFlagRegisterField controlConfigRegWriteEnable;
-        
+
         private IFlagRegisterField lowPowerHint;
         private IFlagRegisterField coreClockEnable;
         private IFlagRegisterField ioClockEnable;
@@ -196,4 +198,3 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
     }
 }
-

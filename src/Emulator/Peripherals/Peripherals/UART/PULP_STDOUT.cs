@@ -4,8 +4,8 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 
-using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.Bus;
@@ -18,12 +18,12 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             CreateRegisters();
         }
-        
+
         public uint ReadDoubleWord(long offset)
         {
             return registers.Read(offset);
         }
-            
+
         public void WriteDoubleWord(long offset, uint value)
         {
             registers.Write(offset, value);
@@ -39,9 +39,11 @@ namespace Antmicro.Renode.Peripherals.UART
 
         // None of those properties are used, we need them only to keep the compiler happy
         public override Bits StopBits => Bits.One;
+
         public override Parity ParityBit => Parity.None;
+
         public override uint BaudRate => 0;
-        
+
         protected override void CharWritten()
         {
             // intentionally left blank

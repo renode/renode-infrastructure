@@ -21,7 +21,6 @@ namespace Antmicro.Renode.Logging
 
         public override void Dispose()
         {
-
         }
 
         public override void Flush()
@@ -43,6 +42,7 @@ namespace Antmicro.Renode.Logging
                 return string.Empty;
 #endif
             }
+
             // The setter is supported on all the platforms we target,
             // so it doesn't need the if clause.
             set
@@ -83,8 +83,9 @@ namespace Antmicro.Renode.Logging
             isRedirected = Console.IsOutputRedirected;
         }
 
-        private TextWriter output = Console.Out;
         private bool plainMode;
+
+        private readonly TextWriter output = Console.Out;
         private readonly bool isRedirected;
     }
 }

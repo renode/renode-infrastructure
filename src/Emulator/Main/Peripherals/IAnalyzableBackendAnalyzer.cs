@@ -17,9 +17,9 @@ namespace Antmicro.Renode.Peripherals
     public interface IAnalyzableBackendAnalyzer : IAutoLoadType
     {
         void Show();
+
         void Hide();
 
         IAnalyzableBackend Backend { get; }
     }
 }
-

@@ -5,8 +5,8 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.InteropServices;
 
 using Antmicro.Renode.Core;
@@ -91,6 +91,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return psciEmulationMethod;
             }
+
             set
             {
                 psciEmulationMethod = value;
@@ -107,6 +108,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         public abstract ExecutionState ExecutionState { get; }
+
         public abstract ExecutionState[] SupportedExecutionStates { get; }
 
         protected void AddSystemRegistersFeature(List<GDBFeatureDescriptor> features, string featureName)
@@ -160,11 +162,11 @@ namespace Antmicro.Renode.Peripherals.CPU
                         }
                         array = Marshal.ReadIntPtr(arrayPointer);
 
-                        var ArmCpRegInfoPointersArray = new IntPtr[count];
-                        Marshal.Copy(array, ArmCpRegInfoPointersArray, 0, (int)count);
+                        var armCpRegInfoPointersArray = new IntPtr[count];
+                        Marshal.Copy(array, armCpRegInfoPointersArray, 0, (int)count);
 
                         var lastRegisterIndex = Enum.GetValues(RegistersEnum).Cast<uint>().Max();
-                        systemRegisters = ArmCpRegInfoPointersArray
+                        systemRegisters = armCpRegInfoPointersArray
                             .Select(armCpRegInfoPointer => ARMCPRegInfo.FromIntPtr(armCpRegInfoPointer).ToSystemRegister())
                             .OrderBy(systemRegister => systemRegister.Name)
                             .ToDictionary(_ => ++lastRegisterIndex);
@@ -290,16 +292,16 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             switch((Function)x0)
             {
-                case Function.PSCIVersion:
-                    GetPSCIVersion();
-                    break;
-                case Function.CPUOn:
-                    UnhaltCpu((uint)x1, x2);
-                    break;
-                default:
-                    this.Log(LogLevel.Error, "Encountered an unexpected PSCI call request: 0x{0:X}", x0);
-                    SetRegister((int)ARMv8ARegisters.X0, PSCICallResultNotSupported);
-                    return;
+            case Function.PSCIVersion:
+                GetPSCIVersion();
+                break;
+            case Function.CPUOn:
+                UnhaltCpu((uint)x1, x2);
+                break;
+            default:
+                this.Log(LogLevel.Error, "Encountered an unexpected PSCI call request: 0x{0:X}", x0);
+                SetRegister((int)ARMv8ARegisters.X0, PSCICallResultNotSupported);
+                return;
             }
 
             // Set return code to success
@@ -333,20 +335,20 @@ namespace Antmicro.Renode.Peripherals.CPU
         private Dictionary<uint, SystemRegister> systemRegisters;
 
         private PSCIConduitEmulationMethod psciEmulationMethod;
-        private PseudorandomNumberGenerator rng;
+        private readonly PseudorandomNumberGenerator rng;
 
 #pragma warning disable 649
         [Import]
-        private Action<uint> TlibPsciHandlerEnable;
+        private readonly Action<uint> TlibPsciHandlerEnable;
 
         [Import]
-        private Action<uint> TlibSetRndrSupported;
+        private readonly Action<uint> TlibSetRndrSupported;
 
         [Import]
-        private Func<IntPtr, uint> TlibCreateSystemRegistersArray;
+        private readonly Func<IntPtr, uint> TlibCreateSystemRegistersArray;
 
         [Import]
-        private Func<string, uint> TlibIsGicOrGenericTimerSystemRegister;
+        private readonly Func<string, uint> TlibIsGicOrGenericTimerSystemRegister;
 #pragma warning restore 649
 
         private readonly Dictionary<ulong, Action> customFunctionHandlers;

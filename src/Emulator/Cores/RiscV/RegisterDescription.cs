@@ -98,7 +98,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             fpuGroup.Registers.Add(new GDBRegisterDescriptor(fflagsIndex, registerWidth, "fflags", "", "float"));
             fpuGroup.Registers.Add(new GDBRegisterDescriptor(fflagsIndex + 1, registerWidth, "frm", "", "float"));
             fpuGroup.Registers.Add(new GDBRegisterDescriptor(fflagsIndex + 2, registerWidth, "fcsr", "", "float"));
-
             {
                 var fields = new List<GDBTypeBitField>();
                 fields.Add(new GDBTypeBitField("NX", 0, 0, "bool"));
@@ -147,7 +146,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             var csrGroup = new GDBFeatureDescriptor("org.gnu.gdb.riscv.csr");
             var intType = $"uint{registerWidth}";
-
             {
                 var fields = new List<GDBTypeEnumValue>();
                 fields.Add(new GDBTypeEnumValue("32", 1));

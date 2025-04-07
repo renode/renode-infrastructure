@@ -4,7 +4,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Linq;
 using System.Text;
 
@@ -18,7 +17,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
 
         [Execute("p")]
         public PacketData Execute(
-            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]int registerNumber)
+            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)] int registerNumber)
         {
             var content = new StringBuilder();
 
@@ -54,8 +53,6 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
 
             // else return error
             return PacketData.ErrorReply(Error.OperationNotPermitted);
-
         }
     }
 }
-

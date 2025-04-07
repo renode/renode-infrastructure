@@ -5,16 +5,13 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Sensors;
-using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Analog
 {
@@ -36,9 +33,11 @@ namespace Antmicro.Renode.Peripherals.Analog
             DefineRegisters();
         }
 
-        public GPIO IRQ { get; }
-
-        public long Size => 0x5C;
+        public override void Reset()
+        {
+            base.Reset();
+            UpdateInterrupts();
+        }
 
         public void OnGPIO(int number, bool value)
         {
@@ -54,17 +53,11 @@ namespace Antmicro.Renode.Peripherals.Analog
             }
         }
 
-        public override void Reset()
-        {
-            base.Reset();
-            UpdateInterrupts();
-        }
-
         public void FeedSample(byte sample, int channel)
         {
             if(channel < 0 || channel >= NumberOfChannels)
             {
-                throw new RecoverableException($"This model supports channels 0-{(NumberOfChannels- 1)} inclusive");
+                throw new RecoverableException($"This model supports channels 0-{(NumberOfChannels - 1)} inclusive");
             }
 
             samplesFifos[channel].FeedSample(new ScalarSample(sample));
@@ -74,7 +67,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         {
             if(channel < 0 || channel >= NumberOfChannels)
             {
-                throw new RecoverableException($"This model supports channels 0-{(NumberOfChannels- 1)} inclusive");
+                throw new RecoverableException($"This model supports channels 0-{(NumberOfChannels - 1)} inclusive");
             }
 
             samplesFifos[channel].FeedSamplesFromFile(path);
@@ -94,6 +87,10 @@ namespace Antmicro.Renode.Peripherals.Analog
             conversionComplete.Value = true;
             UpdateInterrupts();
         }
+
+        public GPIO IRQ { get; }
+
+        public long Size => 0x5C;
 
         private void HandleTrigger(int triggerId, bool isHW)
         {
@@ -139,8 +136,8 @@ namespace Antmicro.Renode.Peripherals.Analog
                     {
                         if(j == 0)
                         {
-                           // only trigger 0 can be fired by SW
-                           HandleTrigger(0, false);
+                            // only trigger 0 can be fired by SW
+                            HandleTrigger(0, false);
                         }
                     });
             });
@@ -153,14 +150,14 @@ namespace Antmicro.Renode.Peripherals.Analog
 
             Registers.HardwareTriggersDataResult0.DefineMany(this, NumberOfHardwareTriggers, (register, idx) =>
             {
-              register
-                .WithValueField(0, 12, out cdata[idx], FieldMode.Read, name: "CDATA - Data")
-                .WithReservedBits(12, 20)
-                .WithReadCallback((_, __) => 
-                {
-                    conversionComplete.Value = false; // Set this to clear COCOn and turn off IRQ after read
-                    UpdateInterrupts();
-                });
+                register
+                  .WithValueField(0, 12, out cdata[idx], FieldMode.Read, name: "CDATA - Data")
+                  .WithReservedBits(12, 20)
+                  .WithReadCallback((_, __) =>
+                  {
+                      conversionComplete.Value = false; // Set this to clear COCOn and turn off IRQ after read
+                      UpdateInterrupts();
+                  });
             });
 
             Registers.Configuration.Define(this)

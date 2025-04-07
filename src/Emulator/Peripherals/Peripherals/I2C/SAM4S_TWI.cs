@@ -8,6 +8,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -39,6 +40,7 @@ namespace Antmicro.Renode.Peripherals.I2C
         }
 
         public byte? DmaByteRead() => ReadByteFromBuffer();
+
         public void DmaByteWrite(byte data) => WriteByteToBuffer(data);
 
         public byte[] DmaBlockByteRead(int count) => ReadBuffer(count);
@@ -71,6 +73,7 @@ namespace Antmicro.Renode.Peripherals.I2C
         public long Size => 0x128;
 
         public TransferType DmaReadAccessWidth => TransferType.Byte;
+
         public TransferType DmaWriteAccessWidth => TransferType.Byte;
 
         private void DefineRegisters()
@@ -494,8 +497,11 @@ namespace Antmicro.Renode.Peripherals.I2C
         }
 
         private bool EndOfRxBuffer => pdc?.EndOfRxBuffer ?? false;
+
         private bool EndOfTxBuffer => pdc?.EndOfTxBuffer ?? false;
+
         private bool RxBufferFull => pdc?.RxBufferFull ?? false;
+
         private bool TxBufferEmpty => pdc?.TxBufferEmpty ?? false;
 
         private bool RxReady
@@ -564,18 +570,6 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         private const ulong _10BitAddressingPrefix = 0x1e;
 
-        private enum State
-        {
-            Idle,
-            Read,
-            ReadLastButOne,
-            ReadLast,
-            ReadFinished,
-            Write,
-            WriteLast,
-            WriteFinished,
-        }
-
         public enum InternalAddressSize
         {
             None = 0,
@@ -615,6 +609,18 @@ namespace Antmicro.Renode.Peripherals.I2C
             PdcTransmitNextCounter = 0x11C,
             PdcTransferControl = 0x120,
             PdcTransferStatus = 0x124,
+        }
+
+        private enum State
+        {
+            Idle,
+            Read,
+            ReadLastButOne,
+            ReadLast,
+            ReadFinished,
+            Write,
+            WriteLast,
+            WriteFinished,
         }
     }
 }

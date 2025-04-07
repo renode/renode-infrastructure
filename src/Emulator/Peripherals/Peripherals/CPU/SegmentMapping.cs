@@ -10,12 +10,13 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public class SegmentMapping
     {
-        public IMappedSegment Segment { get; }
-        public bool Touched { get; set; }
-
         public SegmentMapping(IMappedSegment segment)
         {
             Segment = segment;
         }
+
+        public IMappedSegment Segment { get; }
+
+        public bool Touched { get; set; }
     }
 }

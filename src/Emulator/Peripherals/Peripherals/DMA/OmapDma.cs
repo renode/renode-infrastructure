@@ -6,52 +6,48 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals;
-using Antmicro.Renode.Utilities;
-using System.Threading;
 
 namespace Antmicro.Renode.Peripherals.DMA
 {
     public class OmapDma : IDoubleWordPeripheral
     {
-        public OmapDma ()
+        public OmapDma()
         {
             channels = new Channel[32];
-            for(int i=0;i<32;i++)
+            for(int i = 0; i < 32; i++)
             {
                 channels[i] = new Channel();
-                channels[i].InterruptControl = (1u<<13) | (1u<<10) | (1u<<9); 
+                channels[i].InterruptControl = (1u << 13) | (1u << 10) | (1u << 9);
             }
             IRQ = new GPIO();
         }
 
-        public GPIO IRQ {get; private set;}
-
         #region IDoubleWordPeripheral implementation
-        public uint ReadDoubleWord (long offset)
+        public uint ReadDoubleWord(long offset)
         {
             uint index;
-            
-            if( (offset >= (long)InternalRegister.IRQStatusLinej) && (offset < (long)InternalRegister.IRQEnableLinej) )
+
+            if((offset >= (long)InternalRegister.IRQStatusLinej) && (offset < (long)InternalRegister.IRQEnableLinej))
             {
-                index = getIndex(offset,(uint)InternalRegister.IRQStatusLinej);
+                index = GetIndex(offset, (uint)InternalRegister.IRQStatusLinej);
                 return IRQStatus[index];
             }
-            if( (offset >= (long)InternalRegister.IRQEnableLinej) && (offset < (long)InternalRegister.SystemStatus) )
+            if((offset >= (long)InternalRegister.IRQEnableLinej) && (offset < (long)InternalRegister.SystemStatus))
             {
-                index = getIndex(offset,(uint)InternalRegister.IRQEnableLinej);
+                index = GetIndex(offset, (uint)InternalRegister.IRQEnableLinej);
                 return IRQEnable[index];
             }
-            
+
             if(offset >= (long)InternalRegister.ChannelsRegisters)
             {
-                index = getChannelIndex(offset);
-                uint channelOffset = getChannelOffset(offset, index);
-                
-                switch ((Channel.Offset)channelOffset)
+                index = GetChannelIndex(offset);
+                uint channelOffset = GetChannelOffset(offset, index);
+
+                switch((Channel.Offset)channelOffset)
                 {
                 case Channel.Offset.Control:
                     return channels[index].Control;
@@ -95,55 +91,54 @@ namespace Antmicro.Renode.Peripherals.DMA
                     return channels[index].StatusRegister;
                 }
             }
-            
-            switch ((InternalRegister)offset) 
+
+            switch((InternalRegister)offset)
             {
             case InternalRegister.Revision:
-                return revision;
+                return Revision;
             case InternalRegister.SystemStatus:
-                return systemStatus;  
+                return SystemStatus;
             case InternalRegister.SystemConfiguration:
                 return systemConfiguration;
             case InternalRegister.Capabilities0:
                 return capabilities0;
             case InternalRegister.Capabilities2:
-                return capabilities2;    
+                return Capabilities2;
             case InternalRegister.Capabilities3:
-                return capabilities3;
+                return Capabilities3;
             case InternalRegister.Capabilities4:
-                return capabilities4;    
+                return capabilities4;
             default:
                 this.LogUnhandledRead(offset);
                 return 0;
             }
         }
 
-        public void WriteDoubleWord (long offset, uint value)
+        public void WriteDoubleWord(long offset, uint value)
         {
             uint index;
             if(value != 0)
             {
-                this.Log(LogLevel.Info,"dummy");
+                this.Log(LogLevel.Info, "dummy");
             }
-            
-            
-            if( (offset >= (long)InternalRegister.IRQStatusLinej) && (offset < (long)InternalRegister.IRQEnableLinej) )
+
+            if((offset >= (long)InternalRegister.IRQStatusLinej) && (offset < (long)InternalRegister.IRQEnableLinej))
             {
-                index = getIndex(offset,(uint)InternalRegister.IRQStatusLinej);
+                index = GetIndex(offset, (uint)InternalRegister.IRQStatusLinej);
                 IRQStatus[index] = value;
             }
-            if( (offset >= (long)InternalRegister.IRQEnableLinej) && (offset < (long)InternalRegister.SystemConfiguration) )
+            if((offset >= (long)InternalRegister.IRQEnableLinej) && (offset < (long)InternalRegister.SystemConfiguration))
             {
-                index = getIndex(offset,(uint)InternalRegister.IRQEnableLinej);
+                index = GetIndex(offset, (uint)InternalRegister.IRQEnableLinej);
                 IRQEnable[index] = value;
             }
-            
+
             if(offset >= (long)InternalRegister.ChannelsRegisters)
             {
-                index = getChannelIndex(offset);
-                uint channelOffset = getChannelOffset(offset, index);
-                
-                switch ((Channel.Offset)channelOffset)
+                index = GetChannelIndex(offset);
+                uint channelOffset = GetChannelOffset(offset, index);
+
+                switch((Channel.Offset)channelOffset)
                 {
                 case Channel.Offset.Control:
                     channels[index].Control = value;
@@ -207,11 +202,11 @@ namespace Antmicro.Renode.Peripherals.DMA
                     break;
                 }
             }
-            
-            switch ((InternalRegister) offset)
+
+            switch((InternalRegister)offset)
             {
             case InternalRegister.SystemConfiguration:
-                systemConfiguration=value;
+                systemConfiguration = value;
                 break;
             case InternalRegister.Capabilities0:
                 capabilities0 = value;
@@ -226,29 +221,43 @@ namespace Antmicro.Renode.Peripherals.DMA
         }
         #endregion
 
-        public void Reset ()
+        public void Reset()
         {
-            throw new NotImplementedException ();
+            throw new NotImplementedException();
         }
-  
-        private uint getIndex(long offset, uint regBaseAddress)
+
+        public GPIO IRQ { get; private set; }
+
+        private uint GetIndex(long offset, uint regBaseAddress)
         {
-            return (uint)((offset - regBaseAddress)/0x04u);
+            return (uint)((offset - regBaseAddress) / 0x04u);
         }
-        
-        
-        private uint getChannelIndex(long offset)
+
+        private uint GetChannelIndex(long offset)
         {
-            return (uint)((offset - (uint)InternalRegister.ChannelsRegisters)/(uint)InternalRegister.ChannelRegisterLength);
+            return (uint)((offset - (uint)InternalRegister.ChannelsRegisters) / (uint)InternalRegister.ChannelRegisterLength);
         }
-        
-        private uint getChannelOffset(long offset, uint index)
+
+        private uint GetChannelOffset(long offset, uint index)
         {
             return (uint)(offset - (uint)InternalRegister.ChannelsRegisters - 0x60u * index);
         }
-        
-        private uint[] IRQStatus = new uint[4];
-        private uint[] IRQEnable = new uint[4];
+
+        private uint capabilities0 = (1u<<20)|(1u<<19)|(1u<<18);
+        private uint capabilities4 = 0x5dfe;
+        private uint systemConfiguration = 0;
+
+        private readonly Channel[] channels;
+
+        private readonly uint[] IRQStatus = new uint[4];
+        private readonly uint[] IRQEnable = new uint[4];
+
+        // RO
+        private const uint Revision = 0;//Revision 0.0 (Highter revision numbers reserved for future use)
+        private const uint SystemStatus = 1;//Reset done
+        private const uint Capabilities2 = 0x1f;
+        private const uint Capabilities3 = 0xf3;
+
         private struct Channel
         {
             public uint Control;
@@ -271,8 +280,8 @@ namespace Antmicro.Renode.Peripherals.DMA
             public uint LinkListParameters;
             public uint NextDescriptorPointer;
             public uint CurrentActiveDescriptor;
-            
-            public enum Offset:uint//register offsets in single channel register set
+
+            public enum Offset : uint//register offsets in single channel register set
             {
                 Control = 0x00,
                 LinkControl = 0x04,
@@ -296,20 +305,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                 CurrentActiveDescriptor = 0x5C
             }
         }
-        
-        
-        private Channel[] channels; 
-        private uint capabilities0 = (1u<<20)|(1u<<19)|(1u<<18);
-        private uint capabilities4 = 0x5dfe;
-        private uint systemConfiguration = 0;
-                
-        // RO
-        private const uint revision = 0;//Revision 0.0 (Highter revision numbers reserved for future use)
-        private const uint systemStatus = 1;//Reset done 
-        private const uint capabilities2 = 0x1f;
-        private const uint capabilities3 = 0xf3;
-        
-        private enum InternalRegister:uint
+
+        private enum InternalRegister : uint
         {
             Revision = 0x00,
             IRQStatusLinej = 0x08,//j = 0 .. 3 (each line register is 0x04 long)
@@ -322,7 +319,6 @@ namespace Antmicro.Renode.Peripherals.DMA
             Capabilities4 = 0x78,
             ChannelsRegisters = 0x80,
             ChannelRegisterLength = 0x60
-        }        
+        }
     }
 }
-

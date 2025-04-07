@@ -4,9 +4,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using System.Collections.Generic;
-
 namespace Antmicro.Renode.Peripherals.CPU
 {
     public struct GDBRegisterDescriptor
@@ -21,10 +18,13 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         public uint Number { get; }
+
         public uint Size { get; }
+
         public string Name { get; }
+
         public string Type { get; }
+
         public string Group { get; }
     }
 }
-

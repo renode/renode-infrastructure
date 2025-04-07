@@ -6,9 +6,10 @@
 //
 
 using System;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Core.Structure.Registers;
 using System.Collections.Generic;
+
+using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.I2C
 {
@@ -68,7 +69,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             {
                 TryGetPageInBookOrDefault((int)deviceBook.Value, (int)devicePage.Value, out var page);
                 return page;
-            } 
+            }
         }
 
         private void ResetState()
@@ -81,18 +82,18 @@ namespace Antmicro.Renode.Peripherals.I2C
         {
             switch(state)
             {
-                case State.CollectingAddress:
-                    address = b;
-                    this.NoisyLog("Setting register address to 0x{0:X}", address);
-                    state = State.Processing;
-                    break;
-                case State.Processing:
-                    this.NoisyLog("Writing value 0x{0:X} to register 0x{1:X}", b, address);
-                    RegistersCollection.Write(address, b);
-                    SetNextAddress();
-                    break;
-                default:
-                    throw new ArgumentException($"Unexpected state: {state}");
+            case State.CollectingAddress:
+                address = b;
+                this.NoisyLog("Setting register address to 0x{0:X}", address);
+                state = State.Processing;
+                break;
+            case State.Processing:
+                this.NoisyLog("Writing value 0x{0:X} to register 0x{1:X}", b, address);
+                RegistersCollection.Write(address, b);
+                SetNextAddress();
+                break;
+            default:
+                throw new ArgumentException($"Unexpected state: {state}");
             }
         }
 
@@ -123,7 +124,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             var page = new ByteRegisterCollection(this);
 
             Book0Page0Registers.DevicePage.Define(page)
-                .WithValueField(0, 8, out devicePage, changeCallback: (_ , __) =>
+                .WithValueField(0, 8, out devicePage, changeCallback: (_, __) =>
                 {
                     if(!TryGetPageInBookOrDefault((int)deviceBook.Value, (int)devicePage.Value, out var unused))
                     {

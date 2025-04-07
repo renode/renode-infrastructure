@@ -6,18 +6,21 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Runtime.Serialization;
+using System.Text;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Utilities;
-using System.Collections.Generic;
-using System.Reflection;
-using System.Linq;
-using System.Text;
-using System.Runtime.Serialization;
+
 using Dynamitey;
+
 using Microsoft.CSharp.RuntimeBinder;
 
 //HACK!Type.IsPrimitive/IsEnum is used in some test due to the bug in mono 3.2.0.
@@ -29,12 +32,240 @@ namespace Antmicro.Renode.Config.Devices
 {
     public class DevicesConfig
     {
-        private readonly Dictionary<string, List<DeviceInfo>> groups = new Dictionary<string, List<DeviceInfo>>();
-        private Dictionary<KeyValuePair<string, dynamic>, string> deferred = new Dictionary<KeyValuePair<string, dynamic>, string>();
-        private List<DeviceInfo> deviceList = new List<DeviceInfo>();
-        private static string DefaultNamespace = "Antmicro.Renode.Peripherals.";
+        public static IEnumerable<DeviceInfo> GetShortInfo(string filename)
+        {
+            var devices = ((JsonObject)SimpleJson.DeserializeObject<dynamic>(File.ReadAllText(filename))).ToList();
+            // flattening peripheral groups
+            var arrays = devices.Where(d => d.Value is JsonArray).ToList();
+            arrays.ForEach(a => devices.Remove(a));
+            arrays.Select(a => a.Value).Cast<JsonArray>().SelectMany(y => y).Cast<JsonObject>().ToList().ForEach(x => devices.AddRange(x));
 
-        public List<DeviceInfo> DeviceList{ get { return deviceList; } }
+            foreach(var device in devices)
+            {
+                var info = new DeviceInfo();
+                info.Name = device.Key;
+                dynamic devContent = device.Value;
+                if(devContent == null)
+                {
+                    FailDevice(device.Key);
+                }
+
+                if(!devContent.ContainsKey(TYPE_NODE))
+                {
+                    FailDevice(device.Key, TYPE_NODE);
+                }
+                var typeName = (string)devContent[TYPE_NODE];
+
+                var devType = GetDeviceTypeFromName(typeName);
+                if(devType == null)
+                {
+                    FailDevice(device.Key, TYPE_NODE);
+                }
+                info.Type = devType;
+
+                if(devContent.ContainsKey(CONNECTION_NODE))
+                {
+                    InitializeConnections(info, devContent[CONNECTION_NODE]);
+                }
+                yield return info;
+            }
+        }
+
+        public DevicesConfig(string text, IMachine machine)
+        {
+            try
+            {
+                var devices = SimpleJson.DeserializeObject<dynamic>(text);
+                this.machine = machine;
+                //Every main node is one peripheral/device
+                foreach(var dev in devices)
+                {
+                    InitializeDevice(dev);
+                }
+
+                while(deferred.Count > 0)
+                {
+                    var lastCount = deferred.Count;
+                    foreach(var deferredDevice in deferred.ToList())
+                    {
+                        if(InitializeDevice(deferredDevice.Key, deferredDevice.Value))
+                        {
+                            deferred.Remove(deferredDevice.Key);
+                        }
+                    }
+
+                    if(lastCount == deferred.Count)
+                    {
+                        throw new ConstructionException("The provided configuration is not consistent. Some devices could not have been created due to wrong references.");
+                    }
+                }
+
+                //Initialize connections
+                while(deviceList.Any(x => !x.IsRegistered))
+                {
+                    var anyChange = false;
+                    //setup connections
+                    foreach(var periConn in deviceList.Where(x => !x.IsRegistered && x.HasConnections))
+                    {
+                        var parents = new Dictionary<string, IPeripheral>();
+                        foreach(var conn in periConn.Connections.Select(x => x.Key))
+                        {
+                            var fromList = deviceList.SingleOrDefault(x => x.Name == conn);
+                            if(fromList != null)
+                            {
+                                parents.Add(conn, fromList.Peripheral);
+                            }
+                            else
+                            {
+                                IPeripheral candidate;
+                                if(!machine.TryGetByName(conn, out candidate))
+                                {
+                                    FailDevice(periConn.Name, "connection to " + conn, null);
+                                }
+                                parents.Add(conn, candidate);
+                            }
+                        }
+
+                        var canBeRegistered = parents.All(x => machine.IsRegistered(x.Value));
+                        if(canBeRegistered)
+                        {
+                            RegisterInParents(periConn, parents);
+                            periConn.IsRegistered = true;
+                            anyChange = true;
+                        }
+                    }
+                    if(!anyChange)
+                    {
+                        var invalidDevices = deviceList.Where(x => !x.IsRegistered).Select(x => x.Name).Aggregate((x, y) => x + ", " + y);
+                        throw new RegistrationException("The " +
+                        "provided configuration is not consistent. The following devices could not have been registered: "
+                        + invalidDevices
+                        );
+                    }
+                }
+
+                foreach(var device in deviceList.Where(x => x.Irqs.Any()))
+                {
+                    InitializeGPIOs(device);
+                }
+
+                foreach(var device in deviceList.Where(x => x.IrqsFrom.Any()))
+                {
+                    InitializeGPIOsFrom(device);
+                }
+            }
+            catch(SerializationException e)
+            {
+                throw new RecoverableException("Invalid JSON string.", e);
+            }
+            catch(RuntimeBinderException e)
+            {
+                throw new RecoverableException("The config file could not be analyzed. You should reset your current emulation.", e);
+            }
+
+            foreach(var group in groups)
+            {
+                machine.PeripheralsGroups.GetOrCreate(group.Key, group.Value.Select(x => x.Peripheral));
+            }
+
+            foreach(var device in deviceList)
+            {
+                machine.SetLocalName(device.Peripheral, device.Name);
+            }
+        }
+
+        public IList<ConstructorInfo> FindSuitableConstructors(Type type, IEnumerable<string> parameters)
+        {
+            var goodCtors = new List<ConstructorInfo>();
+            foreach(var ctor in type.GetConstructors())
+            {
+                var unusableFound = false;
+                // every parameter in 'parameters' must be present in the constructor
+                var ctorParams = ctor.GetParameters();
+                if(!parameters.All(x => ctorParams.FirstOrDefault(y => y.Name == x) != null))
+                {
+                    continue;
+                }
+
+                // every argument in ctor must either be present in 'parameters' or set to default
+                foreach(var param in ctorParams)
+                {
+                    if(!parameters.Contains(param.Name))
+                    {
+                        if(!param.IsOptional && !typeof(IMachine).IsAssignableFrom(param.ParameterType))
+                        {
+                            unusableFound = true;
+                        }
+                    }
+                }
+                if(unusableFound)
+                {
+                    continue;
+                }
+                goodCtors.Add(ctor);
+            }
+            return goodCtors;
+        }
+
+        public List<DeviceInfo> DeviceList { get { return deviceList; } }
+
+        private static bool TryHandleSingleton(Type type, out object instance)
+        {
+            var properties = type.GetProperties();
+            var desiredProperty = properties.FirstOrDefault(x => x.Name == "Instance" && x.PropertyType == type);
+            if(desiredProperty == null)
+            {
+                instance = null;
+                return false;
+            }
+            // We have to use reflection-based approach because of a bug in Mono 5.2:
+            // https://bugzilla.xamarin.com/show_bug.cgi?id=58455
+            //
+            //instance = Dynamic.InvokeGet(InvokeContext.CreateStatic(type), desiredProperty.Name);
+            instance = desiredProperty.GetGetMethod().Invoke(null, Type.EmptyTypes);
+            return true;
+        }
+
+        private static bool IsSpecializationOfRawGeneric(Type generic, Type toCheck)
+        {
+            var cur = toCheck.IsGenericType ? toCheck.GetGenericTypeDefinition() : toCheck;
+            if(generic == cur)
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        private static void InitializeConnections(DeviceInfo device, string connection)
+        {
+            if(string.IsNullOrWhiteSpace(connection))
+            {
+                FailDevice(device.Name, CONNECTION_NODE);
+            }
+            device.AddConnection(connection);
+        }
+
+        private static void InitializeConnections(DeviceInfo device, IDictionary<string, dynamic> connections)
+        {
+            if(connections == null)
+            {
+                FailDevice(device.Name, CONNECTION_NODE);
+            }
+            foreach(var container in connections.Keys)
+            {
+                var conDict = connections[container];
+                device.AddConnection(container, conDict);
+            }
+        }
+
+        private static Type GetDeviceTypeFromName(string typeName)
+        {
+            var extendedTypeName = typeName.StartsWith(DefaultNamespace, StringComparison.Ordinal) ? typeName : DefaultNamespace + typeName;
+
+            var manager = TypeManager.Instance;
+            return manager.TryGetTypeByName(typeName) ?? manager.TryGetTypeByName(extendedTypeName);
+        }
 
         private static void FailDevice(string deviceName, string field = null, Exception e = null)
         {
@@ -63,151 +294,7 @@ namespace Antmicro.Renode.Config.Devices
             throw new RecoverableException(msg.ToString());
         }
 
-        private static Type GetDeviceTypeFromName(string typeName)
-        {
-            var extendedTypeName = typeName.StartsWith(DefaultNamespace, StringComparison.Ordinal) ? typeName : DefaultNamespace + typeName;
-
-            var manager = TypeManager.Instance;
-            return manager.TryGetTypeByName(typeName) ?? manager.TryGetTypeByName(extendedTypeName);
-        }
-
-        private bool InitializeDevice(KeyValuePair<string, dynamic> description, string groupName = null)
-        {
-            if(description.Value is JsonArray)
-            {
-                if(!groups.ContainsKey(description.Key))
-                {
-                    groups.Add(description.Key, new List<DeviceInfo>());
-                }
-                var x = groups[description.Key];
-
-                var any = false;
-                foreach(var element in description.Value)
-                {
-                    var dev = InitializeSingleDevice(new KeyValuePair<string, dynamic>(element.Keys[0], element.Values[0]), description.Key);
-                    if(dev != null)
-                    {
-                        deviceList.Add(dev);
-                        x.Add(dev);
-                        any = true;
-                    }
-                }
-
-                return any;
-            }
-            else if(description.Value is JsonObject)
-            {
-                var dev = InitializeSingleDevice(description);
-                if(dev != null)
-                {
-                    deviceList.Add(dev);
-                    if(groupName != null)
-                    {
-                        if(!groups.ContainsKey(groupName))
-                        {
-                            groups.Add(groupName, new List<DeviceInfo>());
-                        }
-                        groups[groupName].Add(dev);
-                    }
-                    return true;
-                }
-            }
-            else
-            {
-                FailDevice(description.Key);
-            }
-
-            return false;
-        }
-
-        /// Required/possible nodes:
-        /// _type
-        /// _irq/_gpio - optional
-        /// _connection - optional?
-        /// ctorParam
-        /// PropertyWithSetter
-        private DeviceInfo InitializeSingleDevice(KeyValuePair<string, dynamic> device, string groupName = null)
-        {
-            var info = new DeviceInfo();
-            info.Name = device.Key;
-            var devContent = device.Value;
-            if(devContent == null)
-            {
-                FailDevice(info.Name);
-            }
-
-            //Type
-            if(!devContent.ContainsKey(TYPE_NODE))
-            {
-                FailDevice(info.Name, TYPE_NODE);
-            }
-            var typeName = (string)devContent[TYPE_NODE];
-
-            var devType = GetDeviceTypeFromName(typeName);
-            if(devType == null)
-            {
-                FailDevice(info.Name, TYPE_NODE);
-            }
-
-            object peripheral;
-            //Constructor
-            if(!TryInitializeCtor(devType, devContent, out peripheral))
-            {
-                FailDevice(info.Name, "constructor_invoke");
-            }
-            if(peripheral == null)
-            {
-                // special case when construction of the object has been deferred
-                deferred.Add(device, groupName);
-                return null;
-            }
-            devContent.Remove(TYPE_NODE);
-
-            info.Peripheral = (IPeripheral)peripheral;
-
-            //Properties
-            try
-            {
-                InitializeProperties(info.Peripheral, devContent);
-            }
-            catch(InvalidOperationException e)
-            {
-                FailDevice(info.Name, e.Message, e.InnerException);
-            }
-
-            //GPIOs
-            if(devContent.ContainsKey(IRQ_NODE))
-            {
-                info.AddIrq(IRQ_NODE, devContent[IRQ_NODE]);
-                devContent.Remove(IRQ_NODE);
-            }
-            else if(devContent.ContainsKey(GPIO_NODE))
-            {
-                info.AddIrq(GPIO_NODE, devContent[GPIO_NODE]);
-                devContent.Remove(GPIO_NODE);
-            }
-
-            //IRQs From
-            if(devContent.ContainsKey(IRQ_FROM_NODE))
-            {
-                info.AddIrqFrom(IRQ_FROM_NODE, devContent[IRQ_FROM_NODE]);
-                devContent.Remove(IRQ_FROM_NODE);
-            }
-            else if(devContent.ContainsKey(GPIO_FROM_NODE))
-            {
-                info.AddIrqFrom(GPIO_FROM_NODE, devContent[GPIO_FROM_NODE]);
-                devContent.Remove(GPIO_FROM_NODE);
-            }
-
-            //Connections
-            if(devContent.ContainsKey(CONNECTION_NODE))
-            {
-                InitializeConnections(info, devContent[CONNECTION_NODE]);
-                devContent.Remove(CONNECTION_NODE);
-            }
-
-            return info;
-        }
+        private static readonly string DefaultNamespace = "Antmicro.Renode.Peripherals.";
 
         private void InitializeGPIOsFrom(DeviceInfo device)
         {
@@ -352,50 +439,6 @@ namespace Antmicro.Renode.Config.Devices
             }
         }
 
-        //[source,dest] or [dest] with non-null defaultConnector
-        void InitializeGPIO(IPeripheral device, string deviceName, IGPIOReceiver receiver, IList<int> irqEntry, PropertyInfo defaultConnector)
-        {
-            var periByNumber = device as INumberedGPIOOutput;
-            if(irqEntry.Count == 2 && periByNumber != null)
-            {
-                periByNumber.Connections[irqEntry[0]].Connect(receiver, irqEntry[1]);
-            }
-            else if(irqEntry.Count == 1 && defaultConnector != null)
-            {
-                var gpioField = defaultConnector.GetValue(device, null) as GPIO;
-                if(gpioField == null)
-                {
-                    FailDevice(deviceName);
-                }
-                gpioField.Connect(receiver, irqEntry[0]);
-            }
-            else
-            {
-                throw new ArgumentException();
-            }
-        }
-
-        void InitializeGPIO(IPeripheral device, string deviceName, IGPIOReceiver receiver, IList<object> irqEntry, PropertyInfo defaultConnector)
-        {
-            if(!(irqEntry[0] is string && irqEntry[1] is int))
-            {
-                throw new ArgumentException();
-            }
-            //May throw AmbiguousMatchException - then use BindingFlags.DeclaredOnly or sth
-            var connector = device.GetType().GetProperty(irqEntry[0] as string);
-            if(connector == null)
-            {
-                throw new ArgumentException();
-            }
-            var gpio = connector.GetValue(device, null) as GPIO;
-            if(gpio == null)
-            {
-                FailDevice(deviceName);
-            }
-            gpio.Connect(receiver, (int)irqEntry[1]);
-
-        }
-
         private bool IsShortNotation(IPeripheral peripheral, PropertyInfo defaultConnector, IList<dynamic> entry)
         {
             return (peripheral is INumberedGPIOOutput && entry.Count == 2 && entry.All(x => x is int))
@@ -403,31 +446,89 @@ namespace Antmicro.Renode.Config.Devices
             || (entry.Count == 2 && entry[0] is String && entry[1] is int);
         }
 
-        private static void InitializeConnections(DeviceInfo device, IDictionary<string, dynamic> connections)
+        private dynamic GenerateObject(IList<dynamic> value, Type type)
         {
-            if(connections == null)
+            Type innerType = typeof(object);
+            var isArray = type.IsArray;
+            if(type.IsGenericType)
             {
-                FailDevice(device.Name, CONNECTION_NODE);
+                innerType = type.GetGenericArguments()[0];
             }
-            foreach(var container in connections.Keys)
+            else if(isArray)
             {
-                var conDict = connections[container];
-                device.AddConnection(container, conDict);
+                innerType = type.GetElementType();
             }
+
+            var list = isArray ? Dynamic.InvokeConstructor(typeof(List<>).MakeGenericType(innerType)) : Dynamic.InvokeConstructor(type);
+            foreach(var item in value)
+            {
+                var obj = GenerateObject(item, innerType);
+                //HACK: The reason of the following line is described at the top of this class.
+                if(!innerType.IsPrimitive && !innerType.IsEnum && Nullable.GetUnderlyingType(innerType) == null && obj == null)
+                {
+                    return null;
+                }
+                list.Add(obj);
+            }
+            if(isArray)
+            {
+                return list.ToArray();
+            }
+            return list;
         }
 
-        private static void InitializeConnections(DeviceInfo device, string connection)
+        private bool InitializeDevice(KeyValuePair<string, dynamic> description, string groupName = null)
         {
-            if(string.IsNullOrWhiteSpace(connection))
+            if(description.Value is JsonArray)
             {
-                FailDevice(device.Name, CONNECTION_NODE);
+                if(!groups.ContainsKey(description.Key))
+                {
+                    groups.Add(description.Key, new List<DeviceInfo>());
+                }
+                var x = groups[description.Key];
+
+                var any = false;
+                foreach(var element in description.Value)
+                {
+                    var dev = InitializeSingleDevice(new KeyValuePair<string, dynamic>(element.Keys[0], element.Values[0]), description.Key);
+                    if(dev != null)
+                    {
+                        deviceList.Add(dev);
+                        x.Add(dev);
+                        any = true;
+                    }
+                }
+
+                return any;
             }
-            device.AddConnection(connection);
+            else if(description.Value is JsonObject)
+            {
+                var dev = InitializeSingleDevice(description);
+                if(dev != null)
+                {
+                    deviceList.Add(dev);
+                    if(groupName != null)
+                    {
+                        if(!groups.ContainsKey(groupName))
+                        {
+                            groups.Add(groupName, new List<DeviceInfo>());
+                        }
+                        groups[groupName].Add(dev);
+                    }
+                    return true;
+                }
+            }
+            else
+            {
+                FailDevice(description.Key);
+            }
+
+            return false;
         }
 
         private void InitializeProperties(object device, IDictionary<string, dynamic> node)
         {
-            foreach(var item in node.Keys.Where(x=>Char.IsUpper(x,0)))
+            foreach(var item in node.Keys.Where(x => Char.IsUpper(x, 0)))
             {
                 var value = node[item];
                 try
@@ -438,148 +539,6 @@ namespace Antmicro.Renode.Config.Devices
                 {
                     throw new RecoverableException(item, e);
                 }
-            }
-        }
-
-        public DevicesConfig(string text, IMachine machine)
-        {
-            try
-            {
-                var devices = SimpleJson.DeserializeObject<dynamic>(text);
-                this.machine = machine;
-                //Every main node is one peripheral/device
-                foreach(var dev in devices)
-                {
-                    InitializeDevice(dev);
-                }
-
-                while(deferred.Count > 0)
-                {
-                    var lastCount = deferred.Count;
-                    foreach(var deferredDevice in deferred.ToList())
-                    {
-                        if(InitializeDevice(deferredDevice.Key, deferredDevice.Value))
-                        {
-                            deferred.Remove(deferredDevice.Key);
-                        }
-                    }
-
-                    if(lastCount == deferred.Count)
-                    {
-                        throw new ConstructionException("The provided configuration is not consistent. Some devices could not have been created due to wrong references.");
-                    }
-                }
-
-                //Initialize connections
-                while(deviceList.Any(x => !x.IsRegistered))
-                {
-                    var anyChange = false;
-                    //setup connections
-                    foreach(var periConn in deviceList.Where(x=> !x.IsRegistered && x.HasConnections))
-                    {
-                        var parents = new Dictionary<string, IPeripheral>();
-                        foreach(var conn in periConn.Connections.Select(x=>x.Key))
-                        {
-                            var fromList = deviceList.SingleOrDefault(x => x.Name == conn);
-                            if(fromList != null)
-                            {
-                                parents.Add(conn, fromList.Peripheral);
-                            }
-                            else
-                            {
-                                IPeripheral candidate;
-                                if(!machine.TryGetByName(conn, out candidate))
-                                {
-                                    FailDevice(periConn.Name, "connection to " + conn, null);
-                                }
-                                parents.Add(conn, candidate);
-                            }
-                        }
-
-                        var canBeRegistered = parents.All(x => machine.IsRegistered(x.Value));
-                        if(canBeRegistered)
-                        {
-                            RegisterInParents(periConn, parents);
-                            periConn.IsRegistered = true;
-                            anyChange = true;
-                        }
-                    }
-                    if(!anyChange)
-                    {
-                        var invalidDevices = deviceList.Where(x => !x.IsRegistered).Select(x => x.Name).Aggregate((x, y) => x + ", " + y);
-                        throw new RegistrationException("The " +
-                        "provided configuration is not consistent. The following devices could not have been registered: "
-                        + invalidDevices
-                        );
-                    }
-                }
-
-                foreach(var device in deviceList.Where(x=>x.Irqs.Any()))
-                {
-                    InitializeGPIOs(device);
-                }
-
-                foreach(var device in deviceList.Where(x=>x.IrqsFrom.Any()))
-                {
-                    InitializeGPIOsFrom(device);
-                }
-            }
-            catch(SerializationException e)
-            {
-                throw new RecoverableException("Invalid JSON string.", e);
-            }
-            catch(RuntimeBinderException e)
-            {
-                throw new RecoverableException("The config file could not be analyzed. You should reset your current emulation.", e);
-            }
-
-            foreach(var group in groups)
-            {
-                machine.PeripheralsGroups.GetOrCreate(group.Key, group.Value.Select(x => x.Peripheral));
-            }
-
-            foreach(var device in deviceList)
-            {
-                machine.SetLocalName(device.Peripheral, device.Name);
-            }
-        }
-
-        public static IEnumerable<DeviceInfo> GetShortInfo(string filename)
-        {
-            var devices = ((JsonObject)SimpleJson.DeserializeObject<dynamic>(File.ReadAllText(filename))).ToList();
-            // flattening peripheral groups
-            var arrays = devices.Where(d => d.Value is JsonArray).ToList();
-            arrays.ForEach(a => devices.Remove(a));
-            arrays.Select(a => a.Value).Cast<JsonArray>().SelectMany(y => y).Cast<JsonObject>().ToList().ForEach(x => devices.AddRange(x));
-
-            foreach(var device in devices)
-            {
-                var info = new DeviceInfo();
-                info.Name = device.Key;
-                dynamic devContent = device.Value;
-                if(devContent == null)
-                {
-                    FailDevice(device.Key);
-                }
-
-                if(!devContent.ContainsKey(TYPE_NODE))
-                {
-                    FailDevice(device.Key, TYPE_NODE);
-                }
-                var typeName = (string)devContent[TYPE_NODE];
-
-                var devType = GetDeviceTypeFromName(typeName);
-                if(devType == null)
-                {
-                    FailDevice(device.Key, TYPE_NODE);
-                }
-                info.Type = devType;
-
-                if(devContent.ContainsKey(CONNECTION_NODE))
-                {
-                    InitializeConnections(info, devContent[CONNECTION_NODE]);
-                }
-                yield return info;
             }
         }
 
@@ -649,35 +608,7 @@ namespace Antmicro.Renode.Config.Devices
             }
         }
 
-        private static bool IsSpecializationOfRawGeneric(Type generic, Type toCheck)
-        {
-            var cur = toCheck.IsGenericType ? toCheck.GetGenericTypeDefinition() : toCheck;
-            if(generic == cur)
-            {
-                return true;
-            }
-
-            return false;
-        }
-
-        private static bool TryHandleSingleton(Type type, out object instance)
-        {
-            var properties = type.GetProperties();
-            var desiredProperty = properties.FirstOrDefault(x => x.Name == "Instance" && x.PropertyType == type);
-            if(desiredProperty == null)
-            {
-                instance = null;
-                return false;
-            }
-            // We have to use reflection-based approach because of a bug in Mono 5.2:
-            // https://bugzilla.xamarin.com/show_bug.cgi?id=58455
-            //
-            //instance = Dynamic.InvokeGet(InvokeContext.CreateStatic(type), desiredProperty.Name);
-            instance = desiredProperty.GetGetMethod().Invoke(null, Type.EmptyTypes);
-            return true;
-        }
-
-        private bool TryInitializeCtor(Type devType, IDictionary<string,dynamic> node, out object constructedObject)
+        private bool TryInitializeCtor(Type devType, IDictionary<string, dynamic> node, out object constructedObject)
         {
             //Find best suitable constructor, sort parameter list and create instance. Constructor parameters begin with [a-z]
             var constructors = FindSuitableConstructors(devType, node.Where(x => Char.IsLower(x.Key, 0)).Select(x => x.Key));
@@ -776,69 +707,140 @@ namespace Antmicro.Renode.Config.Devices
             return obj;
         }
 
-        private dynamic GenerateObject(IList<dynamic> value, Type type)
+        /// Required/possible nodes:
+        /// _type
+        /// _irq/_gpio - optional
+        /// _connection - optional?
+        /// ctorParam
+        /// PropertyWithSetter
+        private DeviceInfo InitializeSingleDevice(KeyValuePair<string, dynamic> device, string groupName = null)
         {
-            Type innerType = typeof(object);
-            var isArray = type.IsArray;
-            if(type.IsGenericType)
+            var info = new DeviceInfo();
+            info.Name = device.Key;
+            var devContent = device.Value;
+            if(devContent == null)
             {
-                innerType = type.GetGenericArguments()[0];
-            }
-            else if(isArray)
-            {
-                innerType = type.GetElementType();
+                FailDevice(info.Name);
             }
 
-            var list = isArray ? Dynamic.InvokeConstructor(typeof(List<>).MakeGenericType(innerType)) : Dynamic.InvokeConstructor(type);
-            foreach(var item in value)
+            //Type
+            if(!devContent.ContainsKey(TYPE_NODE))
             {
-                var obj = GenerateObject(item, innerType);
-                //HACK: The reason of the following line is described at the top of this class.
-                if(!innerType.IsPrimitive && !innerType.IsEnum && Nullable.GetUnderlyingType(innerType) == null && obj == null)
-                {
-                    return null;
-                }
-                list.Add(obj);
+                FailDevice(info.Name, TYPE_NODE);
             }
-            if(isArray)
+            var typeName = (string)devContent[TYPE_NODE];
+
+            var devType = GetDeviceTypeFromName(typeName);
+            if(devType == null)
             {
-                return list.ToArray();
+                FailDevice(info.Name, TYPE_NODE);
             }
-            return list;
+
+            object peripheral;
+            //Constructor
+            if(!TryInitializeCtor(devType, devContent, out peripheral))
+            {
+                FailDevice(info.Name, "constructor_invoke");
+            }
+            if(peripheral == null)
+            {
+                // special case when construction of the object has been deferred
+                deferred.Add(device, groupName);
+                return null;
+            }
+            devContent.Remove(TYPE_NODE);
+
+            info.Peripheral = (IPeripheral)peripheral;
+
+            //Properties
+            try
+            {
+                InitializeProperties(info.Peripheral, devContent);
+            }
+            catch(InvalidOperationException e)
+            {
+                FailDevice(info.Name, e.Message, e.InnerException);
+            }
+
+            //GPIOs
+            if(devContent.ContainsKey(IRQ_NODE))
+            {
+                info.AddIrq(IRQ_NODE, devContent[IRQ_NODE]);
+                devContent.Remove(IRQ_NODE);
+            }
+            else if(devContent.ContainsKey(GPIO_NODE))
+            {
+                info.AddIrq(GPIO_NODE, devContent[GPIO_NODE]);
+                devContent.Remove(GPIO_NODE);
+            }
+
+            //IRQs From
+            if(devContent.ContainsKey(IRQ_FROM_NODE))
+            {
+                info.AddIrqFrom(IRQ_FROM_NODE, devContent[IRQ_FROM_NODE]);
+                devContent.Remove(IRQ_FROM_NODE);
+            }
+            else if(devContent.ContainsKey(GPIO_FROM_NODE))
+            {
+                info.AddIrqFrom(GPIO_FROM_NODE, devContent[GPIO_FROM_NODE]);
+                devContent.Remove(GPIO_FROM_NODE);
+            }
+
+            //Connections
+            if(devContent.ContainsKey(CONNECTION_NODE))
+            {
+                InitializeConnections(info, devContent[CONNECTION_NODE]);
+                devContent.Remove(CONNECTION_NODE);
+            }
+
+            return info;
         }
 
-        public IList<ConstructorInfo> FindSuitableConstructors(Type type, IEnumerable<string> parameters)
+        private readonly List<DeviceInfo> deviceList = new List<DeviceInfo>();
+        private readonly Dictionary<KeyValuePair<string, dynamic>, string> deferred = new Dictionary<KeyValuePair<string, dynamic>, string>();
+        private readonly Dictionary<string, List<DeviceInfo>> groups = new Dictionary<string, List<DeviceInfo>>();
+
+        //[source,dest] or [dest] with non-null defaultConnector
+        void InitializeGPIO(IPeripheral device, string deviceName, IGPIOReceiver receiver, IList<int> irqEntry, PropertyInfo defaultConnector)
         {
-            var goodCtors = new List<ConstructorInfo>();
-            foreach(var ctor in type.GetConstructors())
+            var periByNumber = device as INumberedGPIOOutput;
+            if(irqEntry.Count == 2 && periByNumber != null)
             {
-                var unusableFound = false;
-                // every parameter in 'parameters' must be present in the constructor
-                var ctorParams = ctor.GetParameters();
-                if(!parameters.All(x => ctorParams.FirstOrDefault(y => y.Name == x) != null))
-                {
-                    continue;
-                }
-
-                // every argument in ctor must either be present in 'parameters' or set to default
-                foreach(var param in ctorParams)
-                {
-                    if(!parameters.Contains(param.Name))
-                    {
-
-                        if(!param.IsOptional && !typeof(IMachine).IsAssignableFrom(param.ParameterType))
-                        {
-                            unusableFound = true;
-                        }
-                    }
-                }
-                if(unusableFound)
-                {
-                    continue;
-                }
-                goodCtors.Add(ctor);
+                periByNumber.Connections[irqEntry[0]].Connect(receiver, irqEntry[1]);
             }
-            return goodCtors;
+            else if(irqEntry.Count == 1 && defaultConnector != null)
+            {
+                var gpioField = defaultConnector.GetValue(device, null) as GPIO;
+                if(gpioField == null)
+                {
+                    FailDevice(deviceName);
+                }
+                gpioField.Connect(receiver, irqEntry[0]);
+            }
+            else
+            {
+                throw new ArgumentException();
+            }
+        }
+
+        void InitializeGPIO(IPeripheral device, string deviceName, IGPIOReceiver receiver, IList<object> irqEntry, PropertyInfo _)
+        {
+            if(!(irqEntry[0] is string && irqEntry[1] is int))
+            {
+                throw new ArgumentException();
+            }
+            //May throw AmbiguousMatchException - then use BindingFlags.DeclaredOnly or sth
+            var connector = device.GetType().GetProperty(irqEntry[0] as string);
+            if(connector == null)
+            {
+                throw new ArgumentException();
+            }
+            var gpio = connector.GetValue(device, null) as GPIO;
+            if(gpio == null)
+            {
+                FailDevice(deviceName);
+            }
+            gpio.Connect(receiver, (int)irqEntry[1]);
         }
 
         private readonly IMachine machine;
@@ -851,4 +853,3 @@ namespace Antmicro.Renode.Config.Devices
         private const string CONNECTION_NODE = "_connection";
     }
 }
-

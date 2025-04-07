@@ -5,8 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Logging;
+
 using Antmicro.Renode.Network;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU;
@@ -16,74 +15,6 @@ namespace Antmicro.Renode.Peripherals.Network
 {
     public partial class SynopsysDWCEthernetQualityOfService
     {
-        private abstract class Descriptor
-        {
-            public Descriptor(IBusController bus, ulong address, ICPU cpuContext = null)
-            {
-                this.bus = bus;
-                this.cpuContext = cpuContext;
-                Address = address;
-                this.data = new byte[Size];
-            }
-
-            public virtual void Fetch()
-            {
-                bus.ReadBytes(Address, (int)Size, data, 0, true, cpuContext);
-                var structure = Packet.Decode<MinimalCommonDescriptor>(data);
-                UpdateProperties(structure);
-            }
-
-            public void Write()
-            {
-                bus.WriteBytes(data, Address, context: cpuContext);
-            }
-
-            public void SetDescriptor<T>(T structure) where T : IDescriptorStruct
-            {
-                type = typeof(T);
-                data = Packet.Encode<T>(structure);
-                UpdateProperties(structure);
-            }
-
-            protected void UpdateProperties(IDescriptorStruct structure)
-            {
-                IsOwnedByDMA = structure.Owner == DescriptorOwner.DMA;
-                isContextDescriptor = structure.ContextType;
-            }
-
-            public Type Type => type;
-            public ulong Address { get; }
-            public bool? IsOwnedByDMA { get; protected set; }
-            public static uint Size => 0x10;
-
-            protected bool? isContextDescriptor;
-            protected Type type;
-            protected byte[] data;
-
-            private readonly IBusController bus;
-            private readonly ICPU cpuContext;
-
-            public interface IDescriptorStruct
-            {
-                bool ContextType { get; }
-                DescriptorOwner Owner { get; }
-            }
-
-            [LeastSignificantByteFirst]
-            private struct MinimalCommonDescriptor : IDescriptorStruct
-            {
-                public bool ContextType => contextType;
-                public DescriptorOwner Owner => owner;
-
-#pragma warning disable 649
-                [PacketField, Offset(doubleWords: 3, bits: 30), Width(1)] // CTXT
-                public bool contextType;
-                [PacketField, Offset(doubleWords: 3, bits: 31), Width(1)] // OWN
-                public DescriptorOwner owner;
-#pragma warning restore 649
-            }
-        }
-
         private class RxDescriptor : Descriptor
         {
             public RxDescriptor(IBusController bus, ulong address, ICPU cpuContext = null) : base(bus, address, cpuContext)
@@ -120,32 +51,34 @@ namespace Antmicro.Renode.Peripherals.Network
                 }
 
                 public string PrettyString => $@"NormalReadRxDescriptor {{
-    buffer1Address: 0x{buffer1Address:X},
-    buffer2Address: 0x{buffer2Address:X},
-    buffer1AddressValid: {buffer1AddressValid},
-    buffer2AddressValid: {buffer2AddressValid},
-    interruptOnCompletion: {interruptOnCompletion},
-    owner: {owner}
+    buffer1Address: 0x{Buffer1Address:X},
+    buffer2Address: 0x{Buffer2Address:X},
+    buffer1AddressValid: {Buffer1AddressValid},
+    buffer2AddressValid: {Buffer2AddressValid},
+    interruptOnCompletion: {InterruptOnCompletion},
+    owner: {Owner}
 }}";
+
                 public bool ContextType => false;
-                public DescriptorOwner Owner => owner;
+
+                public DescriptorOwner Owner => OwnerField;
 
 #pragma warning disable 649
                 [PacketField, Offset(doubleWords: 0, bits: 0), Width(32)] // BUF1AP
-                public uint buffer1Address;
+                public uint Buffer1Address;
                 // 2nd double word is reserved
                 [PacketField, Offset(doubleWords: 2, bits: 0), Width(32)] // BUF2AP
-                public uint buffer2Address;
+                public uint Buffer2Address;
                 // bits 0:23 of 4th double word are reserved
                 [PacketField, Offset(doubleWords: 3, bits: 24), Width(1)] // BUF1V
-                public bool buffer1AddressValid;
+                public bool Buffer1AddressValid;
                 [PacketField, Offset(doubleWords: 3, bits: 25), Width(1)] // BUF2V
-                public bool buffer2AddressValid;
+                public bool Buffer2AddressValid;
                 // bits 26:29 of 4th double word are reserved
                 [PacketField, Offset(doubleWords: 3, bits: 30), Width(1)] // IOC
-                public bool interruptOnCompletion;
+                public bool InterruptOnCompletion;
                 [PacketField, Offset(doubleWords: 3, bits: 31), Width(1)] // OWN
-                public DescriptorOwner owner;
+                public DescriptorOwner OwnerField;
 #pragma warning restore 649
             }
 
@@ -158,130 +91,132 @@ namespace Antmicro.Renode.Peripherals.Network
                 }
 
                 public string PrettyString => $@"NormalWriteBackRxDescriptor {{
-    outerVlanTag: 0x{outerVlanTag:X},
-    innerVlanTag: 0x{innerVlanTag:X},
-    payloadType: {payloadType},
-    ipHeaderError: {ipHeaderError},
-    ipv4HeaderPresent: {ipv4HeaderPresent},
-    ipv6HeaderPresent: {ipv6HeaderPresent},
-    ipChecksumBypassed: {ipChecksumBypassed},
-    ipPayloadError: {ipPayloadError},
-    ptpMessageType: {ptpMessageType},
-    ptpPacketType: {ptpPacketType},
-    ptpVersion: {ptpVersion},
-    timestampAvailable: {timestampAvailable},
-    timestampDropped: {timestampDropped},
-    oamSubtypeCodeOrMACControlPacketOpcode: 0x{oamSubtypeCodeOrMACControlPacketOpcode:X} or {(EtherType)oamSubtypeCodeOrMACControlPacketOpcode},
-    arpReplyNotGenerated: {arpReplyNotGenerated},
-    vlanFiletrStatus: {vlanFiletrStatus},
-    sourceAddressFilterFail: {sourceAddressFilterFail},
-    destinaltionAddressFilterFail: {destinaltionAddressFilterFail},
-    hashFilterStatus: {hashFilterStatus},
-    macAddressMatchOrHashValue: {macAddressMatchOrHashValue},
-    layer3FilterMatch: {layer3FilterMatch},
-    layer4FilterMatch: {layer4FilterMatch},
-    matchedFilterNumber: {matchedFilterNumber},
-    packetLength: {packetLength},
-    errorSummary: {errorSummary},
-    lengthTypeField: {lengthTypeField},
-    dribbleBitError: {dribbleBitError},
-    receiveError: {receiveError},
-    overflowError: {overflowError},
-    receiveWatchdogTimeout: {receiveWatchdogTimeout},
-    giantPacket: {giantPacket},
-    crcError: {crcError},
-    receiveStatusSegment0Valid: {receiveStatusSegment0Valid},
-    receiveStatusSegment1Valid: {receiveStatusSegment1Valid},
-    receiveStatusSegment2Valid: {receiveStatusSegment2Valid},
-    lastDescriptor: {lastDescriptor},
-    firstDescriptor: {firstDescriptor},
-    contextType: {contextType},
-    owner: {owner}
+    outerVlanTag: 0x{OuterVlanTag:X},
+    innerVlanTag: 0x{InnerVlanTag:X},
+    payloadType: {PayloadType},
+    ipHeaderError: {IpHeaderError},
+    ipv4HeaderPresent: {Ipv4HeaderPresent},
+    ipv6HeaderPresent: {Ipv6HeaderPresent},
+    ipChecksumBypassed: {IpChecksumBypassed},
+    ipPayloadError: {IpPayloadError},
+    ptpMessageType: {PtpMessageType},
+    ptpPacketType: {PtpPacketType},
+    ptpVersion: {PtpVersion},
+    timestampAvailable: {TimestampAvailable},
+    timestampDropped: {TimestampDropped},
+    oamSubtypeCodeOrMACControlPacketOpcode: 0x{OamSubtypeCodeOrMACControlPacketOpcode:X} or {(EtherType)OamSubtypeCodeOrMACControlPacketOpcode},
+    arpReplyNotGenerated: {ArpReplyNotGenerated},
+    vlanFiletrStatus: {VlanFiletrStatus},
+    sourceAddressFilterFail: {SourceAddressFilterFail},
+    destinaltionAddressFilterFail: {DestinaltionAddressFilterFail},
+    hashFilterStatus: {HashFilterStatus},
+    macAddressMatchOrHashValue: {MacAddressMatchOrHashValue},
+    layer3FilterMatch: {Layer3FilterMatch},
+    layer4FilterMatch: {Layer4FilterMatch},
+    matchedFilterNumber: {MatchedFilterNumber},
+    packetLength: {PacketLength},
+    errorSummary: {ErrorSummary},
+    lengthTypeField: {LengthTypeField},
+    dribbleBitError: {DribbleBitError},
+    receiveError: {ReceiveError},
+    overflowError: {OverflowError},
+    receiveWatchdogTimeout: {ReceiveWatchdogTimeout},
+    giantPacket: {GiantPacket},
+    crcError: {CrcError},
+    receiveStatusSegment0Valid: {ReceiveStatusSegment0Valid},
+    receiveStatusSegment1Valid: {ReceiveStatusSegment1Valid},
+    receiveStatusSegment2Valid: {ReceiveStatusSegment2Valid},
+    lastDescriptor: {LastDescriptor},
+    firstDescriptor: {FirstDescriptor},
+    contextType: {ContextType},
+    owner: {Owner}
 }}";
-                public bool ContextType => contextType;
-                public DescriptorOwner Owner => owner;
+
+                public bool ContextType => ContextTypeField;
+
+                public DescriptorOwner Owner => OwnerField;
 
 #pragma warning disable 649
                 [PacketField, Offset(doubleWords: 0, bits: 0), Width(16)] // OVT
-                public uint outerVlanTag;
+                public uint OuterVlanTag;
                 [PacketField, Offset(doubleWords: 0, bits: 16), Width(16)] // IVT
-                public uint innerVlanTag;
+                public uint InnerVlanTag;
                 [PacketField, Offset(doubleWords: 1, bits: 0), Width(3)] // PT
-                public PayloadType payloadType;
+                public PayloadType PayloadType;
                 [PacketField, Offset(doubleWords: 1, bits: 3), Width(1)] // IPHE
-                public bool ipHeaderError;
+                public bool IpHeaderError;
                 [PacketField, Offset(doubleWords: 1, bits: 4), Width(1)] // IPV4
-                public bool ipv4HeaderPresent;
+                public bool Ipv4HeaderPresent;
                 [PacketField, Offset(doubleWords: 1, bits: 5), Width(1)] // IPV6
-                public bool ipv6HeaderPresent;
+                public bool Ipv6HeaderPresent;
                 [PacketField, Offset(doubleWords: 1, bits: 6), Width(1)] // IPCB
-                public bool ipChecksumBypassed;
+                public bool IpChecksumBypassed;
                 [PacketField, Offset(doubleWords: 1, bits: 7), Width(1)] // IPCE
-                public bool ipPayloadError;
+                public bool IpPayloadError;
                 [PacketField, Offset(doubleWords: 1, bits: 8), Width(4)] // PMT
-                public PTPMessageType ptpMessageType;
+                public PTPMessageType PtpMessageType;
                 [PacketField, Offset(doubleWords: 1, bits: 12), Width(1)] // PFT
-                public bool ptpPacketType;
+                public bool PtpPacketType;
                 [PacketField, Offset(doubleWords: 1, bits: 13), Width(1)] // PV
-                public PTPVersion ptpVersion;
+                public PTPVersion PtpVersion;
                 [PacketField, Offset(doubleWords: 1, bits: 14), Width(1)] // TSA
-                public bool timestampAvailable;
+                public bool TimestampAvailable;
                 [PacketField, Offset(doubleWords: 1, bits: 15), Width(1)] // TD
-                public bool timestampDropped;
+                public bool TimestampDropped;
                 [PacketField, Offset(doubleWords: 1, bits: 16), Width(16)] // OPC
-                public uint oamSubtypeCodeOrMACControlPacketOpcode;
+                public uint OamSubtypeCodeOrMACControlPacketOpcode;
                 // bits 0:9 of 3rd double word are reserved
                 [PacketField, Offset(doubleWords: 2, bits: 10), Width(1)] // ARPNR
-                public bool arpReplyNotGenerated;
+                public bool ArpReplyNotGenerated;
                 // bits 11:14 of 3rd double word are reserved
                 [PacketField, Offset(doubleWords: 2, bits: 15), Width(1)] // VF
-                public bool vlanFiletrStatus;
+                public bool VlanFiletrStatus;
                 [PacketField, Offset(doubleWords: 2, bits: 16), Width(1)] // SAF
-                public bool sourceAddressFilterFail;
+                public bool SourceAddressFilterFail;
                 [PacketField, Offset(doubleWords: 2, bits: 17), Width(1)] // DAF
-                public bool destinaltionAddressFilterFail;
+                public bool DestinaltionAddressFilterFail;
                 [PacketField, Offset(doubleWords: 2, bits: 18), Width(1)] // HF
-                public bool hashFilterStatus;
+                public bool HashFilterStatus;
                 [PacketField, Offset(doubleWords: 2, bits: 19), Width(8)] // MADRM
-                public bool macAddressMatchOrHashValue;
+                public bool MacAddressMatchOrHashValue;
                 [PacketField, Offset(doubleWords: 2, bits: 27), Width(1)] // L3FM
-                public bool layer3FilterMatch;
+                public bool Layer3FilterMatch;
                 [PacketField, Offset(doubleWords: 2, bits: 28), Width(1)] // L4FM
-                public bool layer4FilterMatch;
+                public bool Layer4FilterMatch;
                 [PacketField, Offset(doubleWords: 2, bits: 29), Width(3)] // L3L4FM
-                public uint matchedFilterNumber;
+                public uint MatchedFilterNumber;
                 [PacketField, Offset(doubleWords: 3, bits: 0), Width(15)] // PL
-                public uint packetLength;
+                public uint PacketLength;
                 [PacketField, Offset(doubleWords: 3, bits: 15), Width(1)] // ES
-                public bool errorSummary;
+                public bool ErrorSummary;
                 [PacketField, Offset(doubleWords: 3, bits: 16), Width(3)] // LT
-                public PacketKind lengthTypeField;
+                public PacketKind LengthTypeField;
                 [PacketField, Offset(doubleWords: 3, bits: 19), Width(1)] // DE
-                public bool dribbleBitError;
+                public bool DribbleBitError;
                 [PacketField, Offset(doubleWords: 3, bits: 20), Width(1)] // RE
-                public bool receiveError;
+                public bool ReceiveError;
                 [PacketField, Offset(doubleWords: 3, bits: 21), Width(1)] // OE
-                public bool overflowError;
+                public bool OverflowError;
                 [PacketField, Offset(doubleWords: 3, bits: 22), Width(1)] // RWT
-                public bool receiveWatchdogTimeout;
+                public bool ReceiveWatchdogTimeout;
                 [PacketField, Offset(doubleWords: 3, bits: 23), Width(1)] // GP
-                public bool giantPacket;
+                public bool GiantPacket;
                 [PacketField, Offset(doubleWords: 3, bits: 24), Width(1)] // CE
-                public bool crcError;
+                public bool CrcError;
                 [PacketField, Offset(doubleWords: 3, bits: 25), Width(1)] // RS0V
-                public bool receiveStatusSegment0Valid;
+                public bool ReceiveStatusSegment0Valid;
                 [PacketField, Offset(doubleWords: 3, bits: 26), Width(1)] // RS1V
-                public bool receiveStatusSegment1Valid;
+                public bool ReceiveStatusSegment1Valid;
                 [PacketField, Offset(doubleWords: 3, bits: 27), Width(1)] // RS2V
-                public bool receiveStatusSegment2Valid;
+                public bool ReceiveStatusSegment2Valid;
                 [PacketField, Offset(doubleWords: 3, bits: 28), Width(1)] // LD
-                public bool lastDescriptor;
+                public bool LastDescriptor;
                 [PacketField, Offset(doubleWords: 3, bits: 29), Width(1)] // FD
-                public bool firstDescriptor;
+                public bool FirstDescriptor;
                 [PacketField, Offset(doubleWords: 3, bits: 30), Width(1)] // CTXT
-                public bool contextType;
+                public bool ContextTypeField;
                 [PacketField, Offset(doubleWords: 3, bits: 31), Width(1)] // OWN
-                public DescriptorOwner owner;
+                public DescriptorOwner OwnerField;
 #pragma warning restore 649
             }
 
@@ -294,21 +229,23 @@ namespace Antmicro.Renode.Peripherals.Network
                 }
 
                 public string PrettyString => $@"ContextRxDescriptor {{
-    receivePacketTimestamp: 0x{receivePacketTimestamp:X},
-    contextType: {contextType},
-    owner: {owner}
+    receivePacketTimestamp: 0x{ReceivePacketTimestamp:X},
+    contextType: {ContextTypeField},
+    owner: {OwnerField}
 }}";
-                public bool ContextType => contextType;
-                public DescriptorOwner Owner => owner;
+
+                public bool ContextType => ContextTypeField;
+
+                public DescriptorOwner Owner => OwnerField;
 
 #pragma warning disable 649
                 [PacketField, Offset(quadWords: 0), Width(64)] // RTS
-                public ulong receivePacketTimestamp;
+                public ulong ReceivePacketTimestamp;
                 // 3nd double word and bits 0:29 of 4th double word are reserved
                 [PacketField, Offset(doubleWords: 3, bits: 30), Width(1)] // CTXT
-                public bool contextType;
+                public bool ContextTypeField;
                 [PacketField, Offset(doubleWords: 3, bits: 31), Width(1)] // OWN
-                public DescriptorOwner owner;
+                public DescriptorOwner OwnerField;
 #pragma warning restore 649
             }
         }
@@ -345,15 +282,15 @@ namespace Antmicro.Renode.Peripherals.Network
 
                 public byte[] FetchBuffer1OrHeader(IBusController bus, ICPU cpuContext = null)
                 {
-                    var data = new byte[headerOrBuffer1Length];
-                    bus.ReadBytes((ulong)buffer1OrHeaderAddress, (int)headerOrBuffer1Length, data, 0, true, cpuContext);
+                    var data = new byte[HeaderOrBuffer1Length];
+                    bus.ReadBytes((ulong)Buffer1OrHeaderAddress, (int)HeaderOrBuffer1Length, data, 0, true, cpuContext);
                     return data;
                 }
 
                 public byte[] FetchBuffer2OrBuffer1(IBusController bus, ICPU cpuContext = null)
                 {
-                    var data = new byte[buffer2Length];
-                    bus.ReadBytes((ulong)buffer2orBuffer1Address, (int)buffer2Length, data, 0, true, cpuContext);
+                    var data = new byte[Buffer2Length];
+                    bus.ReadBytes((ulong)Buffer2orBuffer1Address, (int)Buffer2Length, data, 0, true, cpuContext);
                     return data;
                 }
 
@@ -361,70 +298,72 @@ namespace Antmicro.Renode.Peripherals.Network
                 {
                     get
                     {
-                        return payloadLengthLower15bits | payloadLength15bit << 15 | (uint)checksumControl << 16;
+                        return PayloadLengthLower15bits | PayloadLength15bit << 15 | (uint)ChecksumControl << 16;
                     }
                 }
 
                 public string PrettyString => $@"NormalReadTxDescriptor {{
-    buffer1OrHeaderAddress: 0x{buffer1OrHeaderAddress:X},
-    buffer2orBuffer1Address: 0x{buffer2orBuffer1Address:X},
-    headerOrBuffer1Length: 0x{headerOrBuffer1Length:X},
-    vlanTagControl: {vlanTagControl},
-    buffer2Length: 0x{buffer2Length:X},
-    transmitTimestampEnable: {transmitTimestampEnable},
-    interruptOnCompletion: {interruptOnCompletion},
-    payloadLengthLower15bits: {payloadLengthLower15bits},
-    payloadLength15bit: {payloadLength15bit},
-    checksumControl: {checksumControl},
-    tcpSegmentationEnable: {tcpSegmentationEnable},
-    headerLength: {headerLength},
-    sourceAddressControl: {sourceAddressControl},
-    crcPadControl: {crcPadControl},
-    lastDescriptor: {lastDescriptor},
-    firstDescriptor: {firstDescriptor},
-    contextType: {contextType},
-    owner: {owner}
+    buffer1OrHeaderAddress: 0x{Buffer1OrHeaderAddress:X},
+    buffer2orBuffer1Address: 0x{Buffer2orBuffer1Address:X},
+    headerOrBuffer1Length: 0x{HeaderOrBuffer1Length:X},
+    vlanTagControl: {VlanTagControl},
+    buffer2Length: 0x{Buffer2Length:X},
+    transmitTimestampEnable: {TransmitTimestampEnable},
+    interruptOnCompletion: {InterruptOnCompletion},
+    payloadLengthLower15bits: {PayloadLengthLower15bits},
+    payloadLength15bit: {PayloadLength15bit},
+    checksumControl: {ChecksumControl},
+    tcpSegmentationEnable: {TcpSegmentationEnable},
+    headerLength: {HeaderLength},
+    sourceAddressControl: {SourceAddressControl},
+    crcPadControl: {CrcPadControl},
+    lastDescriptor: {LastDescriptor},
+    firstDescriptor: {FirstDescriptor},
+    contextType: {ContextTypeField},
+    owner: {OwnerField}
 }}";
-                public bool ContextType => contextType;
-                public DescriptorOwner Owner => owner;
+
+                public bool ContextType => ContextTypeField;
+
+                public DescriptorOwner Owner => OwnerField;
 
 #pragma warning disable 649
                 [PacketField, Offset(doubleWords: 0, bits: 0), Width(32)] // BUF1AP
-                public uint buffer1OrHeaderAddress;
+                public uint Buffer1OrHeaderAddress;
                 [PacketField, Offset(doubleWords: 1, bits: 0), Width(32)] // BUF2AP
-                public uint buffer2orBuffer1Address;
+                public uint Buffer2orBuffer1Address;
                 [PacketField, Offset(doubleWords: 2, bits: 0), Width(14)] // HR/B1L
-                public uint headerOrBuffer1Length;
+                public uint HeaderOrBuffer1Length;
                 [PacketField, Offset(doubleWords: 2, bits: 14), Width(2)] // VTIR
-                public VLANTagOperation vlanTagControl;
+                public VLANTagOperation VlanTagControl;
                 [PacketField, Offset(doubleWords: 2, bits: 16), Width(14)] // B2L
-                public uint buffer2Length;
+                public uint Buffer2Length;
                 [PacketField, Offset(doubleWords: 2, bits: 30), Width(1)] // TTSE
-                public bool transmitTimestampEnable;
+                public bool TransmitTimestampEnable;
                 [PacketField, Offset(doubleWords: 2, bits: 31), Width(1)] // IOC
-                public bool interruptOnCompletion;
+                public bool InterruptOnCompletion;
                 [PacketField, Offset(doubleWords: 3, bits: 0), Width(15)] // FL/TPL
-                public uint payloadLengthLower15bits;
+                public uint PayloadLengthLower15bits;
                 [PacketField, Offset(doubleWords: 3, bits: 15), Width(1)] // TPL
-                public uint payloadLength15bit;
+                public uint PayloadLength15bit;
                 [PacketField, Offset(doubleWords: 3, bits: 16), Width(2)] // CIC/TPL
-                public ChecksumOperation checksumControl;
+                public ChecksumOperation ChecksumControl;
                 [PacketField, Offset(doubleWords: 3, bits: 18), Width(1)] // TSE
-                public bool tcpSegmentationEnable;
+                public bool TcpSegmentationEnable;
                 [PacketField, Offset(doubleWords: 3, bits: 19), Width(4)] // THL
-                public uint headerLength;
+                public uint HeaderLength;
                 [PacketField, Offset(doubleWords: 3, bits: 23), Width(3)] // SAIC
-                public DescriptorSourceAddressOperation sourceAddressControl;
+                public DescriptorSourceAddressOperation SourceAddressControl;
                 [PacketField, Offset(doubleWords: 3, bits: 26), Width(2)] // CPC
-                public CRCPadOperation crcPadControl;
+                public CRCPadOperation CrcPadControl;
                 [PacketField, Offset(doubleWords: 3, bits: 28), Width(1)] // LD
-                public bool lastDescriptor;
+                public bool LastDescriptor;
                 [PacketField, Offset(doubleWords: 3, bits: 29), Width(1)] // FD
-                public bool firstDescriptor;
+                public bool FirstDescriptor;
                 [PacketField, Offset(doubleWords: 3, bits: 30), Width(1)] // CTXT
-                public bool contextType;
+                public bool ContextTypeField;
                 [PacketField, Offset(doubleWords: 3, bits: 31), Width(1)] // OWN
-                public DescriptorOwner owner;
+                public DescriptorOwner OwnerField;
 #pragma warning restore 649
             }
 
@@ -437,71 +376,73 @@ namespace Antmicro.Renode.Peripherals.Network
                 }
 
                 public string PrettyString => $@"NormalWriteBackTxDescriptor {{
-    txPacketTimestamp: 0x{txPacketTimestamp:X},
-    ipHeaderError: {ipHeaderError},
-    deferredBit: {deferredBit},
-    underflowError: {underflowError},
-    excessiveDeferral: {excessiveDeferral},
-    collisionCount: {collisionCount},
-    excessiveCollision: {excessiveCollision},
-    lateCollision: {lateCollision},
-    noCarrier: {noCarrier},
-    lossOfCarrier: {lossOfCarrier},
-    payloadChecksumError: {payloadChecksumError},
-    packetFlushed: {packetFlushed},
-    jabberTimeout: {jabberTimeout},
-    errorSummary: {errorSummary},
-    txTimestampCaptured: {txTimestampCaptured},
-    lastDescriptor: {lastDescriptor},
-    firstDescriptor: {firstDescriptor},
-    contextType: {contextType},
-    owner: {owner}
+    txPacketTimestamp: 0x{TxPacketTimestamp:X},
+    ipHeaderError: {IpHeaderError},
+    deferredBit: {DeferredBit},
+    underflowError: {UnderflowError},
+    excessiveDeferral: {ExcessiveDeferral},
+    collisionCount: {CollisionCount},
+    excessiveCollision: {ExcessiveCollision},
+    lateCollision: {LateCollision},
+    noCarrier: {NoCarrier},
+    lossOfCarrier: {LossOfCarrier},
+    payloadChecksumError: {PayloadChecksumError},
+    packetFlushed: {PacketFlushed},
+    jabberTimeout: {JabberTimeout},
+    errorSummary: {ErrorSummary},
+    txTimestampCaptured: {TxTimestampCaptured},
+    lastDescriptor: {LastDescriptor},
+    firstDescriptor: {FirstDescriptor},
+    contextType: {ContextTypeField},
+    owner: {OwnerField}
 }}";
-                public bool ContextType => contextType;
-                public DescriptorOwner Owner => owner;
+
+                public bool ContextType => ContextTypeField;
+
+                public DescriptorOwner Owner => OwnerField;
 
 #pragma warning disable 649
                 [PacketField, Offset(quadWords: 0), Width(64)] // TTS
-                public ulong txPacketTimestamp;
+                public ulong TxPacketTimestamp;
                 // 3nd double word is reserved
                 [PacketField, Offset(doubleWords: 3, bits: 0), Width(1)] // IHE
-                public bool ipHeaderError;
+                public bool IpHeaderError;
                 [PacketField, Offset(doubleWords: 3, bits: 1), Width(1)] // DB
-                public bool deferredBit;
+                public bool DeferredBit;
                 [PacketField, Offset(doubleWords: 3, bits: 2), Width(1)] // UF
-                public bool underflowError;
+                public bool UnderflowError;
                 [PacketField, Offset(doubleWords: 3, bits: 3), Width(1)] // ED
-                public bool excessiveDeferral;
+                public bool ExcessiveDeferral;
                 [PacketField, Offset(doubleWords: 3, bits: 4), Width(4)] // CC
-                public bool collisionCount;
+                public bool CollisionCount;
                 [PacketField, Offset(doubleWords: 3, bits: 8), Width(1)] // EC
-                public bool excessiveCollision;
+                public bool ExcessiveCollision;
                 [PacketField, Offset(doubleWords: 3, bits: 9), Width(1)] // LC
-                public bool lateCollision;
+                public bool LateCollision;
                 [PacketField, Offset(doubleWords: 3, bits: 10), Width(1)] // NC
-                public bool noCarrier;
+                public bool NoCarrier;
                 [PacketField, Offset(doubleWords: 3, bits: 11), Width(1)] // LoC
-                public bool lossOfCarrier;
+                public bool LossOfCarrier;
                 [PacketField, Offset(doubleWords: 3, bits: 12), Width(1)] // PCE
-                public bool payloadChecksumError;
+                public bool PayloadChecksumError;
                 [PacketField, Offset(doubleWords: 3, bits: 13), Width(1)] // FF
-                public bool packetFlushed;
+                public bool PacketFlushed;
                 [PacketField, Offset(doubleWords: 3, bits: 14), Width(1)] // JT
-                public bool jabberTimeout;
+                public bool JabberTimeout;
                 [PacketField, Offset(doubleWords: 3, bits: 15), Width(1)] // ES
-                public bool errorSummary;
+                public bool ErrorSummary;
                 // bit 16 of 4th double word is reserved
                 [PacketField, Offset(doubleWords: 3, bits: 17), Width(1)] // TTSS
-                public bool txTimestampCaptured;
+                public bool TxTimestampCaptured;
                 // bits 18:27 of 4th double word are reserved
                 [PacketField, Offset(doubleWords: 3, bits: 28), Width(1)] // LD
-                public bool lastDescriptor;
+                public bool LastDescriptor;
                 [PacketField, Offset(doubleWords: 3, bits: 29), Width(1)] // FD
-                public bool firstDescriptor;
+                public bool FirstDescriptor;
                 [PacketField, Offset(doubleWords: 3, bits: 30), Width(1)] // CTXT
-                public bool contextType;
+                public bool ContextTypeField;
                 [PacketField, Offset(doubleWords: 3, bits: 31), Width(1)] // OWN
-                public DescriptorOwner owner;
+                public DescriptorOwner OwnerField;
 #pragma warning restore 649
             }
 
@@ -514,51 +455,126 @@ namespace Antmicro.Renode.Peripherals.Network
                 }
 
                 public string PrettyString => $@"ContextTxDescriptor {{
-    txPacketTimestamp: {txPacketTimestamp},
-    maximumSegmentSize: {maximumSegmentSize},
-    innerVlanTag: {innerVlanTag},
-    vlanTag: {vlanTag},
-    vlanTagValid: {vlanTagValid},
-    innerVlanTagValid: {innerVlanTagValid},
-    innerVlanTagControl: {innerVlanTagControl},
-    contextDescriptorError: {contextDescriptorError},
-    oneStepTimestampCorrectionInputOrMaximumSegmentSizeValid: {oneStepTimestampCorrectionInputOrMaximumSegmentSizeValid},
-    oneStepTimestampCorrectionEnable: {oneStepTimestampCorrectionEnable},
-    contextType: {contextType},
-    owner: {owner}
+    txPacketTimestamp: {TxPacketTimestamp},
+    maximumSegmentSize: {MaximumSegmentSize},
+    innerVlanTag: {InnerVlanTag},
+    vlanTag: {VlanTag},
+    vlanTagValid: {VlanTagValid},
+    innerVlanTagValid: {InnerVlanTagValid},
+    innerVlanTagControl: {InnerVlanTagControl},
+    contextDescriptorError: {ContextDescriptorError},
+    oneStepTimestampCorrectionInputOrMaximumSegmentSizeValid: {OneStepTimestampCorrectionInputOrMaximumSegmentSizeValid},
+    oneStepTimestampCorrectionEnable: {OneStepTimestampCorrectionEnable},
+    contextType: {ContextTypeField},
+    owner: {OwnerField}
 }}";
-                public bool ContextType => contextType;
-                public DescriptorOwner Owner => owner;
+
+                public bool ContextType => ContextTypeField;
+
+                public DescriptorOwner Owner => OwnerField;
 
 #pragma warning disable 649
                 [PacketField, Offset(quadWords: 0), Width(64)] // TTS
-                public ulong txPacketTimestamp;
+                public ulong TxPacketTimestamp;
                 [PacketField, Offset(doubleWords: 2, bits: 0), Width(14)] // MSS
-                public uint maximumSegmentSize;
+                public uint MaximumSegmentSize;
                 // bits 14:15 of 3rd double word are reserved
                 [PacketField, Offset(doubleWords: 2, bits: 16), Width(16)] // IVT
-                public uint innerVlanTag;
+                public uint InnerVlanTag;
                 [PacketField, Offset(doubleWords: 3, bits: 0), Width(16)] // VT
-                public uint vlanTag;
+                public uint VlanTag;
                 [PacketField, Offset(doubleWords: 3, bits: 16), Width(1)] // VLTV
-                public bool vlanTagValid;
+                public bool VlanTagValid;
                 [PacketField, Offset(doubleWords: 3, bits: 17), Width(1)] // IVLTV
-                public bool innerVlanTagValid;
+                public bool InnerVlanTagValid;
                 [PacketField, Offset(doubleWords: 3, bits: 18), Width(2)] // IVTIR
-                public VLANTagOperation innerVlanTagControl;
+                public VLANTagOperation InnerVlanTagControl;
                 // bits 20:22 of 4th double word are reserved
                 [PacketField, Offset(doubleWords: 3, bits: 23), Width(1)] // CDE
-                public bool contextDescriptorError;
+                public bool ContextDescriptorError;
                 // bits 24:25 of 4th double word are reserved
                 [PacketField, Offset(doubleWords: 3, bits: 26), Width(1)] // TCMSSV
-                public bool oneStepTimestampCorrectionInputOrMaximumSegmentSizeValid;
+                public bool OneStepTimestampCorrectionInputOrMaximumSegmentSizeValid;
                 [PacketField, Offset(doubleWords: 3, bits: 27), Width(1)] // OSTC
-                public bool oneStepTimestampCorrectionEnable;
+                public bool OneStepTimestampCorrectionEnable;
                 // bits 28:29 of 4th double word are reserved
                 [PacketField, Offset(doubleWords: 3, bits: 30), Width(1)] // CTXT
-                public bool contextType;
+                public bool ContextTypeField;
                 [PacketField, Offset(doubleWords: 3, bits: 31), Width(1)] // OWN
-                public DescriptorOwner owner;
+                public DescriptorOwner OwnerField;
+#pragma warning restore 649
+            }
+        }
+
+        private abstract class Descriptor
+        {
+            public static uint Size => 0x10;
+
+            public Descriptor(IBusController bus, ulong address, ICPU cpuContext = null)
+            {
+                this.bus = bus;
+                this.cpuContext = cpuContext;
+                Address = address;
+                this.data = new byte[Size];
+            }
+
+            public virtual void Fetch()
+            {
+                bus.ReadBytes(Address, (int)Size, data, 0, true, cpuContext);
+                var structure = Packet.Decode<MinimalCommonDescriptor>(data);
+                UpdateProperties(structure);
+            }
+
+            public void Write()
+            {
+                bus.WriteBytes(data, Address, context: cpuContext);
+            }
+
+            public void SetDescriptor<T>(T structure) where T : IDescriptorStruct
+            {
+                type = typeof(T);
+                data = Packet.Encode<T>(structure);
+                UpdateProperties(structure);
+            }
+
+            public Type Type => type;
+
+            public ulong Address { get; }
+
+            public bool? IsOwnedByDMA { get; protected set; }
+
+            protected void UpdateProperties(IDescriptorStruct structure)
+            {
+                IsOwnedByDMA = structure.Owner == DescriptorOwner.DMA;
+                isContextDescriptor = structure.ContextType;
+            }
+
+            protected bool? isContextDescriptor;
+            protected Type type;
+            protected byte[] data;
+
+            private readonly IBusController bus;
+            private readonly ICPU cpuContext;
+
+            public interface IDescriptorStruct
+            {
+                bool ContextType { get; }
+
+                DescriptorOwner Owner { get; }
+            }
+
+            [LeastSignificantByteFirst]
+            private struct MinimalCommonDescriptor : IDescriptorStruct
+            {
+                public bool ContextType => ContextTypeField;
+
+                public DescriptorOwner Owner => OwnerField;
+
+#pragma warning disable 649
+                [PacketField, Offset(doubleWords: 3, bits: 30), Width(1)] // CTXT
+                public bool ContextTypeField;
+                [PacketField, Offset(doubleWords: 3, bits: 31), Width(1)] // OWN
+                public DescriptorOwner OwnerField;
 #pragma warning restore 649
             }
         }

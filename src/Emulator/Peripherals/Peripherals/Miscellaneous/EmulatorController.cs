@@ -13,15 +13,18 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
+
 using Antmicro.Migrant;
 using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
+
 #if !PLATFORM_WINDOWS
 using Mono.Unix;
 using Mono.Unix.Native;
+
 #endif
 using Antmicro.Renode.UserInterface;
 
@@ -96,10 +99,42 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 }
                 return value;
             }
+
             set
             {
                 dictionary.AddOrUpdate(key, x => value, (x, y) => value);
             }
+        }
+
+        private static void HandleArrayWrite(long offset, uint value, byte[] array)
+        {
+            var index = (int)(offset);
+            var bytes = BitConverter.GetBytes(value);
+            for(var i = 0; i < 4; i++)
+            {
+                array[index + i] = bytes[i];
+            }
+        }
+
+        private static uint HandleArrayRead(long offset, byte[] array)
+        {
+            var index = (int)(offset);
+            var bytes = new byte[4];
+            for(var i = 0; i < 4; i++)
+            {
+                bytes[i] = array[index + i];
+            }
+            return BitConverter.ToUInt32(bytes, 0);
+        }
+
+        private static void HandleLoad(uint value)
+        {
+            ThreadPool.QueueUserWorkItem(delegate { EmulationManager.Instance.Load(string.Format(SavepointName, value)); });
+        }
+
+        private static void HandleSave(uint value)
+        {
+            ThreadPool.QueueUserWorkItem(delegate { EmulationManager.Instance.Save(string.Format(SavepointName, value)); });
         }
 
         private void TryActivate(uint value)
@@ -171,7 +206,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 break;
             default:
                 if(offset >= StringRegisterStart && offset < StringRegisterEnd)
-                {                    
+                {
                     HandleArrayWrite(offset - StringRegisterStart, value, stringRegister);
                     return;
                 }
@@ -265,6 +300,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 break;
             }
         }
+
 #if !PLATFORM_WINDOWS
         private uint HandleReceiveFile()
         {
@@ -323,7 +359,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 this.NoisyLog("Prepared packet of data to read by guest of size {0}B.",
                     Misc.NormalizeBinary(retValue));
                 return retValue;
-             
             }
             catch(IOException e)
             {
@@ -406,37 +441,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             transferStream = new FileStream(transferFileName, FileMode.Create, FileAccess.ReadWrite);
         }
 
-        private static void HandleArrayWrite(long offset, uint value, byte[] array)
-        {
-            var index = (int)(offset);
-            var bytes = BitConverter.GetBytes(value);
-            for(var i = 0; i < 4; i++)
-            {
-                array[index + i] = bytes[i];
-            }
-        }
-
-        private static uint HandleArrayRead(long offset, byte[] array)
-        {
-            var index = (int)(offset);
-            var bytes = new byte[4];
-            for(var i = 0; i < 4; i++)
-            {
-                bytes[i] = array[index + i];
-            }
-            return BitConverter.ToUInt32(bytes, 0);
-        }
-
-        private static void HandleLoad(uint value)
-        {
-            ThreadPool.QueueUserWorkItem(delegate { EmulationManager.Instance.Load(string.Format(SavepointName, value)); });
-        }
-
-        private static void HandleSave(uint value)
-        {
-            ThreadPool.QueueUserWorkItem(delegate { EmulationManager.Instance.Save(string.Format(SavepointName, value)); });
-        }
-
         [PostDeserialization]
         private void AfterDeserialization()
         {
@@ -462,6 +466,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private readonly byte[] stringRegister;
         private readonly byte[] fileRegister;
         private readonly ConcurrentDictionary<string, string> dictionary;
+
+        private const uint StringRegisterStart = 0x100;
+        private const uint StringRegisterSize = 0x100;
+        private const uint StringRegisterEnd = StringRegisterStart + StringRegisterSize;
+        private const uint FileRegisterStart = StringRegisterEnd;
+        private const uint FileRegisterSize = 0x10000;
+        private const uint FileRegisterEnd = FileRegisterStart + FileRegisterSize;
 
         private const uint Magic = 0xDEADBEEF;
         private const uint Version = 3;
@@ -496,13 +507,5 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Stop = 1,
             Reset = 2
         }
-
-        private const uint StringRegisterStart = 0x100;
-        private const uint StringRegisterSize = 0x100;
-        private const uint StringRegisterEnd = StringRegisterStart + StringRegisterSize;
-        private const uint FileRegisterStart = StringRegisterEnd;
-        private const uint FileRegisterSize = 0x10000;
-        private const uint FileRegisterEnd = FileRegisterStart + FileRegisterSize;
     }
 }
-

@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Memory;
@@ -36,6 +37,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         }
 
         public long Size => 0x200;
+
         public ulong EUI48 { get; set; }
 
         private DoubleWordRegisterCollection BuildRegisters()

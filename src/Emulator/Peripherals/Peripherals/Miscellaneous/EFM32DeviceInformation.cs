@@ -11,7 +11,7 @@ using Antmicro.Renode.Utilities;
 namespace Antmicro.Renode.Peripherals
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
-    public class EFM32DeviceInformation: IDoubleWordPeripheral, IKnownSize
+    public class EFM32DeviceInformation : IDoubleWordPeripheral, IKnownSize
     {
         public EFM32DeviceInformation(Family deviceFamily, ushort deviceNumber, ushort flashSize, ushort sramSize, byte productRevision = 0)
         {
@@ -64,6 +64,7 @@ namespace Antmicro.Renode.Peripherals
         }
 
         public ulong EUI { get; set; }
+
         public ulong Unique { get; set; }
 
         private readonly Family deviceFamily;

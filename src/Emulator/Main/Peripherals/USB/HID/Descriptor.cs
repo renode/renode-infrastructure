@@ -22,9 +22,13 @@ namespace Antmicro.Renode.Core.USB.HID
         }
 
         public short HID_ClassSpecification { get; }
+
         public byte CountryCode { get; }
+
         public byte NumberOfClassDescriptors { get; }
+
         public byte DescriptorType { get; }
+
         public short HidDescriptorLength { get; }
 
         protected override void FillDescriptor(BitStream buffer)

@@ -5,23 +5,19 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System.Linq;
-using Antmicro.Renode.Core;
-using System.IO;
-using System.Collections.Generic;
 using System;
-
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 
 namespace Antmicro.Renode.Core
 {
     public static class PlatformsProvider
     {
-        private const string Name = "name";
-        private const string ScriptPath = "scriptpath";
-        private const string IconResource = "icon";
-        private const string HasFlash = "hasflash";
-        private const string HasPendrive = "haspendrive";
-        private static readonly Platform[] platforms;
+        static PlatformsProvider()
+        {
+            platforms = LoadPlatforms();
+        }
 
         public static bool IsPlatformAvailable(string name)
         {
@@ -89,10 +85,11 @@ namespace Antmicro.Renode.Core
             return platformList.ToArray<Platform>();
         }
 
-        static PlatformsProvider()
-        {
-            platforms = LoadPlatforms();
-        }
+        private const string Name = "name";
+        private const string ScriptPath = "scriptpath";
+        private const string IconResource = "icon";
+        private const string HasFlash = "hasflash";
+        private const string HasPendrive = "haspendrive";
+        private static readonly Platform[] platforms;
     }
 }
-

@@ -6,12 +6,15 @@
 * appropriate *.tt file.
 *
 */
+#pragma warning disable IDE0005
 using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
+
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.CPU.Registers;
 using Antmicro.Renode.Utilities.Binding;
-using Antmicro.Renode.Exceptions;
+#pragma warning restore IDE0005
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -74,11 +77,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue64((int)ARMv8ARegisters.SP);
             }
+
             set
             {
                 SetRegisterValue64((int)ARMv8ARegisters.SP, value);
             }
         }
+
         [Register]
         public override RegisterValue PC
         {
@@ -86,11 +91,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue64((int)ARMv8ARegisters.PC);
             }
+
             set
             {
                 SetRegisterValue64((int)ARMv8ARegisters.PC, value);
             }
         }
+
         [Register]
         public RegisterValue PSTATE
         {
@@ -98,11 +105,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)ARMv8ARegisters.PSTATE);
             }
+
             set
             {
                 SetRegisterValue32((int)ARMv8ARegisters.PSTATE, value);
             }
         }
+
         [Register]
         public RegisterValue FPSR
         {
@@ -110,11 +119,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)ARMv8ARegisters.FPSR);
             }
+
             set
             {
                 SetRegisterValue32((int)ARMv8ARegisters.FPSR, value);
             }
         }
+
         [Register]
         public RegisterValue FPCR
         {
@@ -122,11 +133,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)ARMv8ARegisters.FPCR);
             }
+
             set
             {
                 SetRegisterValue32((int)ARMv8ARegisters.FPCR, value);
             }
         }
+
         [Register]
         public RegisterValue CPSR
         {
@@ -134,14 +147,18 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)ARMv8ARegisters.CPSR);
             }
+
             set
             {
                 SetRegisterValue32((int)ARMv8ARegisters.CPSR, value);
             }
         }
+
         public RegistersGroup X { get; private set; }
+
         public RegistersGroup R { get; private set; }
 
+#pragma warning disable SA1508
         protected override void InitializeRegisters()
         {
             var indexValueMapX = new Dictionary<int, ARMv8ARegisters>
@@ -208,26 +225,25 @@ namespace Antmicro.Renode.Peripherals.CPU
                 (i, v) => SetRegister((int)indexValueMapR[i], v));
 
         }
+#pragma warning restore SA1508
 
+#pragma warning disable 649
         // 649:  Field '...' is never assigned to, and will always have its default value null
-        #pragma warning disable 649
-
         [Import(Name = "tlib_set_register_value_64")]
         protected Action<int, ulong> SetRegisterValue64;
+
         [Import(Name = "tlib_get_register_value_64")]
         protected Func<int, ulong> GetRegisterValue64;
+#pragma warning restore 649
 
-        #pragma warning restore 649
-
+#pragma warning disable 649
         // 649:  Field '...' is never assigned to, and will always have its default value null
-        #pragma warning disable 649
-
         [Import(Name = "tlib_set_register_value_32")]
         protected Action<int, uint> SetRegisterValue32;
+
         [Import(Name = "tlib_get_register_value_32")]
         protected Func<int, uint> GetRegisterValue32;
-
-        #pragma warning restore 649
+#pragma warning restore 649
 
         private static readonly Dictionary<ARMv8ARegisters, CPURegister> mapping = new Dictionary<ARMv8ARegisters, CPURegister>
         {

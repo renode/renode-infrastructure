@@ -6,12 +6,13 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Core;
-using System.Linq;
-using Antmicro.Renode.Time;
-using Antmicro.Renode.Exceptions;
-using Antmicro.Migrant.Hooks;
 using System.Collections.Generic;
+using System.Linq;
+
+using Antmicro.Migrant.Hooks;
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -25,11 +26,11 @@ namespace Antmicro.Renode.Peripherals.UART
 
     public sealed class UARTHub : UARTHubBase<IUART>
     {
-        public UARTHub(bool loopback) : base(loopback) {}
+        public UARTHub(bool loopback) : base(loopback) { }
     }
 
     public class UARTHubBase<I> : IExternal, IHasOwnLife, IConnectable<I>
-        where I: class, IUART
+        where I : class, IUART
     {
         public UARTHubBase(bool loopback)
         {
@@ -84,6 +85,11 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public bool IsPaused => !started;
 
+        protected bool started;
+        protected readonly bool shouldLoopback;
+        protected readonly Dictionary<I, Action<byte>> uarts;
+        protected readonly object locker;
+
         private void HandleCharReceived(byte obj, I sender)
         {
             if(!started)
@@ -111,11 +117,5 @@ namespace Antmicro.Renode.Peripherals.UART
                 }
             }
         }
-
-        protected bool started;
-        protected readonly bool shouldLoopback;
-        protected readonly Dictionary<I, Action<byte>> uarts;
-        protected readonly object locker;
     }
 }
-

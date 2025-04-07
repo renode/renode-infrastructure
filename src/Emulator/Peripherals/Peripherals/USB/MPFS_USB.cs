@@ -6,16 +6,17 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Linq;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Core.USB;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Core.Structure;
-using System.Linq;
 using Antmicro.Renode.Utilities.Collections;
 using Antmicro.Renode.Utilities.Packets;
-using Antmicro.Renode.Core.USB;
 
 namespace Antmicro.Renode.Peripherals.USB
 {
@@ -133,6 +134,7 @@ namespace Antmicro.Renode.Peripherals.USB
 
         [IrqProvider]
         public GPIO MainIRQ { get; private set; }
+
         public GPIO DmaIRQ { get; private set; }
 
         public long Size => 0x1000;
@@ -301,7 +303,6 @@ namespace Antmicro.Renode.Peripherals.USB
 
         private void DefineFifoRegisters()
         {
-
             for(var i = 0; i < NumberOfEndpoints; i++)
             {
                 var fifoId = i;
@@ -340,7 +341,6 @@ namespace Antmicro.Renode.Peripherals.USB
 
         private void DefineControlAndStatusRegisters()
         {
-
             Registers.DeviceControl.Define8(this, 0x80, name: "DEV_CTRL_REG")
                 .WithFlag(7, FieldMode.Read, valueProviderCallback: _ => true, name: "B-Device")
                 .WithFlag(6, FieldMode.Read, valueProviderCallback: _ => true, name: "FSDev")
@@ -354,7 +354,7 @@ namespace Antmicro.Renode.Peripherals.USB
         {
             Registers.Endpoint0TransmitControlStatus.Define16(this, name: $"EP0_TX_CSR_REG")
                 .WithFlag(0, out var receivedPacketReady, name: "RxPktRdy")
-                .WithFlag(1, out var transmitPacketReady,  name: "TxPktRdy")
+                .WithFlag(1, out var transmitPacketReady, name: "TxPktRdy")
                 .WithFlag(3, out var setupPacket, name: "SetupPkt")
                 .WithFlag(5, out var requestPacket, name: "ReqPkt")
                 .WithFlag(6, out var statusPacket, name: "StatusPkt")
@@ -555,14 +555,14 @@ namespace Antmicro.Renode.Peripherals.USB
             IValueRegisterField addressField = null;
             switch(direction)
             {
-                case Direction.DeviceToHost:
-                    addressField = receiveDeviceAddress[endpointId];
-                    break;
-                case Direction.HostToDevice:
-                    addressField = transmitDeviceAddress[endpointId];
-                    break;
-                default:
-                    throw new ArgumentException($"Unexpected direction: {direction}");
+            case Direction.DeviceToHost:
+                addressField = receiveDeviceAddress[endpointId];
+                break;
+            case Direction.HostToDevice:
+                addressField = transmitDeviceAddress[endpointId];
+                break;
+            default:
+                throw new ArgumentException($"Unexpected direction: {direction}");
             }
 
             lock(addressToDeviceCache)
@@ -621,15 +621,16 @@ namespace Antmicro.Renode.Peripherals.USB
             }
         }
 
-        private readonly TwoWayDictionary<byte, IUSBDevice> addressToDeviceCache;
-
-        private IFlagRegisterField[] requestInTransaction = new IFlagRegisterField[NumberOfEndpoints];
-        private IValueRegisterField[] transmitDeviceAddress;
-        private IValueRegisterField[] receiveDeviceAddress;
-        private IValueRegisterField[] transmitTargetEndpointNumber;
-        private IValueRegisterField[] receiveTargetEndpointNumber;
         private IValueRegisterField index;
         private IFlagRegisterField sessionInProgress;
+
+        private readonly IFlagRegisterField[] requestInTransaction = new IFlagRegisterField[NumberOfEndpoints];
+        private readonly IValueRegisterField[] transmitDeviceAddress;
+        private readonly IValueRegisterField[] receiveDeviceAddress;
+        private readonly IValueRegisterField[] transmitTargetEndpointNumber;
+        private readonly IValueRegisterField[] receiveTargetEndpointNumber;
+
+        private readonly TwoWayDictionary<byte, IUSBDevice> addressToDeviceCache;
         private readonly Queue<byte>[] fifoFromHostToDevice;
         private readonly Queue<byte>[] fifoFromDeviceToHost;
 
@@ -865,7 +866,6 @@ namespace Antmicro.Renode.Peripherals.USB
             DmaChannel4Control = 0x234,
             DmaChannel4Address = 0x238,
             DmaChannel4Count = 0x23C,
-
         }
 
         private enum HostRegisters

@@ -12,5 +12,4 @@ namespace Antmicro.Renode.Core.USB
         Class,
         Vendor
     }
-
 }

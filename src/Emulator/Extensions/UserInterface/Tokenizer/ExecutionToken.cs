@@ -22,7 +22,6 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
                 Value = value;
             }
         }
-        public string Value {get;set;}
 
         public override object GetObjectValue()
         {
@@ -33,6 +32,7 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
         {
             return string.Format("[ExecutionToken: Value={0}]", Value);
         }
+
+        public string Value { get; set; }
     }
 }
-

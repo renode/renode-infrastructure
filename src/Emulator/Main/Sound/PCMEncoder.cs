@@ -8,6 +8,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Utilities;
 
@@ -19,12 +20,12 @@ namespace Antmicro.Renode.Sound
         {
             if(concatenatedChannels)
             {
-               throw new ConstructionException("Concatenated channels are currently not supported");
+                throw new ConstructionException("Concatenated channels are currently not supported");
             }
 
             if(sampleWidthBits != 8u && sampleWidthBits != 16u && sampleWidthBits != 24u && sampleWidthBits != 32u)
             {
-               throw new ConstructionException($"Not supported sample width: {0}. Only 8/16/24/32 values are currently supported.");
+                throw new ConstructionException($"Not supported sample width: {0}. Only 8/16/24/32 values are currently supported.");
             }
 
             this.samplingRateHz = samplingRateHz;

@@ -35,7 +35,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private void DefineRegisters()
         {
             Registers.Reset.Define(this)
-                .WithFlag(0, FieldMode.WriteOneToClear, name: "reset", writeCallback: (_, val) => 
+                .WithFlag(0, FieldMode.WriteOneToClear, name: "reset", writeCallback: (_, val) =>
                 {
                     if(val)
                     {
@@ -45,17 +45,17 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     }
                 })
                 .WithReservedBits(1, 7)
-                .WithIgnoredBits(8,24)
+                .WithIgnoredBits(8, 24)
             ;
 
             Registers.Locked.Define(this)
                 .WithFlag(0, name: "locked", valueProviderCallback: _ => true) // we are always ready
                 .WithReservedBits(1, 7)
-                .WithIgnoredBits(8,24)
+                .WithIgnoredBits(8, 24)
             ;
 
             Registers.Read.Define(this)
-                .WithFlag(0, FieldMode.WriteOneToClear, name: "read", writeCallback: (_, val) => 
+                .WithFlag(0, FieldMode.WriteOneToClear, name: "read", writeCallback: (_, val) =>
                 {
                     if(val)
                     {
@@ -63,7 +63,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     }
                 })
                 .WithReservedBits(1, 7)
-                .WithIgnoredBits(8,24)
+                .WithIgnoredBits(8, 24)
             ;
 
             Registers.Write.Define(this)
@@ -75,33 +75,33 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     }
                 })
                 .WithReservedBits(1, 7)
-                .WithIgnoredBits(8,24)
+                .WithIgnoredBits(8, 24)
             ;
 
             Registers.DataReady.Define(this)
                 .WithFlag(0, out dataReadyField, name: "drdy")
                 .WithReservedBits(1, 7)
-                .WithIgnoredBits(8,24)
+                .WithIgnoredBits(8, 24)
             ;
             Registers.Address.Define(this)
                 .WithValueField(0, 8, out addressField, name: "addr")
-                .WithIgnoredBits(8,24)
+                .WithIgnoredBits(8, 24)
             ;
             Registers.DataWriteLow.Define(this)
                 .WithValueField(0, 8, out dataWriteLowField, FieldMode.Write, name: "dat_wL")
-                .WithIgnoredBits(8,24)
+                .WithIgnoredBits(8, 24)
             ;
             Registers.DataWriteHigh.Define(this)
                 .WithValueField(0, 8, out dataWriteHighField, FieldMode.Write, name: "dat_wH")
-                .WithIgnoredBits(8,24)
+                .WithIgnoredBits(8, 24)
             ;
             Registers.DataReadLow.Define(this)
                 .WithValueField(0, 8, out dataReadLowField, FieldMode.Read, name: "dat_rL")
-                .WithIgnoredBits(8,24)
+                .WithIgnoredBits(8, 24)
             ;
             Registers.DataReadHigh.Define(this)
                 .WithValueField(0, 8, out dataReadHighField, FieldMode.Read, name: "dat_rH")
-                .WithIgnoredBits(8,24)
+                .WithIgnoredBits(8, 24)
             ;
         }
 
@@ -137,7 +137,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private IValueRegisterField dataWriteLowField;
         private IValueRegisterField dataWriteHighField;
 
-        private uint[] mmcmRegisters;
+        private readonly uint[] mmcmRegisters;
 
         private const int RegistersCount = 0x50;    // 0x4F is the last register in MMCM
 

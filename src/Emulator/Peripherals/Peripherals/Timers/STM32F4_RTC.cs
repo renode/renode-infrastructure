@@ -6,6 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -534,28 +535,32 @@ namespace Antmicro.Renode.Peripherals.Timers
             ResetInnerStatus();
         }
 
+        public bool WakeupTimerRegisterErrata { get; set; }
+
         public long Size => 0x400;
+
         public GPIO AlarmIRQ { get; }
+
         public GPIO WakeupIRQ { get; }
 
         private static DateTime UpdateTimeState(DateTime timeState, DateTimeSelect select, int value)
         {
             switch(select)
             {
-                case DateTimeSelect.Second:
-                    return timeState.With(second: value);
-                case DateTimeSelect.Minute:
-                    return timeState.With(minute: value);
-                case DateTimeSelect.Hour:
-                    return timeState.With(hour: value);
-                case DateTimeSelect.Day:
-                    return timeState.With(day: value);
-                case DateTimeSelect.Month:
-                    return timeState.With(month: value);
-                case DateTimeSelect.Year:
-                    return timeState.With(year: value);
-                default:
-                    throw new ArgumentException($"Unexpected select: {select}");
+            case DateTimeSelect.Second:
+                return timeState.With(second: value);
+            case DateTimeSelect.Minute:
+                return timeState.With(minute: value);
+            case DateTimeSelect.Hour:
+                return timeState.With(hour: value);
+            case DateTimeSelect.Day:
+                return timeState.With(day: value);
+            case DateTimeSelect.Month:
+                return timeState.With(month: value);
+            case DateTimeSelect.Year:
+                return timeState.With(year: value);
+            default:
+                throw new ArgumentException($"Unexpected select: {select}");
             }
         }
 
@@ -673,7 +678,10 @@ namespace Antmicro.Renode.Peripherals.Timers
             UpdateAlarm(alarmB, Registers.AlarmBRegister, action);
         }
 
-        public bool WakeupTimerRegisterErrata { get; set; }
+        private bool firstStageUnlocked;
+        private bool registersUnlocked;
+        private bool initMode;
+        private bool AMPMFormat;
 
         private readonly TimerConfig mainTimer;
         private readonly AlarmConfig alarmA;
@@ -690,11 +698,6 @@ namespace Antmicro.Renode.Peripherals.Timers
         private readonly LimitTimer fastTicker;
         private readonly LimitTimer wakeupTimer;
 
-        private bool firstStageUnlocked;
-        private bool registersUnlocked;
-        private bool initMode;
-        private bool AMPMFormat;
-
         private const uint UnlockKey1 = 0xCA;
         private const uint UnlockKey2 = 0x53;
         private const long DefaultWakeupTimerFrequency = 32768;
@@ -707,32 +710,6 @@ namespace Antmicro.Renode.Peripherals.Timers
             {
                 this.parent = parent;
             }
-
-            public DateTime TimeState
-            {
-                get => timeState;
-
-                set
-                {
-                    timeState = value;
-                    ConfigureAMPM();
-                }
-            }
-
-            public bool PM
-            {
-                get => timeState.Hour > 11 && parent.AMPMFormat;
-
-                set
-                {
-                    pm = value;
-                    ConfigureAMPM();
-                }
-            }
-
-            // DateTime calculates the week day automatically based on the set date,
-            // but the device allows for setting an arbitrary value
-            public DayOfTheWeek WeekDay { get; set; }
 
             public void Reset()
             {
@@ -780,26 +757,52 @@ namespace Antmicro.Renode.Peripherals.Timers
                 TimeState = UpdateTimeState(TimeState, what, val);
             }
 
+            public DateTime TimeState
+            {
+                get => timeState;
+
+                set
+                {
+                    timeState = value;
+                    ConfigureAMPM();
+                }
+            }
+
+            public bool PM
+            {
+                get => timeState.Hour > 11 && parent.AMPMFormat;
+
+                set
+                {
+                    pm = value;
+                    ConfigureAMPM();
+                }
+            }
+
+            // DateTime calculates the week day automatically based on the set date,
+            // but the device allows for setting an arbitrary value
+            public DayOfTheWeek WeekDay { get; set; }
+
             private int GetTimeSelect(DateTimeSelect what)
             {
                 switch(what)
                 {
-                    case DateTimeSelect.Second:
-                        return timeState.Second;
-                    case DateTimeSelect.Minute:
-                        return timeState.Minute;
-                    case DateTimeSelect.Hour:
-                        return PM
-                            ? timeState.Hour - 12
-                            : timeState.Hour;
-                    case DateTimeSelect.Day:
-                        return timeState.Day;
-                    case DateTimeSelect.Month:
-                        return timeState.Month;
-                    case DateTimeSelect.Year:
-                        return timeState.Year;
-                    default:
-                        throw new ArgumentException($"Unexpected date time select: {what}");
+                case DateTimeSelect.Second:
+                    return timeState.Second;
+                case DateTimeSelect.Minute:
+                    return timeState.Minute;
+                case DateTimeSelect.Hour:
+                    return PM
+                        ? timeState.Hour - 12
+                        : timeState.Hour;
+                case DateTimeSelect.Day:
+                    return timeState.Day;
+                case DateTimeSelect.Month:
+                    return timeState.Month;
+                case DateTimeSelect.Year:
+                    return timeState.Year;
+                default:
+                    throw new ArgumentException($"Unexpected date time select: {what}");
                 }
             }
 
@@ -817,6 +820,121 @@ namespace Antmicro.Renode.Peripherals.Timers
                 this.masterTimer = masterTimer;
 
                 Reset();
+            }
+
+            public void Reset()
+            {
+                day = 0;
+
+                hour = 0;
+                minute = 0;
+                second = 0;
+                subsecond = 0;
+
+                pm = false;
+                enable = false;
+                flag = false;
+                interruptEnable = false;
+                secondsMask = false;
+                minutesMask = false;
+                hoursMask = false;
+                daysMask = false;
+                subsecondsMask = 0;
+            }
+
+            public uint Read(DateTimeSelect select, Rank rank)
+            {
+                var currentValue = GetTimeSelect(select);
+                return (uint)currentValue.ReadRank(rank);
+            }
+
+            public void ConfigureAMPM()
+            {
+                if(!parent.AMPMFormat)
+                {
+                    return;
+                }
+
+                if(pm)
+                {
+                    if(Hour < 12)
+                    {
+                        Hour += 12;
+                    }
+                }
+                else
+                {
+                    if(Hour >= 12)
+                    {
+                        Hour -= 12;
+                    }
+                }
+            }
+
+            public void UpdateInterruptFlag()
+            {
+                // the initial value of `state` will be false
+                // for a disabled timer
+                var state = Enable;
+
+                // Subseconds mask equal to 0 means the alarm is activated when the second unit is incremented
+                // (or at most once every 1 second)
+                if(SubsecondsMask == 0)
+                {
+                    state &= (parent.ticker.Value == parent.ticker.Limit);
+                }
+                else
+                {
+                    var ssComparedBitMask = (uint)BitHelper.Bits(0, (int)SubsecondsMask);
+                    var maskedAlarmSubsecond = (ulong)(Subsecond & ssComparedBitMask);
+                    var maskedCurrentSubsecond = parent.ticker.Value & ssComparedBitMask;
+                    state &= (maskedAlarmSubsecond == maskedCurrentSubsecond);
+                }
+
+                if(!SecondsMask)
+                {
+                    state &= (Second == masterTimer.TimeState.Second);
+                }
+                if(!MinutesMask)
+                {
+                    state &= (Minute == masterTimer.TimeState.Minute);
+                }
+                if(!HoursMask)
+                {
+                    state &= (Hour == masterTimer.TimeState.Hour);
+                }
+                if(!DaysMask)
+                {
+                    // day of week not supported ATM
+                    state &= (Day == masterTimer.TimeState.Day);
+                }
+
+                flag = state;
+                parent.UpdateInterrupts();
+            }
+
+            public void Update(DateTimeSelect what, Rank rank, uint value)
+            {
+                var currentValue = GetTimeSelect(what);
+                var val = currentValue.WithUpdatedRank((int)value, rank);
+
+                switch(what)
+                {
+                case DateTimeSelect.Second:
+                    Second = val;
+                    break;
+                case DateTimeSelect.Minute:
+                    Minute = val;
+                    break;
+                case DateTimeSelect.Hour:
+                    Hour = val;
+                    break;
+                case DateTimeSelect.Day:
+                    Day = val;
+                    break;
+                default:
+                    throw new ArgumentException($"Unexpected date time select: {what}");
+                }
             }
 
             public int Day
@@ -923,7 +1041,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
             }
 
-
             // This is the number of compared least significant bits. 0 - no subsecond bits
             // are compared, 1..14 - that many LSBs are compared, 15 - all bits are compared
             public uint SubsecondsMask
@@ -981,137 +1098,22 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
             }
 
-            public void Reset()
-            {
-                day = 0;
-
-                hour = 0;
-                minute = 0;
-                second = 0;
-                subsecond = 0;
-
-                pm = false;
-                enable = false;
-                flag = false;
-                interruptEnable = false;
-                secondsMask = false;
-                minutesMask = false;
-                hoursMask = false;
-                daysMask = false;
-                subsecondsMask = 0;
-            }
-
-            public uint Read(DateTimeSelect select, Rank rank)
-            {
-                var currentValue = GetTimeSelect(select);
-                return (uint)currentValue.ReadRank(rank);
-            }
-
-            public void ConfigureAMPM()
-            {
-                if(!parent.AMPMFormat)
-                {
-                    return;
-                }
-
-                if(pm)
-                {
-                    if(Hour < 12)
-                    {
-                        Hour += 12;
-                    }
-                }
-                else
-                {
-                    if(Hour >= 12)
-                    {
-                        Hour -= 12;
-                    }
-                }
-            }
-
-            public void UpdateInterruptFlag()
-            {
-                // the initial value of `state` will be false
-                // for a disabled timer
-                var state = Enable;
-
-                // Subseconds mask equal to 0 means the alarm is activated when the second unit is incremented
-                // (or at most once every 1 second)
-                if(SubsecondsMask == 0)
-                {
-                    state &= (parent.ticker.Value == parent.ticker.Limit);
-                }
-                else
-                {
-                    var ssComparedBitMask = (uint)BitHelper.Bits(0, (int)SubsecondsMask);
-                    var maskedAlarmSubsecond = (ulong)(Subsecond & ssComparedBitMask);
-                    var maskedCurrentSubsecond = parent.ticker.Value & ssComparedBitMask;
-                    state &= (maskedAlarmSubsecond == maskedCurrentSubsecond);
-                }
-
-                if(!SecondsMask)
-                {
-                    state &= (Second == masterTimer.TimeState.Second);
-                }
-                if(!MinutesMask)
-                {
-                    state &= (Minute == masterTimer.TimeState.Minute);
-                }
-                if(!HoursMask)
-                {
-                    state &= (Hour == masterTimer.TimeState.Hour);
-                }
-                if(!DaysMask)
-                {
-                    // day of week not supported ATM
-                    state &= (Day == masterTimer.TimeState.Day);
-                }
-
-                flag = state;
-                parent.UpdateInterrupts();
-            }
-
-            public void Update(DateTimeSelect what, Rank rank, uint value)
-            {
-                var currentValue = GetTimeSelect(what);
-                var val = currentValue.WithUpdatedRank((int)value, rank);
-
-                switch(what)
-                {
-                    case DateTimeSelect.Second:
-                        Second = val;
-                        break;
-                    case DateTimeSelect.Minute:
-                        Minute = val;
-                        break;
-                    case DateTimeSelect.Hour:
-                        Hour = val;
-                        break;
-                    case DateTimeSelect.Day:
-                        Day = val;
-                        break;
-                    default:
-                        throw new ArgumentException($"Unexpected date time select: {what}");
-                }
-            }
-
             private int GetTimeSelect(DateTimeSelect what)
             {
                 switch(what)
                 {
-                    case DateTimeSelect.Second:
-                        return Second;
-                    case DateTimeSelect.Minute:
-                        return Minute;
-                    case DateTimeSelect.Hour:
-                        return PM
-                            ? Hour - 12
-                            : Hour;
-                    case DateTimeSelect.Day:
-                        return Day;
-                    default:
-                        throw new ArgumentException($"Unexpected date time select: {what}");
+                case DateTimeSelect.Second:
+                    return Second;
+                case DateTimeSelect.Minute:
+                    return Minute;
+                case DateTimeSelect.Hour:
+                    return PM
+                        ? Hour - 12
+                        : Hour;
+                case DateTimeSelect.Day:
+                    return Day;
+                default:
+                    throw new ArgumentException($"Unexpected date time select: {what}");
                 }
             }
 

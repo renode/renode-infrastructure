@@ -4,24 +4,23 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Logging;
-using static Antmicro.Renode.Peripherals.SPI.Cadence_xSPI;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands
 {
     internal abstract class AutoCommand : Command
     {
-        static public AutoCommand CreateAutoCommand(Cadence_xSPI controller, CommandPayload payload)
+        public static AutoCommand CreateAutoCommand(Cadence_xSPI controller, CommandPayload payload)
         {
             var commandMode = DecodeCommandMode(payload);
             switch(commandMode)
             {
-                case CommandMode.PIO:
-                    return PIOCommand.CreatePIOCommand(controller, payload);
-                default:
-                    controller.Log(LogLevel.Warning, "Unable to create the auto command, unknown command mode 0x{0:x}", commandMode);
-                    return null;
+            case CommandMode.PIO:
+                return PIOCommand.CreatePIOCommand(controller, payload);
+            default:
+                controller.Log(LogLevel.Warning, "Unable to create the auto command, unknown command mode 0x{0:x}", commandMode);
+                return null;
             }
         }
 
@@ -40,7 +39,7 @@ namespace Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands
 
         protected CommandMode mode;
 
-        static private CommandMode DecodeCommandMode(CommandPayload payload)
+        private static CommandMode DecodeCommandMode(CommandPayload payload)
         {
             return (CommandMode)BitHelper.GetValue(payload[0], 30, 2);
         }

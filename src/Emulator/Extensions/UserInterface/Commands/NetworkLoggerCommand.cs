@@ -4,15 +4,20 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using AntShell.Commands;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.UserInterface.Tokenizer;
+using Antmicro.Renode.Utilities;
+
+using AntShell.Commands;
 
 namespace Antmicro.Renode.UserInterface.Commands
 {
     public class NetworkLoggerCommand : AutoLoadCommand
     {
+        public NetworkLoggerCommand(Monitor monitor) : base(monitor, FullCommand, "sets the output port for logger.", "logN")
+        {
+        }
+
         public override void PrintHelp(ICommandInteraction writer)
         {
             base.PrintHelp(writer);
@@ -34,10 +39,6 @@ namespace Antmicro.Renode.UserInterface.Commands
             Run((int)port.Value);
         }
 
-        public NetworkLoggerCommand(Monitor monitor) : base(monitor, FullCommand, "sets the output port for logger.", "logN")
-        {
-        }
-
         private void Run(int port, bool plainMode = true)
         {
             Logger.AddBackend(new NetworkBackend(port, plainMode), BackendName, overwrite: true);
@@ -47,4 +48,3 @@ namespace Antmicro.Renode.UserInterface.Commands
         private const string FullCommand = "logNetwork";
     }
 }
-

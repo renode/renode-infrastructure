@@ -17,9 +17,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         public HaltReason Reason { get; }
+
         public ICPU Cpu { get; }
+
         public ulong? Address { get; }
+
         public BreakpointType? BreakpointType { get; }
     }
 }
-

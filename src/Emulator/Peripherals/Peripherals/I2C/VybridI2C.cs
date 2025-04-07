@@ -6,14 +6,12 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
+using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-
-
-using System.Collections.Generic;
-using System.Linq;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.I2C
@@ -63,15 +61,14 @@ namespace Antmicro.Renode.Peripherals.I2C
                     {
                         this.Log(LogLevel.Warning, "Reading from slave device {0} did not return any data.", device.GetType());
                     }
-                   
                 }
                 //Acknowledge before returning
                 TransferComplete();
                 return receiveFifo.Dequeue();
-              
+
             case Registers.DebugRegister:
             case Registers.InterruptConfigRegister:
-                //not used in driver
+            //not used in driver
             default:
                 this.LogUnhandledRead(offset);
                 return 0;
@@ -170,11 +167,11 @@ namespace Antmicro.Renode.Peripherals.I2C
                 break;
             case Registers.InterruptConfigRegister:
             case Registers.DebugRegister:
-                //not used in driver
+            //not used in driver
             default:
                 this.LogUnhandledWrite(offset, value);
                 break;
-            }   
+            }
         }
 
         public override void Reset()
@@ -209,7 +206,6 @@ namespace Antmicro.Renode.Peripherals.I2C
             Update();
         }
 
-        private Queue<byte> transmitFifo = new Queue<byte>();
         private Queue<byte> receiveFifo = new Queue<byte>();
 
         private byte address;
@@ -219,6 +215,8 @@ namespace Antmicro.Renode.Peripherals.I2C
         private Mode mode;
         private State state;
         private bool isMaster;
+
+        private readonly Queue<byte> transmitFifo = new Queue<byte>();
 
         private enum Mode
         {
@@ -258,14 +256,13 @@ namespace Antmicro.Renode.Peripherals.I2C
             TxRx = 4,
         }
 
-        private enum  StatusBits : byte
+        private enum StatusBits : byte
         {
             TransferComplete = 7,
             AddressedAsASlave = 6,
             BusBusy = 5,
             ArbitrationLost = 4,
             InterruptFlag = 1
-
         }
     }
 }

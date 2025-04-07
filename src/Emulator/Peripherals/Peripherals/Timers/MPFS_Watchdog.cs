@@ -5,11 +5,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Time;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -33,6 +33,10 @@ namespace Antmicro.Renode.Peripherals.Timers
             state = State.ForbiddenRegion;
             internalTimer.Reset();
         }
+
+        public GPIO Trigger { get; }
+
+        public GPIO RefreshEnable { get; }
 
         public long Size => 0x1000;
 
@@ -139,12 +143,12 @@ namespace Antmicro.Renode.Peripherals.Timers
             var rest = 0u;
             switch(state)
             {
-                case State.ForbiddenRegion:
-                    rest = (uint)maximumValueForWhichRefreshIsPermitted.Value;
-                    break;
-                case State.RefreshRegion:
-                    rest = (uint)triggerValue.Value;
-                    break;
+            case State.ForbiddenRegion:
+                rest = (uint)maximumValueForWhichRefreshIsPermitted.Value;
+                break;
+            case State.RefreshRegion:
+                rest = (uint)triggerValue.Value;
+                break;
                 //intentionally no State.AfterTrigger, rest = 0
             }
             return (uint)internalTimer.Value + rest;
@@ -156,22 +160,22 @@ namespace Antmicro.Renode.Peripherals.Timers
             this.state = state;
             switch(state)
             {
-                case State.ForbiddenRegion:
-                    internalTimer.Limit = time.Value - maximumValueForWhichRefreshIsPermitted.Value;
-                    refreshPermittedLevelTripped.Value = false;
-                    watchdogTripped.Value = false;
-                    break;
-                case State.RefreshRegion:
-                    refreshPermittedLevelTripped.Value = true;
-                    watchdogTripped.Value = false;
-                    internalTimer.Limit = maximumValueForWhichRefreshIsPermitted.Value - triggerValue.Value;
-                    break;
-                case State.AfterTrigger:
-                    watchdogTripped.Value = true;
-                    internalTimer.Limit = triggerValue.Value;
-                    break;
-                default:
-                    throw new ArgumentException("Trying to set invalid watchdog state.", nameof(state));
+            case State.ForbiddenRegion:
+                internalTimer.Limit = time.Value - maximumValueForWhichRefreshIsPermitted.Value;
+                refreshPermittedLevelTripped.Value = false;
+                watchdogTripped.Value = false;
+                break;
+            case State.RefreshRegion:
+                refreshPermittedLevelTripped.Value = true;
+                watchdogTripped.Value = false;
+                internalTimer.Limit = maximumValueForWhichRefreshIsPermitted.Value - triggerValue.Value;
+                break;
+            case State.AfterTrigger:
+                watchdogTripped.Value = true;
+                internalTimer.Limit = triggerValue.Value;
+                break;
+            default:
+                throw new ArgumentException("Trying to set invalid watchdog state.", nameof(state));
             }
             //We do this to get proper info in GetClockSourceInfo (need to set Limit) and because we might change state by writing registers
             internalTimer.Value = internalTimer.Limit;
@@ -187,10 +191,6 @@ namespace Antmicro.Renode.Peripherals.Timers
             this.Log(LogLevel.Noisy, "Sending interrupts, RefreshEnable: {0}, Trigger: {1}", RefreshEnable.IsSet, Trigger.IsSet);
         }
 
-        public GPIO Trigger { get; }
-        public GPIO RefreshEnable { get; }
-
-        private LimitTimer internalTimer;
         private State state;
 
         private IFlagRegisterField locked;
@@ -201,6 +201,8 @@ namespace Antmicro.Renode.Peripherals.Timers
         private IFlagRegisterField forbiddenRangeEnabled;
         private IFlagRegisterField refreshPermittedLevelTripped;
         private IFlagRegisterField watchdogTripped;
+
+        private readonly LimitTimer internalTimer;
 
         private const uint ResetTrigger = 0xDEAD;
         private const uint WatchdogReset = 0xDEADC0DE;

@@ -5,18 +5,26 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
 using System.Collections.Generic;
-using AntShell.Commands;
+using System.Linq;
+
 using Antmicro.Renode.Time;
 using Antmicro.Renode.UserInterface.Tokenizer;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.RESD;
 
+using AntShell.Commands;
+
 namespace Antmicro.Renode.UserInterface.Commands
 {
     public class ResdCommand : Command
     {
+        public ResdCommand(Monitor monitor)
+            : base(monitor, "resd", "introspection for RESD files")
+        {
+            resdFiles = new Dictionary<string, LowLevelRESDParser>();
+        }
+
         public override void PrintHelp(ICommandInteraction writer)
         {
             base.PrintHelp(writer);
@@ -42,7 +50,7 @@ namespace Antmicro.Renode.UserInterface.Commands
         }
 
         [Runnable]
-        public void Run(ICommandInteraction writer, [Values("load")] LiteralToken action, LiteralToken internalName, StringToken filePath)
+        public void Run(ICommandInteraction writer, [Values("load")] LiteralToken _, LiteralToken internalName, StringToken filePath)
         {
             if(resdFiles.ContainsKey(internalName.Value))
             {
@@ -72,17 +80,17 @@ namespace Antmicro.Renode.UserInterface.Commands
 
             switch(action.Value)
             {
-                case "unload":
-                    Unload(writer, internalName.Value);
-                    break;
-                case "list-blocks":
-                    ListBlocks(writer, internalName.Value);
-                    break;
+            case "unload":
+                Unload(internalName.Value);
+                break;
+            case "list-blocks":
+                ListBlocks(writer, internalName.Value);
+                break;
             }
         }
 
         [Runnable]
-        public void Run(ICommandInteraction writer, [Values("get-prop")] LiteralToken action, LiteralToken internalName, DecimalIntegerToken index, LiteralToken property)
+        public void Run(ICommandInteraction writer, [Values("get-prop")] LiteralToken _, LiteralToken internalName, DecimalIntegerToken index, LiteralToken property)
         {
             RESDProperty enumValue;
             if(!Enum.TryParse(property.Value, false, out enumValue))
@@ -95,29 +103,29 @@ namespace Antmicro.Renode.UserInterface.Commands
             {
                 switch(enumValue)
                 {
-                    case RESDProperty.SampleType:
-                        writer.WriteLine($"{block.SampleType}");
-                        break;
-                    case RESDProperty.ChannelID:
-                        writer.WriteLine($"{block.ChannelId}");
-                        break;
-                    case RESDProperty.StartTime:
-                        writer.WriteLine($"{TimeStampToTimeInterval(block.StartTime)}");
-                        break;
-                    case RESDProperty.EndTime:
-                        writer.WriteLine($"{TimeStampToTimeInterval(block.GetEndTime())}");
-                        break;
-                    case RESDProperty.Duration:
-                        writer.WriteLine($"{TimeStampToTimeInterval(block.Duration)}");
-                        break;
-                    default:
-                        throw new Exception("unreachable");
+                case RESDProperty.SampleType:
+                    writer.WriteLine($"{block.SampleType}");
+                    break;
+                case RESDProperty.ChannelID:
+                    writer.WriteLine($"{block.ChannelId}");
+                    break;
+                case RESDProperty.StartTime:
+                    writer.WriteLine($"{TimeStampToTimeInterval(block.StartTime)}");
+                    break;
+                case RESDProperty.EndTime:
+                    writer.WriteLine($"{TimeStampToTimeInterval(block.GetEndTime())}");
+                    break;
+                case RESDProperty.Duration:
+                    writer.WriteLine($"{TimeStampToTimeInterval(block.Duration)}");
+                    break;
+                default:
+                    throw new Exception("unreachable");
                 }
             });
         }
 
         [Runnable]
-        public void Run(ICommandInteraction writer, [Values("get-samples")] LiteralToken action, LiteralToken internalName, DecimalIntegerToken index, StringToken startTimeString, DecimalIntegerToken count)
+        public void Run(ICommandInteraction writer, [Values("get-samples")] LiteralToken _, LiteralToken internalName, DecimalIntegerToken index, StringToken startTimeString, DecimalIntegerToken count)
         {
             if(!TimeInterval.TryParse(startTimeString.Value, out var startTime))
             {
@@ -135,7 +143,7 @@ namespace Antmicro.Renode.UserInterface.Commands
         }
 
         [Runnable]
-        public void Run(ICommandInteraction writer, [Values("get-samples-range")] LiteralToken action, LiteralToken internalName, DecimalIntegerToken index, StringToken range)
+        public void Run(ICommandInteraction writer, [Values("get-samples-range")] LiteralToken _, LiteralToken internalName, DecimalIntegerToken index, StringToken range)
         {
             var delimiterIndex = range.Value.IndexOf("..");
             if(delimiterIndex == -1)
@@ -165,7 +173,7 @@ namespace Antmicro.Renode.UserInterface.Commands
         }
 
         [Runnable]
-        public void Run(ICommandInteraction writer, [Values("get-samples-range")] LiteralToken action, LiteralToken internalName, DecimalIntegerToken index, StringToken startTimeString, StringToken endTimeString)
+        public void Run(ICommandInteraction writer, [Values("get-samples-range")] LiteralToken _, LiteralToken internalName, DecimalIntegerToken index, StringToken startTimeString, StringToken endTimeString)
         {
             if(!TimeInterval.TryParse(startTimeString.Value, out var startTime))
             {
@@ -188,7 +196,7 @@ namespace Antmicro.Renode.UserInterface.Commands
         }
 
         [Runnable]
-        public void Run(ICommandInteraction writer, [Values("describe-block")] LiteralToken action, LiteralToken internalName, DecimalIntegerToken index)
+        public void Run(ICommandInteraction writer, [Values("describe-block")] LiteralToken _, LiteralToken internalName, DecimalIntegerToken index)
         {
             DoForBlockWithIndex(writer, internalName.Value, index.Value, (block) =>
             {
@@ -218,23 +226,7 @@ namespace Antmicro.Renode.UserInterface.Commands
             });
         }
 
-        public enum RESDProperty
-        {
-            SampleType,
-            ChannelID,
-            StartTime,
-            EndTime,
-            Duration,
-            SamplesCount,
-        }
-
-        public ResdCommand(Monitor monitor)
-            : base(monitor, "resd", "introspection for RESD files")
-        {
-            resdFiles = new Dictionary<string, LowLevelRESDParser>();
-        }
-
-        private void Unload(ICommandInteraction writer, string internalName)
+        private void Unload(string internalName)
         {
             resdFiles.Remove(internalName);
         }
@@ -292,6 +284,15 @@ namespace Antmicro.Renode.UserInterface.Commands
         private string RESDPropertyNames => String.Join(", ", Enum.GetNames(typeof(RESDProperty)));
 
         private readonly IDictionary<string, LowLevelRESDParser> resdFiles;
+
+        public enum RESDProperty
+        {
+            SampleType,
+            ChannelID,
+            StartTime,
+            EndTime,
+            Duration,
+            SamplesCount,
+        }
     }
 }
-

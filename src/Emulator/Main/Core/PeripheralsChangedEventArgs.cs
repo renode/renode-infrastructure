@@ -25,6 +25,7 @@ namespace Antmicro.Renode.Core
         }
 
         public IPeripheral Peripheral { get; private set; }
+
         public PeripheralChangeType Operation { get; private set; }
 
         protected PeripheralsChangedEventArgs(IPeripheral peripheral, PeripheralChangeType operation)

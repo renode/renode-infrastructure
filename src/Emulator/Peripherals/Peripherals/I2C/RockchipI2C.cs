@@ -4,11 +4,10 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Core.Structure;
-using Antmicro.Renode.Logging;
+using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
 
 // minimal model compliant with u-boot rk_i2c driver
@@ -42,7 +41,9 @@ namespace Antmicro.Renode.Peripherals.I2C
         }
 
         public DoubleWordRegisterCollection RegistersCollection { get; }
+
         public long Size => 0x1000;
+
         [IrqProvider]
         public GPIO IRQ { get; private set; }
 
@@ -97,6 +98,7 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         private IFlagRegisterField stopTransmission;
         private IFlagRegisterField startTransmission;
+
         private enum Registers
         {
             Con = 0x0, // config

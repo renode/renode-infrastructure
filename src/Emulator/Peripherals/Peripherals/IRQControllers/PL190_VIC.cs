@@ -5,8 +5,8 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -61,6 +61,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         }
 
         public GPIO IRQ { get; }
+
         public GPIO FIQ { get; }
 
         public long Size => 0x1000;
@@ -273,15 +274,16 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
+        private IValueRegisterField activeVectorAddress;
+        private IValueRegisterField defaultVectorAddress;
+
+        private readonly IFlagRegisterField[] irqSourceEnabled = new IFlagRegisterField[NumberOfInputLines];
+        private readonly IValueRegisterField[] irqSource = new IValueRegisterField[NumberOfInputLines];
+        private readonly IValueRegisterField[] vectorAddress = new IValueRegisterField[NumberOfInputLines];
+
         private readonly Interrupt[] interrupts;
         private readonly Collections.PriorityQueue<Interrupt, int> activeInterrupts;
         private readonly Stack<Interrupt> servicedInterrupts;
-
-        private IFlagRegisterField[] irqSourceEnabled = new IFlagRegisterField[NumberOfInputLines];
-        private IValueRegisterField[] irqSource = new IValueRegisterField[NumberOfInputLines];
-        private IValueRegisterField[] vectorAddress = new IValueRegisterField[NumberOfInputLines];
-        private IValueRegisterField activeVectorAddress;
-        private IValueRegisterField defaultVectorAddress;
 
         private const int NumberOfInputLines = 32;
 
@@ -303,14 +305,21 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
 
             public int Id { get; }
+
             public bool IsIrq { get; set; }
+
             public bool Enabled { get; set; }
+
             public bool PinState { get; set; }
+
             public bool SoftwareState { get; set; }
+
             public int VectorId { get; set; }
 
             public bool IsActive => Enabled && (PinState || SoftwareState);
+
             public int Priority => VectorId != -1 ? VectorId : int.MaxValue;
+
             public bool IsFiq => !IsIrq;
         }
 

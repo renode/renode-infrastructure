@@ -7,11 +7,12 @@
 //
 
 using System;
+using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
-using System.Collections.Generic;
 
 namespace Antmicro.Renode.Peripherals.IRQControllers
 {
@@ -23,32 +24,29 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             FIQ = new GPIO();
         }
 
-        public GPIO IRQ { get; set; }
-        public GPIO FIQ { get; set; }
-
         #region IGPIOReceiver implementation
 
         public void OnGPIO(int number, bool value)
         {
-            lock (localLock)
+            lock(localLock)
             {
-            this.Log(LogLevel.Noisy, "GPIO IRQ{0} set to {1}", number, value);
+                this.Log(LogLevel.Noisy, "GPIO IRQ{0} set to {1}", number, value);
 
-            if ((IsInternalHighlevelSensitive(number) && value) || (IsInternalPositiveEdgeTriggered(number) && !level[number] && value))
-            {
-                BitHelper.SetBit(ref interruptPendingRegister, (byte)number, false);
-                if (IsIRQEnabled(number))
+                if((IsInternalHighlevelSensitive(number) && value) || (IsInternalPositiveEdgeTriggered(number) && !level[number] && value))
                 {
-                    if (CurrentIRQ.HasValue && CurrentIRQ.Value != -1 && GetPriority(number) > GetPriority(CurrentIRQ.Value))
+                    BitHelper.SetBit(ref interruptPendingRegister, (byte)number, false);
+                    if(IsIRQEnabled(number))
                     {
-                        IRQ.Set(false);
-                    }
-                    
-                    IRQ.Set();
-                }
-            }
+                        if(CurrentIRQ.HasValue && CurrentIRQ.Value != -1 && GetPriority(number) > GetPriority(CurrentIRQ.Value))
+                        {
+                            IRQ.Set(false);
+                        }
 
-               level[number] = value;
+                        IRQ.Set();
+                    }
+                }
+
+                level[number] = value;
             }
         }
 
@@ -60,10 +58,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             lock(localLock)
             {
-                switch ((Register)offset)
+                switch((Register)offset)
                 {
                 case Register.InterruptVectorRegister:
-                    if (CurrentIRQ.HasValue)
+                    if(CurrentIRQ.HasValue)
                     {
                         nestedInterruptStack.Push(Tuple.Create(CurrentIRQ.Value, (int)GetPriority(CurrentIRQ.Value)));
                         BitHelper.SetBit(ref interruptPendingRegister, (byte)CurrentIRQ.Value, true);
@@ -71,7 +69,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
                     uint result;
                     var irq = CalculateCurrentInterrupt();
-                    if (irq.HasValue)
+                    if(irq.HasValue)
                     {
                         BitHelper.SetBit(ref interruptPendingRegister, (byte)irq.Value, false); // clears the interrupt
                         CurrentIRQ = irq.Value;
@@ -87,7 +85,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     return result;
 
                 case Register.InterruptStatusRegister:
-                    if (CurrentIRQ.HasValue && CurrentIRQ > -1)
+                    if(CurrentIRQ.HasValue && CurrentIRQ > -1)
                     {
                         return (uint)CurrentIRQ.Value;
                     }
@@ -107,82 +105,82 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public void WriteDoubleWord(long offset, uint value)
         {
-            lock (localLock)
-        {
-            var val = -1;
-            if ((val = IsOffsetInRange((uint)offset, (uint)Register.SourceModeRegister0, 0x04, 32)) != -1)
+            lock(localLock)
             {
-                this.Log(LogLevel.Noisy, "This was write to Source Mode Register {0}", val);
-                sourceModeRegisters[val] = value;
-                return;
-            }
-
-            if ((val = IsOffsetInRange((uint)offset, (uint)Register.SourceVectorRegister0, 0x04, 32)) != -1)
-            {
-                this.Log(LogLevel.Noisy, "This was write to Source Vector Register {0}", val);
-                sourceVectorRegisters[val] = value;
-                return;
-            }
-
-            switch ((Register)offset)
-            {
-            case Register.EndofInterruptCommandRegister:
-                
-                if (nestedInterruptStack.Count > 0)
+                var val = -1;
+                if((val = IsOffsetInRange((uint)offset, (uint)Register.SourceModeRegister0, 0x04, 32)) != -1)
                 {
-                    var irq = nestedInterruptStack.Pop();
-                    //CurrentIRQ = irq.Item1;
-                    BitHelper.SetBit(ref interruptPendingRegister, (byte)irq.Item1, true);
+                    this.Log(LogLevel.Noisy, "This was write to Source Mode Register {0}", val);
+                    sourceModeRegisters[val] = value;
+                    return;
                 }
-                else
+
+                if((val = IsOffsetInRange((uint)offset, (uint)Register.SourceVectorRegister0, 0x04, 32)) != -1)
                 {
-                    if (CurrentIRQ.HasValue)
+                    this.Log(LogLevel.Noisy, "This was write to Source Vector Register {0}", val);
+                    sourceVectorRegisters[val] = value;
+                    return;
+                }
+
+                switch((Register)offset)
+                {
+                case Register.EndofInterruptCommandRegister:
+
+                    if(nestedInterruptStack.Count > 0)
                     {
-                        BitHelper.SetBit(ref interruptPendingRegister, (byte)CurrentIRQ, false);
+                        var irq = nestedInterruptStack.Pop();
+                        //CurrentIRQ = irq.Item1;
+                        BitHelper.SetBit(ref interruptPendingRegister, (byte)irq.Item1, true);
                     }
-                    this.Log(LogLevel.Noisy, "IRQ set to false");
-                    IRQ.Set(false);
-                }
+                    else
+                    {
+                        if(CurrentIRQ.HasValue)
+                        {
+                            BitHelper.SetBit(ref interruptPendingRegister, (byte)CurrentIRQ, false);
+                        }
+                        this.Log(LogLevel.Noisy, "IRQ set to false");
+                        IRQ.Set(false);
+                    }
 
-                CurrentIRQ = null;
+                    CurrentIRQ = null;
 
-                // save to this register indicates the end of the interrupt handling
-                break;
+                    // save to this register indicates the end of the interrupt handling
+                    break;
 
-            case Register.InterruptEnableCommandRegister:
-                interruptMaskRegister |= value;
-                break;
+                case Register.InterruptEnableCommandRegister:
+                    interruptMaskRegister |= value;
+                    break;
 
-            case Register.SpuriousInterruptVectorRegister:
-                spouriousInterruptVectorRegister = value;
-                break;
-              
-            //case Register.DebugControlRegister:
+                case Register.SpuriousInterruptVectorRegister:
+                    spouriousInterruptVectorRegister = value;
+                    break;
+
+                //case Register.DebugControlRegister:
                 //debugControlRegister = value;
-            //    break;
+                //    break;
 
-            case Register.InterruptClearCommandRegister:
+                case Register.InterruptClearCommandRegister:
 
-                foreach(var irq in BitHelper.GetSetBits(value))
-                {
-                    if (IsInternalPositiveEdgeTriggered(irq))
+                    foreach(var irq in BitHelper.GetSetBits(value))
                     {
-                        BitHelper.SetBit(ref interruptPendingRegister, (byte)irq, false);
+                        if(IsInternalPositiveEdgeTriggered(irq))
+                        {
+                            BitHelper.SetBit(ref interruptPendingRegister, (byte)irq, false);
+                        }
                     }
+
+                    break;
+
+                case Register.InterruptDisableCommandRegister:
+                    interruptMaskRegister &= ~value;
+                    //interruptPendingRegister &= ~value;
+                    break;
+
+                default:
+                    this.LogUnhandledWrite(offset, value);
+                    return;
                 }
-
-                break;
-    
-            case Register.InterruptDisableCommandRegister:
-                interruptMaskRegister &= ~value;
-                //interruptPendingRegister &= ~value;
-                break;
-
-            default:
-                this.LogUnhandledWrite(offset, value);
-                return;
             }
-        }
         }
 
         #endregion
@@ -191,15 +189,20 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public void Reset()
         {
-
         }
+
+        public GPIO IRQ { get; set; }
+
+        public GPIO FIQ { get; set; }
 
         #endregion
 
         #region IKnownSize implementation
 
-        public long Size {
-            get {
+        public long Size
+        {
+            get
+            {
                 return 512;
             }
         }
@@ -211,11 +214,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private int? CalculateCurrentInterrupt()
         {
             var result = (int?)null;
-            for (int i = 0; i < level.Length; i++)
+            for(int i = 0; i < level.Length; i++)
             {
-                if (level[i])
+                if(level[i])
                 {
-                    if (result == null || GetPriority(i) > GetPriority(result.Value))
+                    if(result == null || GetPriority(i) > GetPriority(result.Value))
                     {
                         result = i;
                     }
@@ -224,21 +227,21 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             return result;
         }
-        
+
         private int IsOffsetInRange(uint offset, uint start, uint step, byte count)
         {
             var position  = start;
             var counter = 0;
             do
             {
-                if (position == offset)
+                if(position == offset)
                 {
                     return counter;
                 }
                 position += step;
                 counter++;
-            } while (counter < count);
-            
+            } while(counter < count);
+
             return -1;
         }
 
@@ -264,22 +267,23 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             return val == 1 || val == 3;
         }
 
+        private uint interruptMaskRegister;
+        private uint interruptPendingRegister;
+        private uint spouriousInterruptVectorRegister;
+
         private int? CurrentIRQ;
 
         #endregion
 
-        private bool[] level = new bool[32];
+        private readonly bool[] level = new bool[32];
 
-        private uint[] sourceModeRegisters = new uint[32];
-        private uint[] sourceVectorRegisters = new uint[32];
-        private uint interruptMaskRegister;
-        private uint interruptPendingRegister;
-        private uint spouriousInterruptVectorRegister;
+        private readonly uint[] sourceModeRegisters = new uint[32];
+        private readonly uint[] sourceVectorRegisters = new uint[32];
         //private uint debugControlRegister; // TODO: use only two bits
 
-        private Stack<Tuple<int, int>> nestedInterruptStack = new Stack<Tuple<int, int>>();
+        private readonly Stack<Tuple<int, int>> nestedInterruptStack = new Stack<Tuple<int, int>>();
 
-        private object localLock = new object();
+        private readonly object localLock = new object();
 
         private enum Register : uint
         {
@@ -297,4 +301,3 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         }
     }
 }
-

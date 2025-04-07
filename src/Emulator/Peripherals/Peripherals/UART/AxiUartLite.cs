@@ -5,12 +5,12 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Peripherals.Bus;
 using System.Collections.Generic;
+
+using Antmicro.Migrant;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Miscellaneous;
-using Antmicro.Migrant;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -66,15 +66,18 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
-        [field: Transient]
-        public event Action<byte> CharReceived;
-        
         public GPIO IRQ { get; }
 
         public long Size { get { return 0x10; } }
+
         public Bits StopBits { get { return Bits.One; } }
+
         public Parity ParityBit { get { return Parity.None; } }
+
         public uint BaudRate { get { return 0; } }
+
+        [field: Transient]
+        public event Action<byte> CharReceived;
 
         private readonly Queue<uint> readFifo;
 

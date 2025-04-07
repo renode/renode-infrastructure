@@ -7,6 +7,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.CAN;
 using Antmicro.Renode.Core.Extensions;
@@ -15,7 +16,9 @@ using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Memory;
+#pragma warning disable IDE0005
 using Antmicro.Renode.Utilities;
+#pragma warning restore IDE0005
 
 using Range = Antmicro.Renode.Core.Range;
 
@@ -128,9 +131,324 @@ namespace Antmicro.Renode.Peripherals.CAN
             this.WriteByteNotTranslated(offset, value);
         }
 
-        public long Size => 0x3200;
-        public event Action<CANMessageFrame> FrameSent;
         public GPIO IRQ { get; }
+
+        public long Size => 0x3200;
+
+        public event Action<CANMessageFrame> FrameSent;
+
+        private bool TryTransmitFromMessageBuffer(ulong offset)
+        {
+            if(Freeze || listenOnly.Value)
+            {
+                return false;
+            }
+
+            var messageBuffer = MessageBufferStructure.FetchMetadata(messageBuffers, offset);
+
+            this.Log(LogLevel.Debug, "Loading {0} byte MB from 0x{1:X}", messageBuffer.Size, offset);
+            this.Log(LogLevel.Noisy, "Loading MB: {0}", messageBuffer);
+
+            if(!messageBuffer.ReadyForTransmission)
+            {
+                return false;
+            }
+
+            messageBuffer.FetchData(messageBuffers, offset);
+
+            this.Log(LogLevel.Noisy, "Building frame from: {0}", messageBuffer);
+            var frame = messageBuffer.ToCANMessageFrame();
+            messageBuffer.Finalize(messageBuffers, offset);
+            this.Log(LogLevel.Noisy, "Saved frame: {0}", messageBuffer);
+
+            SendFrame(frame);
+
+            var index = GetMessageBufferIndexByOffset(offset);
+            messageBufferInterrupt[index].Value = true;
+
+            return true;
+        }
+
+        private void UpdateLegacyRxFifoMemory()
+        {
+            if(legacyRxFifo.Count == 0)
+            {
+                return;
+            }
+
+            var currentEntry = legacyRxFifo.Peek();
+            LegacyRxFifoStructure
+                .FromCANFrame(currentEntry.Value, currentEntry.Key)
+                .CommitToMemory(messageBuffers, 0);
+        }
+
+        private bool OnFrameReceivedToLegacyRxFifoInner(CANMessageFrame frame)
+        {
+            if(!legacyFifoEnable.Value)
+            {
+                return false;
+            }
+
+            var matchedFilter = LegacyRxFifoFilterMacherIterator
+                .Select((filter, index) => new { Filter = filter, Index = index })
+                .Where(item => item.Filter?.IsMatching(frame) ?? false)
+                .FirstOrDefault()?.Index ?? -1;
+
+            if(matchedFilter == -1)
+            {
+                return false;
+            }
+
+            if(legacyRxFifo.Count == LegacyRxFifoSize)
+            {
+                messageBufferInterrupt[LegacyRxFifoInterruptOverflow].Value = true;
+                UpdateInterrupts();
+                return false;
+            }
+
+            messageBufferInterrupt[LegacyRxFifoInterruptFramesAvailable].Value = true;
+
+            legacyRxFifo.Enqueue(new KeyValuePair<ushort, CANMessageFrame>((ushort)matchedFilter, frame));
+            if(legacyRxFifo.Count == 1)
+            {
+                UpdateLegacyRxFifoMemory();
+            }
+
+            messageBufferInterrupt[LegacyRxFifoInterruptWarning].Value = legacyRxFifo.Count == LegacyRxFifoSize - 1;
+            UpdateInterrupts();
+
+            return true;
+        }
+
+        private bool OnFrameReceivedToMessageBufferInner(CANMessageFrame frame)
+        {
+            var matchedItem = MessageBuffersIterator
+                .Select((entry, index) => new { Entry = entry, Index = index })
+                .Where(item => item.Entry.MessageBuffer.ReadyForReception && GetMessageBufferMatcher(item.Index).IsMatching(frame, item.Entry.MessageBuffer))
+                .OrderBy(item => Tuple.Create(item.Entry.MessageBuffer.MessageBufferCode, item.Index))
+                .FirstOrDefault();
+
+            if(matchedItem == null)
+            {
+                this.Log(LogLevel.Debug, "Did not found matching message buffer for rx frame: {0}", frame);
+                return false;
+            }
+
+            var messageBuffer = matchedItem.Entry.MessageBuffer;
+            var messageBufferOffset = matchedItem.Entry.Offset;
+            var messageBufferIndex = matchedItem.Index;
+
+            this.Log(LogLevel.Debug, "Found matching message buffer#{0}: {1}", messageBufferIndex, messageBuffer);
+
+            messageBuffer.FillReceivedFrame(messageBuffers, messageBufferOffset, frame);
+            messageBufferInterrupt[messageBufferIndex].Value = true;
+
+            return true;
+        }
+
+        private void OnFrameReceivedInner(CANMessageFrame frame)
+        {
+            Func<CANMessageFrame, bool> firstFrameHandler = OnFrameReceivedToLegacyRxFifoInner;
+            Func<CANMessageFrame, bool> secondFrameHandler = OnFrameReceivedToMessageBufferInner;
+
+            if(messageBuffersReceptionPriority.Value)
+            {
+                // Swap order of handlers
+                var temp = firstFrameHandler;
+                firstFrameHandler = secondFrameHandler;
+                secondFrameHandler = temp;
+            }
+
+            if(!firstFrameHandler(frame))
+            {
+                secondFrameHandler(frame);
+            }
+        }
+
+        private MessageBufferMatcher GetMessageBufferMatcher(int index)
+        {
+            if(!individualMaskingAndQueue.Value)
+            {
+                // NOTE: Legacy masking is not currently supported
+                return new MessageBufferMatcher(0);
+            }
+
+            return new MessageBufferMatcher(individualMaskBits[index].Value);
+        }
+
+        private int GetMessageBufferRegionByOffset(ulong offset)
+        {
+            return (int)(offset / MessageBufferRegionSize);
+        }
+
+        private uint GetMessageBufferSizeByRegion(int regionIndex)
+        {
+            if(regionIndex > MessageBufferRegionsCount)
+            {
+                throw new ArgumentException($"regionIndex should be between 0 and {MessageBufferRegionsCount - 1}", "regionIndex");
+            }
+
+            switch(messageBufferSize[regionIndex].Value)
+            {
+            case MessageBufferSize._8bytes:
+                return 8 + 8;
+            case MessageBufferSize._16bytes:
+                return 8 + 16;
+            case MessageBufferSize._32bytes:
+                return 8 + 32;
+            case MessageBufferSize._64bytes:
+                return 8 + 64;
+            default:
+                throw new Exception("unreachable");
+            }
+        }
+
+        private int GetMessageBufferIndexByOffset(ulong offset)
+        {
+            var messageBufferRegion = 0;
+            var messageBufferIndex = 0;
+            while(offset > MessageBufferRegionSize)
+            {
+                offset -= MessageBufferRegionSize;
+                messageBufferIndex += MessageBufferRegionSize / (int)GetMessageBufferSizeByRegion(messageBufferRegion);
+                messageBufferRegion += 1;
+            }
+            return messageBufferIndex + (int)offset / (int)GetMessageBufferSizeByRegion(messageBufferRegion);
+        }
+
+        private uint GetMessageBufferOffsetByIndex(int messageBufferIndex)
+        {
+            var currentRegion = 0U;
+            var currentOffset = 0U;
+            for(var i = 0; i < MessageBufferRegionsCount; ++i)
+            {
+                var currentRegionSize = GetMessageBufferSizeByRegion(i);
+                if(messageBufferIndex * currentRegionSize < MessageBufferRegionSize)
+                {
+                    return currentOffset + (uint)messageBufferIndex * currentRegionSize;
+                }
+
+                currentRegion += 1;
+                currentOffset += currentRegionSize;
+                messageBufferIndex -= MessageBufferRegionSize / (int)currentRegionSize;
+            }
+            return 0;
+        }
+
+        private IEnumerable<MessageBufferIteratorEntry> MessageBuffersIteratorForRegion(int regionIndex) =>
+            MessageBufferOffsetsIteratorForRegion(regionIndex)
+                .Where(offset => offset < messageBufferRange.Size)
+                .Select(offset => new MessageBufferIteratorEntry(offset, regionIndex, MessageBufferStructure.FetchMetadata(messageBuffers, (ulong)offset)));
+
+        private IEnumerable<ulong> MessageBufferOffsetsIteratorForRegion(int regionIndex) =>
+            Enumerable.Range(0, MessageBufferRegionSize / (int)GetMessageBufferSizeByRegion(regionIndex))
+                .Select(index => (ulong)(MessageBufferRegionSize * regionIndex + index * GetMessageBufferSizeByRegion(regionIndex)));
+
+        private void SendFrame(CANMessageFrame frame)
+        {
+            this.Log(LogLevel.Noisy, "Transmitted frame: {0}", frame);
+            if(listenOnly.Value)
+            {
+                this.Log(LogLevel.Debug, "Transmission is disabled, listen-only enabled");
+                return;
+            }
+
+            if(!loopback.Value)
+            {
+                FrameSent?.Invoke(frame);
+                this.Log(LogLevel.Debug, "Transmission succeeded");
+            }
+
+            if(!selfReceptionDisable.Value)
+            {
+                this.Log(LogLevel.Debug, "Transmission loopbacked");
+                OnFrameReceivedInner(frame);
+            }
+        }
+
+        private void RegisterMessageBufferInterruptFlags(DoubleWordRegister flagRegister, DoubleWordRegister maskRegister, int start, int fieldStart = 0, int fieldMax = 32)
+        {
+            var flags = (int)Math.Min(fieldMax, numberOfMessageBuffers - fieldStart);
+            if(fieldMax - flags > 0)
+            {
+                flagRegister.WithReservedBits(flags, fieldMax - flags);
+                maskRegister.WithReservedBits(flags, fieldMax - flags);
+            }
+
+            flagRegister.WithChangeCallback((_, __) => UpdateInterrupts());
+            maskRegister.WithChangeCallback((_, __) => UpdateInterrupts());
+
+            for(var i = 0; i < flags; ++i)
+            {
+                var index = i + start;
+
+                maskRegister
+                    .WithFlag(i + fieldStart, out messageBufferInterruptEnable[index], name: $"Buffer MB{index} Mask (IMASK{index / 32}.BUF{index}M)");
+
+                flagRegister
+                    .WithFlag(i + fieldStart, out messageBufferInterrupt[index], FieldMode.WriteOneToClear | FieldMode.Read, name: $"Buffer MB{index} Interrupt (IFLAG{index / 32}.BUF{index}I)");
+            }
+        }
+
+        private Action<T, T> GetFreezeModeOnlyWritableChangeCallback<T>(IRegisterField<T> field, string fieldName)
+        {
+            return (previousValue, _) =>
+            {
+                if(!freezeEnable.Value)
+                {
+                    this.Log(LogLevel.Debug, "Write to {0} blocked, not in Freeze mode", fieldName);
+                    field.Value = previousValue;
+                }
+            };
+        }
+
+        private void RunArbitrationProcess()
+        {
+            if(Freeze || listenOnly.Value)
+            {
+                return;
+            }
+
+            // NOTE: Ignores prioritization
+            var index = 0;
+            if(legacyFifoEnable.Value)
+            {
+                // 80h–DCh legacy fifo (enabled)
+                //  80h–8Ch oldest message received
+                //  90h–DCh reserved for internal use of legacy fifo engine
+                // E0h upto 2DCh depending on CTRL2.RFFN
+                //  id filter tabled
+                index = 6 + ((int)numberOfLegacyRxFifoFilters.Value + 3) / 4;
+            }
+
+            if(lowestBufferTransmittedFirst.Value)
+            {
+                // If Lowest Buffer Transmitted First is enabled, we can just iterate over offsets
+                foreach(var messageBufferOffset in MessageBufferOffsetsIterator.Skip(index).Take((int)lastMessageBufferIndex.Value - index))
+                {
+                    TryTransmitFromMessageBuffer(messageBufferOffset);
+                }
+                return;
+            }
+
+            // Otherwise we have to actually read Message Buffer headers and sort them by priority
+            foreach(var entry in MessageBuffersIterator.Skip(index)
+                    .Take((int)lastMessageBufferIndex.Value - index)
+                    .OrderBy(entry => -entry.MessageBuffer.Priority))
+            {
+                TryTransmitFromMessageBuffer(entry.Offset);
+            }
+        }
+
+        private void UpdateInterrupts()
+        {
+            var interrupt = Enumerable.Range(0, (int)numberOfMessageBuffers).Any(i => messageBufferInterrupt[i].Value && messageBufferInterruptEnable[i].Value);
+            if(interrupt != IRQ.IsSet)
+            {
+                this.Log(LogLevel.Debug, "IRQ: {0}", interrupt);
+            }
+            IRQ.Set(interrupt);
+        }
 
         private void SoftReset()
         {
@@ -575,83 +893,16 @@ namespace Antmicro.Renode.Peripherals.CAN
             {
                 switch(legacyFilterFormat.Value)
                 {
-                    case LegacyFilterFormat.A:
-                        return LegacyRxFifoFilterAStructure.Fetch(messageBuffers, LegacyRxFifoFiltersOffset + index * LegacyRxFifoFilterSize);
-                    case LegacyFilterFormat.B:
-                        return LegacyRxFifoFilterBStructure.Fetch(messageBuffers, LegacyRxFifoFiltersOffset + index * LegacyRxFifoFilterSize);
-                    case LegacyFilterFormat.C:
-                        return LegacyRxFifoFilterCStructure.Fetch(messageBuffers, LegacyRxFifoFiltersOffset + index * LegacyRxFifoFilterSize);
-                    default:
-                        return null;
+                case LegacyFilterFormat.A:
+                    return LegacyRxFifoFilterAStructure.Fetch(messageBuffers, LegacyRxFifoFiltersOffset + index * LegacyRxFifoFilterSize);
+                case LegacyFilterFormat.B:
+                    return LegacyRxFifoFilterBStructure.Fetch(messageBuffers, LegacyRxFifoFiltersOffset + index * LegacyRxFifoFilterSize);
+                case LegacyFilterFormat.C:
+                    return LegacyRxFifoFilterCStructure.Fetch(messageBuffers, LegacyRxFifoFiltersOffset + index * LegacyRxFifoFilterSize);
+                default:
+                    return null;
                 }
             });
-
-        private Action<T, T> GetFreezeModeOnlyWritableChangeCallback<T>(IRegisterField<T> field, string fieldName)
-        {
-            return (previousValue, _) =>
-            {
-                if(!freezeEnable.Value)
-                {
-                    this.Log(LogLevel.Debug, "Write to {0} blocked, not in Freeze mode", fieldName);
-                    field.Value = previousValue;
-                }
-            };
-        }
-
-        private void RegisterMessageBufferInterruptFlags(DoubleWordRegister flagRegister, DoubleWordRegister maskRegister, int start, int fieldStart = 0, int fieldMax = 32)
-        {
-            var flags = (int)Math.Min(fieldMax, numberOfMessageBuffers - fieldStart);
-            if(fieldMax - flags > 0)
-            {
-                flagRegister.WithReservedBits(flags, fieldMax - flags);
-                maskRegister.WithReservedBits(flags, fieldMax - flags);
-            }
-
-            flagRegister.WithChangeCallback((_, __) => UpdateInterrupts());
-            maskRegister.WithChangeCallback((_, __) => UpdateInterrupts());
-
-            for(var i = 0; i < flags; ++i)
-            {
-                var index = i + start;
-
-                maskRegister
-                    .WithFlag(i + fieldStart, out messageBufferInterruptEnable[index], name: $"Buffer MB{index} Mask (IMASK{index / 32}.BUF{index}M)");
-
-                flagRegister
-                    .WithFlag(i + fieldStart, out messageBufferInterrupt[index], FieldMode.WriteOneToClear | FieldMode.Read, name: $"Buffer MB{index} Interrupt (IFLAG{index / 32}.BUF{index}I)");
-            }
-        }
-
-        private void SendFrame(CANMessageFrame frame)
-        {
-            this.Log(LogLevel.Noisy, "Transmitted frame: {0}", frame);
-            if(listenOnly.Value)
-            {
-                this.Log(LogLevel.Debug, "Transmission is disabled, listen-only enabled");
-                return;
-            }
-
-            if(!loopback.Value)
-            {
-                FrameSent?.Invoke(frame);
-                this.Log(LogLevel.Debug, "Transmission succeeded");
-            }
-
-            if(!selfReceptionDisable.Value)
-            {
-                this.Log(LogLevel.Debug, "Transmission loopbacked");
-                OnFrameReceivedInner(frame);
-            }
-        }
-
-        private IEnumerable<ulong> MessageBufferOffsetsIteratorForRegion(int regionIndex) =>
-            Enumerable.Range(0, MessageBufferRegionSize / (int)GetMessageBufferSizeByRegion(regionIndex))
-                .Select(index => (ulong)(MessageBufferRegionSize * regionIndex + index * GetMessageBufferSizeByRegion(regionIndex)));
-
-        private IEnumerable<MessageBufferIteratorEntry> MessageBuffersIteratorForRegion(int regionIndex) =>
-            MessageBufferOffsetsIteratorForRegion(regionIndex)
-                .Where(offset => offset < messageBufferRange.Size)
-                .Select(offset => new MessageBufferIteratorEntry(offset, regionIndex, MessageBufferStructure.FetchMetadata(messageBuffers, (ulong)offset)));
 
         private IEnumerable<MessageBufferIteratorEntry> MessageBuffersIterator =>
             MessageBuffersIteratorForRegion(0)
@@ -663,253 +914,6 @@ namespace Antmicro.Renode.Peripherals.CAN
             MessageBufferOffsetsIteratorForRegion(0)
                 .Concat(MessageBufferOffsetsIteratorForRegion(1))
                 .Concat(MessageBufferOffsetsIteratorForRegion(2));
-
-        private uint GetMessageBufferOffsetByIndex(int messageBufferIndex)
-        {
-            var currentRegion = 0U;
-            var currentOffset = 0U;
-            for(var i = 0; i < MessageBufferRegionsCount; ++i)
-            {
-                var currentRegionSize = GetMessageBufferSizeByRegion(i);
-                if(messageBufferIndex * currentRegionSize < MessageBufferRegionSize)
-                {
-                    return currentOffset + (uint)messageBufferIndex * currentRegionSize;
-                }
-
-                currentRegion += 1;
-                currentOffset += currentRegionSize;
-                messageBufferIndex -= MessageBufferRegionSize / (int)currentRegionSize;
-            }
-            return 0;
-        }
-
-        private int GetMessageBufferIndexByOffset(ulong offset)
-        {
-            var messageBufferRegion = 0;
-            var messageBufferIndex = 0;
-            while(offset > MessageBufferRegionSize)
-            {
-                offset -= MessageBufferRegionSize;
-                messageBufferIndex += MessageBufferRegionSize / (int)GetMessageBufferSizeByRegion(messageBufferRegion);
-                messageBufferRegion += 1;
-            }
-            return messageBufferIndex + (int)offset / (int)GetMessageBufferSizeByRegion(messageBufferRegion);
-        }
-
-        private uint GetMessageBufferSizeByRegion(int regionIndex)
-        {
-            if(regionIndex > MessageBufferRegionsCount)
-            {
-                throw new ArgumentException($"regionIndex should be between 0 and {MessageBufferRegionsCount-1}", "regionIndex");
-            }
-
-            switch(messageBufferSize[regionIndex].Value)
-            {
-                case MessageBufferSize._8bytes:
-                    return 8 + 8;
-                case MessageBufferSize._16bytes:
-                    return 8 + 16;
-                case MessageBufferSize._32bytes:
-                    return 8 + 32;
-                case MessageBufferSize._64bytes:
-                    return 8 + 64;
-                default:
-                    throw new Exception("unreachable");
-            }
-        }
-
-        private int GetMessageBufferRegionByOffset(ulong offset)
-        {
-            return (int)(offset / MessageBufferRegionSize);
-        }
-
-        private MessageBufferMatcher GetMessageBufferMatcher(int index)
-        {
-            if(!individualMaskingAndQueue.Value)
-            {
-                // NOTE: Legacy masking is not currently supported
-                return new MessageBufferMatcher(0);
-            }
-
-            return new MessageBufferMatcher(individualMaskBits[index].Value);
-        }
-
-
-        private void OnFrameReceivedInner(CANMessageFrame frame)
-        {
-            Func<CANMessageFrame, bool> firstFrameHandler = OnFrameReceivedToLegacyRxFifoInner;
-            Func<CANMessageFrame, bool> secondFrameHandler = OnFrameReceivedToMessageBufferInner;
-
-            if(messageBuffersReceptionPriority.Value)
-            {
-                // Swap order of handlers
-                var temp = firstFrameHandler;
-                firstFrameHandler = secondFrameHandler;
-                secondFrameHandler = temp;
-            }
-
-            if(!firstFrameHandler(frame))
-            {
-                secondFrameHandler(frame);
-            }
-        }
-
-        private bool OnFrameReceivedToMessageBufferInner(CANMessageFrame frame)
-        {
-            var matchedItem = MessageBuffersIterator
-                .Select((Entry, Index) => new { Entry, Index })
-                .Where(item => item.Entry.MessageBuffer.ReadyForReception && GetMessageBufferMatcher(item.Index).IsMatching(frame, item.Entry.MessageBuffer))
-                .OrderBy(item => Tuple.Create(item.Entry.MessageBuffer.messageBufferCode, item.Index))
-                .FirstOrDefault();
-
-            if(matchedItem == null)
-            {
-                this.Log(LogLevel.Debug, "Did not found matching message buffer for rx frame: {0}", frame);
-                return false;
-            }
-
-            var messageBuffer = matchedItem.Entry.MessageBuffer;
-            var messageBufferOffset = matchedItem.Entry.Offset;
-            var messageBufferIndex = matchedItem.Index;
-
-            this.Log(LogLevel.Debug, "Found matching message buffer#{0}: {1}", messageBufferIndex, messageBuffer);
-
-            messageBuffer.FillReceivedFrame(messageBuffers, messageBufferOffset, frame);
-            messageBufferInterrupt[messageBufferIndex].Value = true;
-
-            return true;
-        }
-
-        private bool OnFrameReceivedToLegacyRxFifoInner(CANMessageFrame frame)
-        {
-            if(!legacyFifoEnable.Value)
-            {
-                return false;
-            }
-
-            var matchedFilter = LegacyRxFifoFilterMacherIterator
-                .Select((Filter, Index) => new { Filter, Index })
-                .Where(item => item.Filter?.IsMatching(frame) ?? false)
-                .FirstOrDefault()?.Index ?? -1;
-
-            if(matchedFilter == -1)
-            {
-                return false;
-            }
-
-            if(legacyRxFifo.Count == LegacyRxFifoSize)
-            {
-                messageBufferInterrupt[LegacyRxFifoInterruptOverflow].Value = true;
-                UpdateInterrupts();
-                return false;
-            }
-
-            messageBufferInterrupt[LegacyRxFifoInterruptFramesAvailable].Value = true;
-
-            legacyRxFifo.Enqueue(new KeyValuePair<ushort, CANMessageFrame>((ushort)matchedFilter, frame));
-            if(legacyRxFifo.Count == 1)
-            {
-                UpdateLegacyRxFifoMemory();
-            }
-
-            messageBufferInterrupt[LegacyRxFifoInterruptWarning].Value = legacyRxFifo.Count == LegacyRxFifoSize - 1;
-            UpdateInterrupts();
-
-            return true;
-        }
-
-        private void UpdateLegacyRxFifoMemory()
-        {
-            if(legacyRxFifo.Count == 0)
-            {
-                return;
-            }
-
-            var currentEntry = legacyRxFifo.Peek();
-            LegacyRxFifoStructure
-                .FromCANFrame(currentEntry.Value, currentEntry.Key)
-                .CommitToMemory(messageBuffers, 0);
-        }
-
-        private bool TryTransmitFromMessageBuffer(ulong offset)
-        {
-            if(Freeze || listenOnly.Value)
-            {
-                return false;
-            }
-
-            var messageBuffer = MessageBufferStructure.FetchMetadata(messageBuffers, offset);
-
-            this.Log(LogLevel.Debug, "Loading {0} byte MB from 0x{1:X}", messageBuffer.Size, offset);
-            this.Log(LogLevel.Noisy, "Loading MB: {0}", messageBuffer);
-
-            if(!messageBuffer.ReadyForTransmission)
-            {
-                return false;
-            }
-
-            messageBuffer.FetchData(messageBuffers, offset);
-
-            this.Log(LogLevel.Noisy, "Building frame from: {0}", messageBuffer);
-            var frame = messageBuffer.ToCANMessageFrame();
-            messageBuffer.Finalize(messageBuffers, offset);
-            this.Log(LogLevel.Noisy, "Saved frame: {0}", messageBuffer);
-
-            SendFrame(frame);
-
-            var index = GetMessageBufferIndexByOffset(offset);
-            messageBufferInterrupt[index].Value = true;
-
-            return true;
-        }
-
-        private void RunArbitrationProcess()
-        {
-            if(Freeze || listenOnly.Value)
-            {
-                return;
-            }
-
-            // NOTE: Ignores prioritization
-            var index = 0;
-            if(legacyFifoEnable.Value)
-            {
-                // 80h–DCh legacy fifo (enabled)
-                //  80h–8Ch oldest message received
-                //  90h–DCh reserved for internal use of legacy fifo engine
-                // E0h upto 2DCh depending on CTRL2.RFFN
-                //  id filter tabled
-                index = 6 + ((int)numberOfLegacyRxFifoFilters.Value + 3) / 4;
-            }
-
-            if(lowestBufferTransmittedFirst.Value)
-            {
-                // If Lowest Buffer Transmitted First is enabled, we can just iterate over offsets
-                foreach(var messageBufferOffset in MessageBufferOffsetsIterator.Skip(index).Take((int)lastMessageBufferIndex.Value - index))
-                {
-                    TryTransmitFromMessageBuffer(messageBufferOffset);
-                }
-                return;
-            }
-
-            // Otherwise we have to actually read Message Buffer headers and sort them by priority
-            foreach(var entry in MessageBuffersIterator.Skip(index)
-                    .Take((int)lastMessageBufferIndex.Value - index)
-                    .OrderBy(entry => -entry.MessageBuffer.Priority))
-            {
-                TryTransmitFromMessageBuffer(entry.Offset);
-            }
-        }
-
-        private void UpdateInterrupts()
-        {
-            var interrupt = Enumerable.Range(0, (int)numberOfMessageBuffers).Any(i => messageBufferInterrupt[i].Value && messageBufferInterruptEnable[i].Value);
-            if(interrupt != IRQ.IsSet)
-            {
-                this.Log(LogLevel.Debug, "IRQ: {0}", interrupt);
-            }
-            IRQ.Set(interrupt);
-        }
 
         private uint Control2ResetValue => numberOfMessageBuffers > 64 ? 0x00600000U : 0x00800000U;
 

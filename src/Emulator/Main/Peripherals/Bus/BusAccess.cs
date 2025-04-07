@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Bus
     {
         static BusAccess()
         {
-            Delegates = new []
+            Delegates = new[]
             {
                 typeof(QuadWordReadMethod), typeof(QuadWordWriteMethod),
                 typeof(DoubleWordReadMethod), typeof(DoubleWordWriteMethod),
@@ -56,6 +56,23 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
+        public static Operation GetOperationFromSignature(Type t)
+        {
+            return accessOperations[t];
+        }
+
+        public static Method GetMethodFromSignature(Type t)
+        {
+            return accessMethods[t];
+        }
+
+        public static Operation GetComplementingOperation(Operation operation)
+        {
+            return operation == Operation.Read ? Operation.Write : Operation.Read;
+        }
+
+        public static Type[] Delegates { get; private set; }
+
         private static bool TryGetMethodFromType(Type type, out Method method)
         {
             foreach(var member in typeof(Method).GetMembers())
@@ -77,33 +94,23 @@ namespace Antmicro.Renode.Peripherals.Bus
             return false;
         }
 
-        public static Operation GetOperationFromSignature(Type t)
-        {
-            return accessOperations[t];
-        }
-
-        public static Method GetMethodFromSignature(Type t)
-        {
-            return accessMethods[t];
-        }
-
-        public static Operation GetComplementingOperation(Operation operation)
-        {
-            return operation == Operation.Read ? Operation.Write : Operation.Read;
-        }
-
-        public static Type[] Delegates { get; private set; }
-
         private static readonly Dictionary<Type, Method> accessMethods;
         private static readonly Dictionary<Type, Operation> accessOperations;
 
         public delegate ulong QuadWordReadMethod(long offset);
+
         public delegate void QuadWordWriteMethod(long offset, ulong value);
+
         public delegate uint DoubleWordReadMethod(long offset);
+
         public delegate void DoubleWordWriteMethod(long offset, uint value);
+
         public delegate ushort WordReadMethod(long offset);
+
         public delegate void WordWriteMethod(long offset, ushort value);
+
         public delegate byte ByteReadMethod(long offset);
+
         public delegate void ByteWriteMethod(long offset, byte value);
 
         public enum Operation

@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
@@ -19,12 +20,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             this.address = address;
             switch(mode)
             {
-                case BitAccessMode.Set:
-                    operation = (register, mask) => (register | mask);
-                    break;
-                case BitAccessMode.Clear:
-                    operation = (register, mask) => (register & ~mask);
-                    break;
+            case BitAccessMode.Set:
+                operation = (register, mask) => (register | mask);
+                break;
+            case BitAccessMode.Clear:
+                operation = (register, mask) => (register & ~mask);
+                break;
             }
         }
 

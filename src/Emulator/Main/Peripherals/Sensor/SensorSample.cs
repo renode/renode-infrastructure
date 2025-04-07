@@ -12,6 +12,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
     public abstract class SensorSample
     {
         public abstract void Load(IList<decimal> data);
+
         public abstract bool TryLoad(params string[] data);
     }
 }

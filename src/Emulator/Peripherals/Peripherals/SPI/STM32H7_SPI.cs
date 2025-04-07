@@ -6,13 +6,13 @@
 //
 using System;
 using System.Collections.Generic;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Core.Structure;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Utilities.Collections;
 
 namespace Antmicro.Renode.Peripherals.SPI
 {
@@ -81,6 +81,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         public long Size => 0x400;
 
         public GPIO IRQ { get; }
+
         public GPIO DMARecieve { get; }
 
         protected virtual bool IsWba { get; } = false;
@@ -325,12 +326,12 @@ namespace Antmicro.Renode.Peripherals.SPI
             {
                 switch(reg)
                 {
-                    case Registers.Configuration1:
-                    case Registers.Configuration2:
-                    case Registers.CRCPolynomial:
-                    case Registers.UnderrunData:
-                        this.Log(LogLevel.Error, "Attempted to write 0x{0:X} to {0} register while peripheral is enabled", value, reg);
-                        return false;
+                case Registers.Configuration1:
+                case Registers.Configuration2:
+                case Registers.CRCPolynomial:
+                case Registers.UnderrunData:
+                    this.Log(LogLevel.Error, "Attempted to write 0x{0:X} to {0} register while peripheral is enabled", value, reg);
+                    return false;
                 }
             }
 
@@ -412,10 +413,6 @@ namespace Antmicro.Renode.Peripherals.SPI
             UpdateInterrupts();
         }
 
-        private readonly DoubleWordRegisterCollection registers;
-        private readonly Queue<uint> transmitFifo;
-        private readonly Queue<uint> receiveFifo;
-
         private bool iolockValue;
         private IFlagRegisterField receiveFifoThresholdInterruptEnable;
         private IFlagRegisterField transmitFifoThresholdInterruptEnable;
@@ -431,6 +428,10 @@ namespace Antmicro.Renode.Peripherals.SPI
         private IFlagRegisterField suspensionStatus;
 
         private ulong transmittedPackets;
+
+        private readonly DoubleWordRegisterCollection registers;
+        private readonly Queue<uint> transmitFifo;
+        private readonly Queue<uint> receiveFifo;
 
         private const int MaxPacketBytes = 4;
 

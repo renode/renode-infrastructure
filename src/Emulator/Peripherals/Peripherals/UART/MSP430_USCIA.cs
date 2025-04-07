@@ -7,11 +7,14 @@
 
 using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+#pragma warning disable IDE0005
 using Antmicro.Renode.Utilities;
+#pragma warning restore IDE0005
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -53,7 +56,7 @@ namespace Antmicro.Renode.Peripherals.UART
         }
 
         [ConnectionRegionAttribute("interruptEnable")]
-        public byte ReadByteFromInterruptEnable(long offset)
+        public byte ReadByteFromInterruptEnable(long _)
         {
             return InterruptEnableRegister.Read();
         }
@@ -66,7 +69,7 @@ namespace Antmicro.Renode.Peripherals.UART
         }
 
         [ConnectionRegionAttribute("interruptStatus")]
-        public byte ReadByteFromInterruptStatus(long offset)
+        public byte ReadByteFromInterruptStatus(long _)
         {
             return InterruptStatusRegister.Read();
         }
@@ -82,16 +85,21 @@ namespace Antmicro.Renode.Peripherals.UART
         }
 
         public ByteRegisterCollection RegistersCollection { get; }
+
         public ByteRegister InterruptEnableRegister { get; }
+
         public ByteRegister InterruptStatusRegister { get; }
 
         public long Size => 0xB;
 
         public GPIO RxInterrupt { get; } = new GPIO();
+
         public GPIO TxInterrupt { get; } = new GPIO();
 
         public Bits StopBits { get; }
+
         public Parity ParityBit { get; }
+
         public uint BaudRate { get; }
 
         public event Action<byte> CharReceived;

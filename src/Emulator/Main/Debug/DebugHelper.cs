@@ -4,10 +4,9 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Diagnostics;
-using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
+
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 

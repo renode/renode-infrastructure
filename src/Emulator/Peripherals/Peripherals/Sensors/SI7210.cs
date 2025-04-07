@@ -4,21 +4,18 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Linq;
-using System.Collections.Generic;
-using Antmicro.Renode.Peripherals.Sensor;
-using Antmicro.Renode.Peripherals.I2C;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Core;
+
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.I2C;
+using Antmicro.Renode.Peripherals.Sensor;
 
 namespace Antmicro.Renode.Peripherals.Sensors
 {
     public class SI7210 : II2CPeripheral, IProvidesRegisterCollection<ByteRegisterCollection>, ITemperatureSensor
     {
-        public SI7210(IMachine machine, byte offset = 0, byte gain = 0)
+        public SI7210(byte offset = 0, byte gain = 0)
         {
             RegistersCollection = new ByteRegisterCollection(this);
             DefineRegisters();
@@ -143,7 +140,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             Registers.OTPData.Define(this)
                 .WithValueField(0, 8, name: "OTP_Data",
-                    valueProviderCallback: _ => 
+                    valueProviderCallback: _ =>
                     {
                         return (uint)otpData;
                     },
@@ -165,30 +162,32 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
             switch((OTPRegisters)offset)
             {
-                case OTPRegisters.PartBase:
-                    // Base part number dropping the “Si72”, for example 01 for Si7201
-                    return PartNumber;
-                case OTPRegisters.TempOffset:
-                    // Temp sensor offset adjustment
-                    return temperatureOffset;
-                case OTPRegisters.TempGain:
-                    // Temp sensor gain adjustment
-                    return temperatureGain;
-                default:
-                    this.Log(LogLevel.Noisy, "Tried to read OTP_DATA offset: 0x{0:X}, returning 0", offset);
-                    return 0;
+            case OTPRegisters.PartBase:
+                // Base part number dropping the “Si72”, for example 01 for Si7201
+                return PartNumber;
+            case OTPRegisters.TempOffset:
+                // Temp sensor offset adjustment
+                return temperatureOffset;
+            case OTPRegisters.TempGain:
+                // Temp sensor gain adjustment
+                return temperatureGain;
+            default:
+                this.Log(LogLevel.Noisy, "Tried to read OTP_DATA offset: 0x{0:X}, returning 0", offset);
+                return 0;
             }
         }
 
         private bool IsTemperatureOutOfRange(decimal temperature)
         {
-            if (temperature < MinTemperature || temperature > MaxTemperature)
+            if(temperature < MinTemperature || temperature > MaxTemperature)
             {
                 this.Log(LogLevel.Warning, "Temperature {0} is out of range, use value from the range <{1:F2};{2:F2}>", temperature, MinTemperature, MaxTemperature);
                 return true;
             }
             return false;
         }
+
+        private ulong currentTemperature;
 
         private Registers? registerAddress;
 
@@ -198,10 +197,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private IFlagRegisterField otpReadEnable;
         private IFlagRegisterField autoIncrement;
         private IValueRegisterField enableTemperatureReadout;
-        private byte temperatureOffset;
-        private byte temperatureGain;
-
-        private ulong currentTemperature;
+        private readonly byte temperatureOffset;
+        private readonly byte temperatureGain;
 
         private const decimal MinTemperature = -65.0m;
         private const decimal MaxTemperature = 150.0m;

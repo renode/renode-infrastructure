@@ -5,10 +5,9 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using System.Security.Cryptography;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 
 namespace Antmicro.Renode.Core
 {
@@ -25,6 +24,11 @@ namespace Antmicro.Renode.Core
             FileName = Path.GetFullPath(file);
         }
 
+        public override string ToString()
+        {
+            return string.Format("Binary {0}: {1}", FileName, Hash);
+        }
+
         public string FileName { get; private set; }
 
         public string Hash
@@ -35,12 +39,6 @@ namespace Antmicro.Renode.Core
             }
         }
 
-        public override string ToString()
-        {
-            return string.Format("Binary {0}: {1}", FileName, Hash);
-        }
-
         private readonly byte[] hash;
     }
 }
-

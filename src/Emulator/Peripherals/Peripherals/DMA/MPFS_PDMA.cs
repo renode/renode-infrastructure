@@ -6,6 +6,7 @@
 //
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -65,6 +66,7 @@ namespace Antmicro.Renode.Peripherals.DMA
         }
 
         public IReadOnlyDictionary<int, IGPIO> Connections { get; }
+
         public long Size => 0x4000;
 
         private readonly IMachine machine;
@@ -229,12 +231,12 @@ namespace Antmicro.Renode.Peripherals.DMA
             {
                 return registers.Read(offset);
             }
-            
+
             public void WriteDoubleWord(long offset, uint value)
             {
                 registers.Write(offset, value);
             }
-            
+
             public void Reset()
             {
                 registers.Reset();
@@ -245,6 +247,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
 
             public GPIO DoneInterrupt { get; private set; }
+
             public GPIO ErrorInterrupt { get; private set; }
 
             private void InitTransfer()
@@ -326,43 +329,44 @@ namespace Antmicro.Renode.Peripherals.DMA
                 TransferType type;
                 switch(val)
                 {
-                    case 0:
-                        type = TransferType.Byte;
-                        break;
-                    case 1:
-                        type = TransferType.Word;
-                        break;
-                    case 2:
-                        type = TransferType.DoubleWord;
-                        break;
-                    default:
-                        type = TransferType.DoubleWord;
-                        this.Log(LogLevel.Warning, "{0} transaction size has been truncated to 4 bytes.", direction);
-                        break;
+                case 0:
+                    type = TransferType.Byte;
+                    break;
+                case 1:
+                    type = TransferType.Word;
+                    break;
+                case 2:
+                    type = TransferType.DoubleWord;
+                    break;
+                default:
+                    type = TransferType.DoubleWord;
+                    this.Log(LogLevel.Warning, "{0} transaction size has been truncated to 4 bytes.", direction);
+                    break;
                 }
                 return type;
             }
 
-            private DoubleWordRegister nextConfigRegister;
-            private DoubleWordRegister execConfig;
-            private DoubleWordRegister execBytesLow;
-            private DoubleWordRegister execBytesHigh;
-            private DoubleWordRegister execDestinationLow;
-            private DoubleWordRegister execDestinationHigh;
-            private DoubleWordRegister execSourceLow;
-            private DoubleWordRegister execSourceHigh;
             private bool isClaimed;
             private bool isRun;
-            private IFlagRegisterField isDone;
-            private IValueRegisterField wsize;
-            private IValueRegisterField rsize;
-            private IFlagRegisterField repeat;
-            private IValueRegisterField nextBytesLow;
-            private IValueRegisterField nextBytesHigh;
-            private IValueRegisterField nextDestinationLow;
-            private IValueRegisterField nextDestinationHigh;
-            private IValueRegisterField nextSourceLow;
-            private IValueRegisterField nextSourceHigh;
+
+            private readonly DoubleWordRegister nextConfigRegister;
+            private readonly DoubleWordRegister execConfig;
+            private readonly DoubleWordRegister execBytesLow;
+            private readonly DoubleWordRegister execBytesHigh;
+            private readonly DoubleWordRegister execDestinationLow;
+            private readonly DoubleWordRegister execDestinationHigh;
+            private readonly DoubleWordRegister execSourceLow;
+            private readonly DoubleWordRegister execSourceHigh;
+            private readonly IFlagRegisterField isDone;
+            private readonly IValueRegisterField wsize;
+            private readonly IValueRegisterField rsize;
+            private readonly IFlagRegisterField repeat;
+            private readonly IValueRegisterField nextBytesLow;
+            private readonly IValueRegisterField nextBytesHigh;
+            private readonly IValueRegisterField nextDestinationLow;
+            private readonly IValueRegisterField nextDestinationHigh;
+            private readonly IValueRegisterField nextSourceLow;
+            private readonly IValueRegisterField nextSourceHigh;
 
             private readonly IFlagRegisterField doneInterruptEnabled;
             private readonly DoubleWordRegisterCollection registers;

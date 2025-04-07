@@ -11,9 +11,9 @@ using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Peripherals.CPU;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Timers
@@ -88,6 +88,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         public int TimersCount { get; }
 
         public GPIO IRQ0 { get; } = new GPIO();
+
         public GPIO IRQ_IV { get; } = new GPIO();
 
         private void LimitReached()
@@ -111,12 +112,12 @@ namespace Antmicro.Renode.Peripherals.Timers
         private void RecalculateCompareTimers()
         {
             var currentCount = mainTimer.Direction == Direction.Ascending ? mainTimer.Value : mainTimer.Limit - mainTimer.Value;
-            foreach(var entry in internalTimers.Select((Timer, Index) => new { Timer, Index }))
+            foreach(var entry in internalTimers.Select((timer, index) => new { timer, index }))
             {
-                var newLimit = mainTimer.Direction == Direction.Ascending ? timerCompare[entry.Index].Value : mainTimer.Limit - timerCompare[entry.Index].Value;
-                entry.Timer.Value = currentCount;
-                entry.Timer.Limit = newLimit;
-                entry.Timer.Enabled |= mainTimer.Enabled && entry.Timer.Value <= entry.Timer.Limit;
+                var newLimit = mainTimer.Direction == Direction.Ascending ? timerCompare[entry.index].Value : mainTimer.Limit - timerCompare[entry.index].Value;
+                entry.timer.Value = currentCount;
+                entry.timer.Limit = newLimit;
+                entry.timer.Enabled |= mainTimer.Enabled && entry.timer.Value <= entry.timer.Limit;
             }
         }
 
@@ -145,23 +146,23 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             switch(timerMode.Value)
             {
-                case Mode.Stop:
-                    Enabled = false;
-                    return;
-                case Mode.Up:
-                    mainTimer.Direction = Direction.Ascending;
-                    mainTimer.Limit = timerCompare[0].Value;
-                    break;
-                case Mode.Continuous:
-                    mainTimer.Direction = Direction.Ascending;
-                    var bits = timerWidth.Value == 0 ? 16 : 16 - 2 * ((int)timerWidth.Value + 1);
-                    mainTimer.Limit = (1UL << bits) - 1;
-                    break;
-                case Mode.UpDown:
-                    mainTimer.Limit = timerCompare[0].Value;
-                    break;
-                default:
-                    throw new Exception("unreachable");
+            case Mode.Stop:
+                Enabled = false;
+                return;
+            case Mode.Up:
+                mainTimer.Direction = Direction.Ascending;
+                mainTimer.Limit = timerCompare[0].Value;
+                break;
+            case Mode.Continuous:
+                mainTimer.Direction = Direction.Ascending;
+                var bits = timerWidth.Value == 0 ? 16 : 16 - 2 * ((int)timerWidth.Value + 1);
+                mainTimer.Limit = (1UL << bits) - 1;
+                break;
+            case Mode.UpDown:
+                mainTimer.Limit = timerCompare[0].Value;
+                break;
+            default:
+                throw new Exception("unreachable");
             }
 
             mainTimer.Enabled = true;
@@ -335,18 +336,18 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
-        private IFlagRegisterField interruptOverflowEnabled;
-        private IFlagRegisterField interruptOverflowPending;
-
-        private IFlagRegisterField[] timerInterruptEnabled;
-        private IFlagRegisterField[] timerInterruptPending;
-        private IValueRegisterField[] timerCompare;
-
         private IValueRegisterField clockDivider;
         private IValueRegisterField clockDividerExtended;
 
         private IEnumRegisterField<Mode> timerMode;
         private IValueRegisterField timerWidth;
+
+        private IFlagRegisterField interruptOverflowEnabled;
+        private IFlagRegisterField interruptOverflowPending;
+
+        private readonly IFlagRegisterField[] timerInterruptEnabled;
+        private readonly IFlagRegisterField[] timerInterruptPending;
+        private readonly IValueRegisterField[] timerCompare;
 
         private readonly LimitTimer mainTimer;
         private readonly LimitTimer[] internalTimers;

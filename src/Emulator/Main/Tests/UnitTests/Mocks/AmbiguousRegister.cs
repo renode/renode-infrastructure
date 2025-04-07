@@ -4,7 +4,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Peripherals.Bus;
 
@@ -16,37 +15,30 @@ namespace Antmicro.Renode.UnitTests.Mocks
     {
         public void Register(IDoubleWordPeripheral peripheral, DoublePointRegistration registrationPoint)
         {
-            
         }
 
         public void Register(IDoubleWordPeripheral peripheral, BusPointRegistration registrationPoint)
         {
-            
         }
 
         public void Register(IDoubleWordPeripheral peripheral, IMockRegistrationPoint1 registrationPoint)
         {
-            
         }
 
         public void Register(IDoubleWordPeripheral peripheral, IMockRegistrationPoint2 registrationPoint)
         {
-            
         }
 
         public void Register(IBytePeripheral peripheral, DoublePointRegistration registrationPoint)
         {
-            
         }
 
         public void Unregister(IDoubleWordPeripheral peripheral)
         {
-            
         }
 
         public void Unregister(IBytePeripheral peripheral)
         {
-            
         }
     }
 
@@ -81,11 +73,9 @@ namespace Antmicro.Renode.UnitTests.Mocks
 
     public interface IMockRegistrationPoint1 : IRegistrationPoint
     {
-
     }
 
     public interface IMockRegistrationPoint2 : IRegistrationPoint
     {
-
     }
 }

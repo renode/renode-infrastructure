@@ -7,6 +7,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -14,7 +15,9 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Network;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
+
 using PacketDotNet;
+
 using IPProtocolType = Antmicro.Renode.Network.IPProtocolType;
 
 namespace Antmicro.Renode.Peripherals.Network
@@ -288,7 +291,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 rxDescriptorsQueue.CurrentDescriptor.Read();
                 if(rxDescriptorsQueue.CurrentDescriptor.IsEmpty)
                 {
-                    if(!rxDescriptorsQueue.CurrentDescriptor.WriteBuffer(frame.Bytes, (uint)frame.Bytes.Length))
+                    if(!rxDescriptorsQueue.CurrentDescriptor.WriteBuffer(frame.Bytes))
                     {
                         // The current implementation doesn't handle packets that do not fit into a single buffer.
                         // In case we encounter this error, we probably should implement partitioning/scattering procedure.
@@ -329,12 +332,6 @@ namespace Antmicro.Renode.Peripherals.Network
             registers.Write(offset, value);
         }
 
-        public MACAddress MAC { get; set; }
-
-        public long Size => 0x1000;
-
-        public event Action<EthernetFrame> FrameReady;
-
         [IrqProvider("timer irq", 4)]
         public GPIO TimerIRQ { get; }
 
@@ -349,6 +346,12 @@ namespace Antmicro.Renode.Peripherals.Network
 
         [IrqProvider("transmit irq", 0)]
         public GPIO TxIRQ { get; }
+
+        public MACAddress MAC { get; set; }
+
+        public long Size => 0x1000;
+
+        public event Action<EthernetFrame> FrameReady;
 
         private void UpdateMac()
         {
@@ -380,11 +383,11 @@ namespace Antmicro.Renode.Peripherals.Network
 
             if(insertProtocolChecksum.Value)
             {
-                frame.FillWithChecksums(new EtherType[] {}, new [] { IPProtocolType.ICMP, IPProtocolType.ICMPV6, IPProtocolType.TCP, IPProtocolType.UDP });
+                frame.FillWithChecksums(new EtherType[] { }, new[] { IPProtocolType.ICMP, IPProtocolType.ICMPV6, IPProtocolType.TCP, IPProtocolType.UDP });
             }
             if(insertIPHeaderChecksum.Value)
             {
-                frame.FillWithChecksums(new [] { EtherType.IpV4 }, new IPProtocolType[] {});
+                frame.FillWithChecksums(new[] { EtherType.IpV4 }, new IPProtocolType[] { });
             }
 
             this.Log(LogLevel.Debug, "Sending packet, length {0}", frame.Bytes.Length);
@@ -446,20 +449,23 @@ namespace Antmicro.Renode.Peripherals.Network
 
                 switch(op)
                 {
-                    case PhyOperation.Read:
-                        phyDataRead = phy.Read(reg);
-                        break;
-                    case PhyOperation.Write:
-                        phy.Write(reg, data);
-                        break;
-                    default:
-                        this.Log(LogLevel.Warning, "Unknown PHY operation code 0x{0:X}", op);
-                        break;
+                case PhyOperation.Read:
+                    phyDataRead = phy.Read(reg);
+                    break;
+                case PhyOperation.Write:
+                    phy.Write(reg, data);
+                    break;
+                default:
+                    this.Log(LogLevel.Warning, "Unknown PHY operation code 0x{0:X}", op);
+                    break;
                 }
 
                 interruptManager.SetInterrupt(Interrupts.MIIInterrupt);
             }
         }
+
+        // Fields needed for the internal logic
+        private bool isTransmissionStarted = false;
         private uint phyDataRead;
         private DmaBufferDescriptorsQueue<DmaTxBufferDescriptor> txDescriptorsQueue;
         private DmaBufferDescriptorsQueue<DmaRxBufferDescriptor> rxDescriptorsQueue;
@@ -468,9 +474,6 @@ namespace Antmicro.Renode.Peripherals.Network
         private readonly InterruptManager<Interrupts> interruptManager;
         private readonly DoubleWordRegisterCollection registers;
         private readonly object innerLock;
-
-        // Fields needed for the internal logic
-        private bool isTransmissionStarted = false;
 
         //EthernetControl
         private readonly IFlagRegisterField extendedMode;
@@ -492,6 +495,281 @@ namespace Antmicro.Renode.Peripherals.Network
 
         private readonly IValueRegisterField lowerMAC;
         private readonly IValueRegisterField upperMAC;
+
+        private class DmaBufferDescriptorsQueue<T> where T : DmaBufferDescriptor
+        {
+            public DmaBufferDescriptorsQueue(IBusController bus, uint baseAddress, Func<IBusController, uint, T> creator)
+            {
+                this.bus = bus;
+                this.creator = creator;
+                this.baseAddress = baseAddress;
+                descriptors = new List<T>();
+                GoToNextDescriptor();
+            }
+
+            public void GoToNextDescriptor()
+            {
+                if(descriptors.Count == 0)
+                {
+                    // this is the first descriptor - read it from baseAddress
+                    descriptors.Add(creator(bus, baseAddress));
+                    currentDescriptorIndex = 0;
+                }
+                else
+                {
+                    // If wrap is set, we have reached end of ring and need to start from the beginning
+                    if(CurrentDescriptor.Wrap)
+                    {
+                        currentDescriptorIndex = 0;
+                    }
+                    else
+                    {
+                        descriptors.Add(creator(bus, CurrentDescriptor.DescriptorAddress + CurrentDescriptor.SizeInBytes));
+                        currentDescriptorIndex++;
+                    }
+                }
+                CurrentDescriptor.Read();
+            }
+
+            public void GoToBaseAddress()
+            {
+                currentDescriptorIndex = 0;
+                CurrentDescriptor.Read();
+            }
+
+            public T CurrentDescriptor => descriptors[currentDescriptorIndex];
+
+            private int currentDescriptorIndex;
+
+            private readonly List<T> descriptors;
+            private readonly uint baseAddress;
+            private readonly IBusController bus;
+            private readonly Func<IBusController, uint, T> creator;
+        }
+
+        private class DmaBufferDescriptor
+        {
+            public void Read()
+            {
+                var tempOffset = 0UL;
+                for(var i = 0; i < words.Length; ++i)
+                {
+                    words[i] = Bus.ReadDoubleWord(DescriptorAddress + tempOffset);
+                    tempOffset += 2;
+                }
+            }
+
+            public void Update()
+            {
+                var tempOffset = 0UL;
+                foreach(var word in words)
+                {
+                    Bus.WriteDoubleWord(DescriptorAddress + tempOffset, word);
+                    tempOffset += 2;
+                }
+            }
+
+            public IBusController Bus { get; }
+
+            public uint SizeInBytes { get; }
+
+            public bool IsExtendedModeEnabled { get; }
+
+            public uint DescriptorAddress { get; }
+
+            public bool Wrap => BitHelper.IsBitSet(words[1], 13);
+
+            public uint DataBufferAddress => (words[3] << 16) | words[2];
+
+            public bool IsLast => BitHelper.IsBitSet(words[1], 11);
+
+            protected DmaBufferDescriptor(IBusController bus, uint address, bool isExtendedModeEnabled)
+            {
+                Bus = bus;
+                DescriptorAddress = address;
+                IsExtendedModeEnabled = isExtendedModeEnabled;
+                SizeInBytes = InitWords();
+            }
+
+            protected uint[] words;
+
+            private uint InitWords()
+            {
+                if(IsExtendedModeEnabled)
+                {
+                    words = new uint[16];
+                }
+                else
+                {
+                    words = new uint[4];
+                }
+                return (uint)words.Length * 2;
+            }
+        }
+
+        /// Legacy Transmit Buffer
+        ///
+        ///          =================================================================================
+        ///          |             Byte 1                    |           Byte 0                      |
+        ///          | 15 | 14 | 13 | 12 | 11 | 10 | 09 | 08 | 07 | 06 | 05 | 04 | 03 | 02 | 01 | 00 |
+        ///          =================================================================================
+        /// Offset +0|                              Data Length                                      |
+        /// Offset +2| R  | TO1| W  | TO2| L  | TC |ABC | -- | -- | -- | -- | -- | -- | -- | -- | -- |
+        /// Offset +4|                       Tx Data Buffer Pointer -- low halfword                  |
+        /// Offset +6|                       Tx Data Buffer Pointer -- high halfword                 |
+        ///          =================================================================================
+        ///
+        ///
+        /// Enhanced Transmit Buffer
+        ///
+        ///          =================================================================================
+        ///          |             Byte 1                    |           Byte 0                      |
+        ///          | 15 | 14 | 13 | 12 | 11 | 10 | 09 | 08 | 07 | 06 | 05 | 04 | 03 | 02 | 01 | 00 |
+        ///          =================================================================================
+        /// Offset +0|                              Data Length                                      |
+        /// Offset +2| R  | TO1| W  | TO2| L  | TC | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
+        /// Offset +4|                       Tx Data Buffer Pointer -- low halfword                  |
+        /// Offset +6|                       Tx Data Buffer Pointer -- high halfword                 |
+        /// Offset +8| TXE| -- | UE | EE | FE | LCE| OE | TSE| -- | -- | -- | -- | -- | -- | -- | -- |
+        /// Offset +A| -- | INT| TS |PINS|IINS| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
+        /// Offset +C| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
+        /// Offset +E| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
+        /// Offset+10| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
+        /// Offset+12| BDU| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
+        /// Offset+14|                       1588 timestamp - low halfword                           |
+        /// Offset+16|                       1588 timestamp - high halfword                          |
+        /// Offset+18| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
+        /// Offset+1A| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
+        /// Offset+1C| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
+        /// Offset+1E| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
+        ///          =================================================================================
+        private class DmaTxBufferDescriptor : DmaBufferDescriptor
+        {
+            public DmaTxBufferDescriptor(IBusController bus, uint address, bool isExtendedModeEnabled) :
+                base(bus, address, isExtendedModeEnabled)
+            {
+            }
+
+            public byte[] ReadBuffer()
+            {
+                return Bus.ReadBytes(DataBufferAddress, Length, true);
+            }
+
+            public ushort Length => (ushort)words[0];
+
+            public bool IncludeCRC => BitHelper.IsBitSet(words[1], 10);
+
+            public bool IsReady
+            {
+                get
+                {
+                    return BitHelper.IsBitSet(words[1], 15);
+                }
+
+                set
+                {
+                    BitHelper.SetBit(ref words[1], 15, value);
+                }
+            }
+        }
+
+        /// Legacy Receive Buffer
+        ///
+        ///          =================================================================================
+        ///          |             Byte 1                    |           Byte 0                      |
+        ///          | 15 | 14 | 13 | 12 | 11 | 10 | 09 | 08 | 07 | 06 | 05 | 04 | 03 | 02 | 01 | 00 |
+        ///          =================================================================================
+        /// Offset +0|                              Data Length                                      |
+        /// Offset +2| E  | RO1| W  | RO2| L  | -- | -- | M  | BC | MC | LG | NO | -- | -- | -- | TR |
+        /// Offset +4|                       Rx Data Buffer Pointer -- low halfword                  |
+        /// Offset +6|                       Rx Data Buffer Pointer -- high halfword                 |
+        ///          =================================================================================
+        ///
+        ///
+        /// Enhanced Receive Buffer
+        ///
+        ///          =================================================================================
+        ///          |             Byte 1                    |           Byte 0                      |
+        ///          | 15 | 14 | 13 | 12 | 11 | 10 | 09 | 08 | 07 | 06 | 05 | 04 | 03 | 02 | 01 | 00 |
+        ///          =================================================================================
+        /// Offset +0|                              Data Length                                      |
+        /// Offset +2| E  | RO1| W  | RO2| L  | -- | -- | M  | BC | MC | LG | NO | -- | CR | OV | TR |
+        /// Offset +4|                       Rx Data Buffer Pointer -- low halfword                  |
+        /// Offset +6|                       Rx Data Buffer Pointer -- high halfword                 |
+        /// Offset +8|    VPCP      | -- | -- | -- | -- | -- | -- | -- | ICE| PCR| -- |VLAN|IPV6|FRAG|
+        /// Offset +A| ME | -- | -- | -- | -- | PE | CE | UC | INT| -- | -- | -- | -- | -- | -- | -- |
+        /// Offset +C|                              Payload Checksum                                 |
+        /// Offset +E|     Header length      | -- | -- | -- |              Protocol Type            |
+        /// Offset+10| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
+        /// Offset+12| BDU| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
+        /// Offset+14|                       1588 timestamp - low halfword                           |
+        /// Offset+16|                       1588 timestamp - high halfword                          |
+        /// Offset+18| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
+        /// Offset+1A| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
+        /// Offset+1C| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
+        /// Offset+1E| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
+        ///          =================================================================================
+        private class DmaRxBufferDescriptor : DmaBufferDescriptor
+        {
+            public DmaRxBufferDescriptor(IBusController bus, uint address, bool isExtendedModeEnabled) :
+                base(bus, address, isExtendedModeEnabled)
+            {
+            }
+
+            public bool WriteBuffer(byte[] bytes)
+            {
+                if(bytes.Length > MaximumBufferLength)
+                {
+                    return false;
+                }
+
+                Length = (ushort)Length;
+                Bus.WriteBytes(bytes, DataBufferAddress, true);
+
+                return true;
+            }
+
+            public byte[] ReadBuffer()
+            {
+                return Bus.ReadBytes(DataBufferAddress, Length, true);
+            }
+
+            public ushort Length
+            {
+                get
+                {
+                    return (ushort)words[0];
+                }
+
+                set
+                {
+                    words[0] = value;
+                }
+            }
+
+            public bool IsEmpty
+            {
+                get
+                {
+                    return BitHelper.IsBitSet(words[1], 15);
+                }
+
+                set
+                {
+                    BitHelper.SetBit(ref words[1], 15, value);
+                }
+            }
+
+            public new bool IsLast
+            {
+                set
+                {
+                    BitHelper.SetBit(ref words[1], 11, value);
+                }
+            }
+
+            private const int MaximumBufferLength = (1 << 13) - 1;
+        }
 
         private enum Registers
         {
@@ -637,275 +915,6 @@ namespace Antmicro.Renode.Peripherals.Network
         {
             Write = 0x1,
             Read = 0x2
-        }
-
-        private class DmaBufferDescriptorsQueue<T> where T : DmaBufferDescriptor
-        {
-            public DmaBufferDescriptorsQueue(IBusController bus, uint baseAddress, Func<IBusController, uint, T> creator)
-            {
-                this.bus = bus;
-                this.creator = creator;
-                this.baseAddress = baseAddress;
-                descriptors = new List<T>();
-                GoToNextDescriptor();
-            }
-
-            public void GoToNextDescriptor()
-            {
-                if(descriptors.Count == 0)
-                {
-                    // this is the first descriptor - read it from baseAddress
-                    descriptors.Add(creator(bus, baseAddress));
-                    currentDescriptorIndex = 0;
-                }
-                else
-                {
-                    // If wrap is set, we have reached end of ring and need to start from the beginning
-                    if(CurrentDescriptor.Wrap)
-                    {
-                        currentDescriptorIndex = 0;
-                    }
-                    else
-                    {
-                        descriptors.Add(creator(bus, CurrentDescriptor.DescriptorAddress + CurrentDescriptor.SizeInBytes));
-                        currentDescriptorIndex++;
-                    }
-                }
-                CurrentDescriptor.Read();
-            }
-
-            public void GoToBaseAddress()
-            {
-                currentDescriptorIndex = 0;
-                CurrentDescriptor.Read();
-            }
-
-            public T CurrentDescriptor => descriptors[currentDescriptorIndex];
-
-            private int currentDescriptorIndex;
-
-            private readonly List<T> descriptors;
-            private readonly uint baseAddress;
-            private readonly IBusController bus;
-            private readonly Func<IBusController, uint, T> creator;
-        }
-
-        private class DmaBufferDescriptor
-        {
-            protected DmaBufferDescriptor(IBusController bus, uint address, bool isExtendedModeEnabled)
-            {
-                Bus = bus;
-                DescriptorAddress = address;
-                IsExtendedModeEnabled = isExtendedModeEnabled;
-                SizeInBytes = InitWords();
-            }
-
-            public void Read()
-            {
-                var tempOffset = 0UL;
-                for(var i = 0; i < words.Length; ++i)
-                {
-                    words[i] = Bus.ReadDoubleWord(DescriptorAddress + tempOffset);
-                    tempOffset += 2;
-                }
-            }
-
-            public void Update()
-            {
-                var tempOffset = 0UL;
-                foreach(var word in words)
-                {
-                    Bus.WriteDoubleWord(DescriptorAddress + tempOffset, word);
-                    tempOffset += 2;
-                }
-            }
-
-            public IBusController Bus { get; }
-            public uint SizeInBytes { get; }
-            public bool IsExtendedModeEnabled { get; }
-            public uint DescriptorAddress { get; }
-
-            public bool Wrap => BitHelper.IsBitSet(words[1], 13);
-
-            public uint DataBufferAddress => (words[3] << 16) | words[2];
-
-            public bool IsLast => BitHelper.IsBitSet(words[1], 11);
-
-            protected uint[] words;
-
-            private uint InitWords()
-            {
-                if(IsExtendedModeEnabled)
-                {
-                    words = new uint[16];
-                }
-                else
-                {
-                    words = new uint[4];
-                }
-                return (uint)words.Length * 2;
-            }
-        }
-
-        /// Legacy Transmit Buffer
-        ///
-        ///          =================================================================================
-        ///          |             Byte 1                    |           Byte 0                      |
-        ///          | 15 | 14 | 13 | 12 | 11 | 10 | 09 | 08 | 07 | 06 | 05 | 04 | 03 | 02 | 01 | 00 |
-        ///          =================================================================================
-        /// Offset +0|                              Data Length                                      |
-        /// Offset +2| R  | TO1| W  | TO2| L  | TC |ABC | -- | -- | -- | -- | -- | -- | -- | -- | -- |
-        /// Offset +4|                       Tx Data Buffer Pointer -- low halfword                  |
-        /// Offset +6|                       Tx Data Buffer Pointer -- high halfword                 |
-        ///          =================================================================================
-        ///
-        ///
-        /// Enhanced Transmit Buffer
-        ///
-        ///          =================================================================================
-        ///          |             Byte 1                    |           Byte 0                      |
-        ///          | 15 | 14 | 13 | 12 | 11 | 10 | 09 | 08 | 07 | 06 | 05 | 04 | 03 | 02 | 01 | 00 |
-        ///          =================================================================================
-        /// Offset +0|                              Data Length                                      |
-        /// Offset +2| R  | TO1| W  | TO2| L  | TC | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
-        /// Offset +4|                       Tx Data Buffer Pointer -- low halfword                  |
-        /// Offset +6|                       Tx Data Buffer Pointer -- high halfword                 |
-        /// Offset +8| TXE| -- | UE | EE | FE | LCE| OE | TSE| -- | -- | -- | -- | -- | -- | -- | -- |
-        /// Offset +A| -- | INT| TS |PINS|IINS| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
-        /// Offset +C| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
-        /// Offset +E| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
-        /// Offset+10| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
-        /// Offset+12| BDU| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
-        /// Offset+14|                       1588 timestamp - low halfword                           |
-        /// Offset+16|                       1588 timestamp - high halfword                          |
-        /// Offset+18| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
-        /// Offset+1A| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
-        /// Offset+1C| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
-        /// Offset+1E| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
-        ///          =================================================================================
-        private class DmaTxBufferDescriptor : DmaBufferDescriptor
-        {
-            public DmaTxBufferDescriptor(IBusController bus, uint address, bool isExtendedModeEnabled) :
-                base(bus, address, isExtendedModeEnabled)
-            {
-            }
-
-            public byte[] ReadBuffer()
-            {
-                return Bus.ReadBytes(DataBufferAddress, Length, true);
-            }
-
-            public ushort Length => (ushort)words[0];
-
-            public bool IncludeCRC => BitHelper.IsBitSet(words[1], 10);
-
-            public bool IsReady
-            {
-                get
-                {
-                    return BitHelper.IsBitSet(words[1], 15);
-                }
-                set
-                {
-                    BitHelper.SetBit(ref words[1], 15, value);
-                }
-            }
-        }
-
-        /// Legacy Receive Buffer
-        ///
-        ///          =================================================================================
-        ///          |             Byte 1                    |           Byte 0                      |
-        ///          | 15 | 14 | 13 | 12 | 11 | 10 | 09 | 08 | 07 | 06 | 05 | 04 | 03 | 02 | 01 | 00 |
-        ///          =================================================================================
-        /// Offset +0|                              Data Length                                      |
-        /// Offset +2| E  | RO1| W  | RO2| L  | -- | -- | M  | BC | MC | LG | NO | -- | -- | -- | TR |
-        /// Offset +4|                       Rx Data Buffer Pointer -- low halfword                  |
-        /// Offset +6|                       Rx Data Buffer Pointer -- high halfword                 |
-        ///          =================================================================================
-        ///
-        ///
-        /// Enhanced Receive Buffer
-        ///
-        ///          =================================================================================
-        ///          |             Byte 1                    |           Byte 0                      |
-        ///          | 15 | 14 | 13 | 12 | 11 | 10 | 09 | 08 | 07 | 06 | 05 | 04 | 03 | 02 | 01 | 00 |
-        ///          =================================================================================
-        /// Offset +0|                              Data Length                                      |
-        /// Offset +2| E  | RO1| W  | RO2| L  | -- | -- | M  | BC | MC | LG | NO | -- | CR | OV | TR |
-        /// Offset +4|                       Rx Data Buffer Pointer -- low halfword                  |
-        /// Offset +6|                       Rx Data Buffer Pointer -- high halfword                 |
-        /// Offset +8|    VPCP      | -- | -- | -- | -- | -- | -- | -- | ICE| PCR| -- |VLAN|IPV6|FRAG|
-        /// Offset +A| ME | -- | -- | -- | -- | PE | CE | UC | INT| -- | -- | -- | -- | -- | -- | -- |
-        /// Offset +C|                              Payload Checksum                                 |
-        /// Offset +E|     Header length      | -- | -- | -- |              Protocol Type            |
-        /// Offset+10| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
-        /// Offset+12| BDU| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
-        /// Offset+14|                       1588 timestamp - low halfword                           |
-        /// Offset+16|                       1588 timestamp - high halfword                          |
-        /// Offset+18| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
-        /// Offset+1A| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
-        /// Offset+1C| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
-        /// Offset+1E| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
-        ///          =================================================================================
-        private class DmaRxBufferDescriptor : DmaBufferDescriptor
-        {
-            public DmaRxBufferDescriptor(IBusController bus, uint address, bool isExtendedModeEnabled) :
-                base(bus, address, isExtendedModeEnabled)
-            {
-            }
-
-            public byte[] ReadBuffer()
-            {
-                return Bus.ReadBytes(DataBufferAddress, Length, true);
-            }
-
-            public ushort Length
-            {
-                get
-                {
-                    return (ushort)words[0];
-                }
-                set
-                {
-                    words[0] = value;
-                }
-            }
-
-            public bool IsEmpty
-            {
-                get
-                {
-                    return BitHelper.IsBitSet(words[1], 15);
-                }
-                set
-                {
-                    BitHelper.SetBit(ref words[1], 15, value);
-                }
-            }
-
-            public new bool IsLast
-            {
-                set
-                {
-                    BitHelper.SetBit(ref words[1], 11, value);
-                }
-            }
-
-            public bool WriteBuffer(byte[] bytes, uint length)
-            {
-                if(bytes.Length > MaximumBufferLength)
-                {
-                    return false;
-                }
-
-                Length = (ushort)Length;
-                Bus.WriteBytes(bytes, DataBufferAddress, true);
-
-                return true;
-            }
-
-            private const int MaximumBufferLength = (1 << 13) - 1;
         }
     }
 }

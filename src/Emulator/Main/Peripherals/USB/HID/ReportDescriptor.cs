@@ -6,6 +6,7 @@
 //
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Core.USB.HID
@@ -72,8 +73,11 @@ namespace Antmicro.Renode.Core.USB.HID
             }
 
             public ItemSize Size { get; }
+
             public ItemType Type { get; }
+
             public byte Tag { get; }
+
             public byte[] Data { get; }
         }
 

@@ -4,12 +4,11 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
 using System;
-using System.Linq;
 using System.Numerics;
 using System.Security.Cryptography;
+
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
 {
@@ -45,15 +44,15 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
             var msgBytes = bus.ReadBytes(msgExternalAddress, (int)msgLength);
             // We could use SHA384.HashData static method, but it's not available in Mono.
             var hash = SHA384.Create().ComputeHash(msgBytes);
-            
+
             var z = AthenaX5200_BigIntegerHelper.CreateBigInteger(hash, Math.Min(q.ToByteArray().Length, hash.Length));
 
             // Step 2:
             // s = (k^-1(z + xr)) mod q
             var inverseK = AthenaX5200_BigIntegerHelper.CalculateModularInverse(k, q);
 
-            var S = (inverseK * (z + (x * r))) % q;
-            var sBytes = S.ToByteArray();
+            var s = (inverseK * (z + (x * r))) % q;
+            var sBytes = s.ToByteArray();
             AthenaX5200_BigIntegerHelper.StoreBigIntegerBytes(manager, (uint)sBytes.Length, sBytes, (long)DSARegisters.S);
         }
 

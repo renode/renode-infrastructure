@@ -5,11 +5,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Timers;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -68,21 +68,21 @@ namespace Antmicro.Renode.Peripherals.CPU
             ulong data;
             switch(width)
             {
-                case AccessWidth.Byte:
-                    data = bus.ReadByte(memoryOffset, cpu);
-                    valueBits = 8;
-                    break;
-                case AccessWidth.Word:
-                    data = bus.ReadWord(memoryOffset, cpu);
-                    valueBits = 16;
-                    break;
-                case AccessWidth.DoubleWord:
-                    data = bus.ReadDoubleWord(memoryOffset, cpu);
-                    valueBits = 32;
-                    break;
-                default:
-                    cpu.Log(LogLevel.Error, "Invalid memory access type: {0}", width);
-                    return;
+            case AccessWidth.Byte:
+                data = bus.ReadByte(memoryOffset, cpu);
+                valueBits = 8;
+                break;
+            case AccessWidth.Word:
+                data = bus.ReadWord(memoryOffset, cpu);
+                valueBits = 16;
+                break;
+            case AccessWidth.DoubleWord:
+                data = bus.ReadDoubleWord(memoryOffset, cpu);
+                valueBits = 32;
+                break;
+            default:
+                cpu.Log(LogLevel.Error, "Invalid memory access type: {0}", width);
+                return;
             }
 
             if(extendSign)
@@ -105,18 +105,18 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             switch(width)
             {
-                case AccessWidth.Byte:
-                    bus.WriteByte(memoryOffset, (byte)regValue, cpu);
-                    break;
-                case AccessWidth.Word:
-                    bus.WriteWord(memoryOffset, (ushort)regValue, cpu);
-                    break;
-                case AccessWidth.DoubleWord:
-                    bus.WriteDoubleWord(memoryOffset, (uint)regValue, cpu);
-                    break;
-                default:
-                    cpu.Log(LogLevel.Error, "Invalid memory access type: {0}", width);
-                    break;
+            case AccessWidth.Byte:
+                bus.WriteByte(memoryOffset, (byte)regValue, cpu);
+                break;
+            case AccessWidth.Word:
+                bus.WriteWord(memoryOffset, (ushort)regValue, cpu);
+                break;
+            case AccessWidth.DoubleWord:
+                bus.WriteDoubleWord(memoryOffset, (uint)regValue, cpu);
+                break;
+            default:
+                cpu.Log(LogLevel.Error, "Invalid memory access type: {0}", width);
+                break;
             }
         }
 

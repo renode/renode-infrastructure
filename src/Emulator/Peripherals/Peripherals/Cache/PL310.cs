@@ -44,7 +44,6 @@ namespace Antmicro.Renode.Peripherals.Cache
 
         public void Reset()
         {
-
         }
 
         public enum Offset
@@ -57,7 +56,5 @@ namespace Antmicro.Renode.Peripherals.Cache
             CleanAndInvalidateLine = 0x7f0,
             Debug = 0xf40
         }
-
     }
 }
-

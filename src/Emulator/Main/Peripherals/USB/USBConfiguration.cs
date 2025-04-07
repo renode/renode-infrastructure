@@ -6,7 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
-using System.Linq;
+
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Utilities;
 
@@ -84,9 +84,13 @@ namespace Antmicro.Renode.Core.USB
         }
 
         public byte Identifier { get; }
+
         public string Description { get; }
+
         public short MaximalPower { get; }
+
         public bool SelfPowered { get; }
+
         public bool RemoteWakeup { get; }
 
         public IReadOnlyCollection<USBInterface> Interfaces => interfaces;

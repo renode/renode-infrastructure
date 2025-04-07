@@ -6,16 +6,13 @@
 //
 
 using System;
-using System.Linq;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
-
-using Antmicro.Renode.Peripherals.Bus;
-
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.SD
 {
@@ -114,7 +111,7 @@ namespace Antmicro.Renode.Peripherals.SD
             CoreRegisters.Argument.DefineMany(coreRegistersCollection, 4, (register, idx) =>
             {
                 register
-                    .WithValueField(0, 8, name: $"argument{idx}", 
+                    .WithValueField(0, 8, name: $"argument{idx}",
                         writeCallback: (_, val) =>
                         {
                             BitHelper.ReplaceBits(ref argumentValue, width: 8, source: (uint)val, destinationPosition: 24 - idx * 8);
@@ -168,13 +165,13 @@ namespace Antmicro.Renode.Peripherals.SD
 
                     switch(responseTypeField.Value)
                     {
-                        case ResponseType.Short:
-                            expectedResponseLength = 4;
-                            break;
+                    case ResponseType.Short:
+                        expectedResponseLength = 4;
+                        break;
 
-                        case ResponseType.Long:
-                            expectedResponseLength = 16;
-                            break;
+                    case ResponseType.Long:
+                        expectedResponseLength = 16;
+                        break;
                     }
 
                     if(resp.Length != expectedResponseLength)
@@ -182,7 +179,7 @@ namespace Antmicro.Renode.Peripherals.SD
                         this.Log(LogLevel.Warning, "Expected response of length {0} bytes, but received {1} bytes", expectedResponseLength, resp.Length);
                         return;
                     }
-                    
+
                     for(var i = 0; i < resp.Length; i++)
                     {
                         responseBuffer[ResponseBufferLength - 1 - i] = resp[i];
@@ -190,19 +187,19 @@ namespace Antmicro.Renode.Peripherals.SD
 
                     switch(transferTypeField.Value)
                     {
-                        case TransferType.Read:
-                            if(dmaReaderEnabled.Value)
-                            {
-                                ReadData();
-                            }
-                            break;
+                    case TransferType.Read:
+                        if(dmaReaderEnabled.Value)
+                        {
+                            ReadData();
+                        }
+                        break;
 
-                        case TransferType.Write:
-                            if(dmaWriterEnabled.Value)
-                            {
-                                WriteData();
-                            }
-                            break;
+                    case TransferType.Write:
+                        if(dmaWriterEnabled.Value)
+                        {
+                            WriteData();
+                        }
+                        break;
                     }
                 })
                 .WithReservedBits(1, 7)
@@ -236,7 +233,7 @@ namespace Antmicro.Renode.Peripherals.SD
             CoreRegisters.BlockSize.DefineMany(coreRegistersCollection, 2, (register, idx) =>
             {
                 register
-                    .WithValueField(0, 8, name: $"BlockSize{idx}", 
+                    .WithValueField(0, 8, name: $"BlockSize{idx}",
                         writeCallback: (_, val) => BitHelper.ReplaceBits(ref blockSize, width: 8, source: (uint)val, destinationPosition: 8 - idx * 8),
                         valueProviderCallback: _ => BitHelper.GetValue(blockSize, offset: 8 - idx * 8, size: 8))
                     .WithIgnoredBits(8, 24);
@@ -336,6 +333,8 @@ namespace Antmicro.Renode.Peripherals.SD
             RegisteredPeripheral.WriteData(data);
         }
 
+        private uint argumentValue;
+
         private ulong readerAddress;
         private ulong writerAddress;
         private uint readerLength;
@@ -349,9 +348,7 @@ namespace Antmicro.Renode.Peripherals.SD
         private IFlagRegisterField dmaWriterEnabled;
         private IFlagRegisterField dmaReaderEnabled;
 
-        private byte[] responseBuffer;
-
-        private uint argumentValue;
+        private readonly byte[] responseBuffer;
 
         private readonly IBusController sysbus;
         private readonly DoubleWordRegisterCollection phyRegistersCollection;

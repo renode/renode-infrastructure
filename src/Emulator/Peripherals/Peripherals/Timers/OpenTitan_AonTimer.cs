@@ -4,18 +4,16 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Miscellaneous;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
-    public class OpenTitan_AonTimer: BasicDoubleWordPeripheral, IKnownSize
+    public class OpenTitan_AonTimer : BasicDoubleWordPeripheral, IKnownSize
     {
-        public OpenTitan_AonTimer(IMachine machine, OpenTitan_PowerManager powerManager, OpenTitan_ResetManager resetManager, long frequency = 200000): base(machine)
+        public OpenTitan_AonTimer(IMachine machine, OpenTitan_PowerManager powerManager, OpenTitan_ResetManager resetManager, long frequency = 200000) : base(machine)
         {
             this.powerManager = powerManager;
             this.resetManager = resetManager;
@@ -55,7 +53,9 @@ namespace Antmicro.Renode.Peripherals.Timers
         public long Size => 0x30;
 
         public GPIO WakeupTimerExpired { get; }
+
         public GPIO WatchdogTimerBark { get; }
+
         public GPIO FatalAlert { get; }
 
         private void HandleLowPowerTransition(bool lowPower)
@@ -95,7 +95,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             Registers.WakeupTimerThreshold.Define(this)
                 .WithValueField(0, 32, name: "threshold",
                     valueProviderCallback: _ => (uint)wkupTimer.Compare,
-                    writeCallback: (_, val) => 
+                    writeCallback: (_, val) =>
                     {
                         wkupTimer.Compare = val;
                         UpdateWakeupInterrupts();
@@ -104,7 +104,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             Registers.WakeupTimerCount.Define(this)
                 .WithValueField(0, 32, name: "count",
                     valueProviderCallback: _ => (uint)wkupTimer.Value,
-                    writeCallback: (_, val) => 
+                    writeCallback: (_, val) =>
                     {
                         wkupTimer.Value = val;
                         UpdateWakeupInterrupts();
@@ -134,7 +134,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             Registers.WatchdogTimerBarkThreshold.Define(this)
                 .WithValueField(0, 32, name: "threshold",
                     valueProviderCallback: _ => (uint)wdogBarkInnerTimer.Compare,
-                    writeCallback: (_, val) => 
+                    writeCallback: (_, val) =>
                     {
                         if(!wdogConfigNotLocked.Value)
                         {
@@ -149,7 +149,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             Registers.WatchdogTimerBiteThreshold.Define(this)
                 .WithValueField(0, 32, name: "threshold",
                     valueProviderCallback: _ => (uint)wdogBiteInnerTimer.Compare,
-                    writeCallback: (_, val) => 
+                    writeCallback: (_, val) =>
                     {
                         if(!wdogConfigNotLocked.Value)
                         {
@@ -164,7 +164,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             Registers.WatchdogTimerCount.Define(this)
                 .WithValueField(0, 32, name: "count",
                     valueProviderCallback: _ => (uint)wdogBiteInnerTimer.Value,
-                    writeCallback: (_, val) => 
+                    writeCallback: (_, val) =>
                     {
                         if(!wdogConfigNotLocked.Value)
                         {
@@ -241,15 +241,15 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
-        private readonly ComparingTimer wkupTimer, wdogBarkInnerTimer, wdogBiteInnerTimer;
-
         private IFlagRegisterField pauseInSleep;
         private IFlagRegisterField wakeupLevelSignal;
         private IFlagRegisterField wdogConfigNotLocked;
+        private bool lowPowerState;
+
+        private readonly ComparingTimer wkupTimer, wdogBarkInnerTimer, wdogBiteInnerTimer;
 
         private readonly OpenTitan_PowerManager powerManager;
         private readonly OpenTitan_ResetManager resetManager;
-        private bool lowPowerState;
 
         public enum Registers
         {

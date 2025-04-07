@@ -7,12 +7,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.SPI
@@ -406,7 +407,6 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithReservedBits(1, 31)
                 }
             };
-
             {
                 var constructedRegister = new DoubleWordRegister(this)
                     .WithValueField(0, 5, out txFIFOThreshold, name: "DMA.tx_fifo_level")
@@ -466,44 +466,45 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
         }
 
-        private bool[] shouldDeassert;
         private bool transactionInProgress;
-        private bool hushTxFifoLevelWarnings;
-        private uint charactersToTransmit;
-
-        private IValueRegisterField slaveSelect;
-
-        private IFlagRegisterField rxFIFOEnabled;
-        private IFlagRegisterField txFIFOEnabled;
-
-        private IValueRegisterField rxFIFOThreshold;
-        private IValueRegisterField txFIFOThreshold;
-
-        private IFlagRegisterField interruptTxLevelPending;
-        private IFlagRegisterField interruptTxEmptyPending;
-        private IFlagRegisterField interruptRxLevelPending;
-        private IFlagRegisterField interruptRxFullPending;
-        private IFlagRegisterField interruptTransactionFinishedPending;
-        private IFlagRegisterField interruptTxOverrunPending;
-        private IFlagRegisterField interruptRxOverrunPending;
-        private IFlagRegisterField interruptRxUnderrunPending;
+        private IFlagRegisterField interruptTxOverrunEnabled;
+        private IFlagRegisterField interruptTransactionFinishedEnabled;
+        private IFlagRegisterField interruptRxFullEnabled;
+        private IFlagRegisterField interruptRxLevelEnabled;
+        private IFlagRegisterField interruptTxEmptyEnabled;
 
         private IFlagRegisterField interruptTxLevelEnabled;
-        private IFlagRegisterField interruptTxEmptyEnabled;
-        private IFlagRegisterField interruptRxLevelEnabled;
-        private IFlagRegisterField interruptRxFullEnabled;
-        private IFlagRegisterField interruptTransactionFinishedEnabled;
-        private IFlagRegisterField interruptTxOverrunEnabled;
+        private IFlagRegisterField interruptRxUnderrunPending;
+        private IFlagRegisterField interruptRxOverrunPending;
+        private IFlagRegisterField interruptTxOverrunPending;
         private IFlagRegisterField interruptRxOverrunEnabled;
+        private IFlagRegisterField interruptTransactionFinishedPending;
+        private IFlagRegisterField interruptRxLevelPending;
+        private IFlagRegisterField interruptTxEmptyPending;
+
+        private IFlagRegisterField interruptTxLevelPending;
+        private IValueRegisterField txFIFOThreshold;
+
+        private IValueRegisterField rxFIFOThreshold;
+        private IFlagRegisterField txFIFOEnabled;
+
+        private IFlagRegisterField rxFIFOEnabled;
+
+        private IValueRegisterField slaveSelect;
+        private uint charactersToTransmit;
+        private IFlagRegisterField interruptRxFullPending;
         private IFlagRegisterField interruptRxUnderrunEnabled;
 
-        private const int FIFODataWidth = 0x04;
-        private const int FIFOLength = 32;
-        private const int MaximumNumberOfSlaves = 4;
+        private readonly bool[] shouldDeassert;
+        private readonly bool hushTxFifoLevelWarnings;
 
         private readonly Queue<byte> rxQueue;
         private readonly Queue<byte> txQueue;
         private readonly DoubleWordRegisterCollection registers;
+
+        private const int FIFODataWidth = 0x04;
+        private const int FIFOLength = 32;
+        private const int MaximumNumberOfSlaves = 4;
 
         private const byte DummyResponseByte = 0xFF;
 

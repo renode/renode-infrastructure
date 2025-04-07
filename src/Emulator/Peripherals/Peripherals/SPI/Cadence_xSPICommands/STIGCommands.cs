@@ -7,27 +7,29 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Antmicro.Renode.Utilities;
+
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Utilities;
+
 using static Antmicro.Renode.Peripherals.SPI.Cadence_xSPI;
 
 namespace Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands
 {
     internal abstract class STIGCommand : Command
     {
-        static public STIGCommand CreateSTIGCommand(Cadence_xSPI controller, CommandPayload payload)
+        public static STIGCommand CreateSTIGCommand(Cadence_xSPI controller, CommandPayload payload)
         {
             var commandType = DecodeCommandType(payload);
             switch(commandType)
             {
-                case CommandType.SendOperation:
-                case CommandType.SendOperationWithoutFinish:
-                    return new SendOperationCommand(controller, payload);
-                case CommandType.DataSequence:
-                    return new DataSequenceCommand(controller, payload);
-                default:
-                    controller.Log(LogLevel.Warning, "Unable to create a STIG command, unknown command type 0x{0:x}", commandType);
-                    return null;
+            case CommandType.SendOperation:
+            case CommandType.SendOperationWithoutFinish:
+                return new SendOperationCommand(controller, payload);
+            case CommandType.DataSequence:
+                return new DataSequenceCommand(controller, payload);
+            default:
+                controller.Log(LogLevel.Warning, "Unable to create a STIG command, unknown command type 0x{0:x}", commandType);
+                return null;
             }
         }
 
@@ -46,7 +48,7 @@ namespace Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands
 
         protected CommandType Type { get; }
 
-        static private CommandType DecodeCommandType(CommandPayload payload)
+        private static CommandType DecodeCommandType(CommandPayload payload)
         {
             return (CommandType)BitHelper.GetValue(payload[1], 0, 7);
         }
@@ -173,8 +175,11 @@ namespace Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands
         }
 
         public TransmissionDirection DMADirection { get; }
+
         public uint DMADataCount { get; }
+
         public bool DMATriggered { get; private set; }
+
         public bool DMAError { get; private set; }
 
         private void TransmitDummyIfFirst()

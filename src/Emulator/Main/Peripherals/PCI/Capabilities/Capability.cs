@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core.Structure.Registers;
 
 namespace Antmicro.Renode.Peripherals.PCI.Capabilities
@@ -20,8 +21,11 @@ namespace Antmicro.Renode.Peripherals.PCI.Capabilities
         }
 
         public byte Id { get; }
+
         public uint Size { get; }
+
         public byte NextCapability { get; set; }
+
         public List<DoubleWordRegister> Registers { get; }
 
         protected readonly IPCIePeripheral parent;

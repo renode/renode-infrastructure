@@ -5,16 +5,17 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
+
 namespace Antmicro.Renode.Peripherals.IRQControllers
 {
-    public class RenesasRZG_IRQController: BasicDoubleWordPeripheral, IKnownSize, IIRQController, INumberedGPIOOutput
+    public class RenesasRZG_IRQController : BasicDoubleWordPeripheral, IKnownSize, IIRQController, INumberedGPIOOutput
     {
         public RenesasRZG_IRQController(IMachine machine) : base(machine)
         {
@@ -69,13 +70,21 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         public long Size => 0x100;
 
         public GPIO IRQ0 => pinFunctionInterrupts[0];
+
         public GPIO IRQ1 => pinFunctionInterrupts[1];
+
         public GPIO IRQ2 => pinFunctionInterrupts[2];
+
         public GPIO IRQ3 => pinFunctionInterrupts[3];
+
         public GPIO IRQ4 => pinFunctionInterrupts[4];
+
         public GPIO IRQ5 => pinFunctionInterrupts[5];
+
         public GPIO IRQ6 => pinFunctionInterrupts[6];
+
         public GPIO IRQ7 => pinFunctionInterrupts[7];
+
         public IReadOnlyDictionary<int, IGPIO> Connections { get; }
 
         private void DefineRegisters()
@@ -167,32 +176,32 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 {
                     switch(trigger)
                     {
-                        case GpioInterruptType.RisingEdge:
-                            if(gpioStateChanged && state)
-                            {
-                                gpioInterruptStatus[interruptIdx].Value = true;
-                                Connections[interruptIdx].Blink();
-                                this.DebugLog("TINT{0}: blinked", interruptIdx);
-                            }
-                            break;
-                        case GpioInterruptType.FallingEdge:
-                            if(gpioStateChanged && !state)
-                            {
-                                gpioInterruptStatus[interruptIdx].Value = true;
-                                Connections[interruptIdx].Blink();
-                                this.DebugLog("TINT{0}: blinked", interruptIdx);
-                            }
-                            break;
-                        case GpioInterruptType.HighLevel:
-                            gpioInterruptStatus[interruptIdx].Value = state;
-                            Connections[interruptIdx].Set(state);
-                            this.DebugLog("TINT{0}: {1}", interruptIdx, state ? "set" : "unset");
-                            break;
-                        case GpioInterruptType.LowLevel:
-                            gpioInterruptStatus[interruptIdx].Value = !state;
-                            Connections[interruptIdx].Set(!state);
-                            this.DebugLog("TINT{0}: {1}", interruptIdx, !state ? "set" : "unset");
-                            break;
+                    case GpioInterruptType.RisingEdge:
+                        if(gpioStateChanged && state)
+                        {
+                            gpioInterruptStatus[interruptIdx].Value = true;
+                            Connections[interruptIdx].Blink();
+                            this.DebugLog("TINT{0}: blinked", interruptIdx);
+                        }
+                        break;
+                    case GpioInterruptType.FallingEdge:
+                        if(gpioStateChanged && !state)
+                        {
+                            gpioInterruptStatus[interruptIdx].Value = true;
+                            Connections[interruptIdx].Blink();
+                            this.DebugLog("TINT{0}: blinked", interruptIdx);
+                        }
+                        break;
+                    case GpioInterruptType.HighLevel:
+                        gpioInterruptStatus[interruptIdx].Value = state;
+                        Connections[interruptIdx].Set(state);
+                        this.DebugLog("TINT{0}: {1}", interruptIdx, state ? "set" : "unset");
+                        break;
+                    case GpioInterruptType.LowLevel:
+                        gpioInterruptStatus[interruptIdx].Value = !state;
+                        Connections[interruptIdx].Set(!state);
+                        this.DebugLog("TINT{0}: {1}", interruptIdx, !state ? "set" : "unset");
+                        break;
                     }
                 }
                 else
@@ -211,35 +220,35 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
                 switch(trigger)
                 {
-                    case PinFunctionInterruptType.LowLevel:
-                        pinFunctionInterruptStatus[interruptIdx].Value = !state;
-                        pinFunctionInterrupts[interruptIdx].Set(!state);
-                        this.DebugLog("IRQ{0}: {1}", interruptIdx, !state ? "set" : "unset");
-                        break;
-                    case PinFunctionInterruptType.RisingEdge:
-                        if(irqStateChanged && state)
-                        {
-                            pinFunctionInterruptStatus[interruptIdx].Value = true;
-                            pinFunctionInterrupts[interruptIdx].Blink();
-                            this.DebugLog("IRQ{0}: blinked", interruptIdx);
-                        }
-                        break;
-                    case PinFunctionInterruptType.FallingEdge:
-                        if(irqStateChanged && !state)
-                        {
-                            pinFunctionInterruptStatus[interruptIdx].Value = true;
-                            pinFunctionInterrupts[interruptIdx].Blink();
-                            this.DebugLog("IRQ{0}: blinked", interruptIdx);
-                        }
-                        break;
-                    case PinFunctionInterruptType.BothEdges:
-                        if(irqStateChanged)
-                        {
-                            pinFunctionInterruptStatus[interruptIdx].Value = true;
-                            pinFunctionInterrupts[interruptIdx].Blink();
-                            this.DebugLog("IRQ{0}: blinked", interruptIdx);
-                        }
-                        break;
+                case PinFunctionInterruptType.LowLevel:
+                    pinFunctionInterruptStatus[interruptIdx].Value = !state;
+                    pinFunctionInterrupts[interruptIdx].Set(!state);
+                    this.DebugLog("IRQ{0}: {1}", interruptIdx, !state ? "set" : "unset");
+                    break;
+                case PinFunctionInterruptType.RisingEdge:
+                    if(irqStateChanged && state)
+                    {
+                        pinFunctionInterruptStatus[interruptIdx].Value = true;
+                        pinFunctionInterrupts[interruptIdx].Blink();
+                        this.DebugLog("IRQ{0}: blinked", interruptIdx);
+                    }
+                    break;
+                case PinFunctionInterruptType.FallingEdge:
+                    if(irqStateChanged && !state)
+                    {
+                        pinFunctionInterruptStatus[interruptIdx].Value = true;
+                        pinFunctionInterrupts[interruptIdx].Blink();
+                        this.DebugLog("IRQ{0}: blinked", interruptIdx);
+                    }
+                    break;
+                case PinFunctionInterruptType.BothEdges:
+                    if(irqStateChanged)
+                    {
+                        pinFunctionInterruptStatus[interruptIdx].Value = true;
+                        pinFunctionInterrupts[interruptIdx].Blink();
+                        this.DebugLog("IRQ{0}: blinked", interruptIdx);
+                    }
+                    break;
                 }
             }
         }
@@ -258,25 +267,26 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             var trigger = gpioInterruptType[interruptIdx].Value;
             switch(trigger)
             {
-                case GpioInterruptType.RisingEdge:
-                case GpioInterruptType.FallingEdge:
-                    if(newVal)
-                    {
-                        gpioInterruptStatus[interruptIdx].Value = oldVal;
-                    }
-                    break;
-                default:
+            case GpioInterruptType.RisingEdge:
+            case GpioInterruptType.FallingEdge:
+                if(newVal)
+                {
                     gpioInterruptStatus[interruptIdx].Value = oldVal;
-                    break;
+                }
+                break;
+            default:
+                gpioInterruptStatus[interruptIdx].Value = oldVal;
+                break;
             }
         }
 
-        private IValueRegisterField[] gpioInterruptSelect = new IValueRegisterField[NrOfGpioOutputs];
-        private IFlagRegisterField[] gpioInterruptEnabled = new IFlagRegisterField[NrOfGpioOutputs];
         private IFlagRegisterField[] pinFunctionInterruptStatus;
         private IFlagRegisterField[] gpioInterruptStatus;
         private IEnumRegisterField<PinFunctionInterruptType>[] pinFunctionInterruptType;
         private IEnumRegisterField<GpioInterruptType>[] gpioInterruptType;
+
+        private readonly IValueRegisterField[] gpioInterruptSelect = new IValueRegisterField[NrOfGpioOutputs];
+        private readonly IFlagRegisterField[] gpioInterruptEnabled = new IFlagRegisterField[NrOfGpioOutputs];
 
         private readonly GPIO[] pinFunctionInterrupts;
         private readonly bool[] pinFunctionState = new bool[NrOfPinFunctionInputs];

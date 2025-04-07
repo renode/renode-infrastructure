@@ -6,13 +6,13 @@
 //
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Time;
-using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Peripherals.GPIOPort;
+using Antmicro.Renode.Peripherals.Timers;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.X86
 {
@@ -65,7 +65,7 @@ namespace Antmicro.Renode.Peripherals.X86
 
         public GPIO IRQ { get; private set; }
 
-        public long Size { get { return 0xC0;} }
+        public long Size { get { return 0xC0; } }
 
         private void PrepareRegisters()
         {
@@ -89,14 +89,15 @@ namespace Antmicro.Renode.Peripherals.X86
                 var j = i;
                 var offset = 0x14 * i;
                 dict[(long)Registers.Timer1LoadCount + offset] = new DoubleWordRegister(this)
-                    .WithValueField(0, 32, writeCallback: (_, val) => {
+                    .WithValueField(0, 32, writeCallback: (_, val) =>
+                    {
                         timers[j].Limit = val;
                         timers[j].ResetValue();
                     });
 
                 dict[(long)Registers.Timer1CurrentValue + offset] = new DoubleWordRegister(this)
                     .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => (uint)timers[j].Value);
-                
+
                 dict[(long)Registers.Timer1Control + offset] = new DoubleWordRegister(this)
                     .WithFlag(0, name: "Enable", writeCallback: (_, val) => timers[j].Enabled = val)
                     .WithFlag(1, name: "Timer Mode", writeCallback: (_, val) => runningMode[j] = val ? RunningMode.UserDefinedCount : RunningMode.Free)
@@ -171,12 +172,12 @@ namespace Antmicro.Renode.Peripherals.X86
         }
 
         private DoubleWordRegisterCollection registers;
-        private LimitTimer[] timers;
-        private bool[] interruptStatus;
-        private bool[] interruptMask;
-        private uint[] alternativeLoadCount;
-        private OperationMode[] operationMode;
-        private RunningMode[] runningMode;
+        private readonly LimitTimer[] timers;
+        private readonly bool[] interruptStatus;
+        private readonly bool[] interruptMask;
+        private readonly uint[] alternativeLoadCount;
+        private readonly OperationMode[] operationMode;
+        private readonly RunningMode[] runningMode;
         private readonly object internalLock;
 
         private const int NumberOfInternalTimers = 4;
@@ -225,4 +226,3 @@ namespace Antmicro.Renode.Peripherals.X86
         }
     }
 }
-

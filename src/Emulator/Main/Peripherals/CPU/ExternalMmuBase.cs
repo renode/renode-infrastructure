@@ -4,17 +4,15 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
-using Antmicro.Renode.Core;
+
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.CPU;
-using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
-    public class ExternalMmuBase: IPeripheral
+    public class ExternalMmuBase : IPeripheral
     {
         public ExternalMmuBase(ICPUWithExternalMmu cpu, uint windowsCount)
         {

@@ -5,11 +5,12 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Time;
-using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -62,7 +63,9 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
 
         public long Size => 0x4000;
+
         public GPIO IRQ { get; }
+
         public DoubleWordRegisterCollection RegistersCollection { get; }
 
         private void UpdateInterrupts()
@@ -152,9 +155,9 @@ namespace Antmicro.Renode.Peripherals.Timers
             }, stepInBytes: channelSize);
         }
 
-        private const uint ChannelCount = 4;
-
         private readonly LimitTimer[] channelTimer;
+
+        private const uint ChannelCount = 4;
 
         private enum Registers
         {

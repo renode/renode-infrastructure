@@ -6,11 +6,12 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Time;
 using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Peripherals.CPU;
+using Antmicro.Renode.Time;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -51,9 +52,9 @@ namespace Antmicro.Renode.Peripherals.Timers
             InternalReset();
         }
 
-        protected ComparingTimer(IClockSource clockSource, long frequency, ulong limit = ulong.MaxValue, Direction direction = Direction.Ascending, bool enabled = false, WorkMode workMode = WorkMode.OneShot, bool eventEnabled = false, ulong compare = ulong.MaxValue, uint divider = 1, uint step = 1) 
-            : this(clockSource, frequency, null, null, limit, direction, enabled, workMode, eventEnabled, compare, divider, step)
+        public virtual void Reset()
         {
+            InternalReset();
         }
 
         public bool Enabled
@@ -62,6 +63,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             {
                 return clockSource.GetClockEntry(CompareReachedInternal).Enabled;
             }
+
             set
             {
                 clockSource.ExchangeClockEntryWith(CompareReachedInternal, oldEntry => oldEntry.With(enabled: value));
@@ -78,6 +80,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             {
                 return frequency;
             }
+
             set
             {
                 if(value == 0)
@@ -102,6 +105,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 });
                 return currentValue;
             }
+
             set
             {
                 if(value > initialLimit)
@@ -125,6 +129,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             {
                 return compareValue;
             }
+
             set
             {
                 if(value > initialLimit)
@@ -148,6 +153,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             {
                 return divider;
             }
+
             set
             {
                 if(value == divider)
@@ -171,6 +177,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             {
                 return step;
             }
+
             set
             {
                 if(value == step)
@@ -184,12 +191,12 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
-        public virtual void Reset()
-        {
-            InternalReset();
-        }
-
         public event Action CompareReached;
+
+        protected ComparingTimer(IClockSource clockSource, long frequency, ulong limit = ulong.MaxValue, Direction direction = Direction.Ascending, bool enabled = false, WorkMode workMode = WorkMode.OneShot, bool eventEnabled = false, ulong compare = ulong.MaxValue, uint divider = 1, uint step = 1)
+            : this(clockSource, frequency, null, null, limit, direction, enabled, workMode, eventEnabled, compare, divider, step)
+        {
+        }
 
         protected virtual void OnCompareReached()
         {
@@ -279,4 +286,3 @@ namespace Antmicro.Renode.Peripherals.Timers
         private const string CompareHigherThanLimitMessage = "Compare value ({0}) cannot be higher than limit ({1}).";
     }
 }
-

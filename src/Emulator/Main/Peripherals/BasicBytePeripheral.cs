@@ -5,12 +5,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Core.Structure.Registers;
-using System.Collections.Generic;
 using System;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Logging;
+using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals
 {
@@ -48,6 +47,7 @@ namespace Antmicro.Renode.Peripherals
 
     public static class BasicBytePeripheralExtensions
     {
+#pragma warning disable IDE0060
         public static void Tag8(this System.Enum o, IProvidesRegisterCollection<ByteRegisterCollection> p, byte resetValue = 0, string name = "")
         {
         }
@@ -137,5 +137,6 @@ namespace Antmicro.Renode.Peripherals
                 p.RegistersCollection.AddRegister(baseAddress + i * stepInBytes, register);
             }
         }
+#pragma warning restore IDE0060
     }
 }

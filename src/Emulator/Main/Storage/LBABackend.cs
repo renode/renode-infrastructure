@@ -7,9 +7,10 @@
 //
 using System;
 using System.IO;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Logging;
+
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Storage
 {
@@ -29,30 +30,6 @@ namespace Antmicro.Renode.Storage
             this.persistent = persistent;
             this.underlyingFile = underlyingFile;
             this.numberOfBlocks = Touch(numberOfBlocks);
-        }
-
-        public int BlockSize
-        {
-            get
-            {
-                return blockSize;
-            }
-        }
-
-        public int NumberOfBlocks
-        {
-            get
-            {
-                return numberOfBlocks;
-            }
-        }
-
-        public string UnderlyingFile
-        {
-            get
-            {
-                return underlyingFile;
-            }
         }
 
         public byte[] Read(int startingBlock, int numberOfBlocksToRead = 1)
@@ -86,6 +63,30 @@ namespace Antmicro.Renode.Storage
             }
         }
 
+        public int BlockSize
+        {
+            get
+            {
+                return blockSize;
+            }
+        }
+
+        public int NumberOfBlocks
+        {
+            get
+            {
+                return numberOfBlocks;
+            }
+        }
+
+        public string UnderlyingFile
+        {
+            get
+            {
+                return underlyingFile;
+            }
+        }
+
         private int ToNumberOfBlocks(long value)
         {
             return checked((int)(value / blockSize) + ((value % blockSize > 0) ? 1 : 0));
@@ -113,11 +114,11 @@ namespace Antmicro.Renode.Storage
             return (int)numberOfBlocks;
         }
 
+        private string underlyingFile;
+        private SerializableStreamView file;
+
         private readonly int blockSize;
         private readonly int numberOfBlocks;
         private readonly bool persistent;
-        private string underlyingFile;
-        private SerializableStreamView file;
     }
 }
-

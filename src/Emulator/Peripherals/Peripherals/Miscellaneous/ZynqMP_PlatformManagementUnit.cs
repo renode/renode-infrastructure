@@ -6,10 +6,11 @@
 //
 using System;
 using System.Collections.Generic;
-using Antmicro.Renode.Exceptions;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals.CPU;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
@@ -67,21 +68,21 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             // PMU is hardwired to channels 3-6
             switch(channel)
             {
-                case PmuIpiChannel.PMU0:
-                    ProcessInterruptsOnIpiChannel(ZynqMP_IPI.ChannelId.Channel3);
-                    break;
-                case PmuIpiChannel.PMU1:
-                    ProcessInterruptsOnIpiChannel(ZynqMP_IPI.ChannelId.Channel4);
-                    break;
-                case PmuIpiChannel.PMU2:
-                    ProcessInterruptsOnIpiChannel(ZynqMP_IPI.ChannelId.Channel5);
-                    break;
-                case PmuIpiChannel.PMU3:
-                    ProcessInterruptsOnIpiChannel(ZynqMP_IPI.ChannelId.Channel6);
-                    break;
-                default:
-                    this.Log(LogLevel.Error, "Trying to signal GPIO {0} which is out of range.", (int)channel);
-                    break;
+            case PmuIpiChannel.PMU0:
+                ProcessInterruptsOnIpiChannel(ZynqMP_IPI.ChannelId.Channel3);
+                break;
+            case PmuIpiChannel.PMU1:
+                ProcessInterruptsOnIpiChannel(ZynqMP_IPI.ChannelId.Channel4);
+                break;
+            case PmuIpiChannel.PMU2:
+                ProcessInterruptsOnIpiChannel(ZynqMP_IPI.ChannelId.Channel5);
+                break;
+            case PmuIpiChannel.PMU3:
+                ProcessInterruptsOnIpiChannel(ZynqMP_IPI.ChannelId.Channel6);
+                break;
+            default:
+                this.Log(LogLevel.Error, "Trying to signal GPIO {0} which is out of range.", (int)channel);
+                break;
             }
         }
 
@@ -146,12 +147,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             var moduleId = (PmuModule)(message.Header >> 16);
             switch(moduleId)
             {
-                case PmuModule.PowerManagement:
-                    return powerManagement.HandleMessage(message);
-                default:
-                    this.Log(LogLevel.Warning, "Received call for PMU module with ID {0} which is not implemented.", (uint)moduleId);
-                    // PMU don't handle messages with wrong module id, so we return empty message
-                    return new IpiMessage();
+            case PmuModule.PowerManagement:
+                return powerManagement.HandleMessage(message);
+            default:
+                this.Log(LogLevel.Warning, "Received call for PMU module with ID {0} which is not implemented.", (uint)moduleId);
+                // PMU don't handle messages with wrong module id, so we return empty message
+                return new IpiMessage();
             }
         }
 
@@ -162,14 +163,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             var sourceMailboxAddress = ZynqMP_IPI.GetMailboxOffset(sourceId);
 
             var message = new IpiMessage();
-            message.Header = ipi.mailbox.ReadDoubleWord(sourceMailboxAddress + IpiMessage.HeaderOffset);
+            message.Header = ipi.Mailbox.ReadDoubleWord(sourceMailboxAddress + IpiMessage.HeaderOffset);
             for(var payloadIdx = 0; payloadIdx < IpiMessage.PayloadLen; ++payloadIdx)
             {
                 var payloadAddress = sourceMailboxAddress + IpiMessage.PayloadOffset + IpiMessage.FieldSize * payloadIdx;
-                message.Payload[payloadIdx] = ipi.mailbox.ReadDoubleWord(payloadAddress);
+                message.Payload[payloadIdx] = ipi.Mailbox.ReadDoubleWord(payloadAddress);
             }
-            message.Reserved = ipi.mailbox.ReadDoubleWord(sourceMailboxAddress + IpiMessage.ReservedOffset);
-            message.Checksum =  ipi.mailbox.ReadDoubleWord(sourceMailboxAddress + IpiMessage.ChecksumOffset);
+            message.Reserved = ipi.Mailbox.ReadDoubleWord(sourceMailboxAddress + IpiMessage.ReservedOffset);
+            message.Checksum = ipi.Mailbox.ReadDoubleWord(sourceMailboxAddress + IpiMessage.ChecksumOffset);
 
             return message;
         }
@@ -181,26 +182,26 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             var targetMailboxOffset = ZynqMP_IPI.GetMailboxOffset(targetId);
             targetMailboxOffset += MailboxLocalResponseOffset;
 
-            ipi.mailbox.WriteDoubleWord(targetMailboxOffset + IpiMessage.HeaderOffset, message.Header);
+            ipi.Mailbox.WriteDoubleWord(targetMailboxOffset + IpiMessage.HeaderOffset, message.Header);
             for(var payloadIdx = 0; payloadIdx < IpiMessage.PayloadLen; ++payloadIdx)
             {
                 var payloadAddress = targetMailboxOffset + IpiMessage.PayloadOffset + IpiMessage.FieldSize * payloadIdx;
-                ipi.mailbox.WriteDoubleWord(payloadAddress, message.Payload[payloadIdx]);
+                ipi.Mailbox.WriteDoubleWord(payloadAddress, message.Payload[payloadIdx]);
             }
-            ipi.mailbox.WriteDoubleWord(targetMailboxOffset + IpiMessage.ReservedOffset, message.Reserved);
-            ipi.mailbox.WriteDoubleWord(targetMailboxOffset + IpiMessage.ChecksumOffset, message.Checksum);
+            ipi.Mailbox.WriteDoubleWord(targetMailboxOffset + IpiMessage.ReservedOffset, message.Reserved);
+            ipi.Mailbox.WriteDoubleWord(targetMailboxOffset + IpiMessage.ChecksumOffset, message.Checksum);
         }
+
+        private ZynqMP_IPI ipi;
+        private readonly ICPU apu0;
+        private readonly ICPU apu1;
+        private readonly ICPU apu2;
+        private readonly ICPU apu3;
+        private readonly ICPU rpu0;
+        private readonly ICPU rpu1;
 
         private readonly PowerManagementModule powerManagement;
         private readonly Dictionary<ICPU, ISet<IPeripheral>> registeredPeripherals = new Dictionary<ICPU, ISet<IPeripheral>>();
-
-        private ZynqMP_IPI ipi;
-        private ICPU apu0;
-        private ICPU apu1;
-        private ICPU apu2;
-        private ICPU apu3;
-        private ICPU rpu0;
-        private ICPU rpu1;
 
         private const long MailboxLocalResponseOffset = 0x20;
 
@@ -257,22 +258,22 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 var apiId = (PmApi)message.Header;
                 switch(apiId)
                 {
-                    case PmApi.GetApiVersion:
-                        return HandleGetApiVersion();
-                    case PmApi.ForcePowerdown:
-                        return HandleForcePowerdown(message);
-                    case PmApi.RequestWakeup:
-                        return HandleRequestWakeup(message);
-                    case PmApi.ResetAssert:
-                        return HandleResetAssert(message);
-                    case PmApi.ResetGetStatus:
-                        return HandleResetGetStatus(message);
-                    case PmApi.ClockGetDivider:
-                        return HandleClockGetDivider(message);
-                    case PmApi.PllGetParameter:
-                        return HandlePllGetParameter(message);
-                    default:
-                        return HandleDefault();
+                case PmApi.GetApiVersion:
+                    return HandleGetApiVersion();
+                case PmApi.ForcePowerdown:
+                    return HandleForcePowerdown(message);
+                case PmApi.RequestWakeup:
+                    return HandleRequestWakeup(message);
+                case PmApi.ResetAssert:
+                    return HandleResetAssert(message);
+                case PmApi.ResetGetStatus:
+                    return HandleResetGetStatus(message);
+                case PmApi.ClockGetDivider:
+                    return HandleClockGetDivider(message);
+                case PmApi.PllGetParameter:
+                    return HandlePllGetParameter(message);
+                default:
+                    return HandleDefault();
                 }
             }
 
@@ -289,7 +290,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 var ack = (RequestAck)message.Payload[1];
                 var response = IpiMessage.CreateSuccessResponse();
                 var cpu = GetCpuFromNode(node);
-                if (cpu != null)
+                if(cpu != null)
                 {
                     cpu.IsHalted = true;
                     cpu.Reset();
@@ -302,7 +303,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     {
                         return CreateAckResponse(response, ack);
                     }
-                    catch (ArgumentOutOfRangeException)
+                    catch(ArgumentOutOfRangeException)
                     {
                         pmu.Log(LogLevel.Warning, "Received invalid ack request with value {0}.", ack);
                         return new IpiMessage();
@@ -317,16 +318,16 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 switch(ack)
                 {
-                    case RequestAck.AckNo:
-                        // AckNo means we shouldn't do anything so we return empty message
-                        return new IpiMessage();
-                    case RequestAck.AckBlocking:
-                        return response;
-                    case RequestAck.AckNonBlocking:
-                        pmu.Log(LogLevel.Warning, "Requested non blocking ACK which is not implemented.");
-                        return new IpiMessage();
-                    default:
-                        throw new ArgumentOutOfRangeException("RequestAck");
+                case RequestAck.AckNo:
+                    // AckNo means we shouldn't do anything so we return empty message
+                    return new IpiMessage();
+                case RequestAck.AckBlocking:
+                    return response;
+                case RequestAck.AckNonBlocking:
+                    pmu.Log(LogLevel.Warning, "Requested non blocking ACK which is not implemented.");
+                    return new IpiMessage();
+                default:
+                    throw new ArgumentOutOfRangeException("RequestAck");
                 }
             }
 
@@ -335,10 +336,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 var node = (Node)message.Payload[0];
                 var pc = ((ulong)message.Payload[2] << 32) | (ulong)message.Payload[1];
                 var cpu = GetCpuFromNode(node);
-                if (cpu != null)
+                if(cpu != null)
                 {
                     // First bit of new PC indicated whether we update PC
-                    if ((pc & 1) == 1)
+                    if((pc & 1) == 1)
                     {
                         pc = pc & ~1UL;
                         pmu.Log(LogLevel.Debug, "Set PC of node {0} to 0x{1:X}.", node, pc);
@@ -348,7 +349,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     cpu.IsHalted = false;
 
                     return IpiMessage.CreateSuccessResponse();
-                } 
+                }
 
                 pmu.Log(LogLevel.Warning, "Received wakeup request for node with id {0} which is not implemented.", (uint)node);
                 return IpiMessage.CreateInvalidParamResponse();
@@ -358,20 +359,20 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 switch(node)
                 {
-                    case Node.APU0:
-                        return pmu.apu0;
-                    case Node.APU1:
-                        return pmu.apu1;
-                    case Node.APU2:
-                        return pmu.apu2;
-                    case Node.APU3:
-                        return pmu.apu3;
-                    case Node.RPU0:
-                        return pmu.rpu0;
-                    case Node.RPU1:
-                        return pmu.rpu1;
-                    default:
-                        return null;
+                case Node.APU0:
+                    return pmu.apu0;
+                case Node.APU1:
+                    return pmu.apu1;
+                case Node.APU2:
+                    return pmu.apu2;
+                case Node.APU3:
+                    return pmu.apu3;
+                case Node.RPU0:
+                    return pmu.rpu0;
+                case Node.RPU1:
+                    return pmu.rpu1;
+                default:
+                    return null;
                 }
             }
 
@@ -433,37 +434,37 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             private uint GetResetValueFromPllNode(Node pllNode)
             {
-               switch(pllNode)
-               {
-                    case Node.APll:
-                        return 0x00012c09;
-                    case Node.DPll:
-                        return 0x00012809;
-                    case Node.RPll:
-                        return 0x00002c09;
-                    case Node.VPll:
-                        return 0x00012c09;
-                    case Node.IOPll:
-                        return 0x00012c09;
-                    default:
-                        return 0x0;
-               }
+                switch(pllNode)
+                {
+                case Node.APll:
+                    return 0x00012c09;
+                case Node.DPll:
+                    return 0x00012809;
+                case Node.RPll:
+                    return 0x00002c09;
+                case Node.VPll:
+                    return 0x00012c09;
+                case Node.IOPll:
+                    return 0x00012c09;
+                default:
+                    return 0x0;
+                }
             }
 
             private int GetShiftFromPllParam(PllParameter param)
             {
                 switch(param)
                 {
-                    case PllParameter.Div2:
-                        return 16;
-                    case PllParameter.FbDiv:
-                        return 8;
-                    case PllParameter.PreSrc:
-                        return 20;
-                    case PllParameter.PostSrc:
-                        return 24;
-                    default:
-                        return 0;
+                case PllParameter.Div2:
+                    return 16;
+                case PllParameter.FbDiv:
+                    return 8;
+                case PllParameter.PreSrc:
+                    return 20;
+                case PllParameter.PostSrc:
+                    return 24;
+                default:
+                    return 0;
                 }
             }
 
@@ -471,16 +472,16 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 switch(param)
                 {
-                    case PllParameter.Div2:
-                        return 0x1;
-                    case PllParameter.FbDiv:
-                        return 0x7f;
-                    case PllParameter.PreSrc:
-                        return 0x7;
-                    case PllParameter.PostSrc:
-                        return 0x7;
-                    default:
-                        return 0x0;
+                case PllParameter.Div2:
+                    return 0x1;
+                case PllParameter.FbDiv:
+                    return 0x7f;
+                case PllParameter.PreSrc:
+                    return 0x7;
+                case PllParameter.PostSrc:
+                    return 0x7;
+                default:
+                    return 0x0;
                 }
             }
 

@@ -6,11 +6,12 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Core;
 using System.Collections.Generic;
 using System.Linq;
+
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.DMA
 {
@@ -29,30 +30,13 @@ namespace Antmicro.Renode.Peripherals.DMA
             Reset();
         }
 
-        public IReadOnlyDictionary<int, IGPIO> Connections
-        {
-           get
-           {
-              var i = 0;
-              return streams.ToDictionary(x => i++, y => (IGPIO)y.IRQ);
-           }
-        }
-
-        public long Size
-        {
-            get
-            {
-                return 0x400;
-            }
-        }
-
         public uint ReadDoubleWord(long offset)
         {
             switch((Registers)offset)
             {
             case Registers.LowInterruptStatus:
             case Registers.HighInterruptStatus:
-                return HandleInterruptRead((int)(offset/4));
+                return HandleInterruptRead((int)(offset / 4));
             default:
                 if(offset >= StreamOffsetStart && offset <= StreamOffsetEnd)
                 {
@@ -70,7 +54,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             {
             case Registers.LowInterruptClear:
             case Registers.HighInterruptClear:
-                HandleInterruptClear((int)((offset - 8)/4), value);
+                HandleInterruptClear((int)((offset - 8) / 4), value);
                 break;
             default:
                 if(offset >= StreamOffsetStart && offset <= StreamOffsetEnd)
@@ -117,6 +101,40 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
         }
 
+        public IReadOnlyDictionary<int, IGPIO> Connections
+        {
+            get
+            {
+                var i = 0;
+                return streams.ToDictionary(x => i++, y => (IGPIO)y.IRQ);
+            }
+        }
+
+        public long Size
+        {
+            get
+            {
+                return 0x400;
+            }
+        }
+
+        private static int BitNumberForStream(int streamNo)
+        {
+            switch(streamNo)
+            {
+            case 0:
+                return 5;
+            case 1:
+                return 11;
+            case 2:
+                return 21;
+            case 3:
+                return 27;
+            default:
+                throw new InvalidOperationException("Should not reach here.");
+            }
+        }
+
         private uint HandleInterruptRead(int offset)
         {
             lock(streamFinished)
@@ -149,23 +167,6 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
         }
 
-        private static int BitNumberForStream(int streamNo)
-        {
-            switch(streamNo)
-            {
-            case 0:
-                return 5;
-            case 1:
-                return 11;
-            case 2:
-                return 21;
-            case 3:
-                return 27;
-            default:
-                throw new InvalidOperationException("Should not reach here.");
-            }
-        }
-
         private readonly bool[] streamFinished;
         private readonly Stream[] streams;
         private readonly DmaEngine engine;
@@ -176,14 +177,6 @@ namespace Antmicro.Renode.Peripherals.DMA
         private const int StreamOffsetEnd = 0xCC;
         private const int StreamSize = 0x18;
 
-        private enum Registers
-        {
-            LowInterruptStatus = 0x0, // DMA_LISR
-            HighInterruptStatus = 0x4, // DMA_HISR
-            LowInterruptClear = 0x8, //DMA_LIFCR
-            HighInterruptClear = 0xC // DMA_HIFCR
-        }
-
         private class Stream
         {
             public Stream(STM32DMA parent, int streamNo)
@@ -191,6 +184,61 @@ namespace Antmicro.Renode.Peripherals.DMA
                 this.parent = parent;
                 this.streamNo = streamNo;
                 IRQ = new GPIO();
+            }
+
+            public void Reset()
+            {
+                memory0Address = 0u;
+                memory1Address = 0u;
+                numberOfData = 0;
+                transferredSize = 0;
+                memoryTransferType = TransferType.Byte;
+                peripheralTransferType = TransferType.Byte;
+                memoryIncrementAddress = false;
+                peripheralIncrementAddress = false;
+                direction = Direction.PeripheralToMemory;
+                interruptOnComplete = false;
+                Enabled = false;
+            }
+
+            public void DoTransfer()
+            {
+                var request = CreateRequest(numberOfData * (int)memoryTransferType);
+                if(request.Size > 0)
+                {
+                    lock(parent.streamFinished)
+                    {
+                        parent.engine.IssueCopy(request);
+                        parent.streamFinished[streamNo] = true;
+                        if(interruptOnComplete)
+                        {
+                            parent.machine.LocalTimeSource.ExecuteInNearestSyncedState(_ => IRQ.Set());
+                        }
+                    }
+                }
+            }
+
+            public void DoPeripheralTransfer()
+            {
+                var request = CreateRequest((int)memoryTransferType, transferredSize);
+                transferredSize += (int)memoryTransferType;
+                if(request.Size > 0)
+                {
+                    lock(parent.streamFinished)
+                    {
+                        parent.engine.IssueCopy(request);
+                        if(transferredSize == numberOfData * (int)memoryTransferType)
+                        {
+                            transferredSize = 0;
+                            parent.streamFinished[streamNo] = true;
+                            Enabled = false;
+                            if(interruptOnComplete)
+                            {
+                                parent.machine.LocalTimeSource.ExecuteInNearestSyncedState(_ => IRQ.Set());
+                            }
+                        }
+                    }
+                }
             }
 
             public uint Read(long offset)
@@ -238,21 +286,22 @@ namespace Antmicro.Renode.Peripherals.DMA
                 }
             }
 
+            public bool Enabled { get; private set; }
+
             public GPIO IRQ { get; private set; }
 
-            public void Reset()
+            private static uint FromTransferType(TransferType transferType)
             {
-                memory0Address = 0u;
-                memory1Address = 0u;
-                numberOfData = 0;
-                transferredSize = 0;
-                memoryTransferType = TransferType.Byte;
-                peripheralTransferType = TransferType.Byte;
-                memoryIncrementAddress = false;
-                peripheralIncrementAddress = false;
-                direction = Direction.PeripheralToMemory;
-                interruptOnComplete = false;
-                Enabled = false;
+                switch(transferType)
+                {
+                case TransferType.Byte:
+                    return 0;
+                case TransferType.Word:
+                    return 1;
+                case TransferType.DoubleWord:
+                    return 2;
+                }
+                throw new InvalidOperationException("Should not reach here.");
             }
 
             private Request CreateRequest(int? size = null, int? destinationOffset = null)
@@ -279,48 +328,6 @@ namespace Antmicro.Renode.Peripherals.DMA
                 return new Request(sourceAddress, (uint)(destinationAddress + (destinationOffset ?? 0)), size ?? numberOfData, sourceTransferType, destinationTransferType,
                         incrementSourceAddress, incrementDestinationAddress);
             }
-
-            public void DoTransfer()
-            {
-                var request = CreateRequest(numberOfData * (int)memoryTransferType);
-                if(request.Size > 0)
-                {
-                    lock(parent.streamFinished)
-                    {
-                        parent.engine.IssueCopy(request);
-                        parent.streamFinished[streamNo] = true;
-                        if(interruptOnComplete)
-                        {
-                            parent.machine.LocalTimeSource.ExecuteInNearestSyncedState(_ => IRQ.Set());
-                        }
-                    }
-                }
-            }
-
-            public void DoPeripheralTransfer()
-            {
-                var request = CreateRequest((int)memoryTransferType, transferredSize);
-                transferredSize += (int)memoryTransferType;
-                if(request.Size > 0)
-                {
-                    lock(parent.streamFinished)
-                    {
-                        parent.engine.IssueCopy(request);
-                        if(transferredSize == numberOfData * (int)memoryTransferType)
-                        {
-                            transferredSize = 0;
-                            parent.streamFinished[streamNo] = true;
-                            Enabled = false;
-                            if(interruptOnComplete)
-                            {
-                                parent.machine.LocalTimeSource.ExecuteInNearestSyncedState(_ => IRQ.Set());
-                            }
-                        }
-                    }
-                }
-            }
-
-            public bool Enabled { get; private set; }
 
             private uint HandleConfigurationRead()
             {
@@ -386,20 +393,6 @@ namespace Antmicro.Renode.Peripherals.DMA
                 }
             }
 
-            private static uint FromTransferType(TransferType transferType)
-            {
-                switch(transferType)
-                {
-                case TransferType.Byte:
-                    return 0;
-                case TransferType.Word:
-                    return 1;
-                case TransferType.DoubleWord:
-                    return 2;
-                }
-                throw new InvalidOperationException("Should not reach here.");
-            }
-
             private uint memory0Address;
             private uint memory1Address;
             private uint peripheralAddress;
@@ -434,6 +427,13 @@ namespace Antmicro.Renode.Peripherals.DMA
                 MemoryToMemory = 2
             }
         }
+
+        private enum Registers
+        {
+            LowInterruptStatus = 0x0, // DMA_LISR
+            HighInterruptStatus = 0x4, // DMA_HISR
+            LowInterruptClear = 0x8, //DMA_LIFCR
+            HighInterruptClear = 0xC // DMA_HIFCR
+        }
     }
 }
-

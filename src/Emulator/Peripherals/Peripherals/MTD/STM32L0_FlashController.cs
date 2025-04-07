@@ -6,6 +6,7 @@
 //
 using System;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -314,15 +315,15 @@ namespace Antmicro.Renode.Peripherals.MTD
             cpu.SetHookAtMemoryAccess(enabled ? hook : null);
         }
 
-        private readonly MappedMemory underlyingFlash;
-        private readonly MappedMemory underlyingEeprom;
-
         private DoubleWordRegister programEraseControl;
         private IFlagRegisterField prefetchEnabled;
         private IFlagRegisterField runPowerDown;
         private IFlagRegisterField prereadEnabled;
         private IFlagRegisterField disableBuffer;
         private IFlagRegisterField programMemorySelect;
+
+        private readonly MappedMemory underlyingFlash;
+        private readonly MappedMemory underlyingEeprom;
         private readonly LockRegister powerDownLock;
         private readonly LockRegister programEraseControlLock;
         private readonly LockRegister programEraseLock;

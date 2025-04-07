@@ -6,6 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core.Structure.Registers;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel
@@ -29,7 +30,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel
         }
 
         public uint Identifier { get; }
+
         public abstract string Name { get; }
+
         public abstract IEnumerable<Interrupt> Interrupts { get; }
 
         public event Action<bool> AnyInterruptChanged;

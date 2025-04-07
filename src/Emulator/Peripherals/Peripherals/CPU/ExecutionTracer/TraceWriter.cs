@@ -8,6 +8,7 @@
 using System;
 using System.IO;
 using System.IO.Compression;
+
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.CPU.Disassembler;
@@ -36,15 +37,15 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public abstract void Write(ExecutionTracer.Block block);
-
         public virtual void WriteHeader() { }
 
         public virtual void FlushBuffer() { }
 
-        public TranslationCPU AttachedCPU { get; }
-
         public void Dispose() => Dispose(true);
+
+        public abstract void Write(ExecutionTracer.Block block);
+
+        public TranslationCPU AttachedCPU { get; }
 
         protected virtual void Dispose(bool disposing)
         {
@@ -94,9 +95,10 @@ namespace Antmicro.Renode.Peripherals.CPU
             return true;
         }
 
+        protected LRUCache<uint, Disassembler.DisassemblyResult> disassemblyCache;
+
         protected readonly TraceFormat format;
         protected readonly Stream stream;
-        protected LRUCache<uint, Disassembler.DisassemblyResult> disassemblyCache;
 
         protected const int MaxOpcodeBytes = 16;
 

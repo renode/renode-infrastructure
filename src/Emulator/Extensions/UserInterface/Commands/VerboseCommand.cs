@@ -6,13 +6,21 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using AntShell.Commands;
+
 using Antmicro.Renode.UserInterface.Tokenizer;
+
+using AntShell.Commands;
 
 namespace Antmicro.Renode.UserInterface.Commands
 {
     public class VerboseCommand : Command
     {
+        public VerboseCommand(Monitor monitor, Action<bool> setVerbosity) : base(monitor, "verboseMode", "controls the verbosity of the Monitor.")
+        {
+            verbose = false;
+            this.setVerbosity = setVerbosity;
+        }
+
         public override void PrintHelp(ICommandInteraction writer)
         {
             base.PrintHelp(writer);
@@ -20,20 +28,14 @@ namespace Antmicro.Renode.UserInterface.Commands
         }
 
         [Runnable]
-        public void SetVerbosity(ICommandInteraction writer, BooleanToken verbosity)
+        public void SetVerbosity(ICommandInteraction _, BooleanToken verbosity)
         {
             verbose = verbosity.Value;
             setVerbosity(verbose);
         }
 
-        public VerboseCommand(Monitor monitor, Action<bool> setVerbosity) : base(monitor, "verboseMode", "controls the verbosity of the Monitor.")
-        {
-            verbose = false;
-            this.setVerbosity = setVerbosity;
-        }
+        private bool verbose;
 
         private readonly Action<bool> setVerbosity;
-        private bool verbose;
     }
 }
-

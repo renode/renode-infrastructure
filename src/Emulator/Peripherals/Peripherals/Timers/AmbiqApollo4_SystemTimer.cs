@@ -4,12 +4,13 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Time;
-using System;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -64,12 +65,19 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         // Comparator IRQs
         public GPIO IRQA => interruptOutputs[0];
+
         public GPIO IRQB => interruptOutputs[1];
+
         public GPIO IRQC => interruptOutputs[2];
+
         public GPIO IRQD => interruptOutputs[3];
+
         public GPIO IRQE => interruptOutputs[4];
+
         public GPIO IRQF => interruptOutputs[5];
+
         public GPIO IRQG => interruptOutputs[6];
+
         public GPIO IRQH => interruptOutputs[7];
 
         // Capture + overflow event IRQ
@@ -219,40 +227,40 @@ namespace Antmicro.Renode.Peripherals.Timers
         private void UpdateFrequency()
         {
             var frequencySet = InvalidFrequency;
-            const long KHz = 1000;
+            const long khz = 1000;
             switch(clockSelect.Value)
             {
-                case ClockSelectValues.NOCLK:
-                    this.Log(LogLevel.Debug, "CLKSEL set to NOCLK. Timer will be disabled.");
-                    break;
-                case ClockSelectValues.HFRC_6MHZ:
-                    frequencySet = 6 * 1000 * KHz;
-                    break;
-                case ClockSelectValues.HFRC_375KHZ:
-                    frequencySet = 375 * KHz;
-                    break;
-                case ClockSelectValues.XTAL_32KHZ:
-                    frequencySet = 32 * KHz;
-                    break;
-                case ClockSelectValues.XTAL_16KHZ:
-                    frequencySet = 16 * KHz;
-                    break;
-                case ClockSelectValues.XTAL_1KHZ:
-                case ClockSelectValues.LFRC_1KHZ:
-                    frequencySet = 1 * KHz;
-                    break;
-                case ClockSelectValues.CTIMER0:
-                case ClockSelectValues.CTIMER1:
-                    this.Log(LogLevel.Warning, "Unsupported CLKSEL value: {0}", clockSelect.Value);
-                    break;
-                default:
-                    this.Log(LogLevel.Error, "Invalid CLKSEL value: 0x{0:X}", (uint)clockSelect.Value);
-                    break;
+            case ClockSelectValues.NOCLK:
+                this.Log(LogLevel.Debug, "CLKSEL set to NOCLK. Timer will be disabled.");
+                break;
+            case ClockSelectValues.HFRC_6MHZ:
+                frequencySet = 6 * 1000 * khz;
+                break;
+            case ClockSelectValues.HFRC_375KHZ:
+                frequencySet = 375 * khz;
+                break;
+            case ClockSelectValues.XTAL_32KHZ:
+                frequencySet = 32 * khz;
+                break;
+            case ClockSelectValues.XTAL_16KHZ:
+                frequencySet = 16 * khz;
+                break;
+            case ClockSelectValues.XTAL_1KHZ:
+            case ClockSelectValues.LFRC_1KHZ:
+                frequencySet = 1 * khz;
+                break;
+            case ClockSelectValues.CTIMER0:
+            case ClockSelectValues.CTIMER1:
+                this.Log(LogLevel.Warning, "Unsupported CLKSEL value: {0}", clockSelect.Value);
+                break;
+            default:
+                this.Log(LogLevel.Error, "Invalid CLKSEL value: 0x{0:X}", (uint)clockSelect.Value);
+                break;
             }
 
             if(frequencySet != InvalidFrequency)
             {
-                this.Log(LogLevel.Debug, "Updating timer's frequency to {0} KHz; CLKSEL={1} ({2})", frequencySet / KHz, (uint)clockSelect.Value, clockSelect.Value);
+                this.Log(LogLevel.Debug, "Updating timer's frequency to {0} KHz; CLKSEL={1} ({2})", frequencySet / khz, (uint)clockSelect.Value, clockSelect.Value);
                 systemTimer.Frequency = frequencySet;
                 Array.ForEach(compareRegisters, register => register.Frequency = frequencySet);
             }

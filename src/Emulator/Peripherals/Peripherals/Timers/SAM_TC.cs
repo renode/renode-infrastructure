@@ -7,10 +7,10 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
 
@@ -319,26 +319,6 @@ namespace Antmicro.Renode.Peripherals.Timers
             QdecInterruptStatus = 0xD4, // TC_QISR RO
             FaultMode = 0xD8, // TC_FMR RW
             WriteProtectionMode = 0xE4, // TC_WPMR RW
-        }
-
-        private enum ClockSelection
-        {
-            MCK_2 = 0,
-            MCK_8 = 1,
-            MCK_32 = 2,
-            MCK_128 = 3,
-            SLCK = 4,
-            XC0 = 5,
-            XC1 = 6,
-            XC2 = 7,
-        }
-
-        private enum WaveSelection
-        {
-            Up = 0b00,
-            UpDown = 0b01,
-            UpRC = 0b10,
-            UpDownRC = 0b11,
         }
 
         private class Channel
@@ -738,6 +718,26 @@ namespace Antmicro.Renode.Peripherals.Timers
             private readonly LimitTimer cTimer;
 
             private const ulong MaxValue = 0xFFFF;
+        }
+
+        private enum ClockSelection
+        {
+            MCK_2 = 0,
+            MCK_8 = 1,
+            MCK_32 = 2,
+            MCK_128 = 3,
+            SLCK = 4,
+            XC0 = 5,
+            XC1 = 6,
+            XC2 = 7,
+        }
+
+        private enum WaveSelection
+        {
+            Up = 0b00,
+            UpDown = 0b01,
+            UpRC = 0b10,
+            UpDownRC = 0b11,
         }
     }
 }

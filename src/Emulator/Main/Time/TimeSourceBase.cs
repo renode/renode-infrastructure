@@ -9,11 +9,12 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
+
+using Antmicro.Migrant;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
-using Antmicro.Migrant;
 
 using IdentifiableObject = Antmicro.Renode.Debugging.IdentifiableObject;
 
@@ -47,6 +48,18 @@ namespace Antmicro.Renode.Time
             this.Trace();
         }
 
+        public override string ToString()
+        {
+            return string.Join("\n",
+                $"Elapsed Virtual Time: {ElapsedVirtualTime}",
+                $"Elapsed Host Time: {ElapsedHostTime}",
+                $"Current load: {CurrentLoad}",
+                $"Cumulative load: {CumulativeLoad}",
+                $"State: {State}",
+                $"Advance immediately: {AdvanceImmediately}",
+                $"Quantum: {Quantum}");
+        }
+
         /// <summary>
         /// Disposes this instance.
         /// </summary>
@@ -55,11 +68,11 @@ namespace Antmicro.Renode.Time
             delayedActions.Clear();
 
             stopwatch.Stop();
-            BlockHook          = null;
-            StopRequested      = null;
-            SyncHook           = null;
-            TimePassed         = null;
-            SinksReportedHook  = null;
+            BlockHook = null;
+            StopRequested = null;
+            SyncHook = null;
+            TimePassed = null;
+            SinksReportedHook = null;
             using(sync.HighPriority)
             {
                 handles.LatchAllAndCollectGarbage();
@@ -68,6 +81,413 @@ namespace Antmicro.Renode.Time
                 foreach(var slave in handles.All)
                 {
                     slave.Dispose();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Queues an action to execute in the nearest synced state.
+        /// </summary>
+        /// <param name="executeImmediately">Flag indicating if the action should be executed immediately when executed in already synced context or should it wait for the next synced state.</param>
+        public void ExecuteInNearestSyncedState(Action<TimeStamp> what, bool executeImmediately = false)
+        {
+            if(IsOnSyncPhaseThread && executeImmediately)
+            {
+                what(new TimeStamp(ElapsedVirtualTime, Domain));
+                return;
+            }
+            lock(delayedActions)
+            {
+                delayedActions.Add(new DelayedTask(what, new TimeStamp(), ++delayedTaskId));
+            }
+        }
+
+        /// <summary>
+        /// Queues an action to execute in the nearest synced state after <paramref name="when"> time point.
+        /// </summary>
+        /// <remarks>
+        /// If the <see cref="when"> time stamp comes from other time domain it will be executed in the nearest synced state.
+        /// </remarks>
+        /// <returns>
+        /// The ID of the action, which can be used to cancel it with <see cref="CancelActionToExecuteInSyncedState">.
+        /// </returns>
+        public ulong ExecuteInSyncedState(Action<TimeStamp> what, TimeStamp when)
+        {
+            lock(delayedActions)
+            {
+                var id = ++delayedTaskId;
+                delayedActions.Add(new DelayedTask(what, when.Domain != Domain ? new TimeStamp() : when, id));
+                return id;
+            }
+        }
+
+        /// <summary>
+        /// Removes a queued action to execute in the synced state by ID.
+        /// </summary>
+        /// <param name="actionId">The ID of the action to remove.</param>
+        /// <returns>
+        /// True if the action was successfully removed, otherwise false.
+        /// </returns>
+        public bool CancelActionToExecuteInSyncedState(ulong actionId)
+        {
+            lock(delayedActions)
+            {
+                return delayedActions.RemoveWhere(action => action.Id == actionId) == 1;
+            }
+        }
+
+        /// <see cref="ITimeSource.RegisterSink">
+        public void RegisterSink(ITimeSink sink)
+        {
+            using(sync.HighPriority)
+            {
+                var handle = new TimeHandle(this, sink) { SourceSideActive = isStarted };
+                StopRequested += handle.RequestPause;
+                handles.Add(handle);
+#if DEBUG
+                this.Trace($"Registering sink ({(sink as IIdentifiable)?.GetDescription()}) in source ({this.GetDescription()}) via handle ({handle.GetDescription()})");
+#endif
+                // assigning TimeHandle to a sink must be done when everything is configured, otherwise a race condition might happen (dispatcher starts its execution when time source and handle are not yet ready)
+                sink.TimeHandle = handle;
+            }
+        }
+
+        /// <see cref="ITimeSource.ReportHandleActive">
+        public void ReportHandleActive()
+        {
+            blockingEvent.Set();
+        }
+
+        /// <see cref="ITimeSource.ReportTimeProgress">
+        public void ReportTimeProgress()
+        {
+            SynchronizeVirtualTime();
+        }
+
+        /// <summary>
+        /// Forces the execution phase of time sinks to be done in serial.
+        /// </summary>
+        /// <remarks>
+        /// Using this option might reduce the performance of the execution, but ensures the determinism.
+        /// </remarks>
+        public bool ExecuteInSerial { get; set; }
+
+        /// <summary>
+        /// Gets or sets the flag indicating if the current thread is a safe thread executing sync phase.
+        /// </summary>
+        public bool IsOnSyncPhaseThread
+        {
+            get
+            {
+                lock(isOnSyncPhaseThreadLock)
+                {
+                    return executeThreadId == Thread.CurrentThread.ManagedThreadId;
+                }
+            }
+
+            private set
+            {
+                lock(isOnSyncPhaseThreadLock)
+                {
+                    executeThreadId = value ? Thread.CurrentThread.ManagedThreadId : (int?)null;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets the virtual time point of the nearest synchronization of all associated <see cref="ITimeHandle">.
+        /// </summary>
+        public TimeInterval NearestSyncPoint { get; private set; }
+
+        /// <summary>
+        /// Gets the amount that the virtual time is ahead of the host time from the perspective of this time source,
+        /// or 0 if the virtual time is behind the host time.
+        /// </summary>
+        public TimeInterval ElapsedVirtualHostTimeDifference
+        {
+            get
+            {
+                lock(hostTicksElapsed)
+                {
+                    var hostTicks = hostTicksElapsed.CumulativeValue;
+                    var virtualTicks = virtualTicksElapsed.CumulativeValue;
+                    if(virtualTicks <= hostTicks)
+                    {
+                        return TimeInterval.Empty;
+                    }
+                    return TimeInterval.FromTicks(virtualTicks - hostTicks);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets the amount of host time elapsed from the perspective of this time source.
+        /// </summary>
+        public TimeInterval ElapsedHostTime { get { return TimeInterval.FromTicks(hostTicksElapsed.CumulativeValue); } }
+
+        /// <summary>
+        /// Gets the amount of virtual time elapsed from the perspective of this time source.
+        /// </summary>
+        /// <remarks>
+        /// This is a minimum value of all associated <see cref="TimeHandle.TotalElapsedTime">.
+        /// </remarks>
+        public TimeInterval ElapsedVirtualTime { get { return TimeInterval.FromTicks(virtualTicksElapsed.CumulativeValue); } }
+
+        /// <summary>
+        /// Gets the number of synchronizations points reached so far.
+        /// </summary>
+        public long NumberOfSyncPoints { get; private set; }
+
+        /// <summary>
+        /// Gets the value representing current load, i.e., value indicating how much time the emulation spends sleeping in order to match the expected <see cref="Performance">.
+        /// </summary>
+        /// <remarks>
+        /// Value 1 means that there is no sleeping, i.e., it is not possible to execute faster. Value > 1 means that the execution is slower than expected. Value < 1 means that increasing <see cref="Performance"> will lead to faster execution.
+        /// This value is calculated as an average of 10 samples.
+        /// </remarks>
+        public double CurrentLoad { get { lock(hostTicksElapsed) { return hostTicksElapsed.AverageValue * 1.0 / virtualTicksElapsed.AverageValue; } } }
+
+        // TODO: do not allow to set Quantum of 0
+        /// <see cref="ITimeSource.Quantum">
+        public TimeInterval Quantum
+        {
+            get => quantum;
+            set
+            {
+                if(quantum == value)
+                {
+                    return;
+                }
+
+                var oldQuantum = quantum;
+                quantum = value;
+                QuantumChanged?.Invoke(oldQuantum, quantum);
+            }
+        }
+
+        /// <summary>
+        /// Gets current state of this time source.
+        /// </summary>
+        public TimeSourceState State { get; private set; }
+
+        /// <summary>
+        /// Gets the value representing load (see <see cref="CurrentLoad">) calculated from all samples.
+        /// </summary>
+        public double CumulativeLoad { get { lock(hostTicksElapsed) { return hostTicksElapsed.CumulativeValue * 1.0 / virtualTicksElapsed.CumulativeValue; } } }
+
+        // TODO: this name does not give a lot to a user - maybe we should rename it?
+        /// <summary>
+        /// Gets or sets flag indicating if the time flow should be slowed down to reflect real time or be as fast as possible.
+        /// </summary>
+        /// <remarks>
+        /// Setting this flag to True has the same effect as setting <see cref="Performance"> to a very high value.
+        /// </remarks>
+        public bool AdvanceImmediately { get; set; }
+
+        public IEnumerable<ITimeSink> Sinks { get { using(sync.HighPriority) { return handles.Select(x => x.TimeSink); } } }
+
+        /// <see cref="ITimeSource.Domain">
+        public abstract ITimeDomain Domain { get; }
+
+        /// <summary>
+        /// An event informing about the amount of passed virtual time. Might be called many times between two consecutive synchronization points.
+        /// </summary>
+        public event Action<TimeInterval> TimePassed;
+
+        /// <summary>
+        /// An event called when no sink is in progress.
+        /// </summary>
+        public event Action SinksReportedHook;
+
+        /// <summary>
+        /// An event called when the Quantum is changed.
+        /// </summary>
+        public event Action<TimeInterval, TimeInterval> QuantumChanged;
+
+        /// <summary>
+        /// Action to be executed on every synchronization point.
+        /// </summary>
+        public event Action<TimeInterval> SyncHook;
+
+        /// <summary>
+        /// An event called when the time source is blocked by at least one of the sinks.
+        /// </summary>
+        public event Action BlockHook;
+
+        /// <summary>
+        /// Execute one iteration of time-granting loop.
+        /// </summary>
+        /// <remarks>
+        /// The steps are as follows:
+        /// (1) remove and forget all slave handles that requested detaching
+        /// (2) check if there are any blocked slaves; if so DO NOT grant a time interval
+        /// (2.1) if there are no blocked slaves grant a new time interval to every slave
+        /// (3) wait for all slaves that are relevant in this execution (it can be either all slaves or just blocked ones) until they report back
+        /// (4) update elapsed virtual time
+        /// (5) execute sync hook and delayed actions if any
+        /// </remarks>
+        /// <param name="virtualTimeElapsed">Contains the amount of virtual time that passed during execution of this method. It is the minimal value reported by a slave (i.e, some slaves can report higher/lower values).</param>
+        /// <param name="timeLimit">Maximum amount of virtual time that can pass during the execution of this method. If not set, current <see cref="Quantum"> is used.</param>
+        /// <returns>
+        /// True if sync point has just been reached or False if the execution has been blocked.
+        /// </returns>
+        protected bool InnerExecute(out TimeInterval virtualTimeElapsed, TimeInterval? timeLimit = null)
+        {
+            if(updateNearestSyncPoint)
+            {
+                NearestSyncPoint += timeLimit.HasValue ? TimeInterval.Min(timeLimit.Value, Quantum) : Quantum;
+                updateNearestSyncPoint = false;
+                this.Trace($"Updated NearestSyncPoint to: {NearestSyncPoint}");
+            }
+            DebugHelper.Assert(NearestSyncPoint.Ticks >= ElapsedVirtualTime.Ticks, $"Nearest sync point set in the past: EVT={ElapsedVirtualTime} NSP={NearestSyncPoint}");
+
+            isBlocked = false;
+            var quantum = NearestSyncPoint - ElapsedVirtualTime;
+            this.Trace($"Starting a loop with #{quantum.Ticks} ticks");
+
+            SynchronizeVirtualTime();
+            var elapsedVirtualTimeAtStart = ElapsedVirtualTime;
+
+            using(sync.LowPriority)
+            {
+                handles.LatchAllAndCollectGarbage();
+                var shouldGrantTime = handles.AreAllReadyForNewGrant;
+
+                this.Trace($"Iteration start: slaves left {handles.ActiveCount}; will we try to grant time? {shouldGrantTime}");
+
+                if(handles.ActiveCount > 0)
+                {
+                    var executor = new PhaseExecutor<LinkedListNode<TimeHandle>>();
+
+                    if(!shouldGrantTime)
+                    {
+                        if(ExecuteInSerial)
+                        {
+                            // We only test in serial execution to ensure determinism
+                            executor.RegisterTestPhase(ExecuteReadyForUnblockTestPhase);
+                        }
+                        executor.RegisterPhase(ExecuteUnblockPhase);
+                        executor.RegisterPhase(ExecuteWaitPhase);
+                    }
+                    else if(quantum != TimeInterval.Empty)
+                    {
+                        executor.RegisterPhase(s => ExecuteGrantPhase(s, quantum));
+                        executor.RegisterPhase(ExecuteWaitPhase);
+                    }
+
+                    if(ExecuteInSerial)
+                    {
+                        executor.ExecuteInSerial(handles.WithLinkedListNode);
+                    }
+                    else
+                    {
+                        executor.ExecuteInParallel(handles.WithLinkedListNode);
+                    }
+
+                    SynchronizeVirtualTime();
+                    virtualTimeElapsed = ElapsedVirtualTime - elapsedVirtualTimeAtStart;
+                }
+                else
+                {
+                    this.Trace($"There are no slaves, updating VTE by {quantum.Ticks}");
+                    // if there are no slaves just make the time pass
+                    virtualTimeElapsed = quantum;
+
+                    UpdateTime(quantum);
+                    // here we must trigger `TimePassed` manually as no handles has been updated so they won't reflect the passed time
+                    TimePassed?.Invoke(quantum);
+                }
+
+                handles.UnlatchAll();
+            }
+
+            SinksReportedHook?.Invoke();
+            if(!isBlocked)
+            {
+                ExecuteSyncPhase();
+                updateNearestSyncPoint = true;
+            }
+            else
+            {
+                BlockHook?.Invoke();
+            }
+
+            State = TimeSourceState.Idle;
+
+            this.Trace($"The end of {nameof(InnerExecute)} with result={!isBlocked}");
+            return !isBlocked;
+        }
+
+        /// <summary>
+        /// Activates all slaves from source side perspective, i.e., tells them that there will be time granted in the nearest future.
+        /// </summary>
+        protected void ActivateSlavesSourceSide(bool state = true)
+        {
+            using(sync.HighPriority)
+            {
+                foreach(var slave in handles.All)
+                {
+                    slave.SourceSideActive = state;
+                    if(state)
+                    {
+                        slave.RequestStart();
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Deactivates all slaves from  source side perspective, i.e., tells them that there will be no grants in the nearest future.
+        /// </summary>
+        protected void DeactivateSlavesSourceSide()
+        {
+            ActivateSlavesSourceSide(false);
+        }
+
+        /// <summary>
+        /// Suspends an execution of the calling thread if blocking event is set.
+        /// </summary>
+        /// <remarks>
+        /// This is just to improve performance of the emulation - avoid spinning when any of the sinks is blocking.
+        /// </remarks>
+        protected void WaitIfBlocked()
+        {
+            // this 'if' statement and 'canBeBlocked' variable are here for performance only
+            // calling `WaitOne` in every iteration can cost a lot of time;
+            // waiting on 'blockingEvent' is not required for the time framework to work properly,
+            // but decreases cpu usage when any handle is known to be blocking
+            if(isBlocked)
+            {
+                // value of 'isBlocked' will be reevaluated in 'ExecuteInner' method
+                blockingEvent.WaitOne(10);
+                // this parameter here is kind of a hack:
+                // in theory we could use an overload without timeout,
+                // but there is a bug and sometimes it blocks forever;
+                // this is just a simple workaround
+            }
+        }
+
+        /// <summary>
+        /// Forces value of elapsed virtual time and nearest sync point.
+        /// </summary>
+        /// <remarks>
+        /// It is called when attaching a new time handle to synchronize the initial value of virtual time.
+        /// </remarks>
+        protected void ResetVirtualTime(TimeInterval interval)
+        {
+            lock(hostTicksElapsed)
+            {
+                DebugHelper.Assert(ElapsedVirtualTime <= interval, $"Couldn't reset back in time from {ElapsedVirtualTime} to {interval}.");
+
+                virtualTicksElapsed.Reset(interval.Ticks);
+                NearestSyncPoint = interval;
+
+                using(sync.HighPriority)
+                {
+                    foreach(var handle in handles.All)
+                    {
+                        handle.Reset();
+                    }
                 }
             }
         }
@@ -182,86 +602,17 @@ namespace Antmicro.Renode.Time
             }
         }
 
-        /// <summary>
-        /// Queues an action to execute in the nearest synced state.
-        /// </summary>
-        /// <param name="executeImmediately">Flag indicating if the action should be executed immediately when executed in already synced context or should it wait for the next synced state.</param>
-        public void ExecuteInNearestSyncedState(Action<TimeStamp> what, bool executeImmediately = false)
-        {
-            if(IsOnSyncPhaseThread && executeImmediately)
-            {
-                what(new TimeStamp(ElapsedVirtualTime, Domain));
-                return;
-            }
-            lock(delayedActions)
-            {
-                delayedActions.Add(new DelayedTask(what, new TimeStamp(), ++delayedTaskId));
-            }
-        }
+        // This value is dropped because it should always be false after deserialization in order to start the emulation properly,
+        // otherwise starting stopwatch is omitted in TimeSourceBase.Start() method.
+        // If it wasn't marked as transient it could be true when the emulation wasn't paused before serialization because it was already in a safe state.
+        [Transient]
+        protected volatile bool isStarted;
+        protected bool isPaused;
+        // we use special object for locking as it was observed that idle dispatcher thread can starve other threads when using simple lock(object)
+        protected readonly PrioritySynchronizer sync;
 
-        /// <summary>
-        /// Queues an action to execute in the nearest synced state after <paramref name="when"> time point.
-        /// </summary>
-        /// <remarks>
-        /// If the <see cref="when"> time stamp comes from other time domain it will be executed in the nearest synced state.
-        /// </remarks>
-        /// <returns>
-        /// The ID of the action, which can be used to cancel it with <see cref="CancelActionToExecuteInSyncedState">.
-        /// </returns>
-        public ulong ExecuteInSyncedState(Action<TimeStamp> what, TimeStamp when)
-        {
-            lock(delayedActions)
-            {
-                var id = ++delayedTaskId;
-                delayedActions.Add(new DelayedTask(what, when.Domain != Domain ? new TimeStamp() : when, id));
-                return id;
-            }
-        }
-
-        /// <summary>
-        /// Removes a queued action to execute in the synced state by ID.
-        /// </summary>
-        /// <param name="actionId">The ID of the action to remove.</param>
-        /// <returns>
-        /// True if the action was successfully removed, otherwise false.
-        /// </returns>
-        public bool CancelActionToExecuteInSyncedState(ulong actionId)
-        {
-            lock(delayedActions)
-            {
-                return delayedActions.RemoveWhere(action => action.Id == actionId) == 1;
-            }
-        }
-
-        /// <see cref="ITimeSource.RegisterSink">
-        public void RegisterSink(ITimeSink sink)
-        {
-            using(sync.HighPriority)
-            {
-                var handle = new TimeHandle(this, sink) { SourceSideActive = isStarted };
-                StopRequested += handle.RequestPause;
-                handles.Add(handle);
-#if DEBUG
-                this.Trace($"Registering sink ({(sink as IIdentifiable)?.GetDescription()}) in source ({this.GetDescription()}) via handle ({handle.GetDescription()})");
-#endif
-                // assigning TimeHandle to a sink must be done when everything is configured, otherwise a race condition might happen (dispatcher starts its execution when time source and handle are not yet ready)
-                sink.TimeHandle = handle;
-            }
-        }
-
-        public IEnumerable<ITimeSink> Sinks { get { using(sync.HighPriority) { return handles.Select(x => x.TimeSink); } } }
-
-        /// <see cref="ITimeSource.ReportHandleActive">
-        public void ReportHandleActive()
-        {
-            blockingEvent.Set();
-        }
-
-        /// <see cref="ITimeSource.ReportTimeProgress">
-        public void ReportTimeProgress()
-        {
-            SynchronizeVirtualTime();
-        }
+        protected readonly HandlesCollection handles;
+        protected readonly Stopwatch stopwatch;
 
         private void SynchronizeVirtualTime()
         {
@@ -287,270 +638,6 @@ namespace Antmicro.Renode.Time
             }
         }
 
-        public override string ToString()
-        {
-            return string.Join("\n",
-                $"Elapsed Virtual Time: {ElapsedVirtualTime}",
-                $"Elapsed Host Time: {ElapsedHostTime}",
-                $"Current load: {CurrentLoad}",
-                $"Cumulative load: {CumulativeLoad}",
-                $"State: {State}",
-                $"Advance immediately: {AdvanceImmediately}",
-                $"Quantum: {Quantum}");
-        }
-
-        /// <see cref="ITimeSource.Domain">
-        public abstract ITimeDomain Domain { get; }
-
-        // TODO: this name does not give a lot to a user - maybe we should rename it?
-        /// <summary>
-        /// Gets or sets flag indicating if the time flow should be slowed down to reflect real time or be as fast as possible.
-        /// </summary>
-        /// <remarks>
-        /// Setting this flag to True has the same effect as setting <see cref="Performance"> to a very high value.
-        /// </remarks>
-        public bool AdvanceImmediately { get; set; }
-
-        /// <summary>
-        /// Gets current state of this time source.
-        /// </summary>
-        public TimeSourceState State { get; private set; }
-
-        // TODO: do not allow to set Quantum of 0
-        /// <see cref="ITimeSource.Quantum">
-        public TimeInterval Quantum
-        {
-            get => quantum;
-            set
-            {
-                if(quantum == value)
-                {
-                    return;
-                }
-
-                var oldQuantum = quantum;
-                quantum = value;
-                QuantumChanged?.Invoke(oldQuantum, quantum);
-            }
-        }
-
-        /// <summary>
-        /// Gets the value representing current load, i.e., value indicating how much time the emulation spends sleeping in order to match the expected <see cref="Performance">.
-        /// </summary>
-        /// <remarks>
-        /// Value 1 means that there is no sleeping, i.e., it is not possible to execute faster. Value > 1 means that the execution is slower than expected. Value < 1 means that increasing <see cref="Performance"> will lead to faster execution.
-        /// This value is calculated as an average of 10 samples.
-        /// </remarks>
-        public double CurrentLoad { get { lock(hostTicksElapsed) { return hostTicksElapsed.AverageValue * 1.0 / virtualTicksElapsed.AverageValue; } } }
-
-        /// <summary>
-        /// Gets the value representing load (see <see cref="CurrentLoad">) calculated from all samples.
-        /// </summary>
-        public double CumulativeLoad { get { lock(hostTicksElapsed) { return hostTicksElapsed.CumulativeValue * 1.0 / virtualTicksElapsed.CumulativeValue; } } }
-
-        /// <summary>
-        /// Gets the amount of virtual time elapsed from the perspective of this time source.
-        /// </summary>
-        /// <remarks>
-        /// This is a minimum value of all associated <see cref="TimeHandle.TotalElapsedTime">.
-        /// </remarks>
-        public TimeInterval ElapsedVirtualTime { get { return TimeInterval.FromTicks(virtualTicksElapsed.CumulativeValue); } }
-
-        /// <summary>
-        /// Gets the amount of host time elapsed from the perspective of this time source.
-        /// </summary>
-        public TimeInterval ElapsedHostTime { get { return TimeInterval.FromTicks(hostTicksElapsed.CumulativeValue); } }
-
-        /// <summary>
-        /// Gets the amount that the virtual time is ahead of the host time from the perspective of this time source,
-        /// or 0 if the virtual time is behind the host time.
-        /// </summary>
-        public TimeInterval ElapsedVirtualHostTimeDifference
-        {
-            get
-            {
-                lock(hostTicksElapsed)
-                {
-                    var hostTicks = hostTicksElapsed.CumulativeValue;
-                    var virtualTicks = virtualTicksElapsed.CumulativeValue;
-                    if(virtualTicks <= hostTicks)
-                    {
-                        return TimeInterval.Empty;
-                    }
-                    return TimeInterval.FromTicks(virtualTicks - hostTicks);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Gets the virtual time point of the nearest synchronization of all associated <see cref="ITimeHandle">.
-        /// </summary>
-        public TimeInterval NearestSyncPoint { get; private set; }
-
-        /// <summary>
-        /// Gets the number of synchronizations points reached so far.
-        /// </summary>
-        public long NumberOfSyncPoints { get; private set; }
-
-        /// <summary>
-        /// Gets or sets the flag indicating if the current thread is a safe thread executing sync phase.
-        /// </summary>
-        public bool IsOnSyncPhaseThread
-        {
-            get
-            {
-                lock(isOnSyncPhaseThreadLock)
-                {
-                    return executeThreadId == Thread.CurrentThread.ManagedThreadId;
-                }
-            }
-
-            private set
-            {
-                lock(isOnSyncPhaseThreadLock)
-                {
-                    executeThreadId = value ? Thread.CurrentThread.ManagedThreadId : (int?)null;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Forces the execution phase of time sinks to be done in serial.
-        /// </summary>
-        /// <remarks>
-        /// Using this option might reduce the performance of the execution, but ensures the determinism.
-        /// </remarks>
-        public bool ExecuteInSerial { get; set; }
-
-        /// <summary>
-        /// Action to be executed on every synchronization point.
-        /// </summary>
-        public event Action<TimeInterval> SyncHook;
-
-        /// <summary>
-        /// An event called when the time source is blocked by at least one of the sinks.
-        /// </summary>
-        public event Action BlockHook;
-
-        /// <summary>
-        /// An event called when no sink is in progress.
-        /// </summary>
-        public event Action SinksReportedHook;
-
-        /// <summary>
-        /// An event informing about the amount of passed virtual time. Might be called many times between two consecutive synchronization points.
-        /// </summary>
-        public event Action<TimeInterval> TimePassed;
-
-        /// <summary>
-        /// An event called when the Quantum is changed.
-        /// </summary>
-        public event Action<TimeInterval, TimeInterval> QuantumChanged;
-
-        /// <summary>
-        /// Execute one iteration of time-granting loop.
-        /// </summary>
-        /// <remarks>
-        /// The steps are as follows:
-        /// (1) remove and forget all slave handles that requested detaching
-        /// (2) check if there are any blocked slaves; if so DO NOT grant a time interval
-        /// (2.1) if there are no blocked slaves grant a new time interval to every slave
-        /// (3) wait for all slaves that are relevant in this execution (it can be either all slaves or just blocked ones) until they report back
-        /// (4) update elapsed virtual time
-        /// (5) execute sync hook and delayed actions if any
-        /// </remarks>
-        /// <param name="virtualTimeElapsed">Contains the amount of virtual time that passed during execution of this method. It is the minimal value reported by a slave (i.e, some slaves can report higher/lower values).</param>
-        /// <param name="timeLimit">Maximum amount of virtual time that can pass during the execution of this method. If not set, current <see cref="Quantum"> is used.</param>
-        /// <returns>
-        /// True if sync point has just been reached or False if the execution has been blocked.
-        /// </returns>
-        protected bool InnerExecute(out TimeInterval virtualTimeElapsed, TimeInterval? timeLimit = null)
-        {
-            if(updateNearestSyncPoint)
-            {
-                NearestSyncPoint += timeLimit.HasValue ? TimeInterval.Min(timeLimit.Value, Quantum) : Quantum;
-                updateNearestSyncPoint = false;
-                this.Trace($"Updated NearestSyncPoint to: {NearestSyncPoint}");
-            }
-            DebugHelper.Assert(NearestSyncPoint.Ticks >= ElapsedVirtualTime.Ticks, $"Nearest sync point set in the past: EVT={ElapsedVirtualTime} NSP={NearestSyncPoint}");
-
-            isBlocked = false;
-            var quantum = NearestSyncPoint - ElapsedVirtualTime;
-            this.Trace($"Starting a loop with #{quantum.Ticks} ticks");
-
-            SynchronizeVirtualTime();
-            var elapsedVirtualTimeAtStart = ElapsedVirtualTime;
-
-            using(sync.LowPriority)
-            {
-                handles.LatchAllAndCollectGarbage();
-                var shouldGrantTime = handles.AreAllReadyForNewGrant;
-
-                this.Trace($"Iteration start: slaves left {handles.ActiveCount}; will we try to grant time? {shouldGrantTime}");
-
-                if(handles.ActiveCount > 0)
-                {
-                    var executor = new PhaseExecutor<LinkedListNode<TimeHandle>>();
-
-                    if(!shouldGrantTime)
-                    {
-                        if(ExecuteInSerial)
-                        {
-                            // We only test in serial execution to ensure determinism
-                            executor.RegisterTestPhase(ExecuteReadyForUnblockTestPhase);
-                        }
-                        executor.RegisterPhase(ExecuteUnblockPhase);
-                        executor.RegisterPhase(ExecuteWaitPhase);
-                    }
-                    else if(quantum != TimeInterval.Empty)
-                    {
-                        executor.RegisterPhase(s => ExecuteGrantPhase(s, quantum));
-                        executor.RegisterPhase(ExecuteWaitPhase);
-                    }
-
-                    if(ExecuteInSerial)
-                    {
-                        executor.ExecuteInSerial(handles.WithLinkedListNode);
-                    }
-                    else
-                    {
-                        executor.ExecuteInParallel(handles.WithLinkedListNode);
-                    }
-
-                    SynchronizeVirtualTime();
-                    virtualTimeElapsed = ElapsedVirtualTime - elapsedVirtualTimeAtStart;
-                }
-                else
-                {
-                    this.Trace($"There are no slaves, updating VTE by {quantum.Ticks}");
-                    // if there are no slaves just make the time pass
-                    virtualTimeElapsed = quantum;
-
-                    UpdateTime(quantum);
-                    // here we must trigger `TimePassed` manually as no handles has been updated so they won't reflect the passed time
-                    TimePassed?.Invoke(quantum);
-                }
-
-                handles.UnlatchAll();
-            }
-
-            SinksReportedHook?.Invoke();
-            if(!isBlocked)
-            {
-                ExecuteSyncPhase();
-                updateNearestSyncPoint = true;
-            }
-            else
-            {
-                BlockHook?.Invoke();
-            }
-
-            State = TimeSourceState.Idle;
-
-            this.Trace($"The end of {nameof(InnerExecute)} with result={!isBlocked}");
-            return !isBlocked;
-        }
-
         private void UpdateTime(TimeInterval virtualTimeElapsed)
         {
             lock(hostTicksElapsed)
@@ -564,80 +651,6 @@ namespace Antmicro.Renode.Time
                 this.Trace($"Updating virtual time by {virtualTimeElapsed.TotalMicroseconds} us");
                 this.virtualTicksElapsed.Update(virtualTimeElapsed.Ticks);
                 this.hostTicksElapsed.Update(elapsedThisTime.Ticks);
-            }
-        }
-
-        /// <summary>
-        /// Activates all slaves from source side perspective, i.e., tells them that there will be time granted in the nearest future.
-        /// </summary>
-        protected void ActivateSlavesSourceSide(bool state = true)
-        {
-            using(sync.HighPriority)
-            {
-                foreach(var slave in handles.All)
-                {
-                    slave.SourceSideActive = state;
-                    if(state)
-                    {
-                        slave.RequestStart();
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Deactivates all slaves from  source side perspective, i.e., tells them that there will be no grants in the nearest future.
-        /// </summary>
-        protected void DeactivateSlavesSourceSide()
-        {
-            ActivateSlavesSourceSide(false);
-        }
-
-        /// <summary>
-        /// Suspends an execution of the calling thread if blocking event is set.
-        /// </summary>
-        /// <remarks>
-        /// This is just to improve performance of the emulation - avoid spinning when any of the sinks is blocking.
-        /// </remarks>
-        protected void WaitIfBlocked()
-        {
-            // this 'if' statement and 'canBeBlocked' variable are here for performance only
-            // calling `WaitOne` in every iteration can cost a lot of time;
-            // waiting on 'blockingEvent' is not required for the time framework to work properly,
-            // but decreases cpu usage when any handle is known to be blocking
-            if(isBlocked)
-            {
-                // value of 'isBlocked' will be reevaluated in 'ExecuteInner' method
-                blockingEvent.WaitOne(10);
-                // this parameter here is kind of a hack:
-                // in theory we could use an overload without timeout,
-                // but there is a bug and sometimes it blocks forever;
-                // this is just a simple workaround
-            }
-        }
-
-        /// <summary>
-        /// Forces value of elapsed virtual time and nearest sync point.
-        /// </summary>
-        /// <remarks>
-        /// It is called when attaching a new time handle to synchronize the initial value of virtual time.
-        /// </remarks>
-        protected void ResetVirtualTime(TimeInterval interval)
-        {
-            lock(hostTicksElapsed)
-            {
-                DebugHelper.Assert(ElapsedVirtualTime <= interval, $"Couldn't reset back in time from {ElapsedVirtualTime} to {interval}.");
-
-                virtualTicksElapsed.Reset(interval.Ticks);
-                NearestSyncPoint = interval;
-
-                using(sync.HighPriority)
-                {
-                    foreach(var handle in handles.All)
-                    {
-                        handle.Reset();
-                    }
-                }
             }
         }
 
@@ -743,18 +756,6 @@ namespace Antmicro.Renode.Time
             NumberOfSyncPoints++;
         }
 
-        // This value is dropped because it should always be false after deserialization in order to start the emulation properly,
-        // otherwise starting stopwatch is omitted in TimeSourceBase.Start() method.
-        // If it wasn't marked as transient it could be true when the emulation wasn't paused before serialization because it was already in a safe state.
-        [Transient]
-        protected volatile bool isStarted;
-        protected bool isPaused;
-
-        protected readonly HandlesCollection handles;
-        protected readonly Stopwatch stopwatch;
-        // we use special object for locking as it was observed that idle dispatcher thread can starve other threads when using simple lock(object)
-        protected readonly PrioritySynchronizer sync;
-
         /// <summary>
         /// Used to request a pause on sinks before trying to acquire their locks.
         /// </summary>
@@ -763,15 +764,15 @@ namespace Antmicro.Renode.Time
         /// </remarks>
         private event Action StopRequested;
 
-        [Antmicro.Migrant.Constructor(true)]
-        private ManualResetEvent blockingEvent;
-
         private TimeInterval elapsedAtLastUpdate;
         private bool isBlocked;
         private bool updateNearestSyncPoint;
         private int? executeThreadId;
         private ulong delayedTaskId;
         private TimeInterval quantum;
+
+        [Antmicro.Migrant.Constructor(true)]
+        private readonly ManualResetEvent blockingEvent;
 
         private readonly TimeVariantValue virtualTicksElapsed;
         private readonly TimeVariantValue hostTicksElapsed;
@@ -789,6 +790,21 @@ namespace Antmicro.Renode.Time
             public PrioritySynchronizer()
             {
                 innerLock = new object();
+            }
+
+            public void Dispose()
+            {
+                Monitor.Exit(innerLock);
+            }
+
+            public void WaitWhile(Func<bool> condition, string reason)
+            {
+                innerLock.WaitWhile(condition, reason);
+            }
+
+            public void Pulse()
+            {
+                Monitor.PulseAll(innerLock);
             }
 
             /// <summary>
@@ -829,109 +845,9 @@ namespace Antmicro.Renode.Time
                 }
             }
 
-            public void Dispose()
-            {
-                Monitor.Exit(innerLock);
-            }
-
-            public void WaitWhile(Func<bool> condition, string reason)
-            {
-                innerLock.WaitWhile(condition, reason);
-            }
-
-            public void Pulse()
-            {
-                Monitor.PulseAll(innerLock);
-            }
+            private volatile int highPriorityRequestPendingCounter;
 
             private readonly object innerLock;
-            private volatile int highPriorityRequestPendingCounter;
-        }
-
-        /// <summary>
-        /// Represents a time-variant value.
-        /// </summary>
-        private class TimeVariantValue
-        {
-            public TimeVariantValue(int size)
-            {
-                buffer = new ulong[size];
-            }
-
-            /// <summary> <summary>
-            /// Resets the value and clears the internal buffer.
-            /// </summary>
-            public void Reset(ulong value = 0)
-            {
-                position = 0;
-                CumulativeValue = 0;
-                partialSum = 0;
-                Array.Clear(buffer, 0, buffer.Length);
-
-                Update(value);
-            }
-
-            /// <summary>
-            /// Updates the <see cref="RawValue">.
-            /// </summary>
-            public void Update(ulong value)
-            {
-                RawValue = value;
-                CumulativeValue += value;
-
-                partialSum += value;
-                partialSum -= buffer[position];
-                buffer[position] = value;
-                position = (position + 1) % buffer.Length;
-            }
-
-            public ulong RawValue { get; private set; }
-
-            /// <summary>
-            /// Returns average of <see cref="RawValues"> over the last <see cref="size"> samples.
-            /// </summary>
-            public ulong AverageValue { get { return  (ulong)(partialSum / (ulong)buffer.Length); } }
-
-            /// <summary>
-            /// Returns total sum of all <see cref="RawValues"> so far.
-            /// </summary>
-            public ulong CumulativeValue { get; private set; }
-
-            private readonly ulong[] buffer;
-            private int position;
-            private ulong partialSum;
-        }
-
-        /// <summary>
-        /// Represents a task that is scheduled for execution in the future.
-        /// </summary>
-        private struct DelayedTask : IComparable<DelayedTask>
-        {
-            static DelayedTask()
-            {
-                Zero = new DelayedTask();
-            }
-
-            public DelayedTask(Action<TimeStamp> what, TimeStamp when, ulong id) : this()
-            {
-                What = what;
-                When = when;
-                Id = id;
-            }
-
-            public int CompareTo(DelayedTask other)
-            {
-                var result = When.TimeElapsed.CompareTo(other.When.TimeElapsed);
-                return result != 0 ? result : Id.CompareTo(other.Id);
-            }
-
-            public Action<TimeStamp> What { get; private set; }
-
-            public TimeStamp When { get; private set; }
-
-            public static DelayedTask Zero { get; private set; }
-
-            public ulong Id { get; }
         }
 
         /// <summary>
@@ -1007,6 +923,93 @@ namespace Antmicro.Renode.Time
 
             private readonly List<Func<T, Boolean>> testPhases;
             private readonly List<Action<T>> phases;
+        }
+
+        /// <summary>
+        /// Represents a time-variant value.
+        /// </summary>
+        private class TimeVariantValue
+        {
+            public TimeVariantValue(int size)
+            {
+                buffer = new ulong[size];
+            }
+
+            /// <summary> <summary>
+            /// Resets the value and clears the internal buffer.
+            /// </summary>
+            public void Reset(ulong value = 0)
+            {
+                position = 0;
+                CumulativeValue = 0;
+                partialSum = 0;
+                Array.Clear(buffer, 0, buffer.Length);
+
+                Update(value);
+            }
+
+            /// <summary>
+            /// Updates the <see cref="RawValue">.
+            /// </summary>
+            public void Update(ulong value)
+            {
+                RawValue = value;
+                CumulativeValue += value;
+
+                partialSum += value;
+                partialSum -= buffer[position];
+                buffer[position] = value;
+                position = (position + 1) % buffer.Length;
+            }
+
+            public ulong RawValue { get; private set; }
+
+            /// <summary>
+            /// Returns average of <see cref="RawValues"> over the last <see cref="size"> samples.
+            /// </summary>
+            public ulong AverageValue { get { return (ulong)(partialSum / (ulong)buffer.Length); } }
+
+            /// <summary>
+            /// Returns total sum of all <see cref="RawValues"> so far.
+            /// </summary>
+            public ulong CumulativeValue { get; private set; }
+
+            private int position;
+            private ulong partialSum;
+
+            private readonly ulong[] buffer;
+        }
+
+        /// <summary>
+        /// Represents a task that is scheduled for execution in the future.
+        /// </summary>
+        private struct DelayedTask : IComparable<DelayedTask>
+        {
+            static DelayedTask()
+            {
+                Zero = new DelayedTask();
+            }
+
+            public DelayedTask(Action<TimeStamp> what, TimeStamp when, ulong id) : this()
+            {
+                What = what;
+                When = when;
+                Id = id;
+            }
+
+            public int CompareTo(DelayedTask other)
+            {
+                var result = When.TimeElapsed.CompareTo(other.When.TimeElapsed);
+                return result != 0 ? result : Id.CompareTo(other.Id);
+            }
+
+            public Action<TimeStamp> What { get; private set; }
+
+            public TimeStamp When { get; private set; }
+
+            public static DelayedTask Zero { get; private set; }
+
+            public ulong Id { get; }
         }
     }
 }

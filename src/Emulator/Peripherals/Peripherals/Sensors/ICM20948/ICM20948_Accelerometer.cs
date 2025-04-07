@@ -5,10 +5,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Utilities.RESD;
 using Antmicro.Renode.Time;
+using Antmicro.Renode.Utilities.RESD;
 
 namespace Antmicro.Renode.Peripherals.Sensors
 {
@@ -68,12 +69,14 @@ namespace Antmicro.Renode.Peripherals.Sensors
         }
 
         public decimal AccelerationX => accelerationX ?? DefaultAccelerationX;
+
         public decimal AccelerationY => accelerationY ?? DefaultAccelerationY;
+
         public decimal AccelerationZ => accelerationZ ?? DefaultAccelerationZ;
 
         [OnRESDSample(SampleType.Acceleration)]
         [BeforeRESDSample(SampleType.Acceleration)]
-        private void HandleAccelerationSample(AccelerationSample sample, TimeInterval timestamp)
+        private void HandleAccelerationSample(AccelerationSample sample, TimeInterval _)
         {
             if(sample != null)
             {
@@ -102,24 +105,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
             return Math.Abs(acc) <= AccelerometerFullScaleRangeG;
         }
 
-        private ushort RawAccelerationX => ConvertMeasurement(AccelerationX, value => value * AccelerometerSensitivityScaleFactor);
-        private ushort RawAccelerationY => ConvertMeasurement(AccelerationY, value => value * AccelerometerSensitivityScaleFactor);
-        private ushort RawAccelerationZ => ConvertMeasurement(AccelerationZ, value => value * AccelerometerSensitivityScaleFactor);
-
-        private RESDStream<AccelerationSample> accelerometerResdStream;
-        private IManagedThread accelerometerFeederThread;
-
-        private decimal? accelerationX = null;
-        private decimal? accelerationY = null;
-        private decimal? accelerationZ = null;
-        private decimal defaultAccelerationX;
-        private decimal defaultAccelerationY;
-        private decimal defaultAccelerationZ;
-
-        private const decimal AccelerometerMaxOutputDataRateHz = 4500;
-        private const decimal AccelerometerWakeOnMotionThresholdStepSizeG = 0.004m;
-
         private decimal AccelerometerWakeOnMotionThreshold => accelerometerWakeOnMotionThreshold.Value * AccelerometerWakeOnMotionThresholdStepSizeG;
+
         private decimal AccelerometerSampleRateDivider => accelerometerSampleRateDividerHigh.Value << 8 | accelerometerSampleRateDividerLow.Value;
 
         private decimal AccelerometerOutputDataRateHz
@@ -140,16 +127,16 @@ namespace Antmicro.Renode.Peripherals.Sensors
             {
                 switch(accelerometerFullScaleRange.Value)
                 {
-                    case AccelerationFullScaleRangeSelection.Mode0_2G:
-                        return 2m;
-                    case AccelerationFullScaleRangeSelection.Mode1_4G:
-                        return 4m;
-                    case AccelerationFullScaleRangeSelection.Mode2_8G:
-                        return 8m;
-                    case AccelerationFullScaleRangeSelection.Mode3_16G:
-                        return 16m;
-                    default:
-                        throw new Exception("Wrong accelerometer full scale range selection");
+                case AccelerationFullScaleRangeSelection.Mode0_2G:
+                    return 2m;
+                case AccelerationFullScaleRangeSelection.Mode1_4G:
+                    return 4m;
+                case AccelerationFullScaleRangeSelection.Mode2_8G:
+                    return 8m;
+                case AccelerationFullScaleRangeSelection.Mode3_16G:
+                    return 16m;
+                default:
+                    throw new Exception("Wrong accelerometer full scale range selection");
                 }
             }
         }
@@ -160,16 +147,16 @@ namespace Antmicro.Renode.Peripherals.Sensors
             {
                 switch(accelerometerFullScaleRange.Value)
                 {
-                    case AccelerationFullScaleRangeSelection.Mode0_2G:
-                        return 16384m;
-                    case AccelerationFullScaleRangeSelection.Mode1_4G:
-                        return 8192m;
-                    case AccelerationFullScaleRangeSelection.Mode2_8G:
-                        return 4096m;
-                    case AccelerationFullScaleRangeSelection.Mode3_16G:
-                        return 2048m;
-                    default:
-                        throw new Exception("Wrong accelerometer full scale range selection");
+                case AccelerationFullScaleRangeSelection.Mode0_2G:
+                    return 16384m;
+                case AccelerationFullScaleRangeSelection.Mode1_4G:
+                    return 8192m;
+                case AccelerationFullScaleRangeSelection.Mode2_8G:
+                    return 4096m;
+                case AccelerationFullScaleRangeSelection.Mode3_16G:
+                    return 2048m;
+                default:
+                    throw new Exception("Wrong accelerometer full scale range selection");
                 }
             }
         }
@@ -180,23 +167,42 @@ namespace Antmicro.Renode.Peripherals.Sensors
             {
                 switch(accelerometerDecimatorConfig.Value)
                 {
-                    case AccelerometerDecimator.Mode0_4Samples:
-                        if(!accelerometerFilterChoice.Value)
-                        {
-                            return 1;
-                        }
-                        return 4;
-                    case AccelerometerDecimator.Mode1_8Samples:
-                        return 8;
-                    case AccelerometerDecimator.Mode2_16Samples:
-                        return 16;
-                    case AccelerometerDecimator.Mode3_32Samples:
-                        return 32;
-                    default:
-                        throw new Exception("Wrong accelerometer decimator config selection");
+                case AccelerometerDecimator.Mode0_4Samples:
+                    if(!accelerometerFilterChoice.Value)
+                    {
+                        return 1;
+                    }
+                    return 4;
+                case AccelerometerDecimator.Mode1_8Samples:
+                    return 8;
+                case AccelerometerDecimator.Mode2_16Samples:
+                    return 16;
+                case AccelerometerDecimator.Mode3_32Samples:
+                    return 32;
+                default:
+                    throw new Exception("Wrong accelerometer decimator config selection");
                 }
             }
         }
+
+        private ushort RawAccelerationX => ConvertMeasurement(AccelerationX, value => value * AccelerometerSensitivityScaleFactor);
+
+        private ushort RawAccelerationY => ConvertMeasurement(AccelerationY, value => value * AccelerometerSensitivityScaleFactor);
+
+        private ushort RawAccelerationZ => ConvertMeasurement(AccelerationZ, value => value * AccelerometerSensitivityScaleFactor);
+
+        private RESDStream<AccelerationSample> accelerometerResdStream;
+        private IManagedThread accelerometerFeederThread;
+
+        private decimal? accelerationX = null;
+        private decimal? accelerationY = null;
+        private decimal? accelerationZ = null;
+        private decimal defaultAccelerationX;
+        private decimal defaultAccelerationY;
+        private decimal defaultAccelerationZ;
+
+        private const decimal AccelerometerMaxOutputDataRateHz = 4500;
+        private const decimal AccelerometerWakeOnMotionThresholdStepSizeG = 0.004m;
 
         private enum AccelerationFullScaleRangeSelection : byte
         {

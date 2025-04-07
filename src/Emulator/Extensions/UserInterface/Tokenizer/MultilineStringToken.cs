@@ -29,4 +29,3 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
         }
     }
 }
-

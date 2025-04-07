@@ -20,4 +20,3 @@ namespace Antmicro.Renode.UserInterface
         public Type[] MaskedTypes { get; private set; }
     }
 }
-

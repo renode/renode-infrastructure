@@ -6,14 +6,15 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Peripherals.Bus
 {
     public interface IMultibyteWritePeripheral
     {
         byte[] ReadBytes(long offset, int count, IPeripheral context = null);
+
         void WriteBytes(long offset, byte[] array, int startingIndex, int count, IPeripheral context = null);
     }
 

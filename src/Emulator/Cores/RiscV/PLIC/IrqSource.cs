@@ -34,22 +34,24 @@ namespace Antmicro.Renode.Peripherals.IRQControllers.PLIC
 
         public uint Priority
         {
-             get { return priority; }
-             set
-             {
-                 if(value == priority)
-                 {
-                     return;
-                 }
+            get { return priority; }
 
-                 parent.Log(LogLevel.Noisy, "Setting priority {0} for source #{1}", value, Id);
-                 priority = value;
-             }
+            set
+            {
+                if(value == priority)
+                {
+                    return;
+                }
+
+                parent.Log(LogLevel.Noisy, "Setting priority {0} for source #{1}", value, Id);
+                priority = value;
+            }
         }
 
         public bool State
         {
             get { return state; }
+
             set
             {
                 if(value == state)

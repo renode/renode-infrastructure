@@ -7,9 +7,8 @@
 //
 using System;
 using System.Linq;
-using System.Collections.Generic;
+
 using ELFSharp.ELF;
-using ELFSharp.UImage;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -47,30 +46,34 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             switch(Width)
             {
-                case 8:
-                    result = bytesWithPadding[0];
-                    break;
-                case 16:
-                    result = BitConverter.ToUInt16(bytesWithPadding, 0);
-                    break;
-                case 32:
-                    result = BitConverter.ToUInt32(bytesWithPadding, 0);
-                    break;
-                case 64:
-                    result = BitConverter.ToUInt64(bytesWithPadding, 0);
-                    break;
-                default:
-                    result = bytesWithPadding;
-                    break;
+            case 8:
+                result = bytesWithPadding[0];
+                break;
+            case 16:
+                result = BitConverter.ToUInt16(bytesWithPadding, 0);
+                break;
+            case 32:
+                result = BitConverter.ToUInt32(bytesWithPadding, 0);
+                break;
+            case 64:
+                result = BitConverter.ToUInt64(bytesWithPadding, 0);
+                break;
+            default:
+                result = bytesWithPadding;
+                break;
             }
 
             return result;
         }
 
         public int Index { get; }
+
         public bool IsGeneral { get; }
+
         public int Width { get; }
+
         public bool IsReadonly { get; }
+
         public string[] Aliases { get; }
 
         // this is to support monitor output
@@ -82,4 +85,3 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
     }
 }
-

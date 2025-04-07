@@ -5,19 +5,22 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System;
-
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
-    abstract public class LINBase : UARTBase, ILINDevice
+    public abstract class LINBase : UARTBase, ILINDevice
     {
         public LINBase(IMachine machine) : base(machine)
         {
             linDecoder = new LINDecoder();
             linDecoder.FrameReceived += FrameReceived;
+        }
+
+        public virtual void ReceiveLINBreak()
+        {
+            linDecoder.Break();
         }
 
         public override void WriteChar(byte value)
@@ -30,12 +33,8 @@ namespace Antmicro.Renode.Peripherals.UART
         }
 
         public abstract void FrameReceived(byte protectedIdentifier, byte[] data, bool valid);
-        public abstract void StartedTransmission(byte protectedIdentifier);
 
-        public virtual void ReceiveLINBreak()
-        {
-            linDecoder.Break();
-        }
+        public abstract void StartedTransmission(byte protectedIdentifier);
 
         protected ILINEntry RegisterProtectedIdentifier(byte pid, LINMode mode, int frameLength)
         {

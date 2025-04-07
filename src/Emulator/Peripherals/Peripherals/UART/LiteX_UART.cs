@@ -6,11 +6,12 @@
 //
 using System;
 using System.Collections.Generic;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Core.Structure.Registers;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
 
@@ -49,7 +50,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 ));
             }
             else // unbuffered
-            {    
+            {
                 if(flushDelayNs.HasValue)
                 {
                     throw new ConstructionException($"'{nameof(flushDelayNs)}' must not be specified when '{nameof(txFifoCapacity)}' is zero");
@@ -225,15 +226,15 @@ namespace Antmicro.Renode.Peripherals.UART
             IRQ.Set(eventPending);
         }
 
-        protected readonly ulong timeoutTicks;
-        protected readonly ulong flushDelayTicks;
-        protected readonly uint txFifoCapacity;
-        protected readonly Queue<byte> txFifo;
-
         protected IFlagRegisterField txEventEnabled;
         protected IFlagRegisterField rxEventEnabled;
         protected IFlagRegisterField txEventPending;
         protected IFlagRegisterField rxEventPending;
+
+        protected readonly ulong timeoutTicks;
+        protected readonly ulong flushDelayTicks;
+        protected readonly uint txFifoCapacity;
+        protected readonly Queue<byte> txFifo;
 
         protected const uint DefaultTxFifoCapacity = 8;
         protected const ulong DefaultFlushDelayNs = 100;

@@ -7,8 +7,8 @@
 
 using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Peripherals.Bus
 {
@@ -35,9 +35,9 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
-        public event Action<ulong, BusAccessPrivileges, int?> OnFault;
-
         public List<MMUWindow> Windows { get; }
+
+        public event Action<ulong, BusAccessPrivileges, int?> OnFault;
 
         protected override bool ValidateOperation(ref ulong address, BusAccessPrivileges accessType, IPeripheral context = null)
         {
@@ -122,7 +122,6 @@ namespace Antmicro.Renode.Peripherals.Bus
                     emulationParent.Log(LogLevel.Error, "MMUWindow has incorrect offset ({0:d}) in relation to the end address (0x{1:x}).", Offset, End);
                     Valid = false;
                 }
-
             }
 
             public ulong TranslateAddress(ulong address)
@@ -138,10 +137,15 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
 
             public ulong Start { get; set; }
+
             public ulong End { get; set; }
+
             public ulong Length => checked(End - Start);
+
             public long Offset { get; set; }
+
             public BusAccessPrivileges Privileges { get; set; }
+
             public bool Valid { get; private set; }
 
             private readonly IEmulationElement emulationParent;

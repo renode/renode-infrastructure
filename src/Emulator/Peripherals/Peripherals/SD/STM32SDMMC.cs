@@ -4,18 +4,13 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
-using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.DMA;
-using Antmicro.Renode.Peripherals.Sensors;
-using Antmicro.Renode.Storage.SCSI.Commands;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.SD
@@ -47,7 +42,7 @@ namespace Antmicro.Renode.Peripherals.SD
 
         public uint ReadDoubleWord(long offset)
         {
-            return RegistersCollection.Read(offset);;
+            return RegistersCollection.Read(offset); ;
         }
 
         public void WriteDoubleWord(long offset, uint value)
@@ -72,6 +67,7 @@ namespace Antmicro.Renode.Peripherals.SD
 
         [IrqProvider]
         public GPIO IRQ { get; private set; }
+
         public GPIO DMAReceive { get; }
 
         public long Size => 0x400;
@@ -108,22 +104,22 @@ namespace Antmicro.Renode.Peripherals.SD
                 /* in case of no response there's no need to do anything extra */
                 switch(responseWidth.Value)
                 {
-                    case ResponseWidth.LongResponse:
-                        responseFields[3].Value = commandResult.AsUInt32(0);
-                        responseFields[3].Value &= 0xFFFFFFFE; /* lsb is always = 0 */
-                        responseFields[2].Value = commandResult.AsUInt32(32);
-                        responseFields[1].Value = commandResult.AsUInt32(64);
-                        responseFields[0].Value = commandResult.AsUInt32(96);
-                        break;
-                    case ResponseWidth.ShortResponse:
-                        responseFields[0].Value = commandResult.AsUInt32(0);
-                        break;
+                case ResponseWidth.LongResponse:
+                    responseFields[3].Value = commandResult.AsUInt32(0);
+                    responseFields[3].Value &= 0xFFFFFFFE; /* lsb is always = 0 */
+                    responseFields[2].Value = commandResult.AsUInt32(32);
+                    responseFields[1].Value = commandResult.AsUInt32(64);
+                    responseFields[0].Value = commandResult.AsUInt32(96);
+                    break;
+                case ResponseWidth.ShortResponse:
+                    responseFields[0].Value = commandResult.AsUInt32(0);
+                    break;
                 }
                 ProcessCommand(sdCard, commandIndex.Value);
             });
 
             Registers.Fifo.Define(this)
-                .WithValueField(0, 32, valueProviderCallback: _=> ReadBuffer())
+                .WithValueField(0, 32, valueProviderCallback: _ => ReadBuffer())
                 .WithReadCallback((_, __) => UpdateInterrupts())
                 .WithWriteCallback((_, value) =>
                 {
@@ -257,31 +253,31 @@ namespace Antmicro.Renode.Peripherals.SD
         {
             switch(command)
             {
-                case SDCardCommand.GoIdleState:
-                    Reset();
-                    break;
-                case SDCardCommand.ReadMultBlock:
-                    ReadCard(sdCard, (uint) dataLength.Value);
-                    rxFifoHalfFullFlag = true;
-                    break;
-                case SDCardCommand.WriteSingleBlock:
-                    writeDataAmount = 512U;
-                    txFifoHalfEmptyFlag = true;
-                    break;
-                case SDCardCommand.ReadSingleBlock:
-                    ReadCard(sdCard, 512U);
-                    rxFifoHalfFullFlag = true;
-                    break;
-                case SDCardCommand.WriteMultBlock:
-                    writeDataAmount = (uint) dataLength.Value;
-                    txFifoHalfEmptyFlag = true;
-                    break;
-                case SDCardCommand.SendStatus:
-                    responseFields[0].Value = CardState;
-                    break;
-                default:
-                    this.Log(LogLevel.Warning, "Calling command without explicit handling with index: {0}", command);
-                    break;
+            case SDCardCommand.GoIdleState:
+                Reset();
+                break;
+            case SDCardCommand.ReadMultBlock:
+                ReadCard(sdCard, (uint)dataLength.Value);
+                rxFifoHalfFullFlag = true;
+                break;
+            case SDCardCommand.WriteSingleBlock:
+                writeDataAmount = 512U;
+                txFifoHalfEmptyFlag = true;
+                break;
+            case SDCardCommand.ReadSingleBlock:
+                ReadCard(sdCard, 512U);
+                rxFifoHalfFullFlag = true;
+                break;
+            case SDCardCommand.WriteMultBlock:
+                writeDataAmount = (uint)dataLength.Value;
+                txFifoHalfEmptyFlag = true;
+                break;
+            case SDCardCommand.SendStatus:
+                responseFields[0].Value = CardState;
+                break;
+            default:
+                this.Log(LogLevel.Warning, "Calling command without explicit handling with index: {0}", command);
+                break;
             }
         }
 
@@ -326,11 +322,6 @@ namespace Antmicro.Renode.Peripherals.SD
             );
         }
 
-        private IValueRegisterField commandArgument;
-        private IValueRegisterField dataLength;
-
-        private IEnumRegisterField<SDCardCommand> commandIndex;
-        private IValueRegisterField[] responseFields;
         private IFlagRegisterField isDmaEnabled;
         private bool dataEndFlag;
         private bool rxFifoHalfFullFlag;
@@ -340,10 +331,17 @@ namespace Antmicro.Renode.Peripherals.SD
         private IFlagRegisterField txFifoHalfEmptyItEnabled;
         private ulong writeDataAmount;
 
+        private IValueRegisterField commandArgument;
+        private IValueRegisterField dataLength;
+
+        private IEnumRegisterField<SDCardCommand> commandIndex;
+        private readonly IValueRegisterField[] responseFields;
+
+        private readonly Queue<byte> internalBuffer;
+
         private const ulong CardState = 4 << 9;  /* HACK:  card state: transfer (otherwise it stucks here: https://github.com/zephyrproject-rtos/zephyr/blob/c008cbab1a05316139de191b0553ab6ccc0073ad/drivers/disk/sdmmc_stm32.c#L386) */
         private const ulong DmaReadChunk = 4;
 
-        private readonly Queue<byte> internalBuffer;
         private enum Registers
         {
             Power = 0x00,

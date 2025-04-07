@@ -6,11 +6,9 @@
 //
 using System;
 using System.Threading;
+
 using Antmicro.Migrant;
-using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Debugging;
 
 namespace Antmicro.Renode.Time
 {
@@ -107,6 +105,7 @@ namespace Antmicro.Renode.Time
             {
                 return timeHandle;
             }
+
             set
             {
                 lock(locker)
@@ -278,7 +277,7 @@ namespace Antmicro.Renode.Time
             }
             threadToJoin?.Join();
         }
-        
+
         private void HandleTimePassed(TimeInterval diff)
         {
             TimeHandle?.ReportProgress(diff);

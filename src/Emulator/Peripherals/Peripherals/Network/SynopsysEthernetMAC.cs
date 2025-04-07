@@ -6,13 +6,14 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Peripherals.Bus;
+using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Utilities;
-using System.Collections.Generic;
 using Antmicro.Renode.Network;
+using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Network
 {
@@ -212,13 +213,13 @@ namespace Antmicro.Renode.Peripherals.Network
                     this.Log(LogLevel.Debug, "DROPPING - not for us.");
                     return;
                 }
-		/*
-                if((dmaInterruptEnable & (ReceiveStatus)) == 0)
-                {
-                    this.Log(LogLevel.Debug, "DROPPING - rx irq is turned off.");
-                    return;
-                }
-		*/
+                /*
+                        if((dmaInterruptEnable & (ReceiveStatus)) == 0)
+                        {
+                            this.Log(LogLevel.Debug, "DROPPING - rx irq is turned off.");
+                            return;
+                        }
+                */
                 this.Log(LogLevel.Noisy, Misc.DumpPacket(frame, false, machine));
                 if(dmaReceiveDescriptorListAddress < 0x20000000)
                 {
@@ -315,8 +316,6 @@ namespace Antmicro.Renode.Peripherals.Network
             }
         }
 
-        public event Action<EthernetFrame> FrameReady;
-
         public MACAddress MAC { get; set; }
 
         public GPIO IRQ { get; private set; }
@@ -328,6 +327,8 @@ namespace Antmicro.Renode.Peripherals.Network
                 return 0x1400;
             }
         }
+
+        public event Action<EthernetFrame> FrameReady;
 
         private void SendFrames()
         {
@@ -374,7 +375,7 @@ namespace Antmicro.Renode.Peripherals.Network
                         if(transmitDescriptor.ChecksumInstertionControl == 1)
                         {
                             //IP only
-                            frame.FillWithChecksums(supportedEtherChecksums, new IPProtocolType[] {});
+                            frame.FillWithChecksums(supportedEtherChecksums, new IPProtocolType[] { });
                         }
                         else
                         {
@@ -441,6 +442,7 @@ namespace Antmicro.Renode.Peripherals.Network
             IPProtocolType.UDP,
             IPProtocolType.ICMP
         };
+
         private readonly SynopsysEthernetVersion version;
         private const uint StartStopTransmission = 1 << 13;
         private const uint TransmitBufferUnavailableStatus = 1 << 2;
@@ -530,7 +532,6 @@ namespace Antmicro.Renode.Peripherals.Network
                 }
             }
 
-            protected const uint UsedField = 1u << 31;
             protected uint address;
             protected uint word0;
             protected uint word1;
@@ -538,6 +539,8 @@ namespace Antmicro.Renode.Peripherals.Network
             protected uint word3;
             protected readonly SynopsysEthernetVersion version;
             protected readonly SynopsysEthernetMAC parent;
+
+            protected const uint UsedField = 1u << 31;
             private readonly IBusController sysbus;
         }
 
@@ -552,7 +555,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 get
                 {
                     switch(version)
-                    { 
+                    {
                     case SynopsysEthernetVersion.BeagleV:
                         return BitHelper.GetValue(word1, 27, 2);
                     case SynopsysEthernetVersion.STM32F4:
@@ -636,7 +639,6 @@ namespace Antmicro.Renode.Peripherals.Network
                         parent.ErrorLog("Unsupported {0}: {1}, returning 0", nameof(SynopsysEthernetVersion), version);
                         return false;
                     }
-
                 }
             }
 
@@ -663,6 +665,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 {
                     BitHelper.SetBit(ref word0, 8, value);
                 }
+
                 get
                 {
                     return BitHelper.IsBitSet(word0, 8);
@@ -675,6 +678,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 {
                     BitHelper.SetBit(ref word0, 9, value);
                 }
+
                 get
                 {
                     return BitHelper.IsBitSet(word0, 9);

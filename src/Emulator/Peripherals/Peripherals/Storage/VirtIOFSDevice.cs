@@ -5,19 +5,21 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System.Text;
 using System;
 using System.IO;
-using Mono.Unix;
 using System.Net.Sockets;
-using Antmicro.Renode.Sockets;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Utilities;
+using System.Text;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Sockets;
 using Antmicro.Renode.Storage.VirtIO;
+using Antmicro.Renode.Utilities;
+
+using Mono.Unix;
 
 namespace Antmicro.Renode.Peripherals.Storage
 {
@@ -69,7 +71,7 @@ namespace Antmicro.Renode.Peripherals.Storage
             // https://docs.oasis-open.org/virtio/virtio/v1.2/csd01/virtio-v1.2-csd01.pdf#subsection.5.11.2
             lastQueueIdx = numRequestQueues + 1;
             Virtqueues = new Virtqueue[lastQueueIdx + 1];
-            for (int i = 0; i <= lastQueueIdx; i++)
+            for(int i = 0; i <= lastQueueIdx; i++)
             {
                 Virtqueues[i] = new Virtqueue(this, queueSize);
             }
@@ -145,11 +147,12 @@ namespace Antmicro.Renode.Peripherals.Storage
                 .WithValueField(0, 32, FieldMode.Read, name: "notify_buf_size", valueProviderCallback: _ => notifyBufSize);
         }
 
-        private byte[] tag = new byte[MaxTagLen];
         private uint queueSize;
         private Socket fsSocket;
         private uint numRequestQueues;
         private uint notifyBufSize;
+
+        private readonly byte[] tag = new byte[MaxTagLen];
 
         private const int FuseInHdrLen = 40;
         private const int FuseOutHdrLen = 16;

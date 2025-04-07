@@ -6,9 +6,10 @@
 //
 
 using System;
-using System.Linq;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -310,7 +311,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     source block size is 64 Kbytes -1. Once the last data transfer is completed (BNDT[15:0] = 0)*/
                     .WithValueField(0, 16, out blockNumberDataBytesFromSource, name: "Block number data bytes from source (BNDT)",
                         writeCallback: (_, val) => originalBlockNumberDataBytesFromSource = val));
-                        registersMap.Add((long)ChannelRegisters.ChannelSourceAddress + (number * ShiftBetweenChannels), new DoubleWordRegister(parent)
+                registersMap.Add((long)ChannelRegisters.ChannelSourceAddress + (number * ShiftBetweenChannels), new DoubleWordRegister(parent)
                     .WithValueField(0, 32, out sourceAddress, name: "Source address (SA)",
                         writeCallback: (_, val) => currentSourceAddress = val));
 
@@ -367,6 +368,38 @@ namespace Antmicro.Renode.Peripherals.DMA
                 return true;
             }
 
+            public bool GlobalInterrupt => HalfTransfer || TransferComplete || DataTransferError || UpdateLinkTransferError || UserSettingError || CompletedSuspension || TriggerOverrun;
+
+            public bool Enabled => channelEnable.Value;
+
+            public bool HalfTransfer { get; set; }
+
+            public bool TransferComplete { get; set; }
+
+            public bool DataTransferError { get; set; }
+
+            public bool UpdateLinkTransferError { get; set; }
+
+            public bool UserSettingError { get; set; }
+
+            public bool CompletedSuspension { get; set; }
+
+            public bool TriggerOverrun { get; set; }
+
+            public bool HalfTransferInterruptEnable => halfTransferInterruptEnable.Value;
+
+            public bool TransferCompleteInterruptEnable => transferCompleteInterruptEnable.Value;
+
+            public bool DataTransferErrorInterruptEnable => dataTransferErrorInterruptEnable.Value;
+
+            public bool UpdateLinkTransferErrorInterruptEnable => updateLinkTransferErrorInterruptEnable.Value;
+
+            public bool UserSettingErrorInterruptEnable => userSettingErrorInterruptEnable.Value;
+
+            public bool CompletedSuspensionInterruptEnable => completedSuspensionInterruptEnable.Value;
+
+            public bool TriggerOverrunInterruptEnable => triggerOverrunInterruptEnable.Value;
+
             private void Update()
             {
                 var result = (TransferComplete && TransferCompleteInterruptEnable)
@@ -380,26 +413,6 @@ namespace Antmicro.Renode.Peripherals.DMA
 
                 parent.Log(LogLevel.Noisy, "Update of channel {0} triggered. Interrupt set: {1}", channelNumber, result);
             }
-
-            public bool GlobalInterrupt => HalfTransfer || TransferComplete || DataTransferError || UpdateLinkTransferError || UserSettingError || CompletedSuspension || TriggerOverrun;
-
-            public bool Enabled => channelEnable.Value;
-
-            public bool HalfTransfer { get; set; }
-            public bool TransferComplete { get; set; }
-            public bool DataTransferError { get; set; }
-            public bool UpdateLinkTransferError { get; set; }
-            public bool UserSettingError { get; set; }
-            public bool CompletedSuspension { get; set; }
-            public bool TriggerOverrun { get; set; }
-
-            public bool HalfTransferInterruptEnable => halfTransferInterruptEnable.Value;
-            public bool TransferCompleteInterruptEnable => transferCompleteInterruptEnable.Value;
-            public bool DataTransferErrorInterruptEnable => dataTransferErrorInterruptEnable.Value;
-            public bool UpdateLinkTransferErrorInterruptEnable => updateLinkTransferErrorInterruptEnable.Value;
-            public bool UserSettingErrorInterruptEnable => userSettingErrorInterruptEnable.Value;
-            public bool CompletedSuspensionInterruptEnable => completedSuspensionInterruptEnable.Value;
-            public bool TriggerOverrunInterruptEnable => triggerOverrunInterruptEnable.Value;
 
             private void DoTransfer()
             {
@@ -447,62 +460,62 @@ namespace Antmicro.Renode.Peripherals.DMA
             {
                 switch(size)
                 {
-                    case TransferSize.Bits32:
-                        return TransferType.DoubleWord;
-                    case TransferSize.Bits16:
-                        return TransferType.Word;
-                    case TransferSize.Bits8:
-                    default:
-                        return TransferType.Byte;
+                case TransferSize.Bits32:
+                    return TransferType.DoubleWord;
+                case TransferSize.Bits16:
+                    return TransferType.Word;
+                case TransferSize.Bits8:
+                default:
+                    return TransferType.Byte;
                 }
             }
-
-            private IValueRegisterField monitoredFIFOlevel;
-
-            //Channel Control CxCR
-            private IFlagRegisterField channelEnable;
-            private IFlagRegisterField channelReset;
-            private IFlagRegisterField channelSuspend;
-            private IFlagRegisterField transferCompleteInterruptEnable;
-            private IFlagRegisterField halfTransferInterruptEnable;
-            private IFlagRegisterField dataTransferErrorInterruptEnable;
-            private IFlagRegisterField updateLinkTransferErrorInterruptEnable;
-            private IFlagRegisterField userSettingErrorInterruptEnable;
-            private IFlagRegisterField completedSuspensionInterruptEnable;
-            private IFlagRegisterField triggerOverrunInterruptEnable;
-            private IEnumRegisterField<Priority> priorityLevel;
-
-            private IValueRegisterField linkedListBaseAddress;
-
-            //Transfer Register CxTR 1&2
-            private IFlagRegisterField sourceIncrementingBurst;
-            private IFlagRegisterField destinationIncrementingBurst;
-            private IValueRegisterField sourceBurstLength;
-            private IValueRegisterField destinationBurstLength;
-            private IEnumRegisterField<TransferSize> sourceDataWidth;
-            private IEnumRegisterField<TransferSize> destinationDataWith;
-            private IEnumRegisterField<HardwareRequestSelection> hardwareRequestSelection;
-            private IFlagRegisterField softwareRequest;
-            private IFlagRegisterField blockHardwareRequest;
-            private IEnumRegisterField<TriggerEventInputSelection> triggerEventInputSelection;
-            private IValueRegisterField transferCompleteEventMode;
-
-            private IValueRegisterField blockNumberDataBytesFromSource;
-            private IValueRegisterField sourceAddress;
-            private IValueRegisterField destinationAddress;
-
-            // Linked list address
-            private IValueRegisterField lowSignificantAddress;
-            private IFlagRegisterField updateLLRfromMemory;
-            private IFlagRegisterField updateDARfromMemory;
-            private IFlagRegisterField updateSARfromMemory;
-            private IFlagRegisterField updateBR1fromMemory;
-            private IFlagRegisterField updateTR2fromMemory;
-            private IFlagRegisterField updateTR1fromMemory;
 
             private ulong currentSourceAddress;
             private ulong currentDestinationAddress;
             private ulong originalBlockNumberDataBytesFromSource;
+
+            private readonly IValueRegisterField monitoredFIFOlevel;
+
+            //Channel Control CxCR
+            private readonly IFlagRegisterField channelEnable;
+            private readonly IFlagRegisterField channelReset;
+            private readonly IFlagRegisterField channelSuspend;
+            private readonly IFlagRegisterField transferCompleteInterruptEnable;
+            private readonly IFlagRegisterField halfTransferInterruptEnable;
+            private readonly IFlagRegisterField dataTransferErrorInterruptEnable;
+            private readonly IFlagRegisterField updateLinkTransferErrorInterruptEnable;
+            private readonly IFlagRegisterField userSettingErrorInterruptEnable;
+            private readonly IFlagRegisterField completedSuspensionInterruptEnable;
+            private readonly IFlagRegisterField triggerOverrunInterruptEnable;
+            private readonly IEnumRegisterField<Priority> priorityLevel;
+
+            private readonly IValueRegisterField linkedListBaseAddress;
+
+            //Transfer Register CxTR 1&2
+            private readonly IFlagRegisterField sourceIncrementingBurst;
+            private readonly IFlagRegisterField destinationIncrementingBurst;
+            private readonly IValueRegisterField sourceBurstLength;
+            private readonly IValueRegisterField destinationBurstLength;
+            private readonly IEnumRegisterField<TransferSize> sourceDataWidth;
+            private readonly IEnumRegisterField<TransferSize> destinationDataWith;
+            private readonly IEnumRegisterField<HardwareRequestSelection> hardwareRequestSelection;
+            private readonly IFlagRegisterField softwareRequest;
+            private readonly IFlagRegisterField blockHardwareRequest;
+            private readonly IEnumRegisterField<TriggerEventInputSelection> triggerEventInputSelection;
+            private readonly IValueRegisterField transferCompleteEventMode;
+
+            private readonly IValueRegisterField blockNumberDataBytesFromSource;
+            private readonly IValueRegisterField sourceAddress;
+            private readonly IValueRegisterField destinationAddress;
+
+            // Linked list address
+            private readonly IValueRegisterField lowSignificantAddress;
+            private readonly IFlagRegisterField updateLLRfromMemory;
+            private readonly IFlagRegisterField updateDARfromMemory;
+            private readonly IFlagRegisterField updateSARfromMemory;
+            private readonly IFlagRegisterField updateBR1fromMemory;
+            private readonly IFlagRegisterField updateTR2fromMemory;
+            private readonly IFlagRegisterField updateTR1fromMemory;
 
             private readonly DoubleWordRegisterCollection registers;
             private readonly STM32WBA55_GPDMA parent;

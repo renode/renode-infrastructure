@@ -6,6 +6,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Time;
 
@@ -29,9 +30,9 @@ namespace Antmicro.Renode.EventRecording
         }
 
         public string Name { get; private set; }
+
         public TimeInterval Timestamp { get; private set; }
 
         public readonly Delegate Handler;
     }
 }
-

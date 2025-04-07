@@ -6,11 +6,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals;
-using NUnit.Framework;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Memory;
+
+using NUnit.Framework;
 
 namespace Antmicro.Renode.UnitTests
 {
@@ -27,13 +27,13 @@ namespace Antmicro.Renode.UnitTests
                 machine.SystemBus.Unregister(peripheral);
 
                 machine.SystemBus.Register(peripheral, new BusPointRegistration(0x0));
-                machine.PeripheralsGroups.GetOrCreate("test-group", new [] { peripheral });
+                machine.PeripheralsGroups.GetOrCreate("test-group", new[] { peripheral });
 
                 try
                 {
                     machine.SystemBus.Unregister(peripheral);
                 }
-                catch (RegistrationException)
+                catch(RegistrationException)
                 {
                     return;
                 }
@@ -63,9 +63,9 @@ namespace Antmicro.Renode.UnitTests
             {
                 try
                 {
-                    machine.PeripheralsGroups.GetOrCreate("test-group", new [] { new MappedMemory(machine, 10) });
+                    machine.PeripheralsGroups.GetOrCreate("test-group", new[] { new MappedMemory(machine, 10) });
                 }
-                catch (RegistrationException)
+                catch(RegistrationException)
                 {
                     return;
                 }
@@ -75,4 +75,3 @@ namespace Antmicro.Renode.UnitTests
         }
     }
 }
-

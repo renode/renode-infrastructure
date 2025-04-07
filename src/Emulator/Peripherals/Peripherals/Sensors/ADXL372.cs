@@ -6,13 +6,14 @@
 //
 
 using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.SPI;
-using Antmicro.Renode.Peripherals.Sensor;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Peripherals.I2C;
+using Antmicro.Renode.Peripherals.Sensor;
+using Antmicro.Renode.Peripherals.SPI;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Sensors
 {
@@ -52,18 +53,18 @@ namespace Antmicro.Renode.Peripherals.Sensors
         {
             switch(state)
             {
-                case State.Idle:
-                    address = b;
-                    state = State.Processing;
-                    break;
+            case State.Idle:
+                address = b;
+                state = State.Processing;
+                break;
 
-                case State.Processing:
-                    RegistersCollection.Write(address, b);
-                    address++;
-                    break;
+            case State.Processing:
+                RegistersCollection.Write(address, b);
+                address++;
+                break;
 
-                default:
-                    throw new ArgumentException($"Unexpected state: {state}");
+            default:
+                throw new ArgumentException($"Unexpected state: {state}");
             }
         }
 
@@ -73,18 +74,18 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             switch(state)
             {
-                case State.Idle:
-                    this.Log(LogLevel.Noisy, "Unexpected reading in Idle state");
-                    result = new byte[] { };
-                    break;
+            case State.Idle:
+                this.Log(LogLevel.Noisy, "Unexpected reading in Idle state");
+                result = new byte[] { };
+                break;
 
-                case State.Processing:
-                    result = new byte[] { RegistersCollection.Read(address) };
-                    address++;
-                    break;
+            case State.Processing:
+                result = new byte[] { RegistersCollection.Read(address) };
+                address++;
+                break;
 
-                default:
-                    throw new ArgumentException($"Unexpected state: {state}");
+            default:
+                throw new ArgumentException($"Unexpected state: {state}");
             }
 
             return result;
@@ -101,27 +102,27 @@ namespace Antmicro.Renode.Peripherals.Sensors
             byte result = 0;
             switch(state)
             {
-                case State.Idle:
-                    result = HandleIdle(b);
-                    break;
+            case State.Idle:
+                result = HandleIdle(b);
+                break;
 
-                case State.Reading:
-                    this.NoisyLog("Reading register {0} (0x{0:X})", (Registers)address);
-                    result = RegistersCollection.Read(address);
-                    address++;
-                    break;
+            case State.Reading:
+                this.NoisyLog("Reading register {0} (0x{0:X})", (Registers)address);
+                result = RegistersCollection.Read(address);
+                address++;
+                break;
 
-                case State.Writing:
-                    this.NoisyLog("Writing 0x{0:X} to register {1} (0x{1:X})", b, (Registers)address);
-                    RegistersCollection.Write(address, b);
-                    address++;
-                    break;
+            case State.Writing:
+                this.NoisyLog("Writing 0x{0:X} to register {1} (0x{1:X})", b, (Registers)address);
+                RegistersCollection.Write(address, b);
+                address++;
+                break;
 
-                default:
-                    this.Log(LogLevel.Error, "Received byte in an unexpected state!");
-                    break;
+            default:
+                this.Log(LogLevel.Error, "Received byte in an unexpected state!");
+                break;
             }
-            
+
             this.Log(LogLevel.Noisy, "Transmitting - received 0x{0:X}, sending 0x{1:X} back", b, result);
             return result;
         }
@@ -145,7 +146,9 @@ namespace Antmicro.Renode.Peripherals.Sensors
         }
 
         public double AccelerationX { get; set; }
+
         public double AccelerationY { get; set; }
+
         public double AccelerationZ { get; set; }
 
         public ByteRegisterCollection RegistersCollection { get; }

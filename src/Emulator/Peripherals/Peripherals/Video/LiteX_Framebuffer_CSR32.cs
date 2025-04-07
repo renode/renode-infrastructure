@@ -6,6 +6,7 @@
 //
 
 using System.Linq;
+
 using Antmicro.Renode.Backends.Display;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;

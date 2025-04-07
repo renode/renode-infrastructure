@@ -8,6 +8,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.Bus;
@@ -58,11 +59,17 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         public long Size => 0x1800;
+
         public DoubleWordRegisterCollection RegistersCollection { get; }
+
         public IReadOnlyDictionary<int, IGPIO> Connections { get; }
+
         public GPIO SoftwareIRQ0 => softwareInterrupts[0];
+
         public GPIO SoftwareIRQ1 => softwareInterrupts[1];
+
         public GPIO SoftwareIRQ2 => softwareInterrupts[2];
+
         public GPIO SoftwareIRQ3 => softwareInterrupts[3];
 
         private Dictionary<long, DoubleWordRegister> BuildRegisterMap()

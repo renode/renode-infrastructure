@@ -6,9 +6,9 @@
 //
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Text;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
@@ -16,11 +16,12 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Memory;
 using Antmicro.Renode.Utilities;
+
 using Org.BouncyCastle.Crypto.Digests;
 
 namespace Antmicro.Renode.Peripherals.MemoryControllers
 {
-    public class OpenTitan_ROMController: IDoubleWordPeripheral, IKnownSize
+    public class OpenTitan_ROMController : IDoubleWordPeripheral, IKnownSize
     {
         public OpenTitan_ROMController(MappedMemory rom, string nonce, string key)
         {
@@ -103,6 +104,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 addressKey = temp[0] >> (64 - romIndexWidth);
                 dataNonce = temp[0] << romIndexWidth;
             }
+
             get
             {
                 return "{0:X16}".FormatWith((dataNonce >> romIndexWidth) | (addressKey << (64 - romIndexWidth)));
@@ -118,6 +120,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                     throw new RecoverableException("Unable to parse value. Incorrect Length");
                 }
             }
+
             get
             {
                 return key.Select(x => "{0:X16}".FormatWith(x)).Stringify();
@@ -203,6 +206,11 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             integrityError.Value = expectedDigest.Zip(digest, (b0, b1) => b0 != b1).Any(b => b);
         }
 
+        private ulong[] key;
+
+        private IFlagRegisterField checkerError;
+        private IFlagRegisterField integrityError;
+
         private ulong addressKey;
         private ulong dataNonce;
         private readonly ulong romLengthInWords;
@@ -212,10 +220,6 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
 
         private readonly byte[] digest;
         private readonly byte[] expectedDigest;
-        private ulong[] key;
-
-        private IFlagRegisterField checkerError;
-        private IFlagRegisterField integrityError;
 
         private const int NumberOfDigestRegisters = 8;
         private const int NumberOfScramblingRounds = 2;
@@ -249,6 +253,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 0xc2c1323b, 0x2dcc624c, 0x98505586
             };
         }
+
         #pragma warning disable format
         private enum Registers: long
         {

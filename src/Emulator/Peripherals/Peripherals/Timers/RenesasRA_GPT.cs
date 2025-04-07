@@ -4,17 +4,15 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using System.Linq;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
+
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Core;
 using Antmicro.Renode.Time;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Utilities.Collections;
 
 using TimeDirection = Antmicro.Renode.Time.Direction;
 
@@ -61,6 +59,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
 
         public long Size { get; }
+
         public DoubleWordRegisterCollection RegistersCollection { get; }
 
         // IRQs are bundled in 9 signals per channel in the following order:
@@ -74,6 +73,16 @@ namespace Antmicro.Renode.Peripherals.Timers
         // 7: UDF - underflow
         // 8: PC - count stop
         public IReadOnlyDictionary<int, IGPIO> Connections { get; }
+
+        private IEnumerable<OffsetWithLetter> RangeWithLetters(int start, int count, int step = 1)
+        {
+            for(int i = 0; i < count; ++i)
+            {
+                int offset = start + i * step;
+                var c = (char)('A' + i);
+                yield return new OffsetWithLetter(i, offset, c);
+            }
+        }
 
         private Dictionary<long, DoubleWordRegister> BuildRegisterMap(long commonRegistersOffset)
         {
@@ -348,7 +357,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             foreach(var f in RangeWithLetters(0, 6))
             {
                 statusRegister
-                    .WithFlag(f.offset, name: $"TCF{f.c} (Input Capture/Compare Match Flag {f.c})");
+                    .WithFlag(f.Offset, name: $"TCF{f.Ch} (Input Capture/Compare Match Flag {f.Ch})");
             }
             statusRegister
                 .WithFlag(6, FieldMode.Read | FieldMode.WriteZeroToClear, name: "TCFPO (Overflow Flag)",
@@ -373,8 +382,8 @@ namespace Antmicro.Renode.Peripherals.Timers
             foreach(var r in RangeWithLetters((int)channelOffset + (int)ChannelRegisters.CompareCaptureA, 6, 4))
             {
                 var compareCaptureRegister = new DoubleWordRegister(this)
-                    .WithValueField(0, 32, name: $"GTCCR{r.c}");
-                registerMap.Add(r.offset, compareCaptureRegister);
+                    .WithValueField(0, 32, name: $"GTCCR{r.Ch}");
+                registerMap.Add(r.Offset, compareCaptureRegister);
             }
 
             return registerMap;
@@ -386,22 +395,22 @@ namespace Antmicro.Renode.Peripherals.Timers
             foreach(var f in RangeWithLetters(0, 4, 2))
             {
                 sourceSelectRegister
-                    .WithFlag(f.offset,     name: $"{marker}SGTRG{f.c}R (GTETRG{f.c} Pin Rising Input Source {sourceName} {name} Enable)")
-                    .WithFlag(f.offset + 1, name: $"{marker}SGTRG{f.c}F (GTETRG{f.c} Pin Falling Input Source {sourceName} {name} Enable)");
+                    .WithFlag(f.Offset, name: $"{marker}SGTRG{f.Ch}R (GTETRG{f.Ch} Pin Rising Input Source {sourceName} {name} Enable)")
+                    .WithFlag(f.Offset + 1, name: $"{marker}SGTRG{f.Ch}F (GTETRG{f.Ch} Pin Falling Input Source {sourceName} {name} Enable)");
             }
             foreach(var f in RangeWithLetters(8, 2, 4))
             {
-                var other = f.c == 'A' ? 'B' : 'A';
+                var other = f.Ch == 'A' ? 'B' : 'A';
                 sourceSelectRegister
-                    .WithFlag(f.offset,     name: $"{marker}SC{f.c}RBL (GTIOCn{f.c} Pin Rising Input during GTIOCn{other} Value Low Source {sourceName} {name} Enable)")
-                    .WithFlag(f.offset + 1, name: $"{marker}SC{f.c}RBH (GTIOCn{f.c} Pin Rising Input during GTIOCn{other} Value High Source {sourceName} {name} Enable)")
-                    .WithFlag(f.offset + 2, name: $"{marker}SC{f.c}FBL (GTIOCn{f.c} Pin Falling Input during GTIOCn{other} Value Low Source {sourceName} {name} Enable)")
-                    .WithFlag(f.offset + 3, name: $"{marker}SC{f.c}FBH (GTIOCn{f.c} Pin Falling Input during GTIOCn{other} Value High Source {sourceName} {name} Enable)");
+                    .WithFlag(f.Offset, name: $"{marker}SC{f.Ch}RBL (GTIOCn{f.Ch} Pin Rising Input during GTIOCn{other} Value Low Source {sourceName} {name} Enable)")
+                    .WithFlag(f.Offset + 1, name: $"{marker}SC{f.Ch}RBH (GTIOCn{f.Ch} Pin Rising Input during GTIOCn{other} Value High Source {sourceName} {name} Enable)")
+                    .WithFlag(f.Offset + 2, name: $"{marker}SC{f.Ch}FBL (GTIOCn{f.Ch} Pin Falling Input during GTIOCn{other} Value Low Source {sourceName} {name} Enable)")
+                    .WithFlag(f.Offset + 3, name: $"{marker}SC{f.Ch}FBH (GTIOCn{f.Ch} Pin Falling Input during GTIOCn{other} Value High Source {sourceName} {name} Enable)");
             }
             foreach(var f in RangeWithLetters(16, 8))
             {
                 sourceSelectRegister
-                    .WithFlag(f.offset, name: $"{marker}SELC{f.c} (ELC_GPT{f.c} Event Source {sourceName} {name} Enable)");
+                    .WithFlag(f.Offset, name: $"{marker}SELC{f.Ch} (ELC_GPT{f.Ch} Event Source {sourceName} {name} Enable)");
             }
             if(hasClear)
             {
@@ -417,30 +426,6 @@ namespace Antmicro.Renode.Peripherals.Timers
             return sourceSelectRegister;
         }
 
-        private class OffsetWithLetter
-        {
-            public int index;
-            public int offset;
-            public char c;
-
-            public OffsetWithLetter(int index, int offset, char c)
-            {
-                this.index = index;
-                this.offset = offset;
-                this.c = c;
-            }
-        }
-
-        private IEnumerable<OffsetWithLetter> RangeWithLetters(int start, int count, int step = 1)
-        {
-            for(int i = 0; i < count; ++i)
-            {
-                int offset = start + i * step;
-                var c = (char)('A' + i);
-                yield return new OffsetWithLetter(i, offset, c);
-            }
-        }
-
         private int TotalChannels => numberOf32BitChannels + numberOf16BitChannels;
 
         private readonly IMachine machine;
@@ -448,6 +433,87 @@ namespace Antmicro.Renode.Peripherals.Timers
         private readonly int numberOf16BitChannels;
         private readonly long peripheralClockDFrequency;
         private readonly GPTChannel[] channels;
+
+        public enum Mode
+        {
+            // single buffer or double buffer possible
+            SawWave        = 0b000,
+            // fixed buffer operation
+            SawWaveOneShot = 0b001,
+            // single buffer or double buffer possible
+            // 32-bit transfer at trough
+            TriangleWave1  = 0b100,
+            // single buffer or double buffer possible
+            // 32-bit transfer at crest and trough
+            TriangleWave2  = 0b101,
+            // fixed buffer operation
+            // 64-bit transfer at trough
+            TriangleWave3  = 0b110,
+        }
+
+        public enum Direction
+        {
+            DownCounting = 0,
+            UpCounting   = 1,
+        }
+
+        public enum ChannelRegisters
+        {
+            WriteProtection                   = 0x00,
+            SoftwareStart                     = 0x04,
+            SoftwareStop                      = 0x08,
+            SoftwareClear                     = 0x0C,
+            StartSourceSelect                 = 0x10,
+            StopSourceSelect                  = 0x14,
+            ClearSourceSelect                 = 0x18,
+            UpCountSourceSelect               = 0x1C,
+            DownCountSourceSelect             = 0x20,
+            InputCaptureSourceSelectA         = 0x24,
+            InputCaptureSourceSelectB         = 0x28,
+            TimerControl                      = 0x2C,
+            CountDirectionAndDutySetting      = 0x30,
+            IOControl                         = 0x34,
+            InterruptOutputSetting            = 0x38,
+            Status                            = 0x3C,
+            BufferEnable                      = 0x40,
+            Counter                           = 0x48,
+            CompareCaptureA                   = 0x4C,
+            // CompareCaptureB..F             = 0x50..0x60,
+            CycleSetting                      = 0x64,
+            CycleSettingBuffer                = 0x68,
+            ADConversionStartA                = 0x70,
+            ADConversionStartB                = 0x7C,
+            ADConversionStartBufferA          = 0x74,
+            ADConversionStartBufferB          = 0x80,
+            ADConversionStartDoubleBufferA    = 0x78,
+            ADConversionStartDoubleBufferB    = 0x84,
+            DeadTimeControl                   = 0x88,
+            DeadTimeValue                     = 0x8C,
+            ADConversionStartSignalMonitoring = 0xA4,
+            InterChannelSetting               = 0xB8,
+            PeriodCount                       = 0xBC,
+            OperationEnableBitChannelSelect   = 0xD0,
+            OperationEnableBit                = 0xD4,
+        }
+
+        public enum CommonRegisters
+        {
+            OutputPhaseSwitchingControl       = 0x00,
+        }
+
+        private class OffsetWithLetter
+        {
+            public OffsetWithLetter(int index, int offset, char c)
+            {
+                this.Index = index;
+                this.Offset = offset;
+                this.Ch = c;
+            }
+
+            public int Index;
+            public int Offset;
+            public char Ch;
+        }
 
         private class GPTChannel
         {
@@ -557,6 +623,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             public GPIO[] IRQ { get; }
 
             public bool Overflow { get; set; }
+
             public bool Underflow { get; set; }
 
             public const long InterruptCount = 9;
@@ -587,73 +654,6 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             private const long OvfInterruptIndex = 6;
             private const long UdfInterruptIndex = 7;
-        }
-
-        public enum Mode
-        {
-            // single buffer or double buffer possible
-            SawWave        = 0b000,
-            // fixed buffer operation
-            SawWaveOneShot = 0b001,
-            // single buffer or double buffer possible
-            // 32-bit transfer at trough
-            TriangleWave1  = 0b100,
-            // single buffer or double buffer possible
-            // 32-bit transfer at crest and trough
-            TriangleWave2  = 0b101,
-            // fixed buffer operation
-            // 64-bit transfer at trough
-            TriangleWave3  = 0b110,
-        }
-
-        public enum Direction
-        {
-            DownCounting = 0,
-            UpCounting   = 1,
-        }
-
-        public enum ChannelRegisters
-        {
-            WriteProtection                   = 0x00,
-            SoftwareStart                     = 0x04,
-            SoftwareStop                      = 0x08,
-            SoftwareClear                     = 0x0C,
-            StartSourceSelect                 = 0x10,
-            StopSourceSelect                  = 0x14,
-            ClearSourceSelect                 = 0x18,
-            UpCountSourceSelect               = 0x1C,
-            DownCountSourceSelect             = 0x20,
-            InputCaptureSourceSelectA         = 0x24,
-            InputCaptureSourceSelectB         = 0x28,
-            TimerControl                      = 0x2C,
-            CountDirectionAndDutySetting      = 0x30,
-            IOControl                         = 0x34,
-            InterruptOutputSetting            = 0x38,
-            Status                            = 0x3C,
-            BufferEnable                      = 0x40,
-            Counter                           = 0x48,
-            CompareCaptureA                   = 0x4C,
-            // CompareCaptureB..F             = 0x50..0x60,
-            CycleSetting                      = 0x64,
-            CycleSettingBuffer                = 0x68,
-            ADConversionStartA                = 0x70,
-            ADConversionStartB                = 0x7C,
-            ADConversionStartBufferA          = 0x74,
-            ADConversionStartBufferB          = 0x80,
-            ADConversionStartDoubleBufferA    = 0x78,
-            ADConversionStartDoubleBufferB    = 0x84,
-            DeadTimeControl                   = 0x88,
-            DeadTimeValue                     = 0x8C,
-            ADConversionStartSignalMonitoring = 0xA4,
-            InterChannelSetting               = 0xB8,
-            PeriodCount                       = 0xBC,
-            OperationEnableBitChannelSelect   = 0xD0,
-            OperationEnableBit                = 0xD4,
-        }
-
-        public enum CommonRegisters
-        {
-            OutputPhaseSwitchingControl       = 0x00,
         }
     }
 }

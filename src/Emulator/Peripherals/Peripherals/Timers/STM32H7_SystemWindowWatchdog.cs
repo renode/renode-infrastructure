@@ -6,8 +6,8 @@
 //
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Time;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -53,6 +53,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
 
         public long Size => 0x1000;
+
         public GPIO IRQ { get; } = new GPIO();
 
         private void DefineRegisters()
@@ -165,12 +166,12 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private IValueRegisterField windowValue;
 
+        private readonly LimitTimer watchdogTimer;
+
         private const uint CountdownTriggerResetValue = 0x3F;
         private const uint CountdownTriggerIrqValue = 0x40;
         private const uint DefaultReloadValue = 0x7F - CountdownTriggerIrqValue;
         private const int InternalDivider = 4096;
-
-        private readonly LimitTimer watchdogTimer;
 
         private enum Registers
         {

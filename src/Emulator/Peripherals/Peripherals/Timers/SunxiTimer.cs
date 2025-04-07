@@ -5,7 +5,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-﻿using System;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -81,7 +80,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     return timerStatusRegister.Read();
                 case Registers.LowOscillatorControl:
                     return lowOscillatorControlRegister.Read();
-                default:  
+                default:
                     this.LogUnhandledRead(offset);
                     return 0;
                 }
@@ -132,7 +131,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 case Registers.LowOscillatorControl:
                     lowOscillatorControlRegister.Write(offset, value);
                     break;
-                default:  
+                default:
                     this.LogUnhandledWrite(offset, value);
                     break;
                 }
@@ -202,10 +201,11 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
-        private SunxiTimerUnit[] timers;
         private DoubleWordRegister timerIrqEnableRegister, timerStatusRegister, lowOscillatorControlRegister;
-        private IFlagRegisterField[] timerInterruptEnabled, timerInterruptStatus;
         private long lowOscillatorFrequency;
+
+        private readonly SunxiTimerUnit[] timers;
+        private readonly IFlagRegisterField[] timerInterruptEnabled, timerInterruptStatus;
 
         private const int NumberOfTimerUnits = 2, TimerUnitSize = 0x10, FirstTimerOffset = 0x10, LastTimerOffset = 0x60;
 
@@ -228,6 +228,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     return controlRegister.Read();
                 }
+
                 set
                 {
                     controlRegister.Write((long)Registers.TimerXControl, value);
@@ -259,7 +260,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     break;
                 }
             }
-                
+
             private readonly DoubleWordRegister controlRegister;
             private readonly SunxiTimer timerGroup;
 
@@ -296,4 +297,3 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
     }
 }
-    

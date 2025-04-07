@@ -7,10 +7,8 @@
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Time;
-using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -69,9 +67,11 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
 
         ByteRegisterCollection IProvidesRegisterCollection<ByteRegisterCollection>.RegistersCollection => ByteRegisterCollection;
+
         WordRegisterCollection IProvidesRegisterCollection<WordRegisterCollection>.RegistersCollection => WordRegisterCollection;
 
         public long Size => 0x100;
+
         public long PeripheralClockBFrequency
         {
             get => peripheralClockBFrequency;
@@ -92,7 +92,9 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
 
         public GPIO IRQ { get; }
+
         public GPIO CompareMatchA => channels[0].IRQ;
+
         public GPIO CompareMatchB => channels[1].IRQ;
 
         private void DefineRegisters()
@@ -320,6 +322,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 TrySyncTime();
                 return (ushort)timer.Value;
             }
+
             set
             {
                 timer.Value = value;
@@ -368,6 +371,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
 
         private ByteRegisterCollection ByteRegisterCollection { get; }
+
         private WordRegisterCollection WordRegisterCollection { get; }
 
         private IFlagRegisterField underflowFlag;
@@ -396,25 +400,6 @@ namespace Antmicro.Renode.Peripherals.Timers
             EventPinSelect              = 0x0D,
             CompareMatchFunctionSelect  = 0x0E,
             PinSelect                   = 0x0F,
-        }
-
-        private enum OperatingMode
-        {
-            Timer = 0b000,
-            PulseOutput = 0b001,
-            EventCounter = 0b010,
-            PuleWidthMeasurement = 0b011,
-            PulsePeriodMeasurement = 0b100,
-        }
-
-        private enum CountSource
-        {
-            PeripheralClockB_Div1 = 0b000,
-            PeripheralClockB_Div8 = 0b001,
-            PeripheralClockB_Div2 = 0b011,
-            LowSpeedOnChipOscillator = 0b100,
-            UnderflowEventFromAGT = 0b101,
-            SubClockOscillator = 0b111,
         }
 
         private class CompareChannel
@@ -565,6 +550,25 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             private readonly IPeripheral parent;
             private readonly LimitTimer innerTimer;
+        }
+
+        private enum OperatingMode
+        {
+            Timer = 0b000,
+            PulseOutput = 0b001,
+            EventCounter = 0b010,
+            PuleWidthMeasurement = 0b011,
+            PulsePeriodMeasurement = 0b100,
+        }
+
+        private enum CountSource
+        {
+            PeripheralClockB_Div1 = 0b000,
+            PeripheralClockB_Div8 = 0b001,
+            PeripheralClockB_Div2 = 0b011,
+            LowSpeedOnChipOscillator = 0b100,
+            UnderflowEventFromAGT = 0b101,
+            SubClockOscillator = 0b111,
         }
     }
 }

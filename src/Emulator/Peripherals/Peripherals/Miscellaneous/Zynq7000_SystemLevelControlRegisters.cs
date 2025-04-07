@@ -4,8 +4,8 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -51,12 +51,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Registers.WriteProtectionLock.Define(this)
                 .WithReservedBits(16, 16)
                 .WithValueField(0, 16, FieldMode.Write, name: "LockKey",
-                    writeCallback: (_, val) => ChangeWriteProtection((uint)val, lockKey, true, "lock")
+                    writeCallback: (_, val) => ChangeWriteProtection((uint)val, LockKey, true, "lock")
                 );
             Registers.WriteProtectionUnlock.Define(this)
                 .WithReservedBits(16, 16)
                 .WithValueField(0, 16, FieldMode.Write, name: "UnlockKey",
-                    writeCallback: (_, val) => ChangeWriteProtection((uint)val, unlockKey, false, "unlock")
+                    writeCallback: (_, val) => ChangeWriteProtection((uint)val, UnlockKey, false, "unlock")
                 );
             Registers.WriteProtectionStatus.Define(this)
                 .WithReservedBits(1, 31)
@@ -123,8 +123,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private bool writeProtected;
         private readonly IReadOnlyList<CPUControl> cpuControls;
 
-        private const uint lockKey = 0x767B;
-        private const uint unlockKey = 0xDF0D;
+        private const uint LockKey = 0x767B;
+        private const uint UnlockKey = 0xDF0D;
 
         private class CPUControl
         {
@@ -160,8 +160,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             public bool InReset { get; set; }
 
-            private readonly BaseCPU cpu;
             private bool stopRequested;
+
+            private readonly BaseCPU cpu;
         }
 
         private enum Registers : long

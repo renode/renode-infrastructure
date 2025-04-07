@@ -6,6 +6,7 @@
 //
 
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -79,29 +80,24 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithIgnoredBits(1, 15)
                     .WithReservedBits(16, 16)
                 },
-
                 {(long)Registers.Status, new DoubleWordRegister(this)
                     .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => true, name: "done")
                     .WithReservedBits(1, 31)
                 },
-
                 {(long)Registers.MasterOutSlaveIn, new DoubleWordRegister(this)
                     .WithValueField(0, 8, out masterOutBuffer)
                     // the driver do not limit written value to a single byte, so without ignoring the following bits a warning would be generated
                     .WithIgnoredBits(8, 24)
                 },
-
                 {(long)Registers.MasterInSlaveOut, new DoubleWordRegister(this)
                     .WithValueField(0, 8, out masterInBuffer)
                     // the driver do not limit written value to a single byte, so without ignoring the following bits a warning would be generated
                     .WithIgnoredBits(8, 24)
                 },
-
                 {(long)Registers.Loopback, new DoubleWordRegister(this)
                     .WithFlag(0, out loopbackMode)
                     .WithReservedBits(1, 31)
                 },
-
                 {(long)Registers.ChipSelect, new DoubleWordRegister(this)
                     // for now we support only one device
                     // this should be improved to support more devices

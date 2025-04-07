@@ -5,7 +5,6 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -38,7 +37,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         public ushort Number { get; }
+
         public PrivilegeLevel Mode { get; }
+
         public string Name { get; }
     }
 }

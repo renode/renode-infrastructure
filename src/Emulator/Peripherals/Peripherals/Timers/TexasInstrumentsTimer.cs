@@ -5,11 +5,10 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-﻿using System;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Logging;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Timers
@@ -30,8 +29,8 @@ namespace Antmicro.Renode.Peripherals.Timers
             timerGlobalControlRegister = new DoubleWordRegister(this, 3);
             timerInterruptControlAndStatusRegister = new DoubleWordRegister(this, 0x10001); // the driver expects interrupts to be enabled; inconsistent with timer user's guixde
 
-            timerControlRegister.DefineEnumField<OperationMode>(6, 2, changeCallback: (oldValue, newValue) => OnEnableModeChanged(oldValue, newValue, timer12));
-            timerControlRegister.DefineEnumField<OperationMode>(22, 2, changeCallback: (oldValue, newValue) => OnEnableModeChanged(oldValue, newValue, timer34));
+            timerControlRegister.DefineEnumField<OperationMode>(6, 2, changeCallback: (_, newValue) => OnEnableModeChanged(newValue, timer12));
+            timerControlRegister.DefineEnumField<OperationMode>(22, 2, changeCallback: (_, newValue) => OnEnableModeChanged(newValue, timer34));
             resetOnRead12 = timerControlRegister.DefineFlagField(10);
             resetOnRead34 = timerControlRegister.DefineFlagField(26);
 
@@ -104,7 +103,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             switch((Registers)offset)
             {
             case Registers.PeripheralIdentification12:
-                return peripheralIdentification;
+                return PeripheralIdentification;
             case Registers.TimerCounter12:
                 if(resetOnRead12.Value && timerMode == TimerMode.Unchained32) // only available in 32 bit unchained mode
                 {
@@ -207,7 +206,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
-        private void OnEnableModeChanged(OperationMode oldValue, OperationMode newValue, LimitTimer timer)
+        private void OnEnableModeChanged(OperationMode newValue, LimitTimer timer)
         {
             switch(newValue)
             {
@@ -256,9 +255,9 @@ namespace Antmicro.Renode.Peripherals.Timers
                 else
                 {
                     return (uint)timer12.Value;
-
                 }
             }
+
             set
             {
                 if(timerMode == TimerMode.GeneralPurpose64)
@@ -286,6 +285,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     return (uint)timer34.Value;
                 }
             }
+
             set
             {
                 if(timerMode == TimerMode.GeneralPurpose64)
@@ -300,12 +300,13 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
+        private TimerMode timerMode;
+
         private uint temporaryCounterRegister34, timerPeriod12, timerPeriod34;
         private readonly DoubleWordRegister timerControlRegister, timerGlobalControlRegister, timerInterruptControlAndStatusRegister;
         private readonly IFlagRegisterField resetOnRead12, resetOnRead34, interruptEnable12, interruptEnable34, interruptOccurred12, interruptOccurred34;
-        private TimerMode timerMode;
         private readonly LimitTimer timer12, timer34;
-        private const uint peripheralIdentification = 0x010701;
+        private const uint PeripheralIdentification = 0x010701;
 
         private enum Registers
         {
@@ -342,4 +343,3 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
     }
 }
-

@@ -8,18 +8,20 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
+
 using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Engines;
 using Org.BouncyCastle.Crypto.Prng.Drbg;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
-    public class OpenTitan_CSRNG: BasicDoubleWordPeripheral, IKnownSize
+    public class OpenTitan_CSRNG : BasicDoubleWordPeripheral, IKnownSize
     {
         public OpenTitan_CSRNG(IMachine machine, OpenTitan_EntropySource entropySource) : base(machine)
         {
@@ -76,6 +78,78 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             InstantiateRandom();
 
             readyFlag.Value = true;
+        }
+
+        public long Size => 0x1000;
+
+        public GPIO RequestCompletedIRQ { get; }
+
+        public GPIO EntropyeRequestedIRQ { get; }
+
+        public GPIO HardwareInstanceIRQ { get; }
+
+        public GPIO FatalErrorIRQ { get; }
+
+        public GPIO RecoverableAlert { get; }
+
+        public GPIO FatalAlert { get; }
+
+        public uint ReseedCount => (uint)(drbgEngine?.InternalReseedCount ?? 0u);
+
+        public uint[] InternalV
+        {
+            get
+            {
+                if(drbgEngine == null)
+                {
+                    return new uint[0];
+                }
+                return ByteArrayToRegisterOrderedUIntArray(drbgEngine.InternalV);
+            }
+        }
+
+        public uint[] InternalKey
+        {
+            get
+            {
+                if(drbgEngine == null)
+                {
+                    return new uint[0];
+                }
+                return ByteArrayToRegisterOrderedUIntArray(drbgEngine.InternalKey);
+            }
+        }
+
+        public RandomType WorkingMode
+        {
+            get
+            {
+                return workingMode;
+            }
+
+            set
+            {
+                workingMode = value;
+                if(workingMode != RandomType.HardwareCompliant)
+                {
+                    fipsCompliant.Value = true;
+                    InstantiateRandom();
+                }
+            }
+        }
+
+        public string FixedData
+        {
+            set
+            {
+                if(value.Length % 8 != 0)
+                {
+                    throw new RecoverableException("The data must be aligned to a 4 bytes (double word)");
+                }
+                fixedData = Misc.HexStringToByteArray(value);
+                Misc.EndiannessSwapInPlace(fixedData, sizeof(uint));
+                InstantiateRandom();
+            }
         }
 
         private void ReinstantiateInternal()
@@ -151,7 +225,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     if(val != InternalStateSoftwareStateSelection)
                     {
                         this.Log(LogLevel.Error, "This internal state is not being tracked. The only internal state implemented is the SoftwareIdState ({})", InternalStateSoftwareStateSelection);
-
                     }
                     internalStateReadFifo.Clear();
                     FillFifoWithInternalState();
@@ -208,72 +281,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Registers.StateMachineState.Define(this, 0x4e)
                .WithTag("MAIN_SM_STATE", 0, 8)
                .WithReservedBits(8, 24);
-        }
-
-        public long Size => 0x1000;
-
-        public GPIO RequestCompletedIRQ { get; }
-        public GPIO EntropyeRequestedIRQ { get; }
-        public GPIO HardwareInstanceIRQ { get; }
-        public GPIO FatalErrorIRQ { get; }
-
-        public GPIO RecoverableAlert { get; }
-        public GPIO FatalAlert { get; }
-
-        public uint ReseedCount => (uint)(drbgEngine?.InternalReseedCount ?? 0u);
-        public uint[] InternalV
-        {
-            get
-            {
-                if(drbgEngine == null)
-                {
-                    return new uint[0];
-                }
-                return ByteArrayToRegisterOrderedUIntArray(drbgEngine.InternalV);
-            }
-        }
-
-        public uint[] InternalKey
-        {
-            get
-            {
-                if(drbgEngine == null)
-                {
-                    return new uint[0];
-                }
-                return ByteArrayToRegisterOrderedUIntArray(drbgEngine.InternalKey);
-            }
-        }
-
-        public RandomType WorkingMode
-        {
-            get
-            {
-                return workingMode;
-            }
-            set
-            {
-                workingMode = value;
-                if(workingMode != RandomType.HardwareCompliant)
-                {
-                    fipsCompliant.Value = true;
-                    InstantiateRandom();
-                }
-            }
-        }
-
-        public string FixedData
-        {
-            set
-            {
-                if(value.Length % 8 != 0)
-                {
-                    throw new RecoverableException("The data must be aligned to a 4 bytes (double word)");
-                }
-                fixedData = Misc.HexStringToByteArray(value);
-                Misc.EndiannessSwapInPlace(fixedData, sizeof(uint));
-                InstantiateRandom();
-            }
         }
 
         private void InstantiateRandom()
@@ -371,28 +378,28 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             var useEntropy = !flags[0];
             switch(command)
             {
-                case CommandName.Instantiate:
-                    ExecuteInstantiate(commandLength, useEntropy);
-                    break;
-                case CommandName.Generate:
-                    ExecuteGenerate(generateLength);
-                    break;
-                case CommandName.Uninstantiate:
-                    if(commandLength != 0)
-                    {
-                        this.Log(LogLevel.Warning, "The 'Uninstantiate' command can be used only with a zero 'clen' value.");
-                    }
-                    ExecuteUninstantiate();
-                    break;
-                case CommandName.Reseed:
-                    ExecuteReseed(commandLength, useEntropy);
-                    break;
-                case CommandName.Update:
-                    ExecuteUpdate(commandLength);
-                    break;
-                default:
-                    this.Log(LogLevel.Error, "Got an illegal application command. Ignoring");
-                    return;
+            case CommandName.Instantiate:
+                ExecuteInstantiate(commandLength, useEntropy);
+                break;
+            case CommandName.Generate:
+                ExecuteGenerate(generateLength);
+                break;
+            case CommandName.Uninstantiate:
+                if(commandLength != 0)
+                {
+                    this.Log(LogLevel.Warning, "The 'Uninstantiate' command can be used only with a zero 'clen' value.");
+                }
+                ExecuteUninstantiate();
+                break;
+            case CommandName.Reseed:
+                ExecuteReseed(commandLength, useEntropy);
+                break;
+            case CommandName.Update:
+                ExecuteUpdate(commandLength);
+                break;
+            default:
+                this.Log(LogLevel.Error, "Got an illegal application command. Ignoring");
+                return;
             }
             requestCompletedInterrupt.Value = true;
             UpdateInterrupts();
@@ -409,29 +416,29 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             var generatedBytes = new byte[bytesToGenerate];
             switch(WorkingMode)
             {
-                case RandomType.PseudoRandom:
-                case RandomType.PseudoRandomFixedSeed:
-                    randomSource.NextBytes(generatedBytes);
-                    break;
-                case RandomType.FixedData:
-                    Misc.FillByteArrayWithArray(generatedBytes, fixedData);
-                    break;
-                case RandomType.HardwareCompliant:
-                    if(drbgEngine.Generate(generatedBytes, additionalInput: null, predictionResistant: false) == -1)
-                    {
-                        requestFailedFlag.Value = true;
-                        generatedValidFlag.Value = false;
-                        fatalErrorInterrupt.Value = true;
-                        UpdateInterrupts();
-                        return;
-                    };
-                    // The CtrSP800Drbg returns bytes in reversed order
-                    Array.Reverse(generatedBytes);
-                    // Peripheral expects the entropy units to be in a reversed order
-                    ReorderEntropyUnits(ref generatedBytes);
-                    break;
-                default:
-                    throw new ArgumentException("Unknown type of simulation mode");
+            case RandomType.PseudoRandom:
+            case RandomType.PseudoRandomFixedSeed:
+                randomSource.NextBytes(generatedBytes);
+                break;
+            case RandomType.FixedData:
+                Misc.FillByteArrayWithArray(generatedBytes, fixedData);
+                break;
+            case RandomType.HardwareCompliant:
+                if(drbgEngine.Generate(generatedBytes, additionalInput: null, predictionResistant: false) == -1)
+                {
+                    requestFailedFlag.Value = true;
+                    generatedValidFlag.Value = false;
+                    fatalErrorInterrupt.Value = true;
+                    UpdateInterrupts();
+                    return;
+                };
+                // The CtrSP800Drbg returns bytes in reversed order
+                Array.Reverse(generatedBytes);
+                // Peripheral expects the entropy units to be in a reversed order
+                ReorderEntropyUnits(ref generatedBytes);
+                break;
+            default:
+                throw new ArgumentException("Unknown type of simulation mode");
             }
             var generatedDoubleWords = new uint[bytesToGenerate / sizeof(uint)];
             Buffer.BlockCopy(generatedBytes, 0, generatedDoubleWords, 0, bytesToGenerate);
@@ -453,7 +460,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             var temp = new byte[BytesPerEntropyUnit];
             var unitsCount = inputData.Length / BytesPerEntropyUnit;
             int insertOffset = (unitsCount - 1) * BytesPerEntropyUnit;
-            for(var unit = 0; unit <= (unitsCount -1)/2; unit++)
+            for(var unit = 0; unit <= (unitsCount - 1) / 2; unit++)
             {
                 var sourceOffset = unit * BytesPerEntropyUnit;
                 Buffer.BlockCopy(inputData, sourceOffset, temp, 0, BytesPerEntropyUnit);
@@ -625,6 +632,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private bool NoMoreDataToConsume => appendedDataCount == 0;
 
+        private CtrSP800Drbg drbgEngine;
+
         private IFlagRegisterField requestCompletedInterrupt;
         private IFlagRegisterField entropyRequestInterrupt;
         private IFlagRegisterField hardwareInstanceInterrupt;
@@ -649,18 +658,16 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private Action<uint[]> appendedDataAction;
         private Random randomSource;
         private RandomType workingMode;
+
+        private readonly OpenTitan_EntropySource entropySource;
         private readonly Queue<uint> generatedBitsFifo;
         private readonly FakeEntropy fakeEntropy;
         private readonly List<uint> appendedData;
         private readonly Queue<uint> internalStateReadFifo;
 
-        private CtrSP800Drbg drbgEngine;
-
         private const int BytesPerEntropyUnit = 16;
         private const int DefaultSeedSizeInBytes = 48;
         private const int InternalStateSoftwareStateSelection = 2;
-
-        private readonly OpenTitan_EntropySource entropySource;
 
         #pragma warning disable format
         public enum RandomType
@@ -702,7 +709,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
         #pragma warning restore format
 
-        class FakeEntropy: IEntropySource
+        class FakeEntropy : IEntropySource
         {
             public FakeEntropy(int defaultLengthInBytes, bool predictionResistant = false)
             {
@@ -710,15 +717,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 this.predictionResistant = predictionResistant;
             }
 
-            public bool IsPredictionResistant => predictionResistant;
-
-            // Entropy size in bits
-            public int EntropySize => entropySizeInBytes * 8;
-
             public void SetEntropySizeInBytes(int size)
             {
                 entropySizeInBytes = size;
             }
+
             public void SetEntropySource(Func<byte[]> function)
             {
                 this.function = function;
@@ -733,9 +736,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 return function();
             }
 
+            public bool IsPredictionResistant => predictionResistant;
+
+            // Entropy size in bits
+            public int EntropySize => entropySizeInBytes * 8;
+
             private Func<byte[]> function;
             private int entropySizeInBytes;
-            private bool predictionResistant;
+            private readonly bool predictionResistant;
         }
     }
 }

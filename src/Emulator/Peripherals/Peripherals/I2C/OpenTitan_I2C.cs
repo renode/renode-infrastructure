@@ -7,6 +7,7 @@
 
 using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -68,7 +69,6 @@ namespace Antmicro.Renode.Peripherals.I2C
                     .WithReservedBits(16, 16)
                     .WithChangeCallback((_, __) => UpdateInterrupts())
                 },
-
                 {(long)Registers.InterruptEnable, new DoubleWordRegister(this, 0x0)
                     .WithFlag(0,  out formatWatermarkInterruptEnable,     name: "fmt_watermark")
                     .WithFlag(1,  out rxWatermarkInterruptEnable,         name: "rx_watermark")
@@ -89,7 +89,6 @@ namespace Antmicro.Renode.Peripherals.I2C
                     .WithReservedBits(16, 16)
                     .WithChangeCallback((_, __) => UpdateInterrupts())
                 },
-
                 {(long)Registers.InterruptTest, new DoubleWordRegister(this, 0x0)
                     .WithFlag(0,  FieldMode.Write, writeCallback: (_, val) => { if(val) formatWatermarkInterruptState.Value = true; },     name: "fmt_watermark")
                     .WithFlag(1,  FieldMode.Write, writeCallback: (_, val) => { if(val) rxWatermarkInterruptState.Value = true; },         name: "rx_watermark")
@@ -110,12 +109,10 @@ namespace Antmicro.Renode.Peripherals.I2C
                     .WithReservedBits(16,16)
                     .WithChangeCallback((_, __) => UpdateInterrupts())
                 },
-
                 {(long)Registers.AlertTest, new DoubleWordRegister(this, 0x0)
                     .WithFlag(0, FieldMode.Write, writeCallback: (_, val) => { if(val) FatalAlert.Blink(); }, name: "fatal_fault")
                     .WithReservedBits(1, 31)
                 },
-
                 {(long)Registers.Control, new DoubleWordRegister(this, 0x0)
                     .WithFlag(0, out enabledHost, name: "ENABLEHOST")
                     .WithFlag(1, out enabledTarget, name: "ENABLETARGET")
@@ -136,7 +133,6 @@ namespace Antmicro.Renode.Peripherals.I2C
                         }
                     })
                 },
-
                 {(long)Registers.Status, new DoubleWordRegister(this, 0x3c )
                     .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => (formatFifo.Count == MaximumFifoDepth), name: "FMTFULL")
                     .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => (rxFifo.Count == MaximumFifoDepth), name: "RXFULL")
@@ -150,7 +146,6 @@ namespace Antmicro.Renode.Peripherals.I2C
                     .WithFlag(9, FieldMode.Read, valueProviderCallback: _ => (acquiredFifo.Count == 0), name: "ACQEMPTY")
                     .WithReservedBits(10, 22)
                 },
-
                 {(long)Registers.ReadData, new DoubleWordRegister(this, 0x0)
                     .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ =>
                         {
@@ -162,7 +157,6 @@ namespace Antmicro.Renode.Peripherals.I2C
                         }, name: "RDATA")
                     .WithReservedBits(8, 24)
                 },
-
                 {(long)Registers.FormatData, new DoubleWordRegister(this, 0x0)
                     .WithValueField(0, 8, out formatByte, name: "FBYTE")
                     .WithFlag(8, out startFlag, name: "START")
@@ -173,7 +167,6 @@ namespace Antmicro.Renode.Peripherals.I2C
                     .WithReservedBits(13, 19)
                     .WithWriteCallback((_, __) => EnqueueFormat())
                 },
-
                 {(long)Registers.FifoControl, new DoubleWordRegister(this, 0x0)
                     .WithFlag(0, FieldMode.Write, writeCallback: (_, val) => { if(val) rxFifo.Clear(); }, name: "RXRST")
                     .WithFlag(1, FieldMode.Write, writeCallback: (_, val) => { if(val) formatFifo.Clear(); }, name: "FMTRST")
@@ -184,7 +177,6 @@ namespace Antmicro.Renode.Peripherals.I2C
                     .WithReservedBits(9, 23)
                     .WithWriteCallback((_, __) => UpdateWatermarks())
                  },
-
                 {(long)Registers.FifoStatus, new DoubleWordRegister(this, 0x0)
                     .WithValueField(0, 7, FieldMode.Read, valueProviderCallback: (_) => (uint)formatFifo.Count, name: "FMTLVL")
                     .WithReservedBits(7, 1)
@@ -195,49 +187,40 @@ namespace Antmicro.Renode.Peripherals.I2C
                     .WithValueField(24, 7, FieldMode.Read, valueProviderCallback: (_) => (uint)acquiredFifo.Count, name:"ACQLVL")
                     .WithReservedBits(31, 1)
                  },
-
                 {(long)Registers.OverrideControl, new DoubleWordRegister(this, 0x0)
                     .WithTaggedFlag("TXOVRDEN", 0)
                     .WithTaggedFlag("SCLVAL", 1)
                     .WithTaggedFlag("SDAVAL", 2)
                     .WithReservedBits(3, 29)
                  },
-
                 {(long)Registers.OversampledValues, new DoubleWordRegister(this, 0x0)
                     .WithTag("SCL_RX", 0, 16)
                     .WithTag("SDA_RX", 16, 16)
                  },
-
                 {(long)Registers.Timing0, new DoubleWordRegister(this, 0x0)
                     .WithTag("THIGH", 0, 16)
                     .WithTag("TLOW", 16, 16)
                  },
-
                 {(long)Registers.Timing1, new DoubleWordRegister(this, 0x0)
                     .WithTag("T_R", 0, 16)
                     .WithTag("T_F", 16, 16)
                  },
-
                 {(long)Registers.Timing2, new DoubleWordRegister(this, 0x0)
                     .WithTag("TSU_STA", 0, 16)
                     .WithTag("THD_STA", 16, 16)
                  },
-
                 {(long)Registers.Timing3, new DoubleWordRegister(this, 0x0)
                     .WithTag("TSU_DAT", 0, 16)
                     .WithTag("THD_DAT", 16, 16)
                  },
-
                 {(long)Registers.Timing4, new DoubleWordRegister(this, 0x0)
                     .WithTag("TSU_STO", 0, 16)
                     .WithTag("T_BUF", 16, 16)
                  },
-
                 {(long)Registers.ClockStrechingTimeout, new DoubleWordRegister(this, 0x0)
                     .WithTag("VAL", 0, 31)
                     .WithTaggedFlag("EN", 31)
                  },
-
                 {(long)Registers.TargetId, new DoubleWordRegister(this, 0x0)
                     .WithTag("ADDRESS0", 0, 7)
                     .WithTag("MASK0", 7, 7)
@@ -245,7 +228,6 @@ namespace Antmicro.Renode.Peripherals.I2C
                     .WithTag("MASK1", 21, 7)
                     .WithReservedBits(28, 4)
                  },
-
                 {(long)Registers.AcquiredData, new DoubleWordRegister(this, 0x0)
                     .WithValueField(0, 10, FieldMode.Read, valueProviderCallback: (_) =>
                         {
@@ -253,12 +235,10 @@ namespace Antmicro.Renode.Peripherals.I2C
                         }, name:"ABYTE and SIGNAL")
                     .WithReservedBits(10, 22)
                 },
-
                 {(long)Registers.TransmitData, new DoubleWordRegister(this, 0x0)
                     .WithValueField(0, 8, FieldMode.Write, writeCallback: (_, val) => EnqueueTx((byte)val), name: "TXDATA")
                     .WithReservedBits(8, 24)
                  },
-
                 {(long)Registers.TargetClockStretching, new DoubleWordRegister(this, 0x0)
                     .WithTaggedFlag("I2C_STRETCH_CTRL_EN_ADDR_TX", 0)
                     .WithTaggedFlag("I2C_STRETCH_CTRL_EN_ADDR_ACQ", 1)
@@ -266,7 +246,6 @@ namespace Antmicro.Renode.Peripherals.I2C
                     .WithTaggedFlag("I2C_STRETCH_CTRL_STOP_ACQ", 3)
                     .WithReservedBits(4, 28)
                 },
-
                 {(long)Registers.HostClockGenerationTimeout, new DoubleWordRegister(this, 0x0)
                     .WithTag("HOST_TIMEOUT_CTRL", 0, 32)
                 }
@@ -354,20 +333,35 @@ namespace Antmicro.Renode.Peripherals.I2C
         public long Size => 0x1000;
 
         public GPIO FormatWatermarkIRQ { get; }
+
         public GPIO RxWatermarkIRQ { get; }
+
         public GPIO FormatOverflowIRQ { get; }
+
         public GPIO RxOverflowIRQ { get; }
+
         public GPIO NakIRQ { get; }
+
         public GPIO SclInterfaceIRQ { get; }
+
         public GPIO SdaInterfaceIRQ { get; }
+
         public GPIO StretchTimeoutIRQ { get; }
+
         public GPIO SdaUnstableIRQ { get; }
+
         public GPIO TransactionCompleteIRQ { get; }
+
         public GPIO TxEmptyIRQ { get; }
+
         public GPIO TxNonEmptyIRQ { get; }
+
         public GPIO TxOverflowIRQ { get; }
+
         public GPIO AcqOverflowIRQ { get; }
+
         public GPIO AckAfterStopIRQ { get; }
+
         public GPIO HostTimeoutIRQ { get; }
 
         public GPIO FatalAlert { get; }
@@ -402,16 +396,16 @@ namespace Antmicro.Renode.Peripherals.I2C
         {
             switch(value)
             {
-                case WatermarkLevel.Char1:
-                    return 1;
-                case WatermarkLevel.Char4:
-                    return 4;
-                case WatermarkLevel.Char8:
-                    return 8;
-                case WatermarkLevel.Char16:
-                    return 16;
-                default:
-                    throw new ArgumentException("Illegal value");
+            case WatermarkLevel.Char1:
+                return 1;
+            case WatermarkLevel.Char4:
+                return 4;
+            case WatermarkLevel.Char8:
+                return 8;
+            case WatermarkLevel.Char16:
+                return 16;
+            default:
+                throw new ArgumentException("Illegal value");
             }
         }
 
@@ -434,60 +428,60 @@ namespace Antmicro.Renode.Peripherals.I2C
 
             switch(currentState)
             {
-                case State.Idle:
-                    if(!command.StartOnly)
-                    {
-                        this.Log(LogLevel.Error, "Only a format code with a start is accepted in the idle state");
-                        return;
-                    }
-                    if(!TryGetByAddress(command.Data, out selectedSlave))
-                    {
-                        this.Log(LogLevel.Error, "No device available under address {0}. All further transactions until STOP will be ignored", command.Data);
-                        nakInterruptState.Value = true;
-                        UpdateInterrupts();
-                        currentState = State.Error;
-                        return;
-                    }
-                    currentState = State.AwaitingAddress;
-                    break;
-                case State.AwaitingAddress:
-                    if(!command.NoFlags)
-                    {
-                        this.Log(LogLevel.Error, "Expected slave address, but some of the flags are set [{0}]. Skipping", command.FlagsToString());
-                        return;
-                    }
-                    transactionAddress = (byte)command.Data;
-                    currentState = State.Transaction;
-                    break;
-                case State.Transaction:
-                    if(command.IsRead)
-                    {
-                        ReadFromSlave(command.Data);
-                    }
-                    else if(command.NoFlags)
-                    {
-                        WriteToSlave(command.Data);
-                    }
-                    else
-                    {
-                        this.Log(LogLevel.Error, "Incorrect command in the 'Transaction' state. Expected read flag, or no flag when writing. Flags set: {0}", command.FlagsToString());
-                        return;
-                    }
+            case State.Idle:
+                if(!command.StartOnly)
+                {
+                    this.Log(LogLevel.Error, "Only a format code with a start is accepted in the idle state");
+                    return;
+                }
+                if(!TryGetByAddress(command.Data, out selectedSlave))
+                {
+                    this.Log(LogLevel.Error, "No device available under address {0}. All further transactions until STOP will be ignored", command.Data);
+                    nakInterruptState.Value = true;
+                    UpdateInterrupts();
+                    currentState = State.Error;
+                    return;
+                }
+                currentState = State.AwaitingAddress;
+                break;
+            case State.AwaitingAddress:
+                if(!command.NoFlags)
+                {
+                    this.Log(LogLevel.Error, "Expected slave address, but some of the flags are set [{0}]. Skipping", command.FlagsToString());
+                    return;
+                }
+                transactionAddress = (byte)command.Data;
+                currentState = State.Transaction;
+                break;
+            case State.Transaction:
+                if(command.IsRead)
+                {
+                    ReadFromSlave(command.Data);
+                }
+                else if(command.NoFlags)
+                {
+                    WriteToSlave(command.Data);
+                }
+                else
+                {
+                    this.Log(LogLevel.Error, "Incorrect command in the 'Transaction' state. Expected read flag, or no flag when writing. Flags set: {0}", command.FlagsToString());
+                    return;
+                }
 
-                    if(command.StopFlag)
-                    {
-                        selectedSlave.FinishTransmission();
-                        CleanupTransaction();
-                    }
-                    break;
-                case State.Error:
-                    if(command.StopFlag)
-                    {
-                        CleanupTransaction();
-                    }
-                    break;
-                default:
-                    throw new ArgumentException($"Illegal state: {currentState}");
+                if(command.StopFlag)
+                {
+                    selectedSlave.FinishTransmission();
+                    CleanupTransaction();
+                }
+                break;
+            case State.Error:
+                if(command.StopFlag)
+                {
+                    CleanupTransaction();
+                }
+                break;
+            default:
+                throw new ArgumentException($"Illegal state: {currentState}");
             }
         }
 
@@ -584,52 +578,57 @@ namespace Antmicro.Renode.Peripherals.I2C
             txFifo.Clear();
         }
 
-        private IFlagRegisterField formatWatermarkInterruptState;
-        private IFlagRegisterField rxWatermarkInterruptState;
-        private IFlagRegisterField formatOverflowInterruptState;
-        private IFlagRegisterField rxOverflowInterruptState;
-        private IFlagRegisterField nakInterruptState;
-        private IFlagRegisterField sclInterfaceInterruptState;
-        private IFlagRegisterField sdaInterfaceInterruptState;
-        private IFlagRegisterField stretchTimeoutInterruptState;
-        private IFlagRegisterField sdaUnstableInterruptState;
-        private IFlagRegisterField transactionCompleteInterruptState;
-        private IFlagRegisterField txEmptyInterruptState;
-        private IFlagRegisterField txNonEmptyInterruptState;
-        private IFlagRegisterField txOverflowInterruptState;
-        private IFlagRegisterField acqOverflowInterruptState;
-        private IFlagRegisterField ackAfterStopInterruptState;
-        private IFlagRegisterField hostTimeoutInterruptState;
-        private IFlagRegisterField formatWatermarkInterruptEnable;
-        private IFlagRegisterField rxWatermarkInterruptEnable;
-        private IFlagRegisterField formatOverflowInterruptEnable;
-        private IFlagRegisterField rxOverflowInterruptEnable;
-        private IFlagRegisterField nakInterruptEnable;
-        private IFlagRegisterField sclInterfaceInterruptEnable;
-        private IFlagRegisterField sdaInterfaceInterruptEnable;
-        private IFlagRegisterField stretchTimeoutInterruptEnable;
-        private IFlagRegisterField sdaUnstableInterruptEnable;
-        private IFlagRegisterField transactionCompleteInterruptEnable;
-        private IFlagRegisterField txEmptyInterruptEnable;
-        private IFlagRegisterField txNonEmptyInterruptEnable;
-        private IFlagRegisterField txOverflowInterruptEnable;
-        private IFlagRegisterField acqOverflowInterruptEnable;
-        private IFlagRegisterField ackAfterStopInterruptEnable;
-        private IFlagRegisterField hostTimeoutInterruptEnable;
-
-        private IFlagRegisterField enabledHost;
-        private IFlagRegisterField enabledTarget;
-        private IFlagRegisterField startFlag;
-        private IFlagRegisterField stopFlag;
-        private IFlagRegisterField readFlag;
-        private IFlagRegisterField readContinueFlag;
-        private IFlagRegisterField nakOkFlag;
-        private IValueRegisterField formatByte;
-
-        private IEnumRegisterField<WatermarkLevel> rxWatermarkLevel;
-        private IEnumRegisterField<WatermarkLevel> fmtWatermarkLevel;
         private uint rxWatermark;
         private uint fmtWatermark;
+
+        private II2CPeripheral selectedSlave;
+        private byte? transactionAddress;
+        private State currentState;
+
+        private readonly IFlagRegisterField formatWatermarkInterruptState;
+        private readonly IFlagRegisterField rxWatermarkInterruptState;
+        private readonly IFlagRegisterField formatOverflowInterruptState;
+        private readonly IFlagRegisterField rxOverflowInterruptState;
+        private readonly IFlagRegisterField nakInterruptState;
+        private readonly IFlagRegisterField sclInterfaceInterruptState;
+        private readonly IFlagRegisterField sdaInterfaceInterruptState;
+        private readonly IFlagRegisterField stretchTimeoutInterruptState;
+        private readonly IFlagRegisterField sdaUnstableInterruptState;
+        private readonly IFlagRegisterField transactionCompleteInterruptState;
+        private readonly IFlagRegisterField txEmptyInterruptState;
+        private readonly IFlagRegisterField txNonEmptyInterruptState;
+        private readonly IFlagRegisterField txOverflowInterruptState;
+        private readonly IFlagRegisterField acqOverflowInterruptState;
+        private readonly IFlagRegisterField ackAfterStopInterruptState;
+        private readonly IFlagRegisterField hostTimeoutInterruptState;
+        private readonly IFlagRegisterField formatWatermarkInterruptEnable;
+        private readonly IFlagRegisterField rxWatermarkInterruptEnable;
+        private readonly IFlagRegisterField formatOverflowInterruptEnable;
+        private readonly IFlagRegisterField rxOverflowInterruptEnable;
+        private readonly IFlagRegisterField nakInterruptEnable;
+        private readonly IFlagRegisterField sclInterfaceInterruptEnable;
+        private readonly IFlagRegisterField sdaInterfaceInterruptEnable;
+        private readonly IFlagRegisterField stretchTimeoutInterruptEnable;
+        private readonly IFlagRegisterField sdaUnstableInterruptEnable;
+        private readonly IFlagRegisterField transactionCompleteInterruptEnable;
+        private readonly IFlagRegisterField txEmptyInterruptEnable;
+        private readonly IFlagRegisterField txNonEmptyInterruptEnable;
+        private readonly IFlagRegisterField txOverflowInterruptEnable;
+        private readonly IFlagRegisterField acqOverflowInterruptEnable;
+        private readonly IFlagRegisterField ackAfterStopInterruptEnable;
+        private readonly IFlagRegisterField hostTimeoutInterruptEnable;
+
+        private readonly IFlagRegisterField enabledHost;
+        private readonly IFlagRegisterField enabledTarget;
+        private readonly IFlagRegisterField startFlag;
+        private readonly IFlagRegisterField stopFlag;
+        private readonly IFlagRegisterField readFlag;
+        private readonly IFlagRegisterField readContinueFlag;
+        private readonly IFlagRegisterField nakOkFlag;
+        private readonly IValueRegisterField formatByte;
+
+        private readonly IEnumRegisterField<WatermarkLevel> rxWatermarkLevel;
+        private readonly IEnumRegisterField<WatermarkLevel> fmtWatermarkLevel;
 
         private readonly DoubleWordRegisterCollection registersCollection;
         private readonly Queue<FormatIndicator> formatFifo;
@@ -637,38 +636,7 @@ namespace Antmicro.Renode.Peripherals.I2C
         private readonly Queue<byte> rxFifo;
         private readonly Queue<byte> txFifo;
 
-        private II2CPeripheral selectedSlave;
-        private byte? transactionAddress;
-        private State currentState;
-
         private const int MaximumFifoDepth = 64;
-
-        public enum Registers
-        {
-            InterruptState = 0x0,
-            InterruptEnable = 0x4,
-            InterruptTest = 0x8,
-            AlertTest = 0xc,
-            Control = 0x10,
-            Status = 0x14,
-            ReadData = 0x18,
-            FormatData = 0x1c,
-            FifoControl = 0x20,
-            FifoStatus = 0x24,
-            OverrideControl = 0x28,
-            OversampledValues = 0x2c,
-            Timing0 = 0x30,
-            Timing1 = 0x34,
-            Timing2 = 0x38,
-            Timing3 = 0x3c,
-            Timing4 = 0x40,
-            ClockStrechingTimeout = 0x44,
-            TargetId = 0x48,
-            AcquiredData = 0x4c,
-            TransmitData = 0x50,
-            TargetClockStretching = 0x54,
-            HostClockGenerationTimeout = 0x58,
-        }
 
         public struct AcquireFormatIndicator
         {
@@ -709,8 +677,11 @@ namespace Antmicro.Renode.Peripherals.I2C
             }
 
             public byte Data { get; }
+
             public bool ReadFlag { get; }
+
             public bool StartFlag { get; }
+
             public bool StopFlag { get; }
         }
 
@@ -727,14 +698,21 @@ namespace Antmicro.Renode.Peripherals.I2C
             }
 
             public byte Data { get; }
+
             public bool ReadFlag { get; }
+
             public bool ReadContinueFlag { get; }
+
             public bool StartFlag { get; }
+
             public bool StopFlag { get; }
+
             public bool NakOkFlag { get; }
 
             public bool StartOnly => StopFlag == false && ReadFlag == false && ReadContinueFlag == false && StartFlag == true;
+
             public bool IsRead => ReadFlag == true || ReadContinueFlag == true;
+
             public bool NoFlags => StopFlag == false && ReadFlag == false && ReadContinueFlag == false && StartFlag == false;
 
             public override string ToString()
@@ -756,6 +734,33 @@ namespace Antmicro.Renode.Peripherals.I2C
                             ((NakOkFlag ? 1 : 0) << 4);
                 return (uint)(Data | (flags << 8));
             }
+        }
+
+        public enum Registers
+        {
+            InterruptState = 0x0,
+            InterruptEnable = 0x4,
+            InterruptTest = 0x8,
+            AlertTest = 0xc,
+            Control = 0x10,
+            Status = 0x14,
+            ReadData = 0x18,
+            FormatData = 0x1c,
+            FifoControl = 0x20,
+            FifoStatus = 0x24,
+            OverrideControl = 0x28,
+            OversampledValues = 0x2c,
+            Timing0 = 0x30,
+            Timing1 = 0x34,
+            Timing2 = 0x38,
+            Timing3 = 0x3c,
+            Timing4 = 0x40,
+            ClockStrechingTimeout = 0x44,
+            TargetId = 0x48,
+            AcquiredData = 0x4c,
+            TransmitData = 0x50,
+            TargetClockStretching = 0x54,
+            HostClockGenerationTimeout = 0x58,
         }
 
         private enum WatermarkLevel

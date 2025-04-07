@@ -5,12 +5,13 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
+using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Core.Structure.Registers;
-using System.Collections.Generic;
-using System;
 
 namespace Antmicro.Renode.Peripherals.IRQControllers
 {
@@ -80,7 +81,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 break;
             default:
                 interruptPriorityRegisterCollection.Write(offset, value);
-                break; 
+                break;
             }
         }
 
@@ -199,7 +200,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                             interrupts[offset] &= ~InterruptStatus.Pending;
                         }
                     }
-                }    
+                }
                 Update();
             }
         }
@@ -260,7 +261,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             interruptOperationControl = new DoubleWordRegister(this);
             reflectMaskedFiq = interruptOperationControl.DefineFlagField(0, writeCallback: (oldValue, newValue) => Update());
             reflectMaskedIrq = interruptOperationControl.DefineFlagField(1, writeCallback: (oldValue, newValue) => Update());
-            interruptOperationControl.DefineFlagField(2, changeCallback: (oldValue, newValue) => {
+            interruptOperationControl.DefineFlagField(2, changeCallback: (oldValue, newValue) =>
+            {
                 if(newValue)
                 {
                     this.Log(LogLevel.Warning, "Unsupported delayed interrupt enable/disable mode was set.");
@@ -273,13 +275,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             return priorities[number].Value < 2 ? InterruptType.FIQ : InterruptType.IRQ;
         }
 
-        private IValueRegisterField[] priorities;
-        private IFlagRegisterField reflectMaskedIrq, reflectMaskedFiq;
-        private InterruptStatus[] interrupts;
         private DoubleWordRegisterCollection interruptPriorityRegisterCollection;
         private DoubleWordRegister interruptOperationControl;
         private uint entryTableBaseAddress;
         private int bestIrq = -1, bestFiq = -1;
+
+        private IValueRegisterField[] priorities;
+        private IFlagRegisterField reflectMaskedIrq, reflectMaskedFiq;
+        private readonly InterruptStatus[] interrupts;
 
         private enum Registers
         {

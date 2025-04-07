@@ -4,11 +4,8 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System.Collections.Generic;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Time;
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.Timers
@@ -35,14 +32,34 @@ namespace Antmicro.Renode.Peripherals.Timers
             DefineRegisters();
         }
 
+        public override void Reset()
+        {
+            base.Reset();
+            UpdateInterrupts();
+        }
+
+        public void UpdateInterrupts()
+        {
+            var status = false;
+            for(int i = 0; i < NumberOfCaptures; i++)
+            {
+                status |= capturesEnabled[i].Value && capturesPending[i].Value;
+            }
+            IRQ.Set(status);
+        }
+
+        public long Size => 0x1000;
+
+        public GPIO IRQ { get; } = new GPIO();
+
         private void DefineRegisters()
         {
             Registers.Control.Define(this)
-                .WithFlag(0, name: "EN", writeCallback: (_, value) => 
-                    { 
+                .WithFlag(0, name: "EN", writeCallback: (_, value) =>
+                    {
                         foreach(var timer in timers)
                         {
-                           timer.Enabled = value; 
+                            timer.Enabled = value;
                         }
                     }
                 )
@@ -70,7 +87,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 .WithTaggedFlag("FO2", 30)
                 .WithTaggedFlag("FO3", 31)
             ;
-            
+
             Registers.Prescaler.Define(this)
                 .WithTag("PRESCALER", 0, 12)
                 .WithReservedBits(12, 20)
@@ -78,7 +95,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             Registers.Status.Define(this)
                 .WithFlags(0, NumberOfCaptures, out capturesPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "OFn",
-                    writeCallback: (_,__,___) => UpdateInterrupts()) 
+                    writeCallback: (_, __, ___) => UpdateInterrupts())
                 .WithFlag(3, FieldMode.Read | FieldMode.WriteOneToClear, name: "IF1")
                 .WithFlag(4, FieldMode.Read | FieldMode.WriteOneToClear, name: "IF2")
                 .WithFlag(5, FieldMode.Read | FieldMode.WriteOneToClear, name: "ROV")
@@ -87,7 +104,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             Registers.Interrupt.Define(this)
                 .WithFlags(0, NumberOfCaptures, out capturesEnabled, name: "OFnIE",
-                    writeCallback: (_,__,___) => UpdateInterrupts()) 
+                    writeCallback: (_, __, ___) => UpdateInterrupts())
                 .WithTaggedFlag("IF1IE", 3)
                 .WithTaggedFlag("IF2IE", 4)
                 .WithTaggedFlag("ROVIE", 5)
@@ -97,7 +114,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             Registers.OutputCompare1.DefineMany(this, NumberOfCaptures, setup: (register, idx) =>
             {
                 register
-                    .WithValueField(0, 32, name: $"COMP{idx+1}", writeCallback: (_, value) =>
+                    .WithValueField(0, 32, name: $"COMP{idx + 1}", writeCallback: (_, value) =>
                         {
                             timers[idx].Compare = value;
                             // According to documentation, when timer is in Reset mode (FRR flag is set to 0),
@@ -123,29 +140,9 @@ namespace Antmicro.Renode.Peripherals.Timers
             ;
 
             Registers.Count.Define(this)
-                .WithValueField(0, 32, FieldMode.Read,  name: "COUNT", valueProviderCallback: _ => (uint)timers[0].Value)
+                .WithValueField(0, 32, FieldMode.Read, name: "COUNT", valueProviderCallback: _ => (uint)timers[0].Value)
             ;
         }
-
-        public override void Reset()
-        {
-            base.Reset();
-            UpdateInterrupts();
-        }
-
-        public long Size => 0x1000;
-        
-        public void UpdateInterrupts()
-        {
-            var status = false;
-            for(int i = 0; i < NumberOfCaptures; i++)
-            {
-                status |= capturesEnabled[i].Value && capturesPending[i].Value;
-            }
-            IRQ.Set(status);
-        }
-
-        public GPIO IRQ { get; } = new GPIO();
 
         private IFlagRegisterField freeRunModeEnabled;
         private IFlagRegisterField[] capturesEnabled;

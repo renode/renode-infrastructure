@@ -7,6 +7,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -93,6 +94,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         }
 
         public long Size => 0x1000;
+
         public GPIO IRQ { get; } = new GPIO();
 
         // This value can be used to affect the interval between next polling events
@@ -167,15 +169,15 @@ namespace Antmicro.Renode.Peripherals.SPI
                     {
                         switch(functionalMode.Value)
                         {
-                            case ModeOfOperation.AutomaticStatusPolling:
-                            case ModeOfOperation.MemoryMapped:
-                                return 0;
-                            case ModeOfOperation.IndirectRead:
-                            case ModeOfOperation.IndirectWrite:
-                                var count = transferFifo.Count;
-                                return (count > MaximumFifoDepth) ? MaximumFifoDepth : (ulong)count;
-                            default:
-                                throw new InvalidOperationException($"Invalid mode: {functionalMode.Value}");
+                        case ModeOfOperation.AutomaticStatusPolling:
+                        case ModeOfOperation.MemoryMapped:
+                            return 0;
+                        case ModeOfOperation.IndirectRead:
+                        case ModeOfOperation.IndirectWrite:
+                            var count = transferFifo.Count;
+                            return (count > MaximumFifoDepth) ? MaximumFifoDepth : (ulong)count;
+                        default:
+                            throw new InvalidOperationException($"Invalid mode: {functionalMode.Value}");
                         }
                     },
                     name: "FIFO level")
@@ -351,7 +353,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             foreach(var part in bytes)
             {
                 RegisteredPeripheral.Transmit(part);
-            }   
+            }
         }
 
         private void TriggerTransfer(TriggerTransferSource source)
@@ -417,65 +419,65 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             // Check if a write to this register (identified by `source`), should result in data transfer
             // or if the peripheral is still waiting for more data (e.g. it got an instruction but it's missing data)
-            switch (source)
+            switch(source)
             {
-                case TriggerTransferSource.Instruction:
-                    if(skipInstruction && source == TriggerTransferSource.Instruction)
-                    {
-                        // If the source is Instruction register, but instruction stage is disabled, the transfer shouldn't trigger
-                        this.Log(LogLevel.Noisy, "Not transferring, {0} is disabled", nameof(TriggerTransferSource.Instruction));
-                        return false;
-                    }
-                    if(skipAddress && !skipData)
-                    {
-                        // Data without address - let the next stage determine if it's valid
-                        goto case TriggerTransferSource.Address;
-                    }
-                    if(!skipAddress)
-                    {
-                        this.Log(LogLevel.Noisy, "Address is missing, not transferring");
-                        // Wait for address
-                        return false;
-                    }
-                    goto case TriggerTransferSource.Address;
-                case TriggerTransferSource.Address:
-                    if(skipAddress && source == TriggerTransferSource.Address)
-                    {
-                        this.Log(LogLevel.Noisy, "Not transferring, {0} is disabled", nameof(TriggerTransferSource.Address));
-                        return false;
-                    }
-                    if(!skipData && functionalMode.Value == ModeOfOperation.IndirectWrite)
-                    {
-                        this.Log(LogLevel.Noisy, "Data is missing, not transferring");
-                        // Wait for data
-                        return false;
-                    }
-                    // It's safe to break here, instead of jumping to data, since it can be a terminal stage too
-                    break;
-                case TriggerTransferSource.DataWrite:
-                    if(skipData && source == TriggerTransferSource.DataWrite)
-                    {
-                        this.Log(LogLevel.Noisy, "Not transferring, {0} is disabled", nameof(TriggerTransferSource.DataWrite));
-                        return false;
-                    }
-                    break;
-                case TriggerTransferSource.DataRead:
-                    // Polling mode schedules transfers by its own
-                    if(functionalMode.Value == ModeOfOperation.AutomaticStatusPolling)
-                    {
-                        return false;
-                    }
-                    // Only allow Data read to trigger transfer, if there already is a transfer ongoing
-                    // and there was not enough space in the transfer FIFO, so the transfer was suspended
-                    if(remainingBytesToTransfer == null)
-                    {
-                        this.Log(LogLevel.Noisy, "Not transferring, {0} transfer is complete", nameof(TriggerTransferSource.DataRead));
-                        return false;
-                    }
-                    break;
-                default:
-                    this.ErrorLog("Trigger source {0} is unrecognized, not transferring", source);
+            case TriggerTransferSource.Instruction:
+                if(skipInstruction && source == TriggerTransferSource.Instruction)
+                {
+                    // If the source is Instruction register, but instruction stage is disabled, the transfer shouldn't trigger
+                    this.Log(LogLevel.Noisy, "Not transferring, {0} is disabled", nameof(TriggerTransferSource.Instruction));
                     return false;
+                }
+                if(skipAddress && !skipData)
+                {
+                    // Data without address - let the next stage determine if it's valid
+                    goto case TriggerTransferSource.Address;
+                }
+                if(!skipAddress)
+                {
+                    this.Log(LogLevel.Noisy, "Address is missing, not transferring");
+                    // Wait for address
+                    return false;
+                }
+                goto case TriggerTransferSource.Address;
+            case TriggerTransferSource.Address:
+                if(skipAddress && source == TriggerTransferSource.Address)
+                {
+                    this.Log(LogLevel.Noisy, "Not transferring, {0} is disabled", nameof(TriggerTransferSource.Address));
+                    return false;
+                }
+                if(!skipData && functionalMode.Value == ModeOfOperation.IndirectWrite)
+                {
+                    this.Log(LogLevel.Noisy, "Data is missing, not transferring");
+                    // Wait for data
+                    return false;
+                }
+                // It's safe to break here, instead of jumping to data, since it can be a terminal stage too
+                break;
+            case TriggerTransferSource.DataWrite:
+                if(skipData && source == TriggerTransferSource.DataWrite)
+                {
+                    this.Log(LogLevel.Noisy, "Not transferring, {0} is disabled", nameof(TriggerTransferSource.DataWrite));
+                    return false;
+                }
+                break;
+            case TriggerTransferSource.DataRead:
+                // Polling mode schedules transfers by its own
+                if(functionalMode.Value == ModeOfOperation.AutomaticStatusPolling)
+                {
+                    return false;
+                }
+                // Only allow Data read to trigger transfer, if there already is a transfer ongoing
+                // and there was not enough space in the transfer FIFO, so the transfer was suspended
+                if(remainingBytesToTransfer == null)
+                {
+                    this.Log(LogLevel.Noisy, "Not transferring, {0} transfer is complete", nameof(TriggerTransferSource.DataRead));
+                    return false;
+                }
+                break;
+            default:
+                this.ErrorLog("Trigger source {0} is unrecognized, not transferring", source);
+                return false;
             }
             return true;
         }
@@ -484,15 +486,15 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             switch(pollingMatchMode.Value)
             {
-                case PollingMatchMode.AllBits:
-                    // Since XOR returns 1 only on differing bits, zero means no change at all
-                    // AND with the mask, and if equals zero, both values match on all bits
-                    return ((polledUInt ^ pollingReferenceMatch.Value) & pollingMask.Value) == 0;
-                case PollingMatchMode.AnyBit:
-                    // If the diff (AND mask) is equal to the mask bytes, that means there was no single bit matched
-                    return ((polledUInt ^ pollingReferenceMatch.Value) & pollingMask.Value) != pollingMask.Value;
-                default:
-                    throw new InvalidOperationException($"Invalid match mode: {pollingMatchMode.Value}");
+            case PollingMatchMode.AllBits:
+                // Since XOR returns 1 only on differing bits, zero means no change at all
+                // AND with the mask, and if equals zero, both values match on all bits
+                return ((polledUInt ^ pollingReferenceMatch.Value) & pollingMask.Value) == 0;
+            case PollingMatchMode.AnyBit:
+                // If the diff (AND mask) is equal to the mask bytes, that means there was no single bit matched
+                return ((polledUInt ^ pollingReferenceMatch.Value) & pollingMask.Value) != pollingMask.Value;
+            default:
+                throw new InvalidOperationException($"Invalid match mode: {pollingMatchMode.Value}");
             }
         }
 
@@ -509,7 +511,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             {
                 statusMatch.Value = true;
             }
-            
+
             if(!matched || !pollingModeStopOnMatch.Value)
             {
                 var nextEvent = pollingInterval.Value * PollingMultiplier;
@@ -603,49 +605,49 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
         }
 
-        private const int MaximumFifoDepth = 32;
-
         private IFlagRegisterField transferCompleteIrqEnable;
-        private IFlagRegisterField statusMatchInterruptEnable;
-        private IFlagRegisterField fifoThresholdInterruptEnable;
+        private IEnumRegisterField<PollingMatchMode> pollingMatchMode;
 
-        private IFlagRegisterField transferComplete;
-        private IFlagRegisterField statusMatch;
-        private IFlagRegisterField fifoThresholdReached;
-        private IFlagRegisterField pollingModeStopOnMatch;
+        private IEnumRegisterField<ModeOfOperation> functionalMode;
+        private int? remainingBytesToTransfer;
+        private bool skipData = true;
+        private bool skipAlternateBytes = true;
+        private bool skipAddress = true;
+
+        private bool skipInstruction = true;
+        private IValueRegisterField pollingInterval;
+        private IValueRegisterField pollingReferenceMatch;
+
+        private IValueRegisterField pollingMask;
+        // Number of bytes in flash = 2 ** (flashSize + 1)
+        private IValueRegisterField flashSize;
+        private IValueRegisterField alternateBytes;
+        private IValueRegisterField alternateBytesSize;
+        private IValueRegisterField address;
+        private IValueRegisterField dataSize;
+        private IValueRegisterField instruction;
+        private IValueRegisterField fifoThreshold;
 
         // Sizes specified here are always less by one than the real transfer size (that's how the HW handles the registers)
         // e.g. size 0 means that 1 byte is to be transferred
         private IFlagRegisterField enabled;
-        private IValueRegisterField fifoThreshold;
-        private IValueRegisterField instruction;
-        private IValueRegisterField dataSize;
-        private IValueRegisterField address;
+        private IFlagRegisterField pollingModeStopOnMatch;
+        private IFlagRegisterField fifoThresholdReached;
+        private IFlagRegisterField statusMatch;
+
+        private IFlagRegisterField transferComplete;
+        private IFlagRegisterField fifoThresholdInterruptEnable;
+        private IFlagRegisterField statusMatchInterruptEnable;
         private IValueRegisterField addressSize;
-        private IValueRegisterField alternateBytes;
-        private IValueRegisterField alternateBytesSize;
-        // Number of bytes in flash = 2 ** (flashSize + 1)
-        private IValueRegisterField flashSize;
-        
-        private IValueRegisterField pollingMask;
-        private IValueRegisterField pollingReferenceMatch;
-        private IValueRegisterField pollingInterval;
 
-        private bool skipInstruction = true;
-        private bool skipAddress = true;
-        private bool skipAlternateBytes = true;
-        private bool skipData = true;
-        private int? remainingBytesToTransfer;
+        private CancellationTokenSource pollingTokenSource = new CancellationTokenSource();
+
+        private readonly Queue<byte> transferFifo = new Queue<byte>();
         private readonly object locker = new object();
-
-        private IEnumRegisterField<ModeOfOperation> functionalMode;
-        private IEnumRegisterField<PollingMatchMode> pollingMatchMode;
 
         private readonly DoubleWordRegisterCollection registers;
 
-        private readonly Queue<byte> transferFifo = new Queue<byte>();
-
-        private CancellationTokenSource pollingTokenSource = new CancellationTokenSource();
+        private const int MaximumFifoDepth = 32;
 
         private enum TriggerTransferSource
         {

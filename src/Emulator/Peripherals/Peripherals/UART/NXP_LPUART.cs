@@ -6,6 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
@@ -28,7 +29,7 @@ namespace Antmicro.Renode.Peripherals.UART
             SeparateRxIRQ = new GPIO();
             DMA = new GPIO();
             txQueue = new Queue<byte>();
-            if (!Misc.IsPowerOfTwo(fifoSize))
+            if(!Misc.IsPowerOfTwo(fifoSize))
             {
                 throw new ConstructionException($"The `{nameof(fifoSize)}` argument must be a power of 2, given: {fifoSize}.");
             }
@@ -37,13 +38,13 @@ namespace Antmicro.Renode.Peripherals.UART
 
             var registersMap = new Dictionary<long, DoubleWordRegister>();
 
-            if (hasGlobalRegisters)
+            if(hasGlobalRegisters)
             {
                 registersMap.Add((long)GlobalRegs.Global, new DoubleWordRegister(this)
                     .WithReservedBits(0, 1)
                     .WithFlag(1, out reset, name: "RST / Software Reset", writeCallback: (_, val) =>
                         {
-                            if (val)
+                            if(val)
                             {
                                 Reset();
                             }
@@ -66,7 +67,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithFlag(23, out transmitterDMAEnabled, name: "TDMAE / Transmitter DMA Enable")
                 .WithValueField(24, 5, out oversamplingRatio, name: "OSR / Oversampling Ratio", writeCallback: (current, val) =>
                     {
-                        if (1 == val || 2 == val)
+                        if(1 == val || 2 == val)
                         {
                             this.Log(LogLevel.Warning, "Tried to set the Oversampling Ratio to reserved value: 0x{0:X}. Old value kept.", val);
                             oversamplingRatio.Value = current;
@@ -77,7 +78,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTaggedFlag("MAEN1 / Match Address Mode Enable 1", 31)
                 .WithWriteCallback((_, __) =>
                     {
-                        if ((3 >= oversamplingRatio.Value && 6 <= oversamplingRatio.Value) && !bothEdgeSampling.Value)
+                        if((3 >= oversamplingRatio.Value && 6 <= oversamplingRatio.Value) && !bothEdgeSampling.Value)
                         {
                             this.Log(LogLevel.Warning, "Oversampling Ratio set to value: 0x{0:X}, but this requires Both Edge Sampling to be set.", oversamplingRatio.Value);
                         }
@@ -127,9 +128,9 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithFlag(18, out receiverEnabled, name: "RE / Receiver Enable")
                 .WithFlag(19, out transmitterEnabled, name: "TE / Transmitter Enable", writeCallback: (_, val) =>
                     {
-                        if (val)
+                        if(val)
                         {
-                            foreach (var value in txQueue)
+                            foreach(var value in txQueue)
                             {
                                 TransmitData(value);
                             }
@@ -154,7 +155,7 @@ namespace Antmicro.Renode.Peripherals.UART
             registersMap.Add(CommonRegistersOffset + (long)CommonRegs.Data, new DoubleWordRegister(this)
                 .WithValueField(0, 9, valueProviderCallback: _ =>
                     {
-                        if (!this.TryGetCharacter(out var b))
+                        if(!this.TryGetCharacter(out var b))
                         {
                             receiveFifoUnderflowInterrupt.Value = true;
                             this.Log(LogLevel.Warning, "Trying to read form an empty fifo");
@@ -168,16 +169,16 @@ namespace Antmicro.Renode.Peripherals.UART
                     writeCallback: (_, val) =>
                     {
                         var breakCharacter = transmitSpecialCharacter.Value && val == 0;
-                        if (breakCharacter && linBreakDetection.Value)
+                        if(breakCharacter && linBreakDetection.Value)
                         {
                             // We have to broadcast LIN break
                             BroadcastLINBreak?.Invoke();
                         }
-                        else if (transmitterEnabled.Value)
+                        else if(transmitterEnabled.Value)
                         {
                             TransmitData((byte)val);
                         }
-                        else if (txQueue.Count < txMaxBytes)
+                        else if(txQueue.Count < txMaxBytes)
                         {
                             txQueue.Enqueue((byte)val);
 
@@ -189,7 +190,6 @@ namespace Antmicro.Renode.Peripherals.UART
                             this.Log(LogLevel.Warning, "Trying to write to a full Tx FIFO.");
                         }
                         UpdateGPIOOutputs();
-
                     })
                 .WithReservedBits(10, 1)
                 .WithTaggedFlag("IDLINE / Idle Line", 11)
@@ -212,18 +212,18 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithReservedBits(26, 6)
             );
 
-            if (hasFifoRegisters)
+            if(hasFifoRegisters)
             {
                 registersMap.Add(FifoRegistersOffset + (long)FifoRegs.Fifo, new DoubleWordRegister(this)
                     .WithValueField(0, 3, FieldMode.Read, valueProviderCallback: _ => CalculateFIFODatawordsCount(rxFIFOCapacity), name: "RXFIFOSIZE / Receive FIFO Buffer Depth")
                     .WithFlag(3, out receiveFifoEnabled, name: "RXFE / Receive FIFO Enable", writeCallback: (current, val) =>
                         {
-                            if (current != val && (transmitterEnabled.Value || receiverEnabled.Value))
+                            if(current != val && (transmitterEnabled.Value || receiverEnabled.Value))
                             {
                                 this.Log(LogLevel.Warning, "Both CTRL[TE] and CTRL[RE] must be cleared prior to changing this field.");
                                 return;
                             }
-                            if (!val)
+                            if(!val)
                             {
                                 rxMaxBytes = 1;
                                 // assuming that disabling fifo clears it
@@ -237,12 +237,12 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithValueField(4, 3, FieldMode.Read, valueProviderCallback: _ => CalculateFIFODatawordsCount(txFIFOCapacity), name: "TXFIFOSIZE / Transmit FIFO Buffer Depth")
                     .WithFlag(7, out transmitFifoEnabled, name: "TXFE / Transmit FIFO Enable", writeCallback: (current, val) =>
                         {
-                            if (current != val && (transmitterEnabled.Value || receiverEnabled.Value))
+                            if(current != val && (transmitterEnabled.Value || receiverEnabled.Value))
                             {
                                 this.Log(LogLevel.Warning, "Both CTRL[TE] and CTRL[RE] must be cleared prior to changing this field.");
                                 return;
                             }
-                            if (!val)
+                            if(!val)
                             {
                                 txMaxBytes = 1;
                                 // assuming that disabling fifo clears it
@@ -259,14 +259,14 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithReservedBits(13, 1)
                     .WithFlag(14, FieldMode.Write, name: "RXFLUSH / Receive FIFO/Buffer Flush", writeCallback: (_, val) =>
                         {
-                            if (val)
+                            if(val)
                             {
                                 ClearBuffer();
                             }
                         })
                     .WithFlag(15, FieldMode.Write, name: "TXFLUSH / Transmit FIFO/Buffer Flush", writeCallback: (_, val) =>
                         {
-                            if (val)
+                            if(val)
                             {
                                 txQueue.Clear();
                             }
@@ -306,7 +306,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public override void Reset()
         {
-            lock (locker)
+            lock(locker)
             {
                 base.Reset(); // reset clears all buffered characters
                 registers.Reset();
@@ -322,9 +322,9 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public byte ReadByte(long offset)
         {
-            lock (locker)
+            lock(locker)
             {
-                if (!IsDataRegister(offset))
+                if(!IsDataRegister(offset))
                 {
                     this.Log(LogLevel.Warning, "Trying to read byte from {0} (0x{0:X}), not supported", offset);
                     return 0;
@@ -336,9 +336,9 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public void WriteByte(long offset, byte value)
         {
-            lock (locker)
+            lock(locker)
             {
-                if (!IsDataRegister(offset))
+                if(!IsDataRegister(offset))
                 {
                     this.Log(LogLevel.Warning, "Trying to read byte from {0} (0x{0:X}), not supported", offset);
                     return;
@@ -350,7 +350,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public uint ReadDoubleWord(long offset)
         {
-            lock (locker)
+            lock(locker)
             {
                 return registers.Read(offset);
             }
@@ -358,7 +358,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public void WriteDoubleWord(long offset, uint value)
         {
-            lock (locker)
+            lock(locker)
             {
                 registers.Write(offset, value);
             }
@@ -366,30 +366,30 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public override void WriteChar(byte data)
         {
-            lock (locker)
+            lock(locker)
             {
-                if (loopMode.Value)
+                if(loopMode.Value)
                 {
-                    if (receiverSource.Value && transmissionPinDirectionOutNotIn.Value)
+                    if(receiverSource.Value && transmissionPinDirectionOutNotIn.Value)
                     {
                         this.Log(LogLevel.Warning, "Data ignored, uart operates in Single-Wire mode and txPin is set to output. (value: 0x{0:X})", data);
                         return;
                     }
 
-                    if (!receiverSource.Value)
+                    if(!receiverSource.Value)
                     {
                         this.Log(LogLevel.Warning, "Data ignored, uart operates in Loop mode. (value: 0x{0:X})", data);
                         return;
                     }
                 }
 
-                if (receiverOverrun.Value)
+                if(receiverOverrun.Value)
                 {
                     this.Log(LogLevel.Info, "Data ignored, receiver has been overrun. (value: 0x{0:X})", data);
                     return;
                 }
 
-                if (Count >= rxMaxBytes)
+                if(Count >= rxMaxBytes)
                 {
                     this.Log(LogLevel.Info, "rxFIFO/Buffer is overflowing but we are buffering character", data, rxMaxBytes);
                 }
@@ -406,13 +406,6 @@ namespace Antmicro.Renode.Peripherals.UART
             UpdateGPIOOutputs();
         }
 
-        public event Action BroadcastLINBreak;
-        public event Action<BufferState> BufferStateChanged;
-
-        public BufferState BufferState { get; private set; }
-
-        public long Size => 0x30;
-
         public override Bits StopBits => stopBitNumberSelect.Value ? Bits.Two : Bits.One;
 
         public override Parity ParityBit => parityEnabled.Value ? Parity.None : parityType.Value ? Parity.Odd : Parity.Even;
@@ -421,55 +414,19 @@ namespace Antmicro.Renode.Peripherals.UART
             ? 0
             : (uint)(frequency / ((oversamplingRatio.Value == 0 ? 16 : (uint)(oversamplingRatio.Value + 1)) * (uint)baudRateModuloDivisor.Value));
 
+        public BufferState BufferState { get; private set; }
+
+        public long Size => 0x30;
+
         public GPIO IRQ { get; }
+
         public GPIO SeparateRxIRQ { get; }
+
         public GPIO DMA { get; }
 
-        private void UpdateBufferState()
-        {
-            var count = Count;
-            if (count == 0)
-            {
-                BufferState = BufferState.Empty;
-                return;
-            }
+        public event Action BroadcastLINBreak;
 
-            if (receiveFifoEnabled.Value)
-            {
-                if ((ulong)count > receiveWatermark)
-                {
-                    BufferState = BufferState.Ready;
-                    return;
-                }
-            }
-
-            if (count >= rxMaxBytes)
-            {
-                BufferState = BufferState.Full;
-            }
-            BufferState = BufferState.Ready;
-        }
-
-        protected void TransmitData(byte data)
-        {
-            if (!loopMode.Value)
-            {
-                TransmitCharacter(data);
-            }
-            else if (receiverSource.Value)
-            {
-                if (!transmissionPinDirectionOutNotIn.Value)
-                {
-                    this.Log(LogLevel.Warning, "Data not transmitted, uart operates in Single-Wire mode and txPin set to input. (value: 0x{0:X})", data);
-                    return;
-                }
-                TransmitCharacter(data);
-            }
-            else
-            {
-                WriteChar(data);
-            }
-        }
+        public event Action<BufferState> BufferStateChanged;
 
         protected override void CharWritten()
         {
@@ -481,8 +438,26 @@ namespace Antmicro.Renode.Peripherals.UART
             UpdateGPIOOutputs();
         }
 
-        private long CommonRegistersOffset => hasGlobalRegisters ? 0x10 : 0x0;
-        private long FifoRegistersOffset => 0x18 + CommonRegistersOffset;
+        protected void TransmitData(byte data)
+        {
+            if(!loopMode.Value)
+            {
+                TransmitCharacter(data);
+            }
+            else if(receiverSource.Value)
+            {
+                if(!transmissionPinDirectionOutNotIn.Value)
+                {
+                    this.Log(LogLevel.Warning, "Data not transmitted, uart operates in Single-Wire mode and txPin set to input. (value: 0x{0:X})", data);
+                    return;
+                }
+                TransmitCharacter(data);
+            }
+            else
+            {
+                WriteChar(data);
+            }
+        }
 
         private void UpdateGPIOOutputs()
         {
@@ -504,7 +479,7 @@ namespace Antmicro.Renode.Peripherals.UART
             var txComplete = transmissionCompleteInterruptEnabled.Value && (txQueue.Count == 0);
             var txRequest = txOverflow || tx || txComplete;
 
-            if (separateIRQs)
+            if(separateIRQs)
             {
                 SeparateRxIRQ.Set(rxRequest);
                 this.Log(LogLevel.Debug, "Setting SeparateRxIRQ to {0}; rxUnderflow {1}, rx {2}, linBreak {3}", rxRequest, rxUnderflow, rx, linBreak);
@@ -534,7 +509,7 @@ namespace Antmicro.Renode.Peripherals.UART
         private void UpdateFillLevels()
         {
             OnBufferStateChanged();
-            if (transmitFifoEnabled.Value)
+            if(transmitFifoEnabled.Value)
             {
                 transmitDataRegisterEmpty.Value = txQueue.Count <= (int)transmitWatermark;
             }
@@ -547,7 +522,7 @@ namespace Antmicro.Renode.Peripherals.UART
         private void OnBufferStateChanged()
         {
             var state = BufferState;
-            if (latestBufferState != state)
+            if(latestBufferState != state)
             {
                 latestBufferState = state;
                 BufferStateChanged?.Invoke(state);
@@ -561,7 +536,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private uint CalculateFIFODatawordsCount(uint capacity)
         {
-            if (capacity == 1)
+            if(capacity == 1)
             {
                 return 0;
             }
@@ -570,12 +545,44 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private uint DecodeFifoCount(ulong encodedValue)
         {
-            if (encodedValue == 0)
+            if(encodedValue == 0)
             {
                 return 1;
             }
             return (uint)Math.Pow(2, encodedValue + 1);
         }
+
+        private void UpdateBufferState()
+        {
+            var count = Count;
+            if(count == 0)
+            {
+                BufferState = BufferState.Empty;
+                return;
+            }
+
+            if(receiveFifoEnabled.Value)
+            {
+                if((ulong)count > receiveWatermark)
+                {
+                    BufferState = BufferState.Ready;
+                    return;
+                }
+            }
+
+            if(count >= rxMaxBytes)
+            {
+                BufferState = BufferState.Full;
+            }
+            BufferState = BufferState.Ready;
+        }
+
+        private long CommonRegistersOffset => hasGlobalRegisters ? 0x10 : 0x0;
+
+        private long FifoRegistersOffset => 0x18 + CommonRegistersOffset;
+
+        private uint transmitWatermark;
+        private uint receiveWatermark;
 
         private BufferState latestBufferState = BufferState.Empty;
         private int rxMaxBytes = 1;
@@ -618,8 +625,6 @@ namespace Antmicro.Renode.Peripherals.UART
         private readonly bool separateIRQs;
         private readonly uint txFIFOCapacity;
         private readonly uint rxFIFOCapacity;
-        private uint transmitWatermark;
-        private uint receiveWatermark;
 
         private const uint DefaultFIFOSize = 256;
         private const int DataSize = 8;

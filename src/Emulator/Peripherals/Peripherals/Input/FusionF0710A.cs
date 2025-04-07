@@ -6,12 +6,13 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Peripherals.I2C;
+using System.Collections.Generic;
+using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.I2C;
 using Antmicro.Renode.Utilities;
-using System.Linq;
-using System.Collections.Generic;
 
 namespace Antmicro.Renode.Peripherals.Input
 {
@@ -21,7 +22,7 @@ namespace Antmicro.Renode.Peripherals.Input
         {
             IRQ = new GPIO();
         }
-               
+
         public void Write(byte[] data)
         {
             this.DebugLog("Writing {0}.", data.Select(x => x.ToString()).Stringify());
@@ -43,11 +44,11 @@ namespace Antmicro.Renode.Peripherals.Input
                 default:
                     this.Log(LogLevel.Warning, "Unknown write data: {0}.", data.Select(x => x.ToString("X")).Stringify());
                     break;
-                }            
+                }
                 lastCommand = (Command)data[0];
             }
 
-            PressAgainIfNeeded();           
+            PressAgainIfNeeded();
         }
 
         public byte[] Read(int count)
@@ -56,10 +57,10 @@ namespace Antmicro.Renode.Peripherals.Input
             switch(lastCommand)
             {
             case Command.VersionInfoLow:
-                returnValue = new []{ versionInfoLo };
+                returnValue = new[] { versionInfoLo };
                 break;
             case Command.VersionInfo:
-                returnValue = new []{ versionInfo };
+                returnValue = new[] { versionInfo };
                 break;
             case Command.Unset:
             case Command.Reset:
@@ -118,8 +119,8 @@ namespace Antmicro.Renode.Peripherals.Input
             this.DebugLog("Button released at {0}x{1}.", points[0].X, points[0].Y);
         }
 
-        public GPIO IRQ 
-        { 
+        public GPIO IRQ
+        {
             get;
             private set;
         }
@@ -128,7 +129,7 @@ namespace Antmicro.Renode.Peripherals.Input
         {
             get
             {
-                return 0; 
+                return 0;
             }
         }
 
@@ -212,16 +213,22 @@ namespace Antmicro.Renode.Peripherals.Input
                 data[i * 6 + YCoordinateLo] = (byte)points[i].Y;
                 data[i * 6 + PointPressure] = (byte)(points[i].Type == PointType.Down ? 1 : 0);
                 data[i * 6 + DigitIdentifier] = (byte)((points[i].Type == PointType.Down ? 0x1 : 0) | 0x10); //as seen on HW
-
             }
             return data;
         }
-            
-        private Queue<byte[]> readQueue = new Queue<byte[]>();
-        private readonly TouchedPoint[] points = new TouchedPoint[2];
+
         private byte[] currentRetValue;
         private bool pressed;
         private bool readItAlready;
+
+        private Command lastCommand;
+
+        //Fake data, update when needed.
+        private readonly byte versionInfo = 0x1;
+        private readonly byte versionInfoLo = 0x2;
+
+        private readonly Queue<byte[]> readQueue = new Queue<byte[]>();
+        private readonly TouchedPoint[] points = new TouchedPoint[2];
 
         private const int XCoordinateHi = 1;
         private const int XCoordinateLo = 2;
@@ -230,12 +237,12 @@ namespace Antmicro.Renode.Peripherals.Input
         private const int PointPressure = 5;
         private const int DigitIdentifier = 6;
 
-        private Command lastCommand;
-
-        //Fake data, update when needed.
-        private byte versionInfo = 0x1;
-        private byte versionInfoLo = 0x2;
-
+        private struct TouchedPoint
+        {
+            public UInt16 X;
+            public UInt16 Y;
+            public PointType Type;
+        }
 
         private enum Command : byte
         {
@@ -246,13 +253,6 @@ namespace Antmicro.Renode.Peripherals.Input
             ScanComplete = 0x11
         }
 
-        private struct TouchedPoint
-        {
-            public UInt16 X;
-            public UInt16 Y;
-            public PointType Type;
-        }
-
         private enum PointType
         {
             Up = 0,
@@ -260,4 +260,3 @@ namespace Antmicro.Renode.Peripherals.Input
         }
     }
 }
-

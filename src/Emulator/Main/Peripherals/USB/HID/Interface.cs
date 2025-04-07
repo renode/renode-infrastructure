@@ -4,9 +4,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
 
@@ -27,33 +24,34 @@ namespace Antmicro.Renode.Core.USB.HID
             RegisterSubdescriptor(HID_Descriptor, 0);
         }
 
-        public HID.Descriptor HID_Descriptor { get; }
-        public ReportDescriptor HID_ReportDescriptor { get; }
-
         public override BitStream HandleRequest(SetupPacket packet)
         {
             switch(packet.Type)
             {
-                case PacketType.Standard:
-                    return HandleStandardRequest(packet.Direction, (StandardRequest)packet.Request, packet.Value);
-                case PacketType.Class:
-                    return HandleClassRequest(packet.Direction, (HidClassRequest)packet.Request, packet.Value);
-                default:
-                    device.Log(LogLevel.Warning, "Unsupported type: 0x{0:X}", packet.Type);
-                    return BitStream.Empty;
+            case PacketType.Standard:
+                return HandleStandardRequest(packet.Direction, (StandardRequest)packet.Request, packet.Value);
+            case PacketType.Class:
+                return HandleClassRequest((HidClassRequest)packet.Request);
+            default:
+                device.Log(LogLevel.Warning, "Unsupported type: 0x{0:X}", packet.Type);
+                return BitStream.Empty;
             }
         }
 
-        private BitStream HandleClassRequest(Direction direction, HidClassRequest request, ushort value)
+        public HID.Descriptor HID_Descriptor { get; }
+
+        public ReportDescriptor HID_ReportDescriptor { get; }
+
+        private BitStream HandleClassRequest(HidClassRequest request)
         {
             switch(request)
             {
-                case HidClassRequest.SetIdle:
-                    // we simply ignore this as we don't implement any repeated interrupts at all
-                    return BitStream.Empty;
-                default:
-                    device.Log(LogLevel.Warning, "Unsupported class request: 0x{0:X}", request);
-                    return BitStream.Empty;
+            case HidClassRequest.SetIdle:
+                // we simply ignore this as we don't implement any repeated interrupts at all
+                return BitStream.Empty;
+            default:
+                device.Log(LogLevel.Warning, "Unsupported class request: 0x{0:X}", request);
+                return BitStream.Empty;
             }
         }
 
@@ -61,16 +59,16 @@ namespace Antmicro.Renode.Core.USB.HID
         {
             switch(request)
             {
-                case StandardRequest.GetDescriptor:
-                    if(direction != Direction.DeviceToHost)
-                    {
-                        device.Log(LogLevel.Warning, "Unexpected standard request direction");
-                        return BitStream.Empty;
-                    }
-                    return HandleGetDescriptor(value);
-                default:
-                    device.Log(LogLevel.Warning, "Unsupported standard request: 0x{0:X}", request);
+            case StandardRequest.GetDescriptor:
+                if(direction != Direction.DeviceToHost)
+                {
+                    device.Log(LogLevel.Warning, "Unexpected standard request direction");
                     return BitStream.Empty;
+                }
+                return HandleGetDescriptor(value);
+            default:
+                device.Log(LogLevel.Warning, "Unsupported standard request: 0x{0:X}", request);
+                return BitStream.Empty;
             }
         }
 
@@ -80,13 +78,13 @@ namespace Antmicro.Renode.Core.USB.HID
 
             switch(descriptorType)
             {
-                case DescriptorType.HID:
-                    return HID_Descriptor.GetDescriptor(false);
-                case DescriptorType.Report:
-                    return HID_ReportDescriptor.GetDescriptor(false);
-                default:
-                    device.Log(LogLevel.Warning, "Unsupported descriptor type: 0x{0:X}", descriptorType);
-                    return BitStream.Empty;
+            case DescriptorType.HID:
+                return HID_Descriptor.GetDescriptor(false);
+            case DescriptorType.Report:
+                return HID_ReportDescriptor.GetDescriptor(false);
+            default:
+                device.Log(LogLevel.Warning, "Unsupported descriptor type: 0x{0:X}", descriptorType);
+                return BitStream.Empty;
             }
         }
 

@@ -5,16 +5,13 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Collections.Generic;
-using System.Dynamic;
 using System.IO;
-using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.USB;
 using Antmicro.Renode.Core.USB.MSC;
 using Antmicro.Renode.Core.USB.MSC.BOT;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Extensions.Utilities.USBIP;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Storage;
@@ -74,7 +71,7 @@ namespace Antmicro.Renode.Peripherals.USB
                             out deviceToHostEndpoint))
                 );
 
-                hostToDeviceEndpoint.DataWritten += HandleInput;
+            hostToDeviceEndpoint.DataWritten += HandleInput;
         }
 
         public void Dispose()
@@ -87,16 +84,16 @@ namespace Antmicro.Renode.Peripherals.USB
             this.Log(LogLevel.Debug, "Received a packet of {0} bytes in {1} mode.", packet.Length, mode);
             switch(mode)
             {
-                case Mode.Command:
-                    HandleCommand(packet);
-                    break;
+            case Mode.Command:
+                HandleCommand(packet);
+                break;
 
-                case Mode.Data:
-                    HandleData(packet);
-                    break;
+            case Mode.Data:
+                HandleData(packet);
+                break;
 
-                default:
-                    throw new ArgumentException($"Unexpected mode: {mode}");
+            default:
+                throw new ArgumentException($"Unexpected mode: {mode}");
             }
         }
 
@@ -110,6 +107,7 @@ namespace Antmicro.Renode.Peripherals.USB
         }
 
         public USBDeviceCore USBCore { get; }
+
         public uint BlockSize { get; }
 
         private void SendResult(BulkOnlyTransportCommandBlockWrapper commandBlockWrapper, CommandStatus status = CommandStatus.Success, uint dataResidue = 0)
@@ -158,59 +156,59 @@ namespace Antmicro.Renode.Peripherals.USB
             this.Log(LogLevel.Noisy, "Decoded command: {0}", command);
             switch(command)
             {
-                case SCSICommand.TestUnitReady:
-                    SendResult(commandBlockWrapper);
-                    break;
-                case SCSICommand.Inquiry:
-                    // this is just an empty stub
-                    SendData(new byte[36]);
-                    SendResult(commandBlockWrapper);
-                    break;
-                case SCSICommand.ReadCapacity:
-                    var result = new ReadCapcity10Result
-                    {
-                        BlockLengthInBytes = BlockSize,
-                        ReturnedLogicalBlockAddress = (uint)(dataBackend.Length / BlockSize - 1)
-                    };
-                    SendData(Packet.Encode(result));
-                    SendResult(commandBlockWrapper);
-                    break;
-                case SCSICommand.Read10:
-                    var cmd = Packet.DecodeDynamic<IReadWrite10Command>(packet, BulkOnlyTransportCommandBlockWrapper.CommandOffset);
-                    this.Log(LogLevel.Noisy, "Command args: LogicalBlockAddress: 0x{0:x}, TransferLength: {1}", (uint)cmd.LogicalBlockAddress, (ushort)cmd.TransferLength);
-                    var bytesCount = (int)(cmd.TransferLength * BlockSize);
-                    var readPosition = (long)cmd.LogicalBlockAddress * BlockSize;
-                    dataBackend.Position = readPosition;
-                    var data = dataBackend.ReadBytes(bytesCount);
-                    this.Log(LogLevel.Noisy, "Reading {0} bytes from address 0x{1:x}", bytesCount, readPosition);
-                    SendData(data);
-                    SendResult(commandBlockWrapper, CommandStatus.Success, (uint)(commandBlockWrapper.DataTransferLength - data.Length));
-                    break;
-                case SCSICommand.Write10:
-                    // the actual write will be triggered after receiving the next packet with data
-                    // we should not send result now
-                    writeCommandWrapper = commandBlockWrapper;
-                    writeCommandDescriptor = Packet.DecodeDynamic<IReadWrite10Command>(packet, BulkOnlyTransportCommandBlockWrapper.CommandOffset);
-                    var position = (long)((dynamic)writeCommandDescriptor).LogicalBlockAddress * BlockSize;
-                    dataBackend.Position = position;
-                    bytesToWrite = (uint)((dynamic)writeCommandDescriptor).TransferLength * BlockSize;
-                    this.Log(LogLevel.Noisy, "Preparing to write {1} bytes of data at address: 0x{0:x}", dataBackend.Position, bytesToWrite);
-                    mode = Mode.Data;
-                    break;
-                case SCSICommand.ModeSense6:
-                    // this is just an empty stub
-                    SendData(new byte[192]);
-                    SendResult(commandBlockWrapper);
-                    break;
-                case SCSICommand.RequestSense:
-                    // this is just an empty stub
-                    SendData(new byte[commandBlockWrapper.DataTransferLength]);
-                    SendResult(commandBlockWrapper);
-                    break;
-                default:
-                    this.Log(LogLevel.Warning, "Unsupported SCSI command: {0}", command);
-                    SendResult(commandBlockWrapper, CommandStatus.Failure, commandBlockWrapper.DataTransferLength);
-                    break;
+            case SCSICommand.TestUnitReady:
+                SendResult(commandBlockWrapper);
+                break;
+            case SCSICommand.Inquiry:
+                // this is just an empty stub
+                SendData(new byte[36]);
+                SendResult(commandBlockWrapper);
+                break;
+            case SCSICommand.ReadCapacity:
+                var result = new ReadCapcity10Result
+                {
+                    BlockLengthInBytes = BlockSize,
+                    ReturnedLogicalBlockAddress = (uint)(dataBackend.Length / BlockSize - 1)
+                };
+                SendData(Packet.Encode(result));
+                SendResult(commandBlockWrapper);
+                break;
+            case SCSICommand.Read10:
+                var cmd = Packet.DecodeDynamic<IReadWrite10Command>(packet, BulkOnlyTransportCommandBlockWrapper.CommandOffset);
+                this.Log(LogLevel.Noisy, "Command args: LogicalBlockAddress: 0x{0:x}, TransferLength: {1}", (uint)cmd.LogicalBlockAddress, (ushort)cmd.TransferLength);
+                var bytesCount = (int)(cmd.TransferLength * BlockSize);
+                var readPosition = (long)cmd.LogicalBlockAddress * BlockSize;
+                dataBackend.Position = readPosition;
+                var data = dataBackend.ReadBytes(bytesCount);
+                this.Log(LogLevel.Noisy, "Reading {0} bytes from address 0x{1:x}", bytesCount, readPosition);
+                SendData(data);
+                SendResult(commandBlockWrapper, CommandStatus.Success, (uint)(commandBlockWrapper.DataTransferLength - data.Length));
+                break;
+            case SCSICommand.Write10:
+                // the actual write will be triggered after receiving the next packet with data
+                // we should not send result now
+                writeCommandWrapper = commandBlockWrapper;
+                writeCommandDescriptor = Packet.DecodeDynamic<IReadWrite10Command>(packet, BulkOnlyTransportCommandBlockWrapper.CommandOffset);
+                var position = (long)((dynamic)writeCommandDescriptor).LogicalBlockAddress * BlockSize;
+                dataBackend.Position = position;
+                bytesToWrite = (uint)((dynamic)writeCommandDescriptor).TransferLength * BlockSize;
+                this.Log(LogLevel.Noisy, "Preparing to write {1} bytes of data at address: 0x{0:x}", dataBackend.Position, bytesToWrite);
+                mode = Mode.Data;
+                break;
+            case SCSICommand.ModeSense6:
+                // this is just an empty stub
+                SendData(new byte[192]);
+                SendResult(commandBlockWrapper);
+                break;
+            case SCSICommand.RequestSense:
+                // this is just an empty stub
+                SendData(new byte[commandBlockWrapper.DataTransferLength]);
+                SendResult(commandBlockWrapper);
+                break;
+            default:
+                this.Log(LogLevel.Warning, "Unsupported SCSI command: {0}", command);
+                SendResult(commandBlockWrapper, CommandStatus.Failure, commandBlockWrapper.DataTransferLength);
+                break;
             }
         }
 

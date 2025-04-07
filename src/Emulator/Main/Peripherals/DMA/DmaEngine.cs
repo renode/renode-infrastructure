@@ -7,6 +7,7 @@
 //
 using System;
 using System.Linq;
+
 using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Memory;
@@ -51,9 +52,9 @@ namespace Antmicro.Renode.Peripherals.DMA
             {
                 if(request.IncrementReadAddress)
                 {
-                        // Transfer Units |  1  |  2  |  3  |  4  |
-                        // Source         |  A  |  B  |  C  |  D  |
-                        // Copied         |  A  |  B  |  C  |  D  |
+                    // Transfer Units |  1  |  2  |  3  |  4  |
+                    // Source         |  A  |  B  |  C  |  D  |
+                    // Copied         |  A  |  B  |  C  |  D  |
                     sysbus.ReadBytes(sourceAddress, request.Size, buffer, 0, context: context);
                     response.ReadAddress += (ulong)request.Size;
                 }
@@ -187,4 +188,3 @@ namespace Antmicro.Renode.Peripherals.DMA
         private readonly IBusController sysbus;
     }
 }
-

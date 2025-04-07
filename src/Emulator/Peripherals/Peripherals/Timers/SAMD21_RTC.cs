@@ -7,8 +7,8 @@
 using System;
 
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Logging;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
 
@@ -23,12 +23,6 @@ namespace Antmicro.Renode.Peripherals.Timers
             DefineRegisters();
         }
 
-        public ByteRegisterCollection RegistersCollection { get; }
-
-        public GPIO IRQ { get; } = new GPIO();
-
-        public long Size => 0x20;
-
         public byte ReadByte(long offset)
         {
             return RegistersCollection.Read(offset);
@@ -39,25 +33,31 @@ namespace Antmicro.Renode.Peripherals.Timers
             RegistersCollection.Write(offset, value);
         }
 
+        public ByteRegisterCollection RegistersCollection { get; }
+
+        public GPIO IRQ { get; } = new GPIO();
+
+        public long Size => 0x20;
+
         protected override void OnLimitReached()
         {
             base.OnLimitReached();
 
             var dateTime = new DateTime(
-                (int)clock.year,
-                (int)clock.month,
-                (int)clock.day,
-                (int)clock.hours,
-                (int)clock.minutes,
-                (int)clock.seconds
+                (int)clock.Year,
+                (int)clock.Month,
+                (int)clock.Day,
+                (int)clock.Hours,
+                (int)clock.Minutes,
+                (int)clock.Seconds
             ).AddSeconds(1);
 
-            clock.year = (uint)dateTime.Year;
-            clock.month = (uint)dateTime.Month;
-            clock.day = (uint)dateTime.Day;
-            clock.hours = (uint)dateTime.Hour;
-            clock.minutes = (uint)dateTime.Minute;
-            clock.seconds = (uint)dateTime.Second;
+            clock.Year = (uint)dateTime.Year;
+            clock.Month = (uint)dateTime.Month;
+            clock.Day = (uint)dateTime.Day;
+            clock.Hours = (uint)dateTime.Hour;
+            clock.Minutes = (uint)dateTime.Minute;
+            clock.Seconds = (uint)dateTime.Second;
 
             if(clock.Equals(alarm))
             {
@@ -129,80 +129,80 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             Registers.Clock0.Define(this)
                 .WithValueField(0, 6, name: "SECONDS[5:0]",
-                    valueProviderCallback: _ => clock.seconds,
-                    writeCallback: (_, value) => clock.seconds = (uint)value)
+                    valueProviderCallback: _ => clock.Seconds,
+                    writeCallback: (_, value) => clock.Seconds = (uint)value)
                 .WithValueField(6, 2, name: "MINUTES[1:0]",
-                    valueProviderCallback: _ => BitHelper.GetValue(clock.minutes, 0, 2),
-                    writeCallback: (_, value) => BitHelper.SetMaskedValue(ref clock.minutes, (uint)value, 0, 2))
+                    valueProviderCallback: _ => BitHelper.GetValue(clock.Minutes, 0, 2),
+                    writeCallback: (_, value) => BitHelper.SetMaskedValue(ref clock.Minutes, (uint)value, 0, 2))
             ;
 
             Registers.Clock1.Define(this)
                 .WithValueField(0, 4, name: "MINUTES[5:2]",
-                    valueProviderCallback: _ => BitHelper.GetValue(clock.minutes, 2, 4),
-                    writeCallback: (_, value) => BitHelper.SetMaskedValue(ref clock.minutes, (uint)value, 2, 4))
+                    valueProviderCallback: _ => BitHelper.GetValue(clock.Minutes, 2, 4),
+                    writeCallback: (_, value) => BitHelper.SetMaskedValue(ref clock.Minutes, (uint)value, 2, 4))
                 .WithValueField(4, 4, name: "HOURS[3:0]",
-                    valueProviderCallback: _ => BitHelper.GetValue(clock.hours, 0, 2),
-                    writeCallback: (_, value) => BitHelper.SetMaskedValue(ref clock.hours, (uint)value, 0, 4))
+                    valueProviderCallback: _ => BitHelper.GetValue(clock.Hours, 0, 2),
+                    writeCallback: (_, value) => BitHelper.SetMaskedValue(ref clock.Hours, (uint)value, 0, 4))
             ;
 
             Registers.Clock2.Define(this)
                 .WithValueField(0, 1, name: "HOURS[4]",
-                    valueProviderCallback: _ => BitHelper.GetValue(clock.hours, 4, 1),
-                    writeCallback: (_, value) => BitHelper.SetMaskedValue(ref clock.hours, (uint)value, 4, 1))
+                    valueProviderCallback: _ => BitHelper.GetValue(clock.Hours, 4, 1),
+                    writeCallback: (_, value) => BitHelper.SetMaskedValue(ref clock.Hours, (uint)value, 4, 1))
                 .WithValueField(1, 5, name: "DAY[4:0]",
-                    valueProviderCallback: _ => clock.day,
-                    writeCallback: (_, value) => clock.day = (uint)value)
+                    valueProviderCallback: _ => clock.Day,
+                    writeCallback: (_, value) => clock.Day = (uint)value)
                 .WithValueField(6, 2, name: "MONTH[1:0]",
-                    valueProviderCallback: _ => BitHelper.GetValue(clock.month, 0, 2),
-                    writeCallback: (_, value) => BitHelper.SetMaskedValue(ref clock.month, (uint)value, 0, 2))
+                    valueProviderCallback: _ => BitHelper.GetValue(clock.Month, 0, 2),
+                    writeCallback: (_, value) => BitHelper.SetMaskedValue(ref clock.Month, (uint)value, 0, 2))
             ;
 
             Registers.Clock3.Define(this)
                 .WithValueField(0, 2, name: "MONTH[3:2]",
-                    valueProviderCallback: _ => BitHelper.GetValue(clock.month, 2, 2),
-                    writeCallback: (_, value) => BitHelper.SetMaskedValue(ref clock.month, (uint)value, 2, 2))
+                    valueProviderCallback: _ => BitHelper.GetValue(clock.Month, 2, 2),
+                    writeCallback: (_, value) => BitHelper.SetMaskedValue(ref clock.Month, (uint)value, 2, 2))
                 .WithValueField(2, 6, name: "YEAR[3:2]",
-                    valueProviderCallback: _ => clock.year,
-                    writeCallback: (_, value) => clock.year = (uint)value)
+                    valueProviderCallback: _ => clock.Year,
+                    writeCallback: (_, value) => clock.Year = (uint)value)
             ;
 
             Registers.Alarm0.Define(this)
                 .WithValueField(0, 6, name: "SECONDS[5:0]",
-                    valueProviderCallback: _ => alarm.seconds,
-                    writeCallback: (_, value) => alarm.seconds = (uint)value)
+                    valueProviderCallback: _ => alarm.Seconds,
+                    writeCallback: (_, value) => alarm.Seconds = (uint)value)
                 .WithValueField(6, 2, name: "MINUTES[1:0]",
-                    valueProviderCallback: _ => BitHelper.GetValue(alarm.minutes, 0, 2),
-                    writeCallback: (_, value) => BitHelper.SetMaskedValue(ref alarm.minutes, (uint)value, 0, 2))
+                    valueProviderCallback: _ => BitHelper.GetValue(alarm.Minutes, 0, 2),
+                    writeCallback: (_, value) => BitHelper.SetMaskedValue(ref alarm.Minutes, (uint)value, 0, 2))
             ;
 
             Registers.Alarm1.Define(this)
                 .WithValueField(0, 4, name: "MINUTES[5:2]",
-                    valueProviderCallback: _ => BitHelper.GetValue(alarm.minutes, 2, 4),
-                    writeCallback: (_, value) => BitHelper.SetMaskedValue(ref alarm.minutes, (uint)value, 2, 4))
+                    valueProviderCallback: _ => BitHelper.GetValue(alarm.Minutes, 2, 4),
+                    writeCallback: (_, value) => BitHelper.SetMaskedValue(ref alarm.Minutes, (uint)value, 2, 4))
                 .WithValueField(4, 4, name: "HOURS[3:0]",
-                    valueProviderCallback: _ => BitHelper.GetValue(alarm.hours, 0, 2),
-                    writeCallback: (_, value) => BitHelper.SetMaskedValue(ref alarm.hours, (uint)value, 0, 4))
+                    valueProviderCallback: _ => BitHelper.GetValue(alarm.Hours, 0, 2),
+                    writeCallback: (_, value) => BitHelper.SetMaskedValue(ref alarm.Hours, (uint)value, 0, 4))
             ;
 
             Registers.Alarm2.Define(this)
                 .WithValueField(0, 1, name: "HOURS[4]",
-                    valueProviderCallback: _ => BitHelper.GetValue(alarm.hours, 4, 1),
-                    writeCallback: (_, value) => BitHelper.SetMaskedValue(ref alarm.hours, (uint)value, 4, 1))
+                    valueProviderCallback: _ => BitHelper.GetValue(alarm.Hours, 4, 1),
+                    writeCallback: (_, value) => BitHelper.SetMaskedValue(ref alarm.Hours, (uint)value, 4, 1))
                 .WithValueField(1, 5, name: "DAY[4:0]",
-                    valueProviderCallback: _ => alarm.day,
-                    writeCallback: (_, value) => alarm.day = (uint)value)
+                    valueProviderCallback: _ => alarm.Day,
+                    writeCallback: (_, value) => alarm.Day = (uint)value)
                 .WithValueField(6, 2, name: "MONTH[1:0]",
-                    valueProviderCallback: _ => BitHelper.GetValue(alarm.month, 0, 2),
-                    writeCallback: (_, value) => BitHelper.SetMaskedValue(ref alarm.month, (uint)value, 0, 2))
+                    valueProviderCallback: _ => BitHelper.GetValue(alarm.Month, 0, 2),
+                    writeCallback: (_, value) => BitHelper.SetMaskedValue(ref alarm.Month, (uint)value, 0, 2))
             ;
 
             Registers.Alarm3.Define(this)
                 .WithValueField(0, 2, name: "MONTH[3:2]",
-                    valueProviderCallback: _ => BitHelper.GetValue(alarm.month, 2, 2),
-                    writeCallback: (_, value) => BitHelper.SetMaskedValue(ref alarm.month, (uint)value, 2, 2))
+                    valueProviderCallback: _ => BitHelper.GetValue(alarm.Month, 2, 2),
+                    writeCallback: (_, value) => BitHelper.SetMaskedValue(ref alarm.Month, (uint)value, 2, 2))
                 .WithValueField(2, 6, name: "YEAR[3:2]",
-                    valueProviderCallback: _ => alarm.year,
-                    writeCallback: (_, value) => alarm.year = (uint)value)
+                    valueProviderCallback: _ => alarm.Year,
+                    writeCallback: (_, value) => alarm.Year = (uint)value)
             ;
         }
 
@@ -215,12 +215,12 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private struct Time
         {
-            public uint seconds;
-            public uint minutes;
-            public uint hours;
-            public uint day;
-            public uint month;
-            public uint year;
+            public uint Seconds;
+            public uint Minutes;
+            public uint Hours;
+            public uint Day;
+            public uint Month;
+            public uint Year;
         }
 
         private enum RTCMode

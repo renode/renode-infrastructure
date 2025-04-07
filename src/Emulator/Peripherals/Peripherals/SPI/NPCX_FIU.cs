@@ -4,13 +4,11 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.SPI
@@ -44,13 +42,14 @@ namespace Antmicro.Renode.Peripherals.SPI
         }
 
         public long Size => 0x1000;
+
         public ByteRegisterCollection RegistersCollection { get; }
 
         private void DefineRegisters()
         {
             Registers.UMACodeByte.Define(this)
                 .WithValueField(0, 8, out userModeAccessCode, name: "TR_CODE (Transaction Code)");
-            
+
             Registers.UMAAddressByte0_0.DefineMany(this, 3, (register, i) =>
             {
                 register
@@ -102,7 +101,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
                         PerformUserModeAccessTransaction(addressWidth, (int)dataWidth.Value, isWrite.Value, skipCode);
                     });
-            
+
             Registers.UMAExtendedControlAndStatus.Define(this, 0x3)
                 .WithReservedBits(0, 1, allowedValue: 0x1)
                 .WithFlag(1, out softwareChipSelect, name: "SW_CS1 (Software Controlled Chip-Select 1n)",
@@ -136,7 +135,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithValueField(0, 8, FieldMode.Read, name: $"DAT_B{i} (Data Byte {i})",
                         valueProviderCallback: _ => (byte)BitHelper.GetValue(userModeAccessData, i * 8, 8));
             });
-            
+
             Registers.UMAAddressByte1_0.DefineMany(this, 4, (register, i) =>
             {
                 register
@@ -230,4 +229,3 @@ namespace Antmicro.Renode.Peripherals.SPI
         }
     }
 }
-

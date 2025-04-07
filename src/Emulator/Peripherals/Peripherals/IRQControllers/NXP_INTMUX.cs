@@ -6,10 +6,11 @@
 //
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.IRQControllers
 {
@@ -36,42 +37,43 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public void InterruptHandler(Channel sender, bool value)
         {
-            if(Connections.TryGetValue(sender.channelNumber, out var gpio))
+            if(Connections.TryGetValue(sender.ChannelNumber, out var gpio))
             {
                 gpio.Set(value);
             }
         }
 
         public IReadOnlyDictionary<int, IGPIO> Connections { get; private set; }
-        public long Size => Channel.size * numberOfChannels;
+
+        public long Size => Channel.Size * numberOfChannels;
 
         private static readonly int numberOfChannels = 8;
         private readonly Channel[] channels;
 
         public class Channel : IGPIOReceiver
         {
-            public static readonly long size = 0x40;
-            public static readonly int maxInterrruptSources = 32;
+            public static readonly long Size = 0x40;
+            public static readonly int MaxInterrruptSources = 32;
 
             public Channel(NXP_INTMUX intmux, int channelNumber)
             {
                 this.intmux = intmux;
-                this.channelNumber = channelNumber;
+                this.ChannelNumber = channelNumber;
                 BuildRegisters();
                 Reset();
             }
 
             public void OnGPIO(int number, bool value)
             {
-                if(number > maxInterrruptSources || number < 0)
+                if(number > MaxInterrruptSources || number < 0)
                 {
-                    intmux.Log(LogLevel.Warning, "Channel {0} received interrupt from source {1}, which is outside of range 0 - {2}", channelNumber, number, maxInterrruptSources - 1);
+                    intmux.Log(LogLevel.Warning, "Channel {0} received interrupt from source {1}, which is outside of range 0 - {2}", ChannelNumber, number, MaxInterrruptSources - 1);
                     return;
                 }
 
                 if(!interruptEnable[number].Value)
                 {
-                    intmux.Log(LogLevel.Noisy, "Channel {0}, received interrupt from disabled source {1}", channelNumber, number);
+                    intmux.Log(LogLevel.Noisy, "Channel {0}, received interrupt from disabled source {1}", ChannelNumber, number);
                     return;
                 }
 
@@ -89,12 +91,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 softwareReset.Value = false;
                 logicAND.Value = false;
                 channelInputNumber.Value = 0b00; // 32 interrupt inputs
-                channelInstanceNumber.Value = (ulong)channelNumber;
+                channelInstanceNumber.Value = (ulong)ChannelNumber;
                 channelInterruptRequestPending.Value = false;
 
                 vectorNumber.Value = 0;
 
-                for(int interruptSource = 0; interruptSource < maxInterrruptSources; interruptSource++)
+                for(int interruptSource = 0; interruptSource < MaxInterrruptSources; interruptSource++)
                 {
                     interruptEnable[interruptSource].Value = false;
 
@@ -102,13 +104,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 }
             }
 
-            public readonly int channelNumber;
+            public readonly int ChannelNumber;
 
             private bool CanTriggerGPIO()
             {
                 bool result = logicAND.Value;
 
-                for(int interruptSource = 0; interruptSource < maxInterrruptSources; interruptSource++)
+                for(int interruptSource = 0; interruptSource < MaxInterrruptSources; interruptSource++)
                 {
                     if(interruptEnable[interruptSource].Value)
                     {
@@ -143,7 +145,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     intmux.InterruptHandler(this, false);
                 }
 
-                intmux.Log(LogLevel.Debug, "Channel {0}, changed interrupt {1} enable: {2} -> {3}", channelNumber, index, oldValue, newValue);
+                intmux.Log(LogLevel.Debug, "Channel {0}, changed interrupt {1} enable: {2} -> {3}", ChannelNumber, index, oldValue, newValue);
             }
 
             private void BuildRegisters()
@@ -178,7 +180,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             private long GetRegisterAddress(ChannelRegisters register)
             {
-                return (long)register + channelNumber * Channel.size;
+                return (long)register + ChannelNumber * Channel.Size;
             }
 
             // Control Status Register fields

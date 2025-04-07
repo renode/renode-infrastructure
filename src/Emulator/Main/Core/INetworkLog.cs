@@ -11,7 +11,7 @@ namespace Antmicro.Renode.Core
     public interface INetworkLog<out T> : IExternal
     {
         event Action<IExternal, T, T, byte[]> FrameTransmitted;
+
         event Action<IExternal, T, byte[]> FrameProcessed;
     }
 }
-

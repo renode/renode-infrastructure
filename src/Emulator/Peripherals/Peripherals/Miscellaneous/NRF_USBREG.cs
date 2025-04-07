@@ -5,14 +5,9 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System;
-using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.GPIOPort;
-using Antmicro.Renode.Peripherals.Timers;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
@@ -45,15 +40,15 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             // This is hacky way of setting interrupts, but it's only needed
             // for usb pullup for nRF5340, which works with this
             Registers.EventsUsbDetected.Define(this)
-                .WithFlag(0, 
+                .WithFlag(0,
                     valueProviderCallback: _ => true,
                     writeCallback: (_, __) => SetInterrupt(false),
                     name: "USBDETECTED")
                 .WithReservedBits(1, 31);
 
             Registers.EventsUsbPowerReady.Define(this)
-                .WithFlag(0, 
-                    valueProviderCallback: _ => true, 
+                .WithFlag(0,
+                    valueProviderCallback: _ => true,
                     writeCallback: (_, __) => SetInterrupt(false),
                     name: "USBPWRRDY")
                 .WithReservedBits(1, 31);
@@ -63,16 +58,16 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithTaggedFlag(name: "USBREMOVED", 1)
                 .WithFlag(2,
                     valueProviderCallback: _ => true,
-                    writeCallback: (_, __) => SetInterrupt(true), 
+                    writeCallback: (_, __) => SetInterrupt(true),
                     name: "USBPWRRDY")
                 .WithReservedBits(3, 29);
 
             Registers.UsbRegisterStatus.Define(this)
-                .WithFlag(0, 
+                .WithFlag(0,
                     FieldMode.Read,
                     valueProviderCallback: _ => true,
                     name: "VBUSDETECT")
-                .WithFlag(1, 
+                .WithFlag(1,
                     FieldMode.Read,
                     valueProviderCallback: _ => true,
                     name: "OUTPUTRDY")

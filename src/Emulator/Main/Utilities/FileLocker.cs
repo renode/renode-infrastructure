@@ -12,13 +12,13 @@ namespace Antmicro.Renode.Utilities
     {
         public FileLocker(string fileToLock)
         {
-        #if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS
             innerLocker = new WindowsFileLocker(fileToLock);
-        #else
+#else
             innerLocker = new PosixFileLocker(fileToLock);
-        #endif
+#endif
         }
-        
+
         public void Dispose()
         {
             innerLocker?.Dispose();

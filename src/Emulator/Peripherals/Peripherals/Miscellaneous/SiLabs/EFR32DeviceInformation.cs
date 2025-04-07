@@ -1,4 +1,4 @@
-﻿﻿//
+﻿//
 // Copyright (c) 2010-2018 Antmicro
 // Copyright (c) 2017 Bas Stottelaar <basstottelaar@gmail.com>
 //

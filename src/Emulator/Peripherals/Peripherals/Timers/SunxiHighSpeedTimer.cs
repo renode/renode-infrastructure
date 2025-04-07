@@ -5,14 +5,14 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Time;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -168,24 +168,13 @@ namespace Antmicro.Renode.Peripherals.Timers
         private readonly IFlagRegisterField[] interruptFlags, enableFlags;
         private readonly DoubleWordRegister irqEnableRegister, irqStatusRegister;
 
-        private enum Registers
-        {
-            IRQEnable = 0x00,
-            IRQStatus = 0x04,
-            Control = 0x10,
-            IntervalLow = 0x14,
-            IntervalHigh = 0x18,
-            CurrentValueLow = 0x1c,
-            CurrentValueHigh = 0x20
-        }
-
         private sealed class SunxiHighSpeedTimerUnit : LimitTimer
         {
             public SunxiHighSpeedTimerUnit(IMachine machine, long frequency) : base(machine.ClockSource, frequency, direction: Direction.Descending, enabled: false)
             {
                 controlRegister = new DoubleWordRegister(this);
                 controlRegister.DefineFlagField(7, changeCallback: OnModeChange, name: "MODE");
-                controlRegister.DefineValueField(4, 3, writeCallback: (prevVal, val) => OnPrescalerChange((uint)prevVal, (uint)val), name: "PRESC");
+                controlRegister.DefineValueField(4, 3, writeCallback: (_, val) => OnPrescalerChange((uint)val), name: "PRESC");
                 controlRegister.DefineFlagField(1, writeCallback: OnReload, name: "RELOAD");
                 controlRegister.DefineFlagField(0, writeCallback: OnEnableChange, name: "ENABLE");
                 EventEnabled = true;
@@ -205,6 +194,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     savedIntervalHigh = (uint)(currentLimt >> 32) & 0x00ffffff;
                     return (uint)currentLimt;
                 }
+
                 set
                 {
                     intervalRegisterLow = value;
@@ -217,6 +207,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     return savedIntervalHigh;
                 }
+
                 set
                 {
                     Limit = ((ulong)value << 32) | intervalRegisterLow;
@@ -231,6 +222,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     savedValueHigh = (uint)(currentValue >> 32) & 0x00ffffff;
                     return (uint)currentValue;
                 }
+
                 set
                 {
                     valueRegisterLow = value;
@@ -243,6 +235,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     return savedValueHigh;
                 }
+
                 set
                 {
                     Value = ((ulong)value << 32) | valueRegisterLow;
@@ -255,6 +248,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     return controlRegister.Read();
                 }
+
                 set
                 {
                     controlRegister.Write((long)Registers.Control, value);
@@ -273,7 +267,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 Mode = newValue ? WorkMode.OneShot : WorkMode.Periodic;
             }
 
-            private void OnPrescalerChange(ulong oldValue, ulong newValue)
+            private void OnPrescalerChange(ulong newValue)
             {
                 if(newValue < 4)
                 {
@@ -301,6 +295,16 @@ namespace Antmicro.Renode.Peripherals.Timers
             private uint savedIntervalHigh, savedValueHigh, intervalRegisterLow, valueRegisterLow;
             private readonly DoubleWordRegister controlRegister;
         }
+
+        private enum Registers
+        {
+            IRQEnable = 0x00,
+            IRQStatus = 0x04,
+            Control = 0x10,
+            IntervalLow = 0x14,
+            IntervalHigh = 0x18,
+            CurrentValueLow = 0x1c,
+            CurrentValueHigh = 0x20
+        }
     }
 }
-  

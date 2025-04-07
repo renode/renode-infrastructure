@@ -73,6 +73,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         public long Size => 0x400;
+
         public GPIO IRQ { get; }
 
         public double? ThresholdVoltage
@@ -96,6 +97,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 return voltage;
             }
+
             set
             {
                 voltage = value;
@@ -109,6 +111,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 return pvdLevel.Value;
             }
+
             set
             {
                 pvdLevel.Value = value;
@@ -141,14 +144,15 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             IRQ.Set(pvdo);
         }
 
-        private IFlagRegisterField wakeupFlag;
-        private IFlagRegisterField standbyFlag;
-        private IFlagRegisterField pvdoFlag;
-        private IFlagRegisterField pvdEnableFlag;
-        private IEnumRegisterField<PvdLevelSelection> pvdLevel;
-        private IEnumRegisterField<VoltageScalingRangeSelection> vosValue;
         private double voltage;
         private bool prevPvdo;
+
+        private readonly IFlagRegisterField wakeupFlag;
+        private readonly IFlagRegisterField standbyFlag;
+        private readonly IFlagRegisterField pvdoFlag;
+        private readonly IFlagRegisterField pvdEnableFlag;
+        private readonly IEnumRegisterField<PvdLevelSelection> pvdLevel;
+        private readonly IEnumRegisterField<VoltageScalingRangeSelection> vosValue;
 
         private const double Hysteresis = 0.1;
 

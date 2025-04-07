@@ -5,8 +5,9 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -23,28 +24,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             children = new Dictionary<int, IBytePeripheral>();
             DefineRegisters();
-        }
-
-        public override void Reset()
-        {
-            base.Reset();
-            foreach(var child in children.Values)
-            {
-                child.Reset();
-            }
-        }
-
-        public IEnumerable<NumberRegistrationPoint<int>> GetRegistrationPoints(IBytePeripheral peripheral)
-        {
-            return children.Keys.Select(x => new NumberRegistrationPoint<int>(x));
-        }
-
-        public IEnumerable<IRegistered<IBytePeripheral, NumberRegistrationPoint<int>>> Children
-        {
-            get
-            {
-                return children.Select(x => Registered.Create(x.Value, new NumberRegistrationPoint<int>(x.Key)));
-            }
         }
 
         public virtual void Register(IBytePeripheral peripheral, NumberRegistrationPoint<int> registrationPoint)
@@ -73,6 +52,28 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 children.Remove(key);
             }
             machine.UnregisterAsAChildOf(this, peripheral);
+        }
+
+        public override void Reset()
+        {
+            base.Reset();
+            foreach(var child in children.Values)
+            {
+                child.Reset();
+            }
+        }
+
+        public IEnumerable<NumberRegistrationPoint<int>> GetRegistrationPoints(IBytePeripheral peripheral)
+        {
+            return children.Keys.Select(x => new NumberRegistrationPoint<int>(x));
+        }
+
+        public IEnumerable<IRegistered<IBytePeripheral, NumberRegistrationPoint<int>>> Children
+        {
+            get
+            {
+                return children.Select(x => Registered.Create(x.Value, new NumberRegistrationPoint<int>(x.Key)));
+            }
         }
 
         public long Size => 0x2000;
@@ -134,13 +135,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
         }
 
-        private Dictionary<int, IBytePeripheral> children;
         private IFlagRegisterField isWrite;
         private IValueRegisterField slaveAddress;
         private IFlagRegisterField startTransfer;
         private IValueRegisterField writeData;
         private IValueRegisterField readData;
         private IEnumRegisterField<WishboneSlave> selectedSlave;
+
+        private readonly Dictionary<int, IBytePeripheral> children;
 
         private enum WishboneSlave
         {

@@ -19,7 +19,6 @@ namespace Antmicro.Renode.UnitTests.Mocks
 
         public void OnGPIO(int number, bool value)
         {
-
         }
     }
 }

@@ -10,15 +10,15 @@ using Antmicro.Renode.Peripherals;
 
 namespace Antmicro.Renode.Core.Structure
 {
-	
-	/// <summary>
-	/// Interface representing registered device. It is covariant because registered specialised device is
-	/// registered device.
-	/// </summary>
-	public interface IRegistered<out TPeripheral, TRegistrationPoint>
+    /// <summary>
+    /// Interface representing registered device. It is covariant because registered specialised device is
+    /// registered device.
+    /// </summary>
+    public interface IRegistered<out TPeripheral, TRegistrationPoint>
         where TPeripheral : IPeripheral where TRegistrationPoint : IRegistrationPoint
-	{
-		TPeripheral Peripheral { get; }
+    {
+        TPeripheral Peripheral { get; }
+
         TRegistrationPoint RegistrationPoint { get; }
-	}
+    }
 }

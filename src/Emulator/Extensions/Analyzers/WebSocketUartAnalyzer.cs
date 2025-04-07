@@ -5,13 +5,15 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using AntShell.Terminal;
+using System.Threading;
+
+using Antmicro.Migrant;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.UART;
 using Antmicro.Renode.Utilities;
-using Antmicro.Migrant;
-using System.Threading;
+
+using AntShell.Terminal;
 
 namespace Antmicro.Renode.Analyzers
 {
@@ -47,6 +49,7 @@ namespace Antmicro.Renode.Analyzers
         }
 
         public IUART UART => (Backend as UARTBackend)?.UART;
+
         private static int UartCount = 0;
 
         private void StartServer()

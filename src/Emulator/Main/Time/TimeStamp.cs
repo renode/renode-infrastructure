@@ -4,8 +4,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-
 namespace Antmicro.Renode.Time
 {
     /// <summary>
@@ -28,6 +26,7 @@ namespace Antmicro.Renode.Time
         }
 
         public TimeInterval TimeElapsed { get; private set; }
+
         public ITimeDomain Domain { get; private set; }
     }
 }

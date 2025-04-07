@@ -5,13 +5,11 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using System.Collections.Generic;
-using Antmicro.Renode.Core.Structure;
-using System;
-using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -23,12 +21,6 @@ namespace Antmicro.Renode.Peripherals.UART
             ReceiveIRQ = new GPIO();
         }
 
-        public GPIO TransmitIRQ{get; private set;}
-        public GPIO ReceiveIRQ{get; private set;}
-
-        private uint frameFormatRegister;
-        private uint clockControlRegister;
-        private bool txInterruptEnabled = false;
         public void WriteDoubleWord(long address, uint value)
         {
             switch((Registers)address)
@@ -53,9 +45,9 @@ namespace Antmicro.Renode.Peripherals.UART
             default:
                 this.LogUnhandledWrite(address, value);
                 break;
-            }          
+            }
         }
-        
+
         public uint ReadDoubleWord(long offset)
         {
             this.NoisyLog("Read {0}", (Registers)offset);
@@ -82,13 +74,64 @@ namespace Antmicro.Renode.Peripherals.UART
                 return character;
             case Registers.TxBufferData:
                 return 0;
-            case Registers.InterruptFlag:                    
+            case Registers.InterruptFlag:
                 return 4;
             default:
                 this.LogUnhandledRead(offset);
                 return 0x00;
             }
         }
+
+        public override Parity ParityBit
+        {
+            get
+            {
+                var parity = (frameFormatRegister & (uint)(FrameFormat.ParityH | FrameFormat.ParityL)) >> 8;
+                switch(parity)
+                {
+                case 0:
+                    return Parity.None;
+                case 2:
+                    return Parity.Even;
+                case 3:
+                    return Parity.Odd;
+                default:
+                    throw new ArgumentException("Wrong parity bits register value");
+                }
+            }
+        }
+
+        public override Bits StopBits
+        {
+            get
+            {
+                var bits = (frameFormatRegister & (uint)(FrameFormat.StopBitsH | FrameFormat.StopBitsL)) >> 12;
+                switch(bits)
+                {
+                case 0:
+                    return Bits.Half;
+                case 1:
+                    return Bits.One;
+                case 2:
+                    return Bits.OneAndAHalf;
+                default:
+                    return Bits.Two;
+                }
+            }
+        }
+
+        public override uint BaudRate
+        {
+            get
+            {
+                // divisor cannot be 0, so there is no need to check it
+                return UARTClockFrequency / (2 * (1 + clockControlRegister / 256));
+            }
+        }
+
+        public GPIO TransmitIRQ { get; private set; }
+
+        public GPIO ReceiveIRQ { get; private set; }
 
         protected override void CharWritten()
         {
@@ -101,6 +144,12 @@ namespace Antmicro.Renode.Peripherals.UART
             this.NoisyLog("Queue empty.");
             ReceiveIRQ.Unset();
         }
+
+        private uint frameFormatRegister;
+        private uint clockControlRegister;
+        private bool txInterruptEnabled = false;
+
+        private const uint UARTClockFrequency = 0;
 
         [Flags]
         private enum FrameFormat
@@ -123,55 +172,5 @@ namespace Antmicro.Renode.Peripherals.UART
             InterruptEnable      = 0x04C, // USARTn_IEN
             ClockControl         = 0x014  // USARTn_CLKDIV
         }
-
-        public override Parity ParityBit
-        {
-            get
-            {
-                var parity = (frameFormatRegister & (uint)(FrameFormat.ParityH | FrameFormat.ParityL)) >> 8;
-                switch (parity)
-                {
-                case 0:
-                    return Parity.None;
-                case 2:
-                    return Parity.Even;
-                case 3:
-                    return Parity.Odd;
-                default:
-                    throw new ArgumentException("Wrong parity bits register value");
-                }
-            }
-        }
-
-        public override Bits StopBits
-        {
-            get 
-            { 
-                var bits = (frameFormatRegister & (uint)(FrameFormat.StopBitsH | FrameFormat.StopBitsL)) >> 12;
-                switch (bits)
-                {
-                case 0:
-                    return Bits.Half;
-                case 1:
-                    return Bits.One;
-                case 2:
-                    return Bits.OneAndAHalf;
-                default:
-                    return Bits.Two;
-                }
-            }
-        }
-
-        public override uint BaudRate
-        {
-            get
-            {
-                // divisor cannot be 0, so there is no need to check it
-                return UARTClockFrequency / (2 * (1 + clockControlRegister/256));
-            }
-        }
-
-        private const uint UARTClockFrequency = 0;
     }
 }
-

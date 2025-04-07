@@ -5,11 +5,10 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Logging;
 using Antmicro.Renode.Core.Extensions;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
@@ -22,15 +21,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             locks = new Lock[NumberOfEntries];
             for(var i = 0; i < locks.Length; i++)
             {
-                locks[i] =  new Lock(this, i);
+                locks[i] = new Lock(this, i);
             }
             CPU0 = new GPIO();
             CPU1 = new GPIO();
         }
-
-        public GPIO CPU0 { get; private set; }
-
-        public GPIO CPU1 { get; private set; }
 
         public byte ReadByte(long offset)
         {
@@ -118,22 +113,16 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
         }
 
+        public GPIO CPU0 { get; private set; }
+
+        public GPIO CPU1 { get; private set; }
+
         public long Size
         {
             get
             {
                 return 0x108;
             }
-        }
-
-        private void RefreshInterrupts()
-        {
-            var effectiveNotifyCPU0 = notifyCPU0 & interruptEnabled0;
-            var effectiveNotifyCPU1 = notifyCPU1 & interruptEnabled1;
-            this.NoisyLog("Effective interrupt state: CPU0: 0x{0:X} (0x{1:X} & 0x{2:X}), CPU1: 0x{3:X} (0x{4:X} & 0x{5:X}).", effectiveNotifyCPU0, notifyCPU0,
-                interruptEnabled0, effectiveNotifyCPU1, notifyCPU1, interruptEnabled1);
-            CPU0.Set(effectiveNotifyCPU0 != 0);
-            CPU1.Set(effectiveNotifyCPU1 != 0);
         }
 
         private static ushort ApplyVybridErrata(ushort value)
@@ -146,23 +135,26 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             return (ushort)result;
         }
 
-        private readonly Lock[] locks;
+        private void RefreshInterrupts()
+        {
+            var effectiveNotifyCPU0 = notifyCPU0 & interruptEnabled0;
+            var effectiveNotifyCPU1 = notifyCPU1 & interruptEnabled1;
+            this.NoisyLog("Effective interrupt state: CPU0: 0x{0:X} (0x{1:X} & 0x{2:X}), CPU1: 0x{3:X} (0x{4:X} & 0x{5:X}).", effectiveNotifyCPU0, notifyCPU0,
+                interruptEnabled0, effectiveNotifyCPU1, notifyCPU1, interruptEnabled1);
+            CPU0.Set(effectiveNotifyCPU0 != 0);
+            CPU1.Set(effectiveNotifyCPU1 != 0);
+        }
+
         private ushort interruptEnabled0;
         private ushort interruptEnabled1;
         private ushort notifyCPU0;
         private ushort notifyCPU1;
+
+        private readonly Lock[] locks;
         private readonly IBusController sysbus;
         private readonly object irqLock;
         private const int NumberOfEntries = 16;
         private static readonly int[] VybridErrataIndices = { 12, 13, 14, 15, 8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3 };
-
-        private enum Register
-        {
-            InterruptNotificationEnable1 = 0x40,
-            InterruptNotificationEnable2 = 0x48,
-            InterruptNotificationStatus1 = 0x80,
-            InterruptNotificationStatus2 = 0x88,
-        }
 
         private class Lock
         {
@@ -277,6 +269,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             private readonly SEMA4 sema;
             private readonly int number;
         }
+
+        private enum Register
+        {
+            InterruptNotificationEnable1 = 0x40,
+            InterruptNotificationEnable2 = 0x48,
+            InterruptNotificationStatus1 = 0x80,
+            InterruptNotificationStatus2 = 0x88,
+        }
     }
 }
-

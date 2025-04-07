@@ -29,7 +29,7 @@ namespace Antmicro.Renode.UI
             p.Exited += (sender, e) =>
             {
                 var proc = sender as Process;
-                if (proc.ExitCode != 0)
+                if(proc.ExitCode != 0)
                 {
                     LogError("gnome-terminal", arguments, proc.ExitCode);
                 }

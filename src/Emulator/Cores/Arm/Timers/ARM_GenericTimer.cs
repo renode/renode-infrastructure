@@ -5,11 +5,12 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Time;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -109,20 +110,28 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
 
         public bool EnableCountReadLogs { get; set; }
+
         public long Frequency { get; }
+
         // There is the counter frequency register used by a software to discover a frequency of a timer
         // In the model we allow to preset it using the `CounterFrequencyRegister` property to support simulation scenarios without a bootloader.
         public uint CounterFrequencyRegister { set; get; }
 
         public GPIO EL1PhysicalTimerIRQ { get; } = new GPIO();
+
         public GPIO EL1VirtualTimerIRQ { get; } = new GPIO();
+
         public GPIO EL3PhysicalTimerIRQ { get; } = new GPIO();
+
         public GPIO NonSecureEL2PhysicalTimerIRQ { get; } = new GPIO();
+
         public GPIO NonSecureEL2VirtualTimerIRQ { get; } = new GPIO();
 
         // Some physical timers names in the ARMv7 specification are different than names in the ARMv8-A specification.
         public GPIO PL1PhysicalTimerIRQ => EL1PhysicalTimerIRQ;
+
         public GPIO PL2PhysicalTimerIRQ => NonSecureEL2PhysicalTimerIRQ;
+
         public GPIO VirtualTimerIRQ => EL1VirtualTimerIRQ;
 
         private Dictionary<long, QuadWordRegister> BuildRegisterAArch64Map()
@@ -132,7 +141,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {(long)RegistersAArch64.Frequency,
                     BuildFrequencyRegister(new QuadWordRegister(this), "CounterFrequency", 64)
                 },
-
                 {(long)RegistersAArch64.PhysicalCount,
                     BuildTimerCountValueRegister(el1PhysicalTimer, "EL1Physical")
                 },
@@ -141,11 +149,9 @@ namespace Antmicro.Renode.Peripherals.Timers
                 },
             
                 // There is no implementation of the PhysicalTimerOffset register, because it require the Enhanced Counter Virtualization support.
-
                 {(long)RegistersAArch64.VirtualOffset,
                     BuildTimerOffsetRegister(el1VirtualTimer, "EL1Virtual")
                 },
-
                 {(long)RegistersAArch64.EL1PhysicalTimerControl,
                     BuildTimerControlRegister(new QuadWordRegister(this), el1PhysicalTimer, "EL1PhysicalTimer")
                 },
@@ -161,7 +167,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {(long)RegistersAArch64.NonSecureEL2VirtualTimerControl,
                     BuildTimerControlRegister(new QuadWordRegister(this), nonSecureEL2VirtualTimer, "NonSecureEL2VirtualTimer")
                 },
-
                 {(long)RegistersAArch64.EL1PhysicalTimerCompareValue,
                     BuildTimerCompareValueRegister(el1PhysicalTimer, "EL1PhysicalTimer")
                 },
@@ -177,7 +182,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {(long)RegistersAArch64.NonSecureEL2VirtualTimerCompareValue,
                     BuildTimerCompareValueRegister(nonSecureEL2VirtualTimer, "NonSecureEL2VirtualTimer")
                 },
-
                 {(long)RegistersAArch64.EL1PhysicalTimerValue,
                     BuildTimerCountDownValueRegister(new QuadWordRegister(this), el1PhysicalTimer, "EL1PhysicalTimer", 64)
                 },
@@ -212,7 +216,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {(long)DoubleWordRegistersAArch32.Frequency,
                     BuildFrequencyRegister(new DoubleWordRegister(this), "CounterFrequency", 32)
                 },
-
                 {(long)DoubleWordRegistersAArch32.PL1PhysicalTimerControl,
                     BuildTimerControlRegister(new DoubleWordRegister(this), el1PhysicalTimer, "PL1PhysicalTimer")
                 },
@@ -222,7 +225,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {(long)DoubleWordRegistersAArch32.VirtualTimerControl,
                     BuildTimerControlRegister(new DoubleWordRegister(this), el1VirtualTimer, "VirtualTimer")
                 },
-
                 {(long)DoubleWordRegistersAArch32.PL1PhysicalTimerValue,
                     BuildTimerCountDownValueRegister(new DoubleWordRegister(this), el1PhysicalTimer, "PL1PhysicalTimer", 32)
                 },
@@ -246,11 +248,9 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {(long)QuadWordRegistersAArch32.VirtualCount,
                     BuildTimerCountValueRegister(el1VirtualTimer, "Virtual")
                 },
-
                 {(long)QuadWordRegistersAArch32.VirtualOffset,
                     BuildTimerOffsetRegister(el1VirtualTimer, "Virtual")
                 },
-
                 {(long)QuadWordRegistersAArch32.PL1PhysicalTimerCompareValue,
                     BuildTimerCompareValueRegister(el1PhysicalTimer, "PL1PhysicalTimer")
                 },
@@ -371,73 +371,6 @@ namespace Antmicro.Renode.Peripherals.Timers
         private readonly IClockSource clockSource;
         private readonly uint defaultCounterFrequencyRegister;
 
-        private enum RegistersAArch64
-        {
-            // Enum values are created from op0, op1, CRn, CRm and op2 fields of the MRS instruction.
-            Frequency = 0xdf00, // CNTFRQ_EL0
-            HypervisorControl = 0xe708, // CNTHCTL_EL2
-            KernelControl = 0xc708, // CNTKCTL_EL1
-
-            PhysicalCount = 0xdf01, // CNTPCT_EL0
-            PhysicalOffset = 0xe706, // CNTPOFF_EL2
-            PhysicalSelfSynchronizedCount = 0xdf05, // CNTPCTSS_EL0
-
-            VirtualCount = 0xdf02, // CNTVCT_EL0
-            VirtualOffset = 0xe703, // CNTVOFF_EL2
-            VirtualSelfSynchronizedCount = 0xdf06, // CNTVCTSS_EL0
-
-            EL1PhysicalTimerValue = 0xdf10, // CNTP_TVAL_EL0
-            EL1PhysicalTimerControl = 0xdf11, // CNTP_CTL_EL0
-            EL1PhysicalTimerCompareValue = 0xdf12, // CNTP_CVAL_EL0
-            EL1VirtualTimerValue = 0xdf18, // CNTV_TVAL_EL0
-            EL1VirtualTimerControl = 0xdf19, // CNTV_CTL_EL0
-            EL1VirtualTimerCompareValue = 0xdf1a, // CNTV_CVAL_EL0
-
-            EL3PhysicalTimerValue = 0xff10, // CNTPS_TVAL_EL1
-            EL3PhysicalTimerControl = 0xff11, // CNTPS_CTL_EL1
-            EL3PhysicalTimerCompareValue = 0xff12, // CNTPS_CVAL_EL1
-
-            NonSecureEL2PhysicalTimerValue = 0xe710, // CNTHP_TVAL_EL2
-            NonSecureEL2PhysicalTimerControl = 0xe711, // CNTHP_CTL_EL2
-            NonSecureEL2PhysicalTimerCompareValue = 0xe712, // CNTHP_CVAL_EL2
-            NonSecureEL2VirtualTimerValue = 0xe718, // CNTHV_TVAL_EL2
-            NonSecureEL2VirtualTimerControl = 0xe719, // CNTHV_CTL_EL2
-            NonSecureEL2VirtualTimerCompareValue = 0xe71a, // CNTHV_CVAL_EL2
-
-            // Secure EL2 timers are added by ARMv8.4-SecEL2 extension.
-            SecureEL2PhysicalTimerValue = 0xe728, // CNTHPS_TVAL_EL2
-            SecureEL2PhysicalTimerControl = 0xe729, // CNTHPS_CTL_EL2
-            SecureEL2PhysicalTimerCompareValue = 0xe72a, // CNTHPS_CVAL_EL2
-            SecureEL2VirtualTimerValue = 0xe720, // CNTHVS_TVAL_EL2
-            SecureEL2VirtualTimerControl = 0xe721, // CNTHVS_CTL_EL2
-            SecureEL2VirtualTimerCompareValue = 0xe722, // CNTHVS_CVAL_EL2
-        }
-
-        private enum DoubleWordRegistersAArch32 : uint
-        {
-            // Enum values are created from opc1, CRn, opc2 and CRm fields of the MRC instruction.
-            Frequency = 0x0e0000, // CNTFRQ
-            PL1PhysicalControl = 0x0e0001, // CNTKCTL
-            PL1PhysicalTimerValue = 0x0e0002, // CNTP_TVAL
-            PL1PhysicalTimerControl = 0x0e0022, // CNTP_CTL
-            VirtualTimerValue = 0x0e0003, // CNTV_TVAL
-            VirtualTimerControl = 0x0e0023, // CNTV_CTL
-            PL2PhysicalControl = 0x8e0001, // CNTHCTL
-            PL2PhysicalTimerValue = 0x8e0002, // CNTHP_TVAL
-            PL2PhysicalTimerControl = 0x8e0022// CNTHP_CTL PL2
-        };
-
-        private enum QuadWordRegistersAArch32 : uint
-        {
-            // Enum values are created from the opc1 and CRm fields of the MRRC instruction.
-            PhysicalCount = 0x0e, // CNTPCT
-            VirtualCount = 0x1e, // CNTVCT
-            PL1PhysicalTimerCompareValue = 0x2e, // CNTP_CVAL
-            VirtualTimerCompareValue = 0x3e, // CNTV_CVAL
-            VirtualOffset = 0x4e, // CNTVOFF
-            PL2PhysicalTimerCompareValue = 0x6e // CNTHP_CVAL
-        };
-
         private class TimerUnit
         {
             public TimerUnit(IClockSource clockSource, IPeripheral parent, string name, GPIO irq, long frequency)
@@ -517,6 +450,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                         });
                     return value;
                 }
+
                 set
                 {
                     clockSource.ExecuteInLock(() =>
@@ -527,7 +461,9 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
 
             public bool InterruptStatus { get; private set; }
+
             public bool InterruptMask { get; set; }
+
             public bool InterruptEnable { get; set; }
 
             private void UpdateStatus()
@@ -550,5 +486,72 @@ namespace Antmicro.Renode.Peripherals.Timers
             private readonly IPeripheral parent;
             private readonly ComparingTimer timer;
         }
+
+        private enum RegistersAArch64
+        {
+            // Enum values are created from op0, op1, CRn, CRm and op2 fields of the MRS instruction.
+            Frequency = 0xdf00, // CNTFRQ_EL0
+            HypervisorControl = 0xe708, // CNTHCTL_EL2
+            KernelControl = 0xc708, // CNTKCTL_EL1
+
+            PhysicalCount = 0xdf01, // CNTPCT_EL0
+            PhysicalOffset = 0xe706, // CNTPOFF_EL2
+            PhysicalSelfSynchronizedCount = 0xdf05, // CNTPCTSS_EL0
+
+            VirtualCount = 0xdf02, // CNTVCT_EL0
+            VirtualOffset = 0xe703, // CNTVOFF_EL2
+            VirtualSelfSynchronizedCount = 0xdf06, // CNTVCTSS_EL0
+
+            EL1PhysicalTimerValue = 0xdf10, // CNTP_TVAL_EL0
+            EL1PhysicalTimerControl = 0xdf11, // CNTP_CTL_EL0
+            EL1PhysicalTimerCompareValue = 0xdf12, // CNTP_CVAL_EL0
+            EL1VirtualTimerValue = 0xdf18, // CNTV_TVAL_EL0
+            EL1VirtualTimerControl = 0xdf19, // CNTV_CTL_EL0
+            EL1VirtualTimerCompareValue = 0xdf1a, // CNTV_CVAL_EL0
+
+            EL3PhysicalTimerValue = 0xff10, // CNTPS_TVAL_EL1
+            EL3PhysicalTimerControl = 0xff11, // CNTPS_CTL_EL1
+            EL3PhysicalTimerCompareValue = 0xff12, // CNTPS_CVAL_EL1
+
+            NonSecureEL2PhysicalTimerValue = 0xe710, // CNTHP_TVAL_EL2
+            NonSecureEL2PhysicalTimerControl = 0xe711, // CNTHP_CTL_EL2
+            NonSecureEL2PhysicalTimerCompareValue = 0xe712, // CNTHP_CVAL_EL2
+            NonSecureEL2VirtualTimerValue = 0xe718, // CNTHV_TVAL_EL2
+            NonSecureEL2VirtualTimerControl = 0xe719, // CNTHV_CTL_EL2
+            NonSecureEL2VirtualTimerCompareValue = 0xe71a, // CNTHV_CVAL_EL2
+
+            // Secure EL2 timers are added by ARMv8.4-SecEL2 extension.
+            SecureEL2PhysicalTimerValue = 0xe728, // CNTHPS_TVAL_EL2
+            SecureEL2PhysicalTimerControl = 0xe729, // CNTHPS_CTL_EL2
+            SecureEL2PhysicalTimerCompareValue = 0xe72a, // CNTHPS_CVAL_EL2
+            SecureEL2VirtualTimerValue = 0xe720, // CNTHVS_TVAL_EL2
+            SecureEL2VirtualTimerControl = 0xe721, // CNTHVS_CTL_EL2
+            SecureEL2VirtualTimerCompareValue = 0xe722, // CNTHVS_CVAL_EL2
+        }
+
+        private enum DoubleWordRegistersAArch32 : uint
+        {
+            // Enum values are created from opc1, CRn, opc2 and CRm fields of the MRC instruction.
+            Frequency = 0x0e0000, // CNTFRQ
+            PL1PhysicalControl = 0x0e0001, // CNTKCTL
+            PL1PhysicalTimerValue = 0x0e0002, // CNTP_TVAL
+            PL1PhysicalTimerControl = 0x0e0022, // CNTP_CTL
+            VirtualTimerValue = 0x0e0003, // CNTV_TVAL
+            VirtualTimerControl = 0x0e0023, // CNTV_CTL
+            PL2PhysicalControl = 0x8e0001, // CNTHCTL
+            PL2PhysicalTimerValue = 0x8e0002, // CNTHP_TVAL
+            PL2PhysicalTimerControl = 0x8e0022// CNTHP_CTL PL2
+        };
+
+        private enum QuadWordRegistersAArch32 : uint
+        {
+            // Enum values are created from the opc1 and CRm fields of the MRRC instruction.
+            PhysicalCount = 0x0e, // CNTPCT
+            VirtualCount = 0x1e, // CNTVCT
+            PL1PhysicalTimerCompareValue = 0x2e, // CNTP_CVAL
+            VirtualTimerCompareValue = 0x3e, // CNTV_CVAL
+            VirtualOffset = 0x4e, // CNTVOFF
+            PL2PhysicalTimerCompareValue = 0x6e // CNTHP_CVAL
+        };
     }
 }

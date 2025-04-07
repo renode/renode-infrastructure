@@ -6,6 +6,7 @@
 //
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
@@ -51,7 +52,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         {
                             timer.Value = timerValue;
                         }
-
                     })
                 },
                 {
@@ -62,7 +62,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         var timerValue = TimerValue;
                         timerValue &= 0xffffffffUL;
                         timerValue |= (ulong)value << 32;
-                        foreach(var timer in mTimers) 
+                        foreach(var timer in mTimers)
                         {
                             timer.Value = timerValue;
                         }
@@ -139,7 +139,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 {
                     cpu.SyncTime();
                 }
-                
+
                 return mTimers[0].Value;
             }
         }

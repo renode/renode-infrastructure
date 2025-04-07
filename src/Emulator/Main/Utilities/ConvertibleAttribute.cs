@@ -6,6 +6,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 namespace Antmicro.Renode.Utilities
 {
     [AttributeUsage(AttributeTargets.Interface | AttributeTargets.Class | AttributeTargets.Struct)]
@@ -16,4 +17,3 @@ namespace Antmicro.Renode.Utilities
         }
     }
 }
-

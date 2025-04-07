@@ -6,6 +6,7 @@
 //
 using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.Utilities;
+
 using NUnit.Framework;
 
 namespace Antmicro.Renode.MonitorTests.CommandTests
@@ -214,4 +215,3 @@ namespace Antmicro.Renode.MonitorTests.CommandTests
         private Monitor monitor;
     }
 }
-

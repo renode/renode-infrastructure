@@ -11,13 +11,11 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
 {
     public class BooleanToken : Token
     {
-        public BooleanToken(string value):base(value)
+        public BooleanToken(string value) : base(value)
         {
             Value = Boolean.Parse(value);
         }
 
-        public bool Value {get;set;}
-        
         public override object GetObjectValue()
         {
             return Value;
@@ -27,6 +25,7 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
         {
             return string.Format("[BooleanToken: Value={0}]", Value);
         }
+
+        public bool Value { get; set; }
     }
 }
-

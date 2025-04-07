@@ -6,9 +6,8 @@
 //
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Time;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -29,6 +28,8 @@ namespace Antmicro.Renode.Peripherals.Timers
             DefineRegisters();
         }
 
+        public long Size => 0x400;
+
         private void DefineRegisters()
         {
             Registers.Configuration.Define(this, 0xFFFF00)
@@ -48,25 +49,25 @@ namespace Antmicro.Renode.Peripherals.Timers
 
                         switch(clockSelect.Value)
                         {
-                            case ClockSelect.Off:
-                                enableTimers = false;
-                                break;
-                            case ClockSelect._128Hz:
-                                frequency = 128 * FrequencyMultiplier;
-                                break;
-                            case ClockSelect._16Hz:
-                                frequency = 16 * FrequencyMultiplier;
-                                break;
-                            case ClockSelect._1Hz:
-                                frequency = 1 * FrequencyMultiplier;
-                                break;
-                            case ClockSelect._1_16Hz:
-                                frequency = FrequencyMultiplier / 16;
-                                break;
-                            default:
-                                this.Log(LogLevel.Error, "Invalid frequency value: {0}. Timer will be disabled", clockSelect.Value);
-                                enableTimers = false;
-                                break;
+                        case ClockSelect.Off:
+                            enableTimers = false;
+                            break;
+                        case ClockSelect._128Hz:
+                            frequency = 128 * FrequencyMultiplier;
+                            break;
+                        case ClockSelect._16Hz:
+                            frequency = 16 * FrequencyMultiplier;
+                            break;
+                        case ClockSelect._1Hz:
+                            frequency = 1 * FrequencyMultiplier;
+                            break;
+                        case ClockSelect._1_16Hz:
+                            frequency = FrequencyMultiplier / 16;
+                            break;
+                        default:
+                            this.Log(LogLevel.Error, "Invalid frequency value: {0}. Timer will be disabled", clockSelect.Value);
+                            enableTimers = false;
+                            break;
                         }
 
                         resetTimer.Frequency = frequency;
@@ -98,8 +99,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                 return resetTimer.Value / FrequencyMultiplier;
             }
         }
-
-        public long Size => 0x400;
 
         private IFlagRegisterField resetEnabled;
 

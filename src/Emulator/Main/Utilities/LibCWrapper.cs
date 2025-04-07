@@ -7,6 +7,7 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
+
 #if PLATFORM_LINUX
 using Mono.Unix.Native;
 using Mono.Unix;
@@ -58,6 +59,12 @@ namespace Antmicro.Renode.Utilities
 
     public class LibCWrapper
     {
+        [DllImport("libc", EntryPoint = "ioctl", SetLastError = true)]
+        public static extern int ioctl(int d, int request, ref InterfaceRequest ifreq);
+
+        [DllImport("libc", EntryPoint = "bind", SetLastError = true)]
+        public static extern int bind(int sockfd, ref SocketAddressCan addr, int addrSize);
+
         public static int Open(string path, int mode)
         {
 #if !PLATFORM_LINUX
@@ -124,14 +131,15 @@ namespace Antmicro.Renode.Utilities
             throw new NotSupportedException("This API is available on Linux only!");
 #else
             int pollResult;
-            var pollData = new Pollfd {
+            var pollData = new Pollfd
+            {
                 fd = fd,
                 events = PollEvents.POLLIN
             };
 
             do
             {
-                pollResult = Syscall.poll(new [] { pollData }, timeout);
+                pollResult = Syscall.poll(new[] { pollData }, timeout);
                 if(shouldCancel())
                 {
                     return null;
@@ -241,17 +249,11 @@ namespace Antmicro.Renode.Utilities
         [DllImport("libc", EntryPoint = "ioctl", SetLastError = true)]
         private static extern int ioctl(int d, int request, int a);
 
-        [DllImport("libc", EntryPoint = "ioctl", SetLastError = true)]
-        public static extern int ioctl(int d, int request, ref InterfaceRequest ifreq);
-
         [DllImport("libc", EntryPoint = "socket", SetLastError = true)]
         private static extern int socket(int domain, int type, int protocol);
 
         [DllImport("libc", EntryPoint = "setsockopt", SetLastError = true)]
         private static extern int setsockopt(int socket, int level, int optionName, ref int optionValue, int optionLength);
-
-        [DllImport("libc", EntryPoint = "bind", SetLastError = true)]
-        public static extern int bind(int sockfd, ref SocketAddressCan addr, int addrSize);
 
         [DllImport("libc", EntryPoint = "close")]
         private static extern int close(int fd);

@@ -5,17 +5,18 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
+using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Utilities.Binding;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Peripherals.IRQControllers;
-using Antmicro.Renode.Debugging;
+using Antmicro.Renode.Peripherals.Timers;
+using Antmicro.Renode.Utilities.Binding;
 
 using Endianess = ELFSharp.ELF.Endianess;
 
@@ -44,6 +45,18 @@ namespace Antmicro.Renode.Peripherals.CPU
             TlibSetMpuRegionsCount(mpuRegionsCount, mpuHyperRegionsCount);
             TlibSetGicCpuRegisterInterfaceVersion(gic.ArchitectureVersionAtLeast3 ? GICCPUInterfaceVersion.Version30Or40 : GICCPUInterfaceVersion.None);
             Reset();
+        }
+
+        public void RegisterTCMRegion(IMemory memory, uint regionIndex)
+        {
+            if(!machine.IsPaused)
+            {
+                throw new RecoverableException("Registering TCM regions might only take place on paused machine");
+            }
+            if(!TryRegisterTCMRegion(memory, regionIndex))
+            {
+                this.Log(LogLevel.Error, "Attempted to register a TCM region #{0}, but {1} is not registered for this CPU.", regionIndex, machine.GetLocalName(memory));
+            }
         }
 
         public override void Reset()
@@ -94,6 +107,25 @@ namespace Antmicro.Renode.Peripherals.CPU
             machine.UnregisterAsAChildOf(this, peripheral);
         }
 
+        public ExceptionLevel ExceptionLevel => exceptionLevel;
+
+        // ARMv8R AArch32 cores always execute in NonSecure mode ("Arm Architecture Reference Manual Supplement Armv8, for the Armv8-R AArch32 architecture profile" - A1.3.1)
+        // ARMv8R AArch64 cores always execute in Secure mode ("Arm Architecture Reference Manual Supplement Armv8, for R-profile AArch64 architecture" - C1.11 and A1.3)
+        // since at this moment we only have AArch32 core supporting this ISA, let's lock it in NonSecure state
+        public SecurityState SecurityState => SecurityState.NonSecure;
+
+        public bool TrapGeneralExceptions => (GetSystemRegisterValue("hcr") & (1 << 27)) != 0;
+
+        public bool FIQMaskOverride => (GetSystemRegisterValue("hcr") & 0b01000) != 0 || TrapGeneralExceptions;
+
+        public bool IRQMaskOverride => (GetSystemRegisterValue("hcr") & 0b10000) != 0 || TrapGeneralExceptions;
+
+        public Affinity Affinity { get; }
+
+        public override ExecutionState ExecutionState => ExecutionState.AArch32;
+
+        public override ExecutionState[] SupportedExecutionStates => new[] { ExecutionState.AArch32 };
+
         public override string Architecture { get { return "arm64"; } }
 
         public override string GDBArchitecture { get { return "arm"; } }
@@ -122,77 +154,76 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public void RegisterTCMRegion(IMemory memory, uint regionIndex)
+        [Export]
+        protected void WriteSystemRegisterGenericTimer32(uint offset, uint value)
         {
-            if(!machine.IsPaused)
+            if(timer == null)
             {
-                throw new RecoverableException("Registering TCM regions might only take place on paused machine");
+                this.Log(LogLevel.Error, "Trying to write a 32-bit register of the ARM Generic Timer, but the timer was not found.");
+                return;
             }
-            if(!TryRegisterTCMRegion(memory, regionIndex))
-            {
-                this.Log(LogLevel.Error, "Attempted to register a TCM region #{0}, but {1} is not registered for this CPU.", regionIndex, machine.GetLocalName(memory));
-            }
+
+            timer.WriteDoubleWordRegisterAArch32(offset, value);
         }
 
-        private void RegisterTCMRegion(TCMConfiguration config)
+        [Export]
+        protected void WriteSystemRegisterGenericTimer64(uint offset, ulong value)
         {
-            try
+            if(timer == null)
             {
-                TlibRegisterTcmRegion(config.Address, config.Size, config.RegionIndex);
+                this.Log(LogLevel.Error, "Trying to write a 64-bit register of the ARM Generic Timer, but the timer was not found.");
+                return;
             }
-            catch(Exception e)
-            {
-                throw new RecoverableException(e);
-            }
+
+            timer.WriteQuadWordRegisterAArch32(offset, value);
         }
 
-        private bool TryRegisterTCMRegion(IMemory memory, uint regionIndex)
+        [Export]
+        protected uint ReadSystemRegisterGenericTimer32(uint offset)
         {
-            if(!TCMConfiguration.TryCreate(this, memory, regionIndex, out var config))
+            if(timer == null)
             {
-                return false;
+                this.Log(LogLevel.Error, "Trying to read a 32-bit register of the ARM Generic Timer, but the timer was not found.");
+                return 0;
             }
 
-            RegisterTCMRegion(config);
-            defaultTCMConfiguration.Add(config);
-
-            return true;
+            return timer.ReadDoubleWordRegisterAArch32(offset);
         }
 
-        public ExceptionLevel ExceptionLevel => exceptionLevel;
-        // ARMv8R AArch32 cores always execute in NonSecure mode ("Arm Architecture Reference Manual Supplement Armv8, for the Armv8-R AArch32 architecture profile" - A1.3.1)
-        // ARMv8R AArch64 cores always execute in Secure mode ("Arm Architecture Reference Manual Supplement Armv8, for R-profile AArch64 architecture" - C1.11 and A1.3)
-        // since at this moment we only have AArch32 core supporting this ISA, let's lock it in NonSecure state
-        public SecurityState SecurityState => SecurityState.NonSecure;
+        [Export]
+        protected ulong ReadSystemRegisterGenericTimer64(uint offset)
+        {
+            if(timer == null)
+            {
+                this.Log(LogLevel.Error, "Trying to read a 64-bit register of the ARM Generic Timer, but the timer was not found.");
+                return 0;
+            }
 
-        public bool TrapGeneralExceptions => (GetSystemRegisterValue("hcr") & (1 << 27)) != 0;
-        public bool FIQMaskOverride => (GetSystemRegisterValue("hcr") & 0b01000) != 0 || TrapGeneralExceptions;
-        public bool IRQMaskOverride => (GetSystemRegisterValue("hcr") & 0b10000) != 0 || TrapGeneralExceptions;
-
-        public Affinity Affinity { get; }
-
-        public override ExecutionState ExecutionState => ExecutionState.AArch32;
-
-        public override ExecutionState[] SupportedExecutionStates => new[] { ExecutionState.AArch32 };
-
-        protected override Type RegistersEnum => typeof(ARMv8RRegisters);
+            return timer.ReadQuadWordRegisterAArch32(offset);
+        }
 
         protected override Interrupt DecodeInterrupt(int number)
         {
             switch((InterruptSignalType)number)
             {
-                case InterruptSignalType.IRQ:
-                    return Interrupt.Hard;
-                case InterruptSignalType.FIQ:
-                    return Interrupt.TargetExternal1;
-                case InterruptSignalType.vIRQ:
-                    return Interrupt.TargetExternal2;
-                case InterruptSignalType.vFIQ:
-                    return Interrupt.TargetExternal3;
-                default:
-                    this.Log(LogLevel.Error, "Unexpected interrupt type for IRQ#{0}", number);
-                    throw InvalidInterruptNumberException;
+            case InterruptSignalType.IRQ:
+                return Interrupt.Hard;
+            case InterruptSignalType.FIQ:
+                return Interrupt.TargetExternal1;
+            case InterruptSignalType.vIRQ:
+                return Interrupt.TargetExternal2;
+            case InterruptSignalType.vFIQ:
+                return Interrupt.TargetExternal3;
+            default:
+                this.Log(LogLevel.Error, "Unexpected interrupt type for IRQ#{0}", number);
+                throw InvalidInterruptNumberException;
             }
+        }
+
+        [Export]
+        protected ulong ReadSystemRegisterInterruptCPUInterface(uint offset)
+        {
+            return gic.ReadSystemRegisterCPUInterface(offset);
         }
 
         [Export]
@@ -230,63 +261,36 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        protected ulong ReadSystemRegisterInterruptCPUInterface(uint offset)
-        {
-            return gic.ReadSystemRegisterCPUInterface(offset);
-        }
-
-        [Export]
         protected void WriteSystemRegisterInterruptCPUInterface(uint offset, ulong value)
         {
             gic.WriteSystemRegisterCPUInterface(offset, value);
         }
 
-        [Export]
-        protected ulong ReadSystemRegisterGenericTimer64(uint offset)
-        {
-            if(timer == null)
-            {
-                this.Log(LogLevel.Error, "Trying to read a 64-bit register of the ARM Generic Timer, but the timer was not found.");
-                return 0;
-            }
+        protected override Type RegistersEnum => typeof(ARMv8RRegisters);
 
-            return timer.ReadQuadWordRegisterAArch32(offset);
+        private void RegisterTCMRegion(TCMConfiguration config)
+        {
+            try
+            {
+                TlibRegisterTcmRegion(config.Address, config.Size, config.RegionIndex);
+            }
+            catch(Exception e)
+            {
+                throw new RecoverableException(e);
+            }
         }
 
-        [Export]
-        protected uint ReadSystemRegisterGenericTimer32(uint offset)
+        private bool TryRegisterTCMRegion(IMemory memory, uint regionIndex)
         {
-            if(timer == null)
+            if(!TCMConfiguration.TryCreate(this, memory, regionIndex, out var config))
             {
-                this.Log(LogLevel.Error, "Trying to read a 32-bit register of the ARM Generic Timer, but the timer was not found.");
-                return 0;
+                return false;
             }
 
-            return timer.ReadDoubleWordRegisterAArch32(offset);
-        }
+            RegisterTCMRegion(config);
+            defaultTCMConfiguration.Add(config);
 
-        [Export]
-        protected void WriteSystemRegisterGenericTimer64(uint offset, ulong value)
-        {
-            if(timer == null)
-            {
-                this.Log(LogLevel.Error, "Trying to write a 64-bit register of the ARM Generic Timer, but the timer was not found.");
-                return;
-            }
-
-            timer.WriteQuadWordRegisterAArch32(offset, value);
-        }
-
-        [Export]
-        protected void WriteSystemRegisterGenericTimer32(uint offset, uint value)
-        {
-            if(timer == null)
-            {
-                this.Log(LogLevel.Error, "Trying to write a 32-bit register of the ARM Generic Timer, but the timer was not found.");
-                return;
-            }
-
-            timer.WriteDoubleWordRegisterAArch32(offset, value);
+            return true;
         }
 
         [Export]
@@ -317,9 +321,20 @@ namespace Antmicro.Renode.Peripherals.CPU
                 throw new ArgumentException("Invalid TlibCheckSystemRegisterAccess return value!");
             }
         }
+#pragma warning restore 649
 
         private ExceptionLevel exceptionLevel;
         private ARM_GenericTimer timer;
+
+#pragma warning disable 649
+        [Import]
+        private readonly Action<uint, uint> TlibSetMpuRegionsCount;
+
+        [Import]
+        private readonly Func<uint, uint, uint> TlibSetAvailableEls;
+
+        [Import]
+        private readonly Action<uint, ulong, ulong> TlibRegisterTcmRegion;
 
         private readonly ARM_GenericInterruptController gic;
         private readonly ulong defaultHVBARValue;
@@ -341,16 +356,5 @@ namespace Antmicro.Renode.Peripherals.CPU
             AccessorNotFound = 2,
             AccessValid      = 3,
         }
-
-#pragma warning disable 649
-        [Import]
-        private Func<uint, uint, uint> TlibSetAvailableEls;
-
-        [Import]
-        private Action<uint, uint> TlibSetMpuRegionsCount;
-
-        [Import]
-        private Action<uint, ulong, ulong> TlibRegisterTcmRegion;
-#pragma warning restore 649
     }
 }

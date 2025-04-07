@@ -6,6 +6,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
+
 using Antmicro.Renode.Peripherals;
 
 namespace Antmicro.Renode.Core.Structure
@@ -18,6 +19,7 @@ namespace Antmicro.Renode.Core.Structure
         where TPeripheral : IPeripheral where TRegistrationPoint : IRegistrationPoint
     {
         IEnumerable<TRegistrationPoint> GetRegistrationPoints(TPeripheral peripheral);
+
         IEnumerable<IRegistered<TPeripheral, TRegistrationPoint>> Children { get; }
     }
 }

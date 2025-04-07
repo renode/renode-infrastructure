@@ -6,18 +6,24 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using AntShell.Commands;
-using Antmicro.Renode.UserInterface.Tokenizer;
-using Antmicro.Renode.Core;
 using System.Linq;
-using Antmicro.Renode.Peripherals;
 using System.Text;
+
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Peripherals;
+using Antmicro.Renode.UserInterface.Tokenizer;
+
+using AntShell.Commands;
 
 namespace Antmicro.Renode.UserInterface.Commands
 {
-    public class ShowBackendAnalyzerCommand : AutoLoadCommand 
+    public class ShowBackendAnalyzerCommand : AutoLoadCommand
     {
+        public ShowBackendAnalyzerCommand(Monitor monitor) : base(monitor, "showAnalyzer", "opens a peripheral backend analyzer.", "sa")
+        {
+        }
+
         public override void PrintHelp(ICommandInteraction writer)
         {
             writer.WriteLine("Usage:");
@@ -26,11 +32,11 @@ namespace Antmicro.Renode.UserInterface.Commands
             writer.WriteLine("\tshows analyzer for [peripheral]");
             writer.WriteLine("");
             writer.WriteLine("[externalName] (optional) - if set, command will create external named [externalName]; this can be used only for analyzers implementing IExternal interface");
-            writer.WriteLine("[typeName] (optional) - if set, command will select analyzer provided in class [typeName]; this must be used when there are more than one analyzers available and no default is set"); 
+            writer.WriteLine("[typeName] (optional) - if set, command will select analyzer provided in class [typeName]; this must be used when there are more than one analyzers available and no default is set");
         }
 
         [Runnable]
-        public void Run(ICommandInteraction writer, StringToken analyzerName, LiteralToken peripheral, LiteralToken analyzerTypeName)
+        public void Run(ICommandInteraction _, StringToken analyzerName, LiteralToken peripheral, LiteralToken analyzerTypeName)
         {
             if(!Emulator.ShowAnalyzers)
             {
@@ -39,13 +45,13 @@ namespace Antmicro.Renode.UserInterface.Commands
             try
             {
                 var analyzer = GetAnalyzer(peripheral.Value, analyzerTypeName == null ? null : analyzerTypeName.Value);
-                if (analyzerName != null)
+                if(analyzerName != null)
                 {
                     EmulationManager.Instance.CurrentEmulation.ExternalsManager.AddExternal((IExternal)analyzer, analyzerName.Value);
                 }
                 analyzer.Show();
-            } 
-            catch (Exception e)
+            }
+            catch(Exception e)
             {
                 throw new RecoverableException(string.Format("Received '{0}' error while initializing analyzer for: {1}. Are you missing a required plugin?", e.Message, peripheral.Value));
             }
@@ -127,11 +133,6 @@ namespace Antmicro.Renode.UserInterface.Commands
             return analyzer;
         }
 
-        public ShowBackendAnalyzerCommand(Monitor monitor) : base(monitor, "showAnalyzer", "opens a peripheral backend analyzer.", "sa")
-        {
-        }
-
         private const string DefaultAnalyzerNamespace = "Antmicro.Renode.Analyzers.";
     }
 }
-

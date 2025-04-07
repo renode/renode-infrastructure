@@ -5,7 +5,6 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 
@@ -20,6 +19,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         }
 
         public long Size => 0x100000;
+
         public uint UserDefinedPeripheralID { get; set; } = 0x0;
 
         private void DefineRegisters()

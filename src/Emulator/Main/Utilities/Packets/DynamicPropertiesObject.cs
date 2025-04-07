@@ -45,7 +45,6 @@ namespace Antmicro.Renode.Utilities.Packets
 
         public override bool TryGetMember(GetMemberBinder binder, out object result)
         {
-
             if(getters.TryGetValue(binder.Name, out var getter))
             {
                 result = getter();

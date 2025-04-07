@@ -18,7 +18,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         public Func<ulong> ReadOperation { get; }
+
         public Action<ulong> WriteOperation { get; }
+
         public string Name { get; }
     }
 }

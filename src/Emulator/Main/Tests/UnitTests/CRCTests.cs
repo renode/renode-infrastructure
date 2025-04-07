@@ -5,8 +5,9 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using NUnit.Framework;
 using System;
+
+using NUnit.Framework;
 
 namespace Antmicro.Renode.Utilities
 {

@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -17,7 +18,7 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Wireless
 {
-    public sealed class CC2520: IRadio, ISPIPeripheral, INumberedGPIOOutput, IGPIOReceiver
+    public sealed class CC2520 : IRadio, ISPIPeripheral, INumberedGPIOOutput, IGPIOReceiver
     {
         public CC2520()
         {
@@ -103,7 +104,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             {
                 if(!decoderRoot.TryParseOpcode(data, out currentInstruction))
                 {
-                    this.Log(LogLevel.Error, "Cannot find opcode in value 0b{0} (0x{1:X})".FormatWith(Convert.ToString(data, 2).PadLeft(8,'0'), data));
+                    this.Log(LogLevel.Error, "Cannot find opcode in value 0b{0} (0x{1:X})".FormatWith(Convert.ToString(data, 2).PadLeft(8, '0'), data));
                     return 0;
                 }
                 this.Log(LogLevel.Debug, "Setting command to: {0}", currentInstruction.Name);
@@ -829,46 +830,46 @@ namespace Antmicro.Renode.Peripherals.Wireless
         private IFlagRegisterField autoPendingFlag;
         private IFlagRegisterField sourceMatchingEnabled;
 
-        private readonly IValueRegisterField[] shortAddressMatchingEnabled = new IValueRegisterField[3];
-        private readonly IValueRegisterField[] extendedAddressMatchingEnabled = new IValueRegisterField[3];
-
         private IFlagRegisterField autoCrc;
-        private IFlagRegisterField autoAck;
-        private IFlagRegisterField appendDataMode;
 
-        private IFlagRegisterField ignoreTxUnderflow;
-        private IFlagRegisterField pendingAlwaysOn;
+        private Instruction currentInstruction;
+        private Address localExtendedAddress;
+        private Address localShortAddress;
+        private byte[] localAddressInfo;
+        private byte[] sourceAddressMatchingControl;
+        private byte[] sourceAddressMatchingResult;
+        private byte[] sourceAddressTable;
+        private byte[] memory;
 
-        private IValueRegisterField channel;
+        private byte[] currentFrame;
+        private ByteRegisterCollection registers;
+        private bool wasLastFrameSent;
+        private bool vregEnabled;
+        private bool inReset;
+
+        private bool isRxEnabled;
 
         private IValueRegisterField fifopThreshold;
+
+        private IValueRegisterField channel;
+        private IFlagRegisterField pendingAlwaysOn;
+
+        private IFlagRegisterField ignoreTxUnderflow;
+        private IFlagRegisterField appendDataMode;
+        private IFlagRegisterField autoAck;
+        private bool oscillatorRunning;
+
+        private readonly SimpleInstructionDecoder<Instruction> decoderRoot = new SimpleInstructionDecoder<Instruction>();
+
+        private readonly IValueRegisterField[] shortAddressMatchingEnabled = new IValueRegisterField[3];
+        private readonly IValueRegisterField[] extendedAddressMatchingEnabled = new IValueRegisterField[3];
 
         private readonly IValueRegisterField[] pendingExceptionFlag = new IValueRegisterField[3];
         private readonly IValueRegisterField[] pendingExceptionMaskA = new IValueRegisterField[3];
         private readonly IValueRegisterField[] pendingExceptionMaskB = new IValueRegisterField[3];
 
-        private bool isRxEnabled;
-        private bool inReset;
-        private bool vregEnabled;
-        private bool oscillatorRunning;
-        private bool wasLastFrameSent;
-
-        private byte[] currentFrame;
-
         private readonly Queue<byte> txFifo = new Queue<byte>();
         private readonly Queue<byte> rxFifo = new Queue<byte>();
-        private byte[] memory;
-        private byte[] sourceAddressTable;
-        private byte[] sourceAddressMatchingResult;
-        private byte[] sourceAddressMatchingControl;
-        private byte[] localAddressInfo;
-        private Address localShortAddress;
-        private Address localExtendedAddress;
-
-        private Instruction currentInstruction;
-        private ByteRegisterCollection registers;
-
-        private SimpleInstructionDecoder<Instruction> decoderRoot = new SimpleInstructionDecoder<Instruction>();
 
         private const int RegisterMemorySize = 0x80;
         private const uint TxFifoMemoryStart = 0x100;
@@ -889,48 +890,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         private const int BroadcastPanIdentifier = 0xFFFF;
         private const byte NoSourceIndex = 0x3F;
-
-        private abstract class Instruction
-        {
-            public byte Parse(byte value)
-            {
-                CurrentByteCount++;
-                return ParseInner(value);
-            }
-
-            public CC2520 Parent { protected get; set; }
-            public string Name { get; private set; }
-            public bool IsFinished
-            {
-                get
-                {
-                    return CurrentByteCount == Length;
-                }
-            }
-
-            public bool? HighPriority { get; protected set; } //tristate, because non-null value sets DPUx_ACTIVE in status
-
-            protected Instruction()
-            {
-                Name = GetType().Name;
-                Length = 1;
-            }
-
-            protected virtual byte ParseInner(byte value)
-            {
-                return Parent.GetStatus();
-            }
-
-            protected virtual bool IsCommandStrobe
-            {
-                get { return Length == 1; }
-            }
-
-            protected int Length;
-            protected int CurrentByteCount;
-            protected uint AddressA;
-            protected uint CountC;
-        }
 
         private sealed class SNOP : Instruction
         {
@@ -1230,7 +1189,49 @@ namespace Antmicro.Renode.Peripherals.Wireless
             }
         }
 
+        private abstract class Instruction
+        {
+            public byte Parse(byte value)
+            {
+                CurrentByteCount++;
+                return ParseInner(value);
+            }
 
+            public CC2520 Parent { protected get; set; }
+
+            public string Name { get; private set; }
+
+            public bool IsFinished
+            {
+                get
+                {
+                    return CurrentByteCount == Length;
+                }
+            }
+
+            public bool? HighPriority { get; protected set; } //tristate, because non-null value sets DPUx_ACTIVE in status
+
+            protected Instruction()
+            {
+                Name = GetType().Name;
+                Length = 1;
+            }
+
+            protected virtual byte ParseInner(byte value)
+            {
+                return Parent.GetStatus();
+            }
+
+            protected virtual bool IsCommandStrobe
+            {
+                get { return Length == 1; }
+            }
+
+            protected int Length;
+            protected int CurrentByteCount;
+            protected uint AddressA;
+            protected uint CountC;
+        }
 
         private enum Registers
         {

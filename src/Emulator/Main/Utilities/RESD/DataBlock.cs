@@ -5,11 +5,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Threading;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
+
 using Antmicro.Renode.Time;
-using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Utilities.RESD
 {
@@ -24,16 +24,23 @@ namespace Antmicro.Renode.Utilities.RESD
     public interface IDataBlock
     {
         ulong StartTime { get; }
+
         SampleType SampleType { get; }
+
         ushort ChannelId { get; }
+
         ulong SamplesCount { get; }
+
         ulong Duration { get; }
+
         IDictionary<String, MetadataValue> Metadata { get; }
+
         IDictionary<String, String> ExtraInformation { get; }
+
         IEnumerable<KeyValuePair<TimeInterval, RESDSample>> Samples { get; }
     }
 
-    public abstract class DataBlock<T> : IDataBlock where T: RESDSample, new()
+    public abstract class DataBlock<T> : IDataBlock where T : RESDSample, new()
     {
         public DataBlock(DataBlockHeader header)
         {
@@ -41,21 +48,32 @@ namespace Antmicro.Renode.Utilities.RESD
         }
 
         public abstract RESDStreamStatus TryGetSample(ulong timestamp, out T sample);
+
         public abstract RESDStreamStatus TryGetNextSample(out TimeInterval timestamp, out T sample);
 
-        public abstract ulong StartTime { get; }
-        public abstract T CurrentSample { get; }
-        public abstract ulong CurrentTimestamp { get; }
-        public abstract ulong SamplesCount { get; }
-        public abstract ulong Duration { get; }
-        public abstract IDictionary<String, String> ExtraInformation { get; }
-        public abstract IEnumerable<KeyValuePair<TimeInterval, RESDSample>> Samples { get; }
-
         public virtual BlockType BlockType => Header.BlockType;
+
         public virtual SampleType SampleType => Header.SampleType;
+
         public virtual ushort ChannelId => Header.ChannelId;
+
         public virtual ulong DataSize => Header.Size;
+
         public virtual IDictionary<String, MetadataValue> Metadata => CurrentSample.Metadata;
+
+        public abstract ulong StartTime { get; }
+
+        public abstract T CurrentSample { get; }
+
+        public abstract ulong CurrentTimestamp { get; }
+
+        public abstract ulong SamplesCount { get; }
+
+        public abstract ulong Duration { get; }
+
+        public abstract IDictionary<String, String> ExtraInformation { get; }
+
+        public abstract IEnumerable<KeyValuePair<TimeInterval, RESDSample>> Samples { get; }
 
         protected virtual DataBlockHeader Header { get; }
     }
@@ -74,9 +92,13 @@ namespace Antmicro.Renode.Utilities.RESD
         }
 
         public SampleType SampleType { get; }
+
         public BlockType BlockType { get; }
+
         public ushort ChannelId { get; }
+
         public ulong Size { get; }
+
         public long StartPosition { get; }
 
         private DataBlockHeader(BlockType blockType, SampleType sampleType, ushort channel, ulong dataSize, long startPosition)
@@ -156,13 +178,19 @@ namespace Antmicro.Renode.Utilities.RESD
         }
 
         public ulong Period { get; }
+
         public decimal Frequency => NanosecondsInSecond / Period;
 
         public override ulong StartTime { get; }
+
         public override T CurrentSample => samplesData.GetCurrentSample();
+
         public override ulong CurrentTimestamp => currentSampleTimestamp;
+
         public override ulong SamplesCount => samplesCount.Value;
+
         public override ulong Duration => SamplesCount * Period;
+
         public override IDictionary<String, String> ExtraInformation => new Dictionary<String, String>() {
             {"Period", TimeInterval.FromNanoseconds(Period).ToString()},
             {"Frequency", $"{Frequency}Hz"}
@@ -308,10 +336,15 @@ namespace Antmicro.Renode.Utilities.RESD
         }
 
         public override ulong StartTime { get; }
+
         public override T CurrentSample => currentWrappedSample.Sample;
+
         public override ulong CurrentTimestamp => StartTime + currentWrappedSample.Timestamp;
+
         public override ulong SamplesCount => samplesCount.Value;
+
         public override ulong Duration => duration.Value;
+
         public override IDictionary<String, String> ExtraInformation => new Dictionary<String, String>();
 
         public override IEnumerable<KeyValuePair<TimeInterval, RESDSample>> Samples

@@ -4,21 +4,18 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Linq;
-using System.Collections.Generic;
-using Antmicro.Renode.Peripherals.Sensor;
-using Antmicro.Renode.Peripherals.I2C;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Core;
+
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.I2C;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Sensors
 {
     public class MAX77818 : II2CPeripheral, IProvidesRegisterCollection<WordRegisterCollection>
     {
-        public MAX77818(IMachine machine)
+        public MAX77818()
         {
             RegistersCollection = new WordRegisterCollection(this);
             DefineRegisters();
@@ -59,13 +56,13 @@ namespace Antmicro.Renode.Peripherals.Sensors
             if(!registerAddress.HasValue)
             {
                 this.Log(LogLevel.Error, "Trying to read without setting address");
-                return new byte[] {};
+                return new byte[] { };
             }
 
             if(state != States.Read)
             {
                 this.Log(LogLevel.Error, "Trying to read while in write mode");
-                return new byte[] {};
+                return new byte[] { };
             }
 
             var result = new byte[count];
@@ -92,18 +89,27 @@ namespace Antmicro.Renode.Peripherals.Sensors
         public WordRegisterCollection RegistersCollection { get; }
 
         public decimal Temperature { get; set; }
+
         public decimal CellVoltage { get; set; }
+
         public decimal Current { get; set; }
 
         public decimal DesignCapacity { get; set; }
+
         public decimal FullCapacity { get; set; }
+
         public decimal AvailableCapacity { get; set; }
+
         public decimal ReportedCapacity { get; set; }
+
         public decimal MixCapacity { get; set; }
 
         public decimal ReportedStateOfCharge { get; set; }
+
         public decimal Age { get; set; }
+
         public decimal QResidual { get; set; }
+
         public decimal Cycles { get; set; }
 
         private ushort ConvertTemperature(decimal temperature)

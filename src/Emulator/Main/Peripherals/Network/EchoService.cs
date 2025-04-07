@@ -8,13 +8,15 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+
 using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.Network
 {
     public class EchoService : IEmulatedNetworkService
     {
-        public EchoService(string host, ushort port, string args)
+        // Last parameter is needed for compatibility with "CreateEmulatedNetworkService" function
+        public EchoService(string host, ushort port, string _)
         {
             Host = host;
             Port = port;
@@ -53,6 +55,7 @@ namespace Antmicro.Renode.Peripherals.Network
         public int BytesAvailable => responseBuffer.Count;
 
         public string Host { get; }
+
         public ushort Port { get; }
 
         public event Action<int> BytesReceived;

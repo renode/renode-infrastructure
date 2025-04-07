@@ -4,11 +4,11 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.CPU;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
+using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Core.Structure.Registers
 {
@@ -84,7 +84,8 @@ namespace Antmicro.Renode.Core.Structure.Registers
             }
 
             public IPeripheralRegister<T> Register { get; }
-            public Func<bool> Condition { get; } 
+
+            public Func<bool> Condition { get; }
         }
     }
 }

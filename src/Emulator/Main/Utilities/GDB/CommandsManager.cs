@@ -5,17 +5,18 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Collections;
+
+using Antmicro.Migrant;
+using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.CPU;
-using Antmicro.Migrant;
-using Antmicro.Migrant.Hooks;
 
 namespace Antmicro.Renode.Utilities.GDB
 {
@@ -92,7 +93,7 @@ namespace Antmicro.Renode.Utilities.GDB
             if(!commandsCache.TryGetValue(mnemonic, out command))
             {
                 var commandDescriptor = availableCommands.FirstOrDefault(x => mnemonic == x.Mnemonic);
-                command = commandDescriptor == null ? null: GetOrCreateCommand(commandDescriptor.Method.DeclaringType);
+                command = commandDescriptor == null ? null : GetOrCreateCommand(commandDescriptor.Method.DeclaringType);
                 commandsCache[mnemonic] = command;
             }
             return command != null;
@@ -156,8 +157,11 @@ namespace Antmicro.Renode.Utilities.GDB
         }
 
         public IMachine Machine { get; }
+
         public ManagedCpusDictionary ManagedCpus { get; }
+
         public bool CanAttachCPU { get; set; }
+
         public ICpuSupportingGdb Cpu => selectedCpu;
 
         private static GDBFeatureDescriptor UnifyFeature(List<GDBFeatureDescriptor> featureVariations)
@@ -281,6 +285,8 @@ namespace Antmicro.Renode.Utilities.GDB
             }
         }
 
+        private ICpuSupportingGdb selectedCpu;
+
         [Constructor]
         private readonly HashSet<CommandDescriptor> availableCommands;
         private readonly HashSet<string> typesWithCommands;
@@ -289,7 +295,6 @@ namespace Antmicro.Renode.Utilities.GDB
         private readonly Dictionary<int, GDBRegisterDescriptor[]> unifiedRegisters = new Dictionary<int, GDBRegisterDescriptor[]>();
 
         private readonly Dictionary<string,Command> commandsCache;
-        private ICpuSupportingGdb selectedCpu;
         [Constructor]
         private readonly List<string> mnemonicList;
 
@@ -324,17 +329,18 @@ namespace Antmicro.Renode.Utilities.GDB
                     // 0 means an arbitrary process or thread - so take the first one available
                     switch(idx)
                     {
-                        case PacketThreadId.All:
-                            throw new NotSupportedException("Selecting \"all\" CPUs is not supported");
-                        case PacketThreadId.Any:
-                            return idsToCpus.OrderBy(kv => kv.Key).First().Value;
-                        default:
-                            return idsToCpus[(uint)idx];
+                    case PacketThreadId.All:
+                        throw new NotSupportedException("Selecting \"all\" CPUs is not supported");
+                    case PacketThreadId.Any:
+                        return idsToCpus.OrderBy(kv => kv.Key).First().Value;
+                    default:
+                        return idsToCpus[(uint)idx];
                     }
                 }
             }
 
             public ICpuSupportingGdb this[uint idx] => this[(int)idx];
+
             public uint this[ICpuSupportingGdb cpu] => cpusToIds[cpu];
 
             public IEnumerable<uint> GdbCpuIds => idsToCpus.Keys;
@@ -352,8 +358,8 @@ namespace Antmicro.Renode.Utilities.GDB
             }
 
             public string Mnemonic { get; private set; }
+
             public MethodInfo Method { get; private set; }
         }
     }
 }
-

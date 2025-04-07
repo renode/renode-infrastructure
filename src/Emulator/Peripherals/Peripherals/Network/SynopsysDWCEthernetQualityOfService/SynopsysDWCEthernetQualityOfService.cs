@@ -6,7 +6,6 @@
 //
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 
 using Antmicro.Renode.Core;
@@ -20,6 +19,7 @@ using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
+
 using PacketDotNet;
 
 namespace Antmicro.Renode.Peripherals.Network
@@ -116,10 +116,14 @@ namespace Antmicro.Renode.Peripherals.Network
         }
 
         public virtual long Size => 0xC00;
+
         [DefaultInterrupt]
         public GPIO IRQ { get; }
+
         public MACAddress MAC { get; set; }
+
         public MACAddress MAC0 => MAC;
+
         public MACAddress MAC1 { get; set; }
 
         public event Action<EthernetFrame> FrameReady;
@@ -127,9 +131,12 @@ namespace Antmicro.Renode.Peripherals.Network
         // Configuration options for derived classes
 
         // Offset at which each channel should start. This also determinates the amount of DMA channels
-        protected virtual long[] DMAChannelOffsets => new long[]{ 0x100 };
+        protected virtual long[] DMAChannelOffsets => new long[] { 0x100 };
+
         protected BusWidth DMABusWidth { get; private set; }
+
         protected virtual int RxQueueSize => 8192;
+
         protected virtual bool SeparateDMAInterrupts => false;
 
         private void SoftwareReset()
@@ -178,23 +185,23 @@ namespace Antmicro.Renode.Peripherals.Network
 
         private void UpdateRxCounters(EthernetFrame frame, RxDescriptor.NormalWriteBackDescriptor writeBackStructure)
         {
-            if(writeBackStructure.crcError)
+            if(writeBackStructure.CrcError)
             {
                 IncrementPacketCounter(rxCrcErrorPacketCounter, rxCrcErrorPacketCounterInterrupt);
             }
             IncrementPacketCounter(rxPacketCounter, rxPacketCounterInterrupt);
             // byte count excludes preamble, one added to account for Start of Frame Delimiter (SFD)
-            var byteCount = 1 + writeBackStructure.packetLength;
+            var byteCount = 1 + writeBackStructure.PacketLength;
             IncrementByteCounter(rxByteCounter, rxByteCounterInterrupt, byteCount);
 
-            var isRuntPacket = writeBackStructure.packetLength <= EthernetFrame.RuntPacketMaximumSize;
+            var isRuntPacket = writeBackStructure.PacketLength <= EthernetFrame.RuntPacketMaximumSize;
             var lengthOutOfRange = frame.Length > EthernetFrame.MaximumFrameSize;
-            var isNontypePacket = (writeBackStructure.lengthTypeField != PacketKind.TypePacket);
-            var lengthMismatch = (frame.Length != writeBackStructure.packetLength);
+            var isNontypePacket = (writeBackStructure.LengthTypeField != PacketKind.TypePacket);
+            var lengthMismatch = (frame.Length != writeBackStructure.PacketLength);
 
             var lengthError = isNontypePacket && lengthMismatch;
             var outOfRange = isNontypePacket && lengthOutOfRange;
-            if(writeBackStructure.crcError || isRuntPacket || lengthError || outOfRange)
+            if(writeBackStructure.CrcError || isRuntPacket || lengthError || outOfRange)
             {
                 return;
             }
@@ -213,31 +220,31 @@ namespace Antmicro.Renode.Peripherals.Network
                 IncrementPacketCounter(rxUnicastPacketCounter, rxUnicastPacketCounterInterrupt);
             }
 
-            if(writeBackStructure.ipv4HeaderPresent)
+            if(writeBackStructure.Ipv4HeaderPresent)
             {
                 IncreaseIpcCounter(IpcCounter.IpV4Good, byteCount);
-                if(writeBackStructure.ipHeaderError)
+                if(writeBackStructure.IpHeaderError)
                 {
                     IncreaseIpcCounter(IpcCounter.IpV4HeaderError, byteCount);
                 }
             }
-            if(writeBackStructure.ipv6HeaderPresent)
+            if(writeBackStructure.Ipv6HeaderPresent)
             {
                 IncreaseIpcCounter(IpcCounter.IpV6Good, byteCount);
-                if(writeBackStructure.ipHeaderError)
+                if(writeBackStructure.IpHeaderError)
                 {
                     IncreaseIpcCounter(IpcCounter.IpV6HeaderError, byteCount);
                 }
             }
-            if(writeBackStructure.payloadType ==  PayloadType.UDP)
+            if(writeBackStructure.PayloadType == PayloadType.UDP)
             {
                 IncreaseIpcCounter(IpcCounter.UdpGood, byteCount);
             }
-            else if(writeBackStructure.payloadType == PayloadType.TCP)
+            else if(writeBackStructure.PayloadType == PayloadType.TCP)
             {
                 IncreaseIpcCounter(IpcCounter.TcpGood, byteCount);
             }
-            else if(writeBackStructure.payloadType == PayloadType.ICMP)
+            else if(writeBackStructure.PayloadType == PayloadType.ICMP)
             {
                 IncreaseIpcCounter(IpcCounter.IcmpGood, byteCount);
             }
@@ -380,30 +387,32 @@ namespace Antmicro.Renode.Peripherals.Network
             this.DebugLog("Effective timestamp timer frequency is {0}Hz", effectiveFrequency);
         }
 
-        private IBusController Bus { get; }
-        private ICPU CpuContext { get; }
-        private uint timestampSecondTimer;
-        private readonly LimitTimer timestampSubsecondTimer;
-        private readonly long ptpClockFrequency;
-
         private bool MMCTxInterruptStatus =>
-            (txGoodPacketCounterInterrupt.Value && txGoodPacketCounterInterruptEnable.Value)           ||
-            (txGoodByteCounterInterrupt.Value && txGoodByteCounterInterruptEnable.Value)               ||
+            (txGoodPacketCounterInterrupt.Value && txGoodPacketCounterInterruptEnable.Value) ||
+            (txGoodByteCounterInterrupt.Value && txGoodByteCounterInterruptEnable.Value) ||
             (txBroadcastPacketCounterInterrupt.Value && txBroadcastPacketCounterInterruptEnable.Value) ||
             (txMulticastPacketCounterInterrupt.Value && txMulticastPacketCounterInterruptEnable.Value) ||
-            (txUnicastPacketCounterInterrupt.Value && txUnicastPacketCounterInterruptEnable.Value)     ||
-            (txPacketCounterInterrupt.Value && txPacketCounterInterruptEnable.Value)                   ||
+            (txUnicastPacketCounterInterrupt.Value && txUnicastPacketCounterInterruptEnable.Value) ||
+            (txPacketCounterInterrupt.Value && txPacketCounterInterruptEnable.Value) ||
             (txByteCounterInterrupt.Value && txByteCounterInterruptEnable.Value);
 
         private bool MMCRxInterruptStatus =>
-            (rxFifoPacketCounterInterrupt.Value && rxFifoPacketCounterInterruptEnable.Value)           ||
-            (rxUnicastPacketCounterInterrupt.Value && rxUnicastPacketCounterInterruptEnable.Value)     ||
-            (rxCrcErrorPacketCounterInterrupt.Value && rxCrcErrorPacketCounterInterruptEnable.Value)   ||
+            (rxFifoPacketCounterInterrupt.Value && rxFifoPacketCounterInterruptEnable.Value) ||
+            (rxUnicastPacketCounterInterrupt.Value && rxUnicastPacketCounterInterruptEnable.Value) ||
+            (rxCrcErrorPacketCounterInterrupt.Value && rxCrcErrorPacketCounterInterruptEnable.Value) ||
             (rxMulticastPacketCounterInterrupt.Value && rxMulticastPacketCounterInterruptEnable.Value) ||
             (rxBroadcastPacketCounterInterrupt.Value && rxBroadcastPacketCounterInterruptEnable.Value) ||
-            (rxGoodByteCounterInterrupt.Value && rxGoodByteCounterInterruptEnable.Value)               ||
-            (rxByteCounterInterrupt.Value && rxByteCounterInterruptEnable.Value)                       ||
+            (rxGoodByteCounterInterrupt.Value && rxGoodByteCounterInterruptEnable.Value) ||
+            (rxByteCounterInterrupt.Value && rxByteCounterInterruptEnable.Value) ||
             (rxPacketCounterInterrupt.Value && rxPacketCounterInterruptEnable.Value);
+
+        private IBusController Bus { get; }
+
+        private ICPU CpuContext { get; }
+
+        private uint timestampSecondTimer;
+        private readonly LimitTimer timestampSubsecondTimer;
+        private readonly long ptpClockFrequency;
 
         private const ulong CounterMaxValue = UInt32.MaxValue;
         private const int RxWatchdogDivider = 256;
@@ -538,7 +547,9 @@ namespace Antmicro.Renode.Peripherals.Network
             private static readonly HashSet<ushort> ptpPorts = new HashSet<ushort>(){ 319, 320 };
 
             public PTPMessageType MessageType { get; private set; }
+
             public TransportType Transport { get; private set; }
+
             public PTPVersion Version { get; private set; }
         }
     }

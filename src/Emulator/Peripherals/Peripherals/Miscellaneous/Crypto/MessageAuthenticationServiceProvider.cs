@@ -4,16 +4,17 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Utilities;
-using Org.BouncyCastle.Crypto.Engines;
-using Org.BouncyCastle.Crypto.Modes;
-using Org.BouncyCastle.Crypto.Parameters;
 using System;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
+
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
+
+using Org.BouncyCastle.Crypto.Engines;
+using Org.BouncyCastle.Crypto.Modes;
+using Org.BouncyCastle.Crypto.Parameters;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
 {
@@ -37,7 +38,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
             manager.TryReadDoubleWord((long)MsgAuthRegisters.SHADataBytesToProcess, out var hashInputLength);
             manager.TryReadDoubleWord((long)MsgAuthRegisters.SHAExternalDataLocation, out var hashInputAddr);
             var bytes = bus.ReadBytes(hashInputAddr, (int)hashInputLength);
-            
+
             manager.TryReadDoubleWord((long)MsgAuthRegisters.SHAExternalDataResultLocation, out var hashResultLocation);
             bus.WriteBytes(GetHashedBytes((int)hashInputLength, bytes), hashResultLocation);
         }
@@ -62,15 +63,15 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
             manager.TryReadDoubleWord((long)config, out var dmaConfig);
             switch((WriteType)dmaConfig)
             {
-                case WriteType.Direct:
-                    nonDMAVersion();
-                    break;
-                case WriteType.DMA:
-                    dmaVersion();
-                    break;
-                default:
-                    Logger.Log(LogLevel.Warning, "Encountered unexpected DMA configuration: 0x{0:X}", dmaConfig);
-                    break;
+            case WriteType.Direct:
+                nonDMAVersion();
+                break;
+            case WriteType.DMA:
+                dmaVersion();
+                break;
+            default:
+                Logger.Log(LogLevel.Warning, "Encountered unexpected DMA configuration: 0x{0:X}", dmaConfig);
+                break;
             }
         }
 
@@ -121,7 +122,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
         {
             manager.TryReadDoubleWord((long)MsgAuthRegisters.AuthDataByteCount, out var authBytesLength);
             manager.TryReadBytes((long)MsgAuthRegisters.AuthData, (int)authBytesLength, out var authBytes);
-            
+
             manager.TryReadDoubleWord((long)MsgAuthRegisters.InputDataByteCount, out var msgBytesLength);
             var msgBytesAddend = (msgBytesLength % 4);
             if(msgBytesAddend != 0)
@@ -129,9 +130,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
                 msgBytesAddend = 4 - msgBytesAddend;
                 msgBytesLength += msgBytesAddend;
             }
-            
+
             manager.TryReadBytes((long)MsgAuthRegisters.Message, (int)msgBytesLength, out var msgBytes);
-            
+
             if(msgBytesAddend != 0)
             {
                 msgBytes = msgBytes.Take((int)(msgBytesLength - msgBytesAddend)).ToArray();
@@ -163,13 +164,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
             manager.TryReadDoubleWord((long)MsgAuthRegisters.PointerToExternalMACLocation, out var macAddr);
             bus.WriteBytes(tag, macAddr);
         }
-        
+
         private void CalculateGCM(byte[] msgBytesSwapped, byte[] authBytesSwapped, MsgAuthRegisters initVector, out byte[] ciphertext, out byte[] tag)
         {
             var initVectorSize = GCMInitVectorSize128;
 
             manager.TryReadBytes((long)MsgAuthRegisters.Key, KeyLen, out var keyBytesSwapped);
-            
+
             manager.TryReadBytes((long)initVector, initVectorSize, out var ivBytesSwapped);
             // If the user has entered an initialization vector ending with [0x0, 0x0, 0x0, 0x1] (1 being the youngest byte)
             // it means that it is in fact a 96bit key that was padded with these special bytes, to be 128bit.
@@ -193,20 +194,20 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
 
             ciphertext = new byte[msgBytesSwapped.Length];
             tag = new byte[initVectorSize];
-            
+
             Buffer.BlockCopy(encryptedBytes, 0, ciphertext, 0, msgBytesSwapped.Length);
             Buffer.BlockCopy(encryptedBytes, msgBytesSwapped.Length, tag, 0, initVectorSize);
         }
+
+        private readonly IBusController bus;
+        private readonly InternalMemoryManager manager;
 
         private const int GCMInitVectorSize128 = 16;
         private const int GCMInitVectorSize96 = 12;
         private const int HMACSHAMsgLen = 34;
         private const int SHAMsgLen = 32;
         private const int KeyLen = 32;
-        
-        private readonly IBusController bus;
-        private readonly InternalMemoryManager manager;
-        
+
         private enum WriteType
         {
             Direct = 0x0,

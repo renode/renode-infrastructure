@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Tests.UnitTests.Mocks
@@ -31,6 +32,5 @@ namespace Antmicro.Renode.Tests.UnitTests.Mocks
         }
 
         public int MockInt { get; set; }
-       
     }
 }

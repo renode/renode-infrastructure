@@ -5,11 +5,12 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
+using System;
 using System.Threading;
-using Antmicro.Renode.Time;
+
 using Antmicro.Migrant;
 using Antmicro.Migrant.Hooks;
-using System;
+using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -48,7 +49,7 @@ namespace Antmicro.Renode.Utilities
             return timeoutEvent;
         }
     }
-    
+
     public class TimeoutEvent
     {
         public TimeoutEvent(TimeSourceBase timeSource, ulong? actionId = null)
@@ -57,7 +58,7 @@ namespace Antmicro.Renode.Utilities
             this.timeSource = timeSource;
             this.actionId = actionId;
         }
-        
+
         public void Trigger()
         {
             IsTriggered = true;
@@ -90,7 +91,7 @@ namespace Antmicro.Renode.Utilities
         }
 
         [Constructor(false)]
-        private AutoResetEvent waitHandle;
+        private readonly AutoResetEvent waitHandle;
         // We cannot serialize the timeSource but since we trigger the event after deserialization
         // anyway, it doesn't matter since it can't be canceled at that point.
         [Transient]
@@ -100,4 +101,3 @@ namespace Antmicro.Renode.Utilities
         private readonly ulong? actionId;
     }
 }
-

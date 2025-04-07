@@ -4,17 +4,15 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.PCI.BAR;
-using Antmicro.Renode.Peripherals.PCI.Capabilities;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.ATAPI
@@ -152,21 +150,21 @@ namespace Antmicro.Renode.Peripherals.ATAPI
                 var groupCode = BitHelper.GetValue(value, 5, 3);
                 switch(groupCode)
                 {
-                    case 0x0:
-                        cmdLength = 6;
-                        break;
-                    case 0x1:
-                    case 0x2:
-                        cmdLength = 10;
-                        break;
-                    case 0x5:
-                        cmdLength = 12;
-                        break;
-                    default:
-                        this.Log(LogLevel.Error, "Wrong 'Group Code' : {0:x}. Rest of the packet will be discarded", groupCode);
-                        cmdCount = 0;
-                        packetTransmission = false;
-                        break;
+                case 0x0:
+                    cmdLength = 6;
+                    break;
+                case 0x1:
+                case 0x2:
+                    cmdLength = 10;
+                    break;
+                case 0x5:
+                    cmdLength = 12;
+                    break;
+                default:
+                    this.Log(LogLevel.Error, "Wrong 'Group Code' : {0:x}. Rest of the packet will be discarded", groupCode);
+                    cmdCount = 0;
+                    packetTransmission = false;
+                    break;
                 }
             }
             // Packet transmission always consist of 12 bytes, if a command is shorter - redundant bytes have value 0x0
@@ -199,7 +197,8 @@ namespace Antmicro.Renode.Peripherals.ATAPI
 
         private void ExecuteCommand(Command command)
         {
-            switch(command) {
+            switch(command)
+            {
             case Command.IdentifyPacketDevice:
                 //During device enumeration firmware will try to send commands to unexisting device, such tries should be ignored
                 if(selectedDevice == null)
@@ -249,15 +248,15 @@ namespace Antmicro.Renode.Peripherals.ATAPI
             }
         }
 
+        private ByteRegisterCollection registers;
+        private WordRegisterCollection dataRegisters;
+
         private bool packetTransmission;
         private ushort cmdCount;
         private ushort cmdLength;
-        private readonly byte[] commandBytes = new byte[16];
         private IAtapiPeripheral selectedDevice;
-        private object selectedDeviceLock = new object();
-
-        private ByteRegisterCollection registers;
-        private WordRegisterCollection dataRegisters;
+        private readonly object selectedDeviceLock = new object();
+        private readonly byte[] commandBytes = new byte[16];
 
         private enum Device
         {
@@ -437,4 +436,3 @@ namespace Antmicro.Renode.Peripherals.ATAPI
         }
     }
 }
-

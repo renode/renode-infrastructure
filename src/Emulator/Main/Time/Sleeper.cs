@@ -7,8 +7,8 @@
 using System;
 using System.Diagnostics;
 using System.Threading;
+
 using Antmicro.Migrant;
-using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Time
@@ -45,7 +45,7 @@ namespace Antmicro.Renode.Time
                 timeLeft = time - stopwatch.Elapsed;
             }
             stopwatch.Stop();
-            
+
             timeElapsed = stopwatch.Elapsed > time ? time : stopwatch.Elapsed;
             lock(locker)
             {
@@ -104,12 +104,12 @@ namespace Antmicro.Renode.Time
                 {
                     return;
                 }
-                
+
                 Disable();
                 Enable();
             }
         }
-        
+
         [Constructor]
         private CancellationTokenSource cancellationToken;
         private readonly Stopwatch stopwatch;

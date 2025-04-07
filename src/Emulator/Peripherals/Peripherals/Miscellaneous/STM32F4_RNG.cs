@@ -4,21 +4,17 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Time;
-using System;
-using static Antmicro.Renode.Utilities.BitHelper;
-using Antmicro.Renode.Utilities;
 using System.Collections.Generic;
-using Antmicro.Renode.Logging;
+
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class STM32F4_RNG : IDoubleWordPeripheral, IKnownSize
     {
-        public STM32F4_RNG(IMachine machine)
+        public STM32F4_RNG()
         {
             IRQ = new GPIO();
 
@@ -71,18 +67,19 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             registers.Write(offset, value);
         }
 
+        public long Size => 0x400;
+
+        public GPIO IRQ { get; private set; }
+
         private void Update()
         {
             IRQ.Set(enable.Value && interruptEnable.Value);
         }
 
-        public long Size => 0x400;
-        public GPIO IRQ { get; private set; }
-
-        private DoubleWordRegisterCollection registers;
-        private PseudorandomNumberGenerator rng = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
-        private IFlagRegisterField enable;
-        private IFlagRegisterField interruptEnable;
+        private readonly DoubleWordRegisterCollection registers;
+        private readonly PseudorandomNumberGenerator rng = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
+        private readonly IFlagRegisterField enable;
+        private readonly IFlagRegisterField interruptEnable;
 
         private enum Registers
         {

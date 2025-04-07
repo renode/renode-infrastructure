@@ -8,11 +8,13 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.NetworkInformation;
+
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Network;
-using Antmicro.Renode.Utilities.Packets;
+
 using MiscUtil.Conversion;
+
 using PacketDotNet;
 
 using IPProtocolType = Antmicro.Renode.Network.IPProtocolType;
@@ -42,7 +44,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
             public FrameAssembler(IEmulationElement parent, byte[] header, uint defaultMaximumSegmentSize, TxDescriptor.ContextDescriptor? context, bool enableChecksumOffload, Action<EthernetFrame> frameReady, MACAddress? sourceMACAddress)
                 : this(parent, header, CRCPadOperation.InsetCRCAndPad, enableChecksumOffload ? ChecksumOperation.InsertHeaderPayloadAndPseudoHeaderChecksum : ChecksumOperation.None,
-                    context.HasValue && context.Value.oneStepTimestampCorrectionInputOrMaximumSegmentSizeValid ? context.Value.maximumSegmentSize : defaultMaximumSegmentSize, frameReady, sourceMACAddress)
+                    context.HasValue && context.Value.OneStepTimestampCorrectionInputOrMaximumSegmentSizeValid ? context.Value.MaximumSegmentSize : defaultMaximumSegmentSize, frameReady, sourceMACAddress)
             {
                 if(header.Length < EthernetFields.HeaderLength)
                 {
@@ -119,38 +121,38 @@ namespace Antmicro.Renode.Peripherals.Network
 
                 switch(crcPadControl)
                 {
-                    case CRCPadOperation.ReplaceCRC:
-                        crcMode = CRCMode.Replace;
-                        break;
-                    case CRCPadOperation.None:
-                        crcMode = CRCMode.Keep;
-                        break;
-                    case CRCPadOperation.InsetCRCAndPad:
-                        padEthernetFrame = true;
-                        goto case CRCPadOperation.InsertCRC;
-                    case CRCPadOperation.InsertCRC:
-                        crcMode = CRCMode.Add;
-                        break;
-                    default:
-                        throw new Exception("Unreachable");
+                case CRCPadOperation.ReplaceCRC:
+                    crcMode = CRCMode.Replace;
+                    break;
+                case CRCPadOperation.None:
+                    crcMode = CRCMode.Keep;
+                    break;
+                case CRCPadOperation.InsetCRCAndPad:
+                    padEthernetFrame = true;
+                    goto case CRCPadOperation.InsertCRC;
+                case CRCPadOperation.InsertCRC:
+                    crcMode = CRCMode.Add;
+                    break;
+                default:
+                    throw new Exception("Unreachable");
                 }
 
                 switch(checksumControl)
                 {
-                    case ChecksumOperation.None:
-                        break;
-                    case ChecksumOperation.InsertHeaderChecksum:
-                        checksumTypes = null;
-                        break;
-                    case ChecksumOperation.InsertHeaderAndPayloadChecksum:
-                        parent.Log(LogLevel.Warning, "Checksum Insertion Control: Calculating checksum with precalculated pseudo-header (0b10) is not supported. Falling back to calculating checksum with pseduo-header (0b11).");
-                        checksumControl = ChecksumOperation.InsertHeaderAndPayloadChecksum;
-                        goto case ChecksumOperation.InsertHeaderPayloadAndPseudoHeaderChecksum;
-                    case ChecksumOperation.InsertHeaderPayloadAndPseudoHeaderChecksum:
-                        checksumTypes = checksumOffloadEnginePseudoHeaderTypes;
-                        break;
-                    default:
-                        throw new Exception("Unreachable");
+                case ChecksumOperation.None:
+                    break;
+                case ChecksumOperation.InsertHeaderChecksum:
+                    checksumTypes = null;
+                    break;
+                case ChecksumOperation.InsertHeaderAndPayloadChecksum:
+                    parent.Log(LogLevel.Warning, "Checksum Insertion Control: Calculating checksum with precalculated pseudo-header (0b10) is not supported. Falling back to calculating checksum with pseduo-header (0b11).");
+                    checksumControl = ChecksumOperation.InsertHeaderAndPayloadChecksum;
+                    goto case ChecksumOperation.InsertHeaderPayloadAndPseudoHeaderChecksum;
+                case ChecksumOperation.InsertHeaderPayloadAndPseudoHeaderChecksum:
+                    checksumTypes = checksumOffloadEnginePseudoHeaderTypes;
+                    break;
+                default:
+                    throw new Exception("Unreachable");
                 }
                 checksumOp = checksumControl;
 

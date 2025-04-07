@@ -27,6 +27,7 @@ namespace Antmicro.Renode.Peripherals
     public interface IHasDelayedInvalidationContext
     {
         DelayedInvalidationContext EnterDelayedInvalidationContext();
+
         void SetDelayedInvalidation(bool value);
     }
 }

@@ -6,15 +6,14 @@
 //
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+
+using Antmicro.Migrant;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.CPU;
-using Antmicro.Migrant;
-using System.Linq;
-using System.IO;
-
-using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Peripherals.IRQControllers;
 
 namespace Antmicro.Renode.Utilities.GDB
 {
@@ -94,81 +93,6 @@ namespace Antmicro.Renode.Utilities.GDB
         public bool LogsEnabled { get; set; }
 
         public bool GdbClientConnected => !commandsManager.CanAttachCPU;
-
-        private void OnHalted(HaltArguments args)
-        {
-            using(var ctx = commHandler.OpenContext())
-            {
-                // If we got here, and the CPU doesn't support Gdb (ICpuSupportingGdb) something went seriously wrong - this is GdbStub after all
-                var cpuSupportingGdb = (ICpuSupportingGdb)args.Cpu;
-
-                // We only should send one stop response to Gdb in all-stop mode
-                bool sendStopResponse = cpuSupportingGdb == stopReplyingCpu || stopReplyingCpu == null;
-
-                switch(args.Reason)
-                {
-                case HaltReason.Breakpoint:
-                    switch(args.BreakpointType)
-                    {
-                    case BreakpointType.AccessWatchpoint:
-                    case BreakpointType.WriteWatchpoint:
-                    case BreakpointType.ReadWatchpoint:
-                    case BreakpointType.HardwareBreakpoint:
-                    case BreakpointType.MemoryBreakpoint:
-                        if(commandsManager.Machine.SystemBus.IsMultiCore)
-                        {
-                            commandsManager.SelectCpuForDebugging(cpuSupportingGdb);
-                            ctx.Send(new Packet(PacketData.StopReply(args.BreakpointType.Value, commandsManager.ManagedCpus[cpuSupportingGdb], args.Address)));
-                        }
-                        else
-                        {
-                            ctx.Send(new Packet(PacketData.StopReply(args.BreakpointType.Value, args.Address)));
-                        }
-                        break;
-                    }
-                    return;
-                case HaltReason.Pause:
-                    if(commandsManager.Machine.InternalPause)
-                    {
-                        // Don't set Trap signal when the pause is internal as execution will
-                        // be resumed after the reset is completed. This will cause GDB to stop and the emulation to continue
-                        // resulting in a desync (eg. breakpoints will not be triggered)
-                        return;
-                    }
-                    if(commandsManager.Machine.SystemBus.IsMultiCore)
-                    {
-                        if(sendStopResponse)
-                        {
-                            commandsManager.SelectCpuForDebugging(cpuSupportingGdb);
-                            ctx.Send(new Packet(PacketData.StopReply(InterruptSignal, commandsManager.ManagedCpus[cpuSupportingGdb])));
-                        }
-                    }
-                    else
-                    {
-                        ctx.Send(new Packet(PacketData.StopReply(InterruptSignal)));
-                    }
-                    return;
-                case HaltReason.Step:
-                    if(commandsManager.Machine.SystemBus.IsMultiCore)
-                    {
-                        commandsManager.SelectCpuForDebugging(cpuSupportingGdb);
-                        ctx.Send(new Packet(PacketData.StopReply(TrapSignal, commandsManager.ManagedCpus[cpuSupportingGdb])));
-                    }
-                    else
-                    {
-                        ctx.Send(new Packet(PacketData.StopReply(TrapSignal)));
-                    }
-                    return;
-                case HaltReason.Abort:
-                    ctx.Send(new Packet(PacketData.AbortReply(AbortSignal)));
-                    return;
-                default:
-                    throw new ArgumentException("Unexpected halt reason");
-                }
-            }
-        }
-
-        private ICpuSupportingGdb stopReplyingCpu;
 
         private void OnByteWritten(int b)
         {
@@ -270,6 +194,81 @@ namespace Antmicro.Renode.Utilities.GDB
             }
         }
 
+        private void OnHalted(HaltArguments args)
+        {
+            using(var ctx = commHandler.OpenContext())
+            {
+                // If we got here, and the CPU doesn't support Gdb (ICpuSupportingGdb) something went seriously wrong - this is GdbStub after all
+                var cpuSupportingGdb = (ICpuSupportingGdb)args.Cpu;
+
+                // We only should send one stop response to Gdb in all-stop mode
+                bool sendStopResponse = cpuSupportingGdb == stopReplyingCpu || stopReplyingCpu == null;
+
+                switch(args.Reason)
+                {
+                case HaltReason.Breakpoint:
+                    switch(args.BreakpointType)
+                    {
+                    case BreakpointType.AccessWatchpoint:
+                    case BreakpointType.WriteWatchpoint:
+                    case BreakpointType.ReadWatchpoint:
+                    case BreakpointType.HardwareBreakpoint:
+                    case BreakpointType.MemoryBreakpoint:
+                        if(commandsManager.Machine.SystemBus.IsMultiCore)
+                        {
+                            commandsManager.SelectCpuForDebugging(cpuSupportingGdb);
+                            ctx.Send(new Packet(PacketData.StopReply(args.BreakpointType.Value, commandsManager.ManagedCpus[cpuSupportingGdb], args.Address)));
+                        }
+                        else
+                        {
+                            ctx.Send(new Packet(PacketData.StopReply(args.BreakpointType.Value, args.Address)));
+                        }
+                        break;
+                    }
+                    return;
+                case HaltReason.Pause:
+                    if(commandsManager.Machine.InternalPause)
+                    {
+                        // Don't set Trap signal when the pause is internal as execution will
+                        // be resumed after the reset is completed. This will cause GDB to stop and the emulation to continue
+                        // resulting in a desync (eg. breakpoints will not be triggered)
+                        return;
+                    }
+                    if(commandsManager.Machine.SystemBus.IsMultiCore)
+                    {
+                        if(sendStopResponse)
+                        {
+                            commandsManager.SelectCpuForDebugging(cpuSupportingGdb);
+                            ctx.Send(new Packet(PacketData.StopReply(InterruptSignal, commandsManager.ManagedCpus[cpuSupportingGdb])));
+                        }
+                    }
+                    else
+                    {
+                        ctx.Send(new Packet(PacketData.StopReply(InterruptSignal)));
+                    }
+                    return;
+                case HaltReason.Step:
+                    if(commandsManager.Machine.SystemBus.IsMultiCore)
+                    {
+                        commandsManager.SelectCpuForDebugging(cpuSupportingGdb);
+                        ctx.Send(new Packet(PacketData.StopReply(TrapSignal, commandsManager.ManagedCpus[cpuSupportingGdb])));
+                    }
+                    else
+                    {
+                        ctx.Send(new Packet(PacketData.StopReply(TrapSignal)));
+                    }
+                    return;
+                case HaltReason.Abort:
+                    ctx.Send(new Packet(PacketData.AbortReply(AbortSignal)));
+                    return;
+                default:
+                    throw new ArgumentException("Unexpected halt reason");
+                }
+            }
+        }
+
+        private ICpuSupportingGdb stopReplyingCpu;
+
         private readonly PacketBuilder pcktBuilder;
         private readonly IEnumerable<ICpuSupportingGdb> cpus;
         private readonly SocketServerProvider terminal;
@@ -344,11 +343,12 @@ namespace Antmicro.Renode.Utilities.GDB
                 }
             }
 
+            private int counter;
+
             private readonly GdbStub stub;
             private readonly CommandsManager manager;
             private readonly Queue<byte> queue;
             private readonly object internalLock;
-            private int counter;
 
             public class Context : IDisposable
             {
@@ -396,4 +396,3 @@ namespace Antmicro.Renode.Utilities.GDB
         }
     }
 }
-

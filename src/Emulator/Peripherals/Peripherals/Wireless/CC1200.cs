@@ -8,19 +8,20 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.SPI;
-using Antmicro.Renode.Peripherals.Miscellaneous;
 using Antmicro.Renode.Peripherals.Wireless.IEEE802_15_4;
-using static Antmicro.Renode.Peripherals.Wireless.IEEE802_15_4.PHYHeader802154; // for PHYType
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Collections;
 
+using static Antmicro.Renode.Peripherals.Wireless.IEEE802_15_4.PHYHeader802154; // for PHYType
+
 namespace Antmicro.Renode.Peripherals.Wireless
 {
-    public sealed class CC1200: IRadio, ISPIPeripheral, INumberedGPIOOutput, IGPIOReceiver
+    public sealed class CC1200 : IRadio, ISPIPeripheral, INumberedGPIOOutput, IGPIOReceiver
     {
         public CC1200()
         {
@@ -32,32 +33,9 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 dict[i] = new GPIO();
             }
             Connections = new ReadOnlyDictionary<int, IGPIO>(dict);
-            gpioConfigurations = new [] {gpio0Selection, gpio1Selection, gpio2Selection, gpio3Selection};
+            gpioConfigurations = new[] { gpio0Selection, gpio1Selection, gpio2Selection, gpio3Selection };
             Reset();
         }
-
-        public void Reset()
-        {
-            wasSyncTransfered = false;
-            stateMachineMode = StateMachineMode.Off;
-            currentFrame = null;
-
-            txFifo.Clear();
-            rxFifo.Clear();
-
-            registers.Reset();
-            extendedRegisters.Reset();
-            frequency = 0;
-            foreach(var gpio in Connections.Values)
-            {
-                gpio.Unset();
-            }
-        }
-
-        private bool isChipSelect;
-        private bool initialized;
-        private IEnumRegisterField<GPIOSignal>[] gpioConfigurations;
-        private IFlagRegisterField is802154gEnabled;
 
         public void OnGPIO(int number, bool value)
         {
@@ -94,47 +72,47 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 var gpio = gpioConfigurations[i];
                 switch(gpio.Value)
                 {
-                    case GPIOSignal.RxFifoThreshold:
-                        Connections[i].Set((int)fifoThreshold.Value < rxFifo.Count);
-                        this.Log(LogLevel.Noisy, $"RX: threshold {fifoThreshold.Value}, fifo {rxFifo.Count}");
-                        break;
-                    case GPIOSignal.TxFifoThreshold:
-                        Connections[i].Set(127 - (int)fifoThreshold.Value <= txFifo.Count);
-                        break;
-                    case GPIOSignal.TxFifoFull:
-                        if(!Connections[i].IsSet)
-                        {
-                            Connections[i].Set(txFifo.Count == 128);
-                        }
-                        else
-                        {
-                            Connections[i].Set(txFifo.Count > 127 - (int)fifoThreshold.Value);
-                        }
-                        break;
-                    case GPIOSignal.PacketSync:
-                        if(wasSyncTransfered)
-                        {
-                            Connections[i].Blink();
-                        }
-                        wasSyncTransfered = false;
-                        break;
-                    case GPIOSignal.MARCStateStatus1:
-                        Connections[i].Set(
-                            stateMachineMode == StateMachineMode.ReceiveMode ||
-                            stateMachineMode == StateMachineMode.Idle);
-                        break;
-                    case GPIOSignal.MARCStateStatus0:
-                        Connections[i].Set(
-                            stateMachineMode == StateMachineMode.ReceiveMode ||
-                            stateMachineMode == StateMachineMode.TransmitMode);
-                        break;
-                    case GPIOSignal.ChipReadyN:
-                        Connections[i].Set(stateMachineMode == StateMachineMode.Off);
-                        break;
-                    default:
-                        // As GPIOs are set to unsupported mode on reset, this was changed to `Debug` to avoid flooding the log
-                        this.Log(LogLevel.Debug, "Unsupported GPIO mode on pin {0}: {1}", i, gpio.Value);
-                        continue; //continue not to log
+                case GPIOSignal.RxFifoThreshold:
+                    Connections[i].Set((int)fifoThreshold.Value < rxFifo.Count);
+                    this.Log(LogLevel.Noisy, $"RX: threshold {fifoThreshold.Value}, fifo {rxFifo.Count}");
+                    break;
+                case GPIOSignal.TxFifoThreshold:
+                    Connections[i].Set(127 - (int)fifoThreshold.Value <= txFifo.Count);
+                    break;
+                case GPIOSignal.TxFifoFull:
+                    if(!Connections[i].IsSet)
+                    {
+                        Connections[i].Set(txFifo.Count == 128);
+                    }
+                    else
+                    {
+                        Connections[i].Set(txFifo.Count > 127 - (int)fifoThreshold.Value);
+                    }
+                    break;
+                case GPIOSignal.PacketSync:
+                    if(wasSyncTransfered)
+                    {
+                        Connections[i].Blink();
+                    }
+                    wasSyncTransfered = false;
+                    break;
+                case GPIOSignal.MARCStateStatus1:
+                    Connections[i].Set(
+                        stateMachineMode == StateMachineMode.ReceiveMode ||
+                        stateMachineMode == StateMachineMode.Idle);
+                    break;
+                case GPIOSignal.MARCStateStatus0:
+                    Connections[i].Set(
+                        stateMachineMode == StateMachineMode.ReceiveMode ||
+                        stateMachineMode == StateMachineMode.TransmitMode);
+                    break;
+                case GPIOSignal.ChipReadyN:
+                    Connections[i].Set(stateMachineMode == StateMachineMode.Off);
+                    break;
+                default:
+                    // As GPIOs are set to unsupported mode on reset, this was changed to `Debug` to avoid flooding the log
+                    this.Log(LogLevel.Debug, "Unsupported GPIO mode on pin {0}: {1}", i, gpio.Value);
+                    continue; //continue not to log
                 }
                 this.Log(LogLevel.Noisy, "Setting up GPIO{0} ({1}) to {2}", i, gpio.Value, Connections[i].IsSet);
             }
@@ -147,115 +125,29 @@ namespace Antmicro.Renode.Peripherals.Wireless
             this.Log(LogLevel.Noisy, "Setting up MISO line (GPIO[4]) to {0}", Connections[4].IsSet);
         }
 
-        private enum State
+        public void ReceiveFrame(byte[] bytes, IRadio sender)
         {
-            WaitingForHeader,
-            WaitingForAddress,
-            WaitingForData,
-            Readout
-        }
-
-        private const byte ExtendedRegisterAccessCommand = 0x2F;
-        private const byte CommandStrobeLow = 0x30;
-        private const byte CommandStrobeHigh = 0x3d;
-        private const byte BuffersOrFECOrFreeArea = 0x3e;
-        private const byte StandardFIFOAccess = 0x3f;
-        
-        private struct AccessDescriptor
-        {
-            public byte Address;
-            public bool IsRead;
-            public bool IsBurst; //todo: when does it end?
-            public Target Target;
-
-            public State NextState(State state)
+            if(stateMachineMode == StateMachineMode.ReceiveMode)
             {
-                switch(state)
-                {
-                case State.WaitingForHeader:
-                    if(Target == Target.Registers || Target == Target.StandardFIFO)
-                    {
-                        return IsRead ? State.Readout : State.WaitingForData;
-                    }
-                    else if(Target == Target.ExtendedRegisters || Target == Target.DirectFIFO || Target == Target.FECWorkspaceOrFreeArea)
-                    {
-                        return State.WaitingForAddress;
-                    }
-                    else if(Target == Target.CommandStrobe)
-                    {
-                        return State.WaitingForHeader;
-                    }
-                    //should not reach
-                    break;
-                case State.WaitingForAddress:
-                    return IsRead ? State.Readout : State.WaitingForData;
-                case State.WaitingForData:
-                case State.Readout:
-                    return IsBurst ? state : State.WaitingForHeader;
-                }
-                //should not reach
-                return State.WaitingForHeader;
+                //this allows to have proper CCA values easily.
+                this.DebugLog("Received frame {0}.", bytes.Select(x => "0x{0:X}".FormatWith(x)).Stringify());
+                currentFrame = bytes;
+                HandleFrame(bytes);
+                currentFrame = null;
+            }
+            else
+            {
+                currentFrame = bytes;
+                this.DebugLog("Radio is not listening right now - this frame is being deffered.");
             }
         }
-        
-        private enum Target
+
+        public void FinishTransmission()
         {
-            Registers,
-            ExtendedRegisters,
-            StandardFIFO,
-            DirectFIFO,
-            FECWorkspaceOrFreeArea,
-            CommandStrobe
+            this.Log(LogLevel.Noisy, "Finish transmission");
+            state = State.WaitingForHeader;
         }
-        
-        private AccessDescriptor access;
-        private State state;
-        private byte[] freeArea = new byte[0xFF];
-        
-        private void RunCommand(Command command)
-        {
-            this.Log(LogLevel.Noisy, "Running command: {0}", command);
-            switch(command)
-            {
-                case Command.ResetChip:
-                    Reset(); //maybe should do less
-                    break;
-                case Command.EnableAndCalibrateFrequencySynthesizer:
-                    stateMachineMode = StateMachineMode.FastTxReady;
-                    break;
-                case Command.EnableRx:
-                    stateMachineMode = StateMachineMode.ReceiveMode;
-                    if(currentFrame != null)
-                    {
-                        HandleFrame(currentFrame);
-                        currentFrame = null;
-                    }
-                    break;
-                case Command.EnableTx:
-                    stateMachineMode = StateMachineMode.TransmitMode;
-                    SendFrame();
-                    break;
-                case Command.Idle:
-                    stateMachineMode = StateMachineMode.Idle;
-                    break;
-                case Command.Sleep: //sleep should only be called in idle, and has no special state code. This is a warning hush
-                    stateMachineMode = StateMachineMode.Off;
-                    break;
-                case Command.FlushRX:
-                    rxFifo.Clear();
-                    break;
-                case Command.FlushTX:
-                    txFifo.Clear();
-                    break;
-                case Command.NoOperation:
-                    //intentionally left blank
-                    break;
-                default:
-                    this.Log(LogLevel.Warning, "Unsupported command {0} ({1})", command, (Registers)command);
-                    break;
-            }
-        }
-        
+
         public byte Transmit(byte data)
         {
             var status = GetStatus();
@@ -314,25 +206,25 @@ namespace Antmicro.Renode.Peripherals.Wireless
             {
                 switch(access.Target)
                 {
-                    case Target.Registers:
-                        this.Log(LogLevel.Debug, "Writing to Register 0x{0:X} ({1}), value 0x{2:X}", access.Address, (Registers)access.Address, data);
-                        registers.Write(access.Address, data);
-                        break;
-                    case Target.ExtendedRegisters:
-                        this.Log(LogLevel.Debug, "Writing to ExtendedRegister 0x{0:X} ({1}), value 0x{2:X}", access.Address, (ExtendedRegisters)access.Address, data);
-                        extendedRegisters.Write(access.Address, data);
-                        break;
-                    case Target.StandardFIFO:
-                        this.Log(LogLevel.Debug, "Writing to txFifo value 0x{0:X}", data);
-                        txFifo.Enqueue(data);
-                        break;
-                    case Target.DirectFIFO:
-                        //TODO: verify this
-                        //txFifo[access.Address] = data;
-                        break;
-                    case Target.FECWorkspaceOrFreeArea:
-                        freeArea[access.Address] = data;
-                        break;
+                case Target.Registers:
+                    this.Log(LogLevel.Debug, "Writing to Register 0x{0:X} ({1}), value 0x{2:X}", access.Address, (Registers)access.Address, data);
+                    registers.Write(access.Address, data);
+                    break;
+                case Target.ExtendedRegisters:
+                    this.Log(LogLevel.Debug, "Writing to ExtendedRegister 0x{0:X} ({1}), value 0x{2:X}", access.Address, (ExtendedRegisters)access.Address, data);
+                    extendedRegisters.Write(access.Address, data);
+                    break;
+                case Target.StandardFIFO:
+                    this.Log(LogLevel.Debug, "Writing to txFifo value 0x{0:X}", data);
+                    txFifo.Enqueue(data);
+                    break;
+                case Target.DirectFIFO:
+                    //TODO: verify this
+                    //txFifo[access.Address] = data;
+                    break;
+                case Target.FECWorkspaceOrFreeArea:
+                    freeArea[access.Address] = data;
+                    break;
                 }
                 state = access.NextState(state);
                 return status;
@@ -343,26 +235,26 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 state = access.NextState(state);
                 switch(access.Target)
                 {
-                    case Target.Registers:
-                        value = registers.Read(access.Address);
-                        this.Log(LogLevel.Debug, "Reading from Register 0x{0:X} ({1}), value 0x{2:X}", access.Address, (Registers)access.Address, value);
-                        return value;
-                    case Target.ExtendedRegisters:
-                        value = extendedRegisters.Read(access.Address);
-                        this.Log(LogLevel.Debug, "Reading from ExtendedRegister 0x{0:X} ({1}), value 0x{2:X}", access.Address, (ExtendedRegisters)access.Address, value);
-                        return value;
-                    case Target.StandardFIFO:
-                        rxFifo.TryDequeue(out value);
-                        //underflow?
-                        this.Log(LogLevel.Debug, "Reading from rx fifo, value 0x{0:X}, {1} bytes left", value, rxFifo.Count);
-                        return value;
-                    case Target.DirectFIFO:
-                        return rxFifo.ElementAt(access.Address);
-                    case Target.FECWorkspaceOrFreeArea:
-                        return freeArea[access.Address];
-                    default:
-                        this.Log(LogLevel.Error, "Unhandled access target {0}", access.Target);
-                        return 0;
+                case Target.Registers:
+                    value = registers.Read(access.Address);
+                    this.Log(LogLevel.Debug, "Reading from Register 0x{0:X} ({1}), value 0x{2:X}", access.Address, (Registers)access.Address, value);
+                    return value;
+                case Target.ExtendedRegisters:
+                    value = extendedRegisters.Read(access.Address);
+                    this.Log(LogLevel.Debug, "Reading from ExtendedRegister 0x{0:X} ({1}), value 0x{2:X}", access.Address, (ExtendedRegisters)access.Address, value);
+                    return value;
+                case Target.StandardFIFO:
+                    rxFifo.TryDequeue(out value);
+                    //underflow?
+                    this.Log(LogLevel.Debug, "Reading from rx fifo, value 0x{0:X}, {1} bytes left", value, rxFifo.Count);
+                    return value;
+                case Target.DirectFIFO:
+                    return rxFifo.ElementAt(access.Address);
+                case Target.FECWorkspaceOrFreeArea:
+                    return freeArea[access.Address];
+                default:
+                    this.Log(LogLevel.Error, "Unhandled access target {0}", access.Target);
+                    return 0;
                 }
             }
             else
@@ -372,27 +264,27 @@ namespace Antmicro.Renode.Peripherals.Wireless
             }
         }
 
-        public void FinishTransmission()
+        public void Reset()
         {
-            this.Log(LogLevel.Noisy, "Finish transmission");
-            state = State.WaitingForHeader;
+            wasSyncTransfered = false;
+            stateMachineMode = StateMachineMode.Off;
+            currentFrame = null;
+
+            txFifo.Clear();
+            rxFifo.Clear();
+
+            registers.Reset();
+            extendedRegisters.Reset();
+            frequency = 0;
+            foreach(var gpio in Connections.Values)
+            {
+                gpio.Unset();
+            }
         }
 
-        public void ReceiveFrame(byte[] bytes, IRadio sender)
+        public IReadOnlyDictionary<int, IGPIO> Connections
         {
-            if(stateMachineMode == StateMachineMode.ReceiveMode)
-            {
-                //this allows to have proper CCA values easily.
-                this.DebugLog("Received frame {0}.", bytes.Select(x => "0x{0:X}".FormatWith(x)).Stringify());
-                currentFrame = bytes;
-                HandleFrame(bytes);
-                currentFrame = null;
-            }
-            else
-            {
-                currentFrame = bytes;
-                this.DebugLog("Radio is not listening right now - this frame is being deffered.");
-            }
+            get; private set;
         }
 
         public int Channel
@@ -407,11 +299,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 this.Log(LogLevel.Info, "Setting channel to {0}", value);
                 frequency = ChannelNumberToFrequency(value);
             }
-        }
-
-        public IReadOnlyDictionary<int, IGPIO> Connections
-        {
-            get; private set;
         }
 
         public event Action<IRadio, byte[]> FrameSent;
@@ -432,51 +319,51 @@ namespace Antmicro.Renode.Peripherals.Wireless
             // Length filtering is common
             switch(packetLengthConfig.Value)
             {
-                case PacketLengthConfig.Fixed:
-                    //TODO: this logic should be in registers
-                    if(phyHeader.Length != packetLengthByteConfig.Value ||
-                    (phyHeader.Length != 256 && packetLengthByteConfig.Value == 0) ||
-                    (phyHeader.Length > 128 && crcAutoflush.Value) ||
-                    (phyHeader.Length > 126 && crcAutoflush.Value && appendStatus.Value))
+            case PacketLengthConfig.Fixed:
+                //TODO: this logic should be in registers
+                if(phyHeader.Length != packetLengthByteConfig.Value ||
+                (phyHeader.Length != 256 && packetLengthByteConfig.Value == 0) ||
+                (phyHeader.Length > 128 && crcAutoflush.Value) ||
+                (phyHeader.Length > 126 && crcAutoflush.Value && appendStatus.Value))
+                {
+                    if(terminateOnBadPacket.Value)
                     {
-                        if(terminateOnBadPacket.Value)
-                        {
-                            stateMachineMode = StateMachineMode.Idle;
-                        }
-                        this.Log(LogLevel.Warning, "Dropping a packet of invalid length {0} in fixed length mode " +
-                                "(expected length: {1}, crc autoflush? {2}, append status? {3})",
-                                phyHeader.Length, packetLengthByteConfig.Value, crcAutoflush.Value, appendStatus.Value);
-                        return;
+                        stateMachineMode = StateMachineMode.Idle;
                     }
-                    break;
-                case PacketLengthConfig.VariableFirstByte:
-                    if((phyHeader.Length > packetLengthByteConfig.Value) ||
-                    (phyHeader.Length > 256 && packetLengthByteConfig.Value == 0) ||
-                    (phyHeader.Length > 127 && crcAutoflush.Value) ||
-                    (phyHeader.Length > 125 && crcAutoflush.Value && appendStatus.Value))
+                    this.Log(LogLevel.Warning, "Dropping a packet of invalid length {0} in fixed length mode " +
+                            "(expected length: {1}, crc autoflush? {2}, append status? {3})",
+                            phyHeader.Length, packetLengthByteConfig.Value, crcAutoflush.Value, appendStatus.Value);
+                    return;
+                }
+                break;
+            case PacketLengthConfig.VariableFirstByte:
+                if((phyHeader.Length > packetLengthByteConfig.Value) ||
+                (phyHeader.Length > 256 && packetLengthByteConfig.Value == 0) ||
+                (phyHeader.Length > 127 && crcAutoflush.Value) ||
+                (phyHeader.Length > 125 && crcAutoflush.Value && appendStatus.Value))
+                {
+                    if(terminateOnBadPacket.Value)
                     {
-                        if(terminateOnBadPacket.Value)
-                        {
-                            stateMachineMode = StateMachineMode.Idle;
-                        }
-                        this.Log(LogLevel.Warning, "Dropping a packet of invalid length {0} in fixed length mode " +
-                                "(max length: {1}, crc autoflush? {2}, append status? {3})",
-                                phyHeader.Length, packetLengthByteConfig.Value, crcAutoflush.Value, appendStatus.Value);
-                        return;
+                        stateMachineMode = StateMachineMode.Idle;
                     }
-                    break;
-                case PacketLengthConfig.Variable5LSB:
-                    if((phyHeader.Length & 0x1f) > packetLengthByteConfig.Value)
+                    this.Log(LogLevel.Warning, "Dropping a packet of invalid length {0} in fixed length mode " +
+                            "(max length: {1}, crc autoflush? {2}, append status? {3})",
+                            phyHeader.Length, packetLengthByteConfig.Value, crcAutoflush.Value, appendStatus.Value);
+                    return;
+                }
+                break;
+            case PacketLengthConfig.Variable5LSB:
+                if((phyHeader.Length & 0x1f) > packetLengthByteConfig.Value)
+                {
+                    if(terminateOnBadPacket.Value)
                     {
-                        if(terminateOnBadPacket.Value)
-                        {
-                            stateMachineMode = StateMachineMode.Idle;
-                        }
-                        this.Log(LogLevel.Warning, "Dropping a packet of invalid length {0} in fixed length mode " +
-                                "(max length: {1})", phyHeader.Length & 0x1f);
-                        return;
+                        stateMachineMode = StateMachineMode.Idle;
                     }
-                    break;
+                    this.Log(LogLevel.Warning, "Dropping a packet of invalid length {0} in fixed length mode " +
+                            "(max length: {1})", phyHeader.Length & 0x1f);
+                    return;
+                }
+                break;
                 // Infinite packet length is not currently supported
             }
 
@@ -568,99 +455,48 @@ namespace Antmicro.Renode.Peripherals.Wireless
             UpdateGPIOs();
         }
 
-        private void SendFrame()
+        private void RunCommand(Command command)
         {
-            uint length;
-            int crcLength = 2;
-            IEnumerable<byte> data;
-            if(is802154gEnabled.Value)
+            this.Log(LogLevel.Noisy, "Running command: {0}", command);
+            switch(command)
             {
-                txFifo.TryDequeue(out var packetHeaderA);
-                txFifo.TryDequeue(out var packetHeaderB);
-                var packetHeader = new PHYHeader802154(packetHeaderA, packetHeaderB, is802154gEnabled.Value ? PHYType.Header802154g : PHYType.Header802154);
-                if(packetHeader.ModeSwitch)
+            case Command.ResetChip:
+                Reset(); //maybe should do less
+                break;
+            case Command.EnableAndCalibrateFrequencySynthesizer:
+                stateMachineMode = StateMachineMode.FastTxReady;
+                break;
+            case Command.EnableRx:
+                stateMachineMode = StateMachineMode.ReceiveMode;
+                if(currentFrame != null)
                 {
-                    this.Log(LogLevel.Error, "Unsupported packet with Mode Switch on, dropping");
-                    txFifo.Clear();
-                    return;
+                    HandleFrame(currentFrame);
+                    currentFrame = null;
                 }
-                if(!packetHeader.FCS2Byte)
-                {
-                    crcLength = 4;
-                }
-                length = packetHeader.Length;
-                data = new byte[] { packetHeaderA, packetHeaderB };
+                break;
+            case Command.EnableTx:
+                stateMachineMode = StateMachineMode.TransmitMode;
+                SendFrame();
+                break;
+            case Command.Idle:
+                stateMachineMode = StateMachineMode.Idle;
+                break;
+            case Command.Sleep: //sleep should only be called in idle, and has no special state code. This is a warning hush
+                stateMachineMode = StateMachineMode.Off;
+                break;
+            case Command.FlushRX:
+                rxFifo.Clear();
+                break;
+            case Command.FlushTX:
+                txFifo.Clear();
+                break;
+            case Command.NoOperation:
+                //intentionally left blank
+                break;
+            default:
+                this.Log(LogLevel.Warning, "Unsupported command {0} ({1})", command, (Registers)command);
+                break;
             }
-            else
-            {
-                txFifo.TryDequeue(out var lengthByte);
-                length = lengthByte;
-                data = new byte[] { lengthByte };
-            }
-            data = data.Concat(txFifo.DequeueAll()).ToArray();
-            // CRC is calculated over MPDU bytes - first byte is skipped as it is a PHY Header start byte
-            var mpduBytes = data.Skip(1).ToArray();
-
-            IEnumerable<byte> crc;
-            if(crcEnabled)
-            {
-                if(crcLength == 2)
-                {
-                    crc = Frame.CalculateCRC(mpduBytes, (ushort)crcInitialValue, crcPolynomial);
-                }
-                else if(crcLength == 4)
-                {
-                    // CRC32 is a special case when we do not use CRC configuration registers
-                    crc = Frame.CalculateCRC(mpduBytes, 0, CRCPolynomial.CRC32);
-                }
-                else
-                {
-                    this.Log(LogLevel.Error, "Invalid length of the CRC to generate: {0}", crcLength);
-                    crc = new byte[0];
-                }
-                data = (data.Concat(crc).ToArray());
-            }
-            this.DebugLog("Sending frame {0}.", data.Select(x => "0x{0:X}".FormatWith(x)).Stringify());
-            TrySendFrame(data.ToArray());
-            stateMachineMode = txOffMode;
-            this.Log(LogLevel.Noisy, "Setting state to {0}", stateMachineMode);
-            wasSyncTransfered = true;
-            UpdateGPIOs();
-        }
-
-        private void TrySendFrame(byte[] frame)
-        {
-            var fs = FrameSent;
-            if(fs != null)
-            {
-                fs.Invoke(this, frame);
-            }
-            else
-            {
-                this.Log(LogLevel.Warning, "FrameSent is not initialized. Am I connected to medium?");
-            }
-        }
-
-        private byte GetStatus()
-        {
-            var status = (byte)((byte)stateMachineMode << 4);
-            this.Log(LogLevel.Noisy, "Returning status 0x{0:X}", status);
-            return status;
-            // bits 0:3 are reserved, 7 is CHIP_RDYn, should always be zero
-        }
-
-        private int ChannelValueFromFrequency(uint frequency)
-        {
-            var actualFreq = frequency * 625 / 4096; // should be calculated from f_xosc, freqoff (equal to 0) and LO_Divider.
-            return (int)(actualFreq - 863125) * 1000 / 25000; // 902200 - center, 200000 - spacing, 1000 - Hz to kHz
-         //   return ((int)frequency - 11) / 5 + 11;
-        }
-
-        private uint ChannelNumberToFrequency(int channelNumber)
-        {
-            //According to documentation, chapter 16:
-            //"Channels are numbered 11 through 26 and are 5MHz apart"
-            return (uint)(11 + 5 * (channelNumber - 11));
         }
 
         private void CreateRegisters()
@@ -908,62 +744,226 @@ namespace Antmicro.Renode.Peripherals.Wireless
             extendedRegisters = new ByteRegisterCollection(this, extDict);
         }
 
-        private uint frequency;
+        private uint ChannelNumberToFrequency(int channelNumber)
+        {
+            //According to documentation, chapter 16:
+            //"Channels are numbered 11 through 26 and are 5MHz apart"
+            return (uint)(11 + 5 * (channelNumber - 11));
+        }
+
+        private int ChannelValueFromFrequency(uint frequency)
+        {
+            var actualFreq = frequency * 625 / 4096; // should be calculated from f_xosc, freqoff (equal to 0) and LO_Divider.
+            return (int)(actualFreq - 863125) * 1000 / 25000; // 902200 - center, 200000 - spacing, 1000 - Hz to kHz
+                                                              //   return ((int)frequency - 11) / 5 + 11;
+        }
+
+        private byte GetStatus()
+        {
+            var status = (byte)((byte)stateMachineMode << 4);
+            this.Log(LogLevel.Noisy, "Returning status 0x{0:X}", status);
+            return status;
+            // bits 0:3 are reserved, 7 is CHIP_RDYn, should always be zero
+        }
+
+        private void TrySendFrame(byte[] frame)
+        {
+            var fs = FrameSent;
+            if(fs != null)
+            {
+                fs.Invoke(this, frame);
+            }
+            else
+            {
+                this.Log(LogLevel.Warning, "FrameSent is not initialized. Am I connected to medium?");
+            }
+        }
+
+        private void SendFrame()
+        {
+            uint length;
+            int crcLength = 2;
+            IEnumerable<byte> data;
+            if(is802154gEnabled.Value)
+            {
+                txFifo.TryDequeue(out var packetHeaderA);
+                txFifo.TryDequeue(out var packetHeaderB);
+                var packetHeader = new PHYHeader802154(packetHeaderA, packetHeaderB, is802154gEnabled.Value ? PHYType.Header802154g : PHYType.Header802154);
+                if(packetHeader.ModeSwitch)
+                {
+                    this.Log(LogLevel.Error, "Unsupported packet with Mode Switch on, dropping");
+                    txFifo.Clear();
+                    return;
+                }
+                if(!packetHeader.FCS2Byte)
+                {
+                    crcLength = 4;
+                }
+                length = packetHeader.Length;
+                data = new byte[] { packetHeaderA, packetHeaderB };
+            }
+            else
+            {
+                txFifo.TryDequeue(out var lengthByte);
+                length = lengthByte;
+                data = new byte[] { lengthByte };
+            }
+            data = data.Concat(txFifo.DequeueAll()).ToArray();
+            // CRC is calculated over MPDU bytes - first byte is skipped as it is a PHY Header start byte
+            var mpduBytes = data.Skip(1).ToArray();
+
+            IEnumerable<byte> crc;
+            if(crcEnabled)
+            {
+                if(crcLength == 2)
+                {
+                    crc = Frame.CalculateCRC(mpduBytes, (ushort)crcInitialValue, crcPolynomial);
+                }
+                else if(crcLength == 4)
+                {
+                    // CRC32 is a special case when we do not use CRC configuration registers
+                    crc = Frame.CalculateCRC(mpduBytes, 0, CRCPolynomial.CRC32);
+                }
+                else
+                {
+                    this.Log(LogLevel.Error, "Invalid length of the CRC to generate: {0}", crcLength);
+                    crc = new byte[0];
+                }
+                data = (data.Concat(crc).ToArray());
+            }
+            this.DebugLog("Sending frame {0}.", data.Select(x => "0x{0:X}".FormatWith(x)).Stringify());
+            TrySendFrame(data.ToArray());
+            stateMachineMode = txOffMode;
+            this.Log(LogLevel.Noisy, "Setting state to {0}", stateMachineMode);
+            wasSyncTransfered = true;
+            UpdateGPIOs();
+        }
+
+        private IFlagRegisterField crcOK;
         private IValueRegisterField fifoThreshold;
         private IFlagRegisterField appendStatus;
         private IValueRegisterField packetLengthByteConfig;
         private IEnumRegisterField<PacketLengthConfig> packetLengthConfig;
-#region vars
-        private StateMachineMode stateMachineMode;
 
-        private IEnumRegisterField<GPIOSignal> gpio3Selection;
-        private IEnumRegisterField<GPIOSignal> gpio2Selection;
-        private IEnumRegisterField<GPIOSignal> gpio1Selection;
+        private uint frequency;
+
+        private bool isChipSelect;
+        private bool initialized;
+        private IFlagRegisterField is802154gEnabled;
         private IEnumRegisterField<GPIOSignal> gpio0Selection;
-        private IFlagRegisterField crcAutoflush;
+        private IFlagRegisterField terminateOnBadPacket;
 
         private bool crcEnabled;
         private bool wasSyncTransfered;
 
-        private byte[] currentFrame;
+        private StateMachineMode txOffMode;
+        private IValueRegisterField addressCheckConfig;
+        private IEnumRegisterField<GPIOSignal> gpio1Selection;
+        private IValueRegisterField deviceAddress;
+        private uint crcInitialValue;
+        private CRCPolynomial crcPolynomial;
 
-        private readonly CircularBuffer<byte> txFifo = new CircularBuffer<byte>(0x80);
-        private readonly CircularBuffer<byte> rxFifo = new CircularBuffer<byte>(0x80);
+        private byte[] currentFrame;
 
         private ByteRegisterCollection registers;
         private ByteRegisterCollection extendedRegisters;
+        private StateMachineMode rxOffMode;
+        private IEnumRegisterField<GPIOSignal> gpio2Selection;
+        private IFlagRegisterField crcAutoflush;
+        private StateMachineMode stateMachineMode;
 
-        private const uint Rssi = 0xB60; // 0xB60 is a value of -74dBm - which is a good quality signal
-        private const uint Lqi = 105; // Approx values <50, 110> are good, where 110 is the best signal quality
-        private const int RegisterMemorySize = 0x80;
-        private const uint TxFifoMemoryStart = 0x100;
-        private const int TxFifoMemorySize = 0x80;
-        private const uint RxFifoMemoryStart = 0x180;
-        private const int RxFifoMemorySize = 0x80;
-        private const uint GeneralMemoryStart = 0x200;
-        private const int GeneralMemorySize = 0x180;
-        private const uint SourceAddressTableStart = 0x380;
-        private const int SourceAddressTableSize = 0x60;
-        private const uint SourceAddressMatchingResultStart = 0x3E0;
-        private const int SourceAddressMatchingResultSize = 0x4;
-        private const uint SourceAddressMatchingControlStart = 0x3E4;
-        private const int SourceAddressMatchingControlSize = 0x6;
+        private IEnumRegisterField<GPIOSignal> gpio3Selection;
+
+        private AccessDescriptor access;
+        private State state;
+        private readonly byte[] freeArea = new byte[0xFF];
+        private readonly IEnumRegisterField<GPIOSignal>[] gpioConfigurations;
+
+        private readonly CircularBuffer<byte> txFifo = new CircularBuffer<byte>(0x80);
+        private readonly CircularBuffer<byte> rxFifo = new CircularBuffer<byte>(0x80);
         private const uint LocalAddressInfoStart = 0x3EA;
         private const int LocalAddressInfoSize = 0xC;
         private const int NumberOfGPIOs = 5;
 
         private const int BroadcastPanIdentifier = 0xFFFF;
-        private const byte NoSourceIndex = 0x3F;
-#endregion
+        private const byte BuffersOrFECOrFreeArea = 0x3e;
+        private const byte StandardFIFOAccess = 0x3f;
+        private const byte CommandStrobeHigh = 0x3d;
+        private const byte CommandStrobeLow = 0x30;
 
-        private StateMachineMode txOffMode;
-        private StateMachineMode rxOffMode;
-        private CRCPolynomial crcPolynomial;
-        private uint crcInitialValue;
-        private IValueRegisterField deviceAddress;
-        private IValueRegisterField addressCheckConfig;
-        private IFlagRegisterField terminateOnBadPacket;
-        private IFlagRegisterField crcOK;
+        private const byte ExtendedRegisterAccessCommand = 0x2F;
+        private const byte NoSourceIndex = 0x3F;
+        private const int SourceAddressMatchingControlSize = 0x6;
+        private const uint SourceAddressMatchingResultStart = 0x3E0;
+        private const int SourceAddressMatchingResultSize = 0x4;
+        private const int SourceAddressTableSize = 0x60;
+        private const uint SourceAddressTableStart = 0x380;
+        private const uint GeneralMemoryStart = 0x200;
+        private const int RxFifoMemorySize = 0x80;
+        private const uint RxFifoMemoryStart = 0x180;
+        private const int TxFifoMemorySize = 0x80;
+        private const uint TxFifoMemoryStart = 0x100;
+        private const int RegisterMemorySize = 0x80;
+        private const uint Lqi = 105; // Approx values <50, 110> are good, where 110 is the best signal quality
+
+        private const uint Rssi = 0xB60; // 0xB60 is a value of -74dBm - which is a good quality signal
+        private const uint SourceAddressMatchingControlStart = 0x3E4;
+        private const int GeneralMemorySize = 0x180;
+
+        private struct AccessDescriptor
+        {
+            public byte Address;
+            public bool IsRead;
+            public bool IsBurst; //todo: when does it end?
+            public Target Target;
+
+            public State NextState(State state)
+            {
+                switch(state)
+                {
+                case State.WaitingForHeader:
+                    if(Target == Target.Registers || Target == Target.StandardFIFO)
+                    {
+                        return IsRead ? State.Readout : State.WaitingForData;
+                    }
+                    else if(Target == Target.ExtendedRegisters || Target == Target.DirectFIFO || Target == Target.FECWorkspaceOrFreeArea)
+                    {
+                        return State.WaitingForAddress;
+                    }
+                    else if(Target == Target.CommandStrobe)
+                    {
+                        return State.WaitingForHeader;
+                    }
+                    //should not reach
+                    break;
+                case State.WaitingForAddress:
+                    return IsRead ? State.Readout : State.WaitingForData;
+                case State.WaitingForData:
+                case State.Readout:
+                    return IsBurst ? state : State.WaitingForHeader;
+                }
+                //should not reach
+                return State.WaitingForHeader;
+            }
+        }
+
+        private enum State
+        {
+            WaitingForHeader,
+            WaitingForAddress,
+            WaitingForData,
+            Readout
+        }
+
+        private enum Target
+        {
+            Registers,
+            ExtendedRegisters,
+            StandardFIFO,
+            DirectFIFO,
+            FECWorkspaceOrFreeArea,
+            CommandStrobe
+        }
 
         private enum PacketLengthConfig
         {
@@ -985,7 +985,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             CRCOk = 7,
             SerialClock = 8,
             SerialRxData = 9,
-        //    Reserved,
+            //    Reserved,
             PreambleQualityReached = 11,
             PreambleQualityValid = 12,
             RSSIValid = 13,
@@ -1002,7 +1002,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             ControlExternalLNA = 24,
             ControlExternalPA = 25,
             IsNotIdle = 26,
-      //      Reserved,
+            //      Reserved,
             ImageFound = 28,
             DataClockForDemodulator = 29,
             DataClockForModulator = 30,
@@ -1306,4 +1306,3 @@ namespace Antmicro.Renode.Peripherals.Wireless
         }
     }
 }
-

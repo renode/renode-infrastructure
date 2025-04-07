@@ -5,12 +5,11 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals.Network;
-using Antmicro.Renode.Utilities;
+#pragma warning disable IDE0005
 using Antmicro.Renode.Exceptions;
-using System.IO;
+#pragma warning restore IDE0005
+using Antmicro.Renode.Peripherals.Network;
 
 namespace Antmicro.Renode.HostInterfaces.Network
 {
@@ -41,4 +40,3 @@ namespace Antmicro.Renode.HostInterfaces.Network
         }
     }
 }
-

@@ -6,14 +6,15 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Concurrent;
+using System.IO;
 using System.Threading;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.UserInterface;
-using System.Collections.Concurrent;
 using Antmicro.Renode.Utilities;
-using System.IO;
 
 namespace Antmicro.Renode
 {
@@ -22,6 +23,25 @@ namespace Antmicro.Renode
         static Emulator()
         {
             UserDirectoryPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData, Environment.SpecialFolderOption.Create), "renode");
+        }
+
+        public static void ExecuteOnMainThread(Action what)
+        {
+            actionsOnMainThread.Add(what);
+        }
+
+        public static void ExecuteAsMainThread()
+        {
+            Action action;
+            while(actionsOnMainThread.TryTake(out action, -1))
+            {
+                action();
+            }
+        }
+
+        public static void FinishExecutionAsMainThread()
+        {
+            actionsOnMainThread.CompleteAdding();
         }
 
         public static void Exit()
@@ -33,7 +53,7 @@ namespace Antmicro.Renode
                 {
                     beforeExit();
                 }
-                catch (RecoverableException)
+                catch(RecoverableException)
                 {
                     // Due to a complex bug, such exception is thrown on each exit if GUI was started.
                     // All OSs are affected, but only Windows logs it. As it looks like a crash and
@@ -78,6 +98,8 @@ namespace Antmicro.Renode
             }
         }
 
+        public static bool ShowAnalyzers { get; set; }
+
         public static IUserInterfaceProvider UserInterfaceProvider
         {
             get
@@ -88,6 +110,7 @@ namespace Antmicro.Renode
                 }
                 return userInterfaceProvider;
             }
+
             set
             {
                 userInterfaceProvider = value;
@@ -117,35 +140,16 @@ namespace Antmicro.Renode
 
         private static string userDirectoryPath;
 
-        public static void ExecuteOnMainThread(Action what)
-        {
-            actionsOnMainThread.Add(what);
-        }
-
-        public static void ExecuteAsMainThread()
-        {
-            Action action;
-            while(actionsOnMainThread.TryTake(out action, -1))
-            {
-                action();
-            }
-        }
-
-        public static void FinishExecutionAsMainThread()
-        {
-            actionsOnMainThread.CompleteAdding();
-        }
-
-        public static bool ShowAnalyzers { get; set; }
-
         private static readonly BlockingCollection<Action> actionsOnMainThread = new BlockingCollection<Action>();
 
         public static event Action BeforeExit;
+
         public static event Action EnableGUI;
+
         public static event Action DisableGUI;
+
         private static IUserInterfaceProvider userInterfaceProvider;
-        private static ManualResetEventSlim exitEvent = new ManualResetEventSlim();
+        private static readonly ManualResetEventSlim exitEvent = new ManualResetEventSlim();
         private static bool disposed;
     }
 }
-

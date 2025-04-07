@@ -5,9 +5,9 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 
@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     {
         public static void SetPC(this Cluster cluster, ulong value)
         {
-            foreach (var cpu in cluster.Clustered)
+            foreach(var cpu in cluster.Clustered)
             {
                 cpu.PC = value;
             }
@@ -84,7 +84,6 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
             }
         }
-
 
         public IEnumerable<ICluster<TranslationCPU>> Clusters => clusters;
 

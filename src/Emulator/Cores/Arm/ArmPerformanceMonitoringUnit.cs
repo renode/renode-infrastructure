@@ -7,6 +7,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
@@ -71,38 +72,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             base.WriteDoubleWord(offset, value);
         }
-
-        public void OnOverflowAction(int counter)
-        {
-            this.DebugLog("PMU reporting counter overflow for counter {0}", counter);
-            IRQ.Set(true);
-        }
-
-        public void RegisterCPU(Arm cpu)
-        {
-            VerifyCPUType(cpu);
-            parentCPU = cpu;
-
-            if(withProcessorIdMMIORegisters)
-            {
-                DefineProcessorIdRegisters(cpu);
-            }
-
-            // Peripheral ID's bits 20-23 (4-7 of `PMPID2`) contain CPU's major revision number,
-            // AKA variant, which is also encoded in bits 20-23 of MIDR. Let's warn if those differ
-            // and update Peripheral ID's variant field to MIDR variant's value.
-            var midrVariant = BitHelper.GetValue(cpu.GetSystemRegisterValue("MIDR"), VariantOffset, VariantWidth);
-            var peripheralIdVariant = BitHelper.GetValue(PeripheralId, VariantOffset, VariantWidth);
-            if(midrVariant != peripheralIdVariant)
-            {
-                PeripheralId = BitHelper.ReplaceBits(PeripheralId, midrVariant, VariantWidth, destinationPosition: VariantOffset);
-                this.Log(LogLevel.Info, "Updating Peripheral ID's CPU variant ({0}) in bits 20-23 to the actual CPU variant from MIDR ({1}).", peripheralIdVariant, midrVariant);
-            }
-        }
-
-        public GPIO IRQ { get; }
-
-        public long Size => 0x1000;
 
         // This PMU doesn't support 64-bit registers
         public uint GetRegister(string register)
@@ -220,6 +189,38 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             parentCPU.TlibPmuSetDebug((uint)(status ? 1 : 0));
         }
 
+        public void OnOverflowAction(int counter)
+        {
+            this.DebugLog("PMU reporting counter overflow for counter {0}", counter);
+            IRQ.Set(true);
+        }
+
+        public void RegisterCPU(Arm cpu)
+        {
+            VerifyCPUType(cpu);
+            parentCPU = cpu;
+
+            if(withProcessorIdMMIORegisters)
+            {
+                DefineProcessorIdRegisters(cpu);
+            }
+
+            // Peripheral ID's bits 20-23 (4-7 of `PMPID2`) contain CPU's major revision number,
+            // AKA variant, which is also encoded in bits 20-23 of MIDR. Let's warn if those differ
+            // and update Peripheral ID's variant field to MIDR variant's value.
+            var midrVariant = BitHelper.GetValue(cpu.GetSystemRegisterValue("MIDR"), VariantOffset, VariantWidth);
+            var peripheralIdVariant = BitHelper.GetValue(PeripheralId, VariantOffset, VariantWidth);
+            if(midrVariant != peripheralIdVariant)
+            {
+                PeripheralId = BitHelper.ReplaceBits(PeripheralId, midrVariant, VariantWidth, destinationPosition: VariantOffset);
+                this.Log(LogLevel.Info, "Updating Peripheral ID's CPU variant ({0}) in bits 20-23 to the actual CPU variant from MIDR ({1}).", peripheralIdVariant, midrVariant);
+            }
+        }
+
+        public GPIO IRQ { get; }
+
+        public long Size => 0x1000;
+
         public bool Enabled
         {
             get
@@ -227,6 +228,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 VerifyCPURegistered();
                 return (parentCPU.GetSystemRegisterValue(ControlRegister) & ControlRegisterEnableMask) > 0;
             }
+
             set
             {
                 VerifyCPURegistered();

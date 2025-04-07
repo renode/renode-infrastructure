@@ -6,6 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -28,12 +29,10 @@ namespace Antmicro.Renode.Peripherals.SPI
                 {(long)Registers.RxTransferAddress, new DoubleWordRegister(this)
                     .WithValueField(0, 32, out rxTransferAddress, name: "SPIM_RX_SADDR")
                 },
-
                 {(long)Registers.RxTransferBufferSize, new DoubleWordRegister(this)
                     .WithValueField(0, 20, out rxTransferBufferSize, name: "SPIM_RX_SIZE")
                     .WithReservedBits(20, 12)
                 },
-
                 {(long)Registers.RxTransferConfiguration, new DoubleWordRegister(this)
                     .WithTag("CONTINOUS", 0, 1)
                     .WithTag("DATASIZE", 1, 2)
@@ -43,16 +42,13 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithReservedBits(6, 26)
                     .WithWriteCallback((_, __) => TryStartReception())
                 },
-
                 {(long)Registers.TxTransferAddress, new DoubleWordRegister(this)
                     .WithValueField(0, 32, out txTransferAddress, name: "SPIM_TX_SADDR")
                 },
-
                 {(long)Registers.TxTransferBufferSize, new DoubleWordRegister(this)
                     .WithValueField(0, 20, out txTransferBufferSize, name: "SPIM_TX_SIZE")
                     .WithReservedBits(20, 12)
                 },
-
                 {(long)Registers.TxTransferConfiguration, new DoubleWordRegister(this)
                     .WithTag("CONTINOUS", 0, 1)
                     .WithTag("DATASIZE", 1, 2)
@@ -62,16 +58,13 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithReservedBits(6, 26)
                     .WithWriteCallback((_, __) => TryStartTransmission())
                 },
-
                 {(long)Registers.CommandTransferAddress, new DoubleWordRegister(this)
                     .WithValueField(0, 32, out commandTransferAddress, name: "SPIM_CMD_SADDR")
                 },
-
                 {(long)Registers.CommandTransferBufferSize, new DoubleWordRegister(this)
                     .WithTag("CMD_SIZE", 0, 20)
                     .WithReservedBits(20, 12)
                 },
-
                 {(long)Registers.CommandTransferConfiguration, new DoubleWordRegister(this)
                     .WithTag("CONTINOUS", 0, 1)
                     .WithTag("DATASIZE", 1, 2)
@@ -107,7 +100,9 @@ namespace Antmicro.Renode.Peripherals.SPI
         public long Size => 0x80;
 
         public GPIO RxIRQ { get; }
+
         public GPIO TxIRQ { get; }
+
         public GPIO CmdIRQ { get; }
 
         private void TryExecuteTransaction()
@@ -125,16 +120,16 @@ namespace Antmicro.Renode.Peripherals.SPI
             command = ReadCommand();
             switch(command)
             {
-                case Commands.ReceiveData:
-                    TryStartReception();
-                    break;
-                case Commands.TransferData:
-                    TryStartTransmission();
-                    break;
-                default:
-                    this.Log(LogLevel.Error, "Encountered unsupported command: 0x{0:X}", command);
-                    command = Commands.None;
-                    break;
+            case Commands.ReceiveData:
+                TryStartReception();
+                break;
+            case Commands.TransferData:
+                TryStartTransmission();
+                break;
+            default:
+                this.Log(LogLevel.Error, "Encountered unsupported command: 0x{0:X}", command);
+                command = Commands.None;
+                break;
             }
             CmdIRQ.Blink();
         }
@@ -164,7 +159,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         }
 
         private void TryStartTransmission()
-        {            
+        {
             if(!txEnable.Value || command != Commands.TransferData)
             {
                 this.Log(LogLevel.Debug, "Tried to issue a transaction without full configuration.");

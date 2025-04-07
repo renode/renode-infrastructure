@@ -4,9 +4,8 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
-using System.Linq;
+
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Packets;
 
@@ -41,12 +40,12 @@ namespace Antmicro.Renode.Core.CAN
                 return false;
             }
 
-            if(header.extendedFrameLengthFrame)
+            if(header.ExtendedFrameLengthFrame)
             {
                 return buffer.TryDecode<XLSocketCANFrame>(out frame);
             }
 
-            if(header.flexibleDataRateFrame)
+            if(header.FlexibleDataRateFrame)
             {
                 return buffer.TryDecode<FlexibleSocketCANFrame>(out frame);
             }
@@ -71,9 +70,9 @@ namespace Antmicro.Renode.Core.CAN
         {
 #pragma warning disable 649
             [PacketField, Offset(doubleWords: 1, bytes: 1, bits:  2), Width(1)]
-            public bool flexibleDataRateFrame;
+            public bool FlexibleDataRateFrame;
             [PacketField, Offset(doubleWords: 1, bytes: 0, bits: 7), Width(1)]
-            public bool extendedFrameLengthFrame;
+            public bool ExtendedFrameLengthFrame;
 #pragma warning restore 649
 
             public const int Size = 8;
@@ -92,22 +91,22 @@ namespace Antmicro.Renode.Core.CAN
         {
             return new ClassicalSocketCANFrame
             {
-                id = msg.Id,
-                errorMessageFrame = false,
-                remoteTransmissionRequest = msg.RemoteFrame,
-                extendedFrameFormat = msg.ExtendedFormat,
-                length = msg.Data.Length,
-                data = msg.Data.CopyAndResize(MaxDataLength)
+                Id = msg.Id,
+                ErrorMessageFrame = false,
+                RemoteTransmissionRequest = msg.RemoteFrame,
+                ExtendedFrameFormat = msg.ExtendedFormat,
+                Length = msg.Data.Length,
+                Data = msg.Data.CopyAndResize(MaxDataLength)
             };
         }
 
         public override string ToString() => $@"ClassicalSocketCANFrame {{
-    id: 0x{id:X},
-    errorMessageFrame: {errorMessageFrame},
-    remoteTransmissionRequest: {remoteTransmissionRequest},
-    extendedFrameFormat: {extendedFrameFormat},
-    length: {length},
-    data: {Misc.PrettyPrintCollectionHex(data)}
+    id: 0x{Id:X},
+    errorMessageFrame: {ErrorMessageFrame},
+    remoteTransmissionRequest: {RemoteTransmissionRequest},
+    extendedFrameFormat: {ExtendedFrameFormat},
+    length: {Length},
+    data: {Misc.PrettyPrintCollectionHex(Data)}
 }}";
 
         int ISocketCANFrame.Size => ClassicalSocketCANFrame.Size;
@@ -115,21 +114,21 @@ namespace Antmicro.Renode.Core.CAN
 #pragma warning disable 649
         // can_id
         [PacketField, Offset(doubleWords: 0, bits:  0), Width(29)]
-        public uint id;
+        public uint Id;
         [PacketField, Offset(doubleWords: 0, bits:  29), Width(1)]
-        public bool errorMessageFrame;
+        public bool ErrorMessageFrame;
         [PacketField, Offset(doubleWords: 0, bits:  30), Width(1)]
-        public bool remoteTransmissionRequest;
+        public bool RemoteTransmissionRequest;
         [PacketField, Offset(doubleWords: 0, bits:  31), Width(1)]
-        public bool extendedFrameFormat;
+        public bool ExtendedFrameFormat;
 
         // len
         [PacketField, Offset(doubleWords: 1, bits:  0), Width(8)]
-        public int length;
+        public int Length;
 
         // data
         [PacketField, Offset(quadWords: 1), Width(MaxDataLength)]
-        public byte[] data;
+        public byte[] Data;
 #pragma warning restore 649
 
         public const int MaxDataLength = 8;
@@ -143,28 +142,28 @@ namespace Antmicro.Renode.Core.CAN
         {
             return new FlexibleSocketCANFrame
             {
-                id = msg.Id,
-                errorMessageFrame = false,
-                remoteTransmissionRequest = msg.RemoteFrame,
-                extendedFrameFormat = msg.ExtendedFormat,
-                length = msg.Data.Length,
-                bitRateSwitch = msg.BitRateSwitch,
-                errorStateIndicator = false,
-                flexibleDataRateFrame = true,
-                data = msg.Data.CopyAndResize(MaxDataLength)
+                Id = msg.Id,
+                ErrorMessageFrame = false,
+                RemoteTransmissionRequest = msg.RemoteFrame,
+                ExtendedFrameFormat = msg.ExtendedFormat,
+                Length = msg.Data.Length,
+                BitRateSwitch = msg.BitRateSwitch,
+                ErrorStateIndicator = false,
+                FlexibleDataRateFrame = true,
+                Data = msg.Data.CopyAndResize(MaxDataLength)
             };
         }
 
         public override string ToString() => $@"FlexibleSocketCANFrame {{
-    id: 0x{id:X},
-    errorMessageFrame: {errorMessageFrame},
-    remoteTransmissionRequest: {remoteTransmissionRequest},
-    extendedFrameFormat: {extendedFrameFormat},
-    length: {length},
-    bitRateSwitch: {bitRateSwitch},
-    errorStateIndicator: {errorStateIndicator},
-    flexibleDataRateFrame: {flexibleDataRateFrame},
-    data: {Misc.PrettyPrintCollectionHex(data)}
+    id: 0x{Id:X},
+    errorMessageFrame: {ErrorMessageFrame},
+    remoteTransmissionRequest: {RemoteTransmissionRequest},
+    extendedFrameFormat: {ExtendedFrameFormat},
+    length: {Length},
+    bitRateSwitch: {BitRateSwitch},
+    errorStateIndicator: {ErrorStateIndicator},
+    flexibleDataRateFrame: {FlexibleDataRateFrame},
+    data: {Misc.PrettyPrintCollectionHex(Data)}
 }}";
 
         int ISocketCANFrame.Size => FlexibleSocketCANFrame.Size;
@@ -172,30 +171,30 @@ namespace Antmicro.Renode.Core.CAN
 #pragma warning disable 649
         // can_id
         [PacketField, Offset(doubleWords: 0, bits:  0), Width(29)]
-        public uint id;
+        public uint Id;
         [PacketField, Offset(doubleWords: 0, bits:  29), Width(1)]
-        public bool errorMessageFrame;
+        public bool ErrorMessageFrame;
         [PacketField, Offset(doubleWords: 0, bits:  30), Width(1)]
-        public bool remoteTransmissionRequest;
+        public bool RemoteTransmissionRequest;
         [PacketField, Offset(doubleWords: 0, bits:  31), Width(1)]
-        public bool extendedFrameFormat;
+        public bool ExtendedFrameFormat;
 
         // len
         [PacketField, Offset(doubleWords: 1, bytes: 0), Width(8)]
-        public int length;
+        public int Length;
 
         // flags
         [PacketField, Offset(doubleWords: 1, bytes: 1, bits:  0), Width(1)]
-        public bool bitRateSwitch;
+        public bool BitRateSwitch;
         [PacketField, Offset(doubleWords: 1, bytes: 1, bits:  1), Width(1)]
-        public bool errorStateIndicator;
+        public bool ErrorStateIndicator;
         // should always be set for FD CAN frame
         [PacketField, Offset(doubleWords: 1, bytes: 1, bits:  2), Width(1)]
-        public bool flexibleDataRateFrame;
+        public bool FlexibleDataRateFrame;
 
         // data
         [PacketField, Offset(quadWords: 1), Width(MaxDataLength)]
-        public byte[] data;
+        public byte[] Data;
 #pragma warning restore 649
 
         public const int MaxDataLength = 64;
@@ -206,14 +205,14 @@ namespace Antmicro.Renode.Core.CAN
     public struct XLSocketCANFrame : ISocketCANFrame
     {
         public override string ToString() => $@"XLSocketCANFrame {{
-    priority: 0x{priority:X},
-    virtualCANNetworkId: 0x{virtualCANNetworkId:X},
-    simpleExtendedContent: {simpleExtendedContent},
-    extendedFrameLengthFrame: {extendedFrameLengthFrame},
-    serviceDataUnit: 0x{serviceDataUnit:X},
-    length: {length},
-    acceptanceField: 0x{acceptanceField:X},
-    data: {Misc.PrettyPrintCollectionHex(data)}
+    priority: 0x{Priority:X},
+    virtualCANNetworkId: 0x{VirtualCANNetworkId:X},
+    simpleExtendedContent: {SimpleExtendedContent},
+    extendedFrameLengthFrame: {ExtendedFrameLengthFrame},
+    serviceDataUnit: 0x{ServiceDataUnit:X},
+    length: {Length},
+    acceptanceField: 0x{AcceptanceField:X},
+    data: {Misc.PrettyPrintCollectionHex(Data)}
 }}";
 
         int ISocketCANFrame.Size => XLSocketCANFrame.Size;
@@ -221,31 +220,31 @@ namespace Antmicro.Renode.Core.CAN
 #pragma warning disable 649
         // prio
         [PacketField, Offset(doubleWords: 0, bits: 0), Width(11)]
-        public uint priority;
+        public uint Priority;
         [PacketField, Offset(doubleWords: 0, bits: 16), Width(8)]
-        public byte virtualCANNetworkId;
+        public byte VirtualCANNetworkId;
 
         // flags
         [PacketField, Offset(doubleWords: 1, bytes: 0, bits:  0), Width(1)]
-        public bool simpleExtendedContent;
+        public bool SimpleExtendedContent;
         [PacketField, Offset(doubleWords: 1, bytes: 0, bits:  7), Width(1)]
-        public bool extendedFrameLengthFrame;
+        public bool ExtendedFrameLengthFrame;
 
         // sdt
         [PacketField, Offset(doubleWords: 1, bytes: 1, bits: 0), Width(8)]
-        public byte serviceDataUnit;
+        public byte ServiceDataUnit;
 
         // len
         [PacketField, Offset(doubleWords: 1, words: 1), Width(16)]
-        public int length;
+        public int Length;
 
         // af
         [PacketField, Offset(doubleWords: 2), Width(32)]
-        public uint acceptanceField;
+        public uint AcceptanceField;
 
         // data
         [PacketField, Offset(doubleWords: 3), Width(MaxDataLength)]
-        public byte[] data;
+        public byte[] Data;
 #pragma warning restore 649
 
         public const int MaxDataLength = 2048;

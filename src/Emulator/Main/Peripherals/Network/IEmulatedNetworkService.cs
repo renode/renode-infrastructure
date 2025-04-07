@@ -6,6 +6,7 @@
 //
 
 using System;
+
 using Antmicro.Renode.Core;
 
 namespace Antmicro.Renode.Peripherals.Network
@@ -17,6 +18,7 @@ namespace Antmicro.Renode.Peripherals.Network
         void Disconnect();
 
         byte[] Receive(int bytes);
+
         bool Send(byte[] data);
 
         int BytesAvailable { get; }
@@ -24,6 +26,7 @@ namespace Antmicro.Renode.Peripherals.Network
         event Action<int> BytesReceived;
 
         string Host { get; }
+
         ushort Port { get; }
     }
 }

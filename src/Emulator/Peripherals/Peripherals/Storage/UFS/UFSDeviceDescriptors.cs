@@ -8,7 +8,7 @@ using Antmicro.Renode.Utilities.Packets;
 
 namespace Antmicro.Renode.Peripherals.Storage
 {
-#pragma warning disable 649, 169
+#pragma warning disable 649, 169, IDE0044
     public struct ConfigurationDescriptorHeader
     {
         [PacketField, Offset(bytes: 0x00)]
@@ -354,5 +354,5 @@ namespace Antmicro.Renode.Peripherals.Storage
         [PacketField, Offset(bytes: 0x29)]
         public uint LUNumWriteBoosterBufferAllocUnits;
     }
-#pragma warning restore 649, 169
+#pragma warning restore 649, 169, IDE0044
 }

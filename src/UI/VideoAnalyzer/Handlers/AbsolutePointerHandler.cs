@@ -6,7 +6,9 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Peripherals.Input;
+
 using Xwt;
 
 namespace Antmicro.Renode.Extensions.Analyzers.Video.Handlers
@@ -94,6 +96,7 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Handlers
         }
 
         public int X { get; protected set; }
+
         public int Y { get; protected set; }
 
         public event Action<int, int> OnPointerMoved;
@@ -113,10 +116,10 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Handlers
             widget.Cursor = previousCursorType;
         }
 
+        private bool isCursorOverImageRectangle;
+
         private int lastX, lastY;
         private CursorType previousCursorType;
         private readonly FrameBufferDisplayWidget widget;
-        private bool isCursorOverImageRectangle;
     }
 }
-

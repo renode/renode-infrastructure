@@ -5,17 +5,20 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.UserInterface.Tokenizer;
-using AntShell.Commands;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Core;
-using System.IO;
+using Antmicro.Renode.UserInterface.Tokenizer;
 using Antmicro.Renode.Utilities;
+
+using AntShell.Commands;
 
 namespace Antmicro.Renode.UserInterface.Commands
 {
     public class LoggerFileCommand : AutoLoadCommand
     {
+        public LoggerFileCommand(Monitor monitor) : base(monitor, "logFile", "sets the output file for logger.", "logF")
+        {
+        }
+
         public override void PrintHelp(ICommandInteraction writer)
         {
             base.PrintHelp(writer);
@@ -48,11 +51,6 @@ namespace Antmicro.Renode.UserInterface.Commands
             Logger.AddBackend(new FileBackend(path, flushAfterEveryWrite), BackendName, true);
         }
 
-        public LoggerFileCommand(Monitor monitor) : base(monitor, "logFile", "sets the output file for logger.", "logF")
-        {
-        }
-
         private readonly string BackendName = "file";
     }
 }
-

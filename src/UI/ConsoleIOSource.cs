@@ -6,8 +6,10 @@
 //
 using System;
 using System.Collections.Generic;
-using AntShell.Terminal;
+
 using Antmicro.Renode.Utilities;
+
+using AntShell.Terminal;
 
 namespace Antmicro.Renode.UI
 {
@@ -20,9 +22,9 @@ namespace Antmicro.Renode.UI
             {
                 Console.TreatControlCAsInput = true;
             }
-            
+
             checker = new UTF8Checker();
-            
+
             var inputHandler = new System.Threading.Thread(HandleInput)
             {
                 IsBackground = true,
@@ -30,7 +32,7 @@ namespace Antmicro.Renode.UI
             };
 
             inputHandler.Start();
-        } 
+        }
 
         public void Dispose()
         {
@@ -68,7 +70,7 @@ namespace Antmicro.Renode.UI
         }
 
         public bool IsAnythingAttached => (ByteRead != null);
-        
+
         public event Action<int> ByteRead;
 
         private void HandleInput()
@@ -156,7 +158,7 @@ namespace Antmicro.Renode.UI
                 }
                 else
                 {
-                    foreach(var b in checker.UTF8Encoder.GetBytes(new [] { key.KeyChar }))
+                    foreach(var b in checker.UTF8Encoder.GetBytes(new[] { key.KeyChar }))
                     {
                         ByteRead?.Invoke(b);
                     }
@@ -181,7 +183,7 @@ namespace Antmicro.Renode.UI
                         c = (char)b;
                         return true;
                     }
-                    else 
+                    else
                     {
                         buffer.Enqueue(b);
                         if((b & 0xE0) == 0xC0)

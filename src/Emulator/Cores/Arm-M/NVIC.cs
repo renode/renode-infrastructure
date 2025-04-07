@@ -10,6 +10,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Debugging;
@@ -52,193 +53,189 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             Reset();
         }
 
-        public void AttachCPU(CortexM cpu)
-        {
-            if(this.cpu != null)
-            {
-                throw new RecoverableException("The NVIC has already attached CPU.");
-            }
-            this.cpu = cpu;
-            this.cpuId = cpu.ModelID;
-            mpuVersion = cpu.IsV8 ? MPUVersion.PMSAv8 : MPUVersion.PMSAv7;
-
-            if(cpu.TrustZoneEnabled)
-            {
-                if(mpuVersion != MPUVersion.PMSAv8)
-                {
-                    throw new ConstructionException($"Only {nameof(MPUVersion.PMSAv8)} is supported with TrustZone");
-                }
-                systick.SecureVal = new SysTick(machine, this, systick.NonSecureVal.Frequency, true);
-            }
-
-            if(cpu.Model == "cortex-m7")
-            {
-                DefineTightlyCoupledMemoryControlRegisters();
-            }
-
-            cpu.AddHookAtWfiStateChange(HandleWfiStateChange);
-        }
-
-        public bool MaskedInterruptPresent { get { return maskedInterruptPresent; } }
-
-        public bool PauseInsteadOfReset { get; set; }
-
         public IEnumerable<int> GetEnabledExternalInterrupts()
         {
-            return irqs.Skip(16).Select((x,i) => new {x,i}).Where(y => (y.x & IRQState.Enabled) != 0).Select(y => y.i).OrderBy(x => x);
+            return irqs.Skip(16).Select((x, i) => new { x, i }).Where(y => (y.x & IRQState.Enabled) != 0).Select(y => y.i).OrderBy(x => x);
         }
 
-        public IEnumerable<int> GetEnabledInternalInterrupts()
+        /// <remarks>
+        /// This exposes raw value of <see cref="targetInterruptSecurityState"/>
+        /// note, that for some exceptions, this doesn't mean that they are Secure, since some exceptions are banked
+        /// </remarks>
+        [HideInMonitor]
+        public InterruptTargetSecurityState GetTargetInterruptSecurityState(int interruptNumber)
         {
-            return irqs.Take(16).Select((x,i) => new {x,i}).Where(y => (y.x & IRQState.Enabled) != 0).Select(y => y.i).OrderBy(x => x);
+            // Don't check this for banked IRQs - this makes no sense at all!
+            // since they are taken to the state in which they occurred - they can be triggered independently
+            DebugHelper.Assert(!bankedInterrupts.Contains(interruptNumber));
+
+            return targetInterruptSecurityState[interruptNumber];
         }
 
-        public long Frequency
+        public int FindPendingInterrupt()
         {
-            get => systick.Get(IsCurrentCPUInSecureState(out var _)).Frequency;
-            set
+            lock(irqs)
             {
-                systick.Get(IsCurrentCPUInSecureState(out var _)).Frequency = value;
-            }
-        }
+                var bestPriority = 0xFF + 1;
+                var preemptNeeded = activeIRQs.Count != 0;
+                var result = SpuriousInterrupt; // TODO (and some log?)
 
-        public int Divider
-        {
-            get => systick.Get(IsCurrentCPUInSecureState(out var _)).Divider;
-            set
-            {
-                systick.Get(IsCurrentCPUInSecureState(out var _)).Divider = value;
-            }
-        }
-
-        public bool HaltSystickOnDeepSleep { get; set; }
-
-        [ConnectionRegion("NonSecure")]
-        public uint ReadDoubleWordNonSecureAlias(long offset)
-        {
-            if(!cpu.TrustZoneEnabled)
-            {
-                throw new RecoverableException(TrustZoneNSRegionWarning);
-            }
-            return ReadDoubleWord(offset, false);
-        }
-
-        public uint ReadDoubleWord(long offset)
-        {
-            return ReadDoubleWord(offset, IsCurrentCPUInSecureState(out var _));
-        }
-
-        public uint ReadDoubleWord(long offset, bool isSecure)
-        {
-            if(offset >= PriorityStart && offset < PriorityEnd)
-            {
-                return HandlePriorityRead(offset - PriorityStart, true, isSecure);
-            }
-            if(offset >= SetEnableStart && offset < SetEnableEnd)
-            {
-                return HandleEnableRead((int)(offset - SetEnableStart), isSecure);
-            }
-            if(offset >= ClearEnableStart && offset < ClearEnableEnd)
-            {
-                return HandleEnableRead((int)(offset - ClearEnableStart), isSecure);
-            }
-            if(offset >= SetPendingStart && offset < SetPendingEnd)
-            {
-                return GetPending((int)(offset - SetPendingStart), isSecure);
-            }
-            if(offset >= ClearPendingStart && offset < ClearPendingEnd)
-            {
-                return GetPending((int)(offset - ClearPendingStart), isSecure);
-            }
-            if(offset >= ActiveBitStart && offset < ActiveBitEnd)
-            {
-                return GetActive((int)(offset - ActiveBitStart), isSecure);
-            }
-            if(offset >= TargetNonSecureStart && offset < TargetNonSecureEnd)
-            {
-                bool isCpu = machine.GetSystemBus(this).TryGetCurrentCPU(out var cpu);
-                // For convenience, if we access this from outside CPU context (e.g. Monitor) let's allow this access through
-                if(!isSecure && isCpu)
+                foreach(int i in pendingIRQs)
                 {
-                    this.WarningLog("CPU {0} tries to read from ITNS register, but it's in Non-secure state", cpu);
-                    return 0;
+                    var currentIRQ = irqs[i];
+                    if(IsCandidate(currentIRQ, i) && AdjustPriority(i) < bestPriority)
+                    {
+                        result = i;
+                        bestPriority = AdjustPriority(i);
+                    }
                 }
-                return GetSecurityTarget((int)(offset - TargetNonSecureStart));
-            }
-            if(offset >= MPUStart && offset < MPUEnd)
-            {
-                return HandleMPURead(offset - MPUStart, isSecure);
-            }
-            if(offset >= SAUStart && offset < SAUEnd)
-            {
-                // SAU access is filtered at tlib level
-                return HandleSAURead(offset - SAUStart);
-            }
-            switch((Registers)offset)
-            {
-            case Registers.VectorTableOffset:
-                return GetTrustZoneBankedRegisterValue(isSecure, () => cpu.VectorTableOffset, () => cpu.VectorTableOffsetNonSecure);
-            case Registers.CPUID:
-                return cpuId;
-            case Registers.CoprocessorAccessControl:
-                return GetTrustZoneBankedRegisterValue(isSecure, () => cpu.CPACR, () => cpu.CPACR_NS);
-            case Registers.FPContextControl:
-                if(!IsPrivilegedMode())
+                if(preemptNeeded)
                 {
-                    this.Log(LogLevel.Warning, "Tried to read FPContextControl from an unprivileged context. Returning 0.");
-                    return 0;
+                    var activeTop = activeIRQs.Peek();
+                    var activePriority = AdjustPriority(activeTop);
+                    if(!DoesAPreemptB(bestPriority, activePriority, !IsInterruptTargetNonSecure(result), !IsInterruptTargetNonSecure(activeTop)))
+                    {
+                        result = SpuriousInterrupt;
+                    }
+                    else
+                    {
+                        this.NoisyLog("IRQ {0} preempts {1}.", ExceptionToString(result), ExceptionToString(activeTop));
+                    }
                 }
-                return GetTrustZoneBankedRegisterValue(isSecure, () => cpu.FPCCR, () => cpu.FPCCR_NS);
-            case Registers.FPContextAddress:
-                if(!IsPrivilegedMode())
+
+                if(result != SpuriousInterrupt)
                 {
-                    this.Log(LogLevel.Warning, "Tried to read FPContextAddress from an unprivileged context. Returning 0.");
-                    return 0;
+                    if(ShouldRaiseException(result))
+                    {
+                        IRQ.Set(true);
+                    }
+                    // This field has side-effects, and can cause Cortex-M CPU running in another thread to exit WFI immediately.
+                    // Make absolutely sure to execute last, after signaling IRQ handler to run with `IRQ.Set`.
+                    // Only this way the CPU will enter an exception handler immediately upon waking from WFI.
+                    // This doesn't matter for async (HW) interrupts, arriving when the core is executing normally.
+                    maskedInterruptPresent = true;
                 }
-                return GetTrustZoneBankedRegisterValue(isSecure, () => cpu.FPCAR, () => cpu.FPCAR_NS);
-            case Registers.FPDefaultStatusControl:
-                if(!IsPrivilegedMode())
+                else
                 {
-                    this.Log(LogLevel.Warning, "Tried to read FPDefaultStatusControl from an unprivileged context. Returning 0.");
-                    return 0;
+                    maskedInterruptPresent = false;
                 }
-                return GetTrustZoneBankedRegisterValue(isSecure, () => cpu.FPDSCR, () => cpu.FPDSCR_NS);
-            case Registers.ConfigurationAndControl:
-                return ccr.Get(isSecure);
-            case Registers.SystemHandlerPriority1:
-            case Registers.SystemHandlerPriority2:
-            case Registers.SystemHandlerPriority3:
-                return HandlePriorityRead(offset - 0xD14, false, isSecure);
-            case Registers.ConfigurableFaultStatus:
-                return GetTrustZoneBankedRegisterValue(isSecure, () => cpu.FaultStatus, () => cpu.FaultStatusNonSecure);
-            case Registers.InterruptControllerType:
-                return 0b0111;
-            case Registers.MemoryFaultAddress:
-                return GetTrustZoneBankedRegisterValue(isSecure, () => cpu.MemoryFaultAddress, () => cpu.MemoryFaultAddressNonSecure);
-            default:
-                lock(RegisterCollection)
+
+                return result;
+            }
+        }
+
+        public void SetSevOnPendingOnAllCPUs(bool value)
+        {
+            foreach(var cpu in machine.SystemBus.GetCPUs().OfType<Arm>())
+            {
+                cpu.SetSevOnPending(value);
+            }
+        }
+
+        public void OnGPIO(int number, bool value)
+        {
+            number += 16; // because this is HW interrupt
+            this.NoisyLog("External IRQ {0}: {1}", number, value);
+            var pendingInterrupt = SpuriousInterrupt;
+            lock(irqs)
+            {
+                if(value)
                 {
-                    isNextAccessSecure = isSecure;
-                    return RegisterCollection.Read(offset);
+                    irqs[number] |= IRQState.Running;
+                    SetPending(number);
+                }
+                else
+                {
+                    irqs[number] &= ~IRQState.Running;
+                }
+                pendingInterrupt = FindPendingInterrupt();
+            }
+            if(pendingInterrupt != SpuriousInterrupt && value)
+            {
+                // We assume both SysTicks are woken up on exiting deep sleep
+                // docs aren't clear on this, but this seems like a logical behavior
+                if(!systick.NonSecureVal.Enabled)
+                {
+                    this.NoisyLog("Waking up from deep sleep");
+                }
+                systick.NonSecureVal.Enabled |= value;
+                if(cpu.TrustZoneEnabled)
+                {
+                    systick.SecureVal.Enabled |= value;
                 }
             }
         }
 
-        public GPIO IRQ { get; private set; }
-
-        [ConnectionRegion("NonSecure")]
-        public void WriteDoubleWordNonSecureAlias(long offset, uint value)
+        public void SetPendingIRQ(int number)
         {
-            if(!cpu.TrustZoneEnabled)
+            lock(irqs)
             {
-                throw new RecoverableException(TrustZoneNSRegionWarning);
+                this.NoisyLog("Internal IRQ {0}.", ExceptionToString(number));
+                SetPending(number);
+                FindPendingInterrupt();
             }
-            WriteDoubleWord(offset, value, false);
         }
 
-        public void WriteDoubleWord(long offset, uint value)
+        public void CompleteIRQ(int number)
         {
-            WriteDoubleWord(offset, value, IsCurrentCPUInSecureState(out var _));
+            lock(irqs)
+            {
+                var currentIRQ = irqs[number];
+                if((currentIRQ & IRQState.Active) == 0)
+                {
+                    this.Log(LogLevel.Error, "Trying to complete not active IRQ {0}.", ExceptionToString(number));
+                    return;
+                }
+                irqs[number] &= ~IRQState.Active;
+                var activeIRQ = activeIRQs.Pop();
+                if(activeIRQ != number)
+                {
+                    this.Log(LogLevel.Error, "Trying to complete IRQ {0} that was not the last active. Last active was {1}.", ExceptionToString(number), ExceptionToString(activeIRQ));
+                    return;
+                }
+                if((currentIRQ & IRQState.Running) > 0)
+                {
+                    this.NoisyLog("Completed IRQ {0} active -> pending.", ExceptionToString(number));
+                    irqs[number] |= IRQState.Pending;
+                    pendingIRQs.Add(number);
+                }
+                else if((currentIRQ & IRQState.Pending) != 0)
+                {
+                    this.NoisyLog("Completed IRQ {0} active -> pending.", number);
+                }
+                else
+                {
+                    this.NoisyLog("Completed IRQ {0} active -> inactive.", ExceptionToString(number));
+                }
+                FindPendingInterrupt();
+            }
+        }
+
+        public int AcknowledgeIRQ()
+        {
+            lock(irqs)
+            {
+                var result = FindPendingInterrupt();
+                if(result != SpuriousInterrupt)
+                {
+                    irqs[result] |= IRQState.Active;
+                    irqs[result] &= ~IRQState.Pending;
+                    pendingIRQs.Remove(result);
+                    this.NoisyLog("Acknowledged IRQ {0}.", ExceptionToString(result));
+                    activeIRQs.Push(result);
+                }
+                // at this point we can surely deactivate interrupt, because the best was chosen
+                IRQ.Set(false);
+                return result;
+            }
+        }
+
+        public void SetSleepOnExceptionExitOnAllCPUs(bool value)
+        {
+            foreach(var cpu in machine.SystemBus.GetCPUs().OfType<CortexM>())
+            {
+                cpu.SetSleepOnExceptionExit(value);
+            }
         }
 
         public void WriteDoubleWord(long offset, uint value, bool isSecure)
@@ -404,6 +401,122 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
+        public void WriteDoubleWord(long offset, uint value)
+        {
+            WriteDoubleWord(offset, value, IsCurrentCPUInSecureState(out var _));
+        }
+
+        [ConnectionRegion("NonSecure")]
+        public void WriteDoubleWordNonSecureAlias(long offset, uint value)
+        {
+            if(!cpu.TrustZoneEnabled)
+            {
+                throw new RecoverableException(TrustZoneNSRegionWarning);
+            }
+            WriteDoubleWord(offset, value, false);
+        }
+
+        public uint ReadDoubleWord(long offset, bool isSecure)
+        {
+            if(offset >= PriorityStart && offset < PriorityEnd)
+            {
+                return HandlePriorityRead(offset - PriorityStart, true, isSecure);
+            }
+            if(offset >= SetEnableStart && offset < SetEnableEnd)
+            {
+                return HandleEnableRead((int)(offset - SetEnableStart), isSecure);
+            }
+            if(offset >= ClearEnableStart && offset < ClearEnableEnd)
+            {
+                return HandleEnableRead((int)(offset - ClearEnableStart), isSecure);
+            }
+            if(offset >= SetPendingStart && offset < SetPendingEnd)
+            {
+                return GetPending((int)(offset - SetPendingStart), isSecure);
+            }
+            if(offset >= ClearPendingStart && offset < ClearPendingEnd)
+            {
+                return GetPending((int)(offset - ClearPendingStart), isSecure);
+            }
+            if(offset >= ActiveBitStart && offset < ActiveBitEnd)
+            {
+                return GetActive((int)(offset - ActiveBitStart), isSecure);
+            }
+            if(offset >= TargetNonSecureStart && offset < TargetNonSecureEnd)
+            {
+                bool isCpu = machine.GetSystemBus(this).TryGetCurrentCPU(out var cpu);
+                // For convenience, if we access this from outside CPU context (e.g. Monitor) let's allow this access through
+                if(!isSecure && isCpu)
+                {
+                    this.WarningLog("CPU {0} tries to read from ITNS register, but it's in Non-secure state", cpu);
+                    return 0;
+                }
+                return GetSecurityTarget((int)(offset - TargetNonSecureStart));
+            }
+            if(offset >= MPUStart && offset < MPUEnd)
+            {
+                return HandleMPURead(offset - MPUStart, isSecure);
+            }
+            if(offset >= SAUStart && offset < SAUEnd)
+            {
+                // SAU access is filtered at tlib level
+                return HandleSAURead(offset - SAUStart);
+            }
+            switch((Registers)offset)
+            {
+            case Registers.VectorTableOffset:
+                return GetTrustZoneBankedRegisterValue(isSecure, () => cpu.VectorTableOffset, () => cpu.VectorTableOffsetNonSecure);
+            case Registers.CPUID:
+                return cpuId;
+            case Registers.CoprocessorAccessControl:
+                return GetTrustZoneBankedRegisterValue(isSecure, () => cpu.CPACR, () => cpu.CPACR_NS);
+            case Registers.FPContextControl:
+                if(!IsPrivilegedMode())
+                {
+                    this.Log(LogLevel.Warning, "Tried to read FPContextControl from an unprivileged context. Returning 0.");
+                    return 0;
+                }
+                return GetTrustZoneBankedRegisterValue(isSecure, () => cpu.FPCCR, () => cpu.FPCCR_NS);
+            case Registers.FPContextAddress:
+                if(!IsPrivilegedMode())
+                {
+                    this.Log(LogLevel.Warning, "Tried to read FPContextAddress from an unprivileged context. Returning 0.");
+                    return 0;
+                }
+                return GetTrustZoneBankedRegisterValue(isSecure, () => cpu.FPCAR, () => cpu.FPCAR_NS);
+            case Registers.FPDefaultStatusControl:
+                if(!IsPrivilegedMode())
+                {
+                    this.Log(LogLevel.Warning, "Tried to read FPDefaultStatusControl from an unprivileged context. Returning 0.");
+                    return 0;
+                }
+                return GetTrustZoneBankedRegisterValue(isSecure, () => cpu.FPDSCR, () => cpu.FPDSCR_NS);
+            case Registers.ConfigurationAndControl:
+                return ccr.Get(isSecure);
+            case Registers.SystemHandlerPriority1:
+            case Registers.SystemHandlerPriority2:
+            case Registers.SystemHandlerPriority3:
+                return HandlePriorityRead(offset - 0xD14, false, isSecure);
+            case Registers.ConfigurableFaultStatus:
+                return GetTrustZoneBankedRegisterValue(isSecure, () => cpu.FaultStatus, () => cpu.FaultStatusNonSecure);
+            case Registers.InterruptControllerType:
+                return 0b0111;
+            case Registers.MemoryFaultAddress:
+                return GetTrustZoneBankedRegisterValue(isSecure, () => cpu.MemoryFaultAddress, () => cpu.MemoryFaultAddressNonSecure);
+            default:
+                lock(RegisterCollection)
+                {
+                    isNextAccessSecure = isSecure;
+                    return RegisterCollection.Read(offset);
+                }
+            }
+        }
+
+        public uint ReadDoubleWord(long offset)
+        {
+            return ReadDoubleWord(offset, IsCurrentCPUInSecureState(out var _));
+        }
+
         public void Reset()
         {
             RegisterCollection.Reset();
@@ -428,6 +541,106 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             ccr.Reset(0x10000);
         }
 
+        [ConnectionRegion("NonSecure")]
+        public uint ReadDoubleWordNonSecureAlias(long offset)
+        {
+            if(!cpu.TrustZoneEnabled)
+            {
+                throw new RecoverableException(TrustZoneNSRegionWarning);
+            }
+            return ReadDoubleWord(offset, false);
+        }
+
+        public IEnumerable<int> GetEnabledInternalInterrupts()
+        {
+            return irqs.Take(16).Select((x, i) => new { x, i }).Where(y => (y.x & IRQState.Enabled) != 0).Select(y => y.i).OrderBy(x => x);
+        }
+
+        public void AttachCPU(CortexM cpu)
+        {
+            if(this.cpu != null)
+            {
+                throw new RecoverableException("The NVIC has already attached CPU.");
+            }
+            this.cpu = cpu;
+            this.cpuId = cpu.ModelID;
+            mpuVersion = cpu.IsV8 ? MPUVersion.PMSAv8 : MPUVersion.PMSAv7;
+
+            if(cpu.TrustZoneEnabled)
+            {
+                if(mpuVersion != MPUVersion.PMSAv8)
+                {
+                    throw new ConstructionException($"Only {nameof(MPUVersion.PMSAv8)} is supported with TrustZone");
+                }
+                systick.SecureVal = new SysTick(machine, this, systick.NonSecureVal.Frequency, true);
+            }
+
+            if(cpu.Model == "cortex-m7")
+            {
+                DefineTightlyCoupledMemoryControlRegisters();
+            }
+
+            cpu.AddHookAtWfiStateChange(HandleWfiStateChange);
+        }
+
+        [HideInMonitor]
+        public byte BASEPRI_S
+        {
+            get { return basepri.SecureVal; }
+
+            set
+            {
+                if(value == basepri.SecureVal)
+                {
+                    return;
+                }
+                basepri.SecureVal = value;
+                FindPendingInterrupt();
+            }
+        }
+
+        [HideInMonitor]
+        public byte BASEPRI_NS
+        {
+            get { return basepri.NonSecureVal; }
+
+            set
+            {
+                if(value == basepri.NonSecureVal)
+                {
+                    return;
+                }
+                basepri.NonSecureVal = value;
+                FindPendingInterrupt();
+            }
+        }
+
+        public bool MaskedInterruptPresent { get { return maskedInterruptPresent; } }
+
+        public bool PauseInsteadOfReset { get; set; }
+
+        public long Frequency
+        {
+            get => systick.Get(IsCurrentCPUInSecureState(out var _)).Frequency;
+            set
+            {
+                systick.Get(IsCurrentCPUInSecureState(out var _)).Frequency = value;
+            }
+        }
+
+        public int Divider
+        {
+            get => systick.Get(IsCurrentCPUInSecureState(out var _)).Divider;
+            set
+            {
+                systick.Get(IsCurrentCPUInSecureState(out var _)).Divider = value;
+            }
+        }
+
+        public bool HaltSystickOnDeepSleep { get; set; }
+
+        public GPIO IRQ { get; private set; }
+
         public long Size
         {
             get
@@ -436,123 +649,24 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
-        public int AcknowledgeIRQ()
-        {
-            lock(irqs)
-            {
-                var result = FindPendingInterrupt();
-                if(result != SpuriousInterrupt)
-                {
-                    irqs[result] |= IRQState.Active;
-                    irqs[result] &= ~IRQState.Pending;
-                    pendingIRQs.Remove(result);
-                    this.NoisyLog("Acknowledged IRQ {0}.", ExceptionToString(result));
-                    activeIRQs.Push(result);
-                }
-                // at this point we can surely deactivate interrupt, because the best was chosen
-                IRQ.Set(false);
-                return result;
-            }
-        }
-
-        public void CompleteIRQ(int number)
-        {
-            lock(irqs)
-            {
-                var currentIRQ = irqs[number];
-                if((currentIRQ & IRQState.Active) == 0)
-                {
-                    this.Log(LogLevel.Error, "Trying to complete not active IRQ {0}.", ExceptionToString(number));
-                    return;
-                }
-                irqs[number] &= ~IRQState.Active;
-                var activeIRQ = activeIRQs.Pop();
-                if(activeIRQ != number)
-                {
-                    this.Log(LogLevel.Error, "Trying to complete IRQ {0} that was not the last active. Last active was {1}.", ExceptionToString(number), ExceptionToString(activeIRQ));
-                    return;
-                }
-                if((currentIRQ & IRQState.Running) > 0)
-                {
-                    this.NoisyLog("Completed IRQ {0} active -> pending.", ExceptionToString(number));
-                    irqs[number] |= IRQState.Pending;
-                    pendingIRQs.Add(number);
-                }
-                else if((currentIRQ & IRQState.Pending) != 0)
-                {
-                    this.NoisyLog("Completed IRQ {0} active -> pending.", number);
-                }
-                else
-                {
-                    this.NoisyLog("Completed IRQ {0} active -> inactive.", ExceptionToString(number));
-                }
-                FindPendingInterrupt();
-            }
-        }
-
-        public void SetPendingIRQ(int number)
-        {
-            lock(irqs)
-            {
-                this.NoisyLog("Internal IRQ {0}.", ExceptionToString(number));
-                SetPending(number);
-                FindPendingInterrupt();
-            }
-        }
-
-        public void OnGPIO(int number, bool value)
-        {
-            number += 16; // because this is HW interrupt
-            this.NoisyLog("External IRQ {0}: {1}", number, value);
-            var pendingInterrupt = SpuriousInterrupt;
-            lock(irqs)
-            {
-                if(value)
-                {
-                    irqs[number] |= IRQState.Running;
-                    SetPending(number);
-                }
-                else
-                {
-                    irqs[number] &= ~IRQState.Running;
-                }
-                pendingInterrupt = FindPendingInterrupt();
-            }
-            if(pendingInterrupt != SpuriousInterrupt && value)
-            {
-                // We assume both SysTicks are woken up on exiting deep sleep
-                // docs aren't clear on this, but this seems like a logical behavior
-                if(!systick.NonSecureVal.Enabled)
-                {
-                    this.NoisyLog("Waking up from deep sleep");
-                }
-                systick.NonSecureVal.Enabled |= value;
-                if(cpu.TrustZoneEnabled)
-                {
-                    systick.SecureVal.Enabled |= value;
-                }
-            }
-        }
-
-        public void SetSevOnPendingOnAllCPUs(bool value)
-        {
-            foreach(var cpu in machine.SystemBus.GetCPUs().OfType<Arm>())
-            {
-                cpu.SetSevOnPending(value);
-            }
-        }
-
-        public void SetSleepOnExceptionExitOnAllCPUs(bool value)
-        {
-            foreach(var cpu in machine.SystemBus.GetCPUs().OfType<CortexM>())
-            {
-                cpu.SetSleepOnExceptionExit(value);
-            }
-        }
-
         public DoubleWordRegisterCollection RegisterCollection { get; }
 
         public bool DeepSleepEnabled { get; set; }
+
+        private static int GetStartingInterrupt(long offset, bool externalInterrupt)
+        {
+            return (int)(offset + (externalInterrupt ? 16 : 0));
+        }
+
+        private static string ExceptionToString(int exception)
+        {
+            if(Enum.IsDefined(typeof(SystemException), exception))
+            {
+                return ((SystemException)exception).ToString();
+            }
+            // Otherwise, it's an external Hard IRQ.
+            return $"HardwareIRQ#{exception - ((int)SystemException.SysTick) - 1} ({exception})";
+        }
 
         private void DefineRegisters()
         {
@@ -565,7 +679,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     valueProviderCallback: _ => systick.Get(isNextAccessSecure).TickInterruptEnabled,
                     changeCallback: (_, newValue) =>
                     {
-                        this.NoisyLog("Systick_{0} interrupt {1}", isNextAccessSecure ? "S" : "NS", newValue  ? "enabled" : "disabled");
+                        this.NoisyLog("Systick_{0} interrupt {1}", isNextAccessSecure ? "S" : "NS", newValue ? "enabled" : "disabled");
                         systick.Get(isNextAccessSecure).TickInterruptEnabled = newValue;
                     }, name: "TICKINT")
                 // If no external clock is provided, this bit reads as 1 and ignores writes.
@@ -764,7 +878,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         return;
                     }
                     var sec = value ? InterruptTargetSecurityState.NonSecure : InterruptTargetSecurityState.Secure;
-                    foreach(var excp in new SystemException[] {SystemException.NMI, SystemException.HardFault, SystemException.BusFault})
+                    foreach(var excp in new SystemException[] { SystemException.NMI, SystemException.HardFault, SystemException.BusFault })
                     {
                         targetInterruptSecurityState[(int)excp] = sec;
                     }
@@ -789,7 +903,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 .WithTaggedFlag(name: "ENDIANNESS", 15)
                 // We guard access with VectKey in `WriteDoubleWord` - here we just return the expected value
                 .WithValueField(16, 16, valueProviderCallback: _ => VectKeyStat, name: "VECTKEYSTAT");
-
 
             Registers.SystemHandlerControlAndState.Define(RegisterCollection)
                 .WithTaggedFlag("MEMFAULTACT (Memory Manage Active)", 0)
@@ -907,11 +1020,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             pendingIRQs.Clear();
         }
 
-        private static int GetStartingInterrupt(long offset, bool externalInterrupt)
-        {
-            return (int)(offset + (externalInterrupt ? 16 : 0));
-        }
-
         private void HandlePriorityWrite(long offset, bool externalInterrupt, uint value, bool isSecure)
         {
             lock(irqs)
@@ -970,14 +1078,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             switch(mpuVersion)
             {
-                case MPUVersion.PMSAv7:
-                    // Not supported with TrustZone. That's checked when attaching the CPU
-                    DebugHelper.Assert(!isSecure);
-                    return HandleMPUReadV7(offset);
-                case MPUVersion.PMSAv8:
-                    return HandleMPUReadV8(offset, isSecure);
-                default:
-                    throw new Exception("Attempted MPU read, but the MPU version is unknown");
+            case MPUVersion.PMSAv7:
+                // Not supported with TrustZone. That's checked when attaching the CPU
+                DebugHelper.Assert(!isSecure);
+                return HandleMPUReadV7(offset);
+            case MPUVersion.PMSAv8:
+                return HandleMPUReadV8(offset, isSecure);
+            default:
+                throw new Exception("Attempted MPU read, but the MPU version is unknown");
             }
         }
 
@@ -985,16 +1093,16 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             switch(mpuVersion)
             {
-                case MPUVersion.PMSAv7:
-                    // Not supported with TrustZone. That's checked when attaching the CPU
-                    DebugHelper.Assert(!isSecure);
-                    HandleMPUWriteV7(offset, value);
-                    break;
-                case MPUVersion.PMSAv8:
-                    HandleMPUWriteV8(offset, value, isSecure);
-                    break;
-                default:
-                    throw new Exception("Attempted MPU write, but the mpuVersion is unknown");
+            case MPUVersion.PMSAv7:
+                // Not supported with TrustZone. That's checked when attaching the CPU
+                DebugHelper.Assert(!isSecure);
+                HandleMPUWriteV7(offset, value);
+                break;
+            case MPUVersion.PMSAv8:
+                HandleMPUWriteV8(offset, value, isSecure);
+                break;
+            default:
+                throw new Exception("Attempted MPU write, but the mpuVersion is unknown");
             }
         }
 
@@ -1003,31 +1111,31 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             this.Log(LogLevel.Debug, "MPU: Trying to write to {0} (value: 0x{1:X08})", Enum.GetName(typeof(RegistersV7), offset), value);
             switch((RegistersV7)offset)
             {
-                case RegistersV7.Type:
-                    this.Log(LogLevel.Warning, "MPU: Trying to write to a read-only register (MPU_TYPE)");
-                    break;
-                case RegistersV7.Control:
-                    if((mpuControlRegister & 0x1) != (value & 0x1))
-                    {
-                        this.cpu.MPUEnabled = (value & 0x1) != 0x0;
-                    }
-                    mpuControlRegister = value;
-                    break;
-                case RegistersV7.RegionNumber: // MPU_RNR
-                    cpu.MPURegionNumber = value;
-                    break;
-                case RegistersV7.RegionBaseAddress:
-                case RegistersV7.RegionBaseAddressAlias1:
-                case RegistersV7.RegionBaseAddressAlias2:
-                case RegistersV7.RegionBaseAddressAlias3:
-                    cpu.MPURegionBaseAddress = value;
-                    break;
-                case RegistersV7.RegionAttributeAndSize:
-                case RegistersV7.RegionAttributeAndSizeAlias1:
-                case RegistersV7.RegionAttributeAndSizeAlias2:
-                case RegistersV7.RegionAttributeAndSizeAlias3:
-                    cpu.MPURegionAttributeAndSize = value;
-                    break;
+            case RegistersV7.Type:
+                this.Log(LogLevel.Warning, "MPU: Trying to write to a read-only register (MPU_TYPE)");
+                break;
+            case RegistersV7.Control:
+                if((mpuControlRegister & 0x1) != (value & 0x1))
+                {
+                    this.cpu.MPUEnabled = (value & 0x1) != 0x0;
+                }
+                mpuControlRegister = value;
+                break;
+            case RegistersV7.RegionNumber: // MPU_RNR
+                cpu.MPURegionNumber = value;
+                break;
+            case RegistersV7.RegionBaseAddress:
+            case RegistersV7.RegionBaseAddressAlias1:
+            case RegistersV7.RegionBaseAddressAlias2:
+            case RegistersV7.RegionBaseAddressAlias3:
+                cpu.MPURegionBaseAddress = value;
+                break;
+            case RegistersV7.RegionAttributeAndSize:
+            case RegistersV7.RegionAttributeAndSizeAlias1:
+            case RegistersV7.RegionAttributeAndSizeAlias2:
+            case RegistersV7.RegionAttributeAndSizeAlias3:
+                cpu.MPURegionAttributeAndSize = value;
+                break;
             }
         }
 
@@ -1035,52 +1143,52 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             this.Log(LogLevel.Debug, "MPU: Trying to write to {0} (value: 0x{1:X08})", Enum.GetName(typeof(RegistersV8), offset), value);
 
-            if (cpu.NumberOfMPURegions == 0)
+            if(cpu.NumberOfMPURegions == 0)
             {
                 this.Log(LogLevel.Error, $"CPU abort [PC={cpu.PC:x}]. Attempted a write to an MPU register, but the CPU doesn't support MPU. Set 'numberOfMPURegions' in CPU configuration to enable it.");
                 throw new CpuAbortException();
             }
             switch((RegistersV8)offset)
             {
-                case RegistersV8.Type:
-                    this.Log(LogLevel.Warning, "MPU: Trying to write to a read-only register (MPU_TYPE)");
-                    break;
-                case RegistersV8.Control:
-                    SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.PmsaV8Ctrl = val, (val) => cpu.PmsaV8Ctrl_NS = val, value);
-                    break;
-                case RegistersV8.RegionNumberRegister:
-                    SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.PmsaV8Rnr = val, (val) => cpu.PmsaV8Rnr_NS = val, value);
-                    break;
-                case RegistersV8.RegionBaseAddressRegister:
-                    SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.PmsaV8Rbar = val, (val) => cpu.PmsaV8Rbar_NS = val, value);
-                    break;
-                case RegistersV8.RegionBaseAddressRegisterAlias1:
-                    SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.PmsaV8RbarAlias1 = val, (val) => cpu.PmsaV8RbarAlias1_NS = val, value);
-                    break;
-                case RegistersV8.RegionBaseAddressRegisterAlias2:
-                    SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.PmsaV8RbarAlias2 = val, (val) => cpu.PmsaV8RbarAlias2_NS = val, value);
-                    break;
-                case RegistersV8.RegionBaseAddressRegisterAlias3:
-                    SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.PmsaV8RbarAlias3 = val, (val) => cpu.PmsaV8RbarAlias3_NS = val, value);
-                    break;
-                case RegistersV8.RegionLimitAddressRegister:
-                    SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.PmsaV8Rlar = val, (val) => cpu.PmsaV8Rlar_NS = val, value);
-                    break;
-                case RegistersV8.RegionLimitAddressRegisterAlias1:
-                    SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.PmsaV8RlarAlias1 = val, (val) => cpu.PmsaV8RlarAlias1_NS = val, value);
-                    break;
-                case RegistersV8.RegionLimitAddressRegisterAlias2:
-                    SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.PmsaV8RlarAlias2 = val, (val) => cpu.PmsaV8RlarAlias2_NS = val, value);
-                    break;
-                case RegistersV8.RegionLimitAddressRegisterAlias3:
-                    SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.PmsaV8RlarAlias3 = val, (val) => cpu.PmsaV8RlarAlias3_NS = val, value);
-                    break;
-                case RegistersV8.MemoryAttributeIndirectionRegister0:
-                    SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.PmsaV8Mair0 = val, (val) => cpu.PmsaV8Mair0_NS = val, value);
-                    break;
-                case RegistersV8.MemoryAttributeIndirectionRegister1:
-                    SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.PmsaV8Mair1 = val, (val) => cpu.PmsaV8Mair1_NS = val, value);
-                    break;
+            case RegistersV8.Type:
+                this.Log(LogLevel.Warning, "MPU: Trying to write to a read-only register (MPU_TYPE)");
+                break;
+            case RegistersV8.Control:
+                SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.PmsaV8Ctrl = val, (val) => cpu.PmsaV8Ctrl_NS = val, value);
+                break;
+            case RegistersV8.RegionNumberRegister:
+                SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.PmsaV8Rnr = val, (val) => cpu.PmsaV8Rnr_NS = val, value);
+                break;
+            case RegistersV8.RegionBaseAddressRegister:
+                SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.PmsaV8Rbar = val, (val) => cpu.PmsaV8Rbar_NS = val, value);
+                break;
+            case RegistersV8.RegionBaseAddressRegisterAlias1:
+                SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.PmsaV8RbarAlias1 = val, (val) => cpu.PmsaV8RbarAlias1_NS = val, value);
+                break;
+            case RegistersV8.RegionBaseAddressRegisterAlias2:
+                SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.PmsaV8RbarAlias2 = val, (val) => cpu.PmsaV8RbarAlias2_NS = val, value);
+                break;
+            case RegistersV8.RegionBaseAddressRegisterAlias3:
+                SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.PmsaV8RbarAlias3 = val, (val) => cpu.PmsaV8RbarAlias3_NS = val, value);
+                break;
+            case RegistersV8.RegionLimitAddressRegister:
+                SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.PmsaV8Rlar = val, (val) => cpu.PmsaV8Rlar_NS = val, value);
+                break;
+            case RegistersV8.RegionLimitAddressRegisterAlias1:
+                SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.PmsaV8RlarAlias1 = val, (val) => cpu.PmsaV8RlarAlias1_NS = val, value);
+                break;
+            case RegistersV8.RegionLimitAddressRegisterAlias2:
+                SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.PmsaV8RlarAlias2 = val, (val) => cpu.PmsaV8RlarAlias2_NS = val, value);
+                break;
+            case RegistersV8.RegionLimitAddressRegisterAlias3:
+                SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.PmsaV8RlarAlias3 = val, (val) => cpu.PmsaV8RlarAlias3_NS = val, value);
+                break;
+            case RegistersV8.MemoryAttributeIndirectionRegister0:
+                SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.PmsaV8Mair0 = val, (val) => cpu.PmsaV8Mair0_NS = val, value);
+                break;
+            case RegistersV8.MemoryAttributeIndirectionRegister1:
+                SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.PmsaV8Mair1 = val, (val) => cpu.PmsaV8Mair1_NS = val, value);
+                break;
             }
         }
 
@@ -1089,30 +1197,30 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             uint value;
             switch((RegistersV7)offset)
             {
-                case RegistersV7.Type:
-                    value = (cpu.NumberOfMPURegions & 0xFF) << 8;
-                    break;
-                case RegistersV7.Control:
-                    value = mpuControlRegister;
-                    break;
-                case RegistersV7.RegionNumber:
-                    value = cpu.MPURegionNumber;
-                    break;
-                case RegistersV7.RegionBaseAddress:
-                case RegistersV7.RegionBaseAddressAlias1:
-                case RegistersV7.RegionBaseAddressAlias2:
-                case RegistersV7.RegionBaseAddressAlias3:
-                    value = cpu.MPURegionBaseAddress;
-                    break;
-                case RegistersV7.RegionAttributeAndSize:
-                case RegistersV7.RegionAttributeAndSizeAlias1:
-                case RegistersV7.RegionAttributeAndSizeAlias2:
-                case RegistersV7.RegionAttributeAndSizeAlias3:
-                    value = cpu.MPURegionAttributeAndSize;
-                    break;
-                default:
-                    value = 0x0;
-                    break;
+            case RegistersV7.Type:
+                value = (cpu.NumberOfMPURegions & 0xFF) << 8;
+                break;
+            case RegistersV7.Control:
+                value = mpuControlRegister;
+                break;
+            case RegistersV7.RegionNumber:
+                value = cpu.MPURegionNumber;
+                break;
+            case RegistersV7.RegionBaseAddress:
+            case RegistersV7.RegionBaseAddressAlias1:
+            case RegistersV7.RegionBaseAddressAlias2:
+            case RegistersV7.RegionBaseAddressAlias3:
+                value = cpu.MPURegionBaseAddress;
+                break;
+            case RegistersV7.RegionAttributeAndSize:
+            case RegistersV7.RegionAttributeAndSizeAlias1:
+            case RegistersV7.RegionAttributeAndSizeAlias2:
+            case RegistersV7.RegionAttributeAndSizeAlias3:
+                value = cpu.MPURegionAttributeAndSize;
+                break;
+            default:
+                value = 0x0;
+                break;
             }
             this.Log(LogLevel.Debug, "MPU: Trying to read {0} (value: 0x{1:X08})", Enum.GetName(typeof(RegistersV7), offset), value);
             return value;
@@ -1120,7 +1228,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private uint HandleMPUReadV8(long offset, bool isSecure)
         {
-            if (cpu.NumberOfMPURegions == 0)
+            if(cpu.NumberOfMPURegions == 0)
             {
                 this.Log(LogLevel.Debug, $"Attempted a read from an MPU register, but the CPU doesn't support MPU. Set 'numberOfMPURegions' in CPU configuration to enable it.");
                 return 0;
@@ -1128,48 +1236,48 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             uint value;
             switch((RegistersV8)offset)
             {
-                case RegistersV8.Type:
-                    value = (cpu.NumberOfMPURegions & 0xFF) << 8;
-                    break;
-                case RegistersV8.Control:
-                    value = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.PmsaV8Ctrl, () => cpu.PmsaV8Ctrl_NS);
-                    break;
-                case RegistersV8.RegionNumberRegister:
-                    value = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.PmsaV8Rnr, () => cpu.PmsaV8Rnr_NS);
-                    break;
-                case RegistersV8.RegionBaseAddressRegister:
-                    value = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.PmsaV8Rbar, () => cpu.PmsaV8Rbar_NS);
-                    break;
-                case RegistersV8.RegionBaseAddressRegisterAlias1:
-                    value = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.PmsaV8RbarAlias1, () => cpu.PmsaV8RbarAlias1_NS);
-                    break;
-                case RegistersV8.RegionBaseAddressRegisterAlias2:
-                    value = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.PmsaV8RbarAlias2, () => cpu.PmsaV8RbarAlias2_NS);
-                    break;
-                case RegistersV8.RegionBaseAddressRegisterAlias3:
-                    value = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.PmsaV8RbarAlias3, () => cpu.PmsaV8RbarAlias3_NS);
-                    break;
-                case RegistersV8.RegionLimitAddressRegister:
-                    value = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.PmsaV8Rlar, () => cpu.PmsaV8Rlar_NS);
-                    break;
-                case RegistersV8.RegionLimitAddressRegisterAlias1:
-                    value = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.PmsaV8RlarAlias1, () => cpu.PmsaV8RlarAlias1_NS);
-                    break;
-                case RegistersV8.RegionLimitAddressRegisterAlias2:
-                    value = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.PmsaV8RlarAlias2, () => cpu.PmsaV8RlarAlias2_NS);
-                    break;
-                case RegistersV8.RegionLimitAddressRegisterAlias3:
-                    value = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.PmsaV8RlarAlias3, () => cpu.PmsaV8RlarAlias3_NS);
-                    break;
-                case RegistersV8.MemoryAttributeIndirectionRegister0:
-                    value = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.PmsaV8Mair0, () => cpu.PmsaV8Mair0_NS);
-                    break;
-                case RegistersV8.MemoryAttributeIndirectionRegister1:
-                    value = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.PmsaV8Mair1, () => cpu.PmsaV8Mair1_NS);
-                    break;
-                default:
-                    value = 0x0;
-                    break;
+            case RegistersV8.Type:
+                value = (cpu.NumberOfMPURegions & 0xFF) << 8;
+                break;
+            case RegistersV8.Control:
+                value = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.PmsaV8Ctrl, () => cpu.PmsaV8Ctrl_NS);
+                break;
+            case RegistersV8.RegionNumberRegister:
+                value = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.PmsaV8Rnr, () => cpu.PmsaV8Rnr_NS);
+                break;
+            case RegistersV8.RegionBaseAddressRegister:
+                value = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.PmsaV8Rbar, () => cpu.PmsaV8Rbar_NS);
+                break;
+            case RegistersV8.RegionBaseAddressRegisterAlias1:
+                value = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.PmsaV8RbarAlias1, () => cpu.PmsaV8RbarAlias1_NS);
+                break;
+            case RegistersV8.RegionBaseAddressRegisterAlias2:
+                value = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.PmsaV8RbarAlias2, () => cpu.PmsaV8RbarAlias2_NS);
+                break;
+            case RegistersV8.RegionBaseAddressRegisterAlias3:
+                value = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.PmsaV8RbarAlias3, () => cpu.PmsaV8RbarAlias3_NS);
+                break;
+            case RegistersV8.RegionLimitAddressRegister:
+                value = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.PmsaV8Rlar, () => cpu.PmsaV8Rlar_NS);
+                break;
+            case RegistersV8.RegionLimitAddressRegisterAlias1:
+                value = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.PmsaV8RlarAlias1, () => cpu.PmsaV8RlarAlias1_NS);
+                break;
+            case RegistersV8.RegionLimitAddressRegisterAlias2:
+                value = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.PmsaV8RlarAlias2, () => cpu.PmsaV8RlarAlias2_NS);
+                break;
+            case RegistersV8.RegionLimitAddressRegisterAlias3:
+                value = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.PmsaV8RlarAlias3, () => cpu.PmsaV8RlarAlias3_NS);
+                break;
+            case RegistersV8.MemoryAttributeIndirectionRegister0:
+                value = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.PmsaV8Mair0, () => cpu.PmsaV8Mair0_NS);
+                break;
+            case RegistersV8.MemoryAttributeIndirectionRegister1:
+                value = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.PmsaV8Mair1, () => cpu.PmsaV8Mair1_NS);
+                break;
+            default:
+                value = 0x0;
+                break;
             }
             this.Log(LogLevel.Debug, "MPU: Trying to read {0} (value: 0x{1:X08})", Enum.GetName(typeof(RegistersV8), offset), value);
             return value;
@@ -1179,19 +1287,19 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             switch((RegistersSAU)offset)
             {
-                case RegistersSAU.Control:
-                    return cpu.SAUControl;
-                case RegistersSAU.Type:
-                    return cpu.NumberOfSAURegions;
-                case RegistersSAU.RegionNumber:
-                    return cpu.SAURegionNumber;
-                case RegistersSAU.RegionBaseAddress:
-                    return cpu.SAURegionBaseAddress;
-                case RegistersSAU.RegionLimitAddress:
-                    return cpu.SAURegionLimitAddress;
-                default:
-                    this.WarningLog("SAU: Read from unhandled register 0x{0:x}", offset);
-                    return 0;
+            case RegistersSAU.Control:
+                return cpu.SAUControl;
+            case RegistersSAU.Type:
+                return cpu.NumberOfSAURegions;
+            case RegistersSAU.RegionNumber:
+                return cpu.SAURegionNumber;
+            case RegistersSAU.RegionBaseAddress:
+                return cpu.SAURegionBaseAddress;
+            case RegistersSAU.RegionLimitAddress:
+                return cpu.SAURegionLimitAddress;
+            default:
+                this.WarningLog("SAU: Read from unhandled register 0x{0:x}", offset);
+                return 0;
             }
         }
 
@@ -1199,24 +1307,24 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             switch((RegistersSAU)offset)
             {
-                case RegistersSAU.Control:
-                    cpu.SAUControl = value;
-                    break;
-                case RegistersSAU.Type:
-                    this.WarningLog("SAU: Write to read-only register 0x{0:x} ({1}), value 0x{2:x}", offset, nameof(RegistersSAU.Type), value);
-                    break;
-                case RegistersSAU.RegionNumber:
-                    cpu.SAURegionNumber = value;
-                    break;
-                case RegistersSAU.RegionBaseAddress:
-                    cpu.SAURegionBaseAddress = value;
-                    break;
-                case RegistersSAU.RegionLimitAddress:
-                    cpu.SAURegionLimitAddress = value;
-                    break;
-                default:
-                    this.WarningLog("SAU: Write to unhandled register 0x{0:x}, value 0x{1:x}", offset, value);
-                    break;
+            case RegistersSAU.Control:
+                cpu.SAUControl = value;
+                break;
+            case RegistersSAU.Type:
+                this.WarningLog("SAU: Write to read-only register 0x{0:x} ({1}), value 0x{2:x}", offset, nameof(RegistersSAU.Type), value);
+                break;
+            case RegistersSAU.RegionNumber:
+                cpu.SAURegionNumber = value;
+                break;
+            case RegistersSAU.RegionBaseAddress:
+                cpu.SAURegionBaseAddress = value;
+                break;
+            case RegistersSAU.RegionLimitAddress:
+                cpu.SAURegionLimitAddress = value;
+                break;
+            default:
+                this.WarningLog("SAU: Write to unhandled register 0x{0:x}, value 0x{1:x}", offset, value);
+                break;
             }
         }
 
@@ -1352,7 +1460,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                                     set ? "set" : "clear", ExceptionToString(i));
                                 continue;
                             }
-                            if (set)
+                            if(set)
                             {
                                 SetPending(i);
                             }
@@ -1383,73 +1491,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 }
             }
         }
-
-        public int FindPendingInterrupt()
-        {
-            lock(irqs)
-            {
-                var bestPriority = 0xFF + 1;
-                var preemptNeeded = activeIRQs.Count != 0;
-                var result = SpuriousInterrupt; // TODO (and some log?)
-
-                foreach(int i in pendingIRQs)
-                {
-                    var currentIRQ = irqs[i];
-                    if(IsCandidate(currentIRQ, i) && AdjustPriority(i) < bestPriority)
-                    {
-                        result = i;
-                        bestPriority = AdjustPriority(i);
-                    }
-                }
-                if(preemptNeeded)
-                {
-                    var activeTop = activeIRQs.Peek();
-                    var activePriority = AdjustPriority(activeTop);
-                    if(!DoesAPreemptB(bestPriority, activePriority, !IsInterruptTargetNonSecure(result), !IsInterruptTargetNonSecure(activeTop)))
-                    {
-                        result = SpuriousInterrupt;
-                    }
-                    else
-                    {
-                        this.NoisyLog("IRQ {0} preempts {1}.", ExceptionToString(result), ExceptionToString(activeTop));
-                    }
-                }
-
-                if(result != SpuriousInterrupt)
-                {
-                    if(ShouldRaiseException(result))
-                    {
-                        IRQ.Set(true);
-                    }
-                    // This field has side-effects, and can cause Cortex-M CPU running in another thread to exit WFI immediately.
-                    // Make absolutely sure to execute last, after signaling IRQ handler to run with `IRQ.Set`.
-                    // Only this way the CPU will enter an exception handler immediately upon waking from WFI.
-                    // This doesn't matter for async (HW) interrupts, arriving when the core is executing normally.
-                    maskedInterruptPresent = true;
-                }
-                else
-                {
-                    maskedInterruptPresent = false;
-                }
-
-                return result;
-            }
-        }
-
-        /// <remarks>
-        /// This exposes raw value of <see cref="targetInterruptSecurityState"/>
-        /// note, that for some exceptions, this doesn't mean that they are Secure, since some exceptions are banked
-        /// </remarks>
-        [HideInMonitor]
-        public InterruptTargetSecurityState GetTargetInterruptSecurityState(int interruptNumber)
-        {
-            // Don't check this for banked IRQs - this makes no sense at all!
-            // since they are taken to the state in which they occurred - they can be triggered independently
-            DebugHelper.Assert(!bankedInterrupts.Contains(interruptNumber));
-
-            return targetInterruptSecurityState[interruptNumber];
-        }
-
 
         private bool ShouldRaiseException(int excp)
         {
@@ -1674,48 +1715,292 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
-        private static string ExceptionToString(int exception)
-        {
-            if(Enum.IsDefined(typeof(SystemException), exception))
-            {
-                return ((SystemException)exception).ToString();
-            }
-            // Otherwise, it's an external Hard IRQ.
-            return $"HardwareIRQ#{exception - ((int)SystemException.SysTick) - 1} ({exception})";
-        }
+        private bool canResetOnlyFromSecure;
+
+        private IFlagRegisterField sleepOnExitEnabled;
+        private uint cpuId;
+        private CortexM cpu;
+
+        private bool maskedInterruptPresent;
+        private MPUVersion mpuVersion;
+        private bool prioritizeSecureInterrupts;
+        private bool deepSleepOnlyFromSecure;
+        private bool isNextAccessSecure;
+        private uint mpuControlRegister;
+        private readonly ISet<int> pendingIRQs;
+        private readonly Stack<int> activeIRQs;
+        private readonly IMachine machine;
+        private readonly Action resetMachine;
+        private readonly ExceptionSimpleArray<byte> priorities;
+
+        private readonly ExceptionSimpleArray<IRQState> irqs;
+
+        // bit [16] DC / Cache enable. This is a global enable bit for data and unified caches.
+        private readonly SecurityBanked<uint> ccr;
+
+        // This is configurable through NVIC_ITNSx only for Hardware Interrupts (exception numbered 16 and above)
+        // for configuring selected exceptions, look at AIRCR.BFHFNMINS
+        // for other exceptions, this will be completely ignored
+        private readonly InterruptTargetSecurityState[] targetInterruptSecurityState;
+
+        private readonly bool defaultHaltSystickOnDeepSleep;
+        private readonly SecurityBanked<SysTick> systick;
+        private readonly byte priorityMask;
+        private readonly SecurityBanked<bool> currentSevOnPending;
+        private readonly SecurityBanked<int> binaryPointPosition; // from the right
 
         // This is just a cache of BASEPRI register, present in ARMv7M and newer CPUs
         // modifying them here will cause a bad desync with the CPU state
         private readonly SecurityBanked<byte> basepri;
+        private const int ActiveBitEnd         = 0x320;
+        private const int PriorityStart        = 0x400;
+        private const int TargetNonSecureStart = 0x380;
+        private const int TargetNonSecureEnd   = 0x3C0;
+        private const int ActiveBitStart       = 0x300;
+        private const int PriorityEnd          = 0x7F0;
+        private const uint SysTickMaximumValue = 0x00FFFFFF;
+        private const int SpuriousInterrupt    = IRQCount - 1;
+        private const int VectKey              = 0x5FA;
+        private const int VectKeyStat          = 0xFA05;
+        private const int ClearPendingEnd      = 0x2C0;
 
-        [HideInMonitor]
-        public byte BASEPRI_NS
+        private const int BankedExcpSecureBit  = 1 << 30;
+        private const uint InterruptProgramStatusRegisterMask = 0x1FF;
+        private const int IRQCount             = 512 + 16 + 1;
+        private const int ClearPendingStart    = 0x280;
+        private const int SetEnableStart       = 0x100;
+        private const int SetPendingStart      = 0x200;
+        private const int ClearEnableEnd       = 0x1C0;
+        private const int ClearEnableStart     = 0x180;
+        private const int SetEnableEnd         = 0x140;
+        private const int SAUEnd               = 0xDE4;
+        private const int SAUStart             = 0xDD0;
+        private const int MPUEnd               = 0xDC4;    // resized for compat. with V8 MPU
+        private const int MPUStart             = 0xD90;
+
+        private const string TrustZoneNSRegionWarning = "Without TrustZone enabled in the CPU, a NonSecure region should not be registered";
+        private const int SysTickCalibration100Hz = 100;
+        private const int SetPendingEnd        = 0x240;
+        private const int SysTickMaxValue = (1 << 24) - 1;
+
+        public enum InterruptTargetSecurityState
         {
-            get { return basepri.NonSecureVal; }
-            set
-            {
-                if(value == basepri.NonSecureVal)
-                {
-                    return;
-                }
-                basepri.NonSecureVal = value;
-                FindPendingInterrupt();
-            }
+            Secure = 0,
+            NonSecure = 1,
         }
 
-        [HideInMonitor]
-        public byte BASEPRI_S
+        private class SecurityBanked<T>
         {
-            get { return basepri.SecureVal; }
-            set
+            public void Reset()
             {
-                if(value == basepri.SecureVal)
-                {
-                    return;
-                }
-                basepri.SecureVal = value;
-                FindPendingInterrupt();
+                SecureVal = default(T);
+                NonSecureVal = default(T);
             }
+
+            public void Reset(T val)
+            {
+                SecureVal = val;
+                NonSecureVal = val;
+            }
+
+            public ref T Get(bool isSecure)
+            {
+                return ref isSecure ? ref SecureVal : ref NonSecureVal;
+            }
+
+            public T SecureVal;
+            public T NonSecureVal;
+        }
+
+        private class SysTick
+        {
+            public SysTick(IMachine machine, NVIC parent, long systickFrequency, bool isSecure = false)
+            {
+                IsSecure = isSecure;
+                this.parent = parent;
+                // We set initial limit to the maximum 24-bit value, and don't modify it afterwards.
+                // Instead we reload counter with RELOAD value when counter reaches 0.
+                systick = new LimitTimer(machine.ClockSource, systickFrequency, parent, nameof(systick) + (isSecure ? "_S" : "_NS"), SysTickMaxValue, Direction.Descending, false, eventEnabled: true);
+                systick.LimitReached += () =>
+                {
+                    CountFlag = true;
+                    if(TickInterruptEnabled)
+                    {
+                        parent.SetPendingIRQ((int)(IsSecure ? SystemException.SysTick_S : SystemException.SysTick));
+                    }
+
+                    // If the systick timer is running and the reload value is 0, this has the effect of disabling the counter on the expiration.
+                    if(Reload == 0)
+                    {
+                        systick.Enabled = false;
+                    }
+                    else
+                    {
+                        systick.Value = Reload;
+                    }
+                };
+            }
+
+            public void Reset()
+            {
+                systickEnabled = false;
+                reloadValue = 0;
+
+                systick.Reset();
+                systick.AutoUpdate = true;
+            }
+
+            public void UpdateSystickValue()
+            {
+                if(reloadValue != 0)
+                {
+                    // Write to this register does not trigger the SysTick exception logic - we can't write zero to timer value as it would trigger an event.
+                    systick.Value = reloadValue;
+                }
+                CountFlag = false;
+            }
+
+            public bool IsSecure { get; }
+
+            public bool TickInterruptEnabled { get; set; } // TICKINT
+
+            public bool CountFlag { get; set; } // COUNTFLAG
+
+            // Systick can be enabled but doesn't have to count, e.g. if RELOAD value is set to 0,
+            // or we are in DEEPSLEEP
+            public bool Enabled
+            {
+                get => systickEnabled;
+                set
+                {
+                    systickEnabled = value;
+                    if(value && Reload == 0)
+                    {
+                        parent.DebugLog("Systick_{0} enabled but it won't be started as long as the reload value is zero", IsSecure ? "S" : "NS");
+                        return;
+                    }
+                    parent.NoisyLog("Systick_{0} {1}", IsSecure ? "S" : "NS", value ? "enabled" : "disabled");
+                    systick.Enabled = value;
+                }
+            }
+
+            public ulong Value // CURRENT
+            {
+                get => systick.Value;
+            }
+
+            public ulong Reload // RELOAD
+            {
+                get => reloadValue;
+                set
+                {
+                    if(Enabled && reloadValue == 0 && !systick.Enabled)
+                    {
+                        // We explicitly enable underlying SysTick counter only in the case it was blocked by RELOAD=0.
+                        // We ignore other cases, as we don't want to accidentally enable counter in DEEPSLEEP just by writing to this register.
+                        parent.DebugLog("Resuming Systick_{0} counter due to reload value change from 0x0 to 0x{1:X}", IsSecure ? "_S" : "_NS", value);
+                        systick.Value = value;
+                        systick.Enabled = true;
+                    }
+                    reloadValue = value;
+                }
+            }
+
+            public long Frequency
+            {
+                get => systick.Frequency;
+                set
+                {
+                    systick.Frequency = value;
+                }
+            }
+
+            public int Divider
+            {
+                get => systick.Divider;
+                set
+                {
+                    systick.Divider = value;
+                }
+            }
+
+            private ulong reloadValue;
+            private bool systickEnabled; // ENABLE
+            private readonly LimitTimer systick;
+            private readonly NVIC parent;
+        }
+
+        /// This is the simplest hash-map-like class, to store exceptions.
+        /// We use <see cref="BankedExcpSecureBit"/> to mark banked exception as Secure.
+        /// Such exception behaves like separate exception (e.g. Secure and Non-secure banked exception can exist at once).
+        /// This way, we can use the end of the array to place the extra Secure banked exceptions
+        /// it's still easier than using a dictionary.
+        private class ExceptionSimpleArray<T> : IEnumerable<T>
+        {
+            public ExceptionSimpleArray()
+            {
+                // Regular IRQs, plus banked, plus HardFault (which can be banked, but doesn't have to be)
+                container = new T[IRQCount + bankedInterrupts.Length / 2 + 1];
+            }
+
+            public IEnumerator<T> GetEnumerator()
+            {
+                return container.AsEnumerable().GetEnumerator();
+            }
+
+            public void Clear()
+            {
+                Array.Clear(container, 0, container.Length);
+            }
+
+            public T this[int index]
+            {
+                get
+                {
+                    return container[MapSystemExceptionToInteger(index)];
+                }
+
+                set
+                {
+                    container[MapSystemExceptionToInteger(index)] = value;
+                }
+            }
+
+            public int Length => container.Length;
+
+            private static int MapSystemExceptionToInteger(int exception)
+            {
+                if(exception < BankedExcpSecureBit)
+                {
+                    return exception;
+                }
+                switch(exception)
+                {
+                case (int)SystemException.MemManageFault_S:
+                    return IRQCount;
+                case (int)SystemException.UsageFault_S:
+                    return IRQCount + 1;
+                case (int)SystemException.SuperVisorCall_S:
+                    return IRQCount + 2;
+                case (int)SystemException.PendSV_S:
+                    return IRQCount + 3;
+                case (int)SystemException.SysTick_S:
+                    return IRQCount + 4;
+                case (int)SystemException.HardFault_S:
+                    return IRQCount + 5;
+                case (int)SystemException.DebugMonitor_S:
+                    return IRQCount + 6;
+                default:
+                    throw new InvalidOperationException($"Exception number {exception} is invalid");
+                }
+            }
+
+            IEnumerator IEnumerable.GetEnumerator()
+            {
+                return GetEnumerator();
+            }
+
+            private readonly T[] container;
         }
 
         [Flags]
@@ -1898,257 +2183,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             SysTick_S = SysTick | BankedExcpSecureBit,
         }
 
-        public enum InterruptTargetSecurityState
-        {
-            Secure = 0,
-            NonSecure = 1,
-        }
-
-        private class SecurityBanked<T>
-        {
-            public T SecureVal;
-            public T NonSecureVal;
-
-            public void Reset()
-            {
-                SecureVal = default(T);
-                NonSecureVal = default(T);
-            }
-
-            public void Reset(T val)
-            {
-                SecureVal = val;
-                NonSecureVal = val;
-            }
-
-            public ref T Get(bool IsSecure)
-            {
-                return ref IsSecure ? ref SecureVal : ref NonSecureVal; 
-            }
-        }
-
-        private class SysTick
-        {
-            public SysTick(IMachine machine, NVIC parent, long systickFrequency, bool isSecure = false)
-            {
-                IsSecure = isSecure;
-                this.parent = parent;
-                // We set initial limit to the maximum 24-bit value, and don't modify it afterwards.
-                // Instead we reload counter with RELOAD value when counter reaches 0.
-                systick = new LimitTimer(machine.ClockSource, systickFrequency, parent, nameof(systick) + (isSecure ? "_S" : "_NS"), SysTickMaxValue, Direction.Descending, false, eventEnabled: true);
-                systick.LimitReached += () =>
-                {
-                    CountFlag = true;
-                    if(TickInterruptEnabled)
-                    {
-                        parent.SetPendingIRQ((int)(IsSecure ? SystemException.SysTick_S : SystemException.SysTick));
-                    }
-
-                    // If the systick timer is running and the reload value is 0, this has the effect of disabling the counter on the expiration.
-                    if(Reload == 0)
-                    {
-                        systick.Enabled = false;
-                    }
-                    else
-                    {
-                        systick.Value = Reload;
-                    }
-                };
-            }
-
-            public void Reset()
-            {
-                systickEnabled = false;
-                reloadValue = 0;
-
-                systick.Reset();
-                systick.AutoUpdate = true;
-            }
-
-            public void UpdateSystickValue()
-            {
-                if(reloadValue != 0)
-                {
-                    // Write to this register does not trigger the SysTick exception logic - we can't write zero to timer value as it would trigger an event.
-                    systick.Value = reloadValue;
-                }
-                CountFlag = false;
-            }
-
-            public bool IsSecure { get; }
-
-            public bool TickInterruptEnabled { get; set; } // TICKINT
-            public bool CountFlag { get; set; } // COUNTFLAG
-
-            // Systick can be enabled but doesn't have to count, e.g. if RELOAD value is set to 0,
-            // or we are in DEEPSLEEP
-            public bool Enabled
-            {
-                get => systickEnabled;
-                set
-                {
-                    systickEnabled = value;
-                    if(value && Reload == 0)
-                    {
-                        parent.DebugLog("Systick_{0} enabled but it won't be started as long as the reload value is zero", IsSecure ? "S" : "NS");
-                        return;
-                    }
-                    parent.NoisyLog("Systick_{0} {1}", IsSecure ? "S" : "NS", value ? "enabled" : "disabled");
-                    systick.Enabled = value;
-                }
-            }
-
-            public ulong Value // CURRENT
-            {
-                get => systick.Value;
-            }
-
-            public ulong Reload // RELOAD
-            {
-                get => reloadValue;
-                set
-                {
-                    if(Enabled && reloadValue == 0 && !systick.Enabled)
-                    {
-                        // We explicitly enable underlying SysTick counter only in the case it was blocked by RELOAD=0.
-                        // We ignore other cases, as we don't want to accidentally enable counter in DEEPSLEEP just by writing to this register.
-                        parent.DebugLog("Resuming Systick_{0} counter due to reload value change from 0x0 to 0x{1:X}", IsSecure ? "_S" : "_NS", value);
-                        systick.Value = value;
-                        systick.Enabled = true;
-                    }
-                    reloadValue = value;
-                }
-            }
-
-            public long Frequency
-            {
-                get => systick.Frequency;
-                set
-                {
-                    systick.Frequency = value;
-                }
-            }
-
-            public int Divider
-            {
-                get => systick.Divider;
-                set
-                {
-                    systick.Divider = value;
-                }
-            }
-
-            private ulong reloadValue;
-            private bool systickEnabled; // ENABLE
-            private readonly LimitTimer systick;
-            private readonly NVIC parent;
-        }
-
-        /// This is the simplest hash-map-like class, to store exceptions.
-        /// We use <see cref="BankedExcpSecureBit"/> to mark banked exception as Secure.
-        /// Such exception behaves like separate exception (e.g. Secure and Non-secure banked exception can exist at once).
-        /// This way, we can use the end of the array to place the extra Secure banked exceptions
-        /// it's still easier than using a dictionary.
-        private class ExceptionSimpleArray<T> : IEnumerable<T>
-        {
-            public ExceptionSimpleArray()
-            {
-                // Regular IRQs, plus banked, plus HardFault (which can be banked, but doesn't have to be)
-                container = new T[IRQCount + bankedInterrupts.Length / 2 + 1];
-            }
-
-            public void Clear()
-            {
-                Array.Clear(container, 0, container.Length);
-            }
-
-            public T this[int index]
-            {
-                get
-                {
-                    return container[MapSystemExceptionToInteger(index)];
-                }
-                set
-                {
-                    container[MapSystemExceptionToInteger(index)] = value;
-                }
-            }
-
-            public int Length => container.Length;
-
-            private static int MapSystemExceptionToInteger(int exception)
-            {
-                if(exception < BankedExcpSecureBit)
-                {
-                    return exception;
-                }
-                switch(exception)
-                {
-                    case (int)SystemException.MemManageFault_S:
-                        return IRQCount;
-                    case (int)SystemException.UsageFault_S:
-                        return IRQCount + 1;
-                    case (int)SystemException.SuperVisorCall_S:
-                        return IRQCount + 2;
-                    case (int)SystemException.PendSV_S:
-                        return IRQCount + 3;
-                    case (int)SystemException.SysTick_S:
-                        return IRQCount + 4;
-                    case (int)SystemException.HardFault_S:
-                        return IRQCount + 5;
-                    case (int)SystemException.DebugMonitor_S:
-                        return IRQCount + 6;
-                    default:
-                        throw new InvalidOperationException($"Exception number {exception} is invalid");
-                }
-            }
-
-            public IEnumerator<T> GetEnumerator()
-            {
-                return container.AsEnumerable().GetEnumerator();
-            }
-
-            IEnumerator IEnumerable.GetEnumerator()
-            {
-                return GetEnumerator();
-            }
-
-            private readonly T[] container;
-        }
-
-        // bit [16] DC / Cache enable. This is a global enable bit for data and unified caches.
-        private readonly SecurityBanked<uint> ccr;
-
-        private readonly bool defaultHaltSystickOnDeepSleep;
-        private readonly SecurityBanked<SysTick> systick;
-        private readonly byte priorityMask;
-        private readonly SecurityBanked<bool> currentSevOnPending;
-        private readonly Stack<int> activeIRQs;
-        private readonly ISet<int> pendingIRQs;
-        private readonly SecurityBanked<int> binaryPointPosition; // from the right
-        private bool isNextAccessSecure;
-        private bool canResetOnlyFromSecure;
-        private bool deepSleepOnlyFromSecure;
-        private bool prioritizeSecureInterrupts;
-        private uint mpuControlRegister;
-        private MPUVersion mpuVersion;
-
-        private bool maskedInterruptPresent;
-
-        // This is configurable through NVIC_ITNSx only for Hardware Interrupts (exception numbered 16 and above)
-        // for configuring selected exceptions, look at AIRCR.BFHFNMINS
-        // for other exceptions, this will be completely ignored
-        private readonly InterruptTargetSecurityState[] targetInterruptSecurityState;
-
-        private readonly ExceptionSimpleArray<IRQState> irqs;
-        private readonly ExceptionSimpleArray<byte> priorities;
-        private readonly Action resetMachine;
-        private CortexM cpu;
-        private readonly IMachine machine;
-        private uint cpuId;
-
-        private IFlagRegisterField sleepOnExitEnabled;
-
         private static readonly int[] bankedInterrupts = new int []
         {
             (int)SystemException.MemManageFault,
@@ -2167,35 +2201,5 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             // Lack of HardFault here is not a mistake
             // HardFault is by default handled as Secure exception
         };
-
-        private const string TrustZoneNSRegionWarning = "Without TrustZone enabled in the CPU, a NonSecure region should not be registered";
-        private const int MPUStart             = 0xD90;
-        private const int MPUEnd               = 0xDC4;    // resized for compat. with V8 MPU
-        private const int SAUStart             = 0xDD0;
-        private const int SAUEnd               = 0xDE4;
-        private const int SetEnableStart       = 0x100;
-        private const int SetEnableEnd         = 0x140;
-        private const int ClearEnableStart     = 0x180;
-        private const int ClearEnableEnd       = 0x1C0;
-        private const int SetPendingStart      = 0x200;
-        private const int SetPendingEnd        = 0x240;
-        private const int ClearPendingStart    = 0x280;
-        private const int ClearPendingEnd      = 0x2C0;
-        private const int ActiveBitStart       = 0x300;
-        private const int ActiveBitEnd         = 0x320;
-        private const int TargetNonSecureStart = 0x380;
-        private const int TargetNonSecureEnd   = 0x3C0;
-        private const int PriorityStart        = 0x400;
-        private const int PriorityEnd          = 0x7F0;
-        private const int IRQCount             = 512 + 16 + 1;
-        private const int SpuriousInterrupt    = IRQCount - 1;
-        private const int VectKey              = 0x5FA;
-        private const int VectKeyStat          = 0xFA05;
-        private const uint SysTickMaximumValue = 0x00FFFFFF;
-
-        private const int BankedExcpSecureBit  = 1 << 30;
-        private const uint InterruptProgramStatusRegisterMask = 0x1FF;
-        private const int SysTickCalibration100Hz = 100;
-        private const int SysTickMaxValue = (1 << 24) - 1;
     }
 }

@@ -7,13 +7,12 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.IRQControllers;
-using Antmicro.Renode.Peripherals.Memory;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
@@ -29,36 +28,36 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             switch(channelId)
             {
-                case ChannelId.Channel0:
-                    // Mailbox for channel 0 should start at offset 0x400 according
-                    // to documetation, but DTS uses this address instead.
-                    return 0x5c0;
-                case ChannelId.Channel1:
-                    return 0x0;
-                case ChannelId.Channel2:
-                    return 0x200;
-                // All PMU channels have the same mailbox
-                case ChannelId.Channel3:
-                case ChannelId.Channel4:
-                case ChannelId.Channel5:
-                case ChannelId.Channel6:
-                    return 0xe00;
-                case ChannelId.Channel7:
-                    return 0x600;
-                case ChannelId.Channel8:
-                    return 0x800;
-                case ChannelId.Channel9:
-                    return 0xa00;
-                case ChannelId.Channel10:
-                    return 0xc00;
-                default:
-                    throw new ArgumentOutOfRangeException("channelId");
+            case ChannelId.Channel0:
+                // Mailbox for channel 0 should start at offset 0x400 according
+                // to documetation, but DTS uses this address instead.
+                return 0x5c0;
+            case ChannelId.Channel1:
+                return 0x0;
+            case ChannelId.Channel2:
+                return 0x200;
+            // All PMU channels have the same mailbox
+            case ChannelId.Channel3:
+            case ChannelId.Channel4:
+            case ChannelId.Channel5:
+            case ChannelId.Channel6:
+                return 0xe00;
+            case ChannelId.Channel7:
+                return 0x600;
+            case ChannelId.Channel8:
+                return 0x800;
+            case ChannelId.Channel9:
+                return 0xa00;
+            case ChannelId.Channel10:
+                return 0xc00;
+            default:
+                throw new ArgumentOutOfRangeException("channelId");
             }
         }
 
         public ZynqMP_IPI(IMachine machine, IMemory mailbox) : base(machine)
         {
-            this.mailbox = mailbox;
+            this.Mailbox = mailbox;
             var innerConnections = new Dictionary<int, IGPIO>();
             for(var channelIdx = 0; channelIdx < NrOfChannels; ++channelIdx)
             {
@@ -112,7 +111,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public IReadOnlyDictionary<int, IGPIO> Connections { get; }
 
-        public readonly IMemory mailbox;
+        public readonly IMemory Mailbox;
 
         private static Registers GetRegisterFromChannelIdAndRegisterOffset(ChannelId channelId, RegisterOffset registerOffset)
         {
@@ -126,30 +125,30 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             switch(channelId)
             {
-                case ChannelId.Channel0:
-                    return 0x00000;
-                case ChannelId.Channel1:
-                    return 0x10000;
-                case ChannelId.Channel2:
-                    return 0x20000;
-                case ChannelId.Channel3:
-                    return 0x30000;
-                case ChannelId.Channel4:
-                    return 0x31000;
-                case ChannelId.Channel5:
-                    return 0x32000;
-                case ChannelId.Channel6:
-                    return 0x33000;
-                case ChannelId.Channel7:
-                    return 0x40000;
-                case ChannelId.Channel8:
-                    return 0x50000;
-                case ChannelId.Channel9:
-                    return 0x60000;
-                case ChannelId.Channel10:
-                    return 0x70000;
-                default:
-                    throw new ArgumentOutOfRangeException("channelId");
+            case ChannelId.Channel0:
+                return 0x00000;
+            case ChannelId.Channel1:
+                return 0x10000;
+            case ChannelId.Channel2:
+                return 0x20000;
+            case ChannelId.Channel3:
+                return 0x30000;
+            case ChannelId.Channel4:
+                return 0x31000;
+            case ChannelId.Channel5:
+                return 0x32000;
+            case ChannelId.Channel6:
+                return 0x33000;
+            case ChannelId.Channel7:
+                return 0x40000;
+            case ChannelId.Channel8:
+                return 0x50000;
+            case ChannelId.Channel9:
+                return 0x60000;
+            case ChannelId.Channel10:
+                return 0x70000;
+            default:
+                throw new ArgumentOutOfRangeException("channelId");
             }
         }
 
@@ -157,30 +156,30 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             switch(channelId)
             {
-                case ChannelId.Channel0:
-                    return channels[0];
-                case ChannelId.Channel1:
-                    return channels[1];
-                case ChannelId.Channel2:
-                    return channels[2];
-                case ChannelId.Channel3:
-                    return channels[3];
-                case ChannelId.Channel4:
-                    return channels[4];
-                case ChannelId.Channel5:
-                    return channels[5];
-                case ChannelId.Channel6:
-                    return channels[6];
-                case ChannelId.Channel7:
-                    return channels[7];
-                case ChannelId.Channel8:
-                    return channels[8];
-                case ChannelId.Channel9:
-                    return channels[9];
-                case ChannelId.Channel10:
-                    return channels[10];
-                default:
-                    throw new ArgumentOutOfRangeException("channelId");
+            case ChannelId.Channel0:
+                return channels[0];
+            case ChannelId.Channel1:
+                return channels[1];
+            case ChannelId.Channel2:
+                return channels[2];
+            case ChannelId.Channel3:
+                return channels[3];
+            case ChannelId.Channel4:
+                return channels[4];
+            case ChannelId.Channel5:
+                return channels[5];
+            case ChannelId.Channel6:
+                return channels[6];
+            case ChannelId.Channel7:
+                return channels[7];
+            case ChannelId.Channel8:
+                return channels[8];
+            case ChannelId.Channel9:
+                return channels[9];
+            case ChannelId.Channel10:
+                return channels[10];
+            default:
+                throw new ArgumentOutOfRangeException("channelId");
             }
         }
 
@@ -224,9 +223,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
         }
 
-        private readonly Channel[] channels;
-
         private ZynqMP_PlatformManagementUnit pmu;
+
+        private readonly Channel[] channels;
 
         private const int NrOfChannels = 11;
 
@@ -264,11 +263,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private class Channel
         {
-            public Channel(ZynqMP_IPI ipi, ChannelId id, IGPIO IRQ)
+            public Channel(ZynqMP_IPI ipi, ChannelId id, IGPIO irq)
             {
                 this.ipi = ipi;
                 this.id = id;
-                this.IRQ = IRQ;
+                this.IRQ = irq;
 
                 GetRegisterFromChannelIdAndRegisterOffset(id, RegisterOffset.Trigger).Define(ipi)
                     .WithEnumField<DoubleWordRegister, ChannelId>(0, 32, FieldMode.Write,
@@ -312,7 +311,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             public void ClearChannelInStatusAndClear(ChannelId channelId)
             {
                 statusAndClearField.Value &= ~channelId;
-                if (statusAndClearField.Value == ChannelId.None)
+                if(statusAndClearField.Value == ChannelId.None)
                 {
                     IRQ.Unset();
                 }
@@ -360,82 +359,82 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private enum Registers
         {
-           Channel0Trigger          = 0x00000,
-           Channel0Observation      = 0x00004,
-           Channel0StatusAndClear   = 0x00010,
-           Channel0Mask             = 0x00014,
-           Channel0EnableMask       = 0x00018,
-           Channel0DisableMask      = 0x0001c,
+            Channel0Trigger          = 0x00000,
+            Channel0Observation      = 0x00004,
+            Channel0StatusAndClear   = 0x00010,
+            Channel0Mask             = 0x00014,
+            Channel0EnableMask       = 0x00018,
+            Channel0DisableMask      = 0x0001c,
 
-           Channel1Trigger          = 0x10000,
-           Channel1Observation      = 0x10004,
-           Channel1StatusAndClear   = 0x10010,
-           Channel1Mask             = 0x10014,
-           Channel1EnableMask       = 0x10018,
-           Channel1DisableMask      = 0x1001c,
+            Channel1Trigger          = 0x10000,
+            Channel1Observation      = 0x10004,
+            Channel1StatusAndClear   = 0x10010,
+            Channel1Mask             = 0x10014,
+            Channel1EnableMask       = 0x10018,
+            Channel1DisableMask      = 0x1001c,
 
-           Channel2Trigger          = 0x20000,
-           Channel2Observation      = 0x20004,
-           Channel2StatusAndClear   = 0x20010,
-           Channel2Mask             = 0x20014,
-           Channel2EnableMask       = 0x20018,
-           Channel2DisableMask      = 0x2001c,
+            Channel2Trigger          = 0x20000,
+            Channel2Observation      = 0x20004,
+            Channel2StatusAndClear   = 0x20010,
+            Channel2Mask             = 0x20014,
+            Channel2EnableMask       = 0x20018,
+            Channel2DisableMask      = 0x2001c,
 
-           Channel3Trigger          = 0x30000,
-           Channel3Observation      = 0x30004,
-           Channel3StatusAndClear   = 0x30010,
-           Channel3Mask             = 0x30014,
-           Channel3EnableMask       = 0x30018,
-           Channel3DisableMask      = 0x3001c,
+            Channel3Trigger          = 0x30000,
+            Channel3Observation      = 0x30004,
+            Channel3StatusAndClear   = 0x30010,
+            Channel3Mask             = 0x30014,
+            Channel3EnableMask       = 0x30018,
+            Channel3DisableMask      = 0x3001c,
 
-           Channel4Trigger          = 0x31000,
-           Channel4Observation      = 0x31004,
-           Channel4StatusAndClear   = 0x31010,
-           Channel4Mask             = 0x31014,
-           Channel4EnableMask       = 0x31018,
-           Channel4DisableMask      = 0x3101c,
+            Channel4Trigger          = 0x31000,
+            Channel4Observation      = 0x31004,
+            Channel4StatusAndClear   = 0x31010,
+            Channel4Mask             = 0x31014,
+            Channel4EnableMask       = 0x31018,
+            Channel4DisableMask      = 0x3101c,
 
-           Channel5Trigger          = 0x32000,
-           Channel5Observation      = 0x32004,
-           Channel5StatusAndClear   = 0x32010,
-           Channel5Mask             = 0x32014,
-           Channel5EnableMask       = 0x32018,
-           Channel5DisableMask      = 0x3201c,
+            Channel5Trigger          = 0x32000,
+            Channel5Observation      = 0x32004,
+            Channel5StatusAndClear   = 0x32010,
+            Channel5Mask             = 0x32014,
+            Channel5EnableMask       = 0x32018,
+            Channel5DisableMask      = 0x3201c,
 
-           Channel6Trigger          = 0x33000,
-           Channel6Observation      = 0x33004,
-           Channel6StatusAndClear   = 0x33010,
-           Channel6Mask             = 0x33014,
-           Channel6EnableMask       = 0x33018,
-           Channel6DisableMask      = 0x3301c,
+            Channel6Trigger          = 0x33000,
+            Channel6Observation      = 0x33004,
+            Channel6StatusAndClear   = 0x33010,
+            Channel6Mask             = 0x33014,
+            Channel6EnableMask       = 0x33018,
+            Channel6DisableMask      = 0x3301c,
 
-           Channel7Trigger          = 0x40000,
-           Channel7Observation      = 0x40004,
-           Channel7StatusAndClear   = 0x40010,
-           Channel7Mask             = 0x40014,
-           Channel7EnableMask       = 0x40018,
-           Channel7DisableMask      = 0x4001c,
+            Channel7Trigger          = 0x40000,
+            Channel7Observation      = 0x40004,
+            Channel7StatusAndClear   = 0x40010,
+            Channel7Mask             = 0x40014,
+            Channel7EnableMask       = 0x40018,
+            Channel7DisableMask      = 0x4001c,
 
-           Channel8Trigger          = 0x50000,
-           Channel8Observation      = 0x50004,
-           Channel8StatusAndClear   = 0x50010,
-           Channel8Mask             = 0x50014,
-           Channel8EnableMask       = 0x50018,
-           Channel8DisableMask      = 0x5001c,
+            Channel8Trigger          = 0x50000,
+            Channel8Observation      = 0x50004,
+            Channel8StatusAndClear   = 0x50010,
+            Channel8Mask             = 0x50014,
+            Channel8EnableMask       = 0x50018,
+            Channel8DisableMask      = 0x5001c,
 
-           Channel9Trigger          = 0x60000,
-           Channel9Observation      = 0x60004,
-           Channel9StatusAndClear   = 0x60010,
-           Channel9Mask             = 0x60014,
-           Channel9EnableMask       = 0x60018,
-           Channel9DisableMask      = 0x6001c,
+            Channel9Trigger          = 0x60000,
+            Channel9Observation      = 0x60004,
+            Channel9StatusAndClear   = 0x60010,
+            Channel9Mask             = 0x60014,
+            Channel9EnableMask       = 0x60018,
+            Channel9DisableMask      = 0x6001c,
 
-           Channel10Trigger         = 0x70000,
-           Channel10Observation     = 0x70004,
-           Channel10StatusAndClear  = 0x70010,
-           Channel10Mask            = 0x70014,
-           Channel10EnableMask      = 0x70018,
-           Channel10DisableMask     = 0x7001c,
+            Channel10Trigger         = 0x70000,
+            Channel10Observation     = 0x70004,
+            Channel10StatusAndClear  = 0x70010,
+            Channel10Mask            = 0x70014,
+            Channel10EnableMask      = 0x70018,
+            Channel10DisableMask     = 0x7001c,
         }
     }
 }

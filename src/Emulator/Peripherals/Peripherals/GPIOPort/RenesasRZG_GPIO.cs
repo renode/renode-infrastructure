@@ -5,14 +5,15 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Extensions;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Logging;
-using System;
-using System.Linq;
-using System.Collections.Generic;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
 {
@@ -103,7 +104,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             Array.Clear(interruptEnabled, 0, interruptEnabled.Length);
             Array.Clear(pinFunction, 0, pinFunction.Length);
             Array.Clear(pinFunctionEnabled, 0, pinFunctionEnabled.Length);
-            foreach (var irq in functionInterrupts)
+            foreach(var irq in functionInterrupts)
             {
                 irq.Unset();
             }
@@ -118,12 +119,19 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         public long Size => 0x10000;
 
         public GPIO IRQ0 => functionInterrupts[0];
+
         public GPIO IRQ1 => functionInterrupts[1];
+
         public GPIO IRQ2 => functionInterrupts[2];
+
         public GPIO IRQ3 => functionInterrupts[3];
+
         public GPIO IRQ4 => functionInterrupts[4];
+
         public GPIO IRQ5 => functionInterrupts[5];
+
         public GPIO IRQ6 => functionInterrupts[6];
+
         public GPIO IRQ7 => functionInterrupts[7];
 
         private void DefineRegisters()
@@ -415,12 +423,12 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 {
                     switch(portMode[gpioIdx])
                     {
-                        case PortMode.Output:
-                            return output[gpioIdx];
-                        case PortMode.OutputInput:
-                            return State[gpioIdx] || output[gpioIdx];
-                        default:
-                            return false;
+                    case PortMode.Output:
+                        return output[gpioIdx];
+                    case PortMode.OutputInput:
+                        return State[gpioIdx] || output[gpioIdx];
+                    default:
+                        return false;
                     }
                 }
                 LogOutOfRangePinWrite(portIdx, pinIdx, Registers.Port);
@@ -459,12 +467,12 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 {
                     switch(portMode[gpioIdx])
                     {
-                        case PortMode.Input:
-                            return State[gpioIdx];
-                        case PortMode.OutputInput:
-                            return State[gpioIdx] || output[gpioIdx];
-                        default:
-                            return false;
+                    case PortMode.Input:
+                        return State[gpioIdx];
+                    case PortMode.OutputInput:
+                        return State[gpioIdx] || output[gpioIdx];
+                    default:
+                        return false;
                     }
                 }
                 LogOutOfRangePinRead(portIdx, pinIdx, Registers.PortInput);
@@ -498,21 +506,21 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     portMode[gpioIdx] = value;
                     switch(value)
                     {
-                        case PortMode.HighImpedance:
-                            output[gpioIdx] = false;
-                            State[gpioIdx] = false;
-                            break;
-                        case PortMode.Output:
-                            State[gpioIdx] = false;
-                            break;
-                        case PortMode.Input:
-                            output[gpioIdx] = false;
-                            break;
-                        case PortMode.OutputInput:
-                            // Setting this mode doesn't change anything.
-                            break;
-                        default:
-                            throw new Exception("unreachable");
+                    case PortMode.HighImpedance:
+                        output[gpioIdx] = false;
+                        State[gpioIdx] = false;
+                        break;
+                    case PortMode.Output:
+                        State[gpioIdx] = false;
+                        break;
+                    case PortMode.Input:
+                        output[gpioIdx] = false;
+                        break;
+                    case PortMode.OutputInput:
+                        // Setting this mode doesn't change anything.
+                        break;
+                    default:
+                        throw new Exception("unreachable");
                     }
                 }
                 else
@@ -655,27 +663,27 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             // Different ports, have different number of GPIO pins.
             switch(portIdx)
             {
-                case 42:
-                case 48:
-                    return 5;
-                case 43:
-                case 44:
-                case 45:
-                case 46:
-                case 47:
-                    return 4;
-                case 5:
-                case 7:
-                case 8:
-                case 13:
-                case 17:
-                case 20:
-                case 37:
-                case 39:
-                case 40:
-                    return 3;
-                default:
-                    return 2;
+            case 42:
+            case 48:
+                return 5;
+            case 43:
+            case 44:
+            case 45:
+            case 46:
+            case 47:
+                return 4;
+            case 5:
+            case 7:
+            case 8:
+            case 13:
+            case 17:
+            case 20:
+            case 37:
+            case 39:
+            case 40:
+                return 3;
+            default:
+                return 2;
             }
         }
 
@@ -699,16 +707,9 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             );
         }
 
-        private const int NrOfPorts = 49;
-        private const int NrOfPins = 123;
-        private const int NrOfFunctionInterrutps = 8;
-        private const int NrOfPinsInPortRegister = 8;
-        private const int NrOfDrivingAbilityControlRegisters = 46;
-        private const int NrOfSlewRateSwitchingRegisters = 46;
-        private const int NrOfPullUpPullDownSwitchingRegisters = 33;
-        private const int NrOfDigitalNoiseFilterRegisters = 52;
-        private const int MaxPinFunctionIdx = 5;
-        private const int DefaultPinFunctionIdx = 0;
+        private ByteRegisterCollection byteRegisters;
+        private WordRegisterCollection wordRegisters;
+        private DoubleWordRegisterCollection doubleWordRegisters;
 
         private readonly bool[] output = new bool[NrOfPins];
         private readonly bool[] interruptEnabled = new bool[NrOfPins];
@@ -746,9 +747,16 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             {Tuple.Create(117, 3),  3},
         };
 
-        private ByteRegisterCollection byteRegisters;
-        private WordRegisterCollection wordRegisters;
-        private DoubleWordRegisterCollection doubleWordRegisters;
+        private const int NrOfPorts = 49;
+        private const int NrOfPins = 123;
+        private const int NrOfFunctionInterrutps = 8;
+        private const int NrOfPinsInPortRegister = 8;
+        private const int NrOfDrivingAbilityControlRegisters = 46;
+        private const int NrOfSlewRateSwitchingRegisters = 46;
+        private const int NrOfPullUpPullDownSwitchingRegisters = 33;
+        private const int NrOfDigitalNoiseFilterRegisters = 52;
+        private const int MaxPinFunctionIdx = 5;
+        private const int DefaultPinFunctionIdx = 0;
 
         private enum PortMode
         {

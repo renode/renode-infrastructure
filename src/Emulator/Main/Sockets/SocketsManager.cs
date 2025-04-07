@@ -5,14 +5,15 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+
 using Antmicro.Migrant;
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Sockets
 {
@@ -23,6 +24,8 @@ namespace Antmicro.Renode.Sockets
             Instance = new SocketsManager();
             sockets = new List<SocketInstance>();
         }
+
+        public static SocketsManager Instance { get; private set; }
 
         public void Dispose()
         {
@@ -44,16 +47,16 @@ namespace Antmicro.Renode.Sockets
             return table.ToArray();
         }
 
-        public Socket AcquireSocket(IEmulationElement owner, AddressFamily addressFamily, SocketType socketType, ProtocolType protocolType, EndPoint endpoint, string nameAppendix = "", int? listeningBacklog = null, int connectingTimeout = 0, int receiveTimeout = 0, int sendTimeout = 0, bool asClient = false, bool noDelay = true)
+        public Socket AcquireSocket(IEmulationElement owner, AddressFamily addressFamily, SocketType socketType, ProtocolType protocolType, EndPoint endpoint, string nameAppendix = "", int? listeningBacklog = null, bool asClient = false, bool noDelay = true)
         {
             var s = new SocketInstance(owner, addressFamily, socketType, protocolType, endpoint, nameAppendix: nameAppendix, asClient: asClient, noDelay: noDelay, listeningBacklog: listeningBacklog);
             sockets.Add(s);
-            return s.socket;
+            return s.Socket;
         }
 
         public bool TryDropSocket(Socket socket)
         {
-            SocketInstance socketInstance = sockets.Where(x => x.socket == socket).FirstOrDefault();
+            SocketInstance socketInstance = sockets.Where(x => x.Socket == socket).FirstOrDefault();
             if(socketInstance != null)
             {
                 sockets.Remove(socketInstance);
@@ -66,8 +69,6 @@ namespace Antmicro.Renode.Sockets
         [Transient]
         private static List<SocketInstance> sockets;
 
-        public static SocketsManager Instance { get; private set; }
-
         class SocketInstance : IDisposable
         {
             public SocketInstance(IEmulationElement owner, AddressFamily addressFamily, SocketType socketType, ProtocolType protocolType, EndPoint endpoint, string nameAppendix = "", int? listeningBacklog = null, bool asClient = false, bool noDelay = true)
@@ -78,22 +79,22 @@ namespace Antmicro.Renode.Sockets
                     name = owner?.ToString() ?? ""; // If name is not obtainable, use the peripheral name
                 }
                 ownerName = String.Format("{0}{1}{2}", name, name.Length == 0 ? "" : ":", nameAppendix);
-                socket = new Socket(addressFamily, socketType, protocolType);
+                Socket = new Socket(addressFamily, socketType, protocolType);
                 if(protocolType == ProtocolType.Tcp)
                 {
-                    socket.NoDelay = noDelay;
+                    Socket.NoDelay = noDelay;
                 }
                 this.endpoint = endpoint.ToString();
                 try
                 {
                     if(asClient)
                     {
-                        socket.Connect(endpoint);
+                        Socket.Connect(endpoint);
                     }
                     else
                     {
-                        socket.Bind(endpoint);
-                        socket.Listen(listeningBacklog ?? 0);
+                        Socket.Bind(endpoint);
+                        Socket.Listen(listeningBacklog ?? 0);
                     }
                 }
                 catch(SocketException e)
@@ -106,28 +107,33 @@ namespace Antmicro.Renode.Sockets
             {
                 try
                 {
-                    if(socket.Connected)
+                    if(Socket.Connected)
                     {
-                        socket.Shutdown(SocketShutdown.Both);
+                        Socket.Shutdown(SocketShutdown.Both);
                     }
                 }
                 finally
                 {
-                    socket.Close();
+                    Socket.Close();
                 }
 
-                socket.Dispose();
+                Socket.Dispose();
             }
 
             public string EndPoint => endpoint;
-            public bool IsConnected => socket.Connected;
-            public bool IsBound => socket.IsBound;
-            public SocketType Type => socket.SocketType;
+
+            public bool IsConnected => Socket.Connected;
+
+            public bool IsBound => Socket.IsBound;
+
+            public SocketType Type => Socket.SocketType;
+
             public string Owner => ownerName;
 
-            private string ownerName;
-            private string endpoint;
-            public Socket socket;
+            public Socket Socket;
+
+            private readonly string ownerName;
+            private readonly string endpoint;
         }
     }
 }

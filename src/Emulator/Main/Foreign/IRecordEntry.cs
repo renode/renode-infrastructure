@@ -6,6 +6,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.EventRecording
@@ -13,7 +14,7 @@ namespace Antmicro.Renode.EventRecording
     public interface IRecordEntry
     {
         void Play(Func<string, Delegate, Delegate> handlerResolver);
+
         TimeInterval Timestamp { get; }
     }
 }
-

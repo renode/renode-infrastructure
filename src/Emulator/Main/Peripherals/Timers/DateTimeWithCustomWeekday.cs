@@ -1,4 +1,3 @@
-
 //
 // Copyright (c) 2010-2023 Antmicro
 //
@@ -29,7 +28,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             get => currentTime.Second;
             set
             {
-                if(value < 0  || value > 59)
+                if(value < 0 || value > 59)
                 {
                     throw new ArgumentException($"Seconds value out of range: {value}");
                 }
@@ -43,7 +42,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             get => currentTime.Minute;
             set
             {
-                if(value < 0  || value > 59)
+                if(value < 0 || value > 59)
                 {
                     throw new ArgumentException($"Minutes value out of range: {value}");
                 }
@@ -57,7 +56,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             get => currentTime.Hour;
             set
             {
-                if(value < 0  || value > 23)
+                if(value < 0 || value > 23)
                 {
                     throw new ArgumentException($"Hours value out of range: {value}");
                 }
@@ -71,7 +70,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             get => currentTime.Day;
             set
             {
-                if(value < 1  || value > 31)
+                if(value < 1 || value > 31)
                 {
                     throw new ArgumentException($"Day value out of range: {value}");
                 }
@@ -86,7 +85,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             get => currentTime.Month;
             set
             {
-                if(value < 1  || value > 12)
+                if(value < 1 || value > 12)
                 {
                     throw new ArgumentException($"Month value out of range: {value}");
                 }
@@ -112,6 +111,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             {
                 return currentTime.DayOfWeek - weekdayOffset;
             }
+
             set
             {
                 currentWeekday = value;

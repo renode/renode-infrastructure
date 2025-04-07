@@ -6,9 +6,10 @@
 //
 
 using System.IO;
+
 using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Storage
 {

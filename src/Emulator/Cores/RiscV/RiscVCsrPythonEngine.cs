@@ -6,15 +6,17 @@
 //
 using System;
 using System.IO;
+
+using Antmicro.Migrant;
+using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.CPU;
-using Microsoft.Scripting.Hosting;
-using Antmicro.Migrant.Hooks;
-using Antmicro.Migrant;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Utilities;
+
+using Microsoft.Scripting.Hosting;
 
 namespace Antmicro.Renode.Hooks
 {
@@ -41,8 +43,8 @@ namespace Antmicro.Renode.Hooks
             {
                 TryInit();
 
-                request.value = value;
-                request.type = CsrRequest.RequestType.WRITE;
+                request.Value = value;
+                request.Type = CsrRequest.RequestType.WRITE;
 
                 Execute(code, error =>
                 {
@@ -55,22 +57,26 @@ namespace Antmicro.Renode.Hooks
             {
                 TryInit();
 
-                request.type = CsrRequest.RequestType.READ;
+                request.Type = CsrRequest.RequestType.READ;
                 Execute(code, error =>
                 {
                     this.cpu.Log(LogLevel.Error, "Python runtime error: {0}", error);
                     throw new CpuAbortException($"Python runtime error: {error}");
                 });
 
-                return request.value;
+                return request.Value;
             };
         }
+
+        public Action<ulong> CsrWriteHook { get; }
+
+        public Func<ulong> CsrReadHook { get; }
 
         [PostDeserialization]
         private void InnerInit()
         {
             request = new CsrRequest();
-            request.csr = this.csr;
+            request.Csr = this.csr;
 
             Scope.SetVariable("cpu", cpu);
             Scope.SetVariable("machine", cpu.GetMachine());
@@ -101,14 +107,10 @@ namespace Antmicro.Renode.Hooks
                 return;
             }
 
-            request.type = CsrRequest.RequestType.INIT;
+            request.Type = CsrRequest.RequestType.INIT;
             Execute(code);
             isInitialized = true;
         }
-
-        public Action<ulong> CsrWriteHook { get; }
-        
-        public Func<ulong> CsrReadHook { get; }
 
         [Transient]
         private CompiledCode code;
@@ -127,31 +129,33 @@ namespace Antmicro.Renode.Hooks
         // naming convention here is pythonic
         public class CsrRequest
         {
-            public ulong csr { get; set; }
-            public ulong value { get; set; }
-            public RequestType type { get; set; }
+            public ulong Csr { get; set; }
 
-            public bool isInit
+            public ulong Value { get; set; }
+
+            public RequestType Type { get; set; }
+
+            public bool IsInit
             {
                 get
                 {
-                    return type == RequestType.INIT;
+                    return Type == RequestType.INIT;
                 }
             }
 
-            public bool isRead
+            public bool IsRead
             {
                 get
                 {
-                    return type == RequestType.READ;
+                    return Type == RequestType.READ;
                 }
             }
 
-            public bool isWrite
+            public bool IsWrite
             {
                 get
                 {
-                    return type == RequestType.WRITE;
+                    return Type == RequestType.WRITE;
                 }
             }
 
@@ -161,7 +165,6 @@ namespace Antmicro.Renode.Hooks
                 WRITE,
                 INIT
             }
-        }    
+        }
     }
 }
-

@@ -11,7 +11,9 @@ namespace Antmicro.Renode.Peripherals.Sensor
     {
         // nano Tesla
         int MagneticFluxDensityX { get; set; }
+
         int MagneticFluxDensityY { get; set; }
+
         int MagneticFluxDensityZ { get; set; }
     }
 }

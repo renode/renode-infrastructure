@@ -6,14 +6,20 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Collections.Generic;
+
 using Antmicro.Renode.UserInterface.Tokenizer;
+
 using AntShell.Commands;
 
 namespace Antmicro.Renode.UserInterface.Commands
 {
     public class MonitorPathCommand : Command
     {
+        public MonitorPathCommand(Monitor monitor, MonitorPath path) : base(monitor, "path", "allows modification of internal 'PATH' variable.")
+        {
+            monitorPath = path;
+        }
+
         public override void PrintHelp(ICommandInteraction writer)
         {
             base.PrintHelp(writer);
@@ -26,13 +32,16 @@ namespace Antmicro.Renode.UserInterface.Commands
             writer.WriteLine(String.Format("'{0} add @path'\tto append the given value to 'PATH'", Name));
             writer.WriteLine(String.Format("'{0} reset'\t\tto reset 'PATH' to it's default value", Name));
         }
-        private void PrintCurrentPath(ICommandInteraction writer)
+
+        [Runnable]
+        public void Reset(ICommandInteraction writer, [Values("reset")] LiteralToken _)
         {
-            writer.WriteLine(string.Format("Current 'PATH' value is: {0}", monitorPath.Path));
+            monitorPath.Reset();
+            PrintCurrentPath(writer);
         }
 
         [Runnable]
-        public void SetOrAdd(ICommandInteraction writer, [Values( "set", "add")] LiteralToken action, StringToken path)
+        public void SetOrAdd(ICommandInteraction writer, [Values("set", "add")] LiteralToken action, StringToken path)
         {
             switch(action.Value)
             {
@@ -46,18 +55,11 @@ namespace Antmicro.Renode.UserInterface.Commands
             PrintCurrentPath(writer);
         }
 
-        [Runnable]
-        public void Reset(ICommandInteraction writer, [Values( "reset")] LiteralToken action)
+        private void PrintCurrentPath(ICommandInteraction writer)
         {
-            monitorPath.Reset();
-            PrintCurrentPath(writer);
+            writer.WriteLine(string.Format("Current 'PATH' value is: {0}", monitorPath.Path));
         }
 
-        MonitorPath monitorPath;
-        public MonitorPathCommand(Monitor monitor, MonitorPath path) : base(monitor, "path", "allows modification of internal 'PATH' variable.")
-        {
-            monitorPath = path;
-        }
+        readonly MonitorPath monitorPath;
     }
 }
-

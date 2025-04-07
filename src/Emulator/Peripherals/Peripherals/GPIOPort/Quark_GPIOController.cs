@@ -7,12 +7,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Peripherals.GPIOPort;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.X86
 {
@@ -91,44 +92,50 @@ namespace Antmicro.Renode.Peripherals.X86
             lock(internalLock)
             {
                 interruptType[pinId] = trigger;
-                switch (trigger)
+                switch(trigger)
                 {
-                    case InterruptTrigger.BothEdges:
-                        interruptBothEdgeField.SetBit(pinId, true);
-                        // interruptType and interruptPolarity are not considered when this bit is set
-                        break;
-                    case InterruptTrigger.RisingEdge:
-                        interruptBothEdgeField.SetBit(pinId, false);
-                        interruptTypeField.SetBit(pinId, true);
-                        interruptPolarityField.SetBit(pinId, true);
-                        break;
-                    case InterruptTrigger.FallingEdge:
-                        interruptBothEdgeField.SetBit(pinId, false);
-                        interruptTypeField.SetBit(pinId, true);
-                        interruptPolarityField.SetBit(pinId, false);
-                        break;
-                    case InterruptTrigger.ActiveHigh:
-                        interruptBothEdgeField.SetBit(pinId, false);
-                        interruptTypeField.SetBit(pinId, false);
-                        interruptPolarityField.SetBit(pinId, true);
-                        break;
-                    case InterruptTrigger.ActiveLow:
-                        interruptBothEdgeField.SetBit(pinId, false);
-                        interruptTypeField.SetBit(pinId, false);
-                        interruptPolarityField.SetBit(pinId, false);
-                        break;
+                case InterruptTrigger.BothEdges:
+                    interruptBothEdgeField.SetBit(pinId, true);
+                    // interruptType and interruptPolarity are not considered when this bit is set
+                    break;
+                case InterruptTrigger.RisingEdge:
+                    interruptBothEdgeField.SetBit(pinId, false);
+                    interruptTypeField.SetBit(pinId, true);
+                    interruptPolarityField.SetBit(pinId, true);
+                    break;
+                case InterruptTrigger.FallingEdge:
+                    interruptBothEdgeField.SetBit(pinId, false);
+                    interruptTypeField.SetBit(pinId, true);
+                    interruptPolarityField.SetBit(pinId, false);
+                    break;
+                case InterruptTrigger.ActiveHigh:
+                    interruptBothEdgeField.SetBit(pinId, false);
+                    interruptTypeField.SetBit(pinId, false);
+                    interruptPolarityField.SetBit(pinId, true);
+                    break;
+                case InterruptTrigger.ActiveLow:
+                    interruptBothEdgeField.SetBit(pinId, false);
+                    interruptTypeField.SetBit(pinId, false);
+                    interruptPolarityField.SetBit(pinId, false);
+                    break;
                 }
                 RefreshInterrupts();
             }
         }
 
         public GPIO IRQ { get; private set; }
+
         public PinDirection[] PortDataDirection { get; private set; }
+
         public bool[] InterruptEnable { get; private set; }
+
         public IReadOnlyCollection<InterruptTrigger> InterruptType { get { return interruptType; } }
+
         public bool[] InterruptMask { get; private set; }
+
         // setting state using this array directly will not raise any interrupts!
         public new bool[] State { get { return base.State; } }
+
         public long Size { get { return 0x78; } }
 
         private void PrepareRegisters()
@@ -245,32 +252,32 @@ namespace Antmicro.Renode.Peripherals.X86
                 var isEdge = State[i] != previousState[i];
                 switch(interruptType[i])
                 {
-                    case InterruptTrigger.ActiveHigh:
-                        irqState |= (State[i] && !InterruptMask[i]);
-                        break;
-                    case InterruptTrigger.ActiveLow:
-                        irqState |= (!State[i] && !InterruptMask[i]);
-                        break;
-                    case InterruptTrigger.RisingEdge:
-                        if(isEdge && State[i])
-                        {
-                            irqState |= !InterruptMask[i];
-                            activeInterrupts[i] = true;
-                        }
+                case InterruptTrigger.ActiveHigh:
+                    irqState |= (State[i] && !InterruptMask[i]);
                     break;
-                    case InterruptTrigger.FallingEdge:
-                        if(isEdge && !State[i])
-                        {
-                            irqState |= !InterruptMask[i];
-                            activeInterrupts[i] = true;
-                        }
+                case InterruptTrigger.ActiveLow:
+                    irqState |= (!State[i] && !InterruptMask[i]);
                     break;
-                    case InterruptTrigger.BothEdges:
-                        if(isEdge)
-                        {
-                            irqState |= !InterruptMask[i];
-                            activeInterrupts[i] = true;
-                        }
+                case InterruptTrigger.RisingEdge:
+                    if(isEdge && State[i])
+                    {
+                        irqState |= !InterruptMask[i];
+                        activeInterrupts[i] = true;
+                    }
+                    break;
+                case InterruptTrigger.FallingEdge:
+                    if(isEdge && !State[i])
+                    {
+                        irqState |= !InterruptMask[i];
+                        activeInterrupts[i] = true;
+                    }
+                    break;
+                case InterruptTrigger.BothEdges:
+                    if(isEdge)
+                    {
+                        irqState |= !InterruptMask[i];
+                        activeInterrupts[i] = true;
+                    }
                     break;
                 }
             }
@@ -285,11 +292,12 @@ namespace Antmicro.Renode.Peripherals.X86
             }
         }
 
-        private DoubleWordRegisterCollection registers;
-        private InterruptTrigger[] interruptType;
         private IValueRegisterField interruptPolarityField;
         private IValueRegisterField interruptTypeField;
         private IValueRegisterField interruptBothEdgeField;
+
+        private DoubleWordRegisterCollection registers;
+        private readonly InterruptTrigger[] interruptType;
         private readonly bool[] activeInterrupts;
         private readonly bool[] previousState;
 

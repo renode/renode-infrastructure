@@ -6,12 +6,13 @@
 //
 
 using System;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Memory;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Memory;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.SPI
 {
@@ -42,6 +43,11 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             FatalAlert = new GPIO();
             Reset();
+        }
+
+        public void FinishTransmission()
+        {
+            // Intentionaly left blank
         }
 
         // Byte accesses are needed for the fifo SRAM interface
@@ -162,6 +168,35 @@ namespace Antmicro.Renode.Peripherals.SPI
             return output;
         }
 
+        public long Size => 0x2000;
+
+        public GPIO FatalAlert { get; private set; }
+
+        public GPIO TPMHeaderNotEmpty { get; }
+
+        public GPIO ReadBufferWatermark { get; }
+
+        public GPIO UploadPayloadOverflow { get; }
+
+        public GPIO UploadPayloadNotEmpty { get; }
+
+        public GPIO ReadBufferFlip { get; }
+
+        public GPIO GenericTxUnderflow { get; }
+
+        public GPIO GenericRxOverflow { get; }
+
+        public GPIO GenericRxError { get; }
+
+        public GPIO GenericTxWatermark { get; }
+
+        public GPIO GenericRxWatermark { get; }
+
+        // Common Interrupt Offsets
+        public GPIO GenericRxFull { get; }
+
+        public GPIO UploadCmdFifoNotEmpty { get; }
+
         private bool IsOffsetInRxFifoRange(long bufferOffset)
         {
             return (bufferOffset >= rxFifo.Base) && (bufferOffset <= rxFifo.Limit);
@@ -177,47 +212,25 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             switch(rxFifoStatus)
             {
-                case SRAMCircularFifoRange.FifoStatus.Overflow:
-                    rxOverflowInterruptState.Value = true;
-                    break;
-                case SRAMCircularFifoRange.FifoStatus.Full:
-                    rxFullInterruptState.Value = true;
-                    break;
-                default:
-                    break;
+            case SRAMCircularFifoRange.FifoStatus.Overflow:
+                rxOverflowInterruptState.Value = true;
+                break;
+            case SRAMCircularFifoRange.FifoStatus.Full:
+                rxFullInterruptState.Value = true;
+                break;
+            default:
+                break;
             }
             switch(txFifoStatus)
             {
-                case SRAMCircularFifoRange.FifoStatus.Underflow:
-                    txUnderflowInterruptState.Value = true;
-                    break;
-                default:
-                    break;
+            case SRAMCircularFifoRange.FifoStatus.Underflow:
+                txUnderflowInterruptState.Value = true;
+                break;
+            default:
+                break;
             }
             UpdateInterrupts();
         }
-
-        public void FinishTransmission()
-        {
-            // Intentionaly left blank
-        }
-
-        // Common Interrupt Offsets
-        public GPIO GenericRxFull { get; }
-        public GPIO GenericRxWatermark { get; }
-        public GPIO GenericTxWatermark { get; }
-        public GPIO GenericRxError { get; }
-        public GPIO GenericRxOverflow { get; }
-        public GPIO GenericTxUnderflow { get; }
-        public GPIO UploadCmdFifoNotEmpty { get; }
-        public GPIO UploadPayloadNotEmpty { get; }
-        public GPIO UploadPayloadOverflow { get; }
-        public GPIO ReadBufferWatermark { get; }
-        public GPIO ReadBufferFlip { get; }
-        public GPIO TPMHeaderNotEmpty { get; }
-        public GPIO FatalAlert { get; private set; }
-
-        public long Size => 0x2000;
 
         private void DefineRegisters()
         {
@@ -294,8 +307,8 @@ namespace Antmicro.Renode.Peripherals.SPI
             Registers.Configuration.Define(this, 0x7f00)
                 .WithTaggedFlag("CPOL", 0)
                 .WithTaggedFlag("CPHA", 1)
-                .WithFlag(2, out txOrderLsbFirst, name:"tx_order")
-                .WithFlag(3, out rxOrderLsbFirst, name:"rx_order")
+                .WithFlag(2, out txOrderLsbFirst, name: "tx_order")
+                .WithFlag(3, out rxOrderLsbFirst, name: "rx_order")
                 .WithReservedBits(4, 4)
                 .WithTag("timer_v", 8, 8)
                 .WithTaggedFlag("addr_4b_en", 16)
@@ -313,9 +326,9 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithReservedBits(24, 8);
 
             Registers.SPIDevicestatus.Define(this, 0x3a)
-                .WithFlag(0, FieldMode.Read, valueProviderCallback : _ => rxFifo.IsFull, name: "rxf_full")
+                .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => rxFifo.IsFull, name: "rxf_full")
                 .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => rxFifo.IsEmpty, name: "rxf_empty")
-                .WithFlag(2, FieldMode.Read, valueProviderCallback : _ => txFifo.IsFull, name: "txf_full")
+                .WithFlag(2, FieldMode.Read, valueProviderCallback: _ => txFifo.IsFull, name: "txf_full")
                 .WithFlag(3, FieldMode.Read, valueProviderCallback: _ => txFifo.IsEmpty, name: "txf_empty")
                 .WithFlag(4, FieldMode.Read, name: "abort_done")
                 .WithFlag(5, FieldMode.Read, name: "csb")
@@ -333,7 +346,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithValueField(16, 16, FieldMode.Read, valueProviderCallback: _ => rxFifo.WritePointerWithPhaseBit, name: "WPTR");
 
             Registers.TransmitterFifoSramPointers.Define(this)
-                .WithValueField(0, 16, FieldMode.Read, valueProviderCallback: _ =>  txFifo.ReadPointerWithPhaseBit, name: "RPTR")
+                .WithValueField(0, 16, FieldMode.Read, valueProviderCallback: _ => txFifo.ReadPointerWithPhaseBit, name: "RPTR")
                 .WithValueField(16, 16, valueProviderCallback: _ => txFifo.WritePointerWithPhaseBit, changeCallback: (_, val) =>
                     {
                         this.Log(LogLevel.Debug, "Setting the write pointer to {0:x}", val);
@@ -592,6 +605,46 @@ namespace Antmicro.Renode.Peripherals.SPI
             TPMHeaderNotEmpty.Set(tpmHeaderNotEmptyInterruptState.Value && tpmHeaderNotEmptyInterruptEnable.Value);
         }
 
+        private IValueRegisterField txFifoBase;
+        private IFlagRegisterField txWatermarkInterruptEnable;
+        private IFlagRegisterField rxWatermarkInterruptEnable;
+        private IFlagRegisterField rxFullInterruptEnable;
+        private IFlagRegisterField readbufFlipInterruptState;
+        private IFlagRegisterField readbufWatermarkInterruptState;
+        private IFlagRegisterField payloadNotEmptyInterruptState;
+        private IFlagRegisterField txUnderflowInterruptEnable;
+        private IFlagRegisterField cmdfifoNotEmptyInterruptState;
+        private IFlagRegisterField txUnderflowInterruptState;
+        private IFlagRegisterField rxOverflowInterruptState;
+        private IFlagRegisterField rxErrorInterruptEnable;
+        private IFlagRegisterField rxErrorInterruptState;
+        private IFlagRegisterField rxWatermarkInterruptState;
+
+        private IFlagRegisterField rxFullInterruptState;
+        private IFlagRegisterField rxOverflowInterruptEnable;
+        private IFlagRegisterField tpmHeaderNotEmptyInterruptState;
+        private IFlagRegisterField cmdfifoNotEmptyInterruptEnable;
+        private IValueRegisterField rxFifoLimit;
+        private IFlagRegisterField payloadNotEmptyInterruptEnable;
+        private IValueRegisterField txFifoWatermarkLevel;
+        private IValueRegisterField rxFifoWatermarkLevel;
+        private IValueRegisterField txFifoLimit;
+        private IFlagRegisterField txWatermarkInterruptState;
+        private IFlagRegisterField payloadOverflowInterruptState;
+        private IEnumRegisterField<DeviceMode> mode;
+        private IFlagRegisterField payloadOverflowInterruptEnable;
+        private IFlagRegisterField readbufWatermarkInterruptEnable;
+        private IFlagRegisterField readbufFlipInterruptEnable;
+        private IFlagRegisterField tpmHeaderNotEmptyInterruptEnable;
+        private IFlagRegisterField txOrderLsbFirst;
+        private IFlagRegisterField rxOrderLsbFirst;
+
+        private IValueRegisterField rxFifoBase;
+        private readonly SRAMCircularFifoRange txFifo;
+
+        private readonly SRAMCircularFifoRange rxFifo;
+        private readonly ArrayMemory underlyingSramMemory;
+
         // Sram Entries. Word size is 32bit width.
         private const uint BufferWindowSizeInDoublewords = 1024;
         private const uint InitialRxFifoBoundary = 2047;
@@ -605,52 +658,6 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         // The number of locality TPM module supports.
         private const uint SpiDeviceNumLocality = 5;
-
-        private IFlagRegisterField rxFullInterruptState;
-        private IFlagRegisterField rxWatermarkInterruptState;
-        private IFlagRegisterField txWatermarkInterruptState;
-        private IFlagRegisterField rxErrorInterruptState;
-        private IFlagRegisterField rxOverflowInterruptState;
-        private IFlagRegisterField txUnderflowInterruptState;
-        private IFlagRegisterField cmdfifoNotEmptyInterruptState;
-        private IFlagRegisterField payloadNotEmptyInterruptState;
-        private IFlagRegisterField payloadOverflowInterruptState;
-        private IFlagRegisterField readbufWatermarkInterruptState;
-        private IFlagRegisterField readbufFlipInterruptState;
-        private IFlagRegisterField tpmHeaderNotEmptyInterruptState;
-        private IFlagRegisterField rxFullInterruptEnable;
-        private IFlagRegisterField rxWatermarkInterruptEnable;
-        private IFlagRegisterField txWatermarkInterruptEnable;
-        private IFlagRegisterField rxErrorInterruptEnable;
-        private IFlagRegisterField rxOverflowInterruptEnable;
-        private IFlagRegisterField txUnderflowInterruptEnable;
-        private IFlagRegisterField cmdfifoNotEmptyInterruptEnable;
-        private IFlagRegisterField payloadNotEmptyInterruptEnable;
-        private IFlagRegisterField payloadOverflowInterruptEnable;
-        private IFlagRegisterField readbufWatermarkInterruptEnable;
-        private IFlagRegisterField readbufFlipInterruptEnable;
-        private IFlagRegisterField tpmHeaderNotEmptyInterruptEnable;
-        private IFlagRegisterField txOrderLsbFirst;
-        private IFlagRegisterField rxOrderLsbFirst;
-        private IEnumRegisterField<DeviceMode> mode;
-
-        private IValueRegisterField rxFifoBase;
-        private IValueRegisterField rxFifoLimit;
-        private IValueRegisterField txFifoBase;
-        private IValueRegisterField txFifoLimit;
-        private IValueRegisterField rxFifoWatermarkLevel;
-        private IValueRegisterField txFifoWatermarkLevel;
-
-        private SRAMCircularFifoRange rxFifo;
-        private SRAMCircularFifoRange txFifo;
-        private ArrayMemory underlyingSramMemory;
-
-        private enum DeviceMode
-        {
-            Fw = 0x0,
-            Flash = 0x1,
-            Passthrough = 0x2,
-        }
 
         public enum Registers
         {
@@ -713,7 +720,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 this.underlyingMemory = underlyingMemory;
                 if(!TryUpdateParameters(baseOffset, limit))
                 {
-                    throw new ArgumentException("SRAMCircularFifo constructor parameters were rejected." + 
+                    throw new ArgumentException("SRAMCircularFifo constructor parameters were rejected." +
                                                 " The range does not fit into the underlying memory or base is bigger than limit");
                 }
             }
@@ -721,8 +728,8 @@ namespace Antmicro.Renode.Peripherals.SPI
             public bool TryUpdateParameters(uint baseOffset, uint limitOffset)
             {
                 var baseOffsetInvalid = baseOffset >= (underlyingMemory.Size  * 8);
-                var limitOffsetInvalid = limitOffset >= (underlyingMemory.Size * 8); 
-                var addressesUnordered = baseOffset > limitOffset; 
+                var limitOffsetInvalid = limitOffset >= (underlyingMemory.Size * 8);
+                var addressesUnordered = baseOffset > limitOffset;
 
                 if(baseOffsetInvalid || limitOffsetInvalid || addressesUnordered)
                 {
@@ -799,10 +806,15 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             // As the phase bit is separated from the address, we need to put it back in place
             public uint ReadPointerWithPhaseBit => readPointer | (uint)((readPhase ? 1 : 0) << 11);
+
             public uint WritePointerWithPhaseBit => writePointer | (uint)((writePhase ? 1 : 0) << 11);
+
             public bool IsEmpty => (writePointer == readPointer) && (writePhase == readPhase);
+
             public bool IsFull => (writePointer == readPointer) && (writePhase != readPhase);
+
             public uint Base => baseOffset;
+
             public uint Limit => limitOffset;
 
             public uint CurrentDepth
@@ -887,6 +899,13 @@ namespace Antmicro.Renode.Peripherals.SPI
                 Overflow,
                 Underflow,
             }
+        }
+
+        private enum DeviceMode
+        {
+            Fw = 0x0,
+            Flash = 0x1,
+            Passthrough = 0x2,
         }
     } // End class OpenTitan_SpiDevice
 }

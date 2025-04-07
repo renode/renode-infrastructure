@@ -7,6 +7,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Migrant;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
@@ -146,7 +147,6 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
-
         /// <summary>
         /// Reads data from the internal buffer and stores it in the simulated memory.
         /// </summary>
@@ -186,7 +186,9 @@ namespace Antmicro.Renode.Peripherals.UART
         public virtual bool Echo { get; set; } = true;
 
         public uint BaudRate { get; set; }
+
         public Bits StopBits { get; set; }
+
         public Parity ParityBit { get; set; }
 
         /// <summary>

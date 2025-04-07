@@ -97,39 +97,39 @@ namespace Antmicro.Renode.Peripherals.Network
         {
             switch(function)
             {
-                case "ledmode": // NETLIGHT output Mode
+            case "ledmode": // NETLIGHT output Mode
+            {
+                if(args.Length == 1)
                 {
-                    if(args.Length == 1)
-                    {
-                        return SetNetLightMode(args[0]);
-                    }
-                    return base.Qcfg(function, args);
+                    return SetNetLightMode(args[0]);
                 }
-                case "apready": // AP_READY Pin
-                case "band": // band configuration
-                case "celevel": // get LTE Cat NB1 coverage enhancement level
-                case "cmux/urcport": // URC output port for CMUX
-                case "ims": // IMS function control
-                case "iotopmode": // network category to be searched under LTE RAT
-                case "msc": // MSC release version configuration
-                case "nb1/bandprior": // band scan priority under LTE Cat NB1
-                case "nwscanmode": // RAT(s) to be searched
-                case "nwscanseq": // RAT searching sequence
-                case "pdp/duplicatechk": // establish multi PDNs with the same APN
-                case "psm/enter": // trigger PSM immediately
-                case "psm/urc": // enable/disable PSM entry indication
-                case "risignaltype": // RI signal output carrier
-                case "roamservice": // roam service configuration
-                case "servicedomain": // service domain configuration
-                case "sgsn": // SGSN release version configuration
-                case "urc/delay": // delay URC indication
-                case "urc/ri/other": // RI behavior when other URCs are presented
-                case "urc/ri/ring": // RI behavior when RING URC is presented
-                case "urc/ri/smsincoming": // RI behavior when incoming SMS URCs are presented
-                    this.Log(LogLevel.Warning, "Config value '{0}' set to {1}, not implemented", function, string.Join(", ", args));
-                    break;
-                default:
-                    return base.Qcfg(function, args);
+                return base.Qcfg(function, args);
+            }
+            case "apready": // AP_READY Pin
+            case "band": // band configuration
+            case "celevel": // get LTE Cat NB1 coverage enhancement level
+            case "cmux/urcport": // URC output port for CMUX
+            case "ims": // IMS function control
+            case "iotopmode": // network category to be searched under LTE RAT
+            case "msc": // MSC release version configuration
+            case "nb1/bandprior": // band scan priority under LTE Cat NB1
+            case "nwscanmode": // RAT(s) to be searched
+            case "nwscanseq": // RAT searching sequence
+            case "pdp/duplicatechk": // establish multi PDNs with the same APN
+            case "psm/enter": // trigger PSM immediately
+            case "psm/urc": // enable/disable PSM entry indication
+            case "risignaltype": // RI signal output carrier
+            case "roamservice": // roam service configuration
+            case "servicedomain": // service domain configuration
+            case "sgsn": // SGSN release version configuration
+            case "urc/delay": // delay URC indication
+            case "urc/ri/other": // RI behavior when other URCs are presented
+            case "urc/ri/ring": // RI behavior when RING URC is presented
+            case "urc/ri/smsincoming": // RI behavior when incoming SMS URCs are presented
+                this.Log(LogLevel.Warning, "Config value '{0}' set to {1}, not implemented", function, string.Join(", ", args));
+                break;
+            default:
+                return base.Qcfg(function, args);
             }
             return Ok;
         }
@@ -160,34 +160,34 @@ namespace Antmicro.Renode.Peripherals.Network
 
             switch(parameter)
             {
-                case "dataformat":
-                    if(args.Length < 2)
-                    {
-                        return Error;
-                    }
-                    sendDataFormat = args[0] != 0 ? DataFormat.Hex : DataFormat.Text;
-                    receiveDataFormat = args[1] != 0 ? DataFormat.Hex : DataFormat.Text;
-                    break;
-                case "viewmode":
-                    dataOutputSeparator = args[0] != 0 ? "," : CrLf;
-                    break;
-                case "transpktsize": // packet size for transparent mode
-                case "transwaittm": // wait time for transparent mode
-                case "tcp/retranscfg": //  maximum interval time and number for TCP retransmissions
-                case "dns/cache": // enable the DNS cache
-                case "qisend/timeout": // input data timeout
-                case "passiveclosed": // passive close of TCP connection when the server is closed
-                    this.Log(LogLevel.Warning, "TCP/IP config value '{0}' set to {1}, not implemented", parameter, args.Stringify());
-                    break;
-                default:
-                    return base.Qicfg(parameter, args);
+            case "dataformat":
+                if(args.Length < 2)
+                {
+                    return Error;
+                }
+                sendDataFormat = args[0] != 0 ? DataFormat.Hex : DataFormat.Text;
+                receiveDataFormat = args[1] != 0 ? DataFormat.Hex : DataFormat.Text;
+                break;
+            case "viewmode":
+                dataOutputSeparator = args[0] != 0 ? "," : CrLf;
+                break;
+            case "transpktsize": // packet size for transparent mode
+            case "transwaittm": // wait time for transparent mode
+            case "tcp/retranscfg": //  maximum interval time and number for TCP retransmissions
+            case "dns/cache": // enable the DNS cache
+            case "qisend/timeout": // input data timeout
+            case "passiveclosed": // passive close of TCP connection when the server is closed
+                this.Log(LogLevel.Warning, "TCP/IP config value '{0}' set to {1}, not implemented", parameter, args.Stringify());
+                break;
+            default:
+                return base.Qicfg(parameter, args);
             }
             return Ok;
         }
 
         // QICLOSE - Close a Socket Service
         [AtCommand("AT+QICLOSE", CommandType.Write)]
-        protected /* override */ Response Qiclose(int connectionId, int timeout = 10)
+        protected /* override */ Response Qiclose(int connectionId)
         {
             return base.Qiclose(connectionId);
         }
@@ -242,9 +242,13 @@ namespace Antmicro.Renode.Peripherals.Network
         protected override Response QrstWrite(int mode = 1) => Error;
 
         protected override string Vendor => "Quectel";
+
         protected override string ModelName => "BG96";
+
         protected override string Revision => "Revision: BG96MAR01A01M1G";
+
         protected override string ManufacturerRevision => "BG96MAR01A01M1G";
+
         protected override string SoftwareRevision => "01.008.01.008";
 
         private const string DefaultImeiNumber = "866818039921444";

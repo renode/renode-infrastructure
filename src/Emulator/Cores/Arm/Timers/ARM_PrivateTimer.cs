@@ -8,9 +8,6 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Time;
-using Antmicro.Renode.Peripherals.Bus;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -40,6 +37,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         public long Size => 0x200;
 
         public GPIO IRQ { get; } = new GPIO();
+
         public long Frequency { get; }
 
         private void BuildRegisters()

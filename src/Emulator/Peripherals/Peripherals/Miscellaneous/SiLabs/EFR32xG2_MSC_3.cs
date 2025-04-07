@@ -7,15 +7,14 @@
 //
 
 using System.Collections.Generic;
-using System.IO;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Time;
-using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 {
@@ -31,10 +30,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             pageEraseTimer = new LimitTimer(machine.ClockSource, 1000000, this, "page_erase_timer", PageEraseTimeUs, direction: Direction.Ascending,
                                              enabled: false, workMode: WorkMode.OneShot, eventEnabled: true, autoUpdate: true);
             pageEraseTimer.LimitReached += PageEraseTimerHandleLimitReached;
-                                                          
 
             IRQ = new GPIO();
             registersCollection = BuildRegistersCollection();
+        }
+
+        public void WriteDoubleWord(long offset, uint value)
+        {
+            WriteRegister(offset, value);
         }
 
         public void Reset()
@@ -46,33 +49,154 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             return ReadRegister(offset);
         }
 
+        public long Size => 0x4000;
+
+        public GPIO IRQ { get; }
+
+        private void ClearWriteDataState()
+        {
+            this.Log(LogLevel.Error, "MSC_CMD: CLEAR_WRITE_DATA not implemented!");
+        }
+
+        private void MassEraseRegion0()
+        {
+            this.Log(LogLevel.Error, "MSC_CMD: MASS_ERASE_REGION0 not implemented!");
+        }
+
+        private void EraseAbort()
+        {
+            this.Log(LogLevel.Error, "MSC_CMD: ERASE_ABORT not implemented!");
+        }
+
+        private void EraseRange()
+        {
+            this.Log(LogLevel.Error, "MSC_CMD: ERASE_RANGE not implemented!");
+        }
+
+        private void EndWriteMode()
+        {
+            this.Log(LogLevel.Info, "MSC_CMD: END_WRITE_MODE");
+
+            // TODO: this can be a no-op since we implement writes as instantanous operations.
+        }
+
+        private void WriteData(uint value)
+        {
+            this.Log(LogLevel.Info, "MSC_CMD: WRITE_DATA");
+
+            if(writeAndEraseEnable.Value && !invalidAddress.Value && !locked.Value)
+            {
+                // TODO: for now single word writes to flash are considered "instantenous".
+                machine.ClockSource.ExecuteInLock(delegate
+                {
+                    writeDataReady.Value = false;
+                    busy.Value = true;
+                    uint currentValue = machine.SystemBus.ReadDoubleWord(pageEraseOrWriteAddress);
+                    // 0s in currentValue stays 0s. 1s in currentValue are flipped to 0s if the corresponding bit in value is 0.
+                    uint newValue = currentValue & (~currentValue | value);
+                    machine.SystemBus.WriteDoubleWord(pageEraseOrWriteAddress, newValue);
+                    pageEraseOrWriteAddress += 4;
+                    busy.Value = false;
+                    writeDataReady.Value = true;
+                    writeDoneInterrupt.Value = true;
+                });
+                UpdateInterrupts();
+            }
+        }
+
+        // Commands
+        private void ErasePage()
+        {
+            this.Log(LogLevel.Info, "MSC_CMD: ERASE_PAGE");
+
+            if(writeAndEraseEnable.Value && !invalidAddress.Value && !locked.Value)
+            {
+                // TODO: for now we start a timer and do the actual page erase entirely when the timer expires.
+                pageEraseTimer.Value = 0;
+                pageEraseTimer.Enabled = true;
+
+                // Halt the CPU until the timer expires.
+                // TODO: RENODE-5
+                //cpu.IsHalted = true;
+                busy.Value = true;
+            }
+        }
+
+        private void PageEraseTimerHandleLimitReached()
+        {
+            pageEraseTimer.Enabled = false;
+
+            // For erase operations, the address may be any within the page to be erased.
+            uint startAddress = pageEraseOrWriteAddress & ~(FlashPageSize - 1);
+
+            this.Log(LogLevel.Info, "CMD ERASE_PAGE - Erasing page: address={0:X}, page address={1:X}", pageEraseOrWriteAddress, startAddress);
+
+            machine.ClockSource.ExecuteInLock(delegate
+            {
+                for(var addr = startAddress; addr < startAddress + FlashPageSize; addr += 4)
+                {
+                    machine.SystemBus.WriteDoubleWord(addr, 0xFFFFFFFF);
+                }
+                busy.Value = false;
+                eraseDoneInterrupt.Value = true;
+            });
+
+            UpdateInterrupts();
+            //cpu.IsHalted = false;
+        }
+
+        private void UpdateInterrupts()
+        {
+            machine.ClockSource.ExecuteInLock(delegate
+            {
+                var irq = ((eraseDoneInterruptEnable.Value && eraseDoneInterrupt.Value)
+                        || (writeDoneInterruptEnable.Value && writeDoneInterrupt.Value)
+                        || (writeDataOverflowInterruptEnable.Value && writeDataOverflowInterrupt.Value)
+                        || (powerUpFinishedInterruptEnable.Value && powerUpFinishedInterrupt.Value)
+                        || (powerOffFinishedInterruptEnable.Value && powerOffFinishedInterrupt.Value));
+                IRQ.Set(irq);
+            });
+        }
+
+        private void PowerUp()
+        {
+            this.Log(LogLevel.Error, "MSC_CMD: POWER_UP not implemented!");
+        }
+
+        private void PowerOff()
+        {
+            this.Log(LogLevel.Error, "MSC_CMD: POWER_OFF not implemented!");
+        }
+
         private uint ReadRegister(long offset, bool internal_read = false)
         {
             var result = 0U;
             long internal_offset = offset;
 
             // Set, Clear, Toggle registers should only be used for write operations. But just in case we convert here as well.
-            if (offset >= SetRegisterOffset && offset < ClearRegisterOffset) 
+            if(offset >= SetRegisterOffset && offset < ClearRegisterOffset)
             {
                 // Set register
                 internal_offset = offset - SetRegisterOffset;
-                if (!internal_read)
-                {  
+                if(!internal_read)
+                {
                     this.Log(LogLevel.Noisy, "SET Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}", (Registers)internal_offset, offset, internal_offset);
                 }
-            } else if (offset >= ClearRegisterOffset && offset < ToggleRegisterOffset) 
+            }
+            else if(offset >= ClearRegisterOffset && offset < ToggleRegisterOffset)
             {
                 // Clear register
                 internal_offset = offset - ClearRegisterOffset;
-                if (!internal_read)
+                if(!internal_read)
                 {
                     this.Log(LogLevel.Noisy, "CLEAR Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}", (Registers)internal_offset, offset, internal_offset);
                 }
-            } else if (offset >= ToggleRegisterOffset)
+            }
+            else if(offset >= ToggleRegisterOffset)
             {
                 // Toggle register
                 internal_offset = offset - ToggleRegisterOffset;
-                if (!internal_read)
+                if(!internal_read)
                 {
                     this.Log(LogLevel.Noisy, "TOGGLE Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}", (Registers)internal_offset, offset, internal_offset);
                 }
@@ -80,14 +204,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
             if(!registersCollection.TryRead(internal_offset, out result))
             {
-                if (!internal_read)
+                if(!internal_read)
                 {
                     this.Log(LogLevel.Noisy, "Unhandled read at offset 0x{0:X} ({1}).", internal_offset, (Registers)internal_offset);
                 }
             }
             else
             {
-                if (!internal_read)
+                if(!internal_read)
                 {
                     this.Log(LogLevel.Noisy, "Read at offset 0x{0:X} ({1}), returned 0x{2:X}.", internal_offset, (Registers)internal_offset, result);
                 }
@@ -96,32 +220,30 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             return result;
         }
 
-        public void WriteDoubleWord(long offset, uint value)
+        private void WriteRegister(long offset, uint value)
         {
-            WriteRegister(offset, value);
-        }
-
-        private void WriteRegister(long offset, uint value, bool internal_write = false)
-        {
-            machine.ClockSource.ExecuteInLock(delegate {
+            machine.ClockSource.ExecuteInLock(delegate
+            {
                 long internal_offset = offset;
                 uint internal_value = value;
 
-                if (offset >= SetRegisterOffset && offset < ClearRegisterOffset) 
+                if(offset >= SetRegisterOffset && offset < ClearRegisterOffset)
                 {
                     // Set register
                     internal_offset = offset - SetRegisterOffset;
                     uint old_value = ReadRegister(internal_offset, true);
                     internal_value = old_value | value;
                     this.Log(LogLevel.Noisy, "SET Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}, SET_value=0x{3:X}, old_value=0x{4:X}, new_value=0x{5:X}", (Registers)internal_offset, offset, internal_offset, value, old_value, internal_value);
-                } else if (offset >= ClearRegisterOffset && offset < ToggleRegisterOffset) 
+                }
+                else if(offset >= ClearRegisterOffset && offset < ToggleRegisterOffset)
                 {
                     // Clear register
                     internal_offset = offset - ClearRegisterOffset;
                     uint old_value = ReadRegister(internal_offset, true);
                     internal_value = old_value & ~value;
                     this.Log(LogLevel.Noisy, "CLEAR Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}, CLEAR_value=0x{3:X}, old_value=0x{4:X}, new_value=0x{5:X}", (Registers)internal_offset, offset, internal_offset, value, old_value, internal_value);
-                } else if (offset >= ToggleRegisterOffset)
+                }
+                else if(offset >= ToggleRegisterOffset)
                 {
                     // Toggle register
                     internal_offset = offset - ToggleRegisterOffset;
@@ -241,8 +363,46 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             return new DoubleWordRegisterCollection(this, registerDictionary);
         }
 
-        public long Size => 0x4000;
-        public GPIO IRQ { get; }
+        private uint PageEraseOrWriteAddress
+        {
+            get => pageEraseOrWriteAddress;
+            set
+            {
+                pageEraseOrWriteAddress = value;
+                invalidAddress.Value = (value < FlashBase || value >= (FlashBase + FlashSize));
+            }
+        }
+
+        private uint pageEraseOrWriteAddress;
+        private IFlagRegisterField invalidAddress;
+        private IFlagRegisterField writeDataReady;
+        private IFlagRegisterField flashPowerOnStatus;
+        private IFlagRegisterField writeOrEraseReady;
+
+        // Interrupt flags
+        private IFlagRegisterField eraseDoneInterrupt;
+        private IValueRegisterField eraseRangeCount;
+        private IFlagRegisterField writeDataOverflowInterrupt;
+        private IFlagRegisterField powerUpFinishedInterrupt;
+        private IFlagRegisterField powerOffFinishedInterrupt;
+        private IFlagRegisterField writeDataOverflowInterruptEnable;
+        private IFlagRegisterField eraseDoneInterruptEnable;
+        private IFlagRegisterField powerUpFinishedInterruptEnable;
+        private IFlagRegisterField busy;
+        private IFlagRegisterField powerOffFinishedInterruptEnable;
+        private IFlagRegisterField lowPowerErase;
+        private IFlagRegisterField abortPageEraseOnInterrupt;
+        private IFlagRegisterField writeAndEraseEnable;
+        private IFlagRegisterField flashDataOutputBufferEnable;
+        private IFlagRegisterField autoFlushDisable;
+
+        private IEnumRegisterField<ReadMode> readMode;
+        private IFlagRegisterField writeDoneInterruptEnable;
+        private IFlagRegisterField writeDoneInterrupt;
+
+        private IFlagRegisterField locked;
+        private readonly uint FlashSize;
+        private readonly uint FlashPageSize;
 
         private readonly Machine machine;
         private readonly CPUCore cpu;
@@ -258,163 +418,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         private const uint PageEraseTimeUs = 100;
         private const uint WordWriteTimeUs = 3;
         private const uint FlashBase = 0x8000000;
-        private uint FlashSize;
-        private uint FlashPageSize;
-        private uint pageEraseOrWriteAddress;
 
-#region register fields
-        private IEnumRegisterField<ReadMode> readMode;
-        private IFlagRegisterField autoFlushDisable;
-        private IFlagRegisterField flashDataOutputBufferEnable;
-        private IFlagRegisterField writeAndEraseEnable;
-        private IFlagRegisterField abortPageEraseOnInterrupt;
-        private IFlagRegisterField lowPowerErase;
-        private IValueRegisterField eraseRangeCount;
-        private IFlagRegisterField busy;
-        private IFlagRegisterField locked;
-        private IFlagRegisterField invalidAddress;
-        private IFlagRegisterField writeDataReady;
-        private IFlagRegisterField flashPowerOnStatus;
-        private IFlagRegisterField writeOrEraseReady;
-
-        // Interrupt flags
-        private IFlagRegisterField eraseDoneInterrupt;
-        private IFlagRegisterField writeDoneInterrupt;
-        private IFlagRegisterField writeDataOverflowInterrupt;
-        private IFlagRegisterField powerUpFinishedInterrupt;
-        private IFlagRegisterField powerOffFinishedInterrupt;
-        private IFlagRegisterField eraseDoneInterruptEnable;
-        private IFlagRegisterField writeDoneInterruptEnable;
-        private IFlagRegisterField writeDataOverflowInterruptEnable;
-        private IFlagRegisterField powerUpFinishedInterruptEnable;
-        private IFlagRegisterField powerOffFinishedInterruptEnable;
-#endregion
-
-#region methods
-        private uint PageEraseOrWriteAddress
-        {
-            get => pageEraseOrWriteAddress;
-            set
-            {
-                pageEraseOrWriteAddress = value;
-                invalidAddress.Value = (value < FlashBase || value >= (FlashBase + FlashSize));
-            }
-        }
-
-        private void UpdateInterrupts()
-        {
-            machine.ClockSource.ExecuteInLock(delegate {
-                var irq = ((eraseDoneInterruptEnable.Value && eraseDoneInterrupt.Value)
-                        || (writeDoneInterruptEnable.Value && writeDoneInterrupt.Value)
-                        || (writeDataOverflowInterruptEnable.Value && writeDataOverflowInterrupt.Value)
-                        || (powerUpFinishedInterruptEnable.Value && powerUpFinishedInterrupt.Value)
-                        || (powerOffFinishedInterruptEnable.Value && powerOffFinishedInterrupt.Value));
-                IRQ.Set(irq);
-            });
-        }
-
-        private void PageEraseTimerHandleLimitReached()
-        {
-            pageEraseTimer.Enabled = false;
-
-            // For erase operations, the address may be any within the page to be erased.
-            uint startAddress = pageEraseOrWriteAddress & ~(FlashPageSize - 1);
-            
-            this.Log(LogLevel.Info, "CMD ERASE_PAGE - Erasing page: address={0:X}, page address={1:X}", pageEraseOrWriteAddress, startAddress);
-
-            machine.ClockSource.ExecuteInLock(delegate {
-                for(var addr = startAddress; addr < startAddress+FlashPageSize; addr += 4)
-                {
-                    machine.SystemBus.WriteDoubleWord(addr, 0xFFFFFFFF);
-                }
-                busy.Value = false;
-                eraseDoneInterrupt.Value = true;
-            });
-
-            UpdateInterrupts();
-            //cpu.IsHalted = false;
-        }
-
-        // Commands
-        private void ErasePage()
-        {
-            this.Log(LogLevel.Info, "MSC_CMD: ERASE_PAGE");
-
-            if (writeAndEraseEnable.Value && !invalidAddress.Value && !locked.Value)
-            {
-                // TODO: for now we start a timer and do the actual page erase entirely when the timer expires. 
-                pageEraseTimer.Value = 0;
-                pageEraseTimer.Enabled = true;
-                
-                // Halt the CPU until the timer expires. 
-                // TODO: RENODE-5
-                //cpu.IsHalted = true;
-                busy.Value = true;
-            }
-        }
-
-        private void WriteData(uint value)
-        {
-            this.Log(LogLevel.Info, "MSC_CMD: WRITE_DATA");
-
-            if (writeAndEraseEnable.Value && !invalidAddress.Value && !locked.Value)
-            {
-                // TODO: for now single word writes to flash are considered "instantenous".
-                machine.ClockSource.ExecuteInLock(delegate {
-                    writeDataReady.Value = false;
-                    busy.Value = true;
-                    uint currentValue = machine.SystemBus.ReadDoubleWord(pageEraseOrWriteAddress);
-                    // 0s in currentValue stays 0s. 1s in currentValue are flipped to 0s if the corresponding bit in value is 0.
-                    uint newValue = currentValue & (~currentValue | value);
-                    machine.SystemBus.WriteDoubleWord(pageEraseOrWriteAddress, newValue);
-                    pageEraseOrWriteAddress += 4;
-                    busy.Value = false;
-                    writeDataReady.Value = true;
-                    writeDoneInterrupt.Value = true;
-                });
-                UpdateInterrupts();
-            }
-        }
-
-        private void EndWriteMode()
-        {
-            this.Log(LogLevel.Info, "MSC_CMD: END_WRITE_MODE");
-
-            // TODO: this can be a no-op since we implement writes as instantanous operations.
-        }
-
-        private void EraseRange()
-        {
-            this.Log(LogLevel.Error, "MSC_CMD: ERASE_RANGE not implemented!");
-        }
-
-        private void EraseAbort()
-        {
-            this.Log(LogLevel.Error, "MSC_CMD: ERASE_ABORT not implemented!");
-        }
-
-        private void MassEraseRegion0()
-        {
-            this.Log(LogLevel.Error, "MSC_CMD: MASS_ERASE_REGION0 not implemented!");
-        }
-
-        private void ClearWriteDataState()
-        {
-            this.Log(LogLevel.Error, "MSC_CMD: CLEAR_WRITE_DATA not implemented!");
-        }
-
-        private void PowerUp()
-        {
-            this.Log(LogLevel.Error, "MSC_CMD: POWER_UP not implemented!");
-        }
-
-        private void PowerOff()
-        {
-            this.Log(LogLevel.Error, "MSC_CMD: POWER_OFF not implemented!");
-        }
-#endregion
-
-#region enums
         private enum ReadMode
         {
             WS0         = 0x0,
@@ -497,6 +501,5 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             PageLock0_Tgl                       = 0x3120,
             PageLock1_Tgl                       = 0x3124,
         }
-#endregion        
     }
 }

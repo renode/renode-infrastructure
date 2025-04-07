@@ -7,8 +7,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Antmicro.Renode.Utilities;
+
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Utilities;
+
 using static Antmicro.Renode.Peripherals.SPI.Cadence_xSPI;
 
 namespace Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands
@@ -28,22 +30,22 @@ namespace Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands
             var commandType = DecodeCommandType(payload);
             switch(commandType)
             {
-                case CommandType.Reset:
-                case CommandType.SectorErase:
-                case CommandType.ChipErase:
-                    return new PIOOperationCommand(controller, payload);
-                case CommandType.Program:
-                case CommandType.Read:
-                    var dmaRole = (DMARoleType)BitHelper.GetValue(payload[0], 19, 1);
-                    if(dmaRole != DMARoleType.Peripheral)
-                    {
-                        controller.Log(LogLevel.Warning, "There is a support only for PIO commands with a DMA in a peripheral role.");
-                        return null;
-                    }
-                    return new PIODataCommand(controller, payload);
-                default:
-                    controller.Log(LogLevel.Warning, "Unable to create a PIO command, unknown command type 0x{0:x}", commandType);
+            case CommandType.Reset:
+            case CommandType.SectorErase:
+            case CommandType.ChipErase:
+                return new PIOOperationCommand(controller, payload);
+            case CommandType.Program:
+            case CommandType.Read:
+                var dmaRole = (DMARoleType)BitHelper.GetValue(payload[0], 19, 1);
+                if(dmaRole != DMARoleType.Peripheral)
+                {
+                    controller.Log(LogLevel.Warning, "There is a support only for PIO commands with a DMA in a peripheral role.");
                     return null;
+                }
+                return new PIODataCommand(controller, payload);
+            default:
+                controller.Log(LogLevel.Warning, "Unable to create a PIO command, unknown command type 0x{0:x}", commandType);
+                return null;
             }
         }
 
@@ -106,19 +108,19 @@ namespace Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands
             {
                 switch(type)
                 {
-                    case CommandType.Reset:
-                        Peripheral.Transmit(ResetEnableOperation);
-                        Peripheral.Transmit(ResetMemoryOperation);
-                        break;
-                    case CommandType.ChipErase:
-                        Peripheral.Transmit(ChipEraseOperation);
-                        break;
-                    case CommandType.SectorErase:
-                        Peripheral.Transmit(SectorErase4ByteOperation);
-                        TransmitAddress();
-                        break;
-                    default:
-                        throw new ArgumentException($"Unknown PIO Command type: {type}.");
+                case CommandType.Reset:
+                    Peripheral.Transmit(ResetEnableOperation);
+                    Peripheral.Transmit(ResetMemoryOperation);
+                    break;
+                case CommandType.ChipErase:
+                    Peripheral.Transmit(ChipEraseOperation);
+                    break;
+                case CommandType.SectorErase:
+                    Peripheral.Transmit(SectorErase4ByteOperation);
+                    TransmitAddress();
+                    break;
+                default:
+                    throw new ArgumentException($"Unknown PIO Command type: {type}.");
                 }
             }
             Completed = true;
@@ -137,14 +139,14 @@ namespace Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands
         {
             switch(type)
             {
-                case CommandType.Program:
-                    DMADirection = TransmissionDirection.Write;
-                    break;
-                case CommandType.Read:
-                    DMADirection = TransmissionDirection.Read;
-                    break;
-                default:
-                    throw new ArgumentException($"Unknown PIO Command type: {type}.");
+            case CommandType.Program:
+                DMADirection = TransmissionDirection.Write;
+                break;
+            case CommandType.Read:
+                DMADirection = TransmissionDirection.Read;
+                break;
+            default:
+                throw new ArgumentException($"Unknown PIO Command type: {type}.");
             }
         }
 
@@ -214,8 +216,11 @@ namespace Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands
         }
 
         public TransmissionDirection DMADirection { get; }
+
         public uint DMADataCount => (uint)length;
+
         public bool DMATriggered { get; private set; }
+
         public bool DMAError { get; private set; }
 
         private void FinishIfDone()

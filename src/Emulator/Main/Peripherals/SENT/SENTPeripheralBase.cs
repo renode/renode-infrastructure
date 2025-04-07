@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Time;
 
@@ -20,21 +21,22 @@ namespace Antmicro.Renode.Peripherals.SENT
             transmitter.ProvideSlowMessage += ProvideSlowMessage;
         }
 
-        public abstract FastMessage ProvideFastMessage();
-        public abstract SlowMessage ProvideSlowMessage();
-
         public virtual void Reset()
         {
             TransmissionEnabled = false;
         }
 
-        public event Action<SENTEdge> SENTEdgeChanged;
+        public abstract FastMessage ProvideFastMessage();
+
+        public abstract SlowMessage ProvideSlowMessage();
 
         public bool TransmissionEnabled
         {
             get => transmitter.Transmitting;
             set => transmitter.Transmitting = value;
         }
+
+        public event Action<SENTEdge> SENTEdgeChanged;
 
         protected readonly Transmitter transmitter;
     }

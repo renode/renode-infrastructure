@@ -6,12 +6,13 @@
 //
 using System;
 using System.Linq;
-using Antmicro.Renode.Peripherals.Timers;
-using Antmicro.Renode.Peripherals.Sensor;
-using Antmicro.Renode.Peripherals.I2C;
-using Antmicro.Renode.Logging;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.I2C;
+using Antmicro.Renode.Peripherals.Sensor;
+using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.RESD;
 
@@ -74,13 +75,13 @@ namespace Antmicro.Renode.Peripherals.Sensors
             if(!registerAddress.HasValue)
             {
                 this.Log(LogLevel.Error, "Trying to read without setting address");
-                return new byte[] {};
+                return new byte[] { };
             }
 
             if(state != States.Read)
             {
                 this.Log(LogLevel.Error, "Trying to read while in write mode");
-                return new byte[] {};
+                return new byte[] { };
             }
 
             var result = new byte[count];
@@ -136,6 +137,23 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
+        private static Tuple<int, ulong> ConversionRateToFrequencyAndLimit(ConversionRate cr)
+        {
+            switch(cr)
+            {
+            case ConversionRate.Quarter:
+                return new Tuple<int, ulong>(1, 4);
+            case ConversionRate.One:
+                return new Tuple<int, ulong>(1, 1);
+            case ConversionRate.Four:
+                return new Tuple<int, ulong>(4, 1);
+            case ConversionRate.Eight:
+                return new Tuple<int, ulong>(8, 1);
+            default:
+                throw new Exception("unreachable code");
+            }
+        }
+
         private void UpdateConversionFrequency()
         {
             var frequencyAndLimit = ConversionRateToFrequencyAndLimit(conversionRate.Value);
@@ -149,17 +167,17 @@ namespace Antmicro.Renode.Peripherals.Sensors
             {
                 switch(resdStream.TryGetCurrentSample(this, (sample) => sample.Temperature / 1000m, out var temperature, out _))
                 {
-                    case RESDStreamStatus.OK:
-                        Temperature = temperature;
-                        break;
-                    case RESDStreamStatus.BeforeStream:
-                        // Just ignore and return previously set value
-                        break;
-                    case RESDStreamStatus.AfterStream:
-                        // No more samples in file
-                        resdStream.Dispose();
-                        resdStream = null;
-                        break;
+                case RESDStreamStatus.OK:
+                    Temperature = temperature;
+                    break;
+                case RESDStreamStatus.BeforeStream:
+                    // Just ignore and return previously set value
+                    break;
+                case RESDStreamStatus.AfterStream:
+                    // No more samples in file
+                    resdStream.Dispose();
+                    resdStream = null;
+                    break;
                 }
             }
 
@@ -230,23 +248,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
             ;
         }
 
-        private static Tuple<int, ulong> ConversionRateToFrequencyAndLimit(ConversionRate cr)
-        {
-            switch(cr)
-            {
-                case ConversionRate.Quarter:
-                    return new Tuple<int, ulong>(1, 4);
-                case ConversionRate.One:
-                    return new Tuple<int, ulong>(1, 1);
-                case ConversionRate.Four:
-                    return new Tuple<int, ulong>(4, 1);
-                case ConversionRate.Eight:
-                    return new Tuple<int, ulong>(8, 1);
-                default:
-                    throw new Exception("unreachable code");
-            }
-        }
-
         private Registers? registerAddress;
         private States state;
         private RESDStream<TemperatureSample> resdStream;
@@ -264,14 +265,14 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private uint consecutiveFaults;
 
+        private readonly IMachine machine;
+        private readonly LimitTimer conversionTimer;
+
         private const short Resolution = 0x80;
         private const short DefaultLowThreshold = 70 * Resolution;
         private const short DefaultHighThreshold = 80 * Resolution;
         private const decimal MaximumTemperature = (decimal)short.MaxValue / (decimal)Resolution;
         private const decimal MinimumTemperature = (decimal)short.MinValue / (decimal)Resolution;
-
-        private readonly IMachine machine;
-        private readonly LimitTimer conversionTimer;
 
         private enum States
         {

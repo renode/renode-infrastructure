@@ -6,6 +6,7 @@
 //
 using System;
 using System.IO;
+
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
@@ -60,22 +61,22 @@ namespace Antmicro.Renode.Peripherals.SPI
             this.Log(LogLevel.Noisy, "Transmission finished");
             switch(currentOperation.State)
             {
-                case DecodedOperation.OperationState.RecognizeOperation:
-                case DecodedOperation.OperationState.AccumulateCommandAddressBytes:
-                case DecodedOperation.OperationState.AccumulateNoDataCommandAddressBytes:
-                    this.Log(LogLevel.Warning, "Transmission finished in the unexpected state: {0}", currentOperation.State);
-                    break;
+            case DecodedOperation.OperationState.RecognizeOperation:
+            case DecodedOperation.OperationState.AccumulateCommandAddressBytes:
+            case DecodedOperation.OperationState.AccumulateNoDataCommandAddressBytes:
+                this.Log(LogLevel.Warning, "Transmission finished in the unexpected state: {0}", currentOperation.State);
+                break;
             }
             // If an operation has at least 1 data byte or more than 0 address bytes,
             // we can clear the write enable flag only when we are finishing a transmission.
             switch(currentOperation.Operation)
             {
-                case DecodedOperation.OperationType.Program:
-                case DecodedOperation.OperationType.Erase:
-                case DecodedOperation.OperationType.WriteRegister:
-                    //although the docs are not clear, it seems that all register writes should clear the flag
-                    enable.Value = false;
-                    break;
+            case DecodedOperation.OperationType.Program:
+            case DecodedOperation.OperationType.Erase:
+            case DecodedOperation.OperationType.WriteRegister:
+                //although the docs are not clear, it seems that all register writes should clear the flag
+                enable.Value = false;
+                break;
             }
             currentOperation.State = DecodedOperation.OperationState.RecognizeOperation;
             currentOperation = default(DecodedOperation);
@@ -119,20 +120,20 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             switch(currentOperation.State)
             {
-                case DecodedOperation.OperationState.RecognizeOperation:
-                    // When the command is decoded, depending on the operation we will either start accumulating address bytes
-                    // or immediately handle the command bytes
-                    RecognizeOperation(data);
-                    break;
-                case DecodedOperation.OperationState.AccumulateCommandAddressBytes:
-                    AccumulateAddressBytes(data, DecodedOperation.OperationState.HandleCommand);
-                    break;
-                case DecodedOperation.OperationState.AccumulateNoDataCommandAddressBytes:
-                    AccumulateAddressBytes(data, DecodedOperation.OperationState.HandleNoDataCommand);
-                    break;
-                case DecodedOperation.OperationState.HandleCommand:
-                    // Process the remaining command bytes
-                    return HandleCommand(data);
+            case DecodedOperation.OperationState.RecognizeOperation:
+                // When the command is decoded, depending on the operation we will either start accumulating address bytes
+                // or immediately handle the command bytes
+                RecognizeOperation(data);
+                break;
+            case DecodedOperation.OperationState.AccumulateCommandAddressBytes:
+                AccumulateAddressBytes(data, DecodedOperation.OperationState.HandleCommand);
+                break;
+            case DecodedOperation.OperationState.AccumulateNoDataCommandAddressBytes:
+                AccumulateAddressBytes(data, DecodedOperation.OperationState.HandleNoDataCommand);
+                break;
+            case DecodedOperation.OperationState.HandleCommand:
+                // Process the remaining command bytes
+                return HandleCommand(data);
             }
 
             // Warning: commands without data require immediate handling after the address was accumulated
@@ -247,105 +248,105 @@ namespace Antmicro.Renode.Peripherals.SPI
             currentOperation.State = DecodedOperation.OperationState.HandleCommand;
             switch(firstByte)
             {
-                case (byte)Commands.ReadID:
-                    currentOperation.Operation = DecodedOperation.OperationType.ReadID;
-                    if(opiMode)
-                    {
-                        currentOperation.State = DecodedOperation.OperationState.AccumulateCommandAddressBytes;
-                        currentOperation.AddressLength = 4;
-                    }
-                    break;
-
-                case (byte)Commands.PageProgram4byte:
-                    currentOperation.Operation = DecodedOperation.OperationType.Program;
-                    currentOperation.AddressLength = 4;
+            case (byte)Commands.ReadID:
+                currentOperation.Operation = DecodedOperation.OperationType.ReadID;
+                if(opiMode)
+                {
                     currentOperation.State = DecodedOperation.OperationState.AccumulateCommandAddressBytes;
-                    break;
-
-                case (byte)Commands.WriteEnable:
-                    currentOperation.Operation = DecodedOperation.OperationType.None;
-                    enable.Value = true;
-                    break;
-
-                case (byte)Commands.WriteDisable:
-                    currentOperation.Operation = DecodedOperation.OperationType.None;
-                    enable.Value = false;
-                    break;
-
-                case (byte)Commands.SectorErase4byte:
-                    currentOperation.Operation = DecodedOperation.OperationType.Erase;
-                    currentOperation.EraseSize = DecodedOperation.OperationEraseSize.Sector;
                     currentOperation.AddressLength = 4;
-                    currentOperation.State = DecodedOperation.OperationState.AccumulateNoDataCommandAddressBytes;
-                    break;
+                }
+                break;
 
-                case (byte)Commands.SubsectorErase4byte4kb:
-                    currentOperation.Operation = DecodedOperation.OperationType.Erase;
-                    currentOperation.EraseSize = DecodedOperation.OperationEraseSize.Subsector4K;
-                    currentOperation.AddressLength = 4;
-                    currentOperation.State = DecodedOperation.OperationState.AccumulateNoDataCommandAddressBytes;
-                    break;
+            case (byte)Commands.PageProgram4byte:
+                currentOperation.Operation = DecodedOperation.OperationType.Program;
+                currentOperation.AddressLength = 4;
+                currentOperation.State = DecodedOperation.OperationState.AccumulateCommandAddressBytes;
+                break;
 
-                case (byte)Commands.ReadStatusRegister:
-                    currentOperation.Operation = DecodedOperation.OperationType.ReadRegister;
-                    currentOperation.Register = (uint)Register.Status;
-                    if(opiMode)
-                    {
-                        currentOperation.State = DecodedOperation.OperationState.AccumulateCommandAddressBytes;
-                        currentOperation.AddressLength = 4;
-                    }
-                    break;
+            case (byte)Commands.WriteEnable:
+                currentOperation.Operation = DecodedOperation.OperationType.None;
+                enable.Value = true;
+                break;
 
-                case (byte)Commands.ReadSecurityRegister:
-                    currentOperation.Operation = DecodedOperation.OperationType.ReadRegister;
-                    currentOperation.Register = (uint)Register.SecurityRegister;
-                    if(opiMode)
-                    {
-                        currentOperation.State = DecodedOperation.OperationState.AccumulateCommandAddressBytes;
-                        currentOperation.AddressLength = 4;
-                    }
-                    break;
+            case (byte)Commands.WriteDisable:
+                currentOperation.Operation = DecodedOperation.OperationType.None;
+                enable.Value = false;
+                break;
 
-                case (byte)Commands.WriteStatusRegister:
-                    currentOperation.Operation = DecodedOperation.OperationType.WriteRegister;
-                    currentOperation.Register = (uint)Register.Status;
-                    if(opiMode)
-                    {
-                        currentOperation.State = DecodedOperation.OperationState.AccumulateCommandAddressBytes;
-                        currentOperation.AddressLength = 4;
-                    }
-                    break;
+            case (byte)Commands.SectorErase4byte:
+                currentOperation.Operation = DecodedOperation.OperationType.Erase;
+                currentOperation.EraseSize = DecodedOperation.OperationEraseSize.Sector;
+                currentOperation.AddressLength = 4;
+                currentOperation.State = DecodedOperation.OperationState.AccumulateNoDataCommandAddressBytes;
+                break;
 
-                case (byte)Commands.WriteSecurityRegister:
-                    currentOperation.Operation = DecodedOperation.OperationType.WriteRegister;
-                    currentOperation.Register = (uint)Register.SecurityRegister;
-                    if(opiMode)
-                    {
-                        currentOperation.State = DecodedOperation.OperationState.AccumulateCommandAddressBytes;
-                        currentOperation.AddressLength = 4;
-                    }
-                    break;
+            case (byte)Commands.SubsectorErase4byte4kb:
+                currentOperation.Operation = DecodedOperation.OperationType.Erase;
+                currentOperation.EraseSize = DecodedOperation.OperationEraseSize.Subsector4K;
+                currentOperation.AddressLength = 4;
+                currentOperation.State = DecodedOperation.OperationState.AccumulateNoDataCommandAddressBytes;
+                break;
 
-                case (byte)Commands.ReadConfigurationRegister2:
-                    currentOperation.Operation = DecodedOperation.OperationType.ReadRegister;
-                    currentOperation.Register = (uint)Register.ConfigurationRegister2;
-                    currentOperation.AddressLength = 4;
+            case (byte)Commands.ReadStatusRegister:
+                currentOperation.Operation = DecodedOperation.OperationType.ReadRegister;
+                currentOperation.Register = (uint)Register.Status;
+                if(opiMode)
+                {
                     currentOperation.State = DecodedOperation.OperationState.AccumulateCommandAddressBytes;
-                    break;
-
-                case (byte)Commands.WriteConfigurationRegister2:
-                    currentOperation.Operation = DecodedOperation.OperationType.WriteRegister;
-                    currentOperation.Register = (uint)Register.ConfigurationRegister2;
                     currentOperation.AddressLength = 4;
+                }
+                break;
+
+            case (byte)Commands.ReadSecurityRegister:
+                currentOperation.Operation = DecodedOperation.OperationType.ReadRegister;
+                currentOperation.Register = (uint)Register.SecurityRegister;
+                if(opiMode)
+                {
                     currentOperation.State = DecodedOperation.OperationState.AccumulateCommandAddressBytes;
-                    break;
+                    currentOperation.AddressLength = 4;
+                }
+                break;
 
-                case (byte)Commands.ReleaseFromDeepPowerdown:
-                    break;
+            case (byte)Commands.WriteStatusRegister:
+                currentOperation.Operation = DecodedOperation.OperationType.WriteRegister;
+                currentOperation.Register = (uint)Register.Status;
+                if(opiMode)
+                {
+                    currentOperation.State = DecodedOperation.OperationState.AccumulateCommandAddressBytes;
+                    currentOperation.AddressLength = 4;
+                }
+                break;
 
-                default:
-                    this.Log(LogLevel.Error, "Command decoding failed on byte: 0x{0:X} ({1}).", firstByte, (Commands)firstByte);
-                    break;
+            case (byte)Commands.WriteSecurityRegister:
+                currentOperation.Operation = DecodedOperation.OperationType.WriteRegister;
+                currentOperation.Register = (uint)Register.SecurityRegister;
+                if(opiMode)
+                {
+                    currentOperation.State = DecodedOperation.OperationState.AccumulateCommandAddressBytes;
+                    currentOperation.AddressLength = 4;
+                }
+                break;
+
+            case (byte)Commands.ReadConfigurationRegister2:
+                currentOperation.Operation = DecodedOperation.OperationType.ReadRegister;
+                currentOperation.Register = (uint)Register.ConfigurationRegister2;
+                currentOperation.AddressLength = 4;
+                currentOperation.State = DecodedOperation.OperationState.AccumulateCommandAddressBytes;
+                break;
+
+            case (byte)Commands.WriteConfigurationRegister2:
+                currentOperation.Operation = DecodedOperation.OperationType.WriteRegister;
+                currentOperation.Register = (uint)Register.ConfigurationRegister2;
+                currentOperation.AddressLength = 4;
+                currentOperation.State = DecodedOperation.OperationState.AccumulateCommandAddressBytes;
+                break;
+
+            case (byte)Commands.ReleaseFromDeepPowerdown:
+                break;
+
+            default:
+                this.Log(LogLevel.Error, "Command decoding failed on byte: 0x{0:X} ({1}).", firstByte, (Commands)firstByte);
+                break;
             }
         }
 
@@ -354,55 +355,55 @@ namespace Antmicro.Renode.Peripherals.SPI
             byte result = 0;
             switch(currentOperation.Operation)
             {
-                case DecodedOperation.OperationType.ReadFast:
-                    // handle dummy byte and switch to read
-                    currentOperation.Operation = DecodedOperation.OperationType.Read;
-                    currentOperation.CommandBytesHandled--;
-                    this.Log(LogLevel.Noisy, "Handling dummy byte in ReadFast operation");
-                    break;
+            case DecodedOperation.OperationType.ReadFast:
+                // handle dummy byte and switch to read
+                currentOperation.Operation = DecodedOperation.OperationType.Read;
+                currentOperation.CommandBytesHandled--;
+                this.Log(LogLevel.Noisy, "Handling dummy byte in ReadFast operation");
+                break;
 
-                case DecodedOperation.OperationType.Read:
-                    result = ReadFromMemory();
-                    break;
+            case DecodedOperation.OperationType.Read:
+                result = ReadFromMemory();
+                break;
 
-                case DecodedOperation.OperationType.ReadID:
-                    if(currentOperation.CommandBytesHandled < deviceData.Length)
-                    {
-                        result = deviceData[currentOperation.CommandBytesHandled];
-                    }
-                    else
-                    {
-                        this.Log(LogLevel.Error, "Trying to read beyond the length of the device ID table.");
-                        result = 0;
-                    }
-                    break;
+            case DecodedOperation.OperationType.ReadID:
+                if(currentOperation.CommandBytesHandled < deviceData.Length)
+                {
+                    result = deviceData[currentOperation.CommandBytesHandled];
+                }
+                else
+                {
+                    this.Log(LogLevel.Error, "Trying to read beyond the length of the device ID table.");
+                    result = 0;
+                }
+                break;
 
-                case DecodedOperation.OperationType.Program:
-                    if(enable.Value)
-                    {
-                        WriteToMemory(data);
-                        result = data;
-                    }
-                    else
-                    {
-                        this.Log(LogLevel.Error, "Memory write operations are disabled.");
-                    }
-                    break;
+            case DecodedOperation.OperationType.Program:
+                if(enable.Value)
+                {
+                    WriteToMemory(data);
+                    result = data;
+                }
+                else
+                {
+                    this.Log(LogLevel.Error, "Memory write operations are disabled.");
+                }
+                break;
 
-                case DecodedOperation.OperationType.ReadRegister:
-                    result = ReadRegister((Register)currentOperation.Register);
-                    break;
+            case DecodedOperation.OperationType.ReadRegister:
+                result = ReadRegister((Register)currentOperation.Register);
+                break;
 
-                case DecodedOperation.OperationType.WriteRegister:
-                    WriteRegister((Register)currentOperation.Register, data);
-                    break;
+            case DecodedOperation.OperationType.WriteRegister:
+                WriteRegister((Register)currentOperation.Register, data);
+                break;
 
-                case DecodedOperation.OperationType.None:
-                    break;
+            case DecodedOperation.OperationType.None:
+                break;
 
-                default:
-                    this.Log(LogLevel.Warning, "Unhandled operation encountered while processing command bytes: {0}", currentOperation.Operation);
-                    break;
+            default:
+                this.Log(LogLevel.Warning, "Unhandled operation encountered while processing command bytes: {0}", currentOperation.Operation);
+                break;
             }
 
             currentOperation.CommandBytesHandled++;
@@ -419,83 +420,83 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             switch(register)
             {
-                case Register.VolatileConfiguration:
-                    volatileConfigurationRegister.Write(0, data);
+            case Register.VolatileConfiguration:
+                volatileConfigurationRegister.Write(0, data);
+                break;
+
+            case Register.NonVolatileConfiguration:
+                if((currentOperation.CommandBytesHandled) >= 2)
+                {
+                    this.Log(LogLevel.Error, "Trying to write to register {0} with more than expected 2 bytes.", Register.NonVolatileConfiguration);
                     break;
+                }
 
-                case Register.NonVolatileConfiguration:
-                    if((currentOperation.CommandBytesHandled) >= 2)
-                    {
-                        this.Log(LogLevel.Error, "Trying to write to register {0} with more than expected 2 bytes.", Register.NonVolatileConfiguration);
-                        break;
-                    }
+                BitHelper.UpdateWithShifted(ref temporaryNonVolatileConfiguration, data, currentOperation.CommandBytesHandled * 8, 8);
+                if(currentOperation.CommandBytesHandled == 1)
+                {
+                    nonVolatileConfigurationRegister.Write(0, (ushort)temporaryNonVolatileConfiguration);
+                }
+                break;
 
-                    BitHelper.UpdateWithShifted(ref temporaryNonVolatileConfiguration, data, currentOperation.CommandBytesHandled * 8, 8);
-                    if(currentOperation.CommandBytesHandled == 1)
-                    {
-                        nonVolatileConfigurationRegister.Write(0, (ushort)temporaryNonVolatileConfiguration);
-                    }
+            //listing all cases as other registers are not writable at all
+            case Register.EnhancedVolatileConfiguration:
+                enhancedVolatileConfigurationRegister.Write(0, data);
+                break;
+
+            case Register.SecurityRegister:
+                return;
+
+            case Register.ConfigurationRegister2:
+                switch(currentOperation.ExecutionAddress)
+                {
+                case 0x00000000:
+                    opiMode = ((data & 3) != 0);
+                    this.Log(LogLevel.Noisy, "OPI mode {0}", opiMode ? "enabled" : "disabled");
                     break;
-
-                //listing all cases as other registers are not writable at all
-                case Register.EnhancedVolatileConfiguration:
-                    enhancedVolatileConfigurationRegister.Write(0, data);
+                case 0x00000200:
                     break;
-
-                case Register.SecurityRegister:
-                    return;
-
-                case Register.ConfigurationRegister2:
-                    switch(currentOperation.ExecutionAddress)
-                    {
-                        case 0x00000000:
-                            opiMode = ((data & 3) != 0);
-                            this.Log(LogLevel.Noisy, "OPI mode {0}", opiMode ? "enabled" : "disabled");
-                            break;
-                        case 0x00000200:
-                            break;
-                        case 0x00000300:
-                            break;
-                        case 0x00000400:
-                            break;
-                        case 0x00000500:
-                            // CRC chunk size configuration / enabled
-                            break;
-                        case 0x00000800:
-                        case 0x04000800:
-                            // ECC fail status
-                            break;
-                        case 0x00000c00:
-                        case 0x04000c00:
-                            // ECC fail
-                            break;
-                        case 0x00000d00:
-                        case 0x04000d00:
-                            // ECC fail
-                            break;
-                        case 0x00000e00:
-                        case 0x04000e00:
-                            // ECC fail
-                            break;
-                        case 0x00000f00:
-                        case 0x04000f00:
-                            // ECC fail
-                            break;
-                        case 0x40000000:
-                            // Enable DOPI/SOPI after reset
-                            break;
-                        case 0x80000000:
-                            // CRC error
-                            break;
-                        default:
-                            this.Log(LogLevel.Warning, "Unrecognized CR2 address: {0:X8}", currentOperation.ExecutionAddress);
-                            break;
-                    }
+                case 0x00000300:
                     break;
-
+                case 0x00000400:
+                    break;
+                case 0x00000500:
+                    // CRC chunk size configuration / enabled
+                    break;
+                case 0x00000800:
+                case 0x04000800:
+                    // ECC fail status
+                    break;
+                case 0x00000c00:
+                case 0x04000c00:
+                    // ECC fail
+                    break;
+                case 0x00000d00:
+                case 0x04000d00:
+                    // ECC fail
+                    break;
+                case 0x00000e00:
+                case 0x04000e00:
+                    // ECC fail
+                    break;
+                case 0x00000f00:
+                case 0x04000f00:
+                    // ECC fail
+                    break;
+                case 0x40000000:
+                    // Enable DOPI/SOPI after reset
+                    break;
+                case 0x80000000:
+                    // CRC error
+                    break;
                 default:
-                    this.Log(LogLevel.Warning, "Trying to write 0x{0} to unsupported register \"{1}\"", data, register);
+                    this.Log(LogLevel.Warning, "Unrecognized CR2 address: {0:X8}", currentOperation.ExecutionAddress);
                     break;
+                }
+                break;
+
+            default:
+                this.Log(LogLevel.Warning, "Trying to write 0x{0} to unsupported register \"{1}\"", data, register);
+                break;
             }
         }
 
@@ -503,81 +504,81 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             switch(register)
             {
-                case Register.Status:
-                    // The documentation states that at least 1 byte will be read
-                    // If more than 1 byte is read, the same byte is returned
-                    return statusRegister.Read();
-                case Register.FlagStatus:
-                    // The documentation states that at least 1 byte will be read
-                    // If more than 1 byte is read, the same byte is returned
-                    return flagStatusRegister.Read();
-                case Register.VolatileConfiguration:
-                    // The documentation states that at least 1 byte will be read
-                    // If more than 1 byte is read, the same byte is returned
-                    return volatileConfigurationRegister.Read();
-                case Register.NonVolatileConfiguration:
-                    // The documentation states that at least 2 bytes will be read
-                    // After all 16 bits of the register have been read, 0 is returned
-                    if((currentOperation.CommandBytesHandled) < 2)
+            case Register.Status:
+                // The documentation states that at least 1 byte will be read
+                // If more than 1 byte is read, the same byte is returned
+                return statusRegister.Read();
+            case Register.FlagStatus:
+                // The documentation states that at least 1 byte will be read
+                // If more than 1 byte is read, the same byte is returned
+                return flagStatusRegister.Read();
+            case Register.VolatileConfiguration:
+                // The documentation states that at least 1 byte will be read
+                // If more than 1 byte is read, the same byte is returned
+                return volatileConfigurationRegister.Read();
+            case Register.NonVolatileConfiguration:
+                // The documentation states that at least 2 bytes will be read
+                // After all 16 bits of the register have been read, 0 is returned
+                if((currentOperation.CommandBytesHandled) < 2)
+                {
+                    return (byte)BitHelper.GetValue(nonVolatileConfigurationRegister.Read(), currentOperation.CommandBytesHandled * 8, 8);
+                }
+                return 0;
+            case Register.SecurityRegister:
+                return 0;
+            case Register.EnhancedVolatileConfiguration:
+                return enhancedVolatileConfigurationRegister.Read();
+            case Register.ConfigurationRegister2:
+                switch(currentOperation.ExecutionAddress)
+                {
+                case 0x00000000:
+                    if(opiMode)
                     {
-                        return (byte)BitHelper.GetValue(nonVolatileConfigurationRegister.Read(), currentOperation.CommandBytesHandled * 8, 8);
+                        return 2;
                     }
                     return 0;
-                case Register.SecurityRegister:
+                case 0x00000200:
                     return 0;
-                case Register.EnhancedVolatileConfiguration:
-                    return enhancedVolatileConfigurationRegister.Read();
-                case Register.ConfigurationRegister2:
-                    switch (currentOperation.ExecutionAddress)
-                    {
-                        case 0x00000000:
-                            if(opiMode)
-                            {
-                                return 2;
-                            }
-                            return 0;
-                        case 0x00000200:
-                            return 0;
-                        case 0x00000300:
-                            return 0;
-                        case 0x00000400:
-                            return 0;
-                        case 0x00000500:
-                            // CRC chunk size configuration / enabled
-                            return 0;
-                        case 0x00000800:
-                        case 0x04000800:
-                            // ECC fail status
-                            return 0;
-                        case 0x00000c00:
-                        case 0x04000c00:
-                            // ECC fail
-                            return 0;
-                        case 0x00000d00:
-                        case 0x04000d00:
-                            // ECC fail
-                            return 0;
-                        case 0x00000e00:
-                        case 0x04000e00:
-                            // ECC fail
-                            return 0;
-                        case 0x00000f00:
-                        case 0x04000f00:
-                            // ECC fail
-                            return 0;
-                        case 0x40000000:
-                            // Enable DOPI/SOPI after reset
-                            return 0;
-                        case 0x80000000:
-                            // CRC error
-                            return 0;
-                        default:
-                            this.Log(LogLevel.Warning, "Unrecognized CR2 address: {0:X8}", currentOperation.ExecutionAddress);
-                            return 0;
-                    }
+                case 0x00000300:
+                    return 0;
+                case 0x00000400:
+                    return 0;
+                case 0x00000500:
+                    // CRC chunk size configuration / enabled
+                    return 0;
+                case 0x00000800:
+                case 0x04000800:
+                    // ECC fail status
+                    return 0;
+                case 0x00000c00:
+                case 0x04000c00:
+                    // ECC fail
+                    return 0;
+                case 0x00000d00:
+                case 0x04000d00:
+                    // ECC fail
+                    return 0;
+                case 0x00000e00:
+                case 0x04000e00:
+                    // ECC fail
+                    return 0;
+                case 0x00000f00:
+                case 0x04000f00:
+                    // ECC fail
+                    return 0;
+                case 0x40000000:
+                    // Enable DOPI/SOPI after reset
+                    return 0;
+                case 0x80000000:
+                    // CRC error
+                    return 0;
                 default:
-                    this.Log(LogLevel.Warning, "Trying to read from unsupported register \"{0}\"", register);
+                    this.Log(LogLevel.Warning, "Unrecognized CR2 address: {0:X8}", currentOperation.ExecutionAddress);
                     return 0;
+                }
+            default:
+                this.Log(LogLevel.Warning, "Trying to read from unsupported register \"{0}\"", register);
+                return 0;
             }
         }
 
@@ -587,36 +588,36 @@ namespace Antmicro.Renode.Peripherals.SPI
             // but at the moment we have implemented just these ones
             switch(currentOperation.Operation)
             {
-                case DecodedOperation.OperationType.Erase:
-                    if(!enable.Value)
-                    {
-                        this.Log(LogLevel.Error, "Erase operations are disabled.");
-                        return;
-                    }
-                    if(currentOperation.ExecutionAddress >= underlyingMemory.Size)
-                    {
-                        this.Log(LogLevel.Error, "Cannot erase memory because current address 0x{0:X} exceeds configured memory size.", currentOperation.ExecutionAddress);
-                        return;
-                    }
-                    switch(currentOperation.EraseSize)
-                    {
-                        case DecodedOperation.OperationEraseSize.Sector:
-                            EraseSector();
-                            break;
-                        case DecodedOperation.OperationEraseSize.Subsector4K:
-                            EraseSubsector4K();
-                            break;
-                        case DecodedOperation.OperationEraseSize.Die:
-                            EraseDie();
-                            break;
-                        default:
-                            this.Log(LogLevel.Warning, "Unsupported erase type: {0}", currentOperation.EraseSize);
-                            break;
-                    }
+            case DecodedOperation.OperationType.Erase:
+                if(!enable.Value)
+                {
+                    this.Log(LogLevel.Error, "Erase operations are disabled.");
+                    return;
+                }
+                if(currentOperation.ExecutionAddress >= underlyingMemory.Size)
+                {
+                    this.Log(LogLevel.Error, "Cannot erase memory because current address 0x{0:X} exceeds configured memory size.", currentOperation.ExecutionAddress);
+                    return;
+                }
+                switch(currentOperation.EraseSize)
+                {
+                case DecodedOperation.OperationEraseSize.Sector:
+                    EraseSector();
+                    break;
+                case DecodedOperation.OperationEraseSize.Subsector4K:
+                    EraseSubsector4K();
+                    break;
+                case DecodedOperation.OperationEraseSize.Die:
+                    EraseDie();
                     break;
                 default:
-                    this.Log(LogLevel.Warning, "Encountered unexpected command: {0}", currentOperation);
+                    this.Log(LogLevel.Warning, "Unsupported erase type: {0}", currentOperation.EraseSize);
                     break;
+                }
+                break;
+            default:
+                this.Log(LogLevel.Warning, "Encountered unexpected command: {0}", currentOperation);
+                break;
             }
         }
 
@@ -674,7 +675,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             if(internalBackingFile != null)
             {
                 internalBackingFile.Seek(position, SeekOrigin.Begin);
-                internalBackingFile.Write(new [] { val }, 0, 1);
+                internalBackingFile.Write(new[] { val }, 0, 1);
                 internalBackingFile.Flush();
             }
         }

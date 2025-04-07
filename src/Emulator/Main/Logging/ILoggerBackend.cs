@@ -13,10 +13,15 @@ namespace Antmicro.Renode.Logging
     public interface ILoggerBackend : IDisposable
     {
         void Log(LogEntry entry);
+
         void SetLogLevel(LogLevel level, int sourceId = -1);
+
         LogLevel GetLogLevel();
+
         IDictionary<int, LogLevel> GetCustomLogLevels();
+
         void Reset();
+
         void Flush();
 
         bool IsControllable { get; }

@@ -22,6 +22,7 @@ namespace Antmicro.Renode.Peripherals
         }
 
         public string Name { get; }
+
         public bool WarnOnUsage { get; }
     }
 }

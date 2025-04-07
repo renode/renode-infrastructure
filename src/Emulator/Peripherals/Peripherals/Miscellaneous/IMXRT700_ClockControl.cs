@@ -5,39 +5,39 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Linq;
-using Antmicro.Renode.Core;
+
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Core.Structure.Registers;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public partial class IMXRT700_ClockControl : IDoubleWordPeripheral, IKnownSize
     {
-        public IMXRT700_ClockControl(IMachine machine, int instanceIndex)
+        public IMXRT700_ClockControl(int instanceIndex)
         {
-            switch (instanceIndex)
+            switch(instanceIndex)
             {
-                case 0:
-                    registers = DefineInstance0Registers();
-                    AddFRORegisters(ref registers, instanceIndex); // FRO1
-                    break;
-                case 1:
-                    registers = DefineInstance1Registers();
-                    break;
-                case 2:
-                    registers = DefineInstance2Registers();
-                    break;
-                case 3:
-                    registers = DefineInstance3Registers();
-                    AddFRORegisters(ref registers, instanceIndex); // FRO2
-                    break;
-                case 4:
-                    registers = DefineInstance4Registers();
-                    break;
-                default:
-                    throw new ConstructionException($"No registers definition for instance with index {instanceIndex}");
+            case 0:
+                registers = DefineInstance0Registers();
+                AddFRORegisters(ref registers, instanceIndex); // FRO1
+                break;
+            case 1:
+                registers = DefineInstance1Registers();
+                break;
+            case 2:
+                registers = DefineInstance2Registers();
+                break;
+            case 3:
+                registers = DefineInstance3Registers();
+                AddFRORegisters(ref registers, instanceIndex); // FRO2
+                break;
+            case 4:
+                registers = DefineInstance4Registers();
+                break;
+            default:
+                throw new ConstructionException($"No registers definition for instance with index {instanceIndex}");
             }
             Reset();
         }
@@ -62,7 +62,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private void AddFRORegisters(ref DoubleWordRegisterCollection collection, int instanceIndex)
         {
             var instancesContainingFRO = new int[]{0, 3};
-            if (!instancesContainingFRO.Any(x => instanceIndex == x))
+            if(!instancesContainingFRO.Any(x => instanceIndex == x))
             {
                 throw new RecoverableException($"CLKCTL instance number {instanceIndex} does not have an FRO instance");
             }
@@ -85,12 +85,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(26, 6);
 
             FRORegisters.FROControlStatusSet.Define(collection, 0x1F00)
-                .WithFlag(0, writeCallback: (_, val) => { if (val) { froEnable.Value = true; } }, name: "FROEN")
+                .WithFlag(0, writeCallback: (_, val) => { if(val) { froEnable.Value = true; } }, name: "FROEN")
                 .WithReservedBits(1, 3)
-                .WithFlag(4, writeCallback: (_, val) => { if (val) { trimEnable.Value = true; } }, name: "TREN")
-                .WithFlag(5, writeCallback: (_, val) => { if (val) { autotrimUpdateEnable.Value = true; } }, name: "TRUPEN")
-                .WithFlag(6, writeCallback: (_, val) => { if (val) { coarseTrim.Value = true; } }, name: "COARSEN")
-                .WithFlag(7, writeCallback: (_, val) => { if (val) { tuneOnce.Value = true; } }, name: "TUNEONCE")
+                .WithFlag(4, writeCallback: (_, val) => { if(val) { trimEnable.Value = true; } }, name: "TREN")
+                .WithFlag(5, writeCallback: (_, val) => { if(val) { autotrimUpdateEnable.Value = true; } }, name: "TRUPEN")
+                .WithFlag(6, writeCallback: (_, val) => { if(val) { coarseTrim.Value = true; } }, name: "COARSEN")
+                .WithFlag(7, writeCallback: (_, val) => { if(val) { tuneOnce.Value = true; } }, name: "TUNEONCE")
                 .WithValueField(8, 5, writeCallback: (_, val) => { froClockGate.Value = val; }, name: "CLKGATE")
                 .WithReservedBits(13, 3)
                 .WithTaggedFlag("LOL_ERR", 16)
@@ -102,12 +102,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(26, 6);
 
             FRORegisters.FROControlStatusClear.Define(collection, 0x1F00)
-                .WithFlag(0, writeCallback: (_, val) => { if (val) { froEnable.Value = false; } }, name: "FROEN")
+                .WithFlag(0, writeCallback: (_, val) => { if(val) { froEnable.Value = false; } }, name: "FROEN")
                 .WithReservedBits(1, 3)
-                .WithFlag(4, writeCallback: (_, val) => { if (val) { trimEnable.Value = false; } }, name: "TREN")
-                .WithFlag(5, writeCallback: (_, val) => { if (val) { autotrimUpdateEnable.Value = false; } }, name: "TRUPEN")
-                .WithFlag(6, writeCallback: (_, val) => { if (val) { coarseTrim.Value = false; } }, name: "COARSEN")
-                .WithFlag(7, writeCallback: (_, val) => { if (val) { tuneOnce.Value = false; } }, name: "TUNEONCE")
+                .WithFlag(4, writeCallback: (_, val) => { if(val) { trimEnable.Value = false; } }, name: "TREN")
+                .WithFlag(5, writeCallback: (_, val) => { if(val) { autotrimUpdateEnable.Value = false; } }, name: "TRUPEN")
+                .WithFlag(6, writeCallback: (_, val) => { if(val) { coarseTrim.Value = false; } }, name: "COARSEN")
+                .WithFlag(7, writeCallback: (_, val) => { if(val) { tuneOnce.Value = false; } }, name: "TUNEONCE")
                 .WithTag("CLKGATE", 8, 5)
                 .WithReservedBits(13, 3)
                 .WithTaggedFlag("LOL_ERR", 16)
@@ -119,12 +119,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(26, 6);
 
             FRORegisters.FROControlStatusToggle.Define(collection, 0x1F00)
-                .WithFlag(0, writeCallback: (_, val) => { if (val) { froEnable.Value = !froEnable.Value; } }, name: "FROEN")
+                .WithFlag(0, writeCallback: (_, val) => { if(val) { froEnable.Value = !froEnable.Value; } }, name: "FROEN")
                 .WithReservedBits(1, 3)
-                .WithFlag(4, writeCallback: (_, val) => { if (val) { trimEnable.Value = !trimEnable.Value; } }, name: "TREN")
-                .WithFlag(5, writeCallback: (_, val) => { if (val) { autotrimUpdateEnable.Value = !autotrimUpdateEnable.Value; } }, name: "TRUPEN")
-                .WithFlag(6, writeCallback: (_, val) => { if (val) { coarseTrim.Value = !coarseTrim.Value; } }, name: "COARSEN")
-                .WithFlag(7, writeCallback: (_, val) => { if (val) { tuneOnce.Value = !tuneOnce.Value; } }, name: "TUNEONCE")
+                .WithFlag(4, writeCallback: (_, val) => { if(val) { trimEnable.Value = !trimEnable.Value; } }, name: "TREN")
+                .WithFlag(5, writeCallback: (_, val) => { if(val) { autotrimUpdateEnable.Value = !autotrimUpdateEnable.Value; } }, name: "TRUPEN")
+                .WithFlag(6, writeCallback: (_, val) => { if(val) { coarseTrim.Value = !coarseTrim.Value; } }, name: "COARSEN")
+                .WithFlag(7, writeCallback: (_, val) => { if(val) { tuneOnce.Value = !tuneOnce.Value; } }, name: "TUNEONCE")
                 .WithTag("CLKGATE", 8, 5)
                 .WithReservedBits(13, 3)
                 .WithTaggedFlag("LOL_ERR", 16)
@@ -269,8 +269,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithTag("TRIMCNT", 0, 32);
         }
 
-        private DoubleWordRegisterCollection registers;
-
         /* FRO implementation
         *  As the memory adresses of the FRO instances collide with CLKCTL, this was implemented inside CLKCTL to avoid
         *  address collisions. Not all instances use below definitions.
@@ -291,6 +289,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private IValueRegisterField trimConfiguration1;
         private IValueRegisterField trimConfiguration2;
+
+        private readonly DoubleWordRegisterCollection registers;
 
         private enum FRORegisters
         {

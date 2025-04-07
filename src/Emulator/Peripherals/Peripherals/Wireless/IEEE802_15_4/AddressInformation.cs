@@ -39,8 +39,11 @@ namespace Antmicro.Renode.Peripherals.Wireless.IEEE802_15_4
         }
 
         public uint SourcePan { get; private set; }
+
         public Address SourceAddress { get; private set; }
+
         public uint DestinationPan { get; private set; }
+
         public Address DestinationAddress { get; private set; }
 
         public ICollection<byte> Bytes { get; private set; }
@@ -51,4 +54,3 @@ namespace Antmicro.Renode.Peripherals.Wireless.IEEE802_15_4
         }
     }
 }
-

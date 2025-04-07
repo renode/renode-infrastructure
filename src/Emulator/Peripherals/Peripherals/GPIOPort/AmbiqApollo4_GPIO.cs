@@ -4,11 +4,12 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using System;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
 {
@@ -69,12 +70,19 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         public long Size => 0x440;
 
         public GPIO McuN0IrqBank0 => irq[(int)IrqType.McuN0IrqBank0];
+
         public GPIO McuN0IrqBank1 => irq[(int)IrqType.McuN0IrqBank1];
+
         public GPIO McuN0IrqBank2 => irq[(int)IrqType.McuN0IrqBank2];
+
         public GPIO McuN0IrqBank3 => irq[(int)IrqType.McuN0IrqBank3];
+
         public GPIO McuN1IrqBank0 => irq[(int)IrqType.McuN1IrqBank0];
+
         public GPIO McuN1IrqBank1 => irq[(int)IrqType.McuN1IrqBank1];
+
         public GPIO McuN1IrqBank2 => irq[(int)IrqType.McuN1IrqBank2];
+
         public GPIO McuN1IrqBank3 => irq[(int)IrqType.McuN1IrqBank3];
 
         public DoubleWordRegisterCollection RegistersCollection { get; }
@@ -324,20 +332,20 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         {
             switch(ioMode[pinIdx].Value)
             {
-                case IOMode.OutputDisabled:
-                    return false;
+            case IOMode.OutputDisabled:
+                return false;
 
-                case IOMode.PushPullOutputMode:
-                    return true;
+            case IOMode.PushPullOutputMode:
+                return true;
 
-                case IOMode.OpenDrainOutputMode:
-                    return false;
+            case IOMode.OpenDrainOutputMode:
+                return false;
 
-                case IOMode.TristatePushPullOutputMode:
-                    return tristatePinOutputEnabled[pinIdx];
+            case IOMode.TristatePushPullOutputMode:
+                return tristatePinOutputEnabled[pinIdx];
 
-                default:
-                    throw new ArgumentException($"Unexpected IOMode: {ioMode[pinIdx].Value}");
+            default:
+                throw new ArgumentException($"Unexpected IOMode: {ioMode[pinIdx].Value}");
             }
         }
 

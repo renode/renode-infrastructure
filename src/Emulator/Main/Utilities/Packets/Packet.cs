@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+
 using Antmicro.Renode.Utilities.Collections;
 
 namespace Antmicro.Renode.Utilities.Packets
@@ -158,7 +159,7 @@ namespace Antmicro.Renode.Utilities.Packets
 
                 if(Misc.IsStructType(type) || type.IsClass)
                 {
-                    if (!TryDecode(type, data, out var nestedPacket, offset))
+                    if(!TryDecode(type, data, out var nestedPacket, offset))
                     {
                         return false;
                     }

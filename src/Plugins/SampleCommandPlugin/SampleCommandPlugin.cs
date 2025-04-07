@@ -5,9 +5,8 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-﻿using System;
-using Antmicro.Renode.Plugins;
-using Antmicro.Renode;
+using System;
+
 using Antmicro.Renode.UserInterface;
 
 namespace Antmicro.Renode.Plugins.SampleCommandPlugin
@@ -17,7 +16,7 @@ namespace Antmicro.Renode.Plugins.SampleCommandPlugin
     {
         public SampleCommandPlugin(Monitor monitor)
         {
-            this.monitor = monitor;            
+            this.monitor = monitor;
             helloCommand = new HelloCommand(monitor);
             monitor.RegisterCommand(helloCommand);
         }

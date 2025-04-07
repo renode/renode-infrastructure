@@ -7,13 +7,13 @@
 using System;
 using System.Linq;
 using System.Threading;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Network;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.Memory;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Network
@@ -189,8 +189,8 @@ namespace Antmicro.Renode.Peripherals.Network
             }
             case PhyState.WaitingForCommand:
             {
-                const int OpCodeRead = 0x1;
-                const int OpCodeWrite = 0x2;
+                const int opCodeRead = 0x1;
+                const int opCodeWrite = 0x2;
 
                 var startField = bbHelper.DecodedOutput & 0x3;
                 var opCode = (bbHelper.DecodedOutput >> 2) & 0x3;
@@ -198,14 +198,14 @@ namespace Antmicro.Renode.Peripherals.Network
                 var registerAddress = (ushort)(BitHelper.ReverseBits((ushort)((bbHelper.DecodedOutput >> 9) & 0x1f)) >> 11);
 
                 if(startField != 0x2
-                    || (opCode != OpCodeRead && opCode != OpCodeWrite))
+                    || (opCode != opCodeRead && opCode != opCodeWrite))
                 {
                     this.Log(LogLevel.Warning, "Received an invalid PHY command: 0x{0:X}. Ignoring it", bbHelper.DecodedOutput);
                     phyState = PhyState.Idle;
                     break;
                 }
 
-                if(opCode == OpCodeWrite)
+                if(opCode == opCodeWrite)
                 {
                     phyState = PhyState.WaitingForData;
                     this.Log(LogLevel.Noisy, "Write command to PHY 0x{0:X}, register 0x{1:X}. Waiting for data", phyAddress, registerAddress);
@@ -252,15 +252,17 @@ namespace Antmicro.Renode.Peripherals.Network
             }
         }
 
-        public MACAddress MAC { get; set; }
-
-        public event Action<EthernetFrame> FrameReady;
-
         public GPIO IRQ { get; } = new GPIO();
 
         public DoubleWordRegisterCollection RegistersCollection { get; private set; }
 
         public long Size => 0x100;
+
+        public MACAddress MAC { get; set; }
+
+        public event Action<EthernetFrame> FrameReady;
+
+        private static int NumberOfInstances;
 
         private void DefineRegisters()
         {
@@ -411,8 +413,6 @@ namespace Antmicro.Renode.Peripherals.Network
             return null;
         }
 
-        private static int NumberOfInstances;
-
         private IFlagRegisterField readerEventEnabled;
         private IFlagRegisterField writerEventEnabled;
         private IFlagRegisterField readerEventPending;
@@ -423,7 +423,7 @@ namespace Antmicro.Renode.Peripherals.Network
         private ushort lastPhyAddress;
         private ushort lastRegisterAddress;
         private PhyState phyState;
-        private BitBangHelper bbHelper;
+        private readonly BitBangHelper bbHelper;
 
         // WARNING:
         // read slots contains packets to be sent

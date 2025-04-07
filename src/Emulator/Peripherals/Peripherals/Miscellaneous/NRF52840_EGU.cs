@@ -6,6 +6,7 @@
 //
 
 using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -29,11 +30,17 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             base.Reset();
         }
 
+        public long Size => 0x1000;
+
+        public GPIO IRQ { get; } = new GPIO();
+
+        public event Action<uint> EventTriggered;
+
         private void DefineRegisters()
         {
-            Registers.TasksTrigger0.DefineMany(this, NumberOfTasks, (reg, i) => 
+            Registers.TasksTrigger0.DefineMany(this, NumberOfTasks, (reg, i) =>
             {
-                reg.WithFlag(0, FieldMode.Write, writeCallback: (_, value) => 
+                reg.WithFlag(0, FieldMode.Write, writeCallback: (_, value) =>
                 {
                     if(value)
                     {
@@ -51,9 +58,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             // These registers are used to check if an event has been generated for a particular task (if a task has been triggered)
             // and to reset event state on write
-            Registers.EventsTriggered0.DefineMany(this, NumberOfTasks, (reg, i) => 
+            Registers.EventsTriggered0.DefineMany(this, NumberOfTasks, (reg, i) =>
             {
-                reg.WithFlag(0, flagField: out events[i], writeCallback: (_, value) => 
+                reg.WithFlag(0, flagField: out events[i], writeCallback: (_, value) =>
                 {
                     if(!value)
                     {
@@ -69,17 +76,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             RegistersCollection.AddRegister((long)Registers.InterruptClear, interruptManager.GetInterruptEnableClearRegister<DoubleWordRegister>());
         }
 
-        public long Size => 0x1000;
-
-        public event Action<uint> EventTriggered;
-        public GPIO IRQ { get; } = new GPIO();
+        private readonly IFlagRegisterField[] events = new IFlagRegisterField[NumberOfTasks];
         private readonly InterruptManager<Events> interruptManager;
 
         private const uint NumberOfTasks = 16;
         private const uint TasksTriggerRegisterSize = 0x4;
         private const uint EventsTriggerRegisterSize = 0x4;
-
-        private readonly IFlagRegisterField[] events = new IFlagRegisterField[NumberOfTasks];
 
         private enum Events
         {

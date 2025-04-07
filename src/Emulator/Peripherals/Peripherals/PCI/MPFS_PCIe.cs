@@ -4,9 +4,9 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -141,6 +141,19 @@ namespace Antmicro.Renode.Peripherals.PCI
             registers = new DoubleWordRegisterCollection(this, registersDictionary);
         }
 
+        public void RegisterBar(Range range, IPCIePeripheral peripheral, uint bar)
+        {
+            //This has to be improved greatly.
+            //1. have fast search
+            //2. invalidate overlaps
+            var previousRegistration = memoryMap.Where(x => x.Value.BarNumber == bar && x.Value.TargetPeripheral == peripheral).Select(x => x.Key);
+            if(previousRegistration.Any())
+            {
+                memoryMap.Remove(previousRegistration.SingleOrDefault());
+            }
+            memoryMap[range] = new TargetBar { BarNumber = bar, TargetPeripheral = peripheral };
+        }
+
         public uint ReadDoubleWord(long offset)
         {
             return registers.Read(offset);
@@ -154,7 +167,6 @@ namespace Antmicro.Renode.Peripherals.PCI
         [ConnectionRegion("ecam")]
         public void WriteDoubleWordEcam(long offset, uint value)
         {
-
             var table = axiAddressTables.SingleOrDefault(x => x.DoesAddressHit(currentAccessAbsoluteAddress));
             if(table == null)
             {
@@ -287,21 +299,8 @@ namespace Antmicro.Renode.Peripherals.PCI
                             .WithValueField(0, 32, valueProviderCallback: _ => (uint)BitHelper.GetValue(table.TranslationMask, 0, 32), name: "TRSL_MASK")
                         );
             registers.Add(baseOffset + (long)AddressTranslationRegisters.TranslationMaskHigh, new DoubleWordRegister(this)
-                            .WithValueField(0, 32, valueProviderCallback: _ => (uint)BitHelper.GetValue(table .TranslationMask, 32, 32), name: "TRSL_MASK")
+                            .WithValueField(0, 32, valueProviderCallback: _ => (uint)BitHelper.GetValue(table.TranslationMask, 32, 32), name: "TRSL_MASK")
                         );
-        }
-
-        public void RegisterBar(Range range, IPCIePeripheral peripheral, uint bar)
-        {
-            //This has to be improved greatly.
-            //1. have fast search
-            //2. invalidate overlaps
-            var previousRegistration = memoryMap.Where(x => x.Value.BarNumber == bar && x.Value.TargetPeripheral == peripheral).Select(x => x.Key);
-            if(previousRegistration.Any())
-            {
-                memoryMap.Remove(previousRegistration.SingleOrDefault());
-            }
-            memoryMap[range] = new TargetBar { BarNumber = bar, TargetPeripheral = peripheral };
         }
 
         private ulong currentAccessAbsoluteAddress;
@@ -319,6 +318,57 @@ namespace Antmicro.Renode.Peripherals.PCI
         {
             public IPCIePeripheral TargetPeripheral;
             public uint BarNumber;
+        }
+
+        private class AddressTranslationTable
+        {
+            public AddressTranslationTable(MPFS_PCIe parent)
+            {
+                this.parent = parent;
+                this.size = MinSize;
+            }
+
+            public ulong Translate(ulong address)
+            {
+                return address - SourceAddress + DestinationAddress;
+            }
+
+            public bool DoesAddressHit(ulong address)
+            {
+                return Enabled && address >= SourceAddress && ((address - SourceAddress) & TranslationMask) == 0;
+            }
+
+            // we handle 63 separately as it would overflow the ulong. The result is correct.
+            public ulong TranslationMask => size == MaxSize ? 0ul : 0ul - (2ul << ((int)SizePower + 1));
+
+            public uint SizePower
+            {
+                get
+                {
+                    return size;
+                }
+
+                set
+                {
+                    if(value > MaxSize || value < MinSize)
+                    {
+                        parent.Log(LogLevel.Warning, "Trying to set address translation table size out of bounds: writing {0} when should be between {1} and {2}. Ignoring.", value, MinSize, MaxSize);
+                    }
+                    size = value;
+                }
+            }
+
+            public bool Enabled;
+            public ulong SourceAddress;
+            public ulong DestinationAddress;
+
+            public PCIeSpace TargetSpace;
+
+            private uint size;
+            private readonly MPFS_PCIe parent;
+
+            private const int MinSize = 11;
+            private const int MaxSize = 63;
         }
 
         private struct EcamLookupResult
@@ -341,56 +391,6 @@ namespace Antmicro.Renode.Peripherals.PCI
             public int Device;
             public int Function;
             public uint Offset;
-        }
-
-        private class AddressTranslationTable
-        {
-            public AddressTranslationTable(MPFS_PCIe parent)
-            {
-                this.parent = parent;
-                this.size = MinSize;
-            }
-
-            public ulong Translate(ulong address)
-            {
-                return address - SourceAddress + DestinationAddress;
-            }
-
-            public bool DoesAddressHit(ulong address)
-            {
-                return Enabled && address >= SourceAddress && ((address - SourceAddress) & TranslationMask) == 0;
-            }
-
-            public uint SizePower
-            {
-                get
-                {
-                    return size;
-                }
-                set
-                {
-                    if(value > MaxSize || value < MinSize)
-                    {
-                        parent.Log(LogLevel.Warning, "Trying to set address translation table size out of bounds: writing {0} when should be between {1} and {2}. Ignoring.", value, MinSize, MaxSize);
-                    }
-                    size = value;
-                }
-            }
-
-            public bool Enabled;
-            public ulong SourceAddress;
-            public ulong DestinationAddress;
-
-            public PCIeSpace TargetSpace;
-
-            // we handle 63 separately as it would overflow the ulong. The result is correct.
-            public ulong TranslationMask => size == MaxSize ? 0ul : 0ul - (2ul << ((int)SizePower + 1));
-
-            private uint size;
-            private MPFS_PCIe parent;
-
-            private const int MinSize = 11;
-            private const int MaxSize = 63;
         }
 
         private enum AddressTranslationRegisters

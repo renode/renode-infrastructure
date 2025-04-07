@@ -4,18 +4,17 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class K6xF_RNG : IDoubleWordPeripheral, IKnownSize
     {
-        public K6xF_RNG(IMachine machine)
+        public K6xF_RNG()
         {
             IRQ = new GPIO();
 

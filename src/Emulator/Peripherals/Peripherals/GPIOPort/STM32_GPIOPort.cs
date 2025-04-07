@@ -5,14 +5,14 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
 {
@@ -140,7 +140,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 },
                 {(long)Registers.OutputSpeed, new DoubleWordRegister(this)
                     .WithEnumFields<DoubleWordRegister, OutputSpeed>(0, 2, NumberOfPins, name: "OSPEEDR",
-                        valueProviderCallback: (idx, _) => outputSpeed[idx],  
+                        valueProviderCallback: (idx, _) => outputSpeed[idx],
                         writeCallback: (idx, _, val) => { outputSpeed[idx] = val; })
                 },
                 {(long)Registers.PullUpPullDown, new DoubleWordRegister(this)
@@ -157,7 +157,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithReservedBits(16, 16)
                 },
                 {(long)Registers.BitSet, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, FieldMode.Write, 
+                    .WithValueField(0, 16, FieldMode.Write,
                         writeCallback: (_, val) => { if(val != 0) WriteState((ushort)(BitHelper.GetValueFromBitsArray(State) | val)); },
                         name: "GPIOx_BS")
                     .WithValueField(16, 16, FieldMode.Write,
@@ -197,7 +197,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                         )
                 },
                 {(long)Registers.BitReset, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, FieldMode.Write, 
+                    .WithValueField(0, 16, FieldMode.Write,
                         writeCallback: (_, val) => { if(val != 0) WriteState((ushort)(BitHelper.GetValueFromBitsArray(State) & ~val)); },
                         name: "GPIOx_BRR")
                     .WithReservedBits(16, 16)
@@ -256,6 +256,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             }
 
             public bool IsConnected { get; set; }
+
             public ulong ActiveFunction
             {
                 get => (ulong)activeFunction;
@@ -280,9 +281,10 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 return true;
             }
 
+            private int activeFunction;
+
             private readonly STM32_GPIOPort port;
             private readonly int pin;
-            private int activeFunction;
         }
 
         private enum Mode

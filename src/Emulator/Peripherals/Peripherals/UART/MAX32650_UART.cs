@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -68,6 +69,7 @@ namespace Antmicro.Renode.Peripherals.UART
         }
 
         public GPIO IRQ { get; }
+
         public long Size => 0x1000;
 
         protected override void CharWritten()
@@ -281,11 +283,11 @@ namespace Antmicro.Renode.Peripherals.UART
         private IFlagRegisterField interruptRxOverrunPending;
         private IFlagRegisterField interruptRxFIFOLevelPending;
 
-        private const long FIFOBufferSize = 32;
-        private const long InternalBitRateClockFrequency = 7372800; // Only used to calculate baudrate
-
         private readonly DoubleWordRegisterCollection registers;
         private readonly MAX32650_GCR GCR;
+
+        private const long FIFOBufferSize = 32;
+        private const long InternalBitRateClockFrequency = 7372800; // Only used to calculate baudrate
 
         private enum ParityMode : byte
         {

@@ -92,7 +92,7 @@ namespace Antmicro.Renode.Storage.SCSI.Commands
         [PacketField, Offset(bytes: 2, bits: 7), Width(1)]
         public bool MultipleLogicalUnitsShare;
         [PacketField, Offset(bytes: 4)]
-        private byte Reserved;
+        private readonly byte Reserved;
     }
 
     public struct ReadCapcity10Result
@@ -126,7 +126,7 @@ namespace Antmicro.Renode.Storage.SCSI.Commands
         [PacketField, Offset(bytes: 15)]
         public byte LowestAlignedLogicalBlockAddressHighLSB;
         [PacketField, Offset(bytes: 16), Width(16)]
-        private byte[] Reserved;
+        private readonly byte[] Reserved;
     }
 #pragma warning restore 649, 169
 }

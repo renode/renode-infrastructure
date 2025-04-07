@@ -5,8 +5,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-
 namespace Antmicro.Renode.Peripherals.DMA
 {
     public struct Request
@@ -25,8 +23,8 @@ namespace Antmicro.Renode.Peripherals.DMA
             this.DestinationIncrementStep = (uint)writeTransferType;
         }
 
-        public Request(Place source, Place destination, int size, TransferType readTransferType, TransferType writeTransferType, 
-            uint sourceIncrementStep, uint destinationIncrementStep, bool incrementReadAddress = true, 
+        public Request(Place source, Place destination, int size, TransferType readTransferType, TransferType writeTransferType,
+            uint sourceIncrementStep, uint destinationIncrementStep, bool incrementReadAddress = true,
             bool incrementWriteAddress = true) : this()
         {
             this.Source = source;
@@ -41,14 +39,21 @@ namespace Antmicro.Renode.Peripherals.DMA
         }
 
         public Place Source { get; private set; }
+
         public Place Destination { get; private set; }
+
         public uint SourceIncrementStep { get; private set; }
+
         public uint DestinationIncrementStep { get; private set; }
+
         public int Size { get; private set; }
+
         public TransferType ReadTransferType { get; private set; }
+
         public TransferType WriteTransferType { get; private set; }
+
         public bool IncrementReadAddress { get; private set; }
+
         public bool IncrementWriteAddress { get; private set; }
     }
 }
-

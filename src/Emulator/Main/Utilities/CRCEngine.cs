@@ -8,7 +8,6 @@
 
 using System;
 using System.Collections.Generic;
-using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -50,7 +49,7 @@ namespace Antmicro.Renode.Utilities
         {
             RawValue = crcConfig.Init;
         }
-        
+
         public uint Calculate(IEnumerable<byte> data)
         {
             Reset();
@@ -77,7 +76,7 @@ namespace Antmicro.Renode.Utilities
                 var crcAfterReflecting = (crcConfig.ReflectOutput)
                     ? BitHelper.ReverseBits(crc)
                     : RawValue;
-                
+
                 return crcAfterReflecting ^ crcConfig.XorOutput;
             }
         }
@@ -127,7 +126,7 @@ namespace Antmicro.Renode.Utilities
             { CRCPolynomial.CRC8_CCITT, null },
             { CRCPolynomial.CRC7, null }
         };
-        
+
         private uint[] Table
         {
             get
@@ -142,7 +141,7 @@ namespace Antmicro.Renode.Utilities
 
         private uint crc;
         private uint[] table;
-        
+
         private readonly CRCConfig crcConfig;
 
         private const int CRCTableSize = 256;
@@ -150,13 +149,13 @@ namespace Antmicro.Renode.Utilities
 
     public struct CRCConfig
     {
-        public CRCConfig(uint polynomial, int width, bool reflectInput, bool reflectOutput, 
+        public CRCConfig(uint polynomial, int width, bool reflectInput, bool reflectOutput,
             uint init, uint xorOutput)
             : this(new CRCPolynomial(polynomial, width), reflectInput, reflectOutput, init, xorOutput)
-        {            
+        {
         }
 
-        public CRCConfig(CRCPolynomial crcPolynomial, bool reflectInput, bool reflectOutput, 
+        public CRCConfig(CRCPolynomial crcPolynomial, bool reflectInput, bool reflectOutput,
             uint init, uint xorOutput)
         {
             CRCPolynomial = crcPolynomial;
@@ -169,9 +168,13 @@ namespace Antmicro.Renode.Utilities
         }
 
         public CRCPolynomial CRCPolynomial { get; }
+
         public bool ReflectInput { get; }
+
         public bool ReflectOutput { get; }
+
         public uint Init { get; }
+
         public uint XorOutput { get; }
 
         public uint Polynomial => CRCPolynomial.Polynomial;
@@ -193,15 +196,16 @@ namespace Antmicro.Renode.Utilities
             {
                 throw new ArgumentException($"CRCConfig: width ({width}) is too small for given polynomial 0x{polynomial:X}.");
             }
-            
+
             Polynomial = polynomial;
             Width = width;
         }
 
         public uint Polynomial { get; }
+
         public int Width { get; }
 
-        public int WidthInBytes 
+        public int WidthInBytes
         {
             get
             {

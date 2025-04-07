@@ -16,10 +16,11 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.I2C;
 using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Peripherals.Sensors
 {
@@ -155,31 +156,31 @@ namespace Antmicro.Renode.Peripherals.Sensors
         {
             switch(lastRegister)
             {
-                case Registers.DeviceID:
-                    return DevID;
-                case Registers.SourceOfInterrupts:
-                    return (1 << SourceOfInterruptsDataReadyOffset);
-                case Registers.Xdata0:
-                    return currentSample.X.GetLowByte(fullResolution, range);
-                case Registers.Xdata1:
-                    return currentSample.X.GetHighByte(fullResolution, range);
-                case Registers.Ydata0:
-                    return currentSample.Y.GetLowByte(fullResolution, range);
-                case Registers.Ydata1:
-                    return currentSample.Y.GetHighByte(fullResolution, range);
-                case Registers.Zdata0:
-                    return currentSample.Z.GetLowByte(fullResolution, range);
-                case Registers.Zdata1:
-                    return currentSample.Z.GetHighByte(fullResolution, range);
-                case Registers.FifoStatus:
-                    return (byte)Math.Min(samplesFifo.Count, MaxFifoDepth);
+            case Registers.DeviceID:
+                return DevID;
+            case Registers.SourceOfInterrupts:
+                return (1 << SourceOfInterruptsDataReadyOffset);
+            case Registers.Xdata0:
+                return currentSample.X.GetLowByte(fullResolution, range);
+            case Registers.Xdata1:
+                return currentSample.X.GetHighByte(fullResolution, range);
+            case Registers.Ydata0:
+                return currentSample.Y.GetLowByte(fullResolution, range);
+            case Registers.Ydata1:
+                return currentSample.Y.GetHighByte(fullResolution, range);
+            case Registers.Zdata0:
+                return currentSample.Z.GetLowByte(fullResolution, range);
+            case Registers.Zdata1:
+                return currentSample.Z.GetHighByte(fullResolution, range);
+            case Registers.FifoStatus:
+                return (byte)Math.Min(samplesFifo.Count, MaxFifoDepth);
 
-                default:
+            default:
 #if WARN_UNHANDLED_REGISTERS
                     // this generates a lot of noise in the logs so it's disabled by default
                     this.Log(LogLevel.Warning, "Reading from an unsupported or not-yet-implemented register: 0x{0:X} - {0}", lastRegister);
 #endif
-                    return 0;
+                return 0;
             }
         }
 
@@ -189,17 +190,17 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             switch(lastRegister)
             {
-                case Registers.DataFormatControl:
-                    range = (Range)(value & 0x3);
-                    fullResolution = (value >> 3) != 0;
-                    break;
+            case Registers.DataFormatControl:
+                range = (Range)(value & 0x3);
+                fullResolution = (value >> 3) != 0;
+                break;
 
-                default:
+            default:
 #if WARN_UNHANDLED_REGISTERS
                     // this generates a lot of noise in the logs so it's disabled by default
                     this.Log(LogLevel.Warning, "Writing to an unsupported or not-yet-implemented register: 0x{0:X} - {0}", lastRegister);
 #endif
-                    break;
+                break;
             }
         }
 

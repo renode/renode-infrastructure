@@ -6,12 +6,11 @@
 //
 using System;
 using System.Collections.Generic;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Core.Structure.Registers;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Utilities.Collections;
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -51,7 +50,9 @@ namespace Antmicro.Renode.Peripherals.UART
         }
 
         public long Size => 0x2D;
+
         public GPIO IRQ { get; }
+
         public GPIO DMAReceive { get; }
 
         public ByteRegisterCollection RegistersCollection { get; }
@@ -69,14 +70,14 @@ namespace Antmicro.Renode.Peripherals.UART
 
                 switch(parityMode)
                 {
-                    case ParityMode.Odd:
-                        return Parity.Odd;
-                    case ParityMode.Even:
-                        return Parity.Even;
-                    case ParityMode.Mark:
-                        return Parity.Forced1;
-                    case ParityMode.Space:
-                        return Parity.Forced0;
+                case ParityMode.Odd:
+                    return Parity.Odd;
+                case ParityMode.Even:
+                    return Parity.Even;
+                case ParityMode.Mark:
+                    return Parity.Forced1;
+                case ParityMode.Space:
+                    return Parity.Forced0;
                 }
 
                 throw new Exception("Unreachable");

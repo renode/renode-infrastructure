@@ -5,11 +5,11 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities.Collections;
 
 namespace Antmicro.Renode.Peripherals.SPI
@@ -171,7 +171,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                     }
                 }, name: "SpiEnable")
                 .WithFlag(7, name: "LSBFIRST") // Physical
-                // We keep these as flags to preserve written values. SSI flag is used by drivers to select/detect operation mode (Master or Slave)
+                                               // We keep these as flags to preserve written values. SSI flag is used by drivers to select/detect operation mode (Master or Slave)
                 .WithFlag(8, name: "SSI") // Internal slave select
                 .WithFlag(9, name: "SSM") // Software slave management
                 .WithTaggedFlag("RXONLY", 10)
@@ -248,8 +248,9 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithReservedBits(10, 22);
         }
 
-        private DoubleWordRegisterCollection registers;
         private IFlagRegisterField txBufferEmptyInterruptEnable, rxBufferNotEmptyInterruptEnable, rxDmaEnable;
+
+        private readonly DoubleWordRegisterCollection registers;
 
         private readonly CircularBuffer<byte> receiveBuffer;
 

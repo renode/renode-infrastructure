@@ -5,15 +5,11 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Core.Structure;
-using Antmicro.Renode.Core.Extensions;
-using System.Net;
 
 namespace Antmicro.Renode.Peripherals.Bus
 {
@@ -26,12 +22,33 @@ namespace Antmicro.Renode.Peripherals.Bus
             Reset();
         }
 
+        #region IGaisslerAHB implementation
+        public uint GetVendorID()
+        {
+            return vendorID;
+        }
+
+        public uint GetDeviceID()
+        {
+            return deviceID;
+        }
+
+        public bool IsMaster()
+        {
+            return master;
+        }
+
+        public GaislerAHBPlugAndPlayRecord.SpaceType GetSpaceType()
+        {
+            return spaceType;
+        }
+
         #region IDoubleWordPeripheral implementation
-        public uint ReadDoubleWord (long offset)
+        public uint ReadDoubleWord(long offset)
         {
             if(!recordsCached)
             {
-                this.cacheRecords();
+                this.CacheRecords();
                 recordsCached = true;
             }
             var record = emptyRecord;
@@ -44,45 +61,18 @@ namespace Antmicro.Renode.Peripherals.Bus
             return record.ToUintArray()[recordOffset];
         }
 
-        public void WriteDoubleWord (long offset, uint value)
+        public void WriteDoubleWord(long offset, uint value)
         {
             //throw new NotImplementedException ();
         }
         #endregion
 
         #region IPeripheral implementation
-        public void Reset ()
+        public void Reset()
         {
             emptyRecord = new GaislerAPBPlugAndPlayRecord();
             recordsCached = false;
             records = new List<GaislerAPBPlugAndPlayRecord>();
-        }
-        #endregion
-  
-        private readonly uint vendorID = 0x01;  // Aeroflex Gaisler
-        private readonly uint deviceID = 0x006; // GRLIB APBCTRL
-        private readonly bool master = false;   // This device is AHB slave  
-        private readonly GaislerAHBPlugAndPlayRecord.SpaceType spaceType = GaislerAHBPlugAndPlayRecord.SpaceType.AHBMemorySpace;
-        
-        #region IGaisslerAHB implementation
-        public uint GetVendorID ()
-        {
-            return vendorID;
-        }
-
-        public uint GetDeviceID ()
-        {
-            return deviceID;
-        }
-        
-        public bool IsMaster ()
-        {
-            return master;
-        }
-        
-        public GaislerAHBPlugAndPlayRecord.SpaceType GetSpaceType ()
-        {
-            return spaceType;
         }
         #endregion
 
@@ -95,13 +85,13 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
             return (uint)(registrationPoint.Range.StartAddress >> 20) & 0xfff;
         }
-  
-        private void cacheRecords()
-        { 
+
+        private void CacheRecords()
+        {
             var busAddress = GetBusAddress(this) ?? throw new RecoverableException("Failed to get the controller's bus address");
             var recordsFound = machine.SystemBus.Children
                 .Where(x => x.Peripheral is IGaislerAPB && GetBusAddress(x.Peripheral) == busAddress);
-            foreach (var record in recordsFound)
+            foreach(var record in recordsFound)
             {
                 var peripheral = (IGaislerAPB)record.Peripheral;
                 var registration = record.RegistrationPoint;
@@ -117,13 +107,20 @@ namespace Antmicro.Renode.Peripherals.Bus
                     recordEntry.BankAddressRegister.Address = (uint)deviceAddress;
                     recordEntry.BankAddressRegister.Size = deviceSize;
                 }
-                records.Add(recordEntry);                
+                records.Add(recordEntry);
             }
         }
-        
-        private readonly IMachine machine;
+
         private List<GaislerAPBPlugAndPlayRecord> records;
         private bool recordsCached;
         private GaislerAPBPlugAndPlayRecord emptyRecord;
+        #endregion
+
+        private readonly uint vendorID = 0x01;  // Aeroflex Gaisler
+        private readonly uint deviceID = 0x006; // GRLIB APBCTRL
+        private readonly bool master = false;   // This device is AHB slave
+        private readonly GaislerAHBPlugAndPlayRecord.SpaceType spaceType = GaislerAHBPlugAndPlayRecord.SpaceType.AHBMemorySpace;
+
+        private readonly IMachine machine;
     }
 }

@@ -6,17 +6,25 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Collections.Generic;
-using Antmicro.Renode.UserInterface.Tokenizer;
-using AntShell.Commands;
-using Antmicro.Renode.Core;
 using System.Linq;
+
+using Antmicro.Renode.Core;
+using Antmicro.Renode.UserInterface.Tokenizer;
 using Antmicro.Renode.Utilities;
+
+using AntShell.Commands;
 
 namespace Antmicro.Renode.UserInterface.Commands
 {
     public class MachCommand : Command
     {
+        public MachCommand(Monitor monitor, Func<IMachine> getCurrentMachine, Action<IMachine> setCurrentMachine)
+            : base(monitor, "mach", "list and manipulate machines available in the environment.")
+        {
+            GetCurrentMachine = getCurrentMachine;
+            SetCurrentMachine = setCurrentMachine;
+        }
+
         public override void PrintHelp(ICommandInteraction writer)
         {
             base.PrintHelp(writer);
@@ -51,7 +59,7 @@ namespace Antmicro.Renode.UserInterface.Commands
         }
 
         [Runnable]
-        public void Run(ICommandInteraction writer, [Values("set")] LiteralToken action, DecimalIntegerToken number)
+        public void Run(ICommandInteraction writer, [Values("set")] LiteralToken _, DecimalIntegerToken number)
         {
             var machines = EmulationManager.Instance.CurrentEmulation.Machines.ToArray();
             if(machines.Length > number.Value && number.Value >= 0)
@@ -62,7 +70,6 @@ namespace Antmicro.Renode.UserInterface.Commands
             {
                 writer.WriteError("Wrong machine number. Type {0} to show a list of available machines.".FormatWith(Name));
             }
-
         }
 
         [Runnable]
@@ -108,7 +115,7 @@ namespace Antmicro.Renode.UserInterface.Commands
         }
 
         [Runnable]
-        public void Run(ICommandInteraction writer, [Values("create", "clear")] LiteralToken action)
+        public void Run(ICommandInteraction _, [Values("create", "clear")] LiteralToken action)
         {
             switch(action.Value)
             {
@@ -125,13 +132,5 @@ namespace Antmicro.Renode.UserInterface.Commands
 
         private readonly Func<IMachine> GetCurrentMachine;
         private readonly Action<IMachine> SetCurrentMachine;
-
-        public MachCommand(Monitor monitor, Func<IMachine> getCurrentMachine, Action<IMachine> setCurrentMachine)
-            : base(monitor, "mach", "list and manipulate machines available in the environment.")
-        {
-            GetCurrentMachine = getCurrentMachine;
-            SetCurrentMachine = setCurrentMachine;
-        }
     }
 }
-

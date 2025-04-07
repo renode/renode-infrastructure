@@ -12,10 +12,11 @@ namespace Antmicro.Renode.Peripherals.Memory
 {
     public class ArrayMemoryWithReadonlys : ArrayMemory
     {
-        public ArrayMemoryWithReadonlys(ulong size):base(size)
+        public ArrayMemoryWithReadonlys(ulong size) : base(size)
         {
         }
-        public ArrayMemoryWithReadonlys(byte[] source):base(source)
+
+        public ArrayMemoryWithReadonlys(byte[] source) : base(source)
         {
         }
 
@@ -36,15 +37,16 @@ namespace Antmicro.Renode.Peripherals.Memory
             WriteByte(offset, value);
             ignoreWrites.Add(offset);
         }
-        
+
         public override void WriteDoubleWord(long offset, uint value)
-        {           
+        {
             if(!ignoreWrites.Contains(offset))
             {
                 var bytes = BitConverter.GetBytes(value);
                 bytes.CopyTo(array, offset);
             }
         }
+
         public override void WriteWord(long offset, ushort value)
         {
             if(!ignoreWrites.Contains(offset))
@@ -53,16 +55,16 @@ namespace Antmicro.Renode.Peripherals.Memory
                 bytes.CopyTo(array, offset);
             }
         }
+
         public override void WriteByte(long offset, byte value)
-        { 
+        {
             if(!ignoreWrites.Contains(offset))
             {
                 var intOffset = (int)offset;
                 array[intOffset] = value;
             }
         }
-        
-        private HashSet<long> ignoreWrites = new HashSet<long>();
+
+        private readonly HashSet<long> ignoreWrites = new HashSet<long>();
     }
 }
-

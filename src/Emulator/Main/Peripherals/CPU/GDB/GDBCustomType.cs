@@ -4,8 +4,8 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -107,7 +107,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         public string Type { get; }
+
         public IReadOnlyDictionary<string, string> Attributes { get; }
+
         public IEnumerable<IReadOnlyDictionary<string, string>> Fields { get; }
     }
 }

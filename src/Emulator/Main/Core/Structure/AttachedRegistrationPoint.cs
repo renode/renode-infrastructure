@@ -11,11 +11,16 @@ namespace Antmicro.Renode.Core.Structure
 {
     public sealed class AttachedRegistrationPoint : ITheOnlyPossibleRegistrationPoint, IJsonSerializable
     {
-        public static AttachedRegistrationPoint Instance { get; private set; }
-
         static AttachedRegistrationPoint()
         {
             Instance = new AttachedRegistrationPoint();
+        }
+
+        public static AttachedRegistrationPoint Instance { get; private set; }
+
+        public override string ToString()
+        {
+            return PrettyString;
         }
 
         public Object SerializeJson()
@@ -34,14 +39,8 @@ namespace Antmicro.Renode.Core.Structure
             }
         }
 
-        public override string ToString()
-        {
-            return PrettyString;
-        }
-
         private AttachedRegistrationPoint()
         {
         }
     }
 }
-

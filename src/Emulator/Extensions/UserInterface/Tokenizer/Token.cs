@@ -8,15 +8,15 @@
 
 namespace Antmicro.Renode.UserInterface.Tokenizer
 {
-	public abstract class Token
-	{
+    public abstract class Token
+    {
+        public abstract object GetObjectValue();
+
+        public string OriginalValue { get; protected set; }
+
         protected Token(string originalValue)
         {
             OriginalValue = originalValue;
         }
-
-        public abstract object GetObjectValue();
-
-        public string OriginalValue { get; protected set; }
-	}
+    }
 }

@@ -6,48 +6,23 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Microsoft.Scripting.Hosting;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Migrant.Hooks;
-using Antmicro.Migrant;
 using System.Linq;
+
+using Antmicro.Migrant;
+using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Core;
+
+using Microsoft.Scripting.Hosting;
 
 namespace Antmicro.Renode.Peripherals.Python
 {
     public class PeripheralPythonEngine : PythonEngine
     {
-        private readonly static string[] Imports =
+        private static readonly string[] Imports =
         {
             "from Antmicro.Renode.Logging import Logger as logger",
             "from Antmicro.Renode.Logging import LogLevel",
         };
-
-        protected override string[] ReservedVariables
-        {
-            get { return base.ReservedVariables.Union(PeripheralPythonEngine.InnerReservedVariables).ToArray(); }
-        }
-
-        private readonly static string[] InnerReservedVariables =
-        {
-            "request",
-            "self",
-            "size",
-            "logger",
-            "LogLevel"
-        };
-
-        private void InitScope(ScriptSource script)
-        {
-            Request = new PythonRequest();
-
-            Scope.SetVariable("request", Request);
-            Scope.SetVariable("self", peripheral);
-            Scope.SetVariable("size", peripheral.Size);
-
-            source = script;
-            code = Compile(source);
-        }
 
         public PeripheralPythonEngine(PythonPeripheral peripheral)
         {
@@ -61,6 +36,11 @@ namespace Antmicro.Renode.Peripherals.Python
             InitScope(sourceGenerator(Engine));
         }
 
+        public void ExecuteCode()
+        {
+            Execute(code);
+        }
+
         public string Code
         {
             get
@@ -69,22 +49,17 @@ namespace Antmicro.Renode.Peripherals.Python
             }
         }
 
-        public void ExecuteCode()
+        public PythonRequest Request
         {
-            Execute(code);
-        }
+            get
+            {
+                return request;
+            }
 
-        [Transient]
-        private ScriptSource source;
-
-        [Transient]
-        private CompiledCode code;
-
-        protected override void Init()
-        {
-            base.Init();
-            InitScope(Engine.CreateScriptSourceFromString(codeContent));
-            codeContent = null;
+            private set
+            {
+                request = value;
+            }
         }
 
         #region Serialization
@@ -95,11 +70,50 @@ namespace Antmicro.Renode.Peripherals.Python
             codeContent = Code;
         }
 
+        protected override void Init()
+        {
+            base.Init();
+            InitScope(Engine.CreateScriptSourceFromString(codeContent));
+            codeContent = null;
+        }
+
+        protected override string[] ReservedVariables
+        {
+            get { return base.ReservedVariables.Union(PeripheralPythonEngine.InnerReservedVariables).ToArray(); }
+        }
+
+        private static readonly string[] InnerReservedVariables =
+        {
+            "request",
+            "self",
+            "size",
+            "logger",
+            "LogLevel"
+        };
+
         [PostSerialization]
         private void AfterDeSerialization()
         {
             codeContent = null;
         }
+
+        private void InitScope(ScriptSource script)
+        {
+            Request = new PythonRequest();
+
+            Scope.SetVariable("request", Request);
+            Scope.SetVariable("self", peripheral);
+            Scope.SetVariable("size", peripheral.Size);
+
+            source = script;
+            code = Compile(source);
+        }
+
+        [Transient]
+        private ScriptSource source;
+
+        [Transient]
+        private CompiledCode code;
 
         private string codeContent;
 
@@ -108,59 +122,52 @@ namespace Antmicro.Renode.Peripherals.Python
         [Transient]
         private PythonRequest request;
 
-        public PythonRequest Request
-        {
-            get
-            {
-                return request;
-            }
-            private set
-            {
-                request = value;
-            }
-        }
-
         private readonly PythonPeripheral peripheral;
 
         // naming convention here is pythonic
         public class PythonRequest
         {
-            public ulong value { get; set; }
-            public byte length { get; set; }
-            public RequestType type { get; set; }
-            public long offset { get; set; }
-            public ulong absolute { get; set; }
-            public ulong counter { get; set; }
+            public ulong Value { get; set; }
 
-            public bool isInit
+            public byte Length { get; set; }
+
+            public RequestType Type { get; set; }
+
+            public long Offset { get; set; }
+
+            public ulong Absolute { get; set; }
+
+            public ulong Counter { get; set; }
+
+            public bool IsInit
             {
                 get
                 {
-                    return type == RequestType.INIT;
+                    return Type == RequestType.INIT;
                 }
             }
 
-            public bool isRead
+            public bool IsRead
             {
                 get
                 {
-                    return type == RequestType.READ;
+                    return Type == RequestType.READ;
                 }
             }
 
-            public bool isWrite
+            public bool IsWrite
             {
                 get
                 {
-                    return type == RequestType.WRITE;
+                    return Type == RequestType.WRITE;
                 }
             }
 
-            public bool isUser
+            public bool IsUser
             {
                 get
                 {
-                    return type == RequestType.USER;
+                    return Type == RequestType.USER;
                 }
             }
 

@@ -6,22 +6,23 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Peripherals.I2C;
+using System.Collections.Generic;
+using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.I2C;
 using Antmicro.Renode.Utilities;
-using System.Linq;
-using System.Collections.Generic;
 
 namespace Antmicro.Renode.Peripherals.Input
 {
     public class AR1021 : II2CPeripheral, IAbsolutePositionPointerInput
-    {                    
+    {
         public AR1021()
         {
             IRQ = new GPIO();
         }
-               
+
         public void Write(byte[] data)
         {
             this.DebugLog("Writing {0}.", data.Select(x => x.ToString()).Stringify());
@@ -78,29 +79,29 @@ namespace Antmicro.Renode.Peripherals.Input
             this.DebugLog("Button released at {0}x{1}.", points[0].X, points[0].Y);
         }
 
-        public GPIO IRQ 
-        { 
+        public GPIO IRQ
+        {
             get;
             private set;
         }
 
         public int MaxY
-        { 
-            get{ return 4095; }
+        {
+            get { return 4095; }
         }
 
         public int MaxX
-        { 
-            get{ return 4095; }
+        {
+            get { return 4095; }
         }
 
-        public int MinX 
-        { 
-            get { return 0; } 
+        public int MinX
+        {
+            get { return 0; }
         }
 
         public int MinY
-        { 
+        {
             get { return 0; }
         }
 
@@ -159,23 +160,24 @@ namespace Antmicro.Renode.Peripherals.Input
             return data;
         }
 
-        private Queue<byte[]> readQueue = new Queue<byte[]>();
-        private readonly TouchedPoint[] points = new TouchedPoint[1];
         private byte[] currentRetValue;
         private bool pressed;
         private bool readItAlready;
 
-        private enum Command : byte
-        {
-            Reset = 0x10,
-            ScanComplete = 0x11
-        }
+        private readonly Queue<byte[]> readQueue = new Queue<byte[]>();
+        private readonly TouchedPoint[] points = new TouchedPoint[1];
 
         private struct TouchedPoint
         {
             public UInt16 X;
             public UInt16 Y;
             public PointType Type;
+        }
+
+        private enum Command : byte
+        {
+            Reset = 0x10,
+            ScanComplete = 0x11
         }
 
         private enum PointType

@@ -5,7 +5,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
@@ -150,7 +149,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             gpiox_lckr = 0;
             gpiox_afrl = 0;
             gpiox_afrh = 0;
-
         }
 
         private uint gpiox_mode;
@@ -184,4 +182,3 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         }
     }
 }
-

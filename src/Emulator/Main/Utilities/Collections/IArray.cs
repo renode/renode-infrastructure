@@ -11,6 +11,7 @@ namespace Antmicro.Renode.Utilities.Collections
     public interface IArray<T> : IEnumerable<T>
     {
         int Length { get; }
+
         T this[int index] { get; set; }
     }
 }

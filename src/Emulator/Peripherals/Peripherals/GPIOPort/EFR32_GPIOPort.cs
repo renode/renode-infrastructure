@@ -7,6 +7,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -92,6 +93,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         }
 
         public GPIO EvenIRQ { get; private set; }
+
         public GPIO OddIRQ { get; private set; }
 
         private void UpdateInterrupts()
@@ -372,6 +374,9 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             return mode >= PinMode.PushPull;
         }
 
+        private DoubleWordRegisterCollection registers;
+        private bool configurationLocked;
+
         private readonly int[] externalInterruptToPortMapping = new int[NumberOfExternalInterrupts];
         private readonly int[] externalInterruptToPinMapping = new int[NumberOfExternalInterrupts];
         private readonly bool[] externalInterrupt = new bool[NumberOfExternalInterrupts];
@@ -382,9 +387,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         private readonly IEnumRegisterField<PinMode>[] pinModes = new IEnumRegisterField<PinMode>[NumberOfPins * NumberOfPorts];
         private readonly IFlagRegisterField[] unlockedPins = new IFlagRegisterField[NumberOfPins * NumberOfPorts];
         private readonly object internalLock = new object();
-
-        private DoubleWordRegisterCollection registers;
-        private bool configurationLocked;
 
         private readonly HashSet<Registers> lockableRegisters = new HashSet<Registers>
         {

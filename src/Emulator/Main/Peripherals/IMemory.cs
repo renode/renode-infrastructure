@@ -13,4 +13,3 @@ namespace Antmicro.Renode.Peripherals
     {
     }
 }
-

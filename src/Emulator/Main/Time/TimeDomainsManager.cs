@@ -5,9 +5,9 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Threading;
-using System.Collections.Generic;
 using System.Collections.Concurrent;
+using System.Threading;
+
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Time
@@ -18,6 +18,22 @@ namespace Antmicro.Renode.Time
     public class TimeDomainsManager
     {
         public static TimeDomainsManager Instance = new TimeDomainsManager();
+
+        /// <summary>
+        /// Tries to obtain virtual time stamp for the current thread.
+        /// </summary>
+        /// <returns><c>true</c>, if virtual time stamp was obtained, <c>false</c> otherwise.</returns>
+        /// <param name="virtualTimeStamp">Virtual time stamp.</param>
+        public bool TryGetVirtualTimeStamp(out TimeStamp virtualTimeStamp)
+        {
+            if(!timeGetters.TryGetValue(Thread.CurrentThread.ManagedThreadId, out var timestampGenerator))
+            {
+                virtualTimeStamp = default(TimeStamp);
+                return false;
+            }
+            virtualTimeStamp = timestampGenerator();
+            return true;
+        }
 
         /// <summary>
         /// Registers a time stamp provider for the current thread.
@@ -50,22 +66,6 @@ namespace Antmicro.Renode.Time
                 }
                 return timestampGenerator();
             }
-        }
-
-        /// <summary>
-        /// Tries to obtain virtual time stamp for the current thread.
-        /// </summary>
-        /// <returns><c>true</c>, if virtual time stamp was obtained, <c>false</c> otherwise.</returns>
-        /// <param name="virtualTimeStamp">Virtual time stamp.</param>
-        public bool TryGetVirtualTimeStamp(out TimeStamp virtualTimeStamp)
-        {
-            if(!timeGetters.TryGetValue(Thread.CurrentThread.ManagedThreadId, out var timestampGenerator))
-            {
-                virtualTimeStamp = default(TimeStamp);
-                return false;
-            }
-            virtualTimeStamp = timestampGenerator();
-            return true;
         }
 
         private TimeDomainsManager()

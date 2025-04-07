@@ -5,12 +5,11 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
-using Antmicro.Renode.Core;
 using System.Linq;
+
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Bus
@@ -92,11 +91,9 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public void Reset()
         {
-
         }
 
         private readonly ulong redirectedAddress;
         private readonly IBusController systemBus;
     }
 }
-

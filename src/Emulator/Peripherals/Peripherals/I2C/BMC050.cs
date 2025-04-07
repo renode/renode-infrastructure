@@ -7,10 +7,9 @@
 //
 using System;
 using System.Linq;
-using System.Collections.Generic;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Logging;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.I2C
 {
@@ -22,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.I2C
         }
 
         // TODO: how do call the generate sensor data functions?
-        // Now: After receiving register address to read. 
+        // Now: After receiving register address to read.
         // Step through after read and init?
         // Thread always running which sleeps with given frequencies?
 
@@ -41,7 +40,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             statusReg2 = 0;
             statusReg3 = 0;
             statusReg4 = 0;
-            gRange = g_RangeModes.Range2g;
+            gRange = GRangeModes.Range2g;
             bandwidth = BandwidthModes.Bandwidth8 | BandwidthModes.Bandwidth9;
             power = 0;
             daqCtrl = 0;
@@ -132,17 +131,17 @@ namespace Antmicro.Renode.Peripherals.I2C
                     }
                     break;
                 case Registers.g_Range:
-                    switch((g_RangeModes)registerData)
+                    switch((GRangeModes)registerData)
                     {
-                    case g_RangeModes.Range2g:
-                    case g_RangeModes.Range4g:
-                    case g_RangeModes.Range8g:
-                    case g_RangeModes.Range16g:
-                        gRange = (g_RangeModes)registerData;
+                    case GRangeModes.Range2g:
+                    case GRangeModes.Range4g:
+                    case GRangeModes.Range8g:
+                    case GRangeModes.Range16g:
+                        gRange = (GRangeModes)registerData;
                         break;
                     default:
                         // Other values are not allowed ans shall default to 2g selection
-                        gRange = g_RangeModes.Range2g;
+                        gRange = GRangeModes.Range2g;
                         break;
                     }
                     break;
@@ -254,7 +253,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                     interfaceConfig = registerData;
                     break;
                 case Registers.OffsetCompensation:
-                    // Setting bit 7 resets the register to value 0 
+                    // Setting bit 7 resets the register to value 0
                     if((registerData & 0x80) == 0x80)
                     {
                         offsetCompensation = 0;
@@ -364,7 +363,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                     FlipSensor();
                     break;
                 case Registers.ChipID:
-                    // Same Chip ID for Bosch BMC050 and BMA180 
+                    // Same Chip ID for Bosch BMC050 and BMA180
                     result[0] = 0x3;
                     break;
                 case Registers.Reserved1:
@@ -619,6 +618,8 @@ namespace Antmicro.Renode.Peripherals.I2C
         public void FinishTransmission()
         {
         }
+
+        private static readonly PseudorandomNumberGenerator random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
 
         private double SensorData(double mean, double sigma)
         {
@@ -895,7 +896,7 @@ namespace Antmicro.Renode.Peripherals.I2C
         private byte statusReg2;
         private byte statusReg3;
         private byte statusReg4;
-        private g_RangeModes gRange;
+        private GRangeModes gRange;
         private BandwidthModes bandwidth;
         private byte power;
         private byte daqCtrl;
@@ -956,9 +957,7 @@ namespace Antmicro.Renode.Peripherals.I2C
         private byte[] sendData;
         private byte sensorFlipState;
 
-        private static PseudorandomNumberGenerator random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
-
-        private enum g_RangeModes
+        private enum GRangeModes
         {
             // Allowed modes - other values shall result in Range2g setting, bits 0-3
             Range2g = 0x3, // Selects ±2g range, default value
@@ -998,14 +997,14 @@ namespace Antmicro.Renode.Peripherals.I2C
             // State used for generation of sensor data.
             // The idea is that between each read request the sensor is flipped 180 degrees
             // around one of its three central axis x, y or z from pos.
-            // The flip  changes the axis orientation in label: 
+            // The flip  changes the axis orientation in label:
             //   1 means positive (+1g), 0 means negative (-1g)
-            // Sensor data generation sequence is 
-            // 1) X: +1g -> -1g 
-            // 2) Y: +1g -> -1g 
-            // 3) Z: +1g -> -1g 
-            // 4) X: -1g -> +1g 
-            // 5) Y: -1g -> +1g 
+            // Sensor data generation sequence is
+            // 1) X: +1g -> -1g
+            // 2) Y: +1g -> -1g
+            // 3) Z: +1g -> -1g
+            // 4) X: -1g -> +1g
+            // 5) Y: -1g -> +1g
             // 6) Z: -1g -> +1g
             // where number indicates bit number flipped in state tracking byte
             XYZ_111 = 0x01,
@@ -1114,4 +1113,3 @@ namespace Antmicro.Renode.Peripherals.I2C
         }
     }
 }
-

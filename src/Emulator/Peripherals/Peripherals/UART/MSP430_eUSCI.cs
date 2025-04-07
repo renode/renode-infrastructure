@@ -11,7 +11,9 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+#pragma warning disable IDE0005
 using Antmicro.Renode.Utilities;
+#pragma warning restore IDE0005
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -48,8 +50,6 @@ namespace Antmicro.Renode.Peripherals.UART
             UpdateInterrupts();
         }
 
-        public event Action<byte> CharReceived;
-
         public WordRegisterCollection RegistersCollection { get; }
 
         public long Size => 0x20;
@@ -57,8 +57,12 @@ namespace Antmicro.Renode.Peripherals.UART
         public GPIO IRQ { get; } = new GPIO();
 
         public Bits StopBits { get; }
+
         public Parity ParityBit { get; }
+
         public uint BaudRate { get; }
+
+        public event Action<byte> CharReceived;
 
         private void UpdateInterrupts()
         {

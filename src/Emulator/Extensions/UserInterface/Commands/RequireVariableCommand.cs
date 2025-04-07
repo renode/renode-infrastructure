@@ -11,15 +11,14 @@ namespace Antmicro.Renode.UserInterface.Commands
 {
     public class RequireVariableCommand : AutoLoadCommand
     {
-        [Runnable]
-        public void Run(Token token)
-        {
-            // THIS METHOD IS INTENTIONALY LEFT BLANK
-        }
-
         public RequireVariableCommand(Monitor monitor) : base(monitor, "require", "verifies the existence of a variable.")
         {
         }
+
+        [Runnable]
+        public void Run(Token _)
+        {
+            // THIS METHOD IS INTENTIONALY LEFT BLANK
+        }
     }
 }
-

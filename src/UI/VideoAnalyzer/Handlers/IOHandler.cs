@@ -6,9 +6,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Peripherals.Input;
-using Xwt;
+
 using Antmicro.Renode.Extensions.Analyzers.Video.Events;
+using Antmicro.Renode.Peripherals.Input;
+
+using Xwt;
 
 namespace Antmicro.Renode.Extensions.Analyzers.Video.Handlers
 {
@@ -20,10 +22,6 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Handlers
             this.source = new XWTEventSource(widget);
             this.source.AttachHandler(this);
         }
-
-        public event Func<bool> GrabConfirm;
-
-        public event Action<PointerHandler, PointerHandler> PointerInputAttached;
 
         public void MouseMoved(int x, int y, int dx, int dy)
         {
@@ -205,11 +203,9 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Handlers
             }
         }
 
-        private PointerHandler pointerHandler;
-        private IKeyboard keyboardHandler;
+        public event Func<bool> GrabConfirm;
 
-        private IEventSource source;
-        private FrameBufferDisplayWidget widget;
+        public event Action<PointerHandler, PointerHandler> PointerInputAttached;
 
         private bool lctrl;
         private bool lalt;
@@ -219,15 +215,22 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Handlers
 
         private Status status;
 
+        private PointerHandler pointerHandler;
+        private IKeyboard keyboardHandler;
+
+        private IEventSource source;
+        private readonly FrameBufferDisplayWidget widget;
+
         public class Position
         {
-            public int X { get; set; }
-            public int Y { get; set; }
-
             public Position Clone()
             {
                 return new Position { X = this.X, Y = this.Y };
             }
+
+            public int X { get; set; }
+
+            public int Y { get; set; }
         }
 
         private enum Status

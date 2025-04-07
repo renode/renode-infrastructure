@@ -8,11 +8,11 @@
 using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+
 using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.UserInterface.Tokenizer
 {
-
     public class Tokenizer
     {
         public static Tokenizer CreateTokenizer()
@@ -89,11 +89,6 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
             return tokenizer;
         }
 
-        private Tokenizer()
-        {
-            tokens = new List<InternalToken>();
-        }
-
         public TokenizationResult Tokenize(string input)
         {
             var producedTokens = new List<Token>();
@@ -141,6 +136,11 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
             tokens.Add(new InternalToken(applicabilityCondition, factory));
         }
 
+        private Tokenizer()
+        {
+            tokens = new List<InternalToken>();
+        }
+
         private readonly List<InternalToken> tokens;
 
         private class InternalToken
@@ -152,6 +152,7 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
             }
 
             public Regex ApplicabilityCondition { get; private set; }
+
             public Func<string, Token> Factory { get; private set; }
         }
     }

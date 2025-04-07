@@ -22,6 +22,7 @@ namespace Antmicro.Renode.WebSockets
     public interface IWebSocketServerProvider
     {
         void NewConnectionEventHandler(WebSocket webSocket, List<string> extraSegments);
+
         IReadOnlyList<WebSocketConnection> Connections { get; }
     }
 

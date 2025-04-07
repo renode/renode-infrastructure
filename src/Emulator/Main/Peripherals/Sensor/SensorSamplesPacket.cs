@@ -6,8 +6,9 @@
 //
 
 using System;
-using System.IO;
 using System.Collections.Generic;
+using System.IO;
+
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
 
@@ -15,13 +16,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
 {
     public class SensorSamplesPacket<T> where T : SensorSample, new()
     {
-        public SensorSamplesPacket(TimeInterval startTime, uint frequency)
-        {
-            Frequency = frequency;
-            StartTime = startTime;
-            Samples = new Queue<T>();
-        }
-
         public static IList<SensorSamplesPacket<T>> ParseFile(string path, Func<List<decimal>, T> sampleConstructor)
         {
             SensorSamplesPacket<T> currentPacket = null;
@@ -37,44 +31,53 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 {
                     switch((DataType)type)
                     {
-                        case DataType.Header:
-                            var header = stream.ReadStruct<SensorSamplesPacketHeader>();
-                            sensitivity = (decimal)header.Sensitivity;
-                            valueDimensions = header.ValueDimensions;
-                            valueSize = header.ValueSize;
+                    case DataType.Header:
+                        var header = stream.ReadStruct<SensorSamplesPacketHeader>();
+                        sensitivity = (decimal)header.Sensitivity;
+                        valueDimensions = header.ValueDimensions;
+                        valueSize = header.ValueSize;
 
-                            currentPacket = new SensorSamplesPacket<T>(
-                                    TimeInterval.FromSeconds(header.Time),
-                                    header.Frequency);
-                            packets.Add(currentPacket);
-                            break;
-                        case DataType.Value:
-                            if(currentPacket == null || !sensitivity.HasValue || !valueDimensions.HasValue || !valueSize.HasValue)
-                            {
-                                throw new Exceptions.RecoverableException($"Broken Sensor Samples file: {path}");
-                            }
+                        currentPacket = new SensorSamplesPacket<T>(
+                                TimeInterval.FromSeconds(header.Time),
+                                header.Frequency);
+                        packets.Add(currentPacket);
+                        break;
+                    case DataType.Value:
+                        if(currentPacket == null || !sensitivity.HasValue || !valueDimensions.HasValue || !valueSize.HasValue)
+                        {
+                            throw new Exceptions.RecoverableException($"Broken Sensor Samples file: {path}");
+                        }
 
-                            try
-                            {
-                                var rawSample = stream.ReadBytes(valueSize.Value * valueDimensions.Value, throwIfEndOfStream: true);
-                                var sampleValues = ParseSampleValues(rawSample, valueSize.Value, sensitivity.Value);
-                                currentPacket.Samples.Enqueue(sampleConstructor(sampleValues));
-                            }
-                            catch(EndOfStreamException)
-                            {
-                                throw new Exceptions.RecoverableException($"Sensor Samples file ends in the middle of a sample: {path}");
-                            }
-                            break;
-                        default:
-                            throw new Exceptions.RecoverableException($"Invalid type: {type}");
+                        try
+                        {
+                            var rawSample = stream.ReadBytes(valueSize.Value * valueDimensions.Value, throwIfEndOfStream: true);
+                            var sampleValues = ParseSampleValues(rawSample, valueSize.Value, sensitivity.Value);
+                            currentPacket.Samples.Enqueue(sampleConstructor(sampleValues));
+                        }
+                        catch(EndOfStreamException)
+                        {
+                            throw new Exceptions.RecoverableException($"Sensor Samples file ends in the middle of a sample: {path}");
+                        }
+                        break;
+                    default:
+                        throw new Exceptions.RecoverableException($"Invalid type: {type}");
                     }
                 }
             }
             return packets;
         }
 
+        public SensorSamplesPacket(TimeInterval startTime, uint frequency)
+        {
+            Frequency = frequency;
+            StartTime = startTime;
+            Samples = new Queue<T>();
+        }
+
         public uint Frequency { get; }
+
         public Queue<T> Samples { get; }
+
         public TimeInterval StartTime { get; }
 
         private static List<decimal> ParseSampleValues(byte[] rawSample, int valueSize, decimal sensitivity)
@@ -85,17 +88,17 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 decimal rawValue;
                 switch(valueSize)
                 {
-                    case 2:
-                        rawValue = BitConverter.ToInt16(rawSample, i);
-                        break;
-                    case 4:
-                        rawValue = BitConverter.ToInt32(rawSample, i);
-                        break;
-                    case 8:
-                        rawValue = BitConverter.ToInt64(rawSample, i);
-                        break;
-                    default:
-                        throw new Exceptions.RecoverableException($"Invalid value size: {valueSize}B");
+                case 2:
+                    rawValue = BitConverter.ToInt16(rawSample, i);
+                    break;
+                case 4:
+                    rawValue = BitConverter.ToInt32(rawSample, i);
+                    break;
+                case 8:
+                    rawValue = BitConverter.ToInt64(rawSample, i);
+                    break;
+                default:
+                    throw new Exceptions.RecoverableException($"Invalid value size: {valueSize}B");
                 }
                 values.Add(rawValue / sensitivity);
             }
@@ -122,7 +125,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             return $"time: {Time}; frequency: {Frequency}; sensitivity: {Sensitivity}; value: dimensions: {ValueDimensions}, size: {ValueSize}";
         }
 
-// Suppress the "CS0649: Field is never assigned to, and will always have its default value 0" warning.
+        // Suppress the "CS0649: Field is never assigned to, and will always have its default value 0" warning.
 #pragma warning disable 0649
         public double Time;
         public uint Frequency;
@@ -133,4 +136,3 @@ namespace Antmicro.Renode.Peripherals.Sensors
 #pragma warning restore 0649
     }
 }
-

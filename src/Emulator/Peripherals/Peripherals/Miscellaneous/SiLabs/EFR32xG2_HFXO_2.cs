@@ -7,17 +7,14 @@
 //
 
 using System;
-using System.Diagnostics;
-using System.IO;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Time;
-using Antmicro.Renode.Peripherals.Timers;
-using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Timers;
+using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 {
@@ -39,6 +36,27 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             registersCollection = BuildRegistersCollection();
         }
 
+        public void WriteDoubleWord(long offset, uint value)
+        {
+            WriteRegister(offset, value);
+        }
+
+        public void OnRequest(HFXO_REQUESTER req)
+        {
+            this.Log(LogLevel.Error, "OnRequest not implemented");
+        }
+
+        public void OnEm2Wakeup()
+        {
+            HfxoEnabled?.Invoke();
+            this.Log(LogLevel.Error, "OnEm2Wakeup not implemented");
+        }
+
+        public void OnClksel()
+        {
+            this.Log(LogLevel.Error, "OnClksel not implemented");
+        }
+
         public void Reset()
         {
             timer.Enabled = false;
@@ -49,21 +67,28 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             return ReadRegister(offset);
         }
 
+        public long Size => 0x4000;
+
+        public GPIO IRQ { get; }
+
+        public event Action HfxoEnabled;
+
         private uint ReadRegister(long offset, bool internal_read = false)
         {
             var result = 0U;
             long internal_offset = offset;
 
             // Set, Clear, Toggle registers should only be used for write operations. But just in case we convert here as well.
-            if (offset >= SetRegisterOffset && offset < ClearRegisterOffset) 
+            if(offset >= SetRegisterOffset && offset < ClearRegisterOffset)
             {
                 // Set register
                 internal_offset = offset - SetRegisterOffset;
                 if(!internal_read)
-                {  
+                {
                     this.Log(LogLevel.Noisy, "SET Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}", (Registers)internal_offset, offset, internal_offset);
                 }
-            } else if (offset >= ClearRegisterOffset && offset < ToggleRegisterOffset) 
+            }
+            else if(offset >= ClearRegisterOffset && offset < ToggleRegisterOffset)
             {
                 // Clear register
                 internal_offset = offset - ClearRegisterOffset;
@@ -71,7 +96,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                 {
                     this.Log(LogLevel.Noisy, "CLEAR Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}", (Registers)internal_offset, offset, internal_offset);
                 }
-            } else if (offset >= ToggleRegisterOffset)
+            }
+            else if(offset >= ToggleRegisterOffset)
             {
                 // Toggle register
                 internal_offset = offset - ToggleRegisterOffset;
@@ -99,32 +125,30 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             return result;
         }
 
-        public void WriteDoubleWord(long offset, uint value)
+        private void WriteRegister(long offset, uint value)
         {
-            WriteRegister(offset, value);
-        }
-
-        private void WriteRegister(long offset, uint value, bool internal_write = false)
-        {
-            machine.ClockSource.ExecuteInLock(delegate {
+            machine.ClockSource.ExecuteInLock(delegate
+            {
                 long internal_offset = offset;
                 uint internal_value = value;
 
-                if (offset >= SetRegisterOffset && offset < ClearRegisterOffset) 
+                if(offset >= SetRegisterOffset && offset < ClearRegisterOffset)
                 {
                     // Set register
                     internal_offset = offset - SetRegisterOffset;
                     uint old_value = ReadRegister(internal_offset, true);
                     internal_value = old_value | value;
                     this.Log(LogLevel.Noisy, "SET Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}, SET_value=0x{3:X}, old_value=0x{4:X}, new_value=0x{5:X}", (Registers)internal_offset, offset, internal_offset, value, old_value, internal_value);
-                } else if (offset >= ClearRegisterOffset && offset < ToggleRegisterOffset) 
+                }
+                else if(offset >= ClearRegisterOffset && offset < ToggleRegisterOffset)
                 {
                     // Clear register
                     internal_offset = offset - ClearRegisterOffset;
                     uint old_value = ReadRegister(internal_offset, true);
                     internal_value = old_value & ~value;
                     this.Log(LogLevel.Noisy, "CLEAR Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}, CLEAR_value=0x{3:X}, old_value=0x{4:X}, new_value=0x{5:X}", (Registers)internal_offset, offset, internal_offset, value, old_value, internal_value);
-                } else if (offset >= ToggleRegisterOffset)
+                }
+                else if(offset >= ToggleRegisterOffset)
                 {
                     // Toggle register
                     internal_offset = offset - ToggleRegisterOffset;
@@ -148,8 +172,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             var registerDictionary = new Dictionary<long, DoubleWordRegister>
             {
                 {(long)Registers.Control, new DoubleWordRegister(this, 0x00000002)
-                    .WithFlag(0, out forceEnable, writeCallback: (oldValue, newValue) => 
-                    { 
+                    .WithFlag(0, out forceEnable, writeCallback: (oldValue, newValue) =>
+                    {
                         if (!oldValue && newValue)
                         {
                             enabled.Value = true;
@@ -235,8 +259,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             return new DoubleWordRegisterCollection(this, registerDictionary);
         }
 
-#region methods
         private TimeInterval GetTime() => machine.LocalTimeSource.ElapsedVirtualTime;
+
         private void StartDelayTimer()
         {
             // Function which starts the start-up delay timer
@@ -245,28 +269,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             timer.Enabled = true;
         }
 
-        public void OnRequest(HFXO_REQUESTER req)
-        {
-            this.Log(LogLevel.Error, "OnRequest not implemented");
-        }
-
-        public void OnEm2Wakeup()
-        {
-            HfxoEnabled?.Invoke();
-            this.Log(LogLevel.Error, "OnEm2Wakeup not implemented");
-        }
-        
-        public void OnClksel()
-        {
-            this.Log(LogLevel.Error, "OnClksel not implemented");
-        }
-
         private void OnStartUpTimerExpired()
         {
             this.Log(LogLevel.Debug, "Start-up delay timer expired at: {0}", machine.ElapsedVirtualTime);
             this.Log(LogLevel.Debug, "Wakeup Requester = {0}", wakeUpSource);
 
-            if (wakeUpSource == WakeUpSource.Force)
+            if(wakeUpSource == WakeUpSource.Force)
             {
                 ready.Value = true;
                 coreBiasReady.Value = true;
@@ -277,46 +285,40 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             {
                 this.Log(LogLevel.Error, "Wake up source {0} not implemented", wakeUpSource);
             }
-            
+
             timer.Enabled = false;
             UpdateInterrupts();
         }
 
         private void UpdateInterrupts()
         {
-            machine.ClockSource.ExecuteInLock(delegate {
+            machine.ClockSource.ExecuteInLock(delegate
+            {
                 var irq = (readyInterruptEnable.Value && readyInterrupt.Value);
                 IRQ.Set(irq);
             });
         }
-#endregion
 
-        public long Size => 0x4000;
-        private readonly Machine machine;
-        public GPIO IRQ { get; }
-        private readonly DoubleWordRegisterCollection registersCollection;
-        public event Action HfxoEnabled;
+        private IFlagRegisterField ready;
+        // Interrupts
+        private IFlagRegisterField readyInterrupt;
         private WakeUpSource wakeUpSource = WakeUpSource.None;
-        private LimitTimer timer;
-        private uint delayTicks;
+        private IFlagRegisterField coreBiasReady;
+        private IFlagRegisterField readyInterruptEnable;
+        private IFlagRegisterField disableOnDemand;
+        private IFlagRegisterField forceEnable;
+        private IFlagRegisterField fsmLock;
+        private IFlagRegisterField locked;
+        private IFlagRegisterField enabled;
+        private readonly uint delayTicks;
+        private readonly LimitTimer timer;
+        private readonly Machine machine;
+        private readonly DoubleWordRegisterCollection registersCollection;
         private const uint UnlockCode = 0x580E;
         private const uint SetRegisterOffset = 0x1000;
         private const uint ClearRegisterOffset = 0x2000;
         private const uint ToggleRegisterOffset = 0x3000;
-#region register fields
-        private IFlagRegisterField ready;
-        private IFlagRegisterField coreBiasReady;
-        private IFlagRegisterField enabled;
-        private IFlagRegisterField locked;
-        private IFlagRegisterField fsmLock;
-        private IFlagRegisterField forceEnable;
-        private IFlagRegisterField disableOnDemand;
-        // Interrupts
-        private IFlagRegisterField readyInterrupt;
-        private IFlagRegisterField readyInterruptEnable;
-#endregion
- 
-#region enums
+
         private enum Registers
         {
             IpVersion               = 0x0000,
@@ -364,12 +366,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             Lock_Tgl                = 0x3080,
         }
 
-        private enum WakeUpSource  
+        private enum WakeUpSource
         {
             None  = 0,
             Prs   = 1,
             Force = 2,
         }
-#endregion
     }
 }

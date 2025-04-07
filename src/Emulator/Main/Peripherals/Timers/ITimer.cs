@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Peripherals.Timers
     public interface ITimer : IHasFrequency
     {
         ulong Value { get; set; }
+
         bool Enabled { get; set; }
     }
 }
-

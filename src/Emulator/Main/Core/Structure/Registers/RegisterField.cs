@@ -6,6 +6,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Utilities;
 
@@ -26,8 +27,11 @@ namespace Antmicro.Renode.Core.Structure.Registers
         int Width { get; }
 
         Action<T, T> ReadCallback { get; set; }
+
         Action<T, T> WriteCallback { get; set; }
+
         Action<T, T> ChangeCallback { get; set; }
+
         Func<T, T> ValueProviderCallback { get; set; }
     }
 
@@ -92,30 +96,6 @@ namespace Antmicro.Renode.Core.Structure.Registers
 
         private abstract class RegisterField<T> : RegisterField, IRegisterField<T>
         {
-            public T Value
-            {
-                get
-                {
-                    return FromBinary(FilterValue(parent.UnderlyingValue));
-                }
-                set
-                {
-                    ulong binary = ToBinary(value);
-                    if((binary >> width) > 0 && width < 64)
-                    {
-                        throw new ConstructionException("Value exceeds the size of the field.");
-                    }
-                    WriteFiltered(binary);
-                }
-            }
-
-            public int Width => width;
-
-            public Action<T, T> ReadCallback { get; set; }
-            public Action<T, T> WriteCallback { get; set; }
-            public Action<T, T> ChangeCallback { get; set; }
-            public Func<T, T> ValueProviderCallback { get; set; }
-
             public override void CallReadHandler(ulong oldValue, ulong newValue)
             {
                 if(ReadCallback != null)
@@ -161,6 +141,34 @@ namespace Antmicro.Renode.Core.Structure.Registers
                 return $"[RegisterType<{typeof(T).Name}> Value={Value} Width={Width}]";
             }
 
+            public T Value
+            {
+                get
+                {
+                    return FromBinary(FilterValue(parent.UnderlyingValue));
+                }
+
+                set
+                {
+                    ulong binary = ToBinary(value);
+                    if((binary >> base.Width) > 0 && base.Width < 64)
+                    {
+                        throw new ConstructionException("Value exceeds the size of the field.");
+                    }
+                    WriteFiltered(binary);
+                }
+            }
+
+            public int Width => base.Width;
+
+            public Action<T, T> ReadCallback { get; set; }
+
+            public Action<T, T> WriteCallback { get; set; }
+
+            public Action<T, T> ChangeCallback { get; set; }
+
+            public Func<T, T> ValueProviderCallback { get; set; }
+
             protected RegisterField(PeripheralRegister parent, int position, int width, FieldMode fieldMode, Action<T, T> readCallback,
                 Action<T, T> writeCallback, Action<T, T> changeCallback, Func<T, T> valueProviderCallback, string name) : base(parent, position, width, fieldMode, name)
             {
@@ -190,10 +198,10 @@ namespace Antmicro.Renode.Core.Structure.Registers
 
             public abstract ulong CallValueProviderHandler(ulong currentValue);
 
-            public readonly int position;
-            public readonly int width;
-            public readonly string name;
-            public readonly FieldMode fieldMode;
+            public readonly int Position;
+            public readonly int Width;
+            public readonly string Name;
+            public readonly FieldMode FieldMode;
 
             protected RegisterField(PeripheralRegister parent, int position, int width, FieldMode fieldMode, string name)
             {
@@ -202,26 +210,26 @@ namespace Antmicro.Renode.Core.Structure.Registers
                     throw new ConstructionException("Invalid {0} flags for register field: {1}.".FormatWith(fieldMode.GetType().Name, fieldMode.ToString()));
                 }
                 this.parent = parent;
-                this.position = position;
-                this.fieldMode = fieldMode;
-                this.width = width;
-                this.name = name;
+                this.Position = position;
+                this.FieldMode = fieldMode;
+                this.Width = width;
+                this.Name = name;
             }
 
             protected ulong FilterValue(ulong value)
             {
-                return BitHelper.GetValue(value, position, width);
+                return BitHelper.GetValue(value, Position, Width);
             }
 
             protected ulong UnfilterValue(ulong baseValue, ulong fieldValue)
             {
-                BitHelper.UpdateWithShifted(ref baseValue, fieldValue, position, width);
+                BitHelper.UpdateWithShifted(ref baseValue, fieldValue, Position, Width);
                 return baseValue;
             }
 
             protected void WriteFiltered(ulong value)
             {
-                BitHelper.UpdateWithShifted(ref parent.UnderlyingValue, value, position, width);
+                BitHelper.UpdateWithShifted(ref parent.UnderlyingValue, value, Position, Width);
             }
 
             protected readonly PeripheralRegister parent;

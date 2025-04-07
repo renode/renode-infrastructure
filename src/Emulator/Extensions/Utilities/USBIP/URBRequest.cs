@@ -6,8 +6,9 @@
 //
 
 using System;
-using Antmicro.Renode.Utilities.Packets;
+
 using Antmicro.Renode.Core.USB;
+using Antmicro.Renode.Utilities.Packets;
 
 namespace Antmicro.Renode.Extensions.Utilities.USBIP
 {

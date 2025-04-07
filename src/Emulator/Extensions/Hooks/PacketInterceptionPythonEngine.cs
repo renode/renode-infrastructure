@@ -5,15 +5,16 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Migrant;
 using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Logging;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.Wireless;
-using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Utilities;
+
 using Microsoft.Scripting.Hosting;
 
 namespace Antmicro.Renode.Hooks
@@ -26,7 +27,7 @@ namespace Antmicro.Renode.Hooks
             {
                 throw new ConstructionException("Parameters `script` and `filename` cannot be both set or both unset.");
             }
-            
+
             this.radio = radio;
             this.script = script;
             this.filename = filename;

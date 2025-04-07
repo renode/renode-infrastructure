@@ -4,9 +4,9 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Utilities;
 
@@ -57,10 +57,15 @@ namespace Antmicro.Renode.Core.USB
         }
 
         public USBClassCode Class { get; }
+
         public byte SubClass { get; }
+
         public byte Protocol { get; }
+
         public string Description { get; }
+
         public byte Identifier { get; }
+
         public IReadOnlyCollection<USBEndpoint> Endpoints => endpoints;
 
         protected override void FillDescriptor(BitStream buffer)

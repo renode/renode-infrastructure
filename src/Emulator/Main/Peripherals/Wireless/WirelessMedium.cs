@@ -7,6 +7,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
@@ -17,13 +18,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
 {
     public abstract class WirelessMedium : IHasChildren<IMediumFunction>, IExternal, IConnectable<IRadio>, INetworkLogWireless
     {
-        protected WirelessMedium()
-        {
-            radioHooks = new Dictionary<IRadio, Action<byte[]>>();
-            mediumFunction = SimpleMediumFunction.Instance;
-            radios = new Dictionary<IRadio, Position>();
-        }
-
         public void AttachTo(IRadio radio)
         {
             if(radios.ContainsKey(radio))
@@ -93,7 +87,15 @@ namespace Antmicro.Renode.Peripherals.Wireless
         }
 
         public event Action<IExternal, IRadio, IRadio, byte[]> FrameTransmitted;
+
         public event Action<IExternal, IRadio, byte[]> FrameProcessed;
+
+        protected WirelessMedium()
+        {
+            radioHooks = new Dictionary<IRadio, Action<byte[]>>();
+            mediumFunction = SimpleMediumFunction.Instance;
+            radios = new Dictionary<IRadio, Position>();
+        }
 
         private void FrameSentHandler(IRadio sender, byte[] packet)
         {
