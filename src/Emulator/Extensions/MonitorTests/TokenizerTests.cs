@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -167,6 +167,14 @@ namespace Antmicro.Renode.MonitorTests
             result = tokenizer.Tokenize("false");
             AssertTokenizationTypes(result, typeof(BooleanToken));
             AssertTokenizationValues(result, false);
+        }
+
+        [Test]
+        public void NullTest()
+        {
+            var result = tokenizer.Tokenize("null");
+            AssertTokenizationTypes(result, typeof(NullToken));
+            AssertTokenizationValues(result, new object[] { null });
         }
 
         [Test]

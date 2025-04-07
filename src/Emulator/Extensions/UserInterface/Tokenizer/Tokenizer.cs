@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -65,6 +65,9 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
 
             // boolean ignore case
             tokenizer.AddToken(new Regex(@"^(?i)(true|false)"), x => new BooleanToken(x));
+
+            // "null"
+            tokenizer.AddToken(new Regex(@"^null"), x => new NullToken(x));
 
             // "="
             tokenizer.AddToken(new Regex(@"^="), x => new EqualityToken(x));
