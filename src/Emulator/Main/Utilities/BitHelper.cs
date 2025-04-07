@@ -87,7 +87,7 @@ namespace Antmicro.Renode.Utilities
             ulong mask = ulong.MaxValue;
             foreach(var bit in bits)
             {
-                mask -= 1u << bit;
+                mask -= 1ul << bit;
             }
             reg &= mask;
         }
@@ -107,7 +107,7 @@ namespace Antmicro.Renode.Utilities
             ulong mask = ulong.MaxValue;
             for(var i = 0; i < width; i++)
             {
-                mask -= 1u << (position + i);
+                mask -= 1ul << (position + i);
             }
             reg &= mask;
         }
@@ -124,10 +124,10 @@ namespace Antmicro.Renode.Utilities
 
         public static void SetBits(ref ulong reg, int position, int width)
         {
-            var mask = 0x0u;
+            var mask = 0x0ul;
             for(var i = 0; i < width; i++)
             {
-                mask += 1u << (position + i);
+                mask += 1ul << (position + i);
             }
             reg |= mask;
         }
@@ -557,7 +557,7 @@ namespace Antmicro.Renode.Utilities
         }
 
         public static void SetMaskedValue(ref ulong reg, ulong value, int maskOffset, int maskSize)
-        {            
+        {
             var mask = CalculateQuadWordMask(maskSize, maskOffset);
             value <<= maskOffset;
             value &= mask;
