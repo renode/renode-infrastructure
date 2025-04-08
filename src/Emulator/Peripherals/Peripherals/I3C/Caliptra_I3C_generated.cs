@@ -7,374 +7,375 @@ namespace Antmicro.Renode.Peripherals.I3C
 {
     public partial class Caliptra_I3C : IProvidesRegisterCollection<DoubleWordRegisterCollection>, IPeripheral, IDoubleWordPeripheral
     {
-        /// <summary> Register "HCI_VERSION" at 0x0 </summary>
-        protected HciVersionType HciVersion;
-        /// <summary> Register "HC_CONTROL" at 0x4 </summary>
-        protected HcControlType HcControl;
-        /// <summary> Register "CONTROLLER_DEVICE_ADDR" at 0x8 </summary>
-        protected ControllerDeviceAddrType ControllerDeviceAddr;
-        /// <summary> Register "HC_CAPABILITIES" at 0xc </summary>
-        protected HcCapabilitiesType HcCapabilities;
-        /// <summary> Register "RESET_CONTROL" at 0x10 </summary>
-        protected ResetControlType ResetControl;
-        /// <summary> Register "PRESENT_STATE" at 0x14 </summary>
-        protected PresentStateType PresentState;
-        /// <summary> Register "INTR_STATUS" at 0x20 </summary>
-        protected IntrStatusType IntrStatus;
-        /// <summary> Register "INTR_STATUS_ENABLE" at 0x24 </summary>
-        protected IntrStatusEnableType IntrStatusEnable;
-        /// <summary> Register "INTR_SIGNAL_ENABLE" at 0x28 </summary>
-        protected IntrSignalEnableType IntrSignalEnable;
-        /// <summary> Register "INTR_FORCE" at 0x2c </summary>
-        protected IntrForceType IntrForce;
-        /// <summary> Register "DAT_SECTION_OFFSET" at 0x30 </summary>
-        protected DatSectionOffsetType DatSectionOffset;
-        /// <summary> Register "DCT_SECTION_OFFSET" at 0x34 </summary>
-        protected DctSectionOffsetType DctSectionOffset;
-        /// <summary> Register "RING_HEADERS_SECTION_OFFSET" at 0x38 </summary>
-        protected RingHeadersSectionOffsetType RingHeadersSectionOffset;
-        /// <summary> Register "PIO_SECTION_OFFSET" at 0x3c </summary>
-        protected PioSectionOffsetType PioSectionOffset;
-        /// <summary> Register "EXT_CAPS_SECTION_OFFSET" at 0x40 </summary>
-        protected ExtCapsSectionOffsetType ExtCapsSectionOffset;
-        /// <summary> Register "INT_CTRL_CMDS_EN" at 0x4c </summary>
-        protected IntCtrlCmdsEnType IntCtrlCmdsEn;
-        /// <summary> Register "IBI_NOTIFY_CTRL" at 0x58 </summary>
-        protected IbiNotifyCtrlType IbiNotifyCtrl;
-        /// <summary> Register "IBI_DATA_ABORT_CTRL" at 0x5c </summary>
-        protected IbiDataAbortCtrlType IbiDataAbortCtrl;
-        /// <summary> Register "DEV_CTX_BASE_LO" at 0x60 </summary>
-        protected DevCtxBaseLoType DevCtxBaseLo;
-        /// <summary> Register "DEV_CTX_BASE_HI" at 0x64 </summary>
-        protected DevCtxBaseHiType DevCtxBaseHi;
-        /// <summary> Register "DEV_CTX_SG" at 0x68 </summary>
-        protected DevCtxSgType DevCtxSg;
-        /// <summary> Register "COMMAND_PORT" at 0x80 </summary>
-        protected CommandPortType CommandPort;
-        /// <summary> Register "RESPONSE_PORT" at 0x84 </summary>
-        protected ResponsePortType ResponsePort;
-        /// <summary> Register "TX_DATA_PORT" at 0x88 and Register "RX_DATA_PORT" at 0x88 </summary>
-        protected PIOTxRxDataPortType PIOTxRxDataPort;
-        /// <summary> Register "IBI_PORT" at 0x8c </summary>
-        protected PIOIbiPortType PIOIbiPort;
-        /// <summary> Register "QUEUE_THLD_CTRL" at 0x90 </summary>
-        protected PIOQueueThldCtrlType PIOQueueThldCtrl;
-        /// <summary> Register "DATA_BUFFER_THLD_CTRL" at 0x94 </summary>
-        protected PIODataBufferThldCtrlType PIODataBufferThldCtrl;
-        /// <summary> Register "QUEUE_SIZE" at 0x98 </summary>
-        protected PIOQueueSizeType PIOQueueSize;
-        /// <summary> Register "ALT_QUEUE_SIZE" at 0x9c </summary>
-        protected AltQueueSizeType AltQueueSize;
-        /// <summary> Register "PIO_INTR_STATUS" at 0xa0 </summary>
-        protected PioIntrStatusType PioIntrStatus;
-        /// <summary> Register "PIO_INTR_STATUS_ENABLE" at 0xa4 </summary>
-        protected PioIntrStatusEnableType PioIntrStatusEnable;
-        /// <summary> Register "PIO_INTR_SIGNAL_ENABLE" at 0xa8 </summary>
-        protected PioIntrSignalEnableType PioIntrSignalEnable;
-        /// <summary> Register "PIO_INTR_FORCE" at 0xac </summary>
-        protected PioIntrForceType PioIntrForce;
-        /// <summary> Register "PIO_CONTROL" at 0xb0 </summary>
-        protected PioControlType PioControl;
-        /// <summary> Register "EXTCAP_HEADER" at 0x100 </summary>
-        protected SecureFirmwareRecoveryInterfaceExtcapHeaderType SecureFirmwareRecoveryInterfaceExtcapHeader;
-        /// <summary> Register "PROT_CAP_0" at 0x104 </summary>
-        protected ProtCap0Type ProtCap0;
-        /// <summary> Register "PROT_CAP_1" at 0x108 </summary>
-        protected ProtCap1Type ProtCap1;
-        /// <summary> Register "PROT_CAP_2" at 0x10c </summary>
-        protected ProtCap2Type ProtCap2;
-        /// <summary> Register "PROT_CAP_3" at 0x110 </summary>
-        protected ProtCap3Type ProtCap3;
-        /// <summary> Register "DEVICE_ID_0" at 0x114 </summary>
-        protected DeviceId0Type DeviceId0;
-        /// <summary> Register "DEVICE_ID_1" at 0x118 </summary>
-        protected DeviceId1Type DeviceId1;
-        /// <summary> Register "DEVICE_ID_2" at 0x11c </summary>
-        protected DeviceId2Type DeviceId2;
-        /// <summary> Register "DEVICE_ID_3" at 0x120 </summary>
-        protected DeviceId3Type DeviceId3;
-        /// <summary> Register "DEVICE_ID_4" at 0x124 </summary>
-        protected DeviceId4Type DeviceId4;
-        /// <summary> Register "DEVICE_ID_5" at 0x128 </summary>
-        protected DeviceId5Type DeviceId5;
-        /// <summary> Register "DEVICE_ID_RESERVED" at 0x12c </summary>
-        protected DeviceIdReservedType DeviceIdReserved;
-        /// <summary> Register "DEVICE_STATUS_0" at 0x130 </summary>
-        protected DeviceStatus0Type DeviceStatus0;
-        /// <summary> Register "DEVICE_STATUS_1" at 0x134 </summary>
-        protected DeviceStatus1Type DeviceStatus1;
-        /// <summary> Register "DEVICE_RESET" at 0x138 </summary>
-        protected DeviceResetType DeviceReset;
-        /// <summary> Register "RECOVERY_CTRL" at 0x13c </summary>
-        protected RecoveryCtrlType RecoveryCtrl;
-        /// <summary> Register "RECOVERY_STATUS" at 0x140 </summary>
-        protected RecoveryStatusType RecoveryStatus;
-        /// <summary> Register "HW_STATUS" at 0x144 </summary>
-        protected HwStatusType HwStatus;
-        /// <summary> Register "INDIRECT_FIFO_CTRL_0" at 0x148 </summary>
-        protected IndirectFifoCtrl0Type IndirectFifoCtrl0;
-        /// <summary> Register "INDIRECT_FIFO_CTRL_1" at 0x14c </summary>
-        protected IndirectFifoCtrl1Type IndirectFifoCtrl1;
-        /// <summary> Register "INDIRECT_FIFO_STATUS_0" at 0x150 </summary>
-        protected IndirectFifoStatus0Type IndirectFifoStatus0;
-        /// <summary> Register "INDIRECT_FIFO_STATUS_1" at 0x154 </summary>
-        protected IndirectFifoStatus1Type IndirectFifoStatus1;
-        /// <summary> Register "INDIRECT_FIFO_STATUS_2" at 0x158 </summary>
-        protected IndirectFifoStatus2Type IndirectFifoStatus2;
-        /// <summary> Register "INDIRECT_FIFO_STATUS_3" at 0x15c </summary>
-        protected IndirectFifoStatus3Type IndirectFifoStatus3;
-        /// <summary> Register "INDIRECT_FIFO_STATUS_4" at 0x160 </summary>
-        protected IndirectFifoStatus4Type IndirectFifoStatus4;
-        /// <summary> Register "INDIRECT_FIFO_RESERVED" at 0x164 </summary>
-        protected IndirectFifoReservedType IndirectFifoReserved;
-        /// <summary> Register "INDIRECT_FIFO_DATA" at 0x168 </summary>
-        protected IndirectFifoDataType IndirectFifoData;
-        /// <summary> Register "EXTCAP_HEADER" at 0x180 </summary>
-        protected StandbyControllerModeRegistersExtcapHeaderType StandbyControllerModeRegistersExtcapHeader;
-        /// <summary> Register "STBY_CR_CONTROL" at 0x184 </summary>
-        protected StbyCrControlType StbyCrControl;
-        /// <summary> Register "STBY_CR_DEVICE_ADDR" at 0x188 </summary>
-        protected StbyCrDeviceAddrType StbyCrDeviceAddr;
-        /// <summary> Register "STBY_CR_CAPABILITIES" at 0x18c </summary>
-        protected StbyCrCapabilitiesType StbyCrCapabilities;
-        /// <summary> Register "__rsvd_0" at 0x190 </summary>
-        protected Rsvd0Type Rsvd0;
-        /// <summary> Register "STBY_CR_STATUS" at 0x194 </summary>
-        protected StbyCrStatusType StbyCrStatus;
-        /// <summary> Register "STBY_CR_DEVICE_CHAR" at 0x198 </summary>
-        protected StbyCrDeviceCharType StbyCrDeviceChar;
-        /// <summary> Register "STBY_CR_DEVICE_PID_LO" at 0x19c </summary>
-        protected StbyCrDevicePidLoType StbyCrDevicePidLo;
-        /// <summary> Register "STBY_CR_INTR_STATUS" at 0x1a0 </summary>
-        protected StbyCrIntrStatusType StbyCrIntrStatus;
-        /// <summary> Register "__rsvd_1" at 0x1a4 </summary>
-        protected Rsvd1Type Rsvd1;
-        /// <summary> Register "STBY_CR_INTR_SIGNAL_ENABLE" at 0x1a8 </summary>
-        protected StbyCrIntrSignalEnableType StbyCrIntrSignalEnable;
-        /// <summary> Register "STBY_CR_INTR_FORCE" at 0x1ac </summary>
-        protected StbyCrIntrForceType StbyCrIntrForce;
-        /// <summary> Register "STBY_CR_CCC_CONFIG_GETCAPS" at 0x1b0 </summary>
-        protected StbyCrCccConfigGetcapsType StbyCrCccConfigGetcaps;
-        /// <summary> Register "STBY_CR_CCC_CONFIG_RSTACT_PARAMS" at 0x1b4 </summary>
-        protected StbyCrCccConfigRstactParamsType StbyCrCccConfigRstactParams;
-        /// <summary> Register "STBY_CR_VIRT_DEVICE_ADDR" at 0x1b8 </summary>
-        protected StbyCrVirtDeviceAddrType StbyCrVirtDeviceAddr;
-        /// <summary> Register "__rsvd_3" at 0x1bc </summary>
-        protected Rsvd3Type Rsvd3;
-        /// <summary> Register "EXTCAP_HEADER" at 0x1c0 </summary>
-        protected TargetTransactionInterfaceRegistersExtcapHeaderType TargetTransactionInterfaceRegistersExtcapHeader;
-        /// <summary> Register "CONTROL" at 0x1c4 </summary>
-        protected ControlType Control;
-        /// <summary> Register "STATUS" at 0x1c8 </summary>
-        protected StatusType Status;
-        /// <summary> Register "RESET_CONTROL" at 0x1cc </summary>
-        protected TargetTransactionInterfaceResetControlType TargetTransactionInterfaceResetControl;
-        /// <summary> Register "INTERRUPT_STATUS" at 0x1d0 </summary>
-        protected InterruptStatusType InterruptStatus;
-        /// <summary> Register "INTERRUPT_ENABLE" at 0x1d4 </summary>
-        protected InterruptEnableType InterruptEnable;
-        /// <summary> Register "INTERRUPT_FORCE" at 0x1d8 </summary>
-        protected InterruptForceType InterruptForce;
-        /// <summary> Register "RX_DESC_QUEUE_PORT" at 0x1dc </summary>
-        protected RxDescQueuePortType RxDescQueuePort;
-        /// <summary> Register "RX_DATA_PORT" at 0x1e0 </summary>
-        protected TargetTransactionInterfaceRxDataPortType TargetTransactionInterfaceRxDataPort;
-        /// <summary> Register "TX_DESC_QUEUE_PORT" at 0x1e4 </summary>
-        protected TxDescQueuePortType TxDescQueuePort;
-        /// <summary> Register "TX_DATA_PORT" at 0x1e8 </summary>
-        protected TargetTransactionInterfaceTxDataPortType TargetTransactionInterfaceTxDataPort;
-        /// <summary> Register "IBI_PORT" at 0x1ec </summary>
-        protected TargetTransactionInterfaceIbiPortType TargetTransactionInterfaceIbiPort;
-        /// <summary> Register "QUEUE_SIZE" at 0x1f0 </summary>
-        protected TargetTransactionInterfaceQueueSizeType TargetTransactionInterfaceQueueSize;
-        /// <summary> Register "IBI_QUEUE_SIZE" at 0x1f4 </summary>
-        protected IbiQueueSizeType IbiQueueSize;
-        /// <summary> Register "QUEUE_THLD_CTRL" at 0x1f8 </summary>
-        protected TargetTransactionInterfaceQueueThldCtrlType TargetTransactionInterfaceQueueThldCtrl;
-        /// <summary> Register "DATA_BUFFER_THLD_CTRL" at 0x1fc </summary>
-        protected TargetTransactionInterfaceDataBufferThldCtrlType TargetTransactionInterfaceDataBufferThldCtrl;
-        /// <summary> Register "EXTCAP_HEADER" at 0x200 </summary>
-        protected SoCManagementInterfaceRegistersExtcapHeaderType SoCManagementInterfaceRegistersExtcapHeader;
-        /// <summary> Register "SOC_MGMT_CONTROL" at 0x204 </summary>
-        protected SocMgmtControlType SocMgmtControl;
-        /// <summary> Register "SOC_MGMT_STATUS" at 0x208 </summary>
-        protected SocMgmtStatusType SocMgmtStatus;
-        /// <summary> Register "SOC_MGMT_RSVD_0" at 0x20c </summary>
-        protected SocMgmtRsvd0Type SocMgmtRsvd0;
-        /// <summary> Register "SOC_MGMT_RSVD_1" at 0x210 </summary>
-        protected SocMgmtRsvd1Type SocMgmtRsvd1;
-        /// <summary> Register "SOC_MGMT_RSVD_2" at 0x214 </summary>
-        protected SocMgmtRsvd2Type SocMgmtRsvd2;
-        /// <summary> Register "SOC_MGMT_RSVD_3" at 0x218 </summary>
-        protected SocMgmtRsvd3Type SocMgmtRsvd3;
-        /// <summary> Register "SOC_PAD_CONF" at 0x21c </summary>
-        protected SocPadConfType SocPadConf;
-        /// <summary> Register "SOC_PAD_ATTR" at 0x220 </summary>
-        protected SocPadAttrType SocPadAttr;
-        /// <summary> Register "SOC_MGMT_FEATURE_2" at 0x224 </summary>
-        protected SocMgmtFeature2Type SocMgmtFeature2;
-        /// <summary> Register "SOC_MGMT_FEATURE_3" at 0x228 </summary>
-        protected SocMgmtFeature3Type SocMgmtFeature3;
-        /// <summary> Register "T_R_REG" at 0x22c </summary>
-        protected TRRegType TRReg;
-        /// <summary> Register "T_F_REG" at 0x230 </summary>
-        protected TFRegType TFReg;
-        /// <summary> Register "T_SU_DAT_REG" at 0x234 </summary>
-        protected TSuDatRegType TSuDatReg;
-        /// <summary> Register "T_HD_DAT_REG" at 0x238 </summary>
-        protected THdDatRegType THdDatReg;
-        /// <summary> Register "T_HIGH_REG" at 0x23c </summary>
-        protected THighRegType THighReg;
-        /// <summary> Register "T_LOW_REG" at 0x240 </summary>
-        protected TLowRegType TLowReg;
-        /// <summary> Register "T_HD_STA_REG" at 0x244 </summary>
-        protected THdStaRegType THdStaReg;
-        /// <summary> Register "T_SU_STA_REG" at 0x248 </summary>
-        protected TSuStaRegType TSuStaReg;
-        /// <summary> Register "T_SU_STO_REG" at 0x24c </summary>
-        protected TSuStoRegType TSuStoReg;
-        /// <summary> Register "T_FREE_REG" at 0x250 </summary>
-        protected TFreeRegType TFreeReg;
-        /// <summary> Register "T_AVAL_REG" at 0x254 </summary>
-        protected TAvalRegType TAvalReg;
-        /// <summary> Register "T_IDLE_REG" at 0x258 </summary>
-        protected TIdleRegType TIdleReg;
-        /// <summary> Register "EXTCAP_HEADER" at 0x260 </summary>
-        protected ControllerConfigRegistersExtcapHeaderType ControllerConfigRegistersExtcapHeader;
-        /// <summary> Register "CONTROLLER_CONFIG" at 0x264 </summary>
-        protected ControllerConfigType ControllerConfig;
-        /// <summary> Register "TERMINATION_EXTCAP_HEADER" at 0x268 </summary>
-        protected TerminationExtcapHeaderType TerminationExtcapHeader;
+        /// <summary> Register "I3CBase.HCI_VERSION" at 0x0 </summary>
+        protected I3cBase_HciVersionType I3cBase_HciVersion;
+        /// <summary> Register "I3CBase.HC_CONTROL" at 0x4 </summary>
+        protected I3cBase_HcControlType I3cBase_HcControl;
+        /// <summary> Register "I3CBase.CONTROLLER_DEVICE_ADDR" at 0x8 </summary>
+        protected I3cBase_ControllerDeviceAddrType I3cBase_ControllerDeviceAddr;
+        /// <summary> Register "I3CBase.HC_CAPABILITIES" at 0xc </summary>
+        protected I3cBase_HcCapabilitiesType I3cBase_HcCapabilities;
+        /// <summary> Register "I3CBase.RESET_CONTROL" at 0x10 </summary>
+        protected I3cBase_ResetControlType I3cBase_ResetControl;
+        /// <summary> Register "I3CBase.PRESENT_STATE" at 0x14 </summary>
+        protected I3cBase_PresentStateType I3cBase_PresentState;
+        /// <summary> Register "I3CBase.INTR_STATUS" at 0x20 </summary>
+        protected I3cBase_IntrStatusType I3cBase_IntrStatus;
+        /// <summary> Register "I3CBase.INTR_STATUS_ENABLE" at 0x24 </summary>
+        protected I3cBase_IntrStatusEnableType I3cBase_IntrStatusEnable;
+        /// <summary> Register "I3CBase.INTR_SIGNAL_ENABLE" at 0x28 </summary>
+        protected I3cBase_IntrSignalEnableType I3cBase_IntrSignalEnable;
+        /// <summary> Register "I3CBase.INTR_FORCE" at 0x2c </summary>
+        protected I3cBase_IntrForceType I3cBase_IntrForce;
+        /// <summary> Register "I3CBase.DAT_SECTION_OFFSET" at 0x30 </summary>
+        protected I3cBase_DatSectionOffsetType I3cBase_DatSectionOffset;
+        /// <summary> Register "I3CBase.DCT_SECTION_OFFSET" at 0x34 </summary>
+        protected I3cBase_DctSectionOffsetType I3cBase_DctSectionOffset;
+        /// <summary> Register "I3CBase.RING_HEADERS_SECTION_OFFSET" at 0x38 </summary>
+        protected I3cBase_RingHeadersSectionOffsetType I3cBase_RingHeadersSectionOffset;
+        /// <summary> Register "I3CBase.PIO_SECTION_OFFSET" at 0x3c </summary>
+        protected I3cBase_PioSectionOffsetType I3cBase_PioSectionOffset;
+        /// <summary> Register "I3CBase.EXT_CAPS_SECTION_OFFSET" at 0x40 </summary>
+        protected I3cBase_ExtCapsSectionOffsetType I3cBase_ExtCapsSectionOffset;
+        /// <summary> Register "I3CBase.INT_CTRL_CMDS_EN" at 0x4c </summary>
+        protected I3cBase_IntCtrlCmdsEnType I3cBase_IntCtrlCmdsEn;
+        /// <summary> Register "I3CBase.IBI_NOTIFY_CTRL" at 0x58 </summary>
+        protected I3cBase_IbiNotifyCtrlType I3cBase_IbiNotifyCtrl;
+        /// <summary> Register "I3CBase.IBI_DATA_ABORT_CTRL" at 0x5c </summary>
+        protected I3cBase_IbiDataAbortCtrlType I3cBase_IbiDataAbortCtrl;
+        /// <summary> Register "I3CBase.DEV_CTX_BASE_LO" at 0x60 </summary>
+        protected I3cBase_DevCtxBaseLoType I3cBase_DevCtxBaseLo;
+        /// <summary> Register "I3CBase.DEV_CTX_BASE_HI" at 0x64 </summary>
+        protected I3cBase_DevCtxBaseHiType I3cBase_DevCtxBaseHi;
+        /// <summary> Register "I3CBase.DEV_CTX_SG" at 0x68 </summary>
+        protected I3cBase_DevCtxSgType I3cBase_DevCtxSg;
+        /// <summary> Register "PIOControl.COMMAND_PORT" at 0x80 </summary>
+        protected PiOControl_CommandPortType PiOControl_CommandPort;
+        /// <summary> Register "PIOControl.RESPONSE_PORT" at 0x84 </summary>
+        protected PiOControl_ResponsePortType PiOControl_ResponsePort;
+        /// <summary> Register "PIOControl.TX_DATA_PORT_RX_DATA_PORT" at 0x88 </summary>
+        protected PiOControl_TxDataPortRxDataPortType PiOControl_TxDataPortRxDataPort;
+        /// <summary> Register "PIOControl.IBI_PORT" at 0x8c </summary>
+        protected PiOControl_IbiPortType PiOControl_IbiPort;
+        /// <summary> Register "PIOControl.QUEUE_THLD_CTRL" at 0x90 </summary>
+        protected PiOControl_QueueThldCtrlType PiOControl_QueueThldCtrl;
+        /// <summary> Register "PIOControl.DATA_BUFFER_THLD_CTRL" at 0x94 </summary>
+        protected PiOControl_DataBufferThldCtrlType PiOControl_DataBufferThldCtrl;
+        /// <summary> Register "PIOControl.QUEUE_SIZE" at 0x98 </summary>
+        protected PiOControl_QueueSizeType PiOControl_QueueSize;
+        /// <summary> Register "PIOControl.ALT_QUEUE_SIZE" at 0x9c </summary>
+        protected PiOControl_AltQueueSizeType PiOControl_AltQueueSize;
+        /// <summary> Register "PIOControl.PIO_INTR_STATUS" at 0xa0 </summary>
+        protected PiOControl_PioIntrStatusType PiOControl_PioIntrStatus;
+        /// <summary> Register "PIOControl.PIO_INTR_STATUS_ENABLE" at 0xa4 </summary>
+        protected PiOControl_PioIntrStatusEnableType PiOControl_PioIntrStatusEnable;
+        /// <summary> Register "PIOControl.PIO_INTR_SIGNAL_ENABLE" at 0xa8 </summary>
+        protected PiOControl_PioIntrSignalEnableType PiOControl_PioIntrSignalEnable;
+        /// <summary> Register "PIOControl.PIO_INTR_FORCE" at 0xac </summary>
+        protected PiOControl_PioIntrForceType PiOControl_PioIntrForce;
+        /// <summary> Register "PIOControl.PIO_CONTROL" at 0xb0 </summary>
+        protected PiOControl_PioControlType PiOControl_PioControl;
+        /// <summary> Register "I3C_EC.SecFwRecoveryIf.EXTCAP_HEADER" at 0x100 </summary>
+        protected I3cEc_SecFwRecoveryIf_ExtcapHeaderType I3cEc_SecFwRecoveryIf_ExtcapHeader;
+        /// <summary> Register "I3C_EC.SecFwRecoveryIf.PROT_CAP_0" at 0x104 </summary>
+        protected I3cEc_SecFwRecoveryIf_ProtCap0Type I3cEc_SecFwRecoveryIf_ProtCap0;
+        /// <summary> Register "I3C_EC.SecFwRecoveryIf.PROT_CAP_1" at 0x108 </summary>
+        protected I3cEc_SecFwRecoveryIf_ProtCap1Type I3cEc_SecFwRecoveryIf_ProtCap1;
+        /// <summary> Register "I3C_EC.SecFwRecoveryIf.PROT_CAP_2" at 0x10c </summary>
+        protected I3cEc_SecFwRecoveryIf_ProtCap2Type I3cEc_SecFwRecoveryIf_ProtCap2;
+        /// <summary> Register "I3C_EC.SecFwRecoveryIf.PROT_CAP_3" at 0x110 </summary>
+        protected I3cEc_SecFwRecoveryIf_ProtCap3Type I3cEc_SecFwRecoveryIf_ProtCap3;
+        /// <summary> Register "I3C_EC.SecFwRecoveryIf.DEVICE_ID_0" at 0x114 </summary>
+        protected I3cEc_SecFwRecoveryIf_DeviceId0Type I3cEc_SecFwRecoveryIf_DeviceId0;
+        /// <summary> Register "I3C_EC.SecFwRecoveryIf.DEVICE_ID_1" at 0x118 </summary>
+        protected I3cEc_SecFwRecoveryIf_DeviceId1Type I3cEc_SecFwRecoveryIf_DeviceId1;
+        /// <summary> Register "I3C_EC.SecFwRecoveryIf.DEVICE_ID_2" at 0x11c </summary>
+        protected I3cEc_SecFwRecoveryIf_DeviceId2Type I3cEc_SecFwRecoveryIf_DeviceId2;
+        /// <summary> Register "I3C_EC.SecFwRecoveryIf.DEVICE_ID_3" at 0x120 </summary>
+        protected I3cEc_SecFwRecoveryIf_DeviceId3Type I3cEc_SecFwRecoveryIf_DeviceId3;
+        /// <summary> Register "I3C_EC.SecFwRecoveryIf.DEVICE_ID_4" at 0x124 </summary>
+        protected I3cEc_SecFwRecoveryIf_DeviceId4Type I3cEc_SecFwRecoveryIf_DeviceId4;
+        /// <summary> Register "I3C_EC.SecFwRecoveryIf.DEVICE_ID_5" at 0x128 </summary>
+        protected I3cEc_SecFwRecoveryIf_DeviceId5Type I3cEc_SecFwRecoveryIf_DeviceId5;
+        /// <summary> Register "I3C_EC.SecFwRecoveryIf.DEVICE_ID_RESERVED" at 0x12c </summary>
+        protected I3cEc_SecFwRecoveryIf_DeviceIdReservedType I3cEc_SecFwRecoveryIf_DeviceIdReserved;
+        /// <summary> Register "I3C_EC.SecFwRecoveryIf.DEVICE_STATUS_0" at 0x130 </summary>
+        protected I3cEc_SecFwRecoveryIf_DeviceStatus0Type I3cEc_SecFwRecoveryIf_DeviceStatus0;
+        /// <summary> Register "I3C_EC.SecFwRecoveryIf.DEVICE_STATUS_1" at 0x134 </summary>
+        protected I3cEc_SecFwRecoveryIf_DeviceStatus1Type I3cEc_SecFwRecoveryIf_DeviceStatus1;
+        /// <summary> Register "I3C_EC.SecFwRecoveryIf.DEVICE_RESET" at 0x138 </summary>
+        protected I3cEc_SecFwRecoveryIf_DeviceResetType I3cEc_SecFwRecoveryIf_DeviceReset;
+        /// <summary> Register "I3C_EC.SecFwRecoveryIf.RECOVERY_CTRL" at 0x13c </summary>
+        protected I3cEc_SecFwRecoveryIf_RecoveryCtrlType I3cEc_SecFwRecoveryIf_RecoveryCtrl;
+        /// <summary> Register "I3C_EC.SecFwRecoveryIf.RECOVERY_STATUS" at 0x140 </summary>
+        protected I3cEc_SecFwRecoveryIf_RecoveryStatusType I3cEc_SecFwRecoveryIf_RecoveryStatus;
+        /// <summary> Register "I3C_EC.SecFwRecoveryIf.HW_STATUS" at 0x144 </summary>
+        protected I3cEc_SecFwRecoveryIf_HwStatusType I3cEc_SecFwRecoveryIf_HwStatus;
+        /// <summary> Register "I3C_EC.SecFwRecoveryIf.INDIRECT_FIFO_CTRL_0" at 0x148 </summary>
+        protected I3cEc_SecFwRecoveryIf_IndirectFifoCtrl0Type I3cEc_SecFwRecoveryIf_IndirectFifoCtrl0;
+        /// <summary> Register "I3C_EC.SecFwRecoveryIf.INDIRECT_FIFO_CTRL_1" at 0x14c </summary>
+        protected I3cEc_SecFwRecoveryIf_IndirectFifoCtrl1Type I3cEc_SecFwRecoveryIf_IndirectFifoCtrl1;
+        /// <summary> Register "I3C_EC.SecFwRecoveryIf.INDIRECT_FIFO_STATUS_0" at 0x150 </summary>
+        protected I3cEc_SecFwRecoveryIf_IndirectFifoStatus0Type I3cEc_SecFwRecoveryIf_IndirectFifoStatus0;
+        /// <summary> Register "I3C_EC.SecFwRecoveryIf.INDIRECT_FIFO_STATUS_1" at 0x154 </summary>
+        protected I3cEc_SecFwRecoveryIf_IndirectFifoStatus1Type I3cEc_SecFwRecoveryIf_IndirectFifoStatus1;
+        /// <summary> Register "I3C_EC.SecFwRecoveryIf.INDIRECT_FIFO_STATUS_2" at 0x158 </summary>
+        protected I3cEc_SecFwRecoveryIf_IndirectFifoStatus2Type I3cEc_SecFwRecoveryIf_IndirectFifoStatus2;
+        /// <summary> Register "I3C_EC.SecFwRecoveryIf.INDIRECT_FIFO_STATUS_3" at 0x15c </summary>
+        protected I3cEc_SecFwRecoveryIf_IndirectFifoStatus3Type I3cEc_SecFwRecoveryIf_IndirectFifoStatus3;
+        /// <summary> Register "I3C_EC.SecFwRecoveryIf.INDIRECT_FIFO_STATUS_4" at 0x160 </summary>
+        protected I3cEc_SecFwRecoveryIf_IndirectFifoStatus4Type I3cEc_SecFwRecoveryIf_IndirectFifoStatus4;
+        /// <summary> Register "I3C_EC.SecFwRecoveryIf.INDIRECT_FIFO_RESERVED" at 0x164 </summary>
+        protected I3cEc_SecFwRecoveryIf_IndirectFifoReservedType I3cEc_SecFwRecoveryIf_IndirectFifoReserved;
+        /// <summary> Register "I3C_EC.SecFwRecoveryIf.INDIRECT_FIFO_DATA" at 0x168 </summary>
+        protected I3cEc_SecFwRecoveryIf_IndirectFifoDataType I3cEc_SecFwRecoveryIf_IndirectFifoData;
+        /// <summary> Register "I3C_EC.StdbyCtrlMode.EXTCAP_HEADER" at 0x180 </summary>
+        protected I3cEc_StdbyCtrlMode_ExtcapHeaderType I3cEc_StdbyCtrlMode_ExtcapHeader;
+        /// <summary> Register "I3C_EC.StdbyCtrlMode.STBY_CR_CONTROL" at 0x184 </summary>
+        protected I3cEc_StdbyCtrlMode_StbyCrControlType I3cEc_StdbyCtrlMode_StbyCrControl;
+        /// <summary> Register "I3C_EC.StdbyCtrlMode.STBY_CR_DEVICE_ADDR" at 0x188 </summary>
+        protected I3cEc_StdbyCtrlMode_StbyCrDeviceAddrType I3cEc_StdbyCtrlMode_StbyCrDeviceAddr;
+        /// <summary> Register "I3C_EC.StdbyCtrlMode.STBY_CR_CAPABILITIES" at 0x18c </summary>
+        protected I3cEc_StdbyCtrlMode_StbyCrCapabilitiesType I3cEc_StdbyCtrlMode_StbyCrCapabilities;
+        /// <summary> Register "I3C_EC.StdbyCtrlMode.__rsvd_0" at 0x190 </summary>
+        protected I3cEc_StdbyCtrlMode_Rsvd0Type I3cEc_StdbyCtrlMode_Rsvd0;
+        /// <summary> Register "I3C_EC.StdbyCtrlMode.STBY_CR_STATUS" at 0x194 </summary>
+        protected I3cEc_StdbyCtrlMode_StbyCrStatusType I3cEc_StdbyCtrlMode_StbyCrStatus;
+        /// <summary> Register "I3C_EC.StdbyCtrlMode.STBY_CR_DEVICE_CHAR" at 0x198 </summary>
+        protected I3cEc_StdbyCtrlMode_StbyCrDeviceCharType I3cEc_StdbyCtrlMode_StbyCrDeviceChar;
+        /// <summary> Register "I3C_EC.StdbyCtrlMode.STBY_CR_DEVICE_PID_LO" at 0x19c </summary>
+        protected I3cEc_StdbyCtrlMode_StbyCrDevicePidLoType I3cEc_StdbyCtrlMode_StbyCrDevicePidLo;
+        /// <summary> Register "I3C_EC.StdbyCtrlMode.STBY_CR_INTR_STATUS" at 0x1a0 </summary>
+        protected I3cEc_StdbyCtrlMode_StbyCrIntrStatusType I3cEc_StdbyCtrlMode_StbyCrIntrStatus;
+        /// <summary> Register "I3C_EC.StdbyCtrlMode.__rsvd_1" at 0x1a4 </summary>
+        protected I3cEc_StdbyCtrlMode_Rsvd1Type I3cEc_StdbyCtrlMode_Rsvd1;
+        /// <summary> Register "I3C_EC.StdbyCtrlMode.STBY_CR_INTR_SIGNAL_ENABLE" at 0x1a8 </summary>
+        protected I3cEc_StdbyCtrlMode_StbyCrIntrSignalEnableType I3cEc_StdbyCtrlMode_StbyCrIntrSignalEnable;
+        /// <summary> Register "I3C_EC.StdbyCtrlMode.STBY_CR_INTR_FORCE" at 0x1ac </summary>
+        protected I3cEc_StdbyCtrlMode_StbyCrIntrForceType I3cEc_StdbyCtrlMode_StbyCrIntrForce;
+        /// <summary> Register "I3C_EC.StdbyCtrlMode.STBY_CR_CCC_CONFIG_GETCAPS" at 0x1b0 </summary>
+        protected I3cEc_StdbyCtrlMode_StbyCrCccConfigGetcapsType I3cEc_StdbyCtrlMode_StbyCrCccConfigGetcaps;
+        /// <summary> Register "I3C_EC.StdbyCtrlMode.STBY_CR_CCC_CONFIG_RSTACT_PARAMS" at 0x1b4 </summary>
+        protected I3cEc_StdbyCtrlMode_StbyCrCccConfigRstactParamsType I3cEc_StdbyCtrlMode_StbyCrCccConfigRstactParams;
+        /// <summary> Register "I3C_EC.StdbyCtrlMode.STBY_CR_VIRT_DEVICE_ADDR" at 0x1b8 </summary>
+        protected I3cEc_StdbyCtrlMode_StbyCrVirtDeviceAddrType I3cEc_StdbyCtrlMode_StbyCrVirtDeviceAddr;
+        /// <summary> Register "I3C_EC.StdbyCtrlMode.__rsvd_3" at 0x1bc </summary>
+        protected I3cEc_StdbyCtrlMode_Rsvd3Type I3cEc_StdbyCtrlMode_Rsvd3;
+        /// <summary> Register "I3C_EC.TTI.EXTCAP_HEADER" at 0x1c0 </summary>
+        protected I3cEc_Tti_ExtcapHeaderType I3cEc_Tti_ExtcapHeader;
+        /// <summary> Register "I3C_EC.TTI.CONTROL" at 0x1c4 </summary>
+        protected I3cEc_Tti_ControlType I3cEc_Tti_Control;
+        /// <summary> Register "I3C_EC.TTI.STATUS" at 0x1c8 </summary>
+        protected I3cEc_Tti_StatusType I3cEc_Tti_Status;
+        /// <summary> Register "I3C_EC.TTI.RESET_CONTROL" at 0x1cc </summary>
+        protected I3cEc_Tti_ResetControlType I3cEc_Tti_ResetControl;
+        /// <summary> Register "I3C_EC.TTI.INTERRUPT_STATUS" at 0x1d0 </summary>
+        protected I3cEc_Tti_InterruptStatusType I3cEc_Tti_InterruptStatus;
+        /// <summary> Register "I3C_EC.TTI.INTERRUPT_ENABLE" at 0x1d4 </summary>
+        protected I3cEc_Tti_InterruptEnableType I3cEc_Tti_InterruptEnable;
+        /// <summary> Register "I3C_EC.TTI.INTERRUPT_FORCE" at 0x1d8 </summary>
+        protected I3cEc_Tti_InterruptForceType I3cEc_Tti_InterruptForce;
+        /// <summary> Register "I3C_EC.TTI.RX_DESC_QUEUE_PORT" at 0x1dc </summary>
+        protected I3cEc_Tti_RxDescQueuePortType I3cEc_Tti_RxDescQueuePort;
+        /// <summary> Register "I3C_EC.TTI.RX_DATA_PORT" at 0x1e0 </summary>
+        protected I3cEc_Tti_RxDataPortType I3cEc_Tti_RxDataPort;
+        /// <summary> Register "I3C_EC.TTI.TX_DESC_QUEUE_PORT" at 0x1e4 </summary>
+        protected I3cEc_Tti_TxDescQueuePortType I3cEc_Tti_TxDescQueuePort;
+        /// <summary> Register "I3C_EC.TTI.TX_DATA_PORT" at 0x1e8 </summary>
+        protected I3cEc_Tti_TxDataPortType I3cEc_Tti_TxDataPort;
+        /// <summary> Register "I3C_EC.TTI.IBI_PORT" at 0x1ec </summary>
+        protected I3cEc_Tti_IbiPortType I3cEc_Tti_IbiPort;
+        /// <summary> Register "I3C_EC.TTI.QUEUE_SIZE" at 0x1f0 </summary>
+        protected I3cEc_Tti_QueueSizeType I3cEc_Tti_QueueSize;
+        /// <summary> Register "I3C_EC.TTI.IBI_QUEUE_SIZE" at 0x1f4 </summary>
+        protected I3cEc_Tti_IbiQueueSizeType I3cEc_Tti_IbiQueueSize;
+        /// <summary> Register "I3C_EC.TTI.QUEUE_THLD_CTRL" at 0x1f8 </summary>
+        protected I3cEc_Tti_QueueThldCtrlType I3cEc_Tti_QueueThldCtrl;
+        /// <summary> Register "I3C_EC.TTI.DATA_BUFFER_THLD_CTRL" at 0x1fc </summary>
+        protected I3cEc_Tti_DataBufferThldCtrlType I3cEc_Tti_DataBufferThldCtrl;
+        /// <summary> Register "I3C_EC.SoCMgmtIf.EXTCAP_HEADER" at 0x200 </summary>
+        protected I3cEc_SoCMgmtIf_ExtcapHeaderType I3cEc_SoCMgmtIf_ExtcapHeader;
+        /// <summary> Register "I3C_EC.SoCMgmtIf.SOC_MGMT_CONTROL" at 0x204 </summary>
+        protected I3cEc_SoCMgmtIf_SocMgmtControlType I3cEc_SoCMgmtIf_SocMgmtControl;
+        /// <summary> Register "I3C_EC.SoCMgmtIf.SOC_MGMT_STATUS" at 0x208 </summary>
+        protected I3cEc_SoCMgmtIf_SocMgmtStatusType I3cEc_SoCMgmtIf_SocMgmtStatus;
+        /// <summary> Register "I3C_EC.SoCMgmtIf.SOC_MGMT_RSVD_0" at 0x20c </summary>
+        protected I3cEc_SoCMgmtIf_SocMgmtRsvd0Type I3cEc_SoCMgmtIf_SocMgmtRsvd0;
+        /// <summary> Register "I3C_EC.SoCMgmtIf.SOC_MGMT_RSVD_1" at 0x210 </summary>
+        protected I3cEc_SoCMgmtIf_SocMgmtRsvd1Type I3cEc_SoCMgmtIf_SocMgmtRsvd1;
+        /// <summary> Register "I3C_EC.SoCMgmtIf.SOC_MGMT_RSVD_2" at 0x214 </summary>
+        protected I3cEc_SoCMgmtIf_SocMgmtRsvd2Type I3cEc_SoCMgmtIf_SocMgmtRsvd2;
+        /// <summary> Register "I3C_EC.SoCMgmtIf.SOC_MGMT_RSVD_3" at 0x218 </summary>
+        protected I3cEc_SoCMgmtIf_SocMgmtRsvd3Type I3cEc_SoCMgmtIf_SocMgmtRsvd3;
+        /// <summary> Register "I3C_EC.SoCMgmtIf.SOC_PAD_CONF" at 0x21c </summary>
+        protected I3cEc_SoCMgmtIf_SocPadConfType I3cEc_SoCMgmtIf_SocPadConf;
+        /// <summary> Register "I3C_EC.SoCMgmtIf.SOC_PAD_ATTR" at 0x220 </summary>
+        protected I3cEc_SoCMgmtIf_SocPadAttrType I3cEc_SoCMgmtIf_SocPadAttr;
+        /// <summary> Register "I3C_EC.SoCMgmtIf.SOC_MGMT_FEATURE_2" at 0x224 </summary>
+        protected I3cEc_SoCMgmtIf_SocMgmtFeature2Type I3cEc_SoCMgmtIf_SocMgmtFeature2;
+        /// <summary> Register "I3C_EC.SoCMgmtIf.SOC_MGMT_FEATURE_3" at 0x228 </summary>
+        protected I3cEc_SoCMgmtIf_SocMgmtFeature3Type I3cEc_SoCMgmtIf_SocMgmtFeature3;
+        /// <summary> Register "I3C_EC.SoCMgmtIf.T_R_REG" at 0x22c </summary>
+        protected I3cEc_SoCMgmtIf_TRRegType I3cEc_SoCMgmtIf_TRReg;
+        /// <summary> Register "I3C_EC.SoCMgmtIf.T_F_REG" at 0x230 </summary>
+        protected I3cEc_SoCMgmtIf_TFRegType I3cEc_SoCMgmtIf_TFReg;
+        /// <summary> Register "I3C_EC.SoCMgmtIf.T_SU_DAT_REG" at 0x234 </summary>
+        protected I3cEc_SoCMgmtIf_TSuDatRegType I3cEc_SoCMgmtIf_TSuDatReg;
+        /// <summary> Register "I3C_EC.SoCMgmtIf.T_HD_DAT_REG" at 0x238 </summary>
+        protected I3cEc_SoCMgmtIf_THdDatRegType I3cEc_SoCMgmtIf_THdDatReg;
+        /// <summary> Register "I3C_EC.SoCMgmtIf.T_HIGH_REG" at 0x23c </summary>
+        protected I3cEc_SoCMgmtIf_THighRegType I3cEc_SoCMgmtIf_THighReg;
+        /// <summary> Register "I3C_EC.SoCMgmtIf.T_LOW_REG" at 0x240 </summary>
+        protected I3cEc_SoCMgmtIf_TLowRegType I3cEc_SoCMgmtIf_TLowReg;
+        /// <summary> Register "I3C_EC.SoCMgmtIf.T_HD_STA_REG" at 0x244 </summary>
+        protected I3cEc_SoCMgmtIf_THdStaRegType I3cEc_SoCMgmtIf_THdStaReg;
+        /// <summary> Register "I3C_EC.SoCMgmtIf.T_SU_STA_REG" at 0x248 </summary>
+        protected I3cEc_SoCMgmtIf_TSuStaRegType I3cEc_SoCMgmtIf_TSuStaReg;
+        /// <summary> Register "I3C_EC.SoCMgmtIf.T_SU_STO_REG" at 0x24c </summary>
+        protected I3cEc_SoCMgmtIf_TSuStoRegType I3cEc_SoCMgmtIf_TSuStoReg;
+        /// <summary> Register "I3C_EC.SoCMgmtIf.T_FREE_REG" at 0x250 </summary>
+        protected I3cEc_SoCMgmtIf_TFreeRegType I3cEc_SoCMgmtIf_TFreeReg;
+        /// <summary> Register "I3C_EC.SoCMgmtIf.T_AVAL_REG" at 0x254 </summary>
+        protected I3cEc_SoCMgmtIf_TAvalRegType I3cEc_SoCMgmtIf_TAvalReg;
+        /// <summary> Register "I3C_EC.SoCMgmtIf.T_IDLE_REG" at 0x258 </summary>
+        protected I3cEc_SoCMgmtIf_TIdleRegType I3cEc_SoCMgmtIf_TIdleReg;
+        /// <summary> Register "I3C_EC.CtrlCfg.EXTCAP_HEADER" at 0x260 </summary>
+        protected I3cEc_CtrlCfg_ExtcapHeaderType I3cEc_CtrlCfg_ExtcapHeader;
+        /// <summary> Register "I3C_EC.CtrlCfg.CONTROLLER_CONFIG" at 0x264 </summary>
+        protected I3cEc_CtrlCfg_ControllerConfigType I3cEc_CtrlCfg_ControllerConfig;
+        /// <summary> Register "I3C_EC.TERMINATION_EXTCAP_HEADER" at 0x268 </summary>
+        protected I3cEc_TerminationExtcapHeaderType I3cEc_TerminationExtcapHeader;
         /// <summary> Memory "DAT" at 0x400 </summary>
-        protected Dat_DatMemoryContainer Dat;
+        protected DatType Dat;
         /// <summary> Memory "DCT" at 0x800 </summary>
-        protected Dct_DctMemoryContainer Dct;
+        protected DctType Dct;
 
         public DoubleWordRegisterCollection RegistersCollection { get; }
 
         public Caliptra_I3C()
         {
             RegistersCollection = new DoubleWordRegisterCollection(this);
-            HciVersion = new HciVersionType(this);
-            HcControl = new HcControlType(this);
-            ControllerDeviceAddr = new ControllerDeviceAddrType(this);
-            HcCapabilities = new HcCapabilitiesType(this);
-            ResetControl = new ResetControlType(this);
-            PresentState = new PresentStateType(this);
-            IntrStatus = new IntrStatusType(this);
-            IntrStatusEnable = new IntrStatusEnableType(this);
-            IntrSignalEnable = new IntrSignalEnableType(this);
-            IntrForce = new IntrForceType(this);
-            DatSectionOffset = new DatSectionOffsetType(this);
-            DctSectionOffset = new DctSectionOffsetType(this);
-            RingHeadersSectionOffset = new RingHeadersSectionOffsetType(this);
-            PioSectionOffset = new PioSectionOffsetType(this);
-            ExtCapsSectionOffset = new ExtCapsSectionOffsetType(this);
-            IntCtrlCmdsEn = new IntCtrlCmdsEnType(this);
-            IbiNotifyCtrl = new IbiNotifyCtrlType(this);
-            IbiDataAbortCtrl = new IbiDataAbortCtrlType(this);
-            DevCtxBaseLo = new DevCtxBaseLoType(this);
-            DevCtxBaseHi = new DevCtxBaseHiType(this);
-            DevCtxSg = new DevCtxSgType(this);
-            CommandPort = new CommandPortType(this);
-            ResponsePort = new ResponsePortType(this);
-            TargetTransactionInterfaceTxDataPort = new TargetTransactionInterfaceTxDataPortType(this);
-            PIOIbiPort = new PIOIbiPortType(this);
-            PIOQueueThldCtrl = new PIOQueueThldCtrlType(this);
-            PIODataBufferThldCtrl = new PIODataBufferThldCtrlType(this);
-            PIOQueueSize = new PIOQueueSizeType(this);
-            AltQueueSize = new AltQueueSizeType(this);
-            PioIntrStatus = new PioIntrStatusType(this);
-            PioIntrStatusEnable = new PioIntrStatusEnableType(this);
-            PioIntrSignalEnable = new PioIntrSignalEnableType(this);
-            PioIntrForce = new PioIntrForceType(this);
-            PioControl = new PioControlType(this);
-            SecureFirmwareRecoveryInterfaceExtcapHeader = new SecureFirmwareRecoveryInterfaceExtcapHeaderType(this);
-            ProtCap0 = new ProtCap0Type(this);
-            ProtCap1 = new ProtCap1Type(this);
-            ProtCap2 = new ProtCap2Type(this);
-            ProtCap3 = new ProtCap3Type(this);
-            DeviceId0 = new DeviceId0Type(this);
-            DeviceId1 = new DeviceId1Type(this);
-            DeviceId2 = new DeviceId2Type(this);
-            DeviceId3 = new DeviceId3Type(this);
-            DeviceId4 = new DeviceId4Type(this);
-            DeviceId5 = new DeviceId5Type(this);
-            DeviceIdReserved = new DeviceIdReservedType(this);
-            DeviceStatus0 = new DeviceStatus0Type(this);
-            DeviceStatus1 = new DeviceStatus1Type(this);
-            DeviceReset = new DeviceResetType(this);
-            RecoveryCtrl = new RecoveryCtrlType(this);
-            RecoveryStatus = new RecoveryStatusType(this);
-            HwStatus = new HwStatusType(this);
-            IndirectFifoCtrl0 = new IndirectFifoCtrl0Type(this);
-            IndirectFifoCtrl1 = new IndirectFifoCtrl1Type(this);
-            IndirectFifoStatus0 = new IndirectFifoStatus0Type(this);
-            IndirectFifoStatus1 = new IndirectFifoStatus1Type(this);
-            IndirectFifoStatus2 = new IndirectFifoStatus2Type(this);
-            IndirectFifoStatus3 = new IndirectFifoStatus3Type(this);
-            IndirectFifoStatus4 = new IndirectFifoStatus4Type(this);
-            IndirectFifoReserved = new IndirectFifoReservedType(this);
-            IndirectFifoData = new IndirectFifoDataType(this);
-            StandbyControllerModeRegistersExtcapHeader = new StandbyControllerModeRegistersExtcapHeaderType(this);
-            StbyCrControl = new StbyCrControlType(this);
-            StbyCrDeviceAddr = new StbyCrDeviceAddrType(this);
-            StbyCrCapabilities = new StbyCrCapabilitiesType(this);
-            Rsvd0 = new Rsvd0Type(this);
-            StbyCrStatus = new StbyCrStatusType(this);
-            StbyCrDeviceChar = new StbyCrDeviceCharType(this);
-            StbyCrDevicePidLo = new StbyCrDevicePidLoType(this);
-            StbyCrIntrStatus = new StbyCrIntrStatusType(this);
-            Rsvd1 = new Rsvd1Type(this);
-            StbyCrIntrSignalEnable = new StbyCrIntrSignalEnableType(this);
-            StbyCrIntrForce = new StbyCrIntrForceType(this);
-            StbyCrCccConfigGetcaps = new StbyCrCccConfigGetcapsType(this);
-            StbyCrCccConfigRstactParams = new StbyCrCccConfigRstactParamsType(this);
-            StbyCrVirtDeviceAddr = new StbyCrVirtDeviceAddrType(this);
-            Rsvd3 = new Rsvd3Type(this);
-            TargetTransactionInterfaceRegistersExtcapHeader = new TargetTransactionInterfaceRegistersExtcapHeaderType(this);
-            Control = new ControlType(this);
-            Status = new StatusType(this);
-            TargetTransactionInterfaceResetControl = new TargetTransactionInterfaceResetControlType(this);
-            InterruptStatus = new InterruptStatusType(this);
-            InterruptEnable = new InterruptEnableType(this);
-            InterruptForce = new InterruptForceType(this);
-            RxDescQueuePort = new RxDescQueuePortType(this);
-            TxDescQueuePort = new TxDescQueuePortType(this);
-            PIOTxRxDataPort = new PIOTxRxDataPortType(this);
-            TargetTransactionInterfaceIbiPort = new TargetTransactionInterfaceIbiPortType(this);
-            TargetTransactionInterfaceQueueSize = new TargetTransactionInterfaceQueueSizeType(this);
-            IbiQueueSize = new IbiQueueSizeType(this);
-            TargetTransactionInterfaceQueueThldCtrl = new TargetTransactionInterfaceQueueThldCtrlType(this);
-            TargetTransactionInterfaceDataBufferThldCtrl = new TargetTransactionInterfaceDataBufferThldCtrlType(this);
-            SoCManagementInterfaceRegistersExtcapHeader = new SoCManagementInterfaceRegistersExtcapHeaderType(this);
-            SocMgmtControl = new SocMgmtControlType(this);
-            SocMgmtStatus = new SocMgmtStatusType(this);
-            SocMgmtRsvd0 = new SocMgmtRsvd0Type(this);
-            SocMgmtRsvd1 = new SocMgmtRsvd1Type(this);
-            SocMgmtRsvd2 = new SocMgmtRsvd2Type(this);
-            SocMgmtRsvd3 = new SocMgmtRsvd3Type(this);
-            SocPadConf = new SocPadConfType(this);
-            SocPadAttr = new SocPadAttrType(this);
-            SocMgmtFeature2 = new SocMgmtFeature2Type(this);
-            SocMgmtFeature3 = new SocMgmtFeature3Type(this);
-            TRReg = new TRRegType(this);
-            TFReg = new TFRegType(this);
-            TSuDatReg = new TSuDatRegType(this);
-            THdDatReg = new THdDatRegType(this);
-            THighReg = new THighRegType(this);
-            TLowReg = new TLowRegType(this);
-            THdStaReg = new THdStaRegType(this);
-            TSuStaReg = new TSuStaRegType(this);
-            TSuStoReg = new TSuStoRegType(this);
-            TFreeReg = new TFreeRegType(this);
-            TAvalReg = new TAvalRegType(this);
-            TIdleReg = new TIdleRegType(this);
-            ControllerConfigRegistersExtcapHeader = new ControllerConfigRegistersExtcapHeaderType(this);
-            ControllerConfig = new ControllerConfigType(this);
-            TerminationExtcapHeader = new TerminationExtcapHeaderType(this);
-            Dat = new Dat_DatMemoryContainer();
-            Dct = new Dct_DctMemoryContainer();
+            I3cBase_HciVersion = new I3cBase_HciVersionType(this);
+            I3cBase_HcControl = new I3cBase_HcControlType(this);
+            I3cBase_ControllerDeviceAddr = new I3cBase_ControllerDeviceAddrType(this);
+            I3cBase_HcCapabilities = new I3cBase_HcCapabilitiesType(this);
+            I3cBase_ResetControl = new I3cBase_ResetControlType(this);
+            I3cBase_PresentState = new I3cBase_PresentStateType(this);
+            I3cBase_IntrStatus = new I3cBase_IntrStatusType(this);
+            I3cBase_IntrStatusEnable = new I3cBase_IntrStatusEnableType(this);
+            I3cBase_IntrSignalEnable = new I3cBase_IntrSignalEnableType(this);
+            I3cBase_IntrForce = new I3cBase_IntrForceType(this);
+            I3cBase_DatSectionOffset = new I3cBase_DatSectionOffsetType(this);
+            I3cBase_DctSectionOffset = new I3cBase_DctSectionOffsetType(this);
+            I3cBase_RingHeadersSectionOffset = new I3cBase_RingHeadersSectionOffsetType(this);
+            I3cBase_PioSectionOffset = new I3cBase_PioSectionOffsetType(this);
+            I3cBase_ExtCapsSectionOffset = new I3cBase_ExtCapsSectionOffsetType(this);
+            I3cBase_IntCtrlCmdsEn = new I3cBase_IntCtrlCmdsEnType(this);
+            I3cBase_IbiNotifyCtrl = new I3cBase_IbiNotifyCtrlType(this);
+            I3cBase_IbiDataAbortCtrl = new I3cBase_IbiDataAbortCtrlType(this);
+            I3cBase_DevCtxBaseLo = new I3cBase_DevCtxBaseLoType(this);
+            I3cBase_DevCtxBaseHi = new I3cBase_DevCtxBaseHiType(this);
+            I3cBase_DevCtxSg = new I3cBase_DevCtxSgType(this);
+            PiOControl_CommandPort = new PiOControl_CommandPortType(this);
+            PiOControl_ResponsePort = new PiOControl_ResponsePortType(this);
+            PiOControl_TxDataPortRxDataPort = new PiOControl_TxDataPortRxDataPortType(this);
+            PiOControl_IbiPort = new PiOControl_IbiPortType(this);
+            PiOControl_QueueThldCtrl = new PiOControl_QueueThldCtrlType(this);
+            PiOControl_DataBufferThldCtrl = new PiOControl_DataBufferThldCtrlType(this);
+            PiOControl_QueueSize = new PiOControl_QueueSizeType(this);
+            PiOControl_AltQueueSize = new PiOControl_AltQueueSizeType(this);
+            PiOControl_PioIntrStatus = new PiOControl_PioIntrStatusType(this);
+            PiOControl_PioIntrStatusEnable = new PiOControl_PioIntrStatusEnableType(this);
+            PiOControl_PioIntrSignalEnable = new PiOControl_PioIntrSignalEnableType(this);
+            PiOControl_PioIntrForce = new PiOControl_PioIntrForceType(this);
+            PiOControl_PioControl = new PiOControl_PioControlType(this);
+            I3cEc_SecFwRecoveryIf_ExtcapHeader = new I3cEc_SecFwRecoveryIf_ExtcapHeaderType(this);
+            I3cEc_SecFwRecoveryIf_ProtCap0 = new I3cEc_SecFwRecoveryIf_ProtCap0Type(this);
+            I3cEc_SecFwRecoveryIf_ProtCap1 = new I3cEc_SecFwRecoveryIf_ProtCap1Type(this);
+            I3cEc_SecFwRecoveryIf_ProtCap2 = new I3cEc_SecFwRecoveryIf_ProtCap2Type(this);
+            I3cEc_SecFwRecoveryIf_ProtCap3 = new I3cEc_SecFwRecoveryIf_ProtCap3Type(this);
+            I3cEc_SecFwRecoveryIf_DeviceId0 = new I3cEc_SecFwRecoveryIf_DeviceId0Type(this);
+            I3cEc_SecFwRecoveryIf_DeviceId1 = new I3cEc_SecFwRecoveryIf_DeviceId1Type(this);
+            I3cEc_SecFwRecoveryIf_DeviceId2 = new I3cEc_SecFwRecoveryIf_DeviceId2Type(this);
+            I3cEc_SecFwRecoveryIf_DeviceId3 = new I3cEc_SecFwRecoveryIf_DeviceId3Type(this);
+            I3cEc_SecFwRecoveryIf_DeviceId4 = new I3cEc_SecFwRecoveryIf_DeviceId4Type(this);
+            I3cEc_SecFwRecoveryIf_DeviceId5 = new I3cEc_SecFwRecoveryIf_DeviceId5Type(this);
+            I3cEc_SecFwRecoveryIf_DeviceIdReserved = new I3cEc_SecFwRecoveryIf_DeviceIdReservedType(this);
+            I3cEc_SecFwRecoveryIf_DeviceStatus0 = new I3cEc_SecFwRecoveryIf_DeviceStatus0Type(this);
+            I3cEc_SecFwRecoveryIf_DeviceStatus1 = new I3cEc_SecFwRecoveryIf_DeviceStatus1Type(this);
+            I3cEc_SecFwRecoveryIf_DeviceReset = new I3cEc_SecFwRecoveryIf_DeviceResetType(this);
+            I3cEc_SecFwRecoveryIf_RecoveryCtrl = new I3cEc_SecFwRecoveryIf_RecoveryCtrlType(this);
+            I3cEc_SecFwRecoveryIf_RecoveryStatus = new I3cEc_SecFwRecoveryIf_RecoveryStatusType(this);
+            I3cEc_SecFwRecoveryIf_HwStatus = new I3cEc_SecFwRecoveryIf_HwStatusType(this);
+            I3cEc_SecFwRecoveryIf_IndirectFifoCtrl0 = new I3cEc_SecFwRecoveryIf_IndirectFifoCtrl0Type(this);
+            I3cEc_SecFwRecoveryIf_IndirectFifoCtrl1 = new I3cEc_SecFwRecoveryIf_IndirectFifoCtrl1Type(this);
+            I3cEc_SecFwRecoveryIf_IndirectFifoStatus0 = new I3cEc_SecFwRecoveryIf_IndirectFifoStatus0Type(this);
+            I3cEc_SecFwRecoveryIf_IndirectFifoStatus1 = new I3cEc_SecFwRecoveryIf_IndirectFifoStatus1Type(this);
+            I3cEc_SecFwRecoveryIf_IndirectFifoStatus2 = new I3cEc_SecFwRecoveryIf_IndirectFifoStatus2Type(this);
+            I3cEc_SecFwRecoveryIf_IndirectFifoStatus3 = new I3cEc_SecFwRecoveryIf_IndirectFifoStatus3Type(this);
+            I3cEc_SecFwRecoveryIf_IndirectFifoStatus4 = new I3cEc_SecFwRecoveryIf_IndirectFifoStatus4Type(this);
+            I3cEc_SecFwRecoveryIf_IndirectFifoReserved = new I3cEc_SecFwRecoveryIf_IndirectFifoReservedType(this);
+            I3cEc_SecFwRecoveryIf_IndirectFifoData = new I3cEc_SecFwRecoveryIf_IndirectFifoDataType(this);
+            I3cEc_StdbyCtrlMode_ExtcapHeader = new I3cEc_StdbyCtrlMode_ExtcapHeaderType(this);
+            I3cEc_StdbyCtrlMode_StbyCrControl = new I3cEc_StdbyCtrlMode_StbyCrControlType(this);
+            I3cEc_StdbyCtrlMode_StbyCrDeviceAddr = new I3cEc_StdbyCtrlMode_StbyCrDeviceAddrType(this);
+            I3cEc_StdbyCtrlMode_StbyCrCapabilities = new I3cEc_StdbyCtrlMode_StbyCrCapabilitiesType(this);
+            I3cEc_StdbyCtrlMode_Rsvd0 = new I3cEc_StdbyCtrlMode_Rsvd0Type(this);
+            I3cEc_StdbyCtrlMode_StbyCrStatus = new I3cEc_StdbyCtrlMode_StbyCrStatusType(this);
+            I3cEc_StdbyCtrlMode_StbyCrDeviceChar = new I3cEc_StdbyCtrlMode_StbyCrDeviceCharType(this);
+            I3cEc_StdbyCtrlMode_StbyCrDevicePidLo = new I3cEc_StdbyCtrlMode_StbyCrDevicePidLoType(this);
+            I3cEc_StdbyCtrlMode_StbyCrIntrStatus = new I3cEc_StdbyCtrlMode_StbyCrIntrStatusType(this);
+            I3cEc_StdbyCtrlMode_Rsvd1 = new I3cEc_StdbyCtrlMode_Rsvd1Type(this);
+            I3cEc_StdbyCtrlMode_StbyCrIntrSignalEnable = new I3cEc_StdbyCtrlMode_StbyCrIntrSignalEnableType(this);
+            I3cEc_StdbyCtrlMode_StbyCrIntrForce = new I3cEc_StdbyCtrlMode_StbyCrIntrForceType(this);
+            I3cEc_StdbyCtrlMode_StbyCrCccConfigGetcaps = new I3cEc_StdbyCtrlMode_StbyCrCccConfigGetcapsType(this);
+            I3cEc_StdbyCtrlMode_StbyCrCccConfigRstactParams = new I3cEc_StdbyCtrlMode_StbyCrCccConfigRstactParamsType(this);
+            I3cEc_StdbyCtrlMode_StbyCrVirtDeviceAddr = new I3cEc_StdbyCtrlMode_StbyCrVirtDeviceAddrType(this);
+            I3cEc_StdbyCtrlMode_Rsvd3 = new I3cEc_StdbyCtrlMode_Rsvd3Type(this);
+            I3cEc_Tti_ExtcapHeader = new I3cEc_Tti_ExtcapHeaderType(this);
+            I3cEc_Tti_Control = new I3cEc_Tti_ControlType(this);
+            I3cEc_Tti_Status = new I3cEc_Tti_StatusType(this);
+            I3cEc_Tti_ResetControl = new I3cEc_Tti_ResetControlType(this);
+            I3cEc_Tti_InterruptStatus = new I3cEc_Tti_InterruptStatusType(this);
+            I3cEc_Tti_InterruptEnable = new I3cEc_Tti_InterruptEnableType(this);
+            I3cEc_Tti_InterruptForce = new I3cEc_Tti_InterruptForceType(this);
+            I3cEc_Tti_RxDescQueuePort = new I3cEc_Tti_RxDescQueuePortType(this);
+            I3cEc_Tti_RxDataPort = new I3cEc_Tti_RxDataPortType(this);
+            I3cEc_Tti_TxDescQueuePort = new I3cEc_Tti_TxDescQueuePortType(this);
+            I3cEc_Tti_TxDataPort = new I3cEc_Tti_TxDataPortType(this);
+            I3cEc_Tti_IbiPort = new I3cEc_Tti_IbiPortType(this);
+            I3cEc_Tti_QueueSize = new I3cEc_Tti_QueueSizeType(this);
+            I3cEc_Tti_IbiQueueSize = new I3cEc_Tti_IbiQueueSizeType(this);
+            I3cEc_Tti_QueueThldCtrl = new I3cEc_Tti_QueueThldCtrlType(this);
+            I3cEc_Tti_DataBufferThldCtrl = new I3cEc_Tti_DataBufferThldCtrlType(this);
+            I3cEc_SoCMgmtIf_ExtcapHeader = new I3cEc_SoCMgmtIf_ExtcapHeaderType(this);
+            I3cEc_SoCMgmtIf_SocMgmtControl = new I3cEc_SoCMgmtIf_SocMgmtControlType(this);
+            I3cEc_SoCMgmtIf_SocMgmtStatus = new I3cEc_SoCMgmtIf_SocMgmtStatusType(this);
+            I3cEc_SoCMgmtIf_SocMgmtRsvd0 = new I3cEc_SoCMgmtIf_SocMgmtRsvd0Type(this);
+            I3cEc_SoCMgmtIf_SocMgmtRsvd1 = new I3cEc_SoCMgmtIf_SocMgmtRsvd1Type(this);
+            I3cEc_SoCMgmtIf_SocMgmtRsvd2 = new I3cEc_SoCMgmtIf_SocMgmtRsvd2Type(this);
+            I3cEc_SoCMgmtIf_SocMgmtRsvd3 = new I3cEc_SoCMgmtIf_SocMgmtRsvd3Type(this);
+            I3cEc_SoCMgmtIf_SocPadConf = new I3cEc_SoCMgmtIf_SocPadConfType(this);
+            I3cEc_SoCMgmtIf_SocPadAttr = new I3cEc_SoCMgmtIf_SocPadAttrType(this);
+            I3cEc_SoCMgmtIf_SocMgmtFeature2 = new I3cEc_SoCMgmtIf_SocMgmtFeature2Type(this);
+            I3cEc_SoCMgmtIf_SocMgmtFeature3 = new I3cEc_SoCMgmtIf_SocMgmtFeature3Type(this);
+            I3cEc_SoCMgmtIf_TRReg = new I3cEc_SoCMgmtIf_TRRegType(this);
+            I3cEc_SoCMgmtIf_TFReg = new I3cEc_SoCMgmtIf_TFRegType(this);
+            I3cEc_SoCMgmtIf_TSuDatReg = new I3cEc_SoCMgmtIf_TSuDatRegType(this);
+            I3cEc_SoCMgmtIf_THdDatReg = new I3cEc_SoCMgmtIf_THdDatRegType(this);
+            I3cEc_SoCMgmtIf_THighReg = new I3cEc_SoCMgmtIf_THighRegType(this);
+            I3cEc_SoCMgmtIf_TLowReg = new I3cEc_SoCMgmtIf_TLowRegType(this);
+            I3cEc_SoCMgmtIf_THdStaReg = new I3cEc_SoCMgmtIf_THdStaRegType(this);
+            I3cEc_SoCMgmtIf_TSuStaReg = new I3cEc_SoCMgmtIf_TSuStaRegType(this);
+            I3cEc_SoCMgmtIf_TSuStoReg = new I3cEc_SoCMgmtIf_TSuStoRegType(this);
+            I3cEc_SoCMgmtIf_TFreeReg = new I3cEc_SoCMgmtIf_TFreeRegType(this);
+            I3cEc_SoCMgmtIf_TAvalReg = new I3cEc_SoCMgmtIf_TAvalRegType(this);
+            I3cEc_SoCMgmtIf_TIdleReg = new I3cEc_SoCMgmtIf_TIdleRegType(this);
+            I3cEc_CtrlCfg_ExtcapHeader = new I3cEc_CtrlCfg_ExtcapHeaderType(this);
+            I3cEc_CtrlCfg_ControllerConfig = new I3cEc_CtrlCfg_ControllerConfigType(this);
+            I3cEc_TerminationExtcapHeader = new I3cEc_TerminationExtcapHeaderType(this);
+            Dat = new DatType();
+            Dct = new DctType();
             this.Init();
         }
 
@@ -416,19 +417,19 @@ namespace Antmicro.Renode.Peripherals.I3C
             RegistersCollection.Write(offset, value);
         }
 
-        public struct HciVersionType
+        public struct I3cBase_HciVersionType
         {
             /// <summary> Field "VERSION" at 0x0, width: 32 bits </summary>
             public IValueRegisterField VERSION;
 
-            public HciVersionType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cBase_HciVersionType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(0, 4294967295, true)
+                parent.RegistersCollection.DefineRegister(0x0, 0xffffffff, true)
                     .WithValueField(0, 32, out VERSION, mode: FieldMode.Read, name: "VERSION");
             }
         }
 
-        public struct HcControlType
+        public struct I3cBase_HcControlType
         {
             /// <summary> Field "IBA_INCLUDE" at 0x0, width: 1 bits </summary>
             public IFlagRegisterField IBA_INCLUDE;
@@ -451,9 +452,9 @@ namespace Antmicro.Renode.Peripherals.I3C
             /// <summary> Field "BUS_ENABLE" at 0x1f, width: 1 bits </summary>
             public IFlagRegisterField BUS_ENABLE;
 
-            public HcControlType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cBase_HcControlType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(4, 64, true)
+                parent.RegistersCollection.DefineRegister(0x4, 0x40, true)
                     .WithFlag(0, out IBA_INCLUDE, name: "IBA_INCLUDE")
                     .WithFlag(3, out AUTOCMD_DATA_RPT, mode: FieldMode.Read, name: "AUTOCMD_DATA_RPT")
                     .WithFlag(4, out DATA_BYTE_ORDER_MODE, mode: FieldMode.Read, name: "DATA_BYTE_ORDER_MODE")
@@ -467,43 +468,22 @@ namespace Antmicro.Renode.Peripherals.I3C
             }
         }
 
-        public struct ControllerDeviceAddrType
+        public struct I3cBase_ControllerDeviceAddrType
         {
             /// <summary> Field "DYNAMIC_ADDR" at 0x10, width: 7 bits </summary>
             public IValueRegisterField DYNAMIC_ADDR;
             /// <summary> Field "DYNAMIC_ADDR_VALID" at 0x1f, width: 1 bits </summary>
             public IFlagRegisterField DYNAMIC_ADDR_VALID;
 
-            public ControllerDeviceAddrType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cBase_ControllerDeviceAddrType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(8, 0, true)
+                parent.RegistersCollection.DefineRegister(0x8, 0x0, true)
                     .WithValueField(16, 7, out DYNAMIC_ADDR, name: "DYNAMIC_ADDR")
                     .WithFlag(31, out DYNAMIC_ADDR_VALID, name: "DYNAMIC_ADDR_VALID");
             }
         }
 
-        public struct ResetControlType
-        {
-            public IFlagRegisterField SOFT_RST;
-            public IFlagRegisterField CMD_QUEUE_RST;
-            public IFlagRegisterField RESP_QUEUE_RST;
-            public IFlagRegisterField TX_FIFO_RST;
-            public IFlagRegisterField RX_FIFO_RST;
-            public IFlagRegisterField IBI_QUEUE_RST;
-
-            public ResetControlType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
-            {
-                parent.RegistersCollection.DefineRegister(16, 0)
-                    .WithFlag(0, out SOFT_RST, name: "SOFT_RST")
-                    .WithFlag(1, out CMD_QUEUE_RST, name: "CMD_QUEUE_RST")
-                    .WithFlag(2, out RESP_QUEUE_RST, name: "RESP_QUEUE_RST")
-                    .WithFlag(3, out TX_FIFO_RST, name: "TX_FIFO_RST")
-                    .WithFlag(4, out RX_FIFO_RST, name: "RX_FIFO_RST")
-                    .WithFlag(5, out IBI_QUEUE_RST, name: "IBI_QUEUE_RST");
-            }
-        }
-
-        public struct HcCapabilitiesType
+        public struct I3cBase_HcCapabilitiesType
         {
             /// <summary> Field "COMBO_COMMAND" at 0x2, width: 1 bits </summary>
             public IFlagRegisterField COMBO_COMMAND;
@@ -532,9 +512,9 @@ namespace Antmicro.Renode.Peripherals.I3C
             /// <summary> Field "SG_CAPABILITY_DC_EN" at 0x1e, width: 1 bits </summary>
             public IFlagRegisterField SG_CAPABILITY_DC_EN;
 
-            public HcCapabilitiesType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cBase_HcCapabilitiesType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(12, 1024, true)
+                parent.RegistersCollection.DefineRegister(0xc, 0x400, true)
                     .WithFlag(2, out COMBO_COMMAND, mode: FieldMode.Read, name: "COMBO_COMMAND")
                     .WithFlag(3, out AUTO_COMMAND, mode: FieldMode.Read, name: "AUTO_COMMAND")
                     .WithFlag(5, out STANDBY_CR_CAP, mode: FieldMode.Read, name: "STANDBY_CR_CAP")
@@ -551,46 +531,46 @@ namespace Antmicro.Renode.Peripherals.I3C
             }
         }
 
-        public struct TargetTransactionInterfaceResetControlType
+        public struct I3cBase_ResetControlType
         {
             /// <summary> Field "SOFT_RST" at 0x0, width: 1 bits </summary>
             public IFlagRegisterField SOFT_RST;
-            /// <summary> Field "TX_DESC_RST" at 0x1, width: 1 bits </summary>
-            public IFlagRegisterField TX_DESC_RST;
-            /// <summary> Field "RX_DESC_RST" at 0x2, width: 1 bits </summary>
-            public IFlagRegisterField RX_DESC_RST;
-            /// <summary> Field "TX_DATA_RST" at 0x3, width: 1 bits </summary>
-            public IFlagRegisterField TX_DATA_RST;
-            /// <summary> Field "RX_DATA_RST" at 0x4, width: 1 bits </summary>
-            public IFlagRegisterField RX_DATA_RST;
+            /// <summary> Field "CMD_QUEUE_RST" at 0x1, width: 1 bits </summary>
+            public IFlagRegisterField CMD_QUEUE_RST;
+            /// <summary> Field "RESP_QUEUE_RST" at 0x2, width: 1 bits </summary>
+            public IFlagRegisterField RESP_QUEUE_RST;
+            /// <summary> Field "TX_FIFO_RST" at 0x3, width: 1 bits </summary>
+            public IFlagRegisterField TX_FIFO_RST;
+            /// <summary> Field "RX_FIFO_RST" at 0x4, width: 1 bits </summary>
+            public IFlagRegisterField RX_FIFO_RST;
             /// <summary> Field "IBI_QUEUE_RST" at 0x5, width: 1 bits </summary>
             public IFlagRegisterField IBI_QUEUE_RST;
 
-            public TargetTransactionInterfaceResetControlType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cBase_ResetControlType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(460, 0, true)
+                parent.RegistersCollection.DefineRegister(0x10, 0x0, true)
                     .WithFlag(0, out SOFT_RST, name: "SOFT_RST")
-                    .WithFlag(1, out TX_DESC_RST, name: "TX_DESC_RST")
-                    .WithFlag(2, out RX_DESC_RST, name: "RX_DESC_RST")
-                    .WithFlag(3, out TX_DATA_RST, name: "TX_DATA_RST")
-                    .WithFlag(4, out RX_DATA_RST, name: "RX_DATA_RST")
+                    .WithFlag(1, out CMD_QUEUE_RST, name: "CMD_QUEUE_RST")
+                    .WithFlag(2, out RESP_QUEUE_RST, name: "RESP_QUEUE_RST")
+                    .WithFlag(3, out TX_FIFO_RST, name: "TX_FIFO_RST")
+                    .WithFlag(4, out RX_FIFO_RST, name: "RX_FIFO_RST")
                     .WithFlag(5, out IBI_QUEUE_RST, name: "IBI_QUEUE_RST");
             }
         }
 
-        public struct PresentStateType
+        public struct I3cBase_PresentStateType
         {
             /// <summary> Field "AC_CURRENT_OWN" at 0x2, width: 1 bits </summary>
             public IFlagRegisterField AC_CURRENT_OWN;
 
-            public PresentStateType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cBase_PresentStateType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(20, 0, true)
+                parent.RegistersCollection.DefineRegister(0x14, 0x0, true)
                     .WithFlag(2, out AC_CURRENT_OWN, mode: FieldMode.Read, name: "AC_CURRENT_OWN");
             }
         }
 
-        public struct IntrStatusType
+        public struct I3cBase_IntrStatusType
         {
             /// <summary> Field "HC_INTERNAL_ERR_STAT" at 0xa, width: 1 bits </summary>
             public IFlagRegisterField HC_INTERNAL_ERR_STAT;
@@ -603,9 +583,9 @@ namespace Antmicro.Renode.Peripherals.I3C
             /// <summary> Field "SCHED_CMD_MISSED_TICK_STAT" at 0xe, width: 1 bits </summary>
             public IFlagRegisterField SCHED_CMD_MISSED_TICK_STAT;
 
-            public IntrStatusType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cBase_IntrStatusType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(32, 0, true)
+                parent.RegistersCollection.DefineRegister(0x20, 0x0, true)
                     .WithFlag(10, out HC_INTERNAL_ERR_STAT, mode: FieldMode.Read | FieldMode.WriteOneToClear, name: "HC_INTERNAL_ERR_STAT")
                     .WithFlag(11, out HC_SEQ_CANCEL_STAT, mode: FieldMode.Read | FieldMode.WriteOneToClear, name: "HC_SEQ_CANCEL_STAT")
                     .WithFlag(12, out HC_WARN_CMD_SEQ_STALL_STAT, mode: FieldMode.Read | FieldMode.WriteOneToClear, name: "HC_WARN_CMD_SEQ_STALL_STAT")
@@ -614,7 +594,7 @@ namespace Antmicro.Renode.Peripherals.I3C
             }
         }
 
-        public struct IntrStatusEnableType
+        public struct I3cBase_IntrStatusEnableType
         {
             /// <summary> Field "HC_INTERNAL_ERR_STAT_EN" at 0xa, width: 1 bits </summary>
             public IFlagRegisterField HC_INTERNAL_ERR_STAT_EN;
@@ -627,9 +607,9 @@ namespace Antmicro.Renode.Peripherals.I3C
             /// <summary> Field "SCHED_CMD_MISSED_TICK_STAT_EN" at 0xe, width: 1 bits </summary>
             public IFlagRegisterField SCHED_CMD_MISSED_TICK_STAT_EN;
 
-            public IntrStatusEnableType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cBase_IntrStatusEnableType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(36, 0, true)
+                parent.RegistersCollection.DefineRegister(0x24, 0x0, true)
                     .WithFlag(10, out HC_INTERNAL_ERR_STAT_EN, name: "HC_INTERNAL_ERR_STAT_EN")
                     .WithFlag(11, out HC_SEQ_CANCEL_STAT_EN, name: "HC_SEQ_CANCEL_STAT_EN")
                     .WithFlag(12, out HC_WARN_CMD_SEQ_STALL_STAT_EN, name: "HC_WARN_CMD_SEQ_STALL_STAT_EN")
@@ -638,7 +618,7 @@ namespace Antmicro.Renode.Peripherals.I3C
             }
         }
 
-        public struct IntrSignalEnableType
+        public struct I3cBase_IntrSignalEnableType
         {
             /// <summary> Field "HC_INTERNAL_ERR_SIGNAL_EN" at 0xa, width: 1 bits </summary>
             public IFlagRegisterField HC_INTERNAL_ERR_SIGNAL_EN;
@@ -651,9 +631,9 @@ namespace Antmicro.Renode.Peripherals.I3C
             /// <summary> Field "SCHED_CMD_MISSED_TICK_SIGNAL_EN" at 0xe, width: 1 bits </summary>
             public IFlagRegisterField SCHED_CMD_MISSED_TICK_SIGNAL_EN;
 
-            public IntrSignalEnableType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cBase_IntrSignalEnableType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(40, 0, true)
+                parent.RegistersCollection.DefineRegister(0x28, 0x0, true)
                     .WithFlag(10, out HC_INTERNAL_ERR_SIGNAL_EN, name: "HC_INTERNAL_ERR_SIGNAL_EN")
                     .WithFlag(11, out HC_SEQ_CANCEL_SIGNAL_EN, name: "HC_SEQ_CANCEL_SIGNAL_EN")
                     .WithFlag(12, out HC_WARN_CMD_SEQ_STALL_SIGNAL_EN, name: "HC_WARN_CMD_SEQ_STALL_SIGNAL_EN")
@@ -662,7 +642,7 @@ namespace Antmicro.Renode.Peripherals.I3C
             }
         }
 
-        public struct IntrForceType
+        public struct I3cBase_IntrForceType
         {
             /// <summary> Field "HC_INTERNAL_ERR_FORCE" at 0xa, width: 1 bits </summary>
             public IFlagRegisterField HC_INTERNAL_ERR_FORCE;
@@ -675,9 +655,9 @@ namespace Antmicro.Renode.Peripherals.I3C
             /// <summary> Field "SCHED_CMD_MISSED_TICK_FORCE" at 0xe, width: 1 bits </summary>
             public IFlagRegisterField SCHED_CMD_MISSED_TICK_FORCE;
 
-            public IntrForceType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cBase_IntrForceType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(44, 0, true)
+                parent.RegistersCollection.DefineRegister(0x2c, 0x0, true)
                     .WithFlag(10, out HC_INTERNAL_ERR_FORCE, mode: FieldMode.Write, name: "HC_INTERNAL_ERR_FORCE")
                     .WithFlag(11, out HC_SEQ_CANCEL_FORCE, mode: FieldMode.Write, name: "HC_SEQ_CANCEL_FORCE")
                     .WithFlag(12, out HC_WARN_CMD_SEQ_STALL_FORCE, mode: FieldMode.Write, name: "HC_WARN_CMD_SEQ_STALL_FORCE")
@@ -686,7 +666,7 @@ namespace Antmicro.Renode.Peripherals.I3C
             }
         }
 
-        public struct DatSectionOffsetType
+        public struct I3cBase_DatSectionOffsetType
         {
             /// <summary> Field "TABLE_OFFSET" at 0x0, width: 12 bits </summary>
             public IValueRegisterField TABLE_OFFSET;
@@ -695,16 +675,16 @@ namespace Antmicro.Renode.Peripherals.I3C
             /// <summary> Field "ENTRY_SIZE" at 0x1c, width: 4 bits </summary>
             public IValueRegisterField ENTRY_SIZE;
 
-            public DatSectionOffsetType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cBase_DatSectionOffsetType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(48, 524287, true)
+                parent.RegistersCollection.DefineRegister(0x30, 0x7ffff, true)
                     .WithValueField(0, 12, out TABLE_OFFSET, mode: FieldMode.Read, name: "TABLE_OFFSET")
                     .WithValueField(12, 7, out TABLE_SIZE, mode: FieldMode.Read, name: "TABLE_SIZE")
                     .WithValueField(28, 4, out ENTRY_SIZE, mode: FieldMode.Read, name: "ENTRY_SIZE");
             }
         }
 
-        public struct DctSectionOffsetType
+        public struct I3cBase_DctSectionOffsetType
         {
             /// <summary> Field "TABLE_OFFSET" at 0x0, width: 12 bits </summary>
             public IValueRegisterField TABLE_OFFSET;
@@ -715,9 +695,9 @@ namespace Antmicro.Renode.Peripherals.I3C
             /// <summary> Field "ENTRY_SIZE" at 0x1c, width: 4 bits </summary>
             public IValueRegisterField ENTRY_SIZE;
 
-            public DctSectionOffsetType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cBase_DctSectionOffsetType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(52, 524287, true)
+                parent.RegistersCollection.DefineRegister(0x34, 0x7ffff, true)
                     .WithValueField(0, 12, out TABLE_OFFSET, mode: FieldMode.Read, name: "TABLE_OFFSET")
                     .WithValueField(12, 7, out TABLE_SIZE, mode: FieldMode.Read, name: "TABLE_SIZE")
                     .WithValueField(19, 5, out TABLE_INDEX, name: "TABLE_INDEX")
@@ -725,58 +705,58 @@ namespace Antmicro.Renode.Peripherals.I3C
             }
         }
 
-        public struct RingHeadersSectionOffsetType
+        public struct I3cBase_RingHeadersSectionOffsetType
         {
             /// <summary> Field "SECTION_OFFSET" at 0x0, width: 16 bits </summary>
             public IValueRegisterField SECTION_OFFSET;
 
-            public RingHeadersSectionOffsetType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cBase_RingHeadersSectionOffsetType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(56, 0, true)
+                parent.RegistersCollection.DefineRegister(0x38, 0x0, true)
                     .WithValueField(0, 16, out SECTION_OFFSET, mode: FieldMode.Read, name: "SECTION_OFFSET");
             }
         }
 
-        public struct PioSectionOffsetType
+        public struct I3cBase_PioSectionOffsetType
         {
             /// <summary> Field "SECTION_OFFSET" at 0x0, width: 16 bits </summary>
             public IValueRegisterField SECTION_OFFSET;
 
-            public PioSectionOffsetType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cBase_PioSectionOffsetType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(60, 65535, true)
+                parent.RegistersCollection.DefineRegister(0x3c, 0xffff, true)
                     .WithValueField(0, 16, out SECTION_OFFSET, mode: FieldMode.Read, name: "SECTION_OFFSET");
             }
         }
 
-        public struct ExtCapsSectionOffsetType
+        public struct I3cBase_ExtCapsSectionOffsetType
         {
             /// <summary> Field "SECTION_OFFSET" at 0x0, width: 16 bits </summary>
             public IValueRegisterField SECTION_OFFSET;
 
-            public ExtCapsSectionOffsetType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cBase_ExtCapsSectionOffsetType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(64, 65535, true)
+                parent.RegistersCollection.DefineRegister(0x40, 0xffff, true)
                     .WithValueField(0, 16, out SECTION_OFFSET, mode: FieldMode.Read, name: "SECTION_OFFSET");
             }
         }
 
-        public struct IntCtrlCmdsEnType
+        public struct I3cBase_IntCtrlCmdsEnType
         {
             /// <summary> Field "ICC_SUPPORT" at 0x0, width: 1 bits </summary>
             public IFlagRegisterField ICC_SUPPORT;
             /// <summary> Field "MIPI_CMDS_SUPPORTED" at 0x1, width: 15 bits </summary>
             public IValueRegisterField MIPI_CMDS_SUPPORTED;
 
-            public IntCtrlCmdsEnType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cBase_IntCtrlCmdsEnType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(76, 65535, true)
+                parent.RegistersCollection.DefineRegister(0x4c, 0xffff, true)
                     .WithFlag(0, out ICC_SUPPORT, mode: FieldMode.Read, name: "ICC_SUPPORT")
                     .WithValueField(1, 15, out MIPI_CMDS_SUPPORTED, mode: FieldMode.Read, name: "MIPI_CMDS_SUPPORTED");
             }
         }
 
-        public struct IbiNotifyCtrlType
+        public struct I3cBase_IbiNotifyCtrlType
         {
             /// <summary> Field "NOTIFY_HJ_REJECTED" at 0x0, width: 1 bits </summary>
             public IFlagRegisterField NOTIFY_HJ_REJECTED;
@@ -785,16 +765,16 @@ namespace Antmicro.Renode.Peripherals.I3C
             /// <summary> Field "NOTIFY_IBI_REJECTED" at 0x3, width: 1 bits </summary>
             public IFlagRegisterField NOTIFY_IBI_REJECTED;
 
-            public IbiNotifyCtrlType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cBase_IbiNotifyCtrlType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(88, 0, true)
+                parent.RegistersCollection.DefineRegister(0x58, 0x0, true)
                     .WithFlag(0, out NOTIFY_HJ_REJECTED, name: "NOTIFY_HJ_REJECTED")
                     .WithFlag(1, out NOTIFY_CRR_REJECTED, name: "NOTIFY_CRR_REJECTED")
                     .WithFlag(3, out NOTIFY_IBI_REJECTED, name: "NOTIFY_IBI_REJECTED");
             }
         }
 
-        public struct IbiDataAbortCtrlType
+        public struct I3cBase_IbiDataAbortCtrlType
         {
             /// <summary> Field "MATCH_IBI_ID" at 0x8, width: 8 bits </summary>
             public IValueRegisterField MATCH_IBI_ID;
@@ -805,9 +785,9 @@ namespace Antmicro.Renode.Peripherals.I3C
             /// <summary> Field "IBI_DATA_ABORT_MON" at 0x1f, width: 1 bits </summary>
             public IFlagRegisterField IBI_DATA_ABORT_MON;
 
-            public IbiDataAbortCtrlType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cBase_IbiDataAbortCtrlType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(92, 0, true)
+                parent.RegistersCollection.DefineRegister(0x5c, 0x0, true)
                     .WithValueField(8, 8, out MATCH_IBI_ID, name: "MATCH_IBI_ID")
                     .WithValueField(16, 2, out AFTER_N_CHUNKS, name: "AFTER_N_CHUNKS")
                     .WithValueField(18, 3, out MATCH_STATUS_TYPE, name: "MATCH_STATUS_TYPE")
@@ -815,137 +795,107 @@ namespace Antmicro.Renode.Peripherals.I3C
             }
         }
 
-        public struct DevCtxBaseLoType
+        public struct I3cBase_DevCtxBaseLoType
         {
             /// <summary> Field "BASE_LO" at 0x0, width: 1 bits </summary>
             public IFlagRegisterField BASE_LO;
 
-            public DevCtxBaseLoType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cBase_DevCtxBaseLoType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(96, 0, true)
+                parent.RegistersCollection.DefineRegister(0x60, 0x0, true)
                     .WithFlag(0, out BASE_LO, name: "BASE_LO");
             }
         }
 
-        public struct DevCtxBaseHiType
+        public struct I3cBase_DevCtxBaseHiType
         {
             /// <summary> Field "BASE_HI" at 0x0, width: 1 bits </summary>
             public IFlagRegisterField BASE_HI;
 
-            public DevCtxBaseHiType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cBase_DevCtxBaseHiType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(100, 0, true)
+                parent.RegistersCollection.DefineRegister(0x64, 0x0, true)
                     .WithFlag(0, out BASE_HI, name: "BASE_HI");
             }
         }
 
-        public struct DevCtxSgType
+        public struct I3cBase_DevCtxSgType
         {
             /// <summary> Field "LIST_SIZE" at 0x0, width: 16 bits </summary>
             public IValueRegisterField LIST_SIZE;
             /// <summary> Field "BLP" at 0x1f, width: 1 bits </summary>
             public IFlagRegisterField BLP;
 
-            public DevCtxSgType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cBase_DevCtxSgType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(104, 0, true)
+                parent.RegistersCollection.DefineRegister(0x68, 0x0, true)
                     .WithValueField(0, 16, out LIST_SIZE, mode: FieldMode.Read, name: "LIST_SIZE")
                     .WithFlag(31, out BLP, mode: FieldMode.Read, name: "BLP");
             }
         }
 
-        public struct CommandPortType
+        public struct PiOControl_CommandPortType
         {
             /// <summary> Field "COMMAND_DATA" at 0x0, width: 32 bits </summary>
             public IValueRegisterField COMMAND_DATA;
 
-            public CommandPortType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public PiOControl_CommandPortType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(128, 0, true)
+                parent.RegistersCollection.DefineRegister(0x80, 0x0, true)
                     .WithValueField(0, 32, out COMMAND_DATA, mode: FieldMode.Write, name: "COMMAND_DATA");
             }
         }
 
-        public struct PIOTxRxDataPortType
-        {
-            public IValueRegisterField DATA;
-
-            public PIOTxRxDataPortType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
-            {
-                parent.RegistersCollection.DefineRegister(136)
-                    .WithValueField(0, 32, out DATA, name: "TX_DATA/RX_DATA");
-            }
-        }
-
-        public struct ResponsePortType
+        public struct PiOControl_ResponsePortType
         {
             /// <summary> Field "RESPONSE_DATA" at 0x0, width: 32 bits </summary>
             public IValueRegisterField RESPONSE_DATA;
 
-            public ResponsePortType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public PiOControl_ResponsePortType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(132, 0, true)
+                parent.RegistersCollection.DefineRegister(0x84, 0x0, true)
                     .WithValueField(0, 32, out RESPONSE_DATA, mode: FieldMode.Read, name: "RESPONSE_DATA");
             }
         }
 
-        public struct TargetTransactionInterfaceTxDataPortType
+        public struct PiOControl_TxDataPortRxDataPortType
         {
-            /// <summary> Field "TX_DATA" at 0x0, width: 32 bits </summary>
-            public IValueRegisterField TX_DATA;
+            /// <summary> Field "TX_DATA_RX_DATA" at 0x0, width: 32 bits </summary>
+            public IValueRegisterField TX_DATA_RX_DATA;
 
-            public TargetTransactionInterfaceTxDataPortType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public PiOControl_TxDataPortRxDataPortType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(488, 0, true)
-                    .WithValueField(0, 32, out TX_DATA, mode: FieldMode.Write, name: "TX_DATA");
+                parent.RegistersCollection.DefineRegister(0x88, 0x0, true)
+                    .WithValueField(0, 32, out TX_DATA_RX_DATA, name: "TX_DATA_RX_DATA");
             }
         }
 
-        public struct TargetTransactionInterfaceRxDataPortType
-        {
-            /// <summary> Field "RX_DATA" at 0x0, width: 32 bits </summary>
-            public IValueRegisterField RX_DATA;
-
-            public TargetTransactionInterfaceRxDataPortType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
-            {
-                parent.RegistersCollection.DefineRegister(480, 0, true)
-                    .WithValueField(0, 32, out RX_DATA, mode: FieldMode.Read, name: "RX_DATA");
-            }
-        }
-
-        public struct PIOIbiPortType
-        {
-            public IValueRegisterField IBI_DATA;
-
-            public PIOIbiPortType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
-            {
-                parent.RegistersCollection.DefineRegister(140)
-                    .WithValueField(0, 32, out IBI_DATA, mode: FieldMode.Read, name: "IBI_DATA");
-            }
-        }
-
-        public struct TargetTransactionInterfaceIbiPortType
+        public struct PiOControl_IbiPortType
         {
             /// <summary> Field "IBI_DATA" at 0x0, width: 32 bits </summary>
             public IValueRegisterField IBI_DATA;
 
-            public TargetTransactionInterfaceIbiPortType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public PiOControl_IbiPortType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(492, 0, true)
-                    .WithValueField(0, 32, out IBI_DATA, mode: FieldMode.Write, name: "IBI_DATA");
+                parent.RegistersCollection.DefineRegister(0x8c, 0x0, true)
+                    .WithValueField(0, 32, out IBI_DATA, mode: FieldMode.Read, name: "IBI_DATA");
             }
         }
 
-        public struct PIOQueueThldCtrlType
+        public struct PiOControl_QueueThldCtrlType
         {
+            /// <summary> Field "CMD_EMPTY_BUF_THLD" at 0x0, width: 8 bits </summary>
             public IValueRegisterField CMD_EMPTY_BUF_THLD;
+            /// <summary> Field "RESP_BUF_THLD" at 0x8, width: 8 bits </summary>
             public IValueRegisterField RESP_BUF_THLD;
+            /// <summary> Field "IBI_DATA_SEGMENT_SIZE" at 0x10, width: 8 bits </summary>
             public IValueRegisterField IBI_DATA_SEGMENT_SIZE;
+            /// <summary> Field "IBI_STATUS_THLD" at 0x18, width: 8 bits </summary>
             public IValueRegisterField IBI_STATUS_THLD;
 
-            public PIOQueueThldCtrlType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public PiOControl_QueueThldCtrlType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(144, 16843009)
+                parent.RegistersCollection.DefineRegister(0x90, 0xffffffff, true)
                     .WithValueField(0, 8, out CMD_EMPTY_BUF_THLD, name: "CMD_EMPTY_BUF_THLD")
                     .WithValueField(8, 8, out RESP_BUF_THLD, name: "RESP_BUF_THLD")
                     .WithValueField(16, 8, out IBI_DATA_SEGMENT_SIZE, name: "IBI_DATA_SEGMENT_SIZE")
@@ -953,72 +903,41 @@ namespace Antmicro.Renode.Peripherals.I3C
             }
         }
 
-        public struct TargetTransactionInterfaceQueueThldCtrlType
+        public struct PiOControl_DataBufferThldCtrlType
         {
-            /// <summary> Field "TX_DESC_THLD" at 0x0, width: 8 bits </summary>
-            public IValueRegisterField TX_DESC_THLD;
-            /// <summary> Field "RX_DESC_THLD" at 0x8, width: 8 bits </summary>
-            public IValueRegisterField RX_DESC_THLD;
-            /// <summary> Field "IBI_THLD" at 0x18, width: 8 bits </summary>
-            public IValueRegisterField IBI_THLD;
-
-            public TargetTransactionInterfaceQueueThldCtrlType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
-            {
-                parent.RegistersCollection.DefineRegister(504, 4278255615, true)
-                    .WithValueField(0, 8, out TX_DESC_THLD, name: "TX_DESC_THLD")
-                    .WithValueField(8, 8, out RX_DESC_THLD, name: "RX_DESC_THLD")
-                    .WithValueField(24, 8, out IBI_THLD, name: "IBI_THLD");
-            }
-        }
-
-        public struct PIODataBufferThldCtrlType
-        {
+            /// <summary> Field "TX_BUF_THLD" at 0x0, width: 3 bits </summary>
             public IValueRegisterField TX_BUF_THLD;
+            /// <summary> Field "RX_BUF_THLD" at 0x8, width: 3 bits </summary>
             public IValueRegisterField RX_BUF_THLD;
-            public IValueRegisterField TX_START_THLD;
-            public IValueRegisterField RX_START_THLD;
-
-            public PIODataBufferThldCtrlType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
-            {
-                parent.RegistersCollection.DefineRegister(148, 16843009)
-                    .WithValueField(0, 3, out TX_BUF_THLD, name: "TX_BUF_THLD")
-                    .WithValueField(8, 3, out RX_BUF_THLD, name: "TX_BUF_THLD")
-                    .WithValueField(16, 3, out TX_START_THLD, name: "TX_START_THLD")
-                    .WithValueField(24, 3, out RX_START_THLD, name: "RX_START_THLD");
-            }
-        }
-
-        public struct TargetTransactionInterfaceDataBufferThldCtrlType
-        {
-            /// <summary> Field "TX_DATA_THLD" at 0x0, width: 3 bits </summary>
-            public IValueRegisterField TX_DATA_THLD;
-            /// <summary> Field "RX_DATA_THLD" at 0x8, width: 3 bits </summary>
-            public IValueRegisterField RX_DATA_THLD;
             /// <summary> Field "TX_START_THLD" at 0x10, width: 3 bits </summary>
             public IValueRegisterField TX_START_THLD;
             /// <summary> Field "RX_START_THLD" at 0x18, width: 3 bits </summary>
             public IValueRegisterField RX_START_THLD;
 
-            public TargetTransactionInterfaceDataBufferThldCtrlType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public PiOControl_DataBufferThldCtrlType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(508, 117901063, true)
-                    .WithValueField(0, 3, out TX_DATA_THLD, name: "TX_DATA_THLD")
-                    .WithValueField(8, 3, out RX_DATA_THLD, name: "RX_DATA_THLD")
+                parent.RegistersCollection.DefineRegister(0x94, 0x7070707, true)
+                    .WithValueField(0, 3, out TX_BUF_THLD, name: "TX_BUF_THLD")
+                    .WithValueField(8, 3, out RX_BUF_THLD, name: "RX_BUF_THLD")
                     .WithValueField(16, 3, out TX_START_THLD, name: "TX_START_THLD")
                     .WithValueField(24, 3, out RX_START_THLD, name: "RX_START_THLD");
             }
         }
 
-        public struct PIOQueueSizeType
+        public struct PiOControl_QueueSizeType
         {
+            /// <summary> Field "CR_QUEUE_SIZE" at 0x0, width: 8 bits </summary>
             public IValueRegisterField CR_QUEUE_SIZE;
+            /// <summary> Field "IBI_STATUS_SIZE" at 0x8, width: 8 bits </summary>
             public IValueRegisterField IBI_STATUS_SIZE;
+            /// <summary> Field "RX_DATA_BUFFER_SIZE" at 0x10, width: 8 bits </summary>
             public IValueRegisterField RX_DATA_BUFFER_SIZE;
+            /// <summary> Field "TX_DATA_BUFFER_SIZE" at 0x18, width: 8 bits </summary>
             public IValueRegisterField TX_DATA_BUFFER_SIZE;
 
-            public PIOQueueSizeType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public PiOControl_QueueSizeType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(152)
+                parent.RegistersCollection.DefineRegister(0x98, 0xffffffff, true)
                     .WithValueField(0, 8, out CR_QUEUE_SIZE, mode: FieldMode.Read, name: "CR_QUEUE_SIZE")
                     .WithValueField(8, 8, out IBI_STATUS_SIZE, mode: FieldMode.Read, name: "IBI_STATUS_SIZE")
                     .WithValueField(16, 8, out RX_DATA_BUFFER_SIZE, mode: FieldMode.Read, name: "RX_DATA_BUFFER_SIZE")
@@ -1026,28 +945,7 @@ namespace Antmicro.Renode.Peripherals.I3C
             }
         }
 
-        public struct TargetTransactionInterfaceQueueSizeType
-        {
-            /// <summary> Field "RX_DESC_BUFFER_SIZE" at 0x0, width: 8 bits </summary>
-            public IValueRegisterField RX_DESC_BUFFER_SIZE;
-            /// <summary> Field "TX_DESC_BUFFER_SIZE" at 0x8, width: 8 bits </summary>
-            public IValueRegisterField TX_DESC_BUFFER_SIZE;
-            /// <summary> Field "RX_DATA_BUFFER_SIZE" at 0x10, width: 8 bits </summary>
-            public IValueRegisterField RX_DATA_BUFFER_SIZE;
-            /// <summary> Field "TX_DATA_BUFFER_SIZE" at 0x18, width: 8 bits </summary>
-            public IValueRegisterField TX_DATA_BUFFER_SIZE;
-
-            public TargetTransactionInterfaceQueueSizeType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
-            {
-                parent.RegistersCollection.DefineRegister(496, 4294967295, true)
-                    .WithValueField(0, 8, out RX_DESC_BUFFER_SIZE, mode: FieldMode.Read, name: "RX_DESC_BUFFER_SIZE")
-                    .WithValueField(8, 8, out TX_DESC_BUFFER_SIZE, mode: FieldMode.Read, name: "TX_DESC_BUFFER_SIZE")
-                    .WithValueField(16, 8, out RX_DATA_BUFFER_SIZE, mode: FieldMode.Read, name: "RX_DATA_BUFFER_SIZE")
-                    .WithValueField(24, 8, out TX_DATA_BUFFER_SIZE, mode: FieldMode.Read, name: "TX_DATA_BUFFER_SIZE");
-            }
-        }
-
-        public struct AltQueueSizeType
+        public struct PiOControl_AltQueueSizeType
         {
             /// <summary> Field "ALT_RESP_QUEUE_SIZE" at 0x0, width: 8 bits </summary>
             public IValueRegisterField ALT_RESP_QUEUE_SIZE;
@@ -1056,16 +954,16 @@ namespace Antmicro.Renode.Peripherals.I3C
             /// <summary> Field "EXT_IBI_QUEUE_EN" at 0x1c, width: 1 bits </summary>
             public IFlagRegisterField EXT_IBI_QUEUE_EN;
 
-            public AltQueueSizeType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public PiOControl_AltQueueSizeType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(156, 16777471, true)
+                parent.RegistersCollection.DefineRegister(0x9c, 0x10000ff, true)
                     .WithValueField(0, 8, out ALT_RESP_QUEUE_SIZE, mode: FieldMode.Read, name: "ALT_RESP_QUEUE_SIZE")
                     .WithFlag(24, out ALT_RESP_QUEUE_EN, mode: FieldMode.Read, name: "ALT_RESP_QUEUE_EN")
                     .WithFlag(28, out EXT_IBI_QUEUE_EN, mode: FieldMode.Read, name: "EXT_IBI_QUEUE_EN");
             }
         }
 
-        public struct PioIntrStatusType
+        public struct PiOControl_PioIntrStatusType
         {
             /// <summary> Field "TX_THLD_STAT" at 0x0, width: 1 bits </summary>
             public IFlagRegisterField TX_THLD_STAT;
@@ -1082,9 +980,9 @@ namespace Antmicro.Renode.Peripherals.I3C
             /// <summary> Field "TRANSFER_ERR_STAT" at 0x9, width: 1 bits </summary>
             public IFlagRegisterField TRANSFER_ERR_STAT;
 
-            public PioIntrStatusType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public PiOControl_PioIntrStatusType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(160, 0, true)
+                parent.RegistersCollection.DefineRegister(0xa0, 0x0, true)
                     .WithFlag(0, out TX_THLD_STAT, mode: FieldMode.Read, name: "TX_THLD_STAT")
                     .WithFlag(1, out RX_THLD_STAT, mode: FieldMode.Read, name: "RX_THLD_STAT")
                     .WithFlag(2, out IBI_STATUS_THLD_STAT, mode: FieldMode.Read, name: "IBI_STATUS_THLD_STAT")
@@ -1095,7 +993,7 @@ namespace Antmicro.Renode.Peripherals.I3C
             }
         }
 
-        public struct PioIntrStatusEnableType
+        public struct PiOControl_PioIntrStatusEnableType
         {
             /// <summary> Field "TX_THLD_STAT_EN" at 0x0, width: 1 bits </summary>
             public IFlagRegisterField TX_THLD_STAT_EN;
@@ -1112,9 +1010,9 @@ namespace Antmicro.Renode.Peripherals.I3C
             /// <summary> Field "TRANSFER_ERR_STAT_EN" at 0x9, width: 1 bits </summary>
             public IFlagRegisterField TRANSFER_ERR_STAT_EN;
 
-            public PioIntrStatusEnableType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public PiOControl_PioIntrStatusEnableType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(164, 0, true)
+                parent.RegistersCollection.DefineRegister(0xa4, 0x0, true)
                     .WithFlag(0, out TX_THLD_STAT_EN, name: "TX_THLD_STAT_EN")
                     .WithFlag(1, out RX_THLD_STAT_EN, name: "RX_THLD_STAT_EN")
                     .WithFlag(2, out IBI_STATUS_THLD_STAT_EN, name: "IBI_STATUS_THLD_STAT_EN")
@@ -1125,7 +1023,7 @@ namespace Antmicro.Renode.Peripherals.I3C
             }
         }
 
-        public struct PioIntrSignalEnableType
+        public struct PiOControl_PioIntrSignalEnableType
         {
             /// <summary> Field "TX_THLD_SIGNAL_EN" at 0x0, width: 1 bits </summary>
             public IFlagRegisterField TX_THLD_SIGNAL_EN;
@@ -1142,9 +1040,9 @@ namespace Antmicro.Renode.Peripherals.I3C
             /// <summary> Field "TRANSFER_ERR_SIGNAL_EN" at 0x9, width: 1 bits </summary>
             public IFlagRegisterField TRANSFER_ERR_SIGNAL_EN;
 
-            public PioIntrSignalEnableType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public PiOControl_PioIntrSignalEnableType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(168, 0, true)
+                parent.RegistersCollection.DefineRegister(0xa8, 0x0, true)
                     .WithFlag(0, out TX_THLD_SIGNAL_EN, name: "TX_THLD_SIGNAL_EN")
                     .WithFlag(1, out RX_THLD_SIGNAL_EN, name: "RX_THLD_SIGNAL_EN")
                     .WithFlag(2, out IBI_STATUS_THLD_SIGNAL_EN, name: "IBI_STATUS_THLD_SIGNAL_EN")
@@ -1155,7 +1053,7 @@ namespace Antmicro.Renode.Peripherals.I3C
             }
         }
 
-        public struct PioIntrForceType
+        public struct PiOControl_PioIntrForceType
         {
             /// <summary> Field "TX_THLD_FORCE" at 0x0, width: 1 bits </summary>
             public IFlagRegisterField TX_THLD_FORCE;
@@ -1172,9 +1070,9 @@ namespace Antmicro.Renode.Peripherals.I3C
             /// <summary> Field "TRANSFER_ERR_FORCE" at 0x9, width: 1 bits </summary>
             public IFlagRegisterField TRANSFER_ERR_FORCE;
 
-            public PioIntrForceType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public PiOControl_PioIntrForceType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(172, 0, true)
+                parent.RegistersCollection.DefineRegister(0xac, 0x0, true)
                     .WithFlag(0, out TX_THLD_FORCE, mode: FieldMode.Write, name: "TX_THLD_FORCE")
                     .WithFlag(1, out RX_THLD_FORCE, mode: FieldMode.Write, name: "RX_THLD_FORCE")
                     .WithFlag(2, out IBI_THLD_FORCE, mode: FieldMode.Write, name: "IBI_THLD_FORCE")
@@ -1185,7 +1083,7 @@ namespace Antmicro.Renode.Peripherals.I3C
             }
         }
 
-        public struct PioControlType
+        public struct PiOControl_PioControlType
         {
             /// <summary> Field "ENABLE" at 0x0, width: 1 bits </summary>
             public IFlagRegisterField ENABLE;
@@ -1194,130 +1092,70 @@ namespace Antmicro.Renode.Peripherals.I3C
             /// <summary> Field "ABORT" at 0x2, width: 1 bits </summary>
             public IFlagRegisterField ABORT;
 
-            public PioControlType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public PiOControl_PioControlType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(176, 1, true)
+                parent.RegistersCollection.DefineRegister(0xb0, 0x1, true)
                     .WithFlag(0, out ENABLE, name: "ENABLE")
                     .WithFlag(1, out RS, name: "RS")
                     .WithFlag(2, out ABORT, name: "ABORT");
             }
         }
 
-        public struct SecureFirmwareRecoveryInterfaceExtcapHeaderType
+        public struct I3cEc_SecFwRecoveryIf_ExtcapHeaderType
         {
             /// <summary> Field "CAP_ID" at 0x0, width: 8 bits </summary>
             public IValueRegisterField CAP_ID;
             /// <summary> Field "CAP_LENGTH" at 0x8, width: 16 bits </summary>
             public IValueRegisterField CAP_LENGTH;
 
-            public SecureFirmwareRecoveryInterfaceExtcapHeaderType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SecFwRecoveryIf_ExtcapHeaderType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(256, 8384, true)
+                parent.RegistersCollection.DefineRegister(0x100, 0xffffff, true)
                     .WithValueField(0, 8, out CAP_ID, mode: FieldMode.Read, name: "CAP_ID")
                     .WithValueField(8, 16, out CAP_LENGTH, mode: FieldMode.Read, name: "CAP_LENGTH");
             }
         }
 
-        public struct StandbyControllerModeRegistersExtcapHeaderType
-        {
-            /// <summary> Field "CAP_ID" at 0x0, width: 8 bits </summary>
-            public IValueRegisterField CAP_ID;
-            /// <summary> Field "CAP_LENGTH" at 0x8, width: 16 bits </summary>
-            public IValueRegisterField CAP_LENGTH;
-
-            public StandbyControllerModeRegistersExtcapHeaderType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
-            {
-                parent.RegistersCollection.DefineRegister(384, 4114, true)
-                    .WithValueField(0, 8, out CAP_ID, mode: FieldMode.Read, name: "CAP_ID")
-                    .WithValueField(8, 16, out CAP_LENGTH, mode: FieldMode.Read, name: "CAP_LENGTH");
-            }
-        }
-
-        public struct SoCManagementInterfaceRegistersExtcapHeaderType
-        {
-            /// <summary> Field "CAP_ID" at 0x0, width: 8 bits </summary>
-            public IValueRegisterField CAP_ID;
-            /// <summary> Field "CAP_LENGTH" at 0x8, width: 16 bits </summary>
-            public IValueRegisterField CAP_LENGTH;
-
-            public SoCManagementInterfaceRegistersExtcapHeaderType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
-            {
-                parent.RegistersCollection.DefineRegister(512, 6337, true)
-                    .WithValueField(0, 8, out CAP_ID, mode: FieldMode.Read, name: "CAP_ID")
-                    .WithValueField(8, 16, out CAP_LENGTH, mode: FieldMode.Read, name: "CAP_LENGTH");
-            }
-        }
-
-        public struct TargetTransactionInterfaceRegistersExtcapHeaderType
-        {
-            /// <summary> Field "CAP_ID" at 0x0, width: 8 bits </summary>
-            public IValueRegisterField CAP_ID;
-            /// <summary> Field "CAP_LENGTH" at 0x8, width: 16 bits </summary>
-            public IValueRegisterField CAP_LENGTH;
-
-            public TargetTransactionInterfaceRegistersExtcapHeaderType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
-            {
-                parent.RegistersCollection.DefineRegister(448, 4292, true)
-                    .WithValueField(0, 8, out CAP_ID, mode: FieldMode.Read, name: "CAP_ID")
-                    .WithValueField(8, 16, out CAP_LENGTH, mode: FieldMode.Read, name: "CAP_LENGTH");
-            }
-        }
-
-        public struct ControllerConfigRegistersExtcapHeaderType
-        {
-            /// <summary> Field "CAP_ID" at 0x0, width: 8 bits </summary>
-            public IValueRegisterField CAP_ID;
-            /// <summary> Field "CAP_LENGTH" at 0x8, width: 16 bits </summary>
-            public IValueRegisterField CAP_LENGTH;
-
-            public ControllerConfigRegistersExtcapHeaderType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
-            {
-                parent.RegistersCollection.DefineRegister(608, 514, true)
-                    .WithValueField(0, 8, out CAP_ID, mode: FieldMode.Read, name: "CAP_ID")
-                    .WithValueField(8, 16, out CAP_LENGTH, mode: FieldMode.Read, name: "CAP_LENGTH");
-            }
-        }
-
-        public struct ProtCap0Type
+        public struct I3cEc_SecFwRecoveryIf_ProtCap0Type
         {
             /// <summary> Field "REC_MAGIC_STRING_0" at 0x0, width: 32 bits </summary>
             public IValueRegisterField REC_MAGIC_STRING_0;
 
-            public ProtCap0Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SecFwRecoveryIf_ProtCap0Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(260, 4294967295, true)
+                parent.RegistersCollection.DefineRegister(0x104, 0xffffffff, true)
                     .WithValueField(0, 32, out REC_MAGIC_STRING_0, mode: FieldMode.Read, name: "REC_MAGIC_STRING_0");
             }
         }
 
-        public struct ProtCap1Type
+        public struct I3cEc_SecFwRecoveryIf_ProtCap1Type
         {
             /// <summary> Field "REC_MAGIC_STRING_1" at 0x0, width: 32 bits </summary>
             public IValueRegisterField REC_MAGIC_STRING_1;
 
-            public ProtCap1Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SecFwRecoveryIf_ProtCap1Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(264, 4294967295, true)
+                parent.RegistersCollection.DefineRegister(0x108, 0xffffffff, true)
                     .WithValueField(0, 32, out REC_MAGIC_STRING_1, mode: FieldMode.Read, name: "REC_MAGIC_STRING_1");
             }
         }
 
-        public struct ProtCap2Type
+        public struct I3cEc_SecFwRecoveryIf_ProtCap2Type
         {
             /// <summary> Field "REC_PROT_VERSION" at 0x0, width: 16 bits </summary>
             public IValueRegisterField REC_PROT_VERSION;
             /// <summary> Field "AGENT_CAPS" at 0x10, width: 16 bits </summary>
             public IValueRegisterField AGENT_CAPS;
 
-            public ProtCap2Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SecFwRecoveryIf_ProtCap2Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(268, 0, true)
+                parent.RegistersCollection.DefineRegister(0x10c, 0x0, true)
                     .WithValueField(0, 16, out REC_PROT_VERSION, name: "REC_PROT_VERSION")
                     .WithValueField(16, 16, out AGENT_CAPS, name: "AGENT_CAPS");
             }
         }
 
-        public struct ProtCap3Type
+        public struct I3cEc_SecFwRecoveryIf_ProtCap3Type
         {
             /// <summary> Field "NUM_OF_CMS_REGIONS" at 0x0, width: 8 bits </summary>
             public IValueRegisterField NUM_OF_CMS_REGIONS;
@@ -1326,16 +1164,16 @@ namespace Antmicro.Renode.Peripherals.I3C
             /// <summary> Field "HEARTBEAT_PERIOD" at 0x10, width: 8 bits </summary>
             public IValueRegisterField HEARTBEAT_PERIOD;
 
-            public ProtCap3Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SecFwRecoveryIf_ProtCap3Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(272, 0, true)
+                parent.RegistersCollection.DefineRegister(0x110, 0x0, true)
                     .WithValueField(0, 8, out NUM_OF_CMS_REGIONS, name: "NUM_OF_CMS_REGIONS")
                     .WithValueField(8, 8, out MAX_RESP_TIME, name: "MAX_RESP_TIME")
                     .WithValueField(16, 8, out HEARTBEAT_PERIOD, name: "HEARTBEAT_PERIOD");
             }
         }
 
-        public struct DeviceId0Type
+        public struct I3cEc_SecFwRecoveryIf_DeviceId0Type
         {
             /// <summary> Field "DESC_TYPE" at 0x0, width: 8 bits </summary>
             public IValueRegisterField DESC_TYPE;
@@ -1344,88 +1182,88 @@ namespace Antmicro.Renode.Peripherals.I3C
             /// <summary> Field "DATA" at 0x10, width: 16 bits </summary>
             public IValueRegisterField DATA;
 
-            public DeviceId0Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SecFwRecoveryIf_DeviceId0Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(276, 0, true)
+                parent.RegistersCollection.DefineRegister(0x114, 0x0, true)
                     .WithValueField(0, 8, out DESC_TYPE, name: "DESC_TYPE")
                     .WithValueField(8, 8, out VENDOR_SPECIFIC_STR_LENGTH, name: "VENDOR_SPECIFIC_STR_LENGTH")
                     .WithValueField(16, 16, out DATA, name: "DATA");
             }
         }
 
-        public struct DeviceId1Type
+        public struct I3cEc_SecFwRecoveryIf_DeviceId1Type
         {
             /// <summary> Field "DATA" at 0x0, width: 32 bits </summary>
             public IValueRegisterField DATA;
 
-            public DeviceId1Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SecFwRecoveryIf_DeviceId1Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(280, 0, true)
+                parent.RegistersCollection.DefineRegister(0x118, 0x0, true)
                     .WithValueField(0, 32, out DATA, name: "DATA");
             }
         }
 
-        public struct DeviceId2Type
+        public struct I3cEc_SecFwRecoveryIf_DeviceId2Type
         {
             /// <summary> Field "DATA" at 0x0, width: 32 bits </summary>
             public IValueRegisterField DATA;
 
-            public DeviceId2Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SecFwRecoveryIf_DeviceId2Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(284, 0, true)
+                parent.RegistersCollection.DefineRegister(0x11c, 0x0, true)
                     .WithValueField(0, 32, out DATA, name: "DATA");
             }
         }
 
-        public struct DeviceId3Type
+        public struct I3cEc_SecFwRecoveryIf_DeviceId3Type
         {
             /// <summary> Field "DATA" at 0x0, width: 32 bits </summary>
             public IValueRegisterField DATA;
 
-            public DeviceId3Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SecFwRecoveryIf_DeviceId3Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(288, 0, true)
+                parent.RegistersCollection.DefineRegister(0x120, 0x0, true)
                     .WithValueField(0, 32, out DATA, name: "DATA");
             }
         }
 
-        public struct DeviceId4Type
+        public struct I3cEc_SecFwRecoveryIf_DeviceId4Type
         {
             /// <summary> Field "DATA" at 0x0, width: 32 bits </summary>
             public IValueRegisterField DATA;
 
-            public DeviceId4Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SecFwRecoveryIf_DeviceId4Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(292, 0, true)
+                parent.RegistersCollection.DefineRegister(0x124, 0x0, true)
                     .WithValueField(0, 32, out DATA, name: "DATA");
             }
         }
 
-        public struct DeviceId5Type
+        public struct I3cEc_SecFwRecoveryIf_DeviceId5Type
         {
             /// <summary> Field "DATA" at 0x0, width: 32 bits </summary>
             public IValueRegisterField DATA;
 
-            public DeviceId5Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SecFwRecoveryIf_DeviceId5Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(296, 0, true)
+                parent.RegistersCollection.DefineRegister(0x128, 0x0, true)
                     .WithValueField(0, 32, out DATA, name: "DATA");
             }
         }
 
-        public struct DeviceIdReservedType
+        public struct I3cEc_SecFwRecoveryIf_DeviceIdReservedType
         {
             /// <summary> Field "DATA" at 0x0, width: 32 bits </summary>
             public IValueRegisterField DATA;
 
-            public DeviceIdReservedType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SecFwRecoveryIf_DeviceIdReservedType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(300, 0, true)
+                parent.RegistersCollection.DefineRegister(0x12c, 0x0, true)
                     .WithValueField(0, 32, out DATA, mode: FieldMode.Read, name: "DATA");
             }
         }
 
-        public struct DeviceStatus0Type
+        public struct I3cEc_SecFwRecoveryIf_DeviceStatus0Type
         {
             /// <summary> Field "DEV_STATUS" at 0x0, width: 8 bits </summary>
             public IValueRegisterField DEV_STATUS;
@@ -1434,16 +1272,16 @@ namespace Antmicro.Renode.Peripherals.I3C
             /// <summary> Field "REC_REASON_CODE" at 0x10, width: 16 bits </summary>
             public IValueRegisterField REC_REASON_CODE;
 
-            public DeviceStatus0Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SecFwRecoveryIf_DeviceStatus0Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(304, 0, true)
+                parent.RegistersCollection.DefineRegister(0x130, 0x0, true)
                     .WithValueField(0, 8, out DEV_STATUS, name: "DEV_STATUS")
                     .WithValueField(8, 8, out PROT_ERROR, mode: FieldMode.ReadToClear | FieldMode.Write, name: "PROT_ERROR")
                     .WithValueField(16, 16, out REC_REASON_CODE, name: "REC_REASON_CODE");
             }
         }
 
-        public struct DeviceStatus1Type
+        public struct I3cEc_SecFwRecoveryIf_DeviceStatus1Type
         {
             /// <summary> Field "HEARTBEAT" at 0x0, width: 16 bits </summary>
             public IValueRegisterField HEARTBEAT;
@@ -1452,16 +1290,16 @@ namespace Antmicro.Renode.Peripherals.I3C
             /// <summary> Field "VENDOR_STATUS" at 0x19, width: 7 bits </summary>
             public IValueRegisterField VENDOR_STATUS;
 
-            public DeviceStatus1Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SecFwRecoveryIf_DeviceStatus1Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(308, 0, true)
+                parent.RegistersCollection.DefineRegister(0x134, 0x0, true)
                     .WithValueField(0, 16, out HEARTBEAT, name: "HEARTBEAT")
                     .WithValueField(16, 9, out VENDOR_STATUS_LENGTH, name: "VENDOR_STATUS_LENGTH")
                     .WithValueField(25, 7, out VENDOR_STATUS, name: "VENDOR_STATUS");
             }
         }
 
-        public struct DeviceResetType
+        public struct I3cEc_SecFwRecoveryIf_DeviceResetType
         {
             /// <summary> Field "RESET_CTRL" at 0x0, width: 8 bits </summary>
             public IValueRegisterField RESET_CTRL;
@@ -1470,16 +1308,16 @@ namespace Antmicro.Renode.Peripherals.I3C
             /// <summary> Field "IF_CTRL" at 0x10, width: 8 bits </summary>
             public IValueRegisterField IF_CTRL;
 
-            public DeviceResetType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SecFwRecoveryIf_DeviceResetType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(312, 0, true)
+                parent.RegistersCollection.DefineRegister(0x138, 0x0, true)
                     .WithValueField(0, 8, out RESET_CTRL, mode: FieldMode.Read | FieldMode.WriteOneToClear, name: "RESET_CTRL")
                     .WithValueField(8, 8, out FORCED_RECOVERY, name: "FORCED_RECOVERY")
                     .WithValueField(16, 8, out IF_CTRL, name: "IF_CTRL");
             }
         }
 
-        public struct RecoveryCtrlType
+        public struct I3cEc_SecFwRecoveryIf_RecoveryCtrlType
         {
             /// <summary> Field "CMS" at 0x0, width: 8 bits </summary>
             public IValueRegisterField CMS;
@@ -1488,16 +1326,16 @@ namespace Antmicro.Renode.Peripherals.I3C
             /// <summary> Field "ACTIVATE_REC_IMG" at 0x10, width: 8 bits </summary>
             public IValueRegisterField ACTIVATE_REC_IMG;
 
-            public RecoveryCtrlType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SecFwRecoveryIf_RecoveryCtrlType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(316, 0, true)
+                parent.RegistersCollection.DefineRegister(0x13c, 0x0, true)
                     .WithValueField(0, 8, out CMS, name: "CMS")
                     .WithValueField(8, 8, out REC_IMG_SEL, name: "REC_IMG_SEL")
                     .WithValueField(16, 8, out ACTIVATE_REC_IMG, mode: FieldMode.Read | FieldMode.WriteOneToClear, name: "ACTIVATE_REC_IMG");
             }
         }
 
-        public struct RecoveryStatusType
+        public struct I3cEc_SecFwRecoveryIf_RecoveryStatusType
         {
             /// <summary> Field "DEV_REC_STATUS" at 0x0, width: 4 bits </summary>
             public IValueRegisterField DEV_REC_STATUS;
@@ -1506,16 +1344,16 @@ namespace Antmicro.Renode.Peripherals.I3C
             /// <summary> Field "VENDOR_SPECIFIC_STATUS" at 0x8, width: 8 bits </summary>
             public IValueRegisterField VENDOR_SPECIFIC_STATUS;
 
-            public RecoveryStatusType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SecFwRecoveryIf_RecoveryStatusType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(320, 0, true)
+                parent.RegistersCollection.DefineRegister(0x140, 0x0, true)
                     .WithValueField(0, 4, out DEV_REC_STATUS, name: "DEV_REC_STATUS")
                     .WithValueField(4, 4, out REC_IMG_INDEX, name: "REC_IMG_INDEX")
                     .WithValueField(8, 8, out VENDOR_SPECIFIC_STATUS, name: "VENDOR_SPECIFIC_STATUS");
             }
         }
 
-        public struct HwStatusType
+        public struct I3cEc_SecFwRecoveryIf_HwStatusType
         {
             /// <summary> Field "TEMP_CRITICAL" at 0x0, width: 1 bits </summary>
             public IFlagRegisterField TEMP_CRITICAL;
@@ -1532,9 +1370,9 @@ namespace Antmicro.Renode.Peripherals.I3C
             /// <summary> Field "VENDOR_HW_STATUS_LEN" at 0x18, width: 8 bits </summary>
             public IValueRegisterField VENDOR_HW_STATUS_LEN;
 
-            public HwStatusType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SecFwRecoveryIf_HwStatusType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(324, 0, true)
+                parent.RegistersCollection.DefineRegister(0x144, 0x0, true)
                     .WithFlag(0, out TEMP_CRITICAL, name: "TEMP_CRITICAL")
                     .WithFlag(1, out SOFT_ERR, name: "SOFT_ERR")
                     .WithFlag(2, out FATAL_ERR, name: "FATAL_ERR")
@@ -1545,34 +1383,34 @@ namespace Antmicro.Renode.Peripherals.I3C
             }
         }
 
-        public struct IndirectFifoCtrl0Type
+        public struct I3cEc_SecFwRecoveryIf_IndirectFifoCtrl0Type
         {
             /// <summary> Field "CMS" at 0x0, width: 8 bits </summary>
             public IValueRegisterField CMS;
             /// <summary> Field "RESET" at 0x8, width: 8 bits </summary>
             public IValueRegisterField RESET;
 
-            public IndirectFifoCtrl0Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SecFwRecoveryIf_IndirectFifoCtrl0Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(328, 0, true)
+                parent.RegistersCollection.DefineRegister(0x148, 0x0, true)
                     .WithValueField(0, 8, out CMS, name: "CMS")
                     .WithValueField(8, 8, out RESET, name: "RESET");
             }
         }
 
-        public struct IndirectFifoCtrl1Type
+        public struct I3cEc_SecFwRecoveryIf_IndirectFifoCtrl1Type
         {
             /// <summary> Field "IMAGE_SIZE" at 0x0, width: 32 bits </summary>
             public IValueRegisterField IMAGE_SIZE;
 
-            public IndirectFifoCtrl1Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SecFwRecoveryIf_IndirectFifoCtrl1Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(332, 0, true)
+                parent.RegistersCollection.DefineRegister(0x14c, 0x0, true)
                     .WithValueField(0, 32, out IMAGE_SIZE, name: "IMAGE_SIZE");
             }
         }
 
-        public struct IndirectFifoStatus0Type
+        public struct I3cEc_SecFwRecoveryIf_IndirectFifoStatus0Type
         {
             /// <summary> Field "EMPTY" at 0x0, width: 1 bits </summary>
             public IFlagRegisterField EMPTY;
@@ -1581,88 +1419,103 @@ namespace Antmicro.Renode.Peripherals.I3C
             /// <summary> Field "REGION_TYPE" at 0x8, width: 3 bits </summary>
             public IValueRegisterField REGION_TYPE;
 
-            public IndirectFifoStatus0Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SecFwRecoveryIf_IndirectFifoStatus0Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(336, 1, true)
+                parent.RegistersCollection.DefineRegister(0x150, 0x1, true)
                     .WithFlag(0, out EMPTY, mode: FieldMode.Read, name: "EMPTY")
                     .WithFlag(1, out FULL, mode: FieldMode.Read, name: "FULL")
                     .WithValueField(8, 3, out REGION_TYPE, mode: FieldMode.Read, name: "REGION_TYPE");
             }
         }
 
-        public struct IndirectFifoStatus1Type
+        public struct I3cEc_SecFwRecoveryIf_IndirectFifoStatus1Type
         {
             /// <summary> Field "WRITE_INDEX" at 0x0, width: 32 bits </summary>
             public IValueRegisterField WRITE_INDEX;
 
-            public IndirectFifoStatus1Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SecFwRecoveryIf_IndirectFifoStatus1Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(340, 0, true)
+                parent.RegistersCollection.DefineRegister(0x154, 0x0, true)
                     .WithValueField(0, 32, out WRITE_INDEX, mode: FieldMode.Read, name: "WRITE_INDEX");
             }
         }
 
-        public struct IndirectFifoStatus2Type
+        public struct I3cEc_SecFwRecoveryIf_IndirectFifoStatus2Type
         {
             /// <summary> Field "READ_INDEX" at 0x0, width: 32 bits </summary>
             public IValueRegisterField READ_INDEX;
 
-            public IndirectFifoStatus2Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SecFwRecoveryIf_IndirectFifoStatus2Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(344, 0, true)
+                parent.RegistersCollection.DefineRegister(0x158, 0x0, true)
                     .WithValueField(0, 32, out READ_INDEX, mode: FieldMode.Read, name: "READ_INDEX");
             }
         }
 
-        public struct IndirectFifoStatus3Type
+        public struct I3cEc_SecFwRecoveryIf_IndirectFifoStatus3Type
         {
             /// <summary> Field "FIFO_SIZE" at 0x0, width: 32 bits </summary>
             public IValueRegisterField FIFO_SIZE;
 
-            public IndirectFifoStatus3Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SecFwRecoveryIf_IndirectFifoStatus3Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(348, 4294967295, true)
+                parent.RegistersCollection.DefineRegister(0x15c, 0xffffffff, true)
                     .WithValueField(0, 32, out FIFO_SIZE, mode: FieldMode.Read, name: "FIFO_SIZE");
             }
         }
 
-        public struct IndirectFifoStatus4Type
+        public struct I3cEc_SecFwRecoveryIf_IndirectFifoStatus4Type
         {
             /// <summary> Field "MAX_TRANSFER_SIZE" at 0x0, width: 32 bits </summary>
             public IValueRegisterField MAX_TRANSFER_SIZE;
 
-            public IndirectFifoStatus4Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SecFwRecoveryIf_IndirectFifoStatus4Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(352, 0, true)
+                parent.RegistersCollection.DefineRegister(0x160, 0x0, true)
                     .WithValueField(0, 32, out MAX_TRANSFER_SIZE, mode: FieldMode.Read, name: "MAX_TRANSFER_SIZE");
             }
         }
 
-        public struct IndirectFifoReservedType
+        public struct I3cEc_SecFwRecoveryIf_IndirectFifoReservedType
         {
             /// <summary> Field "DATA" at 0x0, width: 32 bits </summary>
             public IValueRegisterField DATA;
 
-            public IndirectFifoReservedType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SecFwRecoveryIf_IndirectFifoReservedType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(356, 0, true)
+                parent.RegistersCollection.DefineRegister(0x164, 0x0, true)
                     .WithValueField(0, 32, out DATA, mode: FieldMode.Read, name: "DATA");
             }
         }
 
-        public struct IndirectFifoDataType
+        public struct I3cEc_SecFwRecoveryIf_IndirectFifoDataType
         {
             /// <summary> Field "DATA" at 0x0, width: 32 bits </summary>
             public IValueRegisterField DATA;
 
-            public IndirectFifoDataType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SecFwRecoveryIf_IndirectFifoDataType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(360, 0, true)
+                parent.RegistersCollection.DefineRegister(0x168, 0x0, true)
                     .WithValueField(0, 32, out DATA, name: "DATA");
             }
         }
 
-        public struct StbyCrControlType
+        public struct I3cEc_StdbyCtrlMode_ExtcapHeaderType
+        {
+            /// <summary> Field "CAP_ID" at 0x0, width: 8 bits </summary>
+            public IValueRegisterField CAP_ID;
+            /// <summary> Field "CAP_LENGTH" at 0x8, width: 16 bits </summary>
+            public IValueRegisterField CAP_LENGTH;
+
+            public I3cEc_StdbyCtrlMode_ExtcapHeaderType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            {
+                parent.RegistersCollection.DefineRegister(0x180, 0xffffff, true)
+                    .WithValueField(0, 8, out CAP_ID, mode: FieldMode.Read, name: "CAP_ID")
+                    .WithValueField(8, 16, out CAP_LENGTH, mode: FieldMode.Read, name: "CAP_LENGTH");
+            }
+        }
+
+        public struct I3cEc_StdbyCtrlMode_StbyCrControlType
         {
             /// <summary> Field "PENDING_RX_NACK" at 0x0, width: 1 bits </summary>
             public IFlagRegisterField PENDING_RX_NACK;
@@ -1691,14 +1544,14 @@ namespace Antmicro.Renode.Peripherals.I3C
             /// <summary> Field "STBY_CR_ENABLE_INIT" at 0x1e, width: 2 bits </summary>
             public IValueRegisterField STBY_CR_ENABLE_INIT;
 
-            public StbyCrControlType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_StdbyCtrlMode_StbyCrControlType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(388, 4096, true)
+                parent.RegistersCollection.DefineRegister(0x184, 0x1000, true)
                     .WithFlag(0, out PENDING_RX_NACK, name: "PENDING_RX_NACK")
                     .WithFlag(1, out HANDOFF_DELAY_NACK, name: "HANDOFF_DELAY_NACK")
                     .WithFlag(2, out ACR_FSM_OP_SELECT, name: "ACR_FSM_OP_SELECT")
                     .WithFlag(3, out PRIME_ACCEPT_GETACCCR, name: "PRIME_ACCEPT_GETACCCR")
-                    .WithFlag(4, out HANDOFF_DEEP_SLEEP, mode: FieldMode.Read | FieldMode.Write, name: "HANDOFF_DEEP_SLEEP")
+                    .WithFlag(4, out HANDOFF_DEEP_SLEEP, mode: FieldMode.Read | FieldMode.WriteToSet, name: "HANDOFF_DEEP_SLEEP")
                     .WithFlag(5, out CR_REQUEST_SEND, mode: FieldMode.Write, name: "CR_REQUEST_SEND")
                     .WithValueField(8, 3, out BAST_CCC_IBI_RING, name: "BAST_CCC_IBI_RING")
                     .WithFlag(12, out TARGET_XACT_ENABLE, name: "TARGET_XACT_ENABLE")
@@ -1710,7 +1563,7 @@ namespace Antmicro.Renode.Peripherals.I3C
             }
         }
 
-        public struct StbyCrDeviceAddrType
+        public struct I3cEc_StdbyCtrlMode_StbyCrDeviceAddrType
         {
             /// <summary> Field "STATIC_ADDR" at 0x0, width: 7 bits </summary>
             public IValueRegisterField STATIC_ADDR;
@@ -1721,9 +1574,9 @@ namespace Antmicro.Renode.Peripherals.I3C
             /// <summary> Field "DYNAMIC_ADDR_VALID" at 0x1f, width: 1 bits </summary>
             public IFlagRegisterField DYNAMIC_ADDR_VALID;
 
-            public StbyCrDeviceAddrType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_StdbyCtrlMode_StbyCrDeviceAddrType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(392, 0, true)
+                parent.RegistersCollection.DefineRegister(0x188, 0x0, true)
                     .WithValueField(0, 7, out STATIC_ADDR, name: "STATIC_ADDR")
                     .WithFlag(15, out STATIC_ADDR_VALID, name: "STATIC_ADDR_VALID")
                     .WithValueField(16, 7, out DYNAMIC_ADDR, name: "DYNAMIC_ADDR")
@@ -1731,7 +1584,7 @@ namespace Antmicro.Renode.Peripherals.I3C
             }
         }
 
-        public struct StbyCrCapabilitiesType
+        public struct I3cEc_StdbyCtrlMode_StbyCrCapabilitiesType
         {
             /// <summary> Field "SIMPLE_CRR_SUPPORT" at 0x5, width: 1 bits </summary>
             public IFlagRegisterField SIMPLE_CRR_SUPPORT;
@@ -1744,9 +1597,9 @@ namespace Antmicro.Renode.Peripherals.I3C
             /// <summary> Field "DAA_ENTDAA_SUPPORT" at 0xf, width: 1 bits </summary>
             public IFlagRegisterField DAA_ENTDAA_SUPPORT;
 
-            public StbyCrCapabilitiesType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_StdbyCtrlMode_StbyCrCapabilitiesType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(396, 28672, true)
+                parent.RegistersCollection.DefineRegister(0x18c, 0x7000, true)
                     .WithFlag(5, out SIMPLE_CRR_SUPPORT, mode: FieldMode.Read, name: "SIMPLE_CRR_SUPPORT")
                     .WithFlag(12, out TARGET_XACT_SUPPORT, mode: FieldMode.Read, name: "TARGET_XACT_SUPPORT")
                     .WithFlag(13, out DAA_SETAASA_SUPPORT, mode: FieldMode.Read, name: "DAA_SETAASA_SUPPORT")
@@ -1755,19 +1608,19 @@ namespace Antmicro.Renode.Peripherals.I3C
             }
         }
 
-        public struct Rsvd0Type
+        public struct I3cEc_StdbyCtrlMode_Rsvd0Type
         {
             /// <summary> Field "__rsvd" at 0x0, width: 32 bits </summary>
             public IValueRegisterField __RSVD;
 
-            public Rsvd0Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_StdbyCtrlMode_Rsvd0Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(400, 0, true)
+                parent.RegistersCollection.DefineRegister(0x190, 0x0, true)
                     .WithValueField(0, 32, out __RSVD, name: "__RSVD");
             }
         }
 
-        public struct StbyCrStatusType
+        public struct I3cEc_StdbyCtrlMode_StbyCrStatusType
         {
             /// <summary> Field "AC_CURRENT_OWN" at 0x2, width: 1 bits </summary>
             public IFlagRegisterField AC_CURRENT_OWN;
@@ -1776,16 +1629,16 @@ namespace Antmicro.Renode.Peripherals.I3C
             /// <summary> Field "HJ_REQ_STATUS" at 0x8, width: 1 bits </summary>
             public IFlagRegisterField HJ_REQ_STATUS;
 
-            public StbyCrStatusType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_StdbyCtrlMode_StbyCrStatusType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(404, 0, true)
+                parent.RegistersCollection.DefineRegister(0x194, 0x0, true)
                     .WithFlag(2, out AC_CURRENT_OWN, name: "AC_CURRENT_OWN")
                     .WithValueField(5, 3, out SIMPLE_CRR_STATUS, name: "SIMPLE_CRR_STATUS")
                     .WithFlag(8, out HJ_REQ_STATUS, name: "HJ_REQ_STATUS");
             }
         }
 
-        public struct StbyCrDeviceCharType
+        public struct I3cEc_StdbyCtrlMode_StbyCrDeviceCharType
         {
             /// <summary> Field "PID_HI" at 0x1, width: 15 bits </summary>
             public IValueRegisterField PID_HI;
@@ -1796,9 +1649,9 @@ namespace Antmicro.Renode.Peripherals.I3C
             /// <summary> Field "BCR_FIXED" at 0x1d, width: 3 bits </summary>
             public IValueRegisterField BCR_FIXED;
 
-            public StbyCrDeviceCharType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_StdbyCtrlMode_StbyCrDeviceCharType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(408, 4294967294, true)
+                parent.RegistersCollection.DefineRegister(0x198, 0xfffffffe, true)
                     .WithValueField(1, 15, out PID_HI, name: "PID_HI")
                     .WithValueField(16, 8, out DCR, name: "DCR")
                     .WithValueField(24, 5, out BCR_VAR, name: "BCR_VAR")
@@ -1806,19 +1659,19 @@ namespace Antmicro.Renode.Peripherals.I3C
             }
         }
 
-        public struct StbyCrDevicePidLoType
+        public struct I3cEc_StdbyCtrlMode_StbyCrDevicePidLoType
         {
             /// <summary> Field "PID_LO" at 0x0, width: 32 bits </summary>
             public IValueRegisterField PID_LO;
 
-            public StbyCrDevicePidLoType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_StdbyCtrlMode_StbyCrDevicePidLoType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(412, 4294967295, true)
+                parent.RegistersCollection.DefineRegister(0x19c, 0xffffffff, true)
                     .WithValueField(0, 32, out PID_LO, name: "PID_LO");
             }
         }
 
-        public struct StbyCrIntrStatusType
+        public struct I3cEc_StdbyCtrlMode_StbyCrIntrStatusType
         {
             /// <summary> Field "ACR_HANDOFF_OK_REMAIN_STAT" at 0x0, width: 1 bits </summary>
             public IFlagRegisterField ACR_HANDOFF_OK_REMAIN_STAT;
@@ -1847,9 +1700,9 @@ namespace Antmicro.Renode.Peripherals.I3C
             /// <summary> Field "CCC_FATAL_RSTDAA_ERR_STAT" at 0x13, width: 1 bits </summary>
             public IFlagRegisterField CCC_FATAL_RSTDAA_ERR_STAT;
 
-            public StbyCrIntrStatusType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_StdbyCtrlMode_StbyCrIntrStatusType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(416, 0, true)
+                parent.RegistersCollection.DefineRegister(0x1a0, 0x0, true)
                     .WithFlag(0, out ACR_HANDOFF_OK_REMAIN_STAT, name: "ACR_HANDOFF_OK_REMAIN_STAT")
                     .WithFlag(1, out ACR_HANDOFF_OK_PRIMED_STAT, name: "ACR_HANDOFF_OK_PRIMED_STAT")
                     .WithFlag(2, out ACR_HANDOFF_ERR_FAIL_STAT, name: "ACR_HANDOFF_ERR_FAIL_STAT")
@@ -1866,19 +1719,19 @@ namespace Antmicro.Renode.Peripherals.I3C
             }
         }
 
-        public struct Rsvd1Type
+        public struct I3cEc_StdbyCtrlMode_Rsvd1Type
         {
             /// <summary> Field "__rsvd" at 0x0, width: 32 bits </summary>
             public IValueRegisterField __RSVD;
 
-            public Rsvd1Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_StdbyCtrlMode_Rsvd1Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(420, 0, true)
+                parent.RegistersCollection.DefineRegister(0x1a4, 0x0, true)
                     .WithValueField(0, 32, out __RSVD, name: "__RSVD");
             }
         }
 
-        public struct StbyCrIntrSignalEnableType
+        public struct I3cEc_StdbyCtrlMode_StbyCrIntrSignalEnableType
         {
             /// <summary> Field "ACR_HANDOFF_OK_REMAIN_SIGNAL_EN" at 0x0, width: 1 bits </summary>
             public IFlagRegisterField ACR_HANDOFF_OK_REMAIN_SIGNAL_EN;
@@ -1907,9 +1760,9 @@ namespace Antmicro.Renode.Peripherals.I3C
             /// <summary> Field "CCC_FATAL_RSTDAA_ERR_SIGNAL_EN" at 0x13, width: 1 bits </summary>
             public IFlagRegisterField CCC_FATAL_RSTDAA_ERR_SIGNAL_EN;
 
-            public StbyCrIntrSignalEnableType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_StdbyCtrlMode_StbyCrIntrSignalEnableType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(424, 0, true)
+                parent.RegistersCollection.DefineRegister(0x1a8, 0x0, true)
                     .WithFlag(0, out ACR_HANDOFF_OK_REMAIN_SIGNAL_EN, name: "ACR_HANDOFF_OK_REMAIN_SIGNAL_EN")
                     .WithFlag(1, out ACR_HANDOFF_OK_PRIMED_SIGNAL_EN, name: "ACR_HANDOFF_OK_PRIMED_SIGNAL_EN")
                     .WithFlag(2, out ACR_HANDOFF_ERR_FAIL_SIGNAL_EN, name: "ACR_HANDOFF_ERR_FAIL_SIGNAL_EN")
@@ -1926,7 +1779,7 @@ namespace Antmicro.Renode.Peripherals.I3C
             }
         }
 
-        public struct StbyCrIntrForceType
+        public struct I3cEc_StdbyCtrlMode_StbyCrIntrForceType
         {
             /// <summary> Field "CRR_RESPONSE_FORCE" at 0xa, width: 1 bits </summary>
             public IFlagRegisterField CRR_RESPONSE_FORCE;
@@ -1947,9 +1800,9 @@ namespace Antmicro.Renode.Peripherals.I3C
             /// <summary> Field "CCC_FATAL_RSTDAA_ERR_FORCE" at 0x13, width: 1 bits </summary>
             public IFlagRegisterField CCC_FATAL_RSTDAA_ERR_FORCE;
 
-            public StbyCrIntrForceType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_StdbyCtrlMode_StbyCrIntrForceType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(428, 0, true)
+                parent.RegistersCollection.DefineRegister(0x1ac, 0x0, true)
                     .WithFlag(10, out CRR_RESPONSE_FORCE, name: "CRR_RESPONSE_FORCE")
                     .WithFlag(11, out STBY_CR_DYN_ADDR_FORCE, name: "STBY_CR_DYN_ADDR_FORCE")
                     .WithFlag(12, out STBY_CR_ACCEPT_NACKED_FORCE, name: "STBY_CR_ACCEPT_NACKED_FORCE")
@@ -1962,22 +1815,22 @@ namespace Antmicro.Renode.Peripherals.I3C
             }
         }
 
-        public struct StbyCrCccConfigGetcapsType
+        public struct I3cEc_StdbyCtrlMode_StbyCrCccConfigGetcapsType
         {
             /// <summary> Field "F2_CRCAP1_BUS_CONFIG" at 0x0, width: 3 bits </summary>
             public IValueRegisterField F2_CRCAP1_BUS_CONFIG;
             /// <summary> Field "F2_CRCAP2_DEV_INTERACT" at 0x8, width: 4 bits </summary>
             public IValueRegisterField F2_CRCAP2_DEV_INTERACT;
 
-            public StbyCrCccConfigGetcapsType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_StdbyCtrlMode_StbyCrCccConfigGetcapsType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(432, 0, true)
+                parent.RegistersCollection.DefineRegister(0x1b0, 0x0, true)
                     .WithValueField(0, 3, out F2_CRCAP1_BUS_CONFIG, name: "F2_CRCAP1_BUS_CONFIG")
                     .WithValueField(8, 4, out F2_CRCAP2_DEV_INTERACT, name: "F2_CRCAP2_DEV_INTERACT");
             }
         }
 
-        public struct StbyCrCccConfigRstactParamsType
+        public struct I3cEc_StdbyCtrlMode_StbyCrCccConfigRstactParamsType
         {
             /// <summary> Field "RST_ACTION" at 0x0, width: 8 bits </summary>
             public IValueRegisterField RST_ACTION;
@@ -1988,9 +1841,9 @@ namespace Antmicro.Renode.Peripherals.I3C
             /// <summary> Field "RESET_DYNAMIC_ADDR" at 0x1f, width: 1 bits </summary>
             public IFlagRegisterField RESET_DYNAMIC_ADDR;
 
-            public StbyCrCccConfigRstactParamsType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_StdbyCtrlMode_StbyCrCccConfigRstactParamsType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(436, 2147483648, true)
+                parent.RegistersCollection.DefineRegister(0x1b4, 0x80000000, true)
                     .WithValueField(0, 8, out RST_ACTION, mode: FieldMode.Read, name: "RST_ACTION")
                     .WithValueField(8, 8, out RESET_TIME_PERIPHERAL, name: "RESET_TIME_PERIPHERAL")
                     .WithValueField(16, 8, out RESET_TIME_TARGET, name: "RESET_TIME_TARGET")
@@ -1998,7 +1851,7 @@ namespace Antmicro.Renode.Peripherals.I3C
             }
         }
 
-        public struct StbyCrVirtDeviceAddrType
+        public struct I3cEc_StdbyCtrlMode_StbyCrVirtDeviceAddrType
         {
             /// <summary> Field "VIRT_STATIC_ADDR" at 0x0, width: 7 bits </summary>
             public IValueRegisterField VIRT_STATIC_ADDR;
@@ -2009,9 +1862,9 @@ namespace Antmicro.Renode.Peripherals.I3C
             /// <summary> Field "VIRT_DYNAMIC_ADDR_VALID" at 0x1f, width: 1 bits </summary>
             public IFlagRegisterField VIRT_DYNAMIC_ADDR_VALID;
 
-            public StbyCrVirtDeviceAddrType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_StdbyCtrlMode_StbyCrVirtDeviceAddrType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(440, 0, true)
+                parent.RegistersCollection.DefineRegister(0x1b8, 0x0, true)
                     .WithValueField(0, 7, out VIRT_STATIC_ADDR, name: "VIRT_STATIC_ADDR")
                     .WithFlag(15, out VIRT_STATIC_ADDR_VALID, name: "VIRT_STATIC_ADDR_VALID")
                     .WithValueField(16, 7, out VIRT_DYNAMIC_ADDR, name: "VIRT_DYNAMIC_ADDR")
@@ -2019,19 +1872,34 @@ namespace Antmicro.Renode.Peripherals.I3C
             }
         }
 
-        public struct Rsvd3Type
+        public struct I3cEc_StdbyCtrlMode_Rsvd3Type
         {
             /// <summary> Field "__rsvd" at 0x0, width: 32 bits </summary>
             public IValueRegisterField __RSVD;
 
-            public Rsvd3Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_StdbyCtrlMode_Rsvd3Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(444, 0, true)
+                parent.RegistersCollection.DefineRegister(0x1bc, 0x0, true)
                     .WithValueField(0, 32, out __RSVD, name: "__RSVD");
             }
         }
 
-        public struct ControlType
+        public struct I3cEc_Tti_ExtcapHeaderType
+        {
+            /// <summary> Field "CAP_ID" at 0x0, width: 8 bits </summary>
+            public IValueRegisterField CAP_ID;
+            /// <summary> Field "CAP_LENGTH" at 0x8, width: 16 bits </summary>
+            public IValueRegisterField CAP_LENGTH;
+
+            public I3cEc_Tti_ExtcapHeaderType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            {
+                parent.RegistersCollection.DefineRegister(0x1c0, 0xffffff, true)
+                    .WithValueField(0, 8, out CAP_ID, mode: FieldMode.Read, name: "CAP_ID")
+                    .WithValueField(8, 16, out CAP_LENGTH, mode: FieldMode.Read, name: "CAP_LENGTH");
+            }
+        }
+
+        public struct I3cEc_Tti_ControlType
         {
             /// <summary> Field "HJ_EN" at 0xa, width: 1 bits </summary>
             public IFlagRegisterField HJ_EN;
@@ -2042,9 +1910,9 @@ namespace Antmicro.Renode.Peripherals.I3C
             /// <summary> Field "IBI_RETRY_NUM" at 0xd, width: 3 bits </summary>
             public IValueRegisterField IBI_RETRY_NUM;
 
-            public ControlType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_Tti_ControlType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(452, 5120, true)
+                parent.RegistersCollection.DefineRegister(0x1c4, 0x1400, true)
                     .WithFlag(10, out HJ_EN, name: "HJ_EN")
                     .WithFlag(11, out CRR_EN, name: "CRR_EN")
                     .WithFlag(12, out IBI_EN, name: "IBI_EN")
@@ -2052,22 +1920,49 @@ namespace Antmicro.Renode.Peripherals.I3C
             }
         }
 
-        public struct StatusType
+        public struct I3cEc_Tti_StatusType
         {
             /// <summary> Field "PROTOCOL_ERROR" at 0xd, width: 1 bits </summary>
             public IFlagRegisterField PROTOCOL_ERROR;
             /// <summary> Field "LAST_IBI_STATUS" at 0xe, width: 2 bits </summary>
             public IValueRegisterField LAST_IBI_STATUS;
 
-            public StatusType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_Tti_StatusType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(456, 0, true)
+                parent.RegistersCollection.DefineRegister(0x1c8, 0x0, true)
                     .WithFlag(13, out PROTOCOL_ERROR, mode: FieldMode.Read, name: "PROTOCOL_ERROR")
                     .WithValueField(14, 2, out LAST_IBI_STATUS, mode: FieldMode.Read, name: "LAST_IBI_STATUS");
             }
         }
 
-        public struct InterruptStatusType
+        public struct I3cEc_Tti_ResetControlType
+        {
+            /// <summary> Field "SOFT_RST" at 0x0, width: 1 bits </summary>
+            public IFlagRegisterField SOFT_RST;
+            /// <summary> Field "TX_DESC_RST" at 0x1, width: 1 bits </summary>
+            public IFlagRegisterField TX_DESC_RST;
+            /// <summary> Field "RX_DESC_RST" at 0x2, width: 1 bits </summary>
+            public IFlagRegisterField RX_DESC_RST;
+            /// <summary> Field "TX_DATA_RST" at 0x3, width: 1 bits </summary>
+            public IFlagRegisterField TX_DATA_RST;
+            /// <summary> Field "RX_DATA_RST" at 0x4, width: 1 bits </summary>
+            public IFlagRegisterField RX_DATA_RST;
+            /// <summary> Field "IBI_QUEUE_RST" at 0x5, width: 1 bits </summary>
+            public IFlagRegisterField IBI_QUEUE_RST;
+
+            public I3cEc_Tti_ResetControlType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            {
+                parent.RegistersCollection.DefineRegister(0x1cc, 0x0, true)
+                    .WithFlag(0, out SOFT_RST, name: "SOFT_RST")
+                    .WithFlag(1, out TX_DESC_RST, name: "TX_DESC_RST")
+                    .WithFlag(2, out RX_DESC_RST, name: "RX_DESC_RST")
+                    .WithFlag(3, out TX_DATA_RST, name: "TX_DATA_RST")
+                    .WithFlag(4, out RX_DATA_RST, name: "RX_DATA_RST")
+                    .WithFlag(5, out IBI_QUEUE_RST, name: "IBI_QUEUE_RST");
+            }
+        }
+
+        public struct I3cEc_Tti_InterruptStatusType
         {
             /// <summary> Field "RX_DESC_STAT" at 0x0, width: 1 bits </summary>
             public IFlagRegisterField RX_DESC_STAT;
@@ -2093,12 +1988,14 @@ namespace Antmicro.Renode.Peripherals.I3C
             public IValueRegisterField PENDING_INTERRUPT;
             /// <summary> Field "TRANSFER_ABORT_STAT" at 0x19, width: 1 bits </summary>
             public IFlagRegisterField TRANSFER_ABORT_STAT;
+            /// <summary> Field "TX_DESC_COMPLETE" at 0x1a, width: 1 bits </summary>
+            public IFlagRegisterField TX_DESC_COMPLETE;
             /// <summary> Field "TRANSFER_ERR_STAT" at 0x1f, width: 1 bits </summary>
             public IFlagRegisterField TRANSFER_ERR_STAT;
 
-            public InterruptStatusType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_Tti_InterruptStatusType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(464, 0, true)
+                parent.RegistersCollection.DefineRegister(0x1d0, 0x0, true)
                     .WithFlag(0, out RX_DESC_STAT, mode: FieldMode.Read | FieldMode.WriteOneToClear, name: "RX_DESC_STAT")
                     .WithFlag(1, out TX_DESC_STAT, mode: FieldMode.Read | FieldMode.WriteOneToClear, name: "TX_DESC_STAT")
                     .WithFlag(2, out RX_DESC_TIMEOUT, mode: FieldMode.Read | FieldMode.WriteOneToClear, name: "RX_DESC_TIMEOUT")
@@ -2111,11 +2008,12 @@ namespace Antmicro.Renode.Peripherals.I3C
                     .WithFlag(13, out IBI_DONE, mode: FieldMode.Read | FieldMode.WriteOneToClear, name: "IBI_DONE")
                     .WithValueField(15, 4, out PENDING_INTERRUPT, mode: FieldMode.Read | FieldMode.WriteOneToClear, name: "PENDING_INTERRUPT")
                     .WithFlag(25, out TRANSFER_ABORT_STAT, mode: FieldMode.Read | FieldMode.WriteOneToClear, name: "TRANSFER_ABORT_STAT")
+                    .WithFlag(26, out TX_DESC_COMPLETE, mode: FieldMode.Read | FieldMode.WriteOneToClear, name: "TX_DESC_COMPLETE")
                     .WithFlag(31, out TRANSFER_ERR_STAT, mode: FieldMode.Read | FieldMode.WriteOneToClear, name: "TRANSFER_ERR_STAT");
             }
         }
 
-        public struct InterruptEnableType
+        public struct I3cEc_Tti_InterruptEnableType
         {
             /// <summary> Field "RX_DESC_STAT_EN" at 0x0, width: 1 bits </summary>
             public IFlagRegisterField RX_DESC_STAT_EN;
@@ -2139,12 +2037,14 @@ namespace Antmicro.Renode.Peripherals.I3C
             public IFlagRegisterField IBI_DONE_EN;
             /// <summary> Field "TRANSFER_ABORT_STAT_EN" at 0x19, width: 1 bits </summary>
             public IFlagRegisterField TRANSFER_ABORT_STAT_EN;
+            /// <summary> Field "TX_DESC_COMPLETE_EN" at 0x1a, width: 1 bits </summary>
+            public IFlagRegisterField TX_DESC_COMPLETE_EN;
             /// <summary> Field "TRANSFER_ERR_STAT_EN" at 0x1f, width: 1 bits </summary>
             public IFlagRegisterField TRANSFER_ERR_STAT_EN;
 
-            public InterruptEnableType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_Tti_InterruptEnableType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(468, 0, true)
+                parent.RegistersCollection.DefineRegister(0x1d4, 0x0, true)
                     .WithFlag(0, out RX_DESC_STAT_EN, name: "RX_DESC_STAT_EN")
                     .WithFlag(1, out TX_DESC_STAT_EN, name: "TX_DESC_STAT_EN")
                     .WithFlag(2, out RX_DESC_TIMEOUT_EN, name: "RX_DESC_TIMEOUT_EN")
@@ -2156,11 +2056,12 @@ namespace Antmicro.Renode.Peripherals.I3C
                     .WithFlag(12, out IBI_THLD_STAT_EN, name: "IBI_THLD_STAT_EN")
                     .WithFlag(13, out IBI_DONE_EN, name: "IBI_DONE_EN")
                     .WithFlag(25, out TRANSFER_ABORT_STAT_EN, name: "TRANSFER_ABORT_STAT_EN")
+                    .WithFlag(26, out TX_DESC_COMPLETE_EN, name: "TX_DESC_COMPLETE_EN")
                     .WithFlag(31, out TRANSFER_ERR_STAT_EN, name: "TRANSFER_ERR_STAT_EN");
             }
         }
 
-        public struct InterruptForceType
+        public struct I3cEc_Tti_InterruptForceType
         {
             /// <summary> Field "RX_DESC_STAT_FORCE" at 0x0, width: 1 bits </summary>
             public IFlagRegisterField RX_DESC_STAT_FORCE;
@@ -2184,12 +2085,14 @@ namespace Antmicro.Renode.Peripherals.I3C
             public IFlagRegisterField IBI_DONE_FORCE;
             /// <summary> Field "TRANSFER_ABORT_STAT_FORCE" at 0x19, width: 1 bits </summary>
             public IFlagRegisterField TRANSFER_ABORT_STAT_FORCE;
+            /// <summary> Field "TX_DESC_COMPLETE_FORCE" at 0x1a, width: 1 bits </summary>
+            public IFlagRegisterField TX_DESC_COMPLETE_FORCE;
             /// <summary> Field "TRANSFER_ERR_STAT_FORCE" at 0x1f, width: 1 bits </summary>
             public IFlagRegisterField TRANSFER_ERR_STAT_FORCE;
 
-            public InterruptForceType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_Tti_InterruptForceType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(472, 0, true)
+                parent.RegistersCollection.DefineRegister(0x1d8, 0x0, true)
                     .WithFlag(0, out RX_DESC_STAT_FORCE, name: "RX_DESC_STAT_FORCE")
                     .WithFlag(1, out TX_DESC_STAT_FORCE, name: "TX_DESC_STAT_FORCE")
                     .WithFlag(2, out RX_DESC_TIMEOUT_FORCE, name: "RX_DESC_TIMEOUT_FORCE")
@@ -2201,119 +2104,231 @@ namespace Antmicro.Renode.Peripherals.I3C
                     .WithFlag(12, out IBI_THLD_FORCE, name: "IBI_THLD_FORCE")
                     .WithFlag(13, out IBI_DONE_FORCE, name: "IBI_DONE_FORCE")
                     .WithFlag(25, out TRANSFER_ABORT_STAT_FORCE, name: "TRANSFER_ABORT_STAT_FORCE")
+                    .WithFlag(26, out TX_DESC_COMPLETE_FORCE, name: "TX_DESC_COMPLETE_FORCE")
                     .WithFlag(31, out TRANSFER_ERR_STAT_FORCE, name: "TRANSFER_ERR_STAT_FORCE");
             }
         }
 
-        public struct RxDescQueuePortType
+        public struct I3cEc_Tti_RxDescQueuePortType
         {
             /// <summary> Field "RX_DESC" at 0x0, width: 32 bits </summary>
             public IValueRegisterField RX_DESC;
 
-            public RxDescQueuePortType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_Tti_RxDescQueuePortType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(476, 0, true)
+                parent.RegistersCollection.DefineRegister(0x1dc, 0x0, true)
                     .WithValueField(0, 32, out RX_DESC, mode: FieldMode.Read, name: "RX_DESC");
             }
         }
 
-        public struct TxDescQueuePortType
+        public struct I3cEc_Tti_RxDataPortType
+        {
+            /// <summary> Field "RX_DATA" at 0x0, width: 32 bits </summary>
+            public IValueRegisterField RX_DATA;
+
+            public I3cEc_Tti_RxDataPortType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            {
+                parent.RegistersCollection.DefineRegister(0x1e0, 0x0, true)
+                    .WithValueField(0, 32, out RX_DATA, mode: FieldMode.Read, name: "RX_DATA");
+            }
+        }
+
+        public struct I3cEc_Tti_TxDescQueuePortType
         {
             /// <summary> Field "TX_DESC" at 0x0, width: 32 bits </summary>
             public IValueRegisterField TX_DESC;
 
-            public TxDescQueuePortType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_Tti_TxDescQueuePortType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(484, 0, true)
+                parent.RegistersCollection.DefineRegister(0x1e4, 0x0, true)
                     .WithValueField(0, 32, out TX_DESC, mode: FieldMode.Write, name: "TX_DESC");
             }
         }
 
-        public struct IbiQueueSizeType
+        public struct I3cEc_Tti_TxDataPortType
+        {
+            /// <summary> Field "TX_DATA" at 0x0, width: 32 bits </summary>
+            public IValueRegisterField TX_DATA;
+
+            public I3cEc_Tti_TxDataPortType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            {
+                parent.RegistersCollection.DefineRegister(0x1e8, 0x0, true)
+                    .WithValueField(0, 32, out TX_DATA, mode: FieldMode.Write, name: "TX_DATA");
+            }
+        }
+
+        public struct I3cEc_Tti_IbiPortType
+        {
+            /// <summary> Field "IBI_DATA" at 0x0, width: 32 bits </summary>
+            public IValueRegisterField IBI_DATA;
+
+            public I3cEc_Tti_IbiPortType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            {
+                parent.RegistersCollection.DefineRegister(0x1ec, 0x0, true)
+                    .WithValueField(0, 32, out IBI_DATA, mode: FieldMode.Write, name: "IBI_DATA");
+            }
+        }
+
+        public struct I3cEc_Tti_QueueSizeType
+        {
+            /// <summary> Field "RX_DESC_BUFFER_SIZE" at 0x0, width: 8 bits </summary>
+            public IValueRegisterField RX_DESC_BUFFER_SIZE;
+            /// <summary> Field "TX_DESC_BUFFER_SIZE" at 0x8, width: 8 bits </summary>
+            public IValueRegisterField TX_DESC_BUFFER_SIZE;
+            /// <summary> Field "RX_DATA_BUFFER_SIZE" at 0x10, width: 8 bits </summary>
+            public IValueRegisterField RX_DATA_BUFFER_SIZE;
+            /// <summary> Field "TX_DATA_BUFFER_SIZE" at 0x18, width: 8 bits </summary>
+            public IValueRegisterField TX_DATA_BUFFER_SIZE;
+
+            public I3cEc_Tti_QueueSizeType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            {
+                parent.RegistersCollection.DefineRegister(0x1f0, 0xffffffff, true)
+                    .WithValueField(0, 8, out RX_DESC_BUFFER_SIZE, mode: FieldMode.Read, name: "RX_DESC_BUFFER_SIZE")
+                    .WithValueField(8, 8, out TX_DESC_BUFFER_SIZE, mode: FieldMode.Read, name: "TX_DESC_BUFFER_SIZE")
+                    .WithValueField(16, 8, out RX_DATA_BUFFER_SIZE, mode: FieldMode.Read, name: "RX_DATA_BUFFER_SIZE")
+                    .WithValueField(24, 8, out TX_DATA_BUFFER_SIZE, mode: FieldMode.Read, name: "TX_DATA_BUFFER_SIZE");
+            }
+        }
+
+        public struct I3cEc_Tti_IbiQueueSizeType
         {
             /// <summary> Field "IBI_QUEUE_SIZE" at 0x0, width: 8 bits </summary>
             public IValueRegisterField IBI_QUEUE_SIZE;
 
-            public IbiQueueSizeType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_Tti_IbiQueueSizeType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(500, 255, true)
+                parent.RegistersCollection.DefineRegister(0x1f4, 0xff, true)
                     .WithValueField(0, 8, out IBI_QUEUE_SIZE, mode: FieldMode.Read, name: "IBI_QUEUE_SIZE");
             }
         }
 
-        public struct SocMgmtControlType
+        public struct I3cEc_Tti_QueueThldCtrlType
+        {
+            /// <summary> Field "TX_DESC_THLD" at 0x0, width: 8 bits </summary>
+            public IValueRegisterField TX_DESC_THLD;
+            /// <summary> Field "RX_DESC_THLD" at 0x8, width: 8 bits </summary>
+            public IValueRegisterField RX_DESC_THLD;
+            /// <summary> Field "IBI_THLD" at 0x18, width: 8 bits </summary>
+            public IValueRegisterField IBI_THLD;
+
+            public I3cEc_Tti_QueueThldCtrlType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            {
+                parent.RegistersCollection.DefineRegister(0x1f8, 0xff00ffff, true)
+                    .WithValueField(0, 8, out TX_DESC_THLD, name: "TX_DESC_THLD")
+                    .WithValueField(8, 8, out RX_DESC_THLD, name: "RX_DESC_THLD")
+                    .WithValueField(24, 8, out IBI_THLD, name: "IBI_THLD");
+            }
+        }
+
+        public struct I3cEc_Tti_DataBufferThldCtrlType
+        {
+            /// <summary> Field "TX_DATA_THLD" at 0x0, width: 3 bits </summary>
+            public IValueRegisterField TX_DATA_THLD;
+            /// <summary> Field "RX_DATA_THLD" at 0x8, width: 3 bits </summary>
+            public IValueRegisterField RX_DATA_THLD;
+            /// <summary> Field "TX_START_THLD" at 0x10, width: 3 bits </summary>
+            public IValueRegisterField TX_START_THLD;
+            /// <summary> Field "RX_START_THLD" at 0x18, width: 3 bits </summary>
+            public IValueRegisterField RX_START_THLD;
+
+            public I3cEc_Tti_DataBufferThldCtrlType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            {
+                parent.RegistersCollection.DefineRegister(0x1fc, 0x7070707, true)
+                    .WithValueField(0, 3, out TX_DATA_THLD, name: "TX_DATA_THLD")
+                    .WithValueField(8, 3, out RX_DATA_THLD, name: "RX_DATA_THLD")
+                    .WithValueField(16, 3, out TX_START_THLD, name: "TX_START_THLD")
+                    .WithValueField(24, 3, out RX_START_THLD, name: "RX_START_THLD");
+            }
+        }
+
+        public struct I3cEc_SoCMgmtIf_ExtcapHeaderType
+        {
+            /// <summary> Field "CAP_ID" at 0x0, width: 8 bits </summary>
+            public IValueRegisterField CAP_ID;
+            /// <summary> Field "CAP_LENGTH" at 0x8, width: 16 bits </summary>
+            public IValueRegisterField CAP_LENGTH;
+
+            public I3cEc_SoCMgmtIf_ExtcapHeaderType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            {
+                parent.RegistersCollection.DefineRegister(0x200, 0xffffff, true)
+                    .WithValueField(0, 8, out CAP_ID, mode: FieldMode.Read, name: "CAP_ID")
+                    .WithValueField(8, 16, out CAP_LENGTH, mode: FieldMode.Read, name: "CAP_LENGTH");
+            }
+        }
+
+        public struct I3cEc_SoCMgmtIf_SocMgmtControlType
         {
             /// <summary> Field "PLACEHOLDER" at 0x0, width: 32 bits </summary>
             public IValueRegisterField PLACEHOLDER;
 
-            public SocMgmtControlType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SoCMgmtIf_SocMgmtControlType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(516, 0, true)
+                parent.RegistersCollection.DefineRegister(0x204, 0x0, true)
                     .WithValueField(0, 32, out PLACEHOLDER, name: "PLACEHOLDER");
             }
         }
 
-        public struct SocMgmtStatusType
+        public struct I3cEc_SoCMgmtIf_SocMgmtStatusType
         {
             /// <summary> Field "PLACEHOLDER" at 0x0, width: 32 bits </summary>
             public IValueRegisterField PLACEHOLDER;
 
-            public SocMgmtStatusType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SoCMgmtIf_SocMgmtStatusType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(520, 0, true)
+                parent.RegistersCollection.DefineRegister(0x208, 0x0, true)
                     .WithValueField(0, 32, out PLACEHOLDER, name: "PLACEHOLDER");
             }
         }
 
-        public struct SocMgmtRsvd0Type
+        public struct I3cEc_SoCMgmtIf_SocMgmtRsvd0Type
         {
             /// <summary> Field "PLACEHOLDER" at 0x0, width: 32 bits </summary>
             public IValueRegisterField PLACEHOLDER;
 
-            public SocMgmtRsvd0Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SoCMgmtIf_SocMgmtRsvd0Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(524, 0, true)
+                parent.RegistersCollection.DefineRegister(0x20c, 0x0, true)
                     .WithValueField(0, 32, out PLACEHOLDER, name: "PLACEHOLDER");
             }
         }
 
-        public struct SocMgmtRsvd1Type
+        public struct I3cEc_SoCMgmtIf_SocMgmtRsvd1Type
         {
             /// <summary> Field "PLACEHOLDER" at 0x0, width: 32 bits </summary>
             public IValueRegisterField PLACEHOLDER;
 
-            public SocMgmtRsvd1Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SoCMgmtIf_SocMgmtRsvd1Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(528, 0, true)
+                parent.RegistersCollection.DefineRegister(0x210, 0x0, true)
                     .WithValueField(0, 32, out PLACEHOLDER, name: "PLACEHOLDER");
             }
         }
 
-        public struct SocMgmtRsvd2Type
+        public struct I3cEc_SoCMgmtIf_SocMgmtRsvd2Type
         {
             /// <summary> Field "PLACEHOLDER" at 0x0, width: 32 bits </summary>
             public IValueRegisterField PLACEHOLDER;
 
-            public SocMgmtRsvd2Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SoCMgmtIf_SocMgmtRsvd2Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(532, 0, true)
+                parent.RegistersCollection.DefineRegister(0x214, 0x0, true)
                     .WithValueField(0, 32, out PLACEHOLDER, name: "PLACEHOLDER");
             }
         }
 
-        public struct SocMgmtRsvd3Type
+        public struct I3cEc_SoCMgmtIf_SocMgmtRsvd3Type
         {
             /// <summary> Field "PLACEHOLDER" at 0x0, width: 32 bits </summary>
             public IValueRegisterField PLACEHOLDER;
 
-            public SocMgmtRsvd3Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SoCMgmtIf_SocMgmtRsvd3Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(536, 0, true)
+                parent.RegistersCollection.DefineRegister(0x218, 0x0, true)
                     .WithValueField(0, 32, out PLACEHOLDER, name: "PLACEHOLDER");
             }
         }
 
-        public struct SocPadConfType
+        public struct I3cEc_SoCMgmtIf_SocPadConfType
         {
             /// <summary> Field "INPUT_ENABLE" at 0x0, width: 1 bits </summary>
             public IFlagRegisterField INPUT_ENABLE;
@@ -2334,9 +2349,9 @@ namespace Antmicro.Renode.Peripherals.I3C
             /// <summary> Field "PAD_TYPE" at 0x18, width: 8 bits </summary>
             public IValueRegisterField PAD_TYPE;
 
-            public SocPadConfType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SoCMgmtIf_SocPadConfType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(540, 4278190081, true)
+                parent.RegistersCollection.DefineRegister(0x21c, 0xff000001, true)
                     .WithFlag(0, out INPUT_ENABLE, name: "INPUT_ENABLE")
                     .WithFlag(1, out SCHMITT_EN, name: "SCHMITT_EN")
                     .WithFlag(2, out KEEPER_EN, name: "KEEPER_EN")
@@ -2349,217 +2364,232 @@ namespace Antmicro.Renode.Peripherals.I3C
             }
         }
 
-        public struct SocPadAttrType
+        public struct I3cEc_SoCMgmtIf_SocPadAttrType
         {
             /// <summary> Field "DRIVE_SLEW_RATE" at 0x8, width: 8 bits </summary>
             public IValueRegisterField DRIVE_SLEW_RATE;
             /// <summary> Field "DRIVE_STRENGTH" at 0x18, width: 8 bits </summary>
             public IValueRegisterField DRIVE_STRENGTH;
 
-            public SocPadAttrType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SoCMgmtIf_SocPadAttrType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(544, 4278255360, true)
+                parent.RegistersCollection.DefineRegister(0x220, 0xff00ff00, true)
                     .WithValueField(8, 8, out DRIVE_SLEW_RATE, name: "DRIVE_SLEW_RATE")
                     .WithValueField(24, 8, out DRIVE_STRENGTH, name: "DRIVE_STRENGTH");
             }
         }
 
-        public struct SocMgmtFeature2Type
+        public struct I3cEc_SoCMgmtIf_SocMgmtFeature2Type
         {
             /// <summary> Field "PLACEHOLDER" at 0x0, width: 32 bits </summary>
             public IValueRegisterField PLACEHOLDER;
 
-            public SocMgmtFeature2Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SoCMgmtIf_SocMgmtFeature2Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(548, 0, true)
+                parent.RegistersCollection.DefineRegister(0x224, 0x0, true)
                     .WithValueField(0, 32, out PLACEHOLDER, name: "PLACEHOLDER");
             }
         }
 
-        public struct SocMgmtFeature3Type
+        public struct I3cEc_SoCMgmtIf_SocMgmtFeature3Type
         {
             /// <summary> Field "PLACEHOLDER" at 0x0, width: 32 bits </summary>
             public IValueRegisterField PLACEHOLDER;
 
-            public SocMgmtFeature3Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SoCMgmtIf_SocMgmtFeature3Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(552, 0, true)
+                parent.RegistersCollection.DefineRegister(0x228, 0x0, true)
                     .WithValueField(0, 32, out PLACEHOLDER, name: "PLACEHOLDER");
             }
         }
 
-        public struct TRRegType
+        public struct I3cEc_SoCMgmtIf_TRRegType
         {
             /// <summary> Field "T_R" at 0x0, width: 20 bits </summary>
             public IValueRegisterField T_R;
 
-            public TRRegType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SoCMgmtIf_TRRegType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(556, 0, true)
+                parent.RegistersCollection.DefineRegister(0x22c, 0x0, true)
                     .WithValueField(0, 20, out T_R, name: "T_R");
             }
         }
 
-        public struct TFRegType
+        public struct I3cEc_SoCMgmtIf_TFRegType
         {
             /// <summary> Field "T_F" at 0x0, width: 20 bits </summary>
             public IValueRegisterField T_F;
 
-            public TFRegType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SoCMgmtIf_TFRegType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(560, 0, true)
+                parent.RegistersCollection.DefineRegister(0x230, 0x0, true)
                     .WithValueField(0, 20, out T_F, name: "T_F");
             }
         }
 
-        public struct TSuDatRegType
+        public struct I3cEc_SoCMgmtIf_TSuDatRegType
         {
             /// <summary> Field "T_SU_DAT" at 0x0, width: 20 bits </summary>
             public IValueRegisterField T_SU_DAT;
 
-            public TSuDatRegType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SoCMgmtIf_TSuDatRegType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(564, 0, true)
+                parent.RegistersCollection.DefineRegister(0x234, 0x0, true)
                     .WithValueField(0, 20, out T_SU_DAT, name: "T_SU_DAT");
             }
         }
 
-        public struct THdDatRegType
+        public struct I3cEc_SoCMgmtIf_THdDatRegType
         {
             /// <summary> Field "T_HD_DAT" at 0x0, width: 20 bits </summary>
             public IValueRegisterField T_HD_DAT;
 
-            public THdDatRegType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SoCMgmtIf_THdDatRegType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(568, 0, true)
+                parent.RegistersCollection.DefineRegister(0x238, 0x0, true)
                     .WithValueField(0, 20, out T_HD_DAT, name: "T_HD_DAT");
             }
         }
 
-        public struct THighRegType
+        public struct I3cEc_SoCMgmtIf_THighRegType
         {
             /// <summary> Field "T_HIGH" at 0x0, width: 20 bits </summary>
             public IValueRegisterField T_HIGH;
 
-            public THighRegType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SoCMgmtIf_THighRegType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(572, 0, true)
+                parent.RegistersCollection.DefineRegister(0x23c, 0x0, true)
                     .WithValueField(0, 20, out T_HIGH, name: "T_HIGH");
             }
         }
 
-        public struct TLowRegType
+        public struct I3cEc_SoCMgmtIf_TLowRegType
         {
             /// <summary> Field "T_LOW" at 0x0, width: 20 bits </summary>
             public IValueRegisterField T_LOW;
 
-            public TLowRegType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SoCMgmtIf_TLowRegType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(576, 0, true)
+                parent.RegistersCollection.DefineRegister(0x240, 0x0, true)
                     .WithValueField(0, 20, out T_LOW, name: "T_LOW");
             }
         }
 
-        public struct THdStaRegType
+        public struct I3cEc_SoCMgmtIf_THdStaRegType
         {
             /// <summary> Field "T_HD_STA" at 0x0, width: 20 bits </summary>
             public IValueRegisterField T_HD_STA;
 
-            public THdStaRegType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SoCMgmtIf_THdStaRegType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(580, 0, true)
+                parent.RegistersCollection.DefineRegister(0x244, 0x0, true)
                     .WithValueField(0, 20, out T_HD_STA, name: "T_HD_STA");
             }
         }
 
-        public struct TSuStaRegType
+        public struct I3cEc_SoCMgmtIf_TSuStaRegType
         {
             /// <summary> Field "T_SU_STA" at 0x0, width: 20 bits </summary>
             public IValueRegisterField T_SU_STA;
 
-            public TSuStaRegType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SoCMgmtIf_TSuStaRegType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(584, 0, true)
+                parent.RegistersCollection.DefineRegister(0x248, 0x0, true)
                     .WithValueField(0, 20, out T_SU_STA, name: "T_SU_STA");
             }
         }
 
-        public struct TSuStoRegType
+        public struct I3cEc_SoCMgmtIf_TSuStoRegType
         {
             /// <summary> Field "T_SU_STO" at 0x0, width: 20 bits </summary>
             public IValueRegisterField T_SU_STO;
 
-            public TSuStoRegType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SoCMgmtIf_TSuStoRegType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(588, 0, true)
+                parent.RegistersCollection.DefineRegister(0x24c, 0x0, true)
                     .WithValueField(0, 20, out T_SU_STO, name: "T_SU_STO");
             }
         }
 
-        public struct TFreeRegType
+        public struct I3cEc_SoCMgmtIf_TFreeRegType
         {
             /// <summary> Field "T_FREE" at 0x0, width: 32 bits </summary>
             public IValueRegisterField T_FREE;
 
-            public TFreeRegType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SoCMgmtIf_TFreeRegType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(592, 4294967295, true)
+                parent.RegistersCollection.DefineRegister(0x250, 0xffffffff, true)
                     .WithValueField(0, 32, out T_FREE, name: "T_FREE");
             }
         }
 
-        public struct TAvalRegType
+        public struct I3cEc_SoCMgmtIf_TAvalRegType
         {
             /// <summary> Field "T_AVAL" at 0x0, width: 32 bits </summary>
             public IValueRegisterField T_AVAL;
 
-            public TAvalRegType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SoCMgmtIf_TAvalRegType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(596, 4294967295, true)
+                parent.RegistersCollection.DefineRegister(0x254, 0xffffffff, true)
                     .WithValueField(0, 32, out T_AVAL, name: "T_AVAL");
             }
         }
 
-        public struct TIdleRegType
+        public struct I3cEc_SoCMgmtIf_TIdleRegType
         {
             /// <summary> Field "T_IDLE" at 0x0, width: 32 bits </summary>
             public IValueRegisterField T_IDLE;
 
-            public TIdleRegType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SoCMgmtIf_TIdleRegType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(600, 4294967295, true)
+                parent.RegistersCollection.DefineRegister(0x258, 0xffffffff, true)
                     .WithValueField(0, 32, out T_IDLE, name: "T_IDLE");
             }
         }
 
-        public struct ControllerConfigType
-        {
-            /// <summary> Field "OPERATION_MODE" at 0x4, width: 2 bits </summary>
-            public IValueRegisterField OPERATION_MODE;
-
-            public ControllerConfigType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
-            {
-                parent.RegistersCollection.DefineRegister(612, 48, true)
-                    .WithValueField(4, 2, out OPERATION_MODE, mode: FieldMode.Read, name: "OPERATION_MODE");
-            }
-        }
-
-        public struct TerminationExtcapHeaderType
+        public struct I3cEc_CtrlCfg_ExtcapHeaderType
         {
             /// <summary> Field "CAP_ID" at 0x0, width: 8 bits </summary>
             public IValueRegisterField CAP_ID;
             /// <summary> Field "CAP_LENGTH" at 0x8, width: 16 bits </summary>
             public IValueRegisterField CAP_LENGTH;
 
-            public TerminationExtcapHeaderType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_CtrlCfg_ExtcapHeaderType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(616, 16776960, true)
+                parent.RegistersCollection.DefineRegister(0x260, 0xffffff, true)
                     .WithValueField(0, 8, out CAP_ID, mode: FieldMode.Read, name: "CAP_ID")
                     .WithValueField(8, 16, out CAP_LENGTH, mode: FieldMode.Read, name: "CAP_LENGTH");
             }
         }
 
-        protected class Dat_DatMemoryContainer
+        public struct I3cEc_CtrlCfg_ControllerConfigType
+        {
+            /// <summary> Field "OPERATION_MODE" at 0x4, width: 2 bits </summary>
+            public IValueRegisterField OPERATION_MODE;
+
+            public I3cEc_CtrlCfg_ControllerConfigType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            {
+                parent.RegistersCollection.DefineRegister(0x264, 0x30, true)
+                    .WithValueField(4, 2, out OPERATION_MODE, mode: FieldMode.Read, name: "OPERATION_MODE");
+            }
+        }
+
+        public struct I3cEc_TerminationExtcapHeaderType
+        {
+            /// <summary> Field "CAP_ID" at 0x0, width: 8 bits </summary>
+            public IValueRegisterField CAP_ID;
+            /// <summary> Field "CAP_LENGTH" at 0x8, width: 16 bits </summary>
+            public IValueRegisterField CAP_LENGTH;
+
+            public I3cEc_TerminationExtcapHeaderType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            {
+                parent.RegistersCollection.DefineRegister(0x268, 0xffff00, true)
+                    .WithValueField(0, 8, out CAP_ID, mode: FieldMode.Read, name: "CAP_ID")
+                    .WithValueField(8, 16, out CAP_LENGTH, mode: FieldMode.Read, name: "CAP_LENGTH");
+            }
+        }
+
+        protected class DatType
         {
             private byte[] memory;
 
@@ -2580,7 +2610,7 @@ namespace Antmicro.Renode.Peripherals.I3C
                 }
             }
 
-            public Dat_DatMemoryContainer()
+            public DatType()
             {
                 memory = new byte[Size];
             }
@@ -2781,7 +2811,7 @@ namespace Antmicro.Renode.Peripherals.I3C
             }
         }
 
-        protected class Dct_DctMemoryContainer
+        protected class DctType
         {
             private byte[] memory;
 
@@ -2802,7 +2832,7 @@ namespace Antmicro.Renode.Peripherals.I3C
                 }
             }
 
-            public Dct_DctMemoryContainer()
+            public DctType()
             {
                 memory = new byte[Size];
             }
