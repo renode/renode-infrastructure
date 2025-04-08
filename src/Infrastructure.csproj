@@ -1870,6 +1870,7 @@
     <Compile Include="Emulator/Main/Core/ICoalescable.cs" />
     <Compile Include="Emulator/Main/Core/Extensions/MemoryDumpExtensions.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Timers/ZynqMP_RTC.cs" />
+    <Compile Include="Emulator/Main/Peripherals/Miscellaneous/LogicGate.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Emulator/Main/Peripherals/Bus/SystemBusGenerated.tt">
