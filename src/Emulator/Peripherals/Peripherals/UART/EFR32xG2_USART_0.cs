@@ -25,7 +25,7 @@ using Antmicro.Renode.Peripherals.UART;
 namespace Antmicro.Renode.Peripherals.UART
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.DoubleWordToByte)]
-    public class EFR32xG2_USART_0 : UARTBase, IUARTWithBufferState, IDoubleWordPeripheral, IPeripheralContainer<ISPIPeripheral, NullRegistrationPoint>
+    public class EFR32xG2_USART_0 : UARTBase, IUARTWithBufferState, IDoubleWordPeripheral, IPeripheralContainer<ISPIPeripheral, NullRegistrationPoint>, IKnownSize
     {
         public EFR32xG2_USART_0(Machine machine, uint clockFrequency) : base(machine)
         {

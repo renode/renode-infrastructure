@@ -23,7 +23,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 {
     // Allows for the viewing of register contents when debugging
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
-    public class EFR32xG2_HFXO_2 : IHFXO_EFR32xG2, IDoubleWordPeripheral
+    public class EFR32xG2_HFXO_2 : IHFXO_EFR32xG2, IDoubleWordPeripheral, IKnownSize
     {
         public EFR32xG2_HFXO_2(Machine machine, uint startupDelayTicks)
         {
@@ -290,6 +290,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             });
         }
 #endregion
+
+        public long Size => 0x4000;
         private readonly Machine machine;
         public GPIO IRQ { get; }
         private readonly DoubleWordRegisterCollection registersCollection;
