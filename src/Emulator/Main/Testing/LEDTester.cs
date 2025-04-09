@@ -205,9 +205,9 @@ namespace Antmicro.Renode.Testing
                 timeoutEvent.WaitHandle.WaitOne();
 
                 var highPercentage = (double)highTicks / (highTicks + lowTicks) * 100;
-                if(highPercentage < expectedDutyCycle - (tolerance * 100) || expectedDutyCycle > expectedDutyCycle + (tolerance * 100))
+                if(highPercentage < ((expectedDutyCycle - tolerance) * 100) || highPercentage > ((expectedDutyCycle + tolerance) * 100))
                 {
-                    throw new InvalidOperationException($"Fill assertion not met: expected {expectedDutyCycle} with tolerance {tolerance * 100}%, but got {highPercentage}");
+                    throw new InvalidOperationException($"Fill assertion not met: expected {expectedDutyCycle * 100} with tolerance {tolerance * 100}%, but got {highPercentage}");
                 }
             }
             finally
