@@ -1308,6 +1308,8 @@
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/EFR32xG2_MSC_3.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/EFR32xG2_PRS_3.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/EFR32xG2_PRS_3.Generated.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/EFR32xG2_DCDC_2.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/EFR32xG2_DCDC_2.Generated.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/EFR32xG2_RNGCTRL.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/EFR32xG2_SEMAILBOX_1.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/EFR32xG2_SLAB_ITM.cs" />
