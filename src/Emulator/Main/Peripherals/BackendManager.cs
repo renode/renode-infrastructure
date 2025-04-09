@@ -32,6 +32,7 @@ namespace Antmicro.Renode.Peripherals
             {
                 analyzer.Dispose();
             }
+            TypeManager.Instance.AutoLoadedType -= HandleAutoLoadTypeFound;
         }
 
         public IEnumerable<string> GetAvailableAnalyzersFor(IAnalyzableBackend backend)
@@ -169,6 +170,7 @@ namespace Antmicro.Renode.Peripherals
             }
         }
 
+        [field: Transient]
         public event Action<IAnalyzableBackendAnalyzer> PeripheralBackendAnalyzerCreated;
 
         private IAnalyzableBackendAnalyzer CreateAndAttach(Type analyzerType, object backend)

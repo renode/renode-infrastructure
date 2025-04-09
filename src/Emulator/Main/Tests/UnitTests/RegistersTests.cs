@@ -170,6 +170,19 @@ namespace Antmicro.Renode.UnitTests
         }
 
         [Test]
+        public void ShouldWriteToClear()
+        {
+            flagWTCField.Value = true;
+            Assert.AreEqual(1u << 31 | RegisterResetValue, register.Read());
+            register.Write(0, 1u << 31);
+            Assert.IsFalse(flagWTCField.Value);
+
+            flagWTCField.Value = true;
+            register.Write(0, 0);
+            Assert.IsFalse(flagWTCField.Value);
+        }
+
+        [Test]
         public void ShouldReadToClear()
         {
             flagWRTCField.Value = true;
@@ -354,6 +367,7 @@ namespace Antmicro.Renode.UnitTests
             flagWZTSField = register.DefineFlagField(28, FieldMode.WriteZeroToSet);
             flagWZTTField = register.DefineFlagField(29, FieldMode.WriteZeroToToggle);
             flagRTSField = register.DefineFlagField(30, FieldMode.ReadToSet);
+            flagWTCField = register.DefineFlagField(31, FieldMode.Read | FieldMode.WriteToClear);
 
             register.WithReadCallback(GlobalCallback).WithWriteCallback(GlobalCallback).WithChangeCallback(GlobalCallback);
 
@@ -478,6 +492,8 @@ namespace Antmicro.Renode.UnitTests
           1D      |   Bool wztt
           --------------------
           1E      |   Bool rts
+          --------------------
+          1F      |   Bool wtc
         */
         private QuadWordRegister register;
 
@@ -511,6 +527,7 @@ namespace Antmicro.Renode.UnitTests
         private IFlagRegisterField flagWZTSField;
         private IFlagRegisterField flagWZTTField;
         private IFlagRegisterField flagRTSField;
+        private IFlagRegisterField flagWTCField;
 
         // Bits that store written value
         private ulong writeMask = 0b0000_1111_1101_1000__0111_1111_1111_1111;

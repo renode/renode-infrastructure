@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
     [AllowedTranslations(AllowedTranslation.QuadWordToDoubleWord)]
     public class CoreLevelInterruptor : IDoubleWordPeripheral, IKnownSize, INumberedGPIOOutput, IRiscVTimeProvider
     {
-        public CoreLevelInterruptor(IMachine machine, long frequency, int numberOfTargets = 1)
+        public CoreLevelInterruptor(IMachine machine, long frequency, int numberOfTargets = 1, uint divider = 1)
         {
             this.machine = machine;
             this.timerFrequency = frequency;
@@ -31,7 +31,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 irqs[2 * hartId] = new GPIO();
                 irqs[2 * hartId + 1] = new GPIO();
 
-                var timer = new ComparingTimer(machine.ClockSource, timerFrequency, this, hartId.ToString(), enabled: true, eventEnabled: true);
+                var timer = new ComparingTimer(machine.ClockSource, timerFrequency, this, hartId.ToString(), enabled: true, eventEnabled: true, divider: divider);
                 timer.CompareReached += () => irqs[2 * hartId + 1].Set(true);
 
                 mTimers.Add(timer);

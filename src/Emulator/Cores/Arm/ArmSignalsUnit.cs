@@ -135,7 +135,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
 
             cpu.StateChanged += (_, oldState, __) => {
-                if(oldState == CPUState.InReset)
+                if(oldState == EmulationCPUState.InReset)
                 {
                     if(unitType == UnitType.CortexR8)
                     {
@@ -341,7 +341,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private void OnSnoopControlUnitAdded(Signal<ArmSignals> peripheralsBase, IBusRegistration busRegistration)
         {
-            var context = busRegistration.CPU;
+            var context = busRegistration.Initiator as ICPU;
             if(context != null && !registeredCPUs.ContainsKey(context))
             {
                 this.DebugLog("Ignoring {0} registration for CPU unregistered in {1}: {2}",
@@ -550,7 +550,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     ? new BusMultiRegistration(newAddress, size, region, cpu)
                     : new BusRangeRegistration(newAddress, size, cpu: cpu);
 
-                if(registrationPoint.CPU == cpu)
+                if(registrationPoint.Initiator == cpu)
                 {
                     if(newRegistration is BusMultiRegistration newMultiRP)
                     {
@@ -584,7 +584,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 // Choose cpu-local registrations if there are still multiple matching ones.
                 if(busRegisteredEnumerable.Count() > 1)
                 {
-                    busRegisteredEnumerable = busRegisteredEnumerable.Where(_busRegistered => _busRegistered.RegistrationPoint.CPU == cpu);
+                    busRegisteredEnumerable = busRegisteredEnumerable.Where(_busRegistered => _busRegistered.RegistrationPoint.Initiator == cpu);
                 }
 
                 var count = (uint)busRegisteredEnumerable.Count();

@@ -82,10 +82,10 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTaggedFlag("stopbits", 12)
                 .WithTaggedFlag("hfc_en", 13)
                 .WithTaggedFlag("rtsdc", 14)
-                .WithTaggedFlag("bclken", 15)
+                .WithFlag(15, out baudClockReady, name: "bclken")
                 .WithTag("bclksrc", 16, 2)
                 .WithTaggedFlag("dpfe_en", 18)
-                .WithTaggedFlag("bclkrdy", 19)
+                .WithFlag(19, FieldMode.Read, valueProviderCallback: _ => baudClockReady.Value, name: "bclkrdy")
                 .WithTaggedFlag("ucagm", 20)
                 .WithTaggedFlag("fdm", 21)
                 .WithTaggedFlag("desm", 22)
@@ -193,6 +193,7 @@ namespace Antmicro.Renode.Peripherals.UART
         private IValueRegisterField receiveFifoThreshold;
         private IFlagRegisterField receiveFifoThresholdInterruptEnable;
         private IFlagRegisterField receiveFifoThresholdInterrupt;
+        private IFlagRegisterField baudClockReady;
 
         private const int TransmitFifoDepth = 8;
         private const int ReceiveFifoDepth = 8;

@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -13,6 +13,7 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.UART;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Migrant;
 
 namespace Antmicro.Renode.Extensions.Utilities
 {
@@ -50,6 +51,7 @@ namespace Antmicro.Renode.Extensions.Utilities
         private const string ExternalNamePrefix = "__uart_file_backend__";
     }
 
+    [Transient]
     public class UartFileBackend : IExternal, IDisposable
     {
         public UartFileBackend(SequencedFilePath path, IUART uart, bool immediateFlush = false)

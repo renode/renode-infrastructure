@@ -1,30 +1,29 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
 using Antmicro.Migrant;
-using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Utilities.Binding;
 
 namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
 {
     [Transient]
     public abstract class BaseProfiler : IDisposable
     {
-        public BaseProfiler(TranslationCPU cpu, string filename, bool flushInstantly)
+        public BaseProfiler(TranslationCPU cpu, bool flushInstantly, int? maximumNestedContexts)
         {
             this.cpu = cpu;
             this.flushInstantly = flushInstantly;
+
+            if(maximumNestedContexts <= 0) {
+                throw new ConstructionException("Optional maximumNestedContexts parameter must be a non-zero, positive integer.");
+            }
+            this.maximumNestedContexts = maximumNestedContexts;
 
             isFirstFrame = true;
             bufferLock = new Object();
@@ -43,9 +42,15 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
         public abstract void StackFrameAdd(ulong currentAddress, ulong returnAddress, ulong instructionsCount);
         public abstract void StackFramePop(ulong currentAddress, ulong returnAddress, ulong instructionsCount);
         public abstract void OnContextChange(ulong newContextId);
+        public abstract void OnStackPointerChange(ulong address, ulong oldSPValue, ulong newSPValue, ulong instructionsCount);
         public abstract void InterruptEnter(ulong interruptIndex);
         public abstract void InterruptExit(ulong interruptIndex);
         public abstract void FlushBuffer();
+
+        public virtual string GetCurrentStack()
+        {
+            throw new RecoverableException($"Functionality is not supported by the currently selected profiler");
+        }
 
         protected string GetSymbolName(ulong address)
         {
@@ -55,6 +60,17 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
                 name = $"0x{address:X}";
             }
             return name;
+        }
+
+        protected void PushCurrentContextSafe()
+        {
+            if(maximumNestedContexts.HasValue && currentContext.Count >= maximumNestedContexts)
+            {
+                cpu.Log(LogLevel.Warning, "Profiler: maximum nested contexts exceeded, disabling profiler");
+                cpu.DisableProfiler();
+                return;
+            }
+            currentContext.PushCurrentStack();
         }
 
         protected readonly TranslationCPU cpu;
@@ -67,6 +83,8 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
         protected Stack<string> currentStack => currentContext.CurrentStack;
         protected bool isFirstFrame;
         protected ulong currentContextId;
+
+        private readonly int? maximumNestedContexts;
 
         protected class ProfilerContext
         {

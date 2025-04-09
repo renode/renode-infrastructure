@@ -511,7 +511,8 @@ namespace Antmicro.Renode.Utilities
                 Logger.LogAs(this, LogLevel.Noisy, message);
                 return false;
             }
-            var assemblyName = assembly.FullName;
+            // simple assembly name is required for the mechanism in `ResolveAssembly()`
+            var assemblyName = assembly.Name.Name;
             if(!assemblyFromAssemblyName.ContainsKey(assemblyName))
             {
                 assemblyFromAssemblyName.Add(assemblyName, GetAssemblyDescription(assemblyName, path));
@@ -757,6 +758,7 @@ namespace Antmicro.Renode.Utilities
             "IronPython.SQLite.dll",
             "IronPython.StdLib.dll",
             "IronPython.Wpf.dll",
+            "K4os.Compression.LZ4.dll",
             "libtftp.dll",
             "LZ4.dll",
             "mcs.dll",

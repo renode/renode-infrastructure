@@ -98,6 +98,13 @@ namespace Antmicro.Renode.Peripherals.CPU
         private const int PSCICallResultNotSupported = -1;
         private const int PSCIVersion = 2;
 
+        protected enum GICCPUInterfaceVersion : uint
+        {
+            None = 0b000,
+            Version30Or40 = 0b001,
+            Version41 = 0b011,
+        }
+
         // Currently we support only a subset of available functions and return codes.
         // Full list can be found here: https://github.com/zephyrproject-rtos/zephyr/blob/main/drivers/pm_cpu_ops/pm_cpu_ops_psci.h
         private enum Function : uint

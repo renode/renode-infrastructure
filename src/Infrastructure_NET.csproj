@@ -22,6 +22,7 @@
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="3.9.0" />
     <PackageReference Include="Dynamitey" Version="2.0.10.189" />
     <PackageReference Include="Mono.Cecil" Version="0.11.3" />
+    <PackageReference Include="K4os.Compression.LZ4" Version="1.3.8" />
     <Reference Include="IronPython">
       <HintPath>..\..\..\lib\resources\libraries\ironpython-netcore\IronPython.dll</HintPath>
     </Reference>
@@ -59,14 +60,11 @@
     <Reference Include="Nini">
       <HintPath>../../../lib/resources/libraries/Nini.dll</HintPath>
     </Reference>
-    <Reference Include="LZ4">
-      <HintPath>../../../lib/resources/libraries/LZ4.dll</HintPath>
-    </Reference>
   </ItemGroup>
 
   <ItemGroup Condition=" $(CurrentPlatform) != Windows And $(GUI_DISABLED) != 'true' ">
-    <PackageReference Include="GdkSharp" Version="3.24.24.34" />
-    <PackageReference Include="GLibSharp" Version="3.24.24.34" />
+    <PackageReference Include="GdkSharp" Version="3.24.24.95" />
+    <PackageReference Include="GLibSharp" Version="3.24.24.95" />
   </ItemGroup>
   <Import Project="$(MSBuildProjectDirectory)/BuildAdditionalProjects-UI.csproj.targets" Condition="Exists('$(MSBuildProjectDirectory)/BuildAdditionalProjects-UI.csproj.targets')" />
   <ItemGroup>

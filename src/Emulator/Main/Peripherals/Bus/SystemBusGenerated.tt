@@ -44,7 +44,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         var type = entry.Key;
         var name = entry.Value;
 #>
-        public <#= type #> Read<#= name #>(ulong address, ICPU context = null)
+        public <#= type #> Read<#= name #>(ulong address, IPeripheral context = null, ulong? cpuState = null)
         {
             var accessWidth = SysbusAccessWidth.<#=name#>;
             if(IsAddressRangeLocked(address.By((ulong)accessWidth), context))
@@ -54,9 +54,9 @@ namespace Antmicro.Renode.Peripherals.Bus
                 return 0;
             }
 
-            using(SetLocalContext(context))
+            using(SetLocalContext(context, cpuState))
             {
-                if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress))
+                if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress, cpuState))
                 {
                     return (<#= type #>)ReportNonExistingRead(address, accessWidth);
                 }
@@ -88,7 +88,19 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
-        public void Write<#=name#>(ulong address, <#=type#> value, ICPU context = null)
+        public <#= type #> Read<#= name #>WithState(ulong address, IPeripheral context, IContextState stateObj)
+        {
+            var accessWidth = SysbusAccessWidth.<#=name#>;
+            if(!TryConvertStateToUlongForContext(context, stateObj, out ulong? state))
+            {
+                this.Log(LogLevel.Warning, "Tried to read {0} bytes at 0x{1:X} but failed on context state conversion, returning 0",
+                    (uint)accessWidth, address);
+                return 0;
+            }
+            return Read<#=name#>(address, context, state);
+        }
+
+        public void Write<#=name#>(ulong address, <#=type#> value, IPeripheral context = null, ulong? cpuState = null)
         {
             var accessWidth = SysbusAccessWidth.<#=name#>;
             if(IsAddressRangeLocked(address.By((ulong)accessWidth), context))
@@ -98,9 +110,9 @@ namespace Antmicro.Renode.Peripherals.Bus
                 return;
             }
 
-            using(SetLocalContext(context))
+            using(SetLocalContext(context, cpuState))
             {
-                if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress))
+                if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress, cpuState))
                 {
                     ReportNonExistingWrite(address, value, accessWidth);
                     return;
@@ -132,6 +144,18 @@ namespace Antmicro.Renode.Peripherals.Bus
                     }
                 }
             }
+        }
+
+        public void Write<#=name#>WithState(ulong address, <#=type#> value, IPeripheral context, IContextState stateObj)
+        {
+            var accessWidth = SysbusAccessWidth.<#=name#>;
+            if(!TryConvertStateToUlongForContext(context, stateObj, out ulong? state))
+            {
+                this.Log(LogLevel.Warning, "Tried to write {0} bytes (0x{1:X}) at 0x{2:X} but failed on context state conversion, write ignored",
+                    (uint)accessWidth, value, address);
+                return;
+            }
+            Write<#=name#>(address, value, context, state);
         }
 
 <# }
@@ -187,14 +211,22 @@ namespace Antmicro.Renode.Peripherals.Bus
 <#
     }
 #>
-        private bool TryFindPeripheralAccessMethods(ulong address, ICPU context, out PeripheralAccessMethods accessMethods, out ulong startAddress)
+        private bool TryFindPeripheralAccessMethods(ulong address, IPeripheral context, out PeripheralAccessMethods accessMethods, out ulong startAddress, ulong? cpuState = null)
         {
-            if(context != null || TryGetCurrentCPU(out context))
+            if(context == null)
             {
-                accessMethods = peripheralsCollectionByContext[context].FindAccessMethods(address, out startAddress, out var _);
-                if(accessMethods != null)
+                TryGetCurrentCPU(out var cpu);
+                context = cpu;
+            }
+            if(context != null)
+            {
+                if(peripheralsCollectionByContext.TryGetValue(context, cpuState, out var collection))
                 {
-                    return true;
+                    accessMethods = collection.FindAccessMethods(address, out startAddress, out var _);
+                    if(accessMethods != null)
+                    {
+                        return true;
+                    }
                 }
             }
             accessMethods = peripheralsCollectionByContext[null].FindAccessMethods(address, out startAddress, out _);

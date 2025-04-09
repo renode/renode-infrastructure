@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using Antmicro.Migrant;
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals;
@@ -19,7 +20,16 @@ namespace Antmicro.Renode.Peripherals.Bus
 {
     partial class SystemBus
     {
-        private class PeripheralCollection
+        private interface IReadOnlyPeripheralCollection
+        {
+            IEnumerable<IBusRegistered<IBusPeripheral>> Peripherals { get; }
+            PeripheralAccessMethods FindAccessMethods(ulong address, out ulong startAddress, out ulong endAddress);
+#if DEBUG
+            void ShowStatistics();
+#endif
+        }
+
+        private class PeripheralCollection : IReadOnlyPeripheralCollection, ICoalescable<PeripheralCollection>
         {
             internal PeripheralCollection(SystemBus sysbus)
             {
@@ -59,7 +69,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                         goToDictionary = false;
                     }
                     // is the peripheral small enough?
-                    var size = end - start;
+                    var size = end - start; // don't add 1 because `end` is actually one past the end.
                     var numOfPages = size/PageSize;
                     if(numOfPages > NumOfPagesThreshold)
                     {
@@ -90,6 +100,21 @@ namespace Antmicro.Renode.Peripherals.Bus
                 }
             }
 
+            public void Coalesce(PeripheralCollection source)
+            {
+                foreach(var block in source.blocks.Union(source.shortBlocks.Values))
+                {
+                    // Don't add overlapping peripherals.
+                    // We subtract 1 from the end address because it is actually one past the end.
+                    if(FindAccessMethods(block.Start, out _, out _) != null
+                        || FindAccessMethods(block.End - 1, out _, out _) != null)
+                    {
+                        return;
+                    }
+                    Add(block.Start, block.End, block.Peripheral, block.AccessMethods);
+                }
+            }
+
             public void Move(IBusRegistered<IBusPeripheral> registeredPeripheral, BusRangeRegistration newRegistration)
             {
                 var newRegisteredPeripheral = new BusRegistered<IBusPeripheral>(registeredPeripheral.Peripheral, newRegistration);
@@ -117,6 +142,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
                     var newStart = newRegistration.StartingPoint;
                     var size = newRegistration.Range.Size;
+                    // End address is one past the end.
                     Add(newStart, newStart + size, newRegisteredPeripheral, block.AccessMethods);
                 }
             }
@@ -185,6 +211,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 #if DEBUG
                 Interlocked.Increment(ref queryCount);
 #endif
+                /// Note `< End` - End is currently one past the end in reality. Please also change <see cref="ICoalescable{T}.Coalesce"> after changing this.
                 if (address >= lastBlock.Start && address < lastBlock.End)
                 {
 #if DEBUG

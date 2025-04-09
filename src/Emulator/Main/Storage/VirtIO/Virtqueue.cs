@@ -1,11 +1,12 @@
 ﻿//
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Packets;
 
@@ -44,7 +45,7 @@ namespace Antmicro.Renode.Storage.VirtIO
                 var toRead = (int)Math.Min(Descriptor.Length, len - readLen);
                 parent.Log(LogLevel.Debug, "Reading data from buffer at addr {0}, toRead {1}, length {2}, len {3}", Descriptor.BufferAddress, toRead, Descriptor.Length, len);
 
-                var readData = parent.SystemBus.ReadBytes(Descriptor.BufferAddress, toRead);
+                var readData = parent.SystemBus.ReadBytes(Descriptor.BufferAddress, toRead, context: GetCurrentContext());
                 parent.Log(LogLevel.Debug, "Read data: {0}", Misc.PrettyPrintCollection(readData));
 
                 Array.Copy(readData, 0, data, (int)readLen, toRead);
@@ -76,7 +77,7 @@ namespace Antmicro.Renode.Storage.VirtIO
                     return false;
                 }
                 var toWrite = Math.Min(data.Length, Descriptor.Length);
-                parent.SystemBus.WriteBytes(data, Descriptor.BufferAddress, (long)toWrite);
+                parent.SystemBus.WriteBytes(data, Descriptor.BufferAddress, (long)toWrite, context: GetCurrentContext());
 
                 writtenLen += toWrite;
                 var dataLeft = new byte[data.Length - toWrite];
@@ -99,7 +100,7 @@ namespace Antmicro.Renode.Storage.VirtIO
 
         public void Handle()
         {
-            var idx = (ushort)parent.SystemBus.ReadWord(AvailableAddress + (ulong)UsedAndAvailable.Index);
+            var idx = (ushort)parent.SystemBus.ReadWord(AvailableAddress + (ulong)UsedAndAvailable.Index, context: GetCurrentContext());
             // Processing all available requests
             // We're using 2 variables: availableIndex, availableIndexFromDriver
             // because we have to compare this value to index field in driver's
@@ -130,14 +131,15 @@ namespace Antmicro.Renode.Storage.VirtIO
         // to availableIndex and availableIndexFromDevice.
         public void WriteVirtqueueUsed(int chainFirstIndex, bool noInterruptOnUsed)
         {
+            var context = GetCurrentContext();
             var ringAddress = UsedAddress + (ulong)UsedAndAvailable.Ring
                     + UsedRingEntrySize * ((ulong)UsedIndex);
             UsedIndex = (ushort)((UsedIndex + 1u) % Size);
             UsedIndexForDriver++;
-            parent.SystemBus.WriteWord(UsedAddress + (ulong)UsedAndAvailable.Flags, 0);
-            parent.SystemBus.WriteDoubleWord(ringAddress + (ulong)UsedRing.Index, (uint)chainFirstIndex);
-            parent.SystemBus.WriteDoubleWord(ringAddress + (ulong)UsedRing.Length, (uint)BytesWritten);
-            parent.SystemBus.WriteWord(UsedAddress + (ulong)UsedAndAvailable.Index, (ushort)UsedIndexForDriver);
+            parent.SystemBus.WriteWord(UsedAddress + (ulong)UsedAndAvailable.Flags, 0, context: context);
+            parent.SystemBus.WriteDoubleWord(ringAddress + (ulong)UsedRing.Index, (uint)chainFirstIndex, context: context);
+            parent.SystemBus.WriteDoubleWord(ringAddress + (ulong)UsedRing.Length, (uint)BytesWritten, context: context);
+            parent.SystemBus.WriteWord(UsedAddress + (ulong)UsedAndAvailable.Index, (ushort)UsedIndexForDriver, context: context);
             if(!noInterruptOnUsed)
             {
                 parent.InterruptUsedBuffer();
@@ -158,7 +160,7 @@ namespace Antmicro.Renode.Storage.VirtIO
         {
             parent.Log(LogLevel.Debug, "Reading desc meta, queueSel: {0}, descIndex: {1}", parent.QueueSel, DescriptorIndex);
             var descriptorAddress = DescTableAddress + DescriptorSize * (ulong)DescriptorIndex;
-            var scanBytes = parent.SystemBus.ReadBytes(descriptorAddress, DescriptorSizeOffset);
+            var scanBytes = parent.SystemBus.ReadBytes(descriptorAddress, DescriptorSizeOffset, context: GetCurrentContext());
             Descriptor = Packet.Decode<DescriptorMetadata>(scanBytes);
             parent.Log(LogLevel.Debug, "Processing buffer of addr: {0}, next: {1}, length: {2}, flags: {3}", Descriptor.BufferAddress, Descriptor.Next, Descriptor.Length, Descriptor.Flags);
         }
@@ -201,13 +203,24 @@ namespace Antmicro.Renode.Storage.VirtIO
         // Reads descriptor entry index and interrupt flag from available ring
         private Tuple<int, bool> ReadDescriptorFromAvail()
         {
-            var flag = parent.SystemBus.ReadWord(AvailableAddress + (ulong)UsedAndAvailable.Flags);
+            var context = GetCurrentContext();
+            var flag = parent.SystemBus.ReadWord(AvailableAddress + (ulong)UsedAndAvailable.Flags, context: context);
             var noInterruptOnUsed = (flag == (ushort)UsedAndAvailableFlags.NoNotify);
             var chainFirstIndex = (int)parent.SystemBus.ReadWord(AvailableAddress +
-                (ulong)UsedAndAvailable.Ring + AvailableRingEntrySize * (ulong)AvailableIndex);
+                (ulong)UsedAndAvailable.Ring + AvailableRingEntrySize * (ulong)AvailableIndex, context: context);
             DescriptorIndex = chainFirstIndex;
             parent.Log(LogLevel.Debug, "Chain starting at index {0}", chainFirstIndex);
             return Tuple.Create(chainFirstIndex, noInterruptOnUsed);
+        }
+
+        // Returns null if no context was found; then only global peripherals will be accessible by DMA
+        private ICPU GetCurrentContext()
+        {
+            if(!parent.SystemBus.TryGetCurrentCPU(out var cpu))
+            {
+                return null;
+            }
+            return cpu;
         }
 
         private readonly VirtIO parent;

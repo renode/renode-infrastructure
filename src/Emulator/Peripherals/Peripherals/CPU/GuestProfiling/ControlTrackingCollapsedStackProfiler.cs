@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -9,19 +9,16 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using Antmicro.Renode.Debugging;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Utilities.Binding;
 
 namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
 {
-    public class CollapsedStackProfiler : BaseProfiler
+    public class ControlTrackingCollapsedStackProfiler : BaseProfiler
     {
-        public CollapsedStackProfiler(TranslationCPU cpu, string filename, bool flushInstantly) 
-            : base(cpu, filename, flushInstantly)
+        public ControlTrackingCollapsedStackProfiler(TranslationCPU cpu, string filename, bool flushInstantly, long? fileSizeLimit = null, int? maximumNestedContexts = null)
+            : base(cpu, flushInstantly, maximumNestedContexts)
         {
+            this.fileSizeLimit = fileSizeLimit;
             stringBuffer = new StringBuilder();
             fileStream = new StreamWriter(filename);
         }
@@ -50,6 +47,8 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
             AddStackToBufferWithDelta(instructionsElapsed);
 
             currentStack.Push(currentSymbol);
+
+            CheckAndFlushBuffer();
         }
 
         public override void StackFramePop(ulong currentAddress, ulong returnAddress, ulong instructionsCount)
@@ -65,6 +64,12 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
             AddStackToBufferWithDelta(instructionsElapsed);
 
             currentStack.Pop();
+
+            CheckAndFlushBuffer();
+        }
+
+        public override void OnStackPointerChange(ulong address, ulong oldPointerValue, ulong newPointerValue, ulong instructionsCount)
+        {
         }
 
         public override void OnContextChange(ulong newContextId)
@@ -74,11 +79,11 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
                 return;
             }
 
-            cpu.Log(LogLevel.Debug, "Profiler: Changing context from: 0x{0:X} to 0x{1:X}", currentContextId, newContextId);
-
             var instructionsElapsed = GetInstructionsDelta(cpu.ExecutedInstructions);
             AddStackToBufferWithDelta(instructionsElapsed);
-            currentContext.PushCurrentStack();
+            PushCurrentContextSafe();
+
+            cpu.Log(LogLevel.Debug, "Profiler: Changing context from: 0x{0:X} to 0x{1:X}", currentContextId, newContextId);
 
             if(!wholeExecution.ContainsKey(newContextId))
             {
@@ -87,6 +92,8 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
 
             currentContextId = newContextId;
             currentContext.PopCurrentStack();
+
+            CheckAndFlushBuffer();
         }
 
         public override void InterruptEnter(ulong interruptIndex)
@@ -94,8 +101,10 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
             var instructionsElapsed = GetInstructionsDelta(cpu.ExecutedInstructions);
             AddStackToBufferWithDelta(instructionsElapsed);
 
-            currentContext.PushCurrentStack();
             cpu.Log(LogLevel.Debug, "Profiler: Interrupt entry (pc 0x{0:X})- saving the stack", cpu.PC);
+            PushCurrentContextSafe();
+
+            CheckAndFlushBuffer();
         }
 
         public override void InterruptExit(ulong interruptIndex)
@@ -105,19 +114,45 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
 
             cpu.Log(LogLevel.Debug, "Profiler: Interrupt exit - restoring the stack");
             currentContext.PopCurrentStack();
+
+            CheckAndFlushBuffer();
         }
 
         public override void FlushBuffer()
         {
+            // DisableProfiler() calls Dispose() which calls FlushBuffer()
+            // This flag is required to prevent an infinite loop
+            if(isDisposing)
+            {
+                return;
+            }
+
             lock(bufferLock)
             {
+                if(fileSizeLimit.HasValue && (fileWrittenBytes + stringBuffer.Length) > fileSizeLimit)
+                {
+                    isDisposing = true;
+                    cpu.Log(LogLevel.Warning, "Profiler: Maximum file size exceeded, removing profiler");
+                    cpu.DisableProfiler();
+                    return;
+                }
+
                 fileStream.Write(stringBuffer.ToString());
+                fileWrittenBytes += stringBuffer.Length;
                 stringBuffer.Clear();
             }
         }
 
+        public override string GetCurrentStack()
+        {
+            var result = FormatCollapsedStackString(currentStack);
+
+            return result;
+        }
+
         private ulong GetInstructionsDelta(ulong currentInstructionsCount)
         {
+            currentInstructionsCount += cpu.SkipInstructions + cpu.SkippedInstructions;
             ulong instructionsElapsed = checked(currentInstructionsCount - lastInstructionsCount);
             lastInstructionsCount = currentInstructionsCount;
             return instructionsElapsed;
@@ -141,10 +176,14 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
             lock(bufferLock)
             {
                 stringBuffer.AppendLine(stringToAdd);
-                if(flushInstantly || stringBuffer.Length > BufferFlushLevel)
-                {
-                    FlushBuffer();
-                }
+            }
+        }
+
+        private void CheckAndFlushBuffer()
+        {
+            if(flushInstantly || stringBuffer.Length > BufferFlushLevel)
+            {
+                FlushBuffer();
             }
         }
 
@@ -155,7 +194,12 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
 
         private readonly StringBuilder stringBuffer;
         private readonly StreamWriter fileStream;
+        private readonly long? fileSizeLimit;
+
         private ulong lastInstructionsCount;
+        private long fileWrittenBytes;
+        private bool isDisposing;
+
         private const int BufferFlushLevel = 1000000;
     }
 }

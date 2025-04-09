@@ -20,13 +20,18 @@ using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Core
 {
-    public class SymbolLookup
+    public class SymbolLookup : IDisposable
     {
         public SymbolLookup()
         {
             symbolsByName = new MultiValueDictionary<string, Symbol>();
             symbols = new SortedIntervals(this);
             allSymbolSets.Add(this);
+        }
+
+        public void Dispose()
+        {
+            allSymbolSets.Remove(this);
         }
 
         /// <summary>

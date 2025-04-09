@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -9,8 +9,6 @@ using System;
 using NUnit.Framework;
 using Antmicro.Renode.UserInterface;
 using System.Diagnostics;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Logging.Backends;
 using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals.Bus;
@@ -142,7 +140,6 @@ namespace Antmicro.Renode.MonitorTests.CommandTests
         {
             monitor = new Monitor();
             commandEater = new CommandInteractionEater();
-            Logger.AddBackend(new DummyLoggerBackend(), "dummy");
         }
 
         [TearDown]

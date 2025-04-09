@@ -310,7 +310,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             base.InnerPause(onCpuThread, checkPauseGuard);
 
-            if(!onCpuThread && checkPauseGuard)
+            if(onCpuThread && checkPauseGuard)
             {
                 pauseGuard.OrderPause();
             }
@@ -551,7 +551,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void AddHookAtInterruptEnd(Action<ulong> hook)
         {
-            if(!Architecture.Contains("riscv") && !Architecture.Contains("arm"))
+            if(!Architecture.Contains("riscv") && !Architecture.Contains("arm") && !Architecture.Contains("sparc"))
             {
                 throw new RecoverableException("Hooks at the end of interrupt are supported only in the RISC-V and ARM architectures");
             }
@@ -601,7 +601,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        protected virtual ulong ReadByteFromBus(ulong offset)
+        protected ulong ReadByteFromBus(ulong offset, ulong cpuState)
         {
             if(UpdateContextOnLoadAndStore)
             {
@@ -609,15 +609,16 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             using(var guard = ObtainPauseGuardForReading(offset, SysbusAccessWidth.Byte))
             {
-                var res = guard.InterruptTransaction
+                // If the transaction was interrupted while handling a watchpoint, return 0 immediately to avoid
+                // duplicating the access' side effect.
+                return guard.InterruptTransaction
                     ? 0
-                    : (ulong)machine.SystemBus.ReadByte(offset, this);
-                return res;
+                    : (ulong)machine.SystemBus.ReadByte(offset, this, cpuState);
             }
         }
 
         [Export]
-        protected virtual ulong ReadWordFromBus(ulong offset)
+        protected ulong ReadWordFromBus(ulong offset, ulong cpuState)
         {
             if(UpdateContextOnLoadAndStore)
             {
@@ -625,14 +626,16 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             using(var guard = ObtainPauseGuardForReading(offset, SysbusAccessWidth.Word))
             {
+                // If the transaction was interrupted while handling a watchpoint, return 0 immediately to avoid
+                // duplicating the access' side effect.
                 return guard.InterruptTransaction
                     ? 0
-                    : (ulong)machine.SystemBus.ReadWord(offset, this);
+                    : (ulong)machine.SystemBus.ReadWord(offset, this, cpuState);
             }
         }
 
         [Export]
-        protected virtual ulong ReadDoubleWordFromBus(ulong offset)
+        protected ulong ReadDoubleWordFromBus(ulong offset, ulong cpuState)
         {
             if(UpdateContextOnLoadAndStore)
             {
@@ -640,14 +643,16 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             using(var guard = ObtainPauseGuardForReading(offset, SysbusAccessWidth.DoubleWord))
             {
+                // If the transaction was interrupted while handling a watchpoint, return 0 immediately to avoid
+                // duplicating the access' side effect.
                 return guard.InterruptTransaction
                     ? 0
-                    : machine.SystemBus.ReadDoubleWord(offset, this);
+                    : machine.SystemBus.ReadDoubleWord(offset, this, cpuState);
             }
         }
 
         [Export]
-        protected virtual ulong ReadQuadWordFromBus(ulong offset)
+        protected ulong ReadQuadWordFromBus(ulong offset, ulong cpuState)
         {
             if(UpdateContextOnLoadAndStore)
             {
@@ -655,14 +660,16 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             using(var guard = ObtainPauseGuardForReading(offset, SysbusAccessWidth.QuadWord))
             {
+                // If the transaction was interrupted while handling a watchpoint, return 0 immediately to avoid
+                // duplicating the access' side effect.
                 return guard.InterruptTransaction
                     ? 0
-                    : machine.SystemBus.ReadQuadWord(offset, this);
+                    : machine.SystemBus.ReadQuadWord(offset, this, cpuState);
             }
         }
 
         [Export]
-        protected virtual void WriteByteToBus(ulong offset, ulong value)
+        protected void WriteByteToBus(ulong offset, ulong value, ulong cpuState)
         {
             if(UpdateContextOnLoadAndStore)
             {
@@ -670,15 +677,17 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             using(var guard = ObtainPauseGuardForWriting(offset, SysbusAccessWidth.Byte, value))
             {
+                // If the transaction was interrupted while handling a watchpoint, don't perform the write to avoid
+                // duplicating the access' side effect.
                 if(!guard.InterruptTransaction)
                 {
-                    machine.SystemBus.WriteByte(offset, unchecked((byte)value), this);
+                    machine.SystemBus.WriteByte(offset, unchecked((byte)value), this, cpuState);
                 }
             }
         }
 
         [Export]
-        protected virtual void WriteWordToBus(ulong offset, ulong value)
+        protected void WriteWordToBus(ulong offset, ulong value, ulong cpuState)
         {
             if(UpdateContextOnLoadAndStore)
             {
@@ -686,15 +695,17 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             using(var guard = ObtainPauseGuardForWriting(offset, SysbusAccessWidth.Word, value))
             {
+                // If the transaction was interrupted while handling a watchpoint, don't perform the write to avoid
+                // duplicating the access' side effect.
                 if(!guard.InterruptTransaction)
                 {
-                    machine.SystemBus.WriteWord(offset, unchecked((ushort)value), this);
+                    machine.SystemBus.WriteWord(offset, unchecked((ushort)value), this, cpuState);
                 }
             }
         }
 
         [Export]
-        protected virtual void WriteDoubleWordToBus(ulong offset, ulong value)
+        protected void WriteDoubleWordToBus(ulong offset, ulong value, ulong cpuState)
         {
             if(UpdateContextOnLoadAndStore)
             {
@@ -702,15 +713,17 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             using(var guard = ObtainPauseGuardForWriting(offset, SysbusAccessWidth.DoubleWord, value))
             {
+                // If the transaction was interrupted while handling a watchpoint, don't perform the write to avoid
+                // duplicating the access' side effect.
                 if(!guard.InterruptTransaction)
                 {
-                    machine.SystemBus.WriteDoubleWord(offset, (uint)value, this);
+                    machine.SystemBus.WriteDoubleWord(offset, (uint)value, this, cpuState);
                 }
             }
         }
 
         [Export]
-        protected void WriteQuadWordToBus(ulong offset, ulong value)
+        protected void WriteQuadWordToBus(ulong offset, ulong value, ulong cpuState)
         {
             if(UpdateContextOnLoadAndStore)
             {
@@ -718,11 +731,53 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             using(var guard = ObtainPauseGuardForWriting(offset, SysbusAccessWidth.QuadWord, value))
             {
+                // If the transaction was interrupted while handling a watchpoint, don't perform the write to avoid
+                // duplicating the access' side effect.
                 if(!guard.InterruptTransaction)
                 {
-                    machine.SystemBus.WriteQuadWord(offset, value, this);
+                    machine.SystemBus.WriteQuadWord(offset, value, this, cpuState);
                 }
             }
+        }
+
+        protected ulong ReadByteFromBus(ulong offset)
+        {
+            return ReadByteFromBus(offset, GetCPUStateForMemoryTransaction());
+        }
+
+        protected ulong ReadWordFromBus(ulong offset)
+        {
+            return ReadWordFromBus(offset, GetCPUStateForMemoryTransaction());
+        }
+
+        protected ulong ReadDoubleWordFromBus(ulong offset)
+        {
+            return ReadDoubleWordFromBus(offset, GetCPUStateForMemoryTransaction());
+        }
+
+        protected ulong ReadQuadWordFromBus(ulong offset)
+        {
+            return ReadQuadWordFromBus(offset, GetCPUStateForMemoryTransaction());
+        }
+
+        protected void WriteByteToBus(ulong offset, ulong value)
+        {
+            WriteByteToBus(offset, value, GetCPUStateForMemoryTransaction());
+        }
+
+        protected void WriteWordToBus(ulong offset, ulong value)
+        {
+            WriteWordToBus(offset, value, GetCPUStateForMemoryTransaction());
+        }
+
+        protected void WriteDoubleWordToBus(ulong offset, ulong value)
+        {
+            WriteDoubleWordToBus(offset, value, GetCPUStateForMemoryTransaction());
+        }
+
+        protected void WriteQuadWordToBus(ulong offset, ulong value)
+        {
+            WriteQuadWordToBus(offset, value, GetCPUStateForMemoryTransaction());
         }
 
         protected virtual string GetExceptionDescription(ulong exceptionIndex)
@@ -1307,10 +1362,10 @@ namespace Antmicro.Renode.Peripherals.CPU
             CyclesPerInstruction = 1;
         }
 
-        protected override ulong SkipInstructions
+        public override ulong SkipInstructions
         {
             get => base.SkipInstructions;
-            set
+            protected set
             {
                 if(!OnPossessedThread)
                 {
@@ -1326,7 +1381,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Transient]
-        private Action<ulong> onTranslationBlockFetch;
+        private TranslationBlockFetchCallback onTranslationBlockFetch;
         private byte[] cpuState;
 
         /// <summary>
@@ -1341,13 +1396,15 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Transient]
         private SimpleMemoryManager memoryManager;
 
+        private delegate void TranslationBlockFetchCallback(ulong pc);
+
         public uint IRQ{ get { return TlibIsIrqSet(); } }
 
         [Export]
         private void TouchHostBlock(ulong offset)
         {
             this.NoisyLog("Trying to find the mapping for offset 0x{0:X}.", offset);
-            var mapping = currentMappings.FirstOrDefault(x => x.Segment.StartingOffset <= offset && offset < x.Segment.StartingOffset + x.Segment.Size);
+            var mapping = currentMappings.FirstOrDefault(x => x.Segment.StartingOffset <= offset && offset <= x.Segment.StartingOffset + (x.Segment.Size - 1));
             if(mapping == null)
             {
                 throw new InvalidOperationException(string.Format("Could not find mapped segment for offset 0x{0:X}.", offset));
@@ -1797,6 +1854,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             TlibAfterLoad(statePtr);
         }
 
+        protected ulong GetCPUStateForMemoryTransaction()
+        {
+            return TlibGetCpuStateForMemoryTransaction();
+        }
+
         [Export]
         private uint IsInDebugMode()
         {
@@ -2030,6 +2092,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private Action<IntPtr> TlibAfterLoad;
+
+        [Import(UseExceptionWrapper = false)] // Not wrapped for performance
+        private Func<ulong> TlibGetCpuStateForMemoryTransaction;
 
 #pragma warning restore 649
 

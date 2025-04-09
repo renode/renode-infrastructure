@@ -553,6 +553,7 @@ namespace Antmicro.Renode.Core
         }
 
         public bool InternalPause { get; private set; }
+        public bool IgnorePeripheralRegistrationConditions { get; set; }
 
         public void RequestResetInSafeState(Action postReset = null, ICollection<IPeripheral> unresetable = null)
         {
@@ -1714,7 +1715,7 @@ namespace Antmicro.Renode.Core
                 foreach(var registration in SystemBus.GetRegistrationsForPeripheralType<Peripherals.Memory.ArrayMemory>(context))
                 {
                     var range = registration.RegistrationPoint.Range;
-                    var perCore = registration.RegistrationPoint.CPU;
+                    var perCore = registration.RegistrationPoint.Initiator;
                     if(perCore == null)
                     {
                         cpus = SystemBus.GetCPUs().OfType<ICPUWithMappedMemory>().ToArray();

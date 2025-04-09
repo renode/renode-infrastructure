@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -8,6 +8,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals.Bus;
@@ -182,12 +183,12 @@ namespace Antmicro.Renode.Utilities
         {
             return 1024 * value.KB();
         }
-        
+
         public static ulong GB(this int value)
         {
             return 1024 * (ulong)value.MB();
         }
-        
+
         public static ulong TB(this int value)
         {
             return 1024 * value.GB();
@@ -438,8 +439,13 @@ namespace Antmicro.Renode.Utilities
             return String.Empty;
         }
 
-        public static byte[] HexStringToByteArray(string hexString, bool reverse = false)
+        public static byte[] HexStringToByteArray(string hexString, bool reverse = false, bool ignoreWhitespace = false)
         {
+            if(ignoreWhitespace)
+            {
+                hexString = Regex.Replace(hexString, @"\s+", "");
+            }
+
             if(hexString.Length % 2 != 0)
             {
                 throw new FormatException($"The length of hex string ({hexString.Length}) is not a multiple of 2.");
@@ -472,6 +478,22 @@ namespace Antmicro.Renode.Utilities
             }
             Buffer.BlockCopy(byteArray, 0, outArray, 0, byteLength);
             return true;
+        }
+
+        public static string ToHexString(this byte[] data)
+        {
+            var lookup = hexStringLookup.Value;
+            var builder = new StringBuilder(data.Length * 2);
+            for(var i = 0; i < data.Length; ++i)
+            {
+                builder.Append(lookup[data[i]]);
+            }
+            return builder.ToString();
+        }
+
+        public static string ToHex(this byte value)
+        {
+            return hexStringLookup.Value[value];
         }
 
         public static IEnumerable<int> ConcatRangeFromTo(this IEnumerable<int> enumerable, int start, int stopIncluded)
@@ -1725,6 +1747,28 @@ namespace Antmicro.Renode.Utilities
                 yield return buffer.ToArray();
             }
         }
+
+        public static void Fill<T>(this T[] array, T value, int startIndex = 0, int? count = null)
+        {
+            if(startIndex >= array.Length || startIndex < 0)
+            {
+                throw new ArgumentException("has to be a legal index", nameof(startIndex));
+            }
+            count = count ?? array.Length - startIndex;
+            if(startIndex + count.Value > array.Length)
+            {
+                throw new ArgumentException("value out of bounds", nameof(count));
+            }
+            for(var i = 0; i < count.Value; ++i)
+            {
+                array[startIndex + i] = value;
+            }
+        }
+#else
+        public static void Fill<T>(this T[] array, T value, int startIndex = 0, int? count = null)
+        {
+            Array.Fill(array, value, startIndex, count ?? array.Length - startIndex);
+        }
 #endif
 
         public static ulong CastToULong(dynamic number)
@@ -1816,6 +1860,16 @@ namespace Antmicro.Renode.Utilities
         public static bool ReturnThenClear(ref bool variable) => ReturnThenAssign(ref variable, false);
 
         public static DateTime UnixEpoch = new DateTime(1970, 1, 1);
+
+        private static readonly Lazy<string[]> hexStringLookup = new Lazy<string[]>(() =>
+        {
+            var lookup = new string[0x100];
+            for(var i = 0; i < lookup.Length; ++i)
+            {
+                lookup[i] = $"{i:X02}";
+            }
+            return lookup;
+        }, isThreadSafe: true);
     }
 
     public class MethodWithAttribute<T> where T : Attribute

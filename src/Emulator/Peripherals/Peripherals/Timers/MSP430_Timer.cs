@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -11,6 +11,7 @@ using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Time;
@@ -19,12 +20,21 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class MSP430_Timer : BasicWordPeripheral
     {
-        public MSP430_Timer(IMachine machine, long baseFrequency = 32768, int captureCompareCount = 7) : base(machine)
+        public MSP430_Timer(IMachine machine, MSP430X cpu, int acknowledgeInterrupt, long baseFrequency = 32768, int captureCompareCount = 7) : base(machine)
         {
             if(captureCompareCount <= 0 || captureCompareCount > 7)
             {
                 throw new ConstructionException("captureCompareCount should be between 1 and 7");
             }
+
+            cpu.InterruptAcknowledged += (interruptIndex) =>
+            {
+                if(interruptIndex == acknowledgeInterrupt)
+                {
+                    timerInterruptPending[0].Value = false;
+                    UpdateInterrupts();
+                }
+            };
 
             TimersCount = captureCompareCount;
 
@@ -73,13 +83,6 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
             // NOTE: This region is single word wide, so we are ignoring offset argument
             return ReadWord((long)Registers.InterruptVector);
-        }
-
-        // TODO: This function is used in resc files to route finished interrupt from CPU to Timer
-        public void OnInterruptAcknowledged()
-        {
-            timerInterruptPending[0].Value = false;
-            UpdateInterrupts();
         }
 
         public int TimersCount { get; }

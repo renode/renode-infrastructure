@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -47,10 +47,6 @@ namespace Antmicro.Renode.UI
                     //to prevent hard to trace bugs
                     ConsoleBackend.Instance.PlainMode = true;
                 }
-            }
-            else
-            {
-                Logger.AddBackend(new DummyLoggerBackend(), "dummy");
             }
 
             Logger.AddBackend(new MemoryBackend(), "memory");

@@ -6,16 +6,20 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Utilities;
+using System.Collections.Generic;
 using System.IO;
-using Antmicro.Renode.Exceptions;
 using System.Linq;
-using Antmicro.Renode.UserInterface.Tokenizer;
-using AntShell.Commands;
 using System.Text;
-using Microsoft.Scripting.Hosting;
+using Antmicro.Migrant;
 using Antmicro.Migrant.Hooks;
+using AntShell.Commands;
+using IronPython.Runtime;
+using IronPython.Runtime.Operations;
+using Microsoft.Scripting.Hosting;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.UserInterface.Tokenizer;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.UserInterface
 {
@@ -28,6 +32,7 @@ namespace Antmicro.Renode.UserInterface
 
         public MonitorPythonEngine(Monitor monitor)
         {
+            this.monitor = monitor;
             var rootPath = Misc.GetRootDirectory();
 
             var imports = Engine.CreateScriptSourceFromString(Aggregate(Imports));
@@ -69,13 +74,36 @@ namespace Antmicro.Renode.UserInterface
             }
 
             object comm = Scope.GetVariable("mc_" + command_name); // get a method
-            var parameters = command.Skip(1).Select(x => x.GetObjectValue()).ToArray();
+            var arguments = command.Skip(1);
+            var argumentsLength = command.Length - 1;
+
+            var firstEqualIndex = arguments.IndexOf(t => t is EqualityToken);
+            var parametersLength = firstEqualIndex == -1 ? argumentsLength : firstEqualIndex - 1;
+
+            if(arguments.Any() && arguments.First() is EqualityToken firstArgument)
+            {
+                throw new RecoverableException($"Invalid argument {firstArgument} at position 1");
+            }
+
+            var parameters = arguments.Take(parametersLength).Select(GetTokenValue).ToArray();
+            var keywordArguments = arguments.Skip(parametersLength).Split(3).Select((kwarg, idx) =>
+            {
+                if(kwarg.Length != 3 || !(kwarg[0] is LiteralToken) || !(kwarg[1] is EqualityToken))
+                {
+                    var argument = string.Join<object>("", kwarg);
+                    throw new RecoverableException($"Invalid keyword argument {argument} at position {parametersLength + 1 + idx}");
+                }
+
+                var key = kwarg[0].GetObjectValue();
+                var value = GetTokenValue(kwarg[2]);
+                return new KeyValuePair<object, object>(key, value);
+            }).ToDictionary(kv => kv.Key, kv => kv.Value);
 
             ConfigureOutput(writer);
 
             try
             {
-                var result = Engine.Operations.Invoke(comm, parameters);
+                var result = PythonCalls.CallWithKeywordArgs(DefaultContext.Default, comm, parameters, keywordArguments);
                 if(result != null && (!(result is bool) || !(bool)result))
                 {
                     writer.WriteError(String.Format("Command {0} failed, returning \"{1}\".", command_name, result));
@@ -106,6 +134,20 @@ namespace Antmicro.Renode.UserInterface
             {
                 throw new RecoverableException(String.Format("Line : {0}\n{1}", e.Line, e.Message));
             }
+        }
+
+        private object GetTokenValue(Token token)
+        {
+            var value = token.GetObjectValue();
+            if(token is LiteralToken)
+            {
+                if(EmulationManager.Instance.CurrentEmulation.TryGetEmulationElementByName(value as string, monitor.Machine, out var emulationElement))
+                {
+                    return emulationElement;
+                }
+                throw new RecoverableException($"No such emulation element: {value}");
+            }
+            return value;
         }
 
         private object ExecutePythonScriptInner(ScriptSource script, ICommandInteraction writer)
@@ -143,9 +185,9 @@ namespace Antmicro.Renode.UserInterface
             streamToEventConverterForError.BytesWritten += bytes => writer.WriteError(utf8WithoutBom.GetString(bytes).Replace("\n", "\r\n"));
         }
 
-        private const string MonitorPyPath = "scripts/monitor.py";
         private StreamToEventConverter streamToEventConverter;
         private StreamToEventConverter streamToEventConverterForError;
+        private readonly Monitor monitor;
+        private const string MonitorPyPath = "scripts/monitor.py";
     }
 }
-

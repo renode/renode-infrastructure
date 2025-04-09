@@ -159,7 +159,10 @@ namespace Antmicro.Renode.Utilities.Binding
             var invoke = importType.GetMethod("Invoke");
             Type[] paramTypes = invoke.GetParameters().Select(p => p.ParameterType).ToArray();
             Type[] paramTypesWithWrappersType = new Type[] { wrappersType }.Concat(paramTypes).ToArray();
-            DynamicMethod method = new DynamicMethod(importField.Name, invoke.ReturnType, paramTypesWithWrappersType, wrappersType);
+            // We need skipVisibility to handle methods that have a protected or private type as a parameter or return value.
+            // Interesting tidbit: this access check is only performed by .NET Framework, Mono and .NET Core allow it
+            // without skipVisibility.
+            DynamicMethod method = new DynamicMethod(importField.Name, invoke.ReturnType, paramTypesWithWrappersType, wrappersType, skipVisibility: true);
             var il = method.GetILGenerator();
 
             il.Emit(OpCodes.Ldarg_0); // wrappersType instance
@@ -412,10 +415,19 @@ namespace Antmicro.Renode.Utilities.Binding
             return result;
         }
 
+        private static Type GetUnderlyingType(Type type)
+        {
+            return type.IsEnum ? type.GetEnumUnderlyingType() : type;
+        }
+
         // This method and the constants used in it are inspired by MakeNewCustomDelegate from .NET itself.
         // See https://github.com/dotnet/runtime/blob/8ca896c3f5ef8eb1317439178bf041b5f270f351/src/libraries/System.Linq.Expressions/src/System/Linq/Expressions/Compiler/DelegateHelpers.cs#L110
         private static Type DelegateTypeFromParamsAndReturn(IEnumerable<Type> parameterTypes, Type returnType, string name = null)
         {
+            // Convert enums to their underlying types to avoid creating needless additional delegate types
+            returnType = GetUnderlyingType(returnType);
+            parameterTypes = parameterTypes.Select(GetUnderlyingType);
+
             if(name == null)
             {
                 // The default naming mirrors the generic delegate types, but for functions, the return type comes first

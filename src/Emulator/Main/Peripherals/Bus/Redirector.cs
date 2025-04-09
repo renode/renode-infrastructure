@@ -75,12 +75,12 @@ namespace Antmicro.Renode.Peripherals.Bus
             throw new RecoverableException("Cannot translate address that does not lay in redirector.");
         }
 
-        public byte[] ReadBytes(long offset, int count, ICPU context = null)
+        public byte[] ReadBytes(long offset, int count, IPeripheral context = null)
         {
             return systemBus.ReadBytes(redirectedAddress + checked((ulong)offset), count, context: context);
         }
 
-        public void WriteBytes(long offset, byte[] array, int startingIndex, int count, ICPU context = null)
+        public void WriteBytes(long offset, byte[] array, int startingIndex, int count, IPeripheral context = null)
         {
             systemBus.WriteBytes(array, redirectedAddress + checked((ulong)offset), count, context: context);
         }

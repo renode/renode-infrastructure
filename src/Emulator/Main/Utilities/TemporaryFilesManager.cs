@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -10,6 +10,7 @@ using System.IO;
 using System.Linq;
 using System.Diagnostics;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -116,21 +117,30 @@ namespace Antmicro.Renode.Utilities
         private TemporaryFilesManager(string tempDirectory, string tempDirPrefix, bool cleanFiles)
         {
             shouldCleanFiles = cleanFiles;
+            var pid = Process.GetCurrentProcess().Id;
             if(AppDomain.CurrentDomain.IsDefaultAppDomain())
             {
-                id = Process.GetCurrentProcess().Id.ToString();
+                id = pid.ToString();
             }
             else
             {
-                id = string.Format("{0}-{1}", Process.GetCurrentProcess().Id, AppDomain.CurrentDomain.Id);
+                id = string.Format("{0}-{1}", pid, AppDomain.CurrentDomain.Id);
             }
             otherEmulatorTempPrefix = Path.Combine(tempDirectory, tempDirPrefix);
             emulatorTemporaryPath = otherEmulatorTempPrefix + id;
 
-            if(!Directory.Exists(emulatorTemporaryPath))
+            // Remove leftover directory from a previous run.
+            // This can happen with persistent temp directory (e.g., in Docker)
+            if(Directory.Exists(emulatorTemporaryPath))
             {
-                Directory.CreateDirectory(emulatorTemporaryPath);
+                if(!shouldCleanFiles)
+                {
+                    Logger.Log(LogLevel.Warning, "Clearing temporary directory with PID matching the currently running Renode instance ({0}) even though `--keep-temporary-files` is set, to ensure that Renode runs correctly", pid);
+                }
+                Directory.Delete(emulatorTemporaryPath, true);
             }
+            Directory.CreateDirectory(emulatorTemporaryPath);
+
             Cleanup();
         }
 

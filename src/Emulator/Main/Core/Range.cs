@@ -9,6 +9,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Core
@@ -86,7 +87,8 @@ namespace Antmicro.Renode.Core
 
         public bool IsAdjacentTo(Range range)
         {
-            return (StartAddress == range.EndAddress + 1) || (EndAddress == range.StartAddress - 1);
+            return (StartAddress != 0x0 && StartAddress == range.EndAddress + 1) 
+                    || (EndAddress != ulong.MaxValue && EndAddress == range.StartAddress - 1);
         }
 
         public List<Range> Subtract(Range sub)
@@ -224,16 +226,20 @@ namespace Antmicro.Renode.Core
         }
     }
 
-    public class MinimalRangesCollection : IEnumerable<Range>
+    public interface IReadOnlyMinimalRangesCollection : IEnumerable<Range>
+    {
+        bool ContainsOverlappingRange(Range range);
+        bool ContainsWholeRange(Range range);
+        bool ContainsPoint(ulong point);
+    }
+
+    public class MinimalRangesCollection : IReadOnlyMinimalRangesCollection, ICoalescable<MinimalRangesCollection>
     {
         public MinimalRangesCollection(IEnumerable<Range> rangeEnumerable = null)
         {
             if(rangeEnumerable != null)
             {
-                foreach(var range in rangeEnumerable)
-                {
-                    Add(range);
-                }
+                AddAll(rangeEnumerable);
             }
         }
 
@@ -253,6 +259,19 @@ namespace Antmicro.Renode.Core
             ranges.Add(range);
         }
 
+        public void AddAll(IEnumerable<Range> source)
+        {
+            foreach(var range in source)
+            {
+                Add(range);
+            }
+        }
+
+        public void Coalesce(MinimalRangesCollection source)
+        {
+            AddAll(source.AsEnumerable());
+        }
+
         public void Clear()
         {
             ranges.Clear();
@@ -267,6 +286,11 @@ namespace Antmicro.Renode.Core
         {
             // Ranges are merged when added to the collection which means it's only possible if one of elements contains this whole range.
             return ranges.Any(existingRange => existingRange.Contains(range));
+        }
+
+        public bool ContainsPoint(ulong point)
+        {
+            return ranges.Any(existingRange => existingRange.Contains(point));
         }
 
         public IEnumerator GetEnumerator()

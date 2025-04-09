@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2022 Antmicro
+// Copyright (c) 2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -30,7 +30,13 @@ namespace Antmicro.Renode.UI
             {
                 mappedName = libraryName;
             }
-            return NativeLibrary.Load(mappedName, assembly, dllImportSearchPath);
+            // First try loading the library normally, then retry falling back to libraries from homebrew, which
+            // are installed to /opt/homebrew/lib on macOS/ARM64, which is not on the dyld search path.
+            if(NativeLibrary.TryLoad(mappedName, assembly, dllImportSearchPath, out var handle))
+            {
+                return handle;
+            }
+            return NativeLibrary.Load(Path.Combine("/opt/homebrew/lib", mappedName), assembly, dllImportSearchPath);
         }
 
         // Parse the dll.config file and map the old name to the new name of a library.

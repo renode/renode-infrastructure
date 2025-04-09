@@ -20,9 +20,10 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
 {
     public class PerfettoProfiler : BaseProfiler
     {
-        public PerfettoProfiler(TranslationCPU cpu, string filename, bool flushInstantly, bool enableMultipleTracks)
-            : base(cpu, filename, flushInstantly)
+        public PerfettoProfiler(TranslationCPU cpu, string filename, bool flushInstantly, bool enableMultipleTracks, long? fileSizeLimit = null, int? maximumNestedContexts = null)
+            : base(cpu, flushInstantly, maximumNestedContexts)
         {
+            this.fileSizeLimit = fileSizeLimit;
             this.enableMultipleTracks = enableMultipleTracks;
             lastInterruptExitTime = ulong.MaxValue;
             fileStream = File.Open(filename, FileMode.OpenOrCreate);
@@ -73,6 +74,10 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
             CheckAndFlush(time);
         }
 
+        public override void OnStackPointerChange(ulong address, ulong oldSPValue, ulong newSPValue, ulong instructionsCount)
+        {
+        }
+
         public override void OnContextChange(ulong newContextId)
         {
             if(newContextId == currentContextId)
@@ -90,7 +95,7 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
             {
                 writer.CreateEventEnd(time, track);
             }
-            currentContext.PushCurrentStack();
+            PushCurrentContextSafe();
 
             // Get the new thread's execution and restore the events
             if(!wholeExecution.ContainsKey(newContextId))
@@ -141,7 +146,7 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
                 FinishCurrentStack(time, currentTrack);
             }
 
-            currentContext.PushCurrentStack();
+            PushCurrentContextSafe();
             cpu.Log(LogLevel.Debug, "Profiler: Interrupt entry (pc 0x{0:X})- saving the stack", cpu.PC);
             CheckAndFlush(time);
         }
@@ -173,14 +178,28 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
 
         public override void FlushBuffer()
         {
-            if(blockFlush)
+            // DisableProfiler() calls Dispose() which calls FlushBuffer()
+            // `isDisposing` flag is required to prevent an infinite loop
+            if(blockFlush || isDisposing)
             {
                 return;
             }
 
             lock(bufferLock)
             {
-                writer.FlushBuffer(fileStream);
+                // Write to MemoryStream first so we can check the serialized length against the limit
+                var memoryStream = new MemoryStream();
+                writer.FlushBuffer(memoryStream);
+
+                if(fileSizeLimit.HasValue && (fileStream.Length + memoryStream.Length) > fileSizeLimit)
+                {
+                    isDisposing = true;
+                    cpu.Log(LogLevel.Warning, "Profiler: Maximum file size exceeded, removing profiler");
+                    cpu.DisableProfiler();
+                    return;
+                }
+
+                memoryStream.WriteTo(fileStream);
             }
         }
 
@@ -214,9 +233,11 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
         }
 
         private readonly PerfettoTraceWriter writer;
-        private readonly FileStream fileStream;
         private readonly bool enableMultipleTracks;
+        private readonly FileStream fileStream;
+        private readonly long? fileSizeLimit;
 
+        private bool isDisposing;
         private bool blockFlush;
         private ulong lastInterruptExitTime;
         private ulong currentTrack;

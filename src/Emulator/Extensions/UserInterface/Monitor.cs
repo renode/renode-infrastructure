@@ -688,6 +688,11 @@ namespace Antmicro.Renode.UserInterface
             return pythonRunner.ExecutePythonCommand(command, Interaction);
         }
 
+        public object GetVariable(string name)
+        {
+            return variables.GetOrDefault(GetVariableName(name))?.GetObjectValue();
+        }
+
         private bool TryGetFilenameFromAvailablePaths(string fileName, out string fullPath)
         {
             fullPath = String.Empty;

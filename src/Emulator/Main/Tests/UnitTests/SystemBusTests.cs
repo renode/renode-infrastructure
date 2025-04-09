@@ -419,10 +419,10 @@ namespace Antmicro.Renode.UnitTests
 
             var accessMethods = new dynamic []
             {
-                Tuple.Create((Func<ulong, ICPU, byte>)sysbus.ReadByte, (Action<ulong, byte, ICPU>)sysbus.WriteByte),
-                Tuple.Create((Func<ulong, ICPU, ushort>)sysbus.ReadWord, (Action<ulong, ushort, ICPU>)sysbus.WriteWord),
-                Tuple.Create((Func<ulong, ICPU, uint>)sysbus.ReadDoubleWord, (Action<ulong, uint, ICPU>)sysbus.WriteDoubleWord),
-                Tuple.Create((Func<ulong, ICPU, ulong>)sysbus.ReadQuadWord, (Action<ulong, ulong, ICPU>)sysbus.WriteQuadWord),
+                Tuple.Create((Func<ulong, IPeripheral, ulong?, byte>)sysbus.ReadByte, (Action<ulong, byte, IPeripheral, ulong?>)sysbus.WriteByte),
+                Tuple.Create((Func<ulong, IPeripheral, ulong?, ushort>)sysbus.ReadWord, (Action<ulong, ushort, IPeripheral, ulong?>)sysbus.WriteWord),
+                Tuple.Create((Func<ulong, IPeripheral, ulong?, uint>)sysbus.ReadDoubleWord, (Action<ulong, uint, IPeripheral, ulong?>)sysbus.WriteDoubleWord),
+                Tuple.Create((Func<ulong, IPeripheral, ulong?, ulong>)sysbus.ReadQuadWord, (Action<ulong, ulong, IPeripheral, ulong?>)sysbus.WriteQuadWord),
             };
 
             for(var i = 0; i < accessMethods.Length; i++)
@@ -440,15 +440,15 @@ namespace Antmicro.Renode.UnitTests
                 for(var offset = 0; offset < 64; offset += width)
                 {
                     var value = type(BitHelper.GetValue(testValue, offset, width));
-                    write(address + (ulong)offset / 8, value, null);
-                    Assert.AreEqual(value, read(address + (ulong)offset / 8, null));
+                    write(address + (ulong)offset / 8, value, null, null);
+                    Assert.AreEqual(value, read(address + (ulong)offset / 8, null, null));
                 }
 
                 sysbus.EnableAllTranslations(false);
 
                 for(var offset = 0; offset < 64; offset += width)
                 {
-                    Assert.AreEqual(0x0, read(address + (ulong)offset / 8, null));
+                    Assert.AreEqual(0x0, read(address + (ulong)offset / 8, null, null));
                 }
 
                 sysbus.EnableAllTranslations();

@@ -729,6 +729,13 @@ namespace Antmicro.Renode.Core.Structure.Registers
                             changedRegisters.Add(registerField);
                         }
                         break;
+                    case FieldMode.WriteToClear:
+                        if(BitHelper.AreAnyBitsSet(UnderlyingValue, registerField.position, registerField.width))
+                        {
+                            BitHelper.ClearBits(ref UnderlyingValue, registerField.position, registerField.width);
+                            changedRegisters.Add(registerField);
+                        }
+                        break;
                 }
             }
             foreach(var registerField in registerFields)
