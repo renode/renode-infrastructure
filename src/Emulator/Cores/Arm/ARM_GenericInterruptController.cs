@@ -146,7 +146,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 throw new RecoverableException($"The CPU with the Processor Number {processorNumber} already exists.");
             }
-            if(cpuEntries.Values.Any(entry => entry.Affinity.AllLevels == cpu.Affinity.AllLevels))
+            if(cpuEntries.Values.Any(entry => entry.affinity.AllLevels == cpu.Affinity.AllLevels))
             {
                 throw new RecoverableException($"The CPU with the affinity {cpu.Affinity} already exists.");
             }
@@ -178,7 +178,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             Connections = new ReadOnlyDictionary<int, IGPIO>(Connections.Concat(cpuConnections).ToDictionary(x => x.Key, x => x.Value));
 
             // SGIs require an information about a requesting CPU when Affinity Routing is disabled.
-            foreach(var requester in cpuEntries.Values.Where(req => req.ProcessorNumber < CPUsCountLegacySupport))
+            foreach(var requester in cpuEntries.Values.Where(req => req.processorNumber < CPUsCountLegacySupport))
             {
                 cpuEntry.RegisterLegacySGIRequester(requester);
             }
@@ -189,7 +189,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             if(processorNumber < CPUsCountLegacySupport)
             {
-                legacyCpusAttachedMask |= cpuEntry.TargetFieldFlag;
+                legacyCpusAttachedMask |= cpuEntry.targetFieldFlag;
                 // The new attached CPU need to be registered for all CPUs including itself.
                 foreach(var target in cpuEntries.Values)
                 {
@@ -430,7 +430,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         public IEnumerable<DoubleWordRegister> BuildPrivateInterruptTargetsRegisters(InterruptId startId, InterruptId endId, string name)
         {
             return BuildInterruptValueRegisters(startId, endId, name, 4,
-                valueProviderCallback: _ => GetAskingCPUEntry().TargetFieldFlag
+                valueProviderCallback: _ => GetAskingCPUEntry().targetFieldFlag
             );
         }
 
@@ -761,7 +761,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 if(!target.SoftwareGeneratedInterruptsLegacyRequester.TryGetValue(requestingCPU, out var interrupts))
                 {
-                    this.Log(LogLevel.Warning, "The GIC doesn't support requesting an SGI from the CPU with the Processor Number ({0}) greater than {1}, request ignored.", requestingCPU.ProcessorNumber, CPUsCountLegacySupport - 1);
+                    this.Log(LogLevel.Warning, "The GIC doesn't support requesting an SGI from the CPU with the Processor Number ({0}) greater than {1}, request ignored.", requestingCPU.processorNumber, CPUsCountLegacySupport - 1);
                     return;
                 }
 
@@ -1691,7 +1691,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     valueProviderCallback: _ =>
                     {
                         var irqId = (uint)GetAskingCPUEntry().AcknowledgeBestPending(groupTypeRegisterProvider(), out var requester);
-                        var cpuId = useCPUIdentifier ? requester?.ProcessorNumber ?? 0 : 0;
+                        var cpuId = useCPUIdentifier ? requester?.processorNumber ?? 0 : 0;
                         return cpuId << 10 | irqId;
                     }
                 );
@@ -2034,7 +2034,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 if(forcedTargettedCpuForAffinityRouting == null)
                 {
-                    forcedTargettedCpuForAffinityRouting = cpuEntries.Values.Where(cpu => cpu.IsParticipatingInRouting).MinBy(cpu => cpu.Affinity.AllLevels);
+                    forcedTargettedCpuForAffinityRouting = cpuEntries.Values.Where(cpu => cpu.IsParticipatingInRouting).MinBy(cpu => cpu.affinity.AllLevels);
                 }
                 return forcedTargettedCpuForAffinityRouting;
             }
@@ -2090,10 +2090,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 this.gic = gic;
                 this.cpu = cpu;
-                ProcessorNumber = GetProcessorNumber(cpu);
-                TargetFieldFlag = ProcessorNumber <= CPUsCountLegacySupport ? 1U << (int)ProcessorNumber : 0;
-                Affinity = cpu.Affinity;
-                Name = $"cpu{Affinity}";
+                processorNumber = GetProcessorNumber(cpu);
+                targetFieldFlag = processorNumber <= CPUsCountLegacySupport ? 1U << (int)processorNumber : 0;
+                affinity = cpu.Affinity;
+                Name = $"cpu{affinity}";
                 interruptSignals = interruptConnections;
 
                 var sgiIds = InterruptId.GetRange(gic.IrqsDecoder.SoftwareGeneratedFirst, gic.IrqsDecoder.SoftwareGeneratedLast);
@@ -2471,9 +2471,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             public uint EOICount { get; private set; }
             public NonSecureAccess[] NonSecureSGIAccess { get; } = new NonSecureAccess[InterruptsDecoder.SoftwareGeneratedCount];
 
-            public readonly uint ProcessorNumber;
-            public readonly uint TargetFieldFlag;
-            public readonly Affinity Affinity;
+            public readonly uint processorNumber;
+            public readonly uint targetFieldFlag;
+            public readonly Affinity affinity;
 
             public const int EOICountWidth = 5;
             public const int EOICountMask = (1 << EOICountWidth) - 1;
@@ -2542,7 +2542,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         {
                             logMessage += " Request will be ignored.";
                         }
-                        gic.Log(LogLevel.Warning, logMessage, registerTypeName, accessingCPU.Affinity, interrupt.Identifier, sgi.Requester.Affinity);
+                        gic.Log(LogLevel.Warning, logMessage, registerTypeName, accessingCPU.affinity, interrupt.Identifier, sgi.Requester.affinity);
 
                         if(gic.ArchitectureVersionAtLeast3)
                         {
@@ -2557,9 +2557,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         }
                     }
                 }
-                else if(accessingCPU != null && accessingCPU.ProcessorNumber != 0)
+                else if(accessingCPU != null && accessingCPU.processorNumber != 0)
                 {
-                    gic.Log(LogLevel.Debug, "{0}: Processor Number ({1}) passed for non-SGI interrupt ({2}).", registerTypeName, accessingCPU.ProcessorNumber, interrupt.Identifier);
+                    gic.Log(LogLevel.Debug, "{0}: Processor Number ({1}) passed for non-SGI interrupt ({2}).", registerTypeName, accessingCPU.processorNumber, interrupt.Identifier);
                 }
                 return true;
             }
@@ -2570,7 +2570,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 {
                     {(long)RedistributorRegisters.ControllerType, new QuadWordRegister(this)
                         .WithValueField(32, 32, FieldMode.Read, name: "CPUAffinity",
-                            valueProviderCallback: _ => this.Affinity.AllLevels
+                            valueProviderCallback: _ => this.affinity.AllLevels
                         )
                         .WithValueField(27, 5, FieldMode.Read, name: "MaximumPrivatePeripheralInterruptIdentifier",
                             valueProviderCallback: _ => 0b00 // The maximum PPI identifier is 31, because the GIC doesn't support an extended range of PPI
@@ -2580,7 +2580,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         )
                         .WithTag("LocalitySpecificInterruptConfigurationSharing", 24, 2)
                         .WithValueField(8, 16, FieldMode.Read, name: "ProcessorNumber",
-                            valueProviderCallback: _ => this.ProcessorNumber
+                            valueProviderCallback: _ => this.processorNumber
                         )
                         .WithTaggedFlag("vPEResidentIndicator", 7)
                         .WithFlag(6, FieldMode.Read, name: "MPAMSupport",
@@ -3139,17 +3139,17 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             public bool IsLegacyRoutingTargetingCPU(CPUEntry cpu)
             {
-                return (TargetCPUs & cpu.TargetFieldFlag) != 0;
+                return (TargetCPUs & cpu.targetFieldFlag) != 0;
             }
 
             public bool IsLowestLegacyRoutingTargettedCPU(CPUEntry cpu)
             {
-                return (TargetCPUs & (cpu.TargetFieldFlag - 1)) == 0;
+                return (TargetCPUs & (cpu.targetFieldFlag - 1)) == 0;
             }
 
             public bool IsAffinityRoutingTargetingCPU(CPUEntry cpu)
             {
-                if(RoutingMode == InterruptRoutingMode.AnyTarget || TargetAffinity.AllLevels == cpu.Affinity.AllLevels)
+                if(RoutingMode == InterruptRoutingMode.AnyTarget || TargetAffinity.AllLevels == cpu.affinity.AllLevels)
                 {
                     return cpu.IsParticipatingInRouting;
                 }
@@ -3158,7 +3158,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             public bool IsLowestAffinityRoutingTargettedCPU(CPUEntry cpu, ARM_GenericInterruptController gic)
             {
-                return cpu.IsParticipatingInRouting && (RoutingMode == InterruptRoutingMode.SpecifiedTarget ? TargetAffinity.AllLevels == cpu.Affinity.AllLevels : cpu == gic.ForcedTargettingCpuForAffinityRouting);
+                return cpu.IsParticipatingInRouting && (RoutingMode == InterruptRoutingMode.SpecifiedTarget ? TargetAffinity.AllLevels == cpu.affinity.AllLevels : cpu == gic.ForcedTargettingCpuForAffinityRouting);
             }
 
             public byte TargetCPUs { get; set; }
