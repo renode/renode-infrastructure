@@ -149,12 +149,20 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         protected void OnContextChange(ulong threadId)
         {
+            if(profiler == null)
+            {
+                return;
+            }
             profiler.OnContextChange(threadId);
         }
 
         [Export]
         protected void OnStackPointerChange(ulong address, ulong oldPointerValue, ulong newPointerValue, ulong instructionsCount)
         {
+            if(profiler == null)
+            {
+                return;
+            }
             profiler.OnStackPointerChange(address, oldPointerValue, newPointerValue, instructionsCount);
         }
 
