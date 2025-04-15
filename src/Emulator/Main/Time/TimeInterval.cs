@@ -31,11 +31,49 @@ namespace Antmicro.Renode.Time
 
         public static bool TryParse(string input, out TimeInterval output)
         {
-            var m = Regex.Match(input, @"(((?<hours>[0-9]+):)?(?<minutes>[0-9]+):)?(?<seconds>[0-9]+)(?<decimals>\.[0-9]+)?");
+            var m = Regex.Match(input, @"(((?<hours>[0-9]+):)?(?<minutes>[0-9]+):)?(?<seconds>[0-9]+)(?<decimals>\.[0-9]+)?$");
+            ulong ticks = 0;
             if(!m.Success)
             {
-                output = Empty;
-                return false;
+                if(input.Trim() == "infinity")
+                {
+                    output = TimeInterval.Maximal;
+                    return true;
+                }
+
+                m = Regex.Match(input, @"(?<value>[0-9]+)\s*(?<unit>h|m|s|ms|us|ns)$");
+                if(!m.Success)
+                {
+                    output = Empty;
+                    return false;
+                }
+                ticks = ulong.Parse(m.Groups["value"].Value);
+                switch(m.Groups["unit"].Value)
+                {
+                    case "h":
+                        ticks *= TicksPerSecond * 3600;
+                        break;
+                    case "m":
+                        ticks *= TicksPerSecond * 60;
+                        break;
+                    case "s":
+                        ticks *= TicksPerSecond;
+                        break;
+                    case "ms":
+                        ticks *= TicksPerMillisecond;
+                        break;
+                    case "us":
+                        ticks *= TicksPerMicrosecond;
+                        break;
+                    case "ns":
+                        ticks *= TicksPerNanosecond;
+                        break;
+                    default:
+                        output = Empty;
+                        return false;
+                }
+                output = new TimeInterval(ticks);
+                return true;
             }
 
             var hours = m.Groups["hours"].Success ? ulong.Parse(m.Groups["hours"].Value) : 0;
@@ -44,7 +82,6 @@ namespace Antmicro.Renode.Time
             // For convenience we parse "decimals" as fraction of a second, and so we multiply this by the number of ticks in a second
             var decimals = m.Groups["decimals"].Success ? (ulong)(double.Parse($"0{m.Groups["decimals"].Value}", CultureInfo.InvariantCulture) * TicksPerSecond) : 0;
 
-            ulong ticks = 0;
             ticks += decimals;
             ticks += seconds * TicksPerSecond;
             ticks += minutes * (60 * TicksPerSecond);
