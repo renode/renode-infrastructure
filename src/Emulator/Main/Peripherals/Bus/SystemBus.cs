@@ -219,19 +219,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 {
                     throw new RegistrationException("Currently cannot register CPU after some memory mappings have been dynamically removed.");
                 }
-                if(!registrationPoint.Slot.HasValue)
-                {
-                    var i = 0;
-                    while(cpuById.ContainsKey(i))
-                    {
-                        i++;
-                    }
-                    registrationPoint = new CPURegistrationPoint(i);
-                }
-                Machine.RegisterAsAChildOf(this, cpu, registrationPoint);
-                cpuById.Add(registrationPoint.Slot.Value, cpu);
-                idByCpu.Add(cpu, registrationPoint.Slot.Value);
-                AddContextKeys(cpu);
+
                 if(cpu is ICPUWithMappedMemory memoryMappedCpu)
                 {
                     foreach(var mapping in mappingsForPeripheral.SelectMany(x => x.Value)
@@ -251,6 +239,22 @@ namespace Antmicro.Renode.Peripherals.Bus
                 {
                     throw new RegistrationException("Currently there can't be CPUs with different endiannesses on the same bus.");
                 }
+
+                // This must be the very last step after all conditions have been validated and we are committed to registering
+                // this CPU.
+                if(!registrationPoint.Slot.HasValue)
+                {
+                    var i = 0;
+                    while(cpuById.ContainsKey(i))
+                    {
+                        i++;
+                    }
+                    registrationPoint = new CPURegistrationPoint(i);
+                }
+                Machine.RegisterAsAChildOf(this, cpu, registrationPoint);
+                cpuById.Add(registrationPoint.Slot.Value, cpu);
+                idByCpu.Add(cpu, registrationPoint.Slot.Value);
+                AddContextKeys(cpu);
             }
         }
 
