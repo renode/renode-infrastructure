@@ -57,7 +57,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             isPaused = true;
 
             singleStepSynchronizer = new Synchronizer();
-            EmulationManager.Instance.CurrentEmulation.SingleStepBlockingChanged += () => UpdateHaltedState();
+            EmulationManager.Instance.CurrentEmulation.SingleStepBlockingChanged += UpdateHaltedState;
 
             Clustered = new BaseCPU[] { this };
         }
@@ -459,6 +459,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             Pause(new HaltArguments(HaltReason.Abort, this), checkPauseGuard: false);
             singleStepSynchronizer.Enabled = false;
             cpuThreadCopy?.Join();
+            EmulationManager.Instance.CurrentEmulation.SingleStepBlockingChanged -= UpdateHaltedState;
         }
 
         protected void InvokeHalted(HaltArguments arguments)
@@ -928,6 +929,12 @@ restart:
                 }
             }
             PC = entryPoint;
+        }
+
+        // For use as an event callback to allow unregistering.
+        private void UpdateHaltedState()
+        {
+            UpdateHaltedState(ignoreExecutionMode: false);
         }
 
         [Transient]
