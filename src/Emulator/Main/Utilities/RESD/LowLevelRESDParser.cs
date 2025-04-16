@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -154,6 +154,10 @@ namespace Antmicro.Renode.Utilities.RESD
                     {
                         case BlockType.ConstantFrequencySamples:
                             dataBlockType = typeof(ConstantFrequencySamplesDataBlock<>).MakeGenericType(new[] { classType });
+                            break;
+
+                        case BlockType.ArbitraryTimestampSamples:
+                            dataBlockType = typeof(ArbitraryTimestampSamplesDataBlock<>).MakeGenericType(new[] { classType });
                             break;
 
                         default:

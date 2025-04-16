@@ -33,10 +33,15 @@ namespace Antmicro.Renode.Utilities.RESD
             return true;
         }
 
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         public abstract int? Width { get; }
         public abstract bool TryReadFromStream(SafeBinaryReader reader);
 
-        public IDictionary<string, MetadataValue> Metadata { get; private set; }
+        public virtual IDictionary<string, MetadataValue> Metadata { get; private set; }
 
         // Ensure decimal dots are always used regardless of the system locale
         // for consistent output formatting.

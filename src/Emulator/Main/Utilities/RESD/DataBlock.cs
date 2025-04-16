@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -206,6 +206,234 @@ namespace Antmicro.Renode.Utilities.RESD
         private readonly Lazy<ulong> samplesCount;
 
         private const decimal NanosecondsInSecond = 1e9m;
+    }
+
+    public class ArbitraryTimestampSamplesDataBlock<T> : DataBlock<T> where T : RESDSample, new()
+    {
+        public static ArbitraryTimestampSamplesDataBlock<T> ReadFromStream(DataBlockHeader header, SafeBinaryReader reader)
+        {
+            var startTime = reader.ReadUInt64();
+
+            return new ArbitraryTimestampSamplesDataBlock<T>(header, startTime, reader);
+        }
+
+        public override RESDStreamStatus TryGetSample(ulong timestamp, out T sample)
+        {
+            if(Interlocked.Exchange(ref usingReader, 1) != 0)
+            {
+                throw new RESDException("Trying to call TryGetSample when using Samples iterator");
+            }
+
+            var result = RESDStreamStatus.OK;
+            using(DisposableWrapper.New(() => Interlocked.Exchange(ref usingReader, 0)))
+            {
+                if(timestamp < CurrentTimestamp)
+                {
+                    // we don't support moving back in time
+                    sample = null;
+                    return RESDStreamStatus.BeforeStream;
+                }
+                var wrappedSample = samplesData.GetCurrentSample();
+
+                while(StartTime + wrappedSample.Timestamp <= timestamp)
+                {
+                    if(!samplesData.Move(1))
+                    {
+                        // past the current block
+                        currentWrappedSample = samplesData.GetCurrentSample();
+                        result = RESDStreamStatus.AfterStream;
+                        break;
+                    }
+                    // currentWrappedSample is not synnchronized with samplesData.GetCurrentSample
+                    // as it is used to peek for the next timestamp
+                    currentWrappedSample = (TimestampedRESDSample)wrappedSample.Clone();
+                    wrappedSample = samplesData.GetCurrentSample();
+                }
+
+                sample = CurrentSample;
+            }
+
+            return result;
+        }
+
+        public override ulong StartTime { get; }
+        public override T CurrentSample => currentWrappedSample.Sample;
+        public override ulong CurrentTimestamp => StartTime + currentWrappedSample.Timestamp;
+        public override ulong SamplesCount => samplesCount.Value;
+        public override ulong Duration => duration.Value;
+        public override IDictionary<String, String> ExtraInformation => new Dictionary<String, String>();
+
+        public override IEnumerable<KeyValuePair<TimeInterval, RESDSample>> Samples
+        {
+            get
+            {
+                if(Interlocked.Exchange(ref usingReader, 1) != 0)
+                {
+                    throw new RESDException("Trying to use Samples iterator during TryGetSample");
+                }
+                using(reader.Checkpoint)
+                {
+                    reader.BaseStream.Seek(samplesData.SampleDataOffset, SeekOrigin.Begin);
+
+                    var currentTime = StartTime;
+                    var currentSample = new TimestampedRESDSample();
+
+                    while(!reader.EOF && currentSample.TryReadFromStream(reader))
+                    {
+                        currentTime = StartTime + currentSample.Timestamp;
+                        yield return new KeyValuePair<TimeInterval, RESDSample>(TimeInterval.FromNanoseconds(currentTime), currentSample.Sample);
+                        currentSample = new TimestampedRESDSample();
+                    }
+                }
+                Interlocked.Exchange(ref usingReader, 0);
+            }
+        }
+
+        private ArbitraryTimestampSamplesDataBlock(DataBlockHeader header, ulong startTime, SafeBinaryReader reader) : base(header)
+        {
+            this.reader = reader;
+            this.samplesData = new SamplesData<TimestampedRESDSample>(reader);
+
+            StartTime = startTime;
+            currentWrappedSample = samplesData.GetCurrentSample();
+
+            var packets = 0UL;
+            var lastTimestamp = 0UL;
+
+            samplesCount = new Lazy<ulong>(() =>
+            {
+                if(!duration.IsValueCreated)
+                {
+                    GetSamplesCountAndDuration(out packets, out lastTimestamp);
+                }
+                return packets;
+            });
+
+            duration = new Lazy<ulong>(() =>
+            {
+                if(!samplesCount.IsValueCreated)
+                {
+                    GetSamplesCountAndDuration(out packets, out lastTimestamp);
+                }
+                return lastTimestamp;
+            });
+        }
+
+        private void GetSamplesCountAndDuration(out ulong packets, out ulong lastTimestamp)
+        {
+            packets = 0;
+            lastTimestamp = 0;
+
+            using(reader.Checkpoint)
+            {
+                reader.BaseStream.Seek(samplesData.SampleDataOffset, SeekOrigin.Begin);
+                if(reader.EOF)
+                {
+                    return;
+                }
+
+                var sample = new TimestampedRESDSample();
+                while(sample.Skip(reader, 1))
+                {
+                    lastTimestamp = sample.Timestamp;
+                    packets += 1;
+                }
+            }
+        }
+
+        private TimestampedRESDSample currentWrappedSample;
+        private int usingReader;
+
+        private readonly SafeBinaryReader reader;
+        private readonly SamplesData<TimestampedRESDSample> samplesData;
+        private readonly Lazy<ulong> samplesCount;
+        private readonly Lazy<ulong> duration;
+
+        private class TimestampedRESDSample : RESDSample, IAutoLoadType
+        {
+            public override void ReadMetadata(SafeBinaryReader reader) => Sample.ReadMetadata(reader);
+
+            public override bool Skip(SafeBinaryReader reader, int count)
+            {
+                if(count < 0)
+                {
+                    throw new RESDException($"This sample type ({Sample.GetType().Name}) doesn't allow for skipping data backwards.");
+                }
+
+                if(count == 0)
+                {
+                    return true;
+                }
+
+                if(!Width.HasValue)
+                {
+                    return SkipWithDynamicWidth(reader, count);
+                }
+
+                if(reader.BaseStream.Position + count * Width.Value > reader.Length)
+                {
+                    return false;
+                }
+
+                if(count > 1)
+                {
+                    reader.SkipBytes((count - 1) * Width.Value);
+                }
+
+                Timestamp = reader.ReadUInt64();
+                reader.SkipBytes(Sample.Width.Value);
+                return true;
+            }
+
+            public override object Clone()
+            {
+                var cloned = (TimestampedRESDSample)base.Clone();
+                cloned.Sample = (T)this.Sample.Clone();
+                return cloned;
+            }
+
+            public override bool TryReadFromStream(SafeBinaryReader reader)
+            {
+                Timestamp = reader.ReadUInt64();
+
+                return Sample.TryReadFromStream(reader);
+            }
+
+            public override string ToString()
+            {
+                return $"{Sample} @ {Timestamp}";
+            }
+
+            public override int? Width => TimestampSize + Sample.Width;
+
+            public override IDictionary<string, MetadataValue> Metadata => Sample.Metadata;
+
+            public T Sample { get; private set; } = new T();
+
+            public ulong Timestamp { get; private set; }
+
+            private bool SkipWithDynamicWidth(SafeBinaryReader reader, int count)
+            {
+                for(var i = 0; i < count; ++i)
+                {
+                    if(reader.BaseStream.Position + TimestampSize > reader.Length)
+                    {
+                        return false;
+                    }
+
+                    Timestamp = reader.ReadUInt64();
+
+                    if(!Sample.Skip(reader, 1))
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+
+            private const int TimestampSize = 8;
+        }
     }
 
     public enum BlockType
