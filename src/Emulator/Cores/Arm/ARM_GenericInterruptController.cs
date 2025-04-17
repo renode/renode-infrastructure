@@ -2019,9 +2019,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             switch(cpu.Model)
             {
-                // For Cortex-A55 core number is stored in affinity level 1.
+                // For armv8.2 core number is stored in affinity level 1.
                 // In older CPUs (i.e. Cortex-A53) it's stored in affinity level 0.
                 case "cortex-a55":
+                case "cortex-a78":
                     return BitHelper.GetValue(cpu.MultiprocessingId, 8, 8);
                 default:
                     return BitHelper.GetValue(cpu.MultiprocessingId, 0, 8);
