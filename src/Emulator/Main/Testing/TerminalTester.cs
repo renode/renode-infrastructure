@@ -19,6 +19,7 @@ using System.Threading;
 using Antmicro.Renode.Backends.Terminals;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Debugging;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.UART;
 using Antmicro.Renode.Time;
@@ -42,6 +43,7 @@ namespace Antmicro.Renode.Testing
             currentLineBuffer = new SafeStringBuilder();
             sgrDecodingBuffer = new SafeStringBuilder();
             report = new SafeStringBuilder();
+            failingStrings = new List<FailingString>();
         }
 
         public override void AttachTo(IUART uart)
@@ -120,27 +122,30 @@ namespace Antmicro.Renode.Testing
                     return;
                 }
 
-                testerResult = resultMatcher.Invoke();
-#if DEBUG_EVENTS
-                this.Log(LogLevel.Noisy, "Matching result: {0}", testerResult);
-#endif
-                // If there was no match, we just keep waiting
                 if(testerResult == null)
                 {
+                    // First check for failing strings
+                    testerResult = MatchFailingStrings() ?? resultMatcher.Invoke();
+#if DEBUG_EVENTS
+                    this.Log(LogLevel.Noisy, "Matching result: {0}", testerResult);
+#endif
+                }
+                // If there was no match, we just keep waiting
+                if(testerResult != null)
+                {
+                    // Stop matching if we have already matched something
+                    resultMatcher = null;
+
+                    if(pauseEmulation)
+                    {
+                        machine.PauseAndRequestEmulationPause(precise: true);
+                        pauseEmulation = false;
+                    }
+
+                    matchEvent.Set();
                     return;
                 }
-
-                // Stop matching if we have already matched something
-                resultMatcher = null;
-
-                if(pauseEmulation)
-                {
-                    machine.PauseAndRequestEmulationPause(precise: true);
-                    pauseEmulation = false;
-                }
             }
-
-            matchEvent.Set();
         }
 
         public TerminalTesterResult WaitFor(string pattern, TimeInterval? timeout = null, bool treatAsRegex = false, bool includeUnfinishedLine = false, bool pauseEmulation = false, bool matchNextLine = false)
@@ -174,7 +179,6 @@ namespace Antmicro.Renode.Testing
                 }
 
                 return CheckUnfinishedLine(pattern, treatAsRegex, eventName, matchAtStart: matchNextLine);
-
             }, timeout ?? GlobalTimeout, pauseEmulation);
 
             if(result == null)
@@ -298,6 +302,19 @@ namespace Antmicro.Renode.Testing
             return generatedReport;
         }
 
+        public void RegisterFailingString(string pattern, bool treatAsRegex)
+        {
+            failingStrings.Add(new FailingString(pattern, treatAsRegex));
+        }
+
+        public void UnregisterFailingString(string pattern, bool treatAsRegex)
+        {
+            if(!failingStrings.Remove(new FailingString(pattern, treatAsRegex)))
+            {
+                throw new RecoverableException("Unable to unregister failing string, entry not found");
+            }
+        }
+
         public TimeInterval GlobalTimeout { get; set; }
         public TimeSpan WriteCharDelay { get; set; }
         public bool BinaryMode => binaryMode;
@@ -336,7 +353,7 @@ namespace Antmicro.Renode.Testing
                 this.pauseEmulation = pauseEmulation;
 
                 // Handle the case where the match has already happened
-                immediateResult = resultMatcher.Invoke();
+                immediateResult = MatchFailingStrings() ?? resultMatcher.Invoke();
                 if(immediateResult != null)
                 {
                     // Prevent matching in CharReceived in this case
@@ -702,6 +719,20 @@ namespace Antmicro.Renode.Testing
             report.AppendFormat("([host: {2}, virt: {3, 7}] {0} event: {1})\n", eventName, what, CustomDateTime.Now, virtMs);
         }
 
+        private TerminalTesterResult MatchFailingStrings()
+        {
+            foreach(var failingString in failingStrings)
+            {
+                var lineMatch = CheckFinishedLines(failingString.pattern, failingString.treatAsRegex, "error", false);
+                if(lineMatch != null)
+                {
+                    lineMatch.isFailingString = true;
+                    return lineMatch;
+                }
+            }
+            return null;
+        }
+
         private IMachine machine;
         private SGRDecodingState sgrDecodingState;
         private string generatedReport;
@@ -725,6 +756,7 @@ namespace Antmicro.Renode.Testing
         private readonly List<Line> lines;
         private readonly SafeStringBuilder report;
         private readonly Queue<Tuple<TimeSpan, char>> delayedChars = new Queue<Tuple<TimeSpan, char>>();
+        private readonly List<FailingString> failingStrings;
 
         private const char LineFeed = '\x0A';
         private const char CarriageReturn = '\x0D';
@@ -814,20 +846,34 @@ namespace Antmicro.Renode.Testing
             EscapeDetected,
             LeftBracketDetected
         }
+
+        private struct FailingString
+        {
+            public string pattern;
+            public bool treatAsRegex;
+
+            public FailingString(string pattern, bool treatAsRegex)
+            {
+                this.pattern = pattern;
+                this.treatAsRegex = treatAsRegex;
+            }
+        }
     }
 
     public class TerminalTesterResult
     {
-        public TerminalTesterResult(string content, double timestamp, string[] groups = null)
+        public TerminalTesterResult(string content, double timestamp, string[] groups = null, bool isFailingString = false)
         {
             this.line = content ?? string.Empty;
             this.timestamp = timestamp;
             this.groups = groups ?? new string[0];
+            this.isFailingString = isFailingString;
         }
 
         public string line { get; }
         public double timestamp { get; }
         public string[] groups { get; set; }
+        public bool isFailingString;
     }
 
     public enum EndLineOption
