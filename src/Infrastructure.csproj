@@ -1880,6 +1880,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/Timers/ZynqMP_RTC.cs" />
     <Compile Include="Emulator/Main/Peripherals/Miscellaneous/LogicGate.cs" />
     <Compile Include="Emulator/Main/Core/ISimpleManagedThread.cs" />
+    <Compile Include="Emulator/Main/Peripherals/UART/UARTRESDFeeder.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Emulator/Main/Peripherals/Bus/SystemBusGenerated.tt">

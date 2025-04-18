@@ -49,7 +49,7 @@ namespace Antmicro.Renode.Peripherals.UART
         /// Implements <see cref="IPeripheral">.
         /// Will clear the internal buffer.
         /// </summary>
-        public void Reset()
+        public virtual void Reset()
         {
             Clear();
         }
@@ -175,7 +175,7 @@ namespace Antmicro.Renode.Peripherals.UART
         /// <param name="value">
         /// Byte value to be transmitted.
         /// </param>
-        public void DisplayChar(byte value)
+        public virtual void DisplayChar(byte value)
         {
             CharReceived?.Invoke(value);
         }
@@ -183,7 +183,7 @@ namespace Antmicro.Renode.Peripherals.UART
         /// <summary>
         /// Controls automatic transmission of received data.
         /// </summary>
-        public bool Echo { get; set; } = true;
+        public virtual bool Echo { get; set; } = true;
 
         public uint BaudRate { get; set; }
         public Bits StopBits { get; set; }

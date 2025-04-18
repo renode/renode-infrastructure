@@ -439,7 +439,7 @@ namespace Antmicro.Renode.Utilities.RESD
                 // Assert that samples from the past are skipped, so that on each start
                 // the next sample is guarantied to be the first from the future
                 TryGetSample(now.TotalNanoseconds, out var _);
-                if(RESDStreamStatus.OK != TryGetNextSample(out var timestamp, out var _))
+                if(RESDStreamStatus.OK != TryGetNextSample(out var timestamp, out _))
                 {
                     @this.Stop();
                     newSampleCallback?.Invoke(null, now, RESDStreamStatus.AfterStream);
