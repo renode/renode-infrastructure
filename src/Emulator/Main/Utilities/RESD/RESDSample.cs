@@ -226,6 +226,51 @@ namespace Antmicro.Renode.Utilities.RESD
         public int MagneticFluxDensityZ { get; private set; }
     }
 
+    [SampleType(SampleType.BinaryData)]
+    public class BinaryDataSample : RESDSample
+    {
+        public override bool Skip(SafeBinaryReader reader, int count)
+        {
+            for(var i = 0; i < count; ++i)
+            {
+                if(reader.BaseStream.Position + LengthSize > reader.Length)
+                {
+                    return false;
+                }
+
+                var length = reader.ReadUInt32();
+
+                if(reader.BaseStream.Position + length > reader.Length)
+                {
+                    return false;
+                }
+
+                reader.SkipBytes(length);
+            }
+
+            return true;
+        }
+
+        public override bool TryReadFromStream(SafeBinaryReader reader)
+        {
+            var length = reader.ReadUInt32();
+            Data = reader.ReadBytes((int)length);
+
+            return true;
+        }
+
+        public override string ToString()
+        {
+            return Misc.PrettyPrintCollectionHex(Data);
+        }
+
+        public override int? Width => null;
+
+        public byte[] Data { get; private set; } = new byte[0];
+
+        private const int LengthSize = 4;
+    }
+
     public class SampleTypeAttribute : Attribute
     {
         public SampleTypeAttribute(SampleType sampleType)
@@ -247,6 +292,7 @@ namespace Antmicro.Renode.Utilities.RESD
         Humidity = 0x0006,
         Pressure = 0x0007,
         MagneticFluxDensity = 0x0008,
+        BinaryData = 0x0009,
 
         // Custom sample types
         Custom = 0xF000,
