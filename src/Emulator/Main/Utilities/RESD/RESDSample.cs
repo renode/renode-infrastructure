@@ -12,10 +12,9 @@ namespace Antmicro.Renode.Utilities.RESD
 {
     public abstract class RESDSample : IAutoLoadType
     {
-        public virtual bool TryReadMetadata(SafeBinaryReader reader)
+        public virtual void ReadMetadata(SafeBinaryReader reader)
         {
             Metadata = MetadataBlock.ReadFromStream(reader);
-            return true;
         }
 
         public virtual bool Skip(SafeBinaryReader reader, int count)
