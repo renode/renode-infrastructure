@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -50,10 +50,6 @@ namespace Antmicro.Renode.Utilities.RESD
     [SampleType(SampleType.Temperature)]
     public class TemperatureSample : RESDSample
     {
-        public override int? Width => 4;
-
-        public int Temperature { get; private set; }
-
         public override bool TryReadFromStream(SafeBinaryReader reader)
         {
             Temperature = reader.ReadInt32();
@@ -65,17 +61,15 @@ namespace Antmicro.Renode.Utilities.RESD
         {
             return $"{DecimalToString(Temperature / (decimal)1e3)} °C";
         }
+
+        public override int? Width => 4;
+
+        public int Temperature { get; private set; }
     }
 
     [SampleType(SampleType.Acceleration)]
     public class AccelerationSample : RESDSample
     {
-        public override int? Width => 4 * 3;
-
-        public int AccelerationX { get; private set; }
-        public int AccelerationY { get; private set; }
-        public int AccelerationZ { get; private set; }
-
         public override bool TryReadFromStream(SafeBinaryReader reader)
         {
             AccelerationX = reader.ReadInt32();
@@ -93,17 +87,17 @@ namespace Antmicro.Renode.Utilities.RESD
 
             return $"[{xStr}, {yStr}, {zStr}] g";
         }
+
+        public override int? Width => 4 * 3;
+
+        public int AccelerationX { get; private set; }
+        public int AccelerationY { get; private set; }
+        public int AccelerationZ { get; private set; }
     }
 
     [SampleType(SampleType.AngularRate)]
     public class AngularRateSample : RESDSample
     {
-        public override int? Width => 4 * 3;
-
-        public int AngularRateX { get; private set; }
-        public int AngularRateY { get; private set; }
-        public int AngularRateZ { get; private set; }
-
         public override bool TryReadFromStream(SafeBinaryReader reader)
         {
             AngularRateX = reader.ReadInt32();
@@ -121,15 +115,17 @@ namespace Antmicro.Renode.Utilities.RESD
 
             return $"[{xStr}, {yStr}, {zStr}] rad/s";
         }
+
+        public override int? Width => 4 * 3;
+
+        public int AngularRateX { get; private set; }
+        public int AngularRateY { get; private set; }
+        public int AngularRateZ { get; private set; }
     }
 
     [SampleType(SampleType.Voltage)]
     public class VoltageSample : RESDSample
     {
-        public override int? Width => 4;
-
-        public uint Voltage { get; private set; }
-
         public override bool TryReadFromStream(SafeBinaryReader reader)
         {
             Voltage = reader.ReadUInt32();
@@ -141,15 +137,15 @@ namespace Antmicro.Renode.Utilities.RESD
         {
             return $"{DecimalToString(Voltage / (decimal)1e6)} V";
         }
+
+        public override int? Width => 4;
+
+        public uint Voltage { get; private set; }
     }
 
     [SampleType(SampleType.ECG)]
     public class ECGSample : RESDSample
     {
-        public override int? Width => 4;
-
-        public int ECG { get; private set; }
-
         public override bool TryReadFromStream(SafeBinaryReader reader)
         {
             ECG = reader.ReadInt32();
@@ -161,15 +157,15 @@ namespace Antmicro.Renode.Utilities.RESD
         {
             return $"{ECG} nV";
         }
+
+        public override int? Width => 4;
+
+        public int ECG { get; private set; }
     }
 
     [SampleType(SampleType.Humidity)]
     public class HumiditySample : RESDSample
     {
-        public override int? Width => 4;
-
-        public uint Humidity { get; private set; }
-
         public override bool TryReadFromStream(SafeBinaryReader reader)
         {
             Humidity = reader.ReadUInt32();
@@ -181,15 +177,15 @@ namespace Antmicro.Renode.Utilities.RESD
         {
             return $"{DecimalToString(Humidity / 1e3m)} %RH";
         }
+
+        public override int? Width => 4;
+
+        public uint Humidity { get; private set; }
     }
 
     [SampleType(SampleType.Pressure)]
     public class PressureSample : RESDSample
     {
-        public override int? Width => 8;
-
-        public ulong Pressure { get; private set; }
-
         public override bool TryReadFromStream(SafeBinaryReader reader)
         {
             Pressure = reader.ReadUInt64();
@@ -201,17 +197,15 @@ namespace Antmicro.Renode.Utilities.RESD
         {
             return $"{DecimalToString(Pressure / (decimal)1e3)} Pa";
         }
+
+        public override int? Width => 8;
+
+        public ulong Pressure { get; private set; }
     }
 
     [SampleType(SampleType.MagneticFluxDensity)]
     public class MagneticSample : RESDSample
     {
-        public override int? Width => 4 * 3;
-
-        public int MagneticFluxDensityX { get; private set; }
-        public int MagneticFluxDensityY { get; private set; }
-        public int MagneticFluxDensityZ { get; private set; }
-
         public override bool TryReadFromStream(SafeBinaryReader reader)
         {
             MagneticFluxDensityX = reader.ReadInt32();
@@ -225,6 +219,12 @@ namespace Antmicro.Renode.Utilities.RESD
         {
             return $"[{MagneticFluxDensityX}, {MagneticFluxDensityY}, {MagneticFluxDensityZ}] nT";
         }
+
+        public override int? Width => 4 * 3;
+
+        public int MagneticFluxDensityX { get; private set; }
+        public int MagneticFluxDensityY { get; private set; }
+        public int MagneticFluxDensityZ { get; private set; }
     }
 
     public class SampleTypeAttribute : Attribute
