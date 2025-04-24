@@ -98,7 +98,7 @@ namespace Antmicro.Renode.Utilities
                 }
             }
         }
-        
+
         private bool TryFetchFromCacheOrUriInner(Uri uri, out string fileName)
         {
             using(var locker = new FileLocker(GetCacheIndexLockLocation()))
@@ -153,7 +153,7 @@ namespace Antmicro.Renode.Utilities
                     return false;
                 }
             }
-            
+
             if(uri.ToString().EndsWith(".gz", StringComparison.InvariantCulture))
             {
                 fileName = Decompress(fileName);
@@ -188,7 +188,7 @@ namespace Antmicro.Renode.Utilities
                     return true;
                 }
             }
-            while (++attempts < attemptsLimit);
+            while(++attempts < attemptsLimit);
 
             Logger.Log(LogLevel.Error, "Download failed {0} times, aborting.", attempts);
             return false;
@@ -212,7 +212,7 @@ namespace Antmicro.Renode.Utilities
                     var newNow = CustomDateTime.Now;
 
                     var period = newNow - now;
-                    if (period > progressUpdateThreshold)
+                    if(period > progressUpdateThreshold)
                     {
                         downloadProgressHandler.UpdateProgress(e.ProgressPercentage,
                             GenerateProgressMessage(uri,
@@ -226,7 +226,7 @@ namespace Antmicro.Renode.Utilities
                 client.DownloadFileCompleted += delegate (object sender, AsyncCompletedEventArgs e)
                 {
                     localError = e.Error;
-                    if (e.Cancelled)
+                    if(e.Cancelled)
                     {
                         wasCancelled = true;
                     }
@@ -248,8 +248,8 @@ namespace Antmicro.Renode.Utilities
             using(var decompressionProgressHandler = EmulationManager.Instance.ProgressMonitor.Start("Decompressing file"))
             {
                 Logger.Log(LogLevel.Info, "Decompressing file");
-                using (var gzipStream = new GZipStream(File.OpenRead(fileName), CompressionMode.Decompress))
-                using (var outputStream = File.OpenWrite(decompressedFile))
+                using(var gzipStream = new GZipStream(File.OpenRead(fileName), CompressionMode.Decompress))
+                using(var outputStream = File.OpenWrite(decompressedFile))
                 {
                     gzipStream.CopyTo(outputStream);
                 }
@@ -469,7 +469,7 @@ namespace Antmicro.Renode.Utilities
         {
             File.WriteAllText(GetCacheIndexLocation(), string.Empty);
             var cacheDir = GetCacheLocation();
-            if (Directory.Exists(cacheDir))
+            if(Directory.Exists(cacheDir))
             {
                 Directory.Delete(cacheDir, true);
             }
