@@ -941,6 +941,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/Network/K6xF_Ethernet.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/K6xF_SIM.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/UART/NRF52840_UART.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/UART/NRF54H20_UARTE.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/ATAPI/ATAPI.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/ATAPI/CDROM.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/STM32F4_RCC.cs" />
