@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -344,20 +344,17 @@ namespace Antmicro.Renode.Utilities.RESD
                 return false;
             }
 
-            while(blockEnumerator.TryGetNext(out var nextBlock))
+            while(blockEnumerator.TryGetNext(out block))
             {
                 currentBlockNumber++;
-                if(nextBlock.ChannelId != Channel || !(extraFilter?.Invoke(nextBlock) ?? true))
+                if(block.ChannelId != Channel || !(extraFilter?.Invoke(block) ?? true))
                 {
-                    Owner?.Log(LogLevel.Debug, "RESD: Skipping block of type {0} and size {1} bytes", nextBlock.BlockType, nextBlock.DataSize);
+                    Owner?.Log(LogLevel.Debug, "RESD: Skipping block of type {0} and size {1} bytes", block.BlockType, block.DataSize);
                     continue;
                 }
-
-                block = nextBlock;
                 return true;
             }
 
-            block = null;
             blockEnumerator = null;
             return false;
         }
