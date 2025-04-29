@@ -41,6 +41,7 @@ namespace Antmicro.Renode.Utilities.RESD
         }
 
         public abstract RESDStreamStatus TryGetSample(ulong timestamp, out T sample);
+        public abstract RESDStreamStatus TryGetNextSample(out TimeInterval timestamp, out T sample);
 
         public abstract ulong StartTime { get; }
         public abstract T CurrentSample { get; }
@@ -102,7 +103,7 @@ namespace Antmicro.Renode.Utilities.RESD
         {
             if(Interlocked.Exchange(ref usingReader, 1) != 0)
             {
-                throw new RESDException("trying to call TryGetSample when using Samples iterator");
+                throw new RESDException("Trying to call TryGetSample when using Samples iterator");
             }
 
             using(DisposableWrapper.New(() => Interlocked.Exchange(ref usingReader, 0)))
@@ -124,6 +125,31 @@ namespace Antmicro.Renode.Utilities.RESD
 
                 currentSampleTimestamp += samplesDiff * Period;
                 sample = samplesData.GetCurrentSample();
+            }
+
+            return RESDStreamStatus.OK;
+        }
+
+        public override RESDStreamStatus TryGetNextSample(out TimeInterval timestamp, out T sample)
+        {
+            if(Interlocked.Exchange(ref usingReader, 1) != 0)
+            {
+                throw new RESDException("Trying to call TryGetNextSample when using Samples iterator");
+            }
+
+            using(DisposableWrapper.New(() => Interlocked.Exchange(ref usingReader, 0)))
+            {
+                if(!samplesData.Move(1))
+                {
+                    // past the current block
+                    sample = null;
+                    timestamp = default(TimeInterval);
+                    return RESDStreamStatus.AfterStream;
+                }
+
+                currentSampleTimestamp += Period;
+                sample = samplesData.GetCurrentSample();
+                timestamp = TimeInterval.FromMicroseconds(currentSampleTimestamp / 1000);
             }
 
             return RESDStreamStatus.OK;
@@ -250,6 +276,30 @@ namespace Antmicro.Renode.Utilities.RESD
                     wrappedSample = samplesData.GetCurrentSample();
                 }
 
+                sample = CurrentSample;
+            }
+
+            return result;
+        }
+
+        public override RESDStreamStatus TryGetNextSample(out TimeInterval timestamp, out T sample)
+        {
+            if(Interlocked.Exchange(ref usingReader, 1) != 0)
+            {
+                throw new RESDException("Trying to call TryGetNextSample when using Samples iterator");
+            }
+
+            var result = RESDStreamStatus.AfterStream;
+            using(DisposableWrapper.New(() => Interlocked.Exchange(ref usingReader, 0)))
+            {
+                // currentWrappedSample and samplesData.GetCurrentSample can be desynnchronized in TryGetSample
+                if(currentWrappedSample != samplesData.GetCurrentSample() || samplesData.Move(1))
+                {
+                    result = RESDStreamStatus.OK;
+                    currentWrappedSample = samplesData.GetCurrentSample();
+                }
+
+                timestamp = TimeInterval.FromNanoseconds(CurrentTimestamp);
                 sample = CurrentSample;
             }
 
