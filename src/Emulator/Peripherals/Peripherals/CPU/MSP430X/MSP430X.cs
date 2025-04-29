@@ -14,8 +14,12 @@ using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.CPU.Assembler;
+using Antmicro.Renode.Peripherals.CPU.Disassembler;
 using Antmicro.Renode.Peripherals.Memory;
 using Antmicro.Renode.Utilities;
+using Antmicro.Migrant;
+using Antmicro.Migrant.Hooks;
 using ELFSharp.ELF;
 
 namespace Antmicro.Renode.Peripherals.CPU
@@ -49,6 +53,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                     }
                 }
             };
+
+            InitLLVM();
         }
 
         public override void Reset()
@@ -154,6 +160,32 @@ namespace Antmicro.Renode.Peripherals.CPU
         public void EnterSingleStepModeSafely(HaltArguments args)
         {
             ExecutionMode = ExecutionMode.SingleStep;
+        }
+
+        public string DisassembleBlock(ulong? addr = null, uint blockSize = 40)
+        {
+            if(disassembler == null)
+            {
+                throw new RecoverableException("Disassembly engine not available");
+            }
+
+            addr = addr ?? PC;
+
+            var opcodes = Bus.ReadBytes(addr.Value, (int)blockSize, true, context: this);
+            disassembler.DisassembleBlock(addr.Value, opcodes, flags: 0, text: out var result);
+            return result;
+        }
+
+        public uint AssembleBlock(ulong addr, string instructions)
+        {
+            if(assembler == null)
+            {
+                throw new RecoverableException("Assembler not available");
+            }
+
+            var result = assembler.AssembleBlock(addr, instructions, flags: 0);
+            Bus.WriteBytes(result, addr, true, context: this);
+            return (uint)result.Length;
         }
 
         public string DumpRegisters()
@@ -1514,8 +1546,35 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        [PostDeserialization]
+        private void InitLLVM()
+        {
+            try
+            {
+                disassembler = new LLVMDisassembler(this);
+            }
+            catch(ArgumentOutOfRangeException)
+            {
+                this.Log(LogLevel.Warning, "Could not initialize disassembly engine");
+            }
+            try
+            {
+                assembler = new LLVMAssembler(this);
+            }
+            catch(ArgumentOutOfRangeException)
+            {
+                this.Log(LogLevel.Warning, "Could not initialize assembly engine");
+            }
+        }
+
         private StatusFlags statusRegister;
         private ulong executedInstructions;
+
+        [Transient]
+        private LLVMAssembler assembler;
+
+        [Transient]
+        private LLVMDisassembler disassembler;
 
         private readonly List<PendingWatchpoint> pendingWatchpoints = new List<PendingWatchpoint>();
         private readonly SortedSet<int> pendingInterrupt = new SortedSet<int>();

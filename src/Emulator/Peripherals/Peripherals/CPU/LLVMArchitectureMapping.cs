@@ -87,7 +87,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             { "ppc64",  "ppc64le"   },
             { "sparc",  "sparc"     },
             { "i386",   "i386"      },
-            { "x86_64", "x86_64"    }
+            { "x86_64", "x86_64"    },
+            { "msp430", "msp430"    },
+            { "msp430x","msp430"    }
         };
 
         private static readonly Dictionary<string, string> ModelTranslations = new Dictionary<string, string>

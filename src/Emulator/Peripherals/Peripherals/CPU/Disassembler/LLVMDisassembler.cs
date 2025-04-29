@@ -134,6 +134,8 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
                 case "arm":
                 case "armv7a":
                 case "arm64":
+                case "msp430":
+                case "msp430x":
                     HexFormatter = FormatHexForARM;
                     break;
                 default:
