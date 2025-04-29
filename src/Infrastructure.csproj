@@ -947,6 +947,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/STM32F4_RCC.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/NRF_CLOCK.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Timers/NRF54H20_GRTC.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/NRF_Bellboard.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/NRF_USBREG.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/NRF52840_ECB.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/NRF52840_PPI.cs" />
