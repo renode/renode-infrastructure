@@ -156,43 +156,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             ExecutionMode = ExecutionMode.SingleStep;
         }
 
-        public override string Architecture => "msp430x";
-
-        public override RegisterValue PC { get; set; }
-
-        public override ulong ExecutedInstructions => executedInstructions;
-
-        public event Action<int> InterruptAcknowledged;
-
-        public string GDBArchitecture => "MSP430X";
-        public List<GDBFeatureDescriptor> GDBFeatures => new List<GDBFeatureDescriptor>();
-
-        public int StackDumpLength { get; set; } = 15;
-
-        public RegisterValue SP { get; set; }
-        public RegisterValue SR
-        {
-            get => (uint)statusRegister;
-            set => statusRegister = (StatusFlags)value.RawValue;
-        }
-
-        public RegisterValue R0 => PC;
-        public RegisterValue R1 => SP;
-        public RegisterValue R2 => SR;
-        // NOTE: Skipping R3/CG register as it's value depends on the opcode
-        public RegisterValue R4 { get; set; }
-        public RegisterValue R5 { get; set; }
-        public RegisterValue R6 { get; set; }
-        public RegisterValue R7 { get; set; }
-        public RegisterValue R8 { get; set; }
-        public RegisterValue R9 { get; set; }
-        public RegisterValue R10 { get; set; }
-        public RegisterValue R11 { get; set; }
-        public RegisterValue R12 { get; set; }
-        public RegisterValue R13 { get; set; }
-        public RegisterValue R14 { get; set; }
-        public RegisterValue R15 { get; set; }
-
         public string DumpRegisters()
         {
             StringBuilder sb = new StringBuilder();
@@ -264,6 +227,43 @@ namespace Antmicro.Renode.Peripherals.CPU
             return ExecutionResult.Ok;
         }
 
+        public override string Architecture => "msp430x";
+
+        public override RegisterValue PC { get; set; }
+
+        public override ulong ExecutedInstructions => executedInstructions;
+
+        public event Action<int> InterruptAcknowledged;
+
+        public string GDBArchitecture => "MSP430X";
+        public List<GDBFeatureDescriptor> GDBFeatures => new List<GDBFeatureDescriptor>();
+
+        public int StackDumpLength { get; set; } = 15;
+
+        public RegisterValue SP { get; set; }
+        public RegisterValue SR
+        {
+            get => (uint)statusRegister;
+            set => statusRegister = (StatusFlags)value.RawValue;
+        }
+
+        public RegisterValue R0 => PC;
+        public RegisterValue R1 => SP;
+        public RegisterValue R2 => SR;
+        // NOTE: Skipping R3/CG register as it's value depends on the opcode
+        public RegisterValue R4 { get; set; }
+        public RegisterValue R5 { get; set; }
+        public RegisterValue R6 { get; set; }
+        public RegisterValue R7 { get; set; }
+        public RegisterValue R8 { get; set; }
+        public RegisterValue R9 { get; set; }
+        public RegisterValue R10 { get; set; }
+        public RegisterValue R11 { get; set; }
+        public RegisterValue R12 { get; set; }
+        public RegisterValue R13 { get; set; }
+        public RegisterValue R14 { get; set; }
+        public RegisterValue R15 { get; set; }
+
         protected override bool ExecutionFinished(ExecutionResult result)
         {
             if(result == ExecutionResult.StoppedAtBreakpoint)
@@ -277,6 +277,32 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
 
             return false;
+        }
+
+        private static int GetAccessWidthInBits(AccessWidth accessWidth)
+        {
+            switch(accessWidth)
+            {
+                case AccessWidth._8bit: return 8;
+                case AccessWidth._16bit: return 16;
+                case AccessWidth._20bit: return 20;
+                default: throw new Exception("unreachable");
+            }
+        }
+
+        private static int GetAccessWidthInBytes(AccessWidth accessWidth)
+        {
+            return (int)accessWidth;
+        }
+
+        private static uint GetAccessWidthMask(AccessWidth accessWidth)
+        {
+            return (1U << GetAccessWidthInBits(accessWidth)) - 1;
+        }
+
+        private static uint GetAccessWidthMSB(AccessWidth accessWidth)
+        {
+            return (1U << (GetAccessWidthInBits(accessWidth) - 1));
         }
 
         private bool TryHandleWatchpoints()
@@ -1488,32 +1514,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        private static int GetAccessWidthInBits(AccessWidth accessWidth)
-        {
-            switch(accessWidth)
-            {
-                case AccessWidth._8bit: return 8;
-                case AccessWidth._16bit: return 16;
-                case AccessWidth._20bit: return 20;
-                default: throw new Exception("unreachable");
-            }
-        }
-
-        private static int GetAccessWidthInBytes(AccessWidth accessWidth)
-        {
-            return (int)accessWidth;
-        }
-
-        private static uint GetAccessWidthMask(AccessWidth accessWidth)
-        {
-            return (1U << GetAccessWidthInBits(accessWidth)) - 1;
-        }
-
-        private static uint GetAccessWidthMSB(AccessWidth accessWidth)
-        {
-            return (1U << (GetAccessWidthInBits(accessWidth) - 1));
-        }
-
         private StatusFlags statusRegister;
         private ulong executedInstructions;
 
@@ -1587,7 +1587,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             IndirectAutoincrement,
         }
 
-        public enum Registers : int
+        private enum Registers : int
         {
             PC,
             SP,
