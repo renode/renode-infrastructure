@@ -38,6 +38,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 this.Log(LogLevel.Warning, "Tried to read {0} bytes at 0x{1:X} which is inside a locked address range, returning 0",
                     (uint)accessWidth, address);
+                RaiseSysbusAccessFault(context, Access.Read, address);
                 return 0;
             }
 
@@ -58,6 +59,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
                 if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress, out var offset, cpuState))
                 {
+                    RaiseSysbusAccessFault(context, Access.Read, address);
                     return (byte)ReportNonExistingRead(address, tag, accessWidth);
                 }
                 if(!IsPeripheralEnabled(accessMethods.Peripheral))
@@ -105,6 +107,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 this.Log(LogLevel.Warning, "Tried to write {0} bytes (0x{1:X}) at 0x{2:X} which is inside a locked address range, write ignored",
                     (uint)accessWidth, value, address);
+                RaiseSysbusAccessFault(context, Access.Write, address);
                 return;
             }
 
@@ -126,6 +129,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress, out var offset, cpuState))
                 {
                     ReportNonExistingWrite(address, value, tag, accessWidth);
+                    RaiseSysbusAccessFault(context, Access.Write, address);
                     return;
                 }
                 if(!IsPeripheralEnabled(accessMethods.Peripheral))
@@ -178,6 +182,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 this.Log(LogLevel.Warning, "Tried to read {0} bytes at 0x{1:X} which is inside a locked address range, returning 0",
                     (uint)accessWidth, address);
+                RaiseSysbusAccessFault(context, Access.Read, address);
                 return 0;
             }
 
@@ -198,6 +203,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
                 if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress, out var offset, cpuState))
                 {
+                    RaiseSysbusAccessFault(context, Access.Read, address);
                     return (ushort)ReportNonExistingRead(address, tag, accessWidth);
                 }
                 if(!IsPeripheralEnabled(accessMethods.Peripheral))
@@ -245,6 +251,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 this.Log(LogLevel.Warning, "Tried to write {0} bytes (0x{1:X}) at 0x{2:X} which is inside a locked address range, write ignored",
                     (uint)accessWidth, value, address);
+                RaiseSysbusAccessFault(context, Access.Write, address);
                 return;
             }
 
@@ -266,6 +273,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress, out var offset, cpuState))
                 {
                     ReportNonExistingWrite(address, value, tag, accessWidth);
+                    RaiseSysbusAccessFault(context, Access.Write, address);
                     return;
                 }
                 if(!IsPeripheralEnabled(accessMethods.Peripheral))
@@ -318,6 +326,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 this.Log(LogLevel.Warning, "Tried to read {0} bytes at 0x{1:X} which is inside a locked address range, returning 0",
                     (uint)accessWidth, address);
+                RaiseSysbusAccessFault(context, Access.Read, address);
                 return 0;
             }
 
@@ -338,6 +347,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
                 if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress, out var offset, cpuState))
                 {
+                    RaiseSysbusAccessFault(context, Access.Read, address);
                     return (uint)ReportNonExistingRead(address, tag, accessWidth);
                 }
                 if(!IsPeripheralEnabled(accessMethods.Peripheral))
@@ -385,6 +395,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 this.Log(LogLevel.Warning, "Tried to write {0} bytes (0x{1:X}) at 0x{2:X} which is inside a locked address range, write ignored",
                     (uint)accessWidth, value, address);
+                RaiseSysbusAccessFault(context, Access.Write, address);
                 return;
             }
 
@@ -406,6 +417,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress, out var offset, cpuState))
                 {
                     ReportNonExistingWrite(address, value, tag, accessWidth);
+                    RaiseSysbusAccessFault(context, Access.Write, address);
                     return;
                 }
                 if(!IsPeripheralEnabled(accessMethods.Peripheral))
@@ -458,6 +470,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 this.Log(LogLevel.Warning, "Tried to read {0} bytes at 0x{1:X} which is inside a locked address range, returning 0",
                     (uint)accessWidth, address);
+                RaiseSysbusAccessFault(context, Access.Read, address);
                 return 0;
             }
 
@@ -479,6 +492,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress, out var offset, cpuState))
                 {
                     return (ulong)ReportNonExistingRead(address, tag, accessWidth);
+                    RaiseSysbusAccessFault(context, Access.Read, address);
                 }
                 if(!IsPeripheralEnabled(accessMethods.Peripheral))
                 {
@@ -525,6 +539,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 this.Log(LogLevel.Warning, "Tried to write {0} bytes (0x{1:X}) at 0x{2:X} which is inside a locked address range, write ignored",
                     (uint)accessWidth, value, address);
+                RaiseSysbusAccessFault(context, Access.Write, address);
                 return;
             }
 
@@ -546,6 +561,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress, out var offset, cpuState))
                 {
                     ReportNonExistingWrite(address, value, tag, accessWidth);
+                    RaiseSysbusAccessFault(context, Access.Write, address);
                     return;
                 }
                 if(!IsPeripheralEnabled(accessMethods.Peripheral))

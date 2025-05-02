@@ -1511,6 +1511,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         protected Action<int> TlibRequestTranslationBlockInterrupt;
 
         [Import]
+        protected Action<int, ulong> TlibRaiseSysbusAccessFault;
+
+        [Import]
         protected readonly Action<ulong, ulong, uint> TlibEnableExternalPermissionHandlerForRange;
 
         [Import]

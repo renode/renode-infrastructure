@@ -1487,6 +1487,8 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public UnhandledAccessBehaviour UnhandledAccessBehaviour { get; set; }
 
+        public bool BusAccessFaultsEnabled;
+
         /// <returns>
         /// The returned <c>IEnumerable</c> always enumerates all peripherals registered globally
         /// but also peripherals registered per CPU are enumerated if called in CPU context.
@@ -2510,6 +2512,17 @@ namespace Antmicro.Renode.Peripherals.Bus
                 Machine.Pause();
             }
             return string.Format("(tag: '{0}') {1}", tag.Name, str);
+        }
+
+        private void RaiseSysbusAccessFault(IPeripheral peripheral, Access access, ulong address)
+        {
+            if(BusAccessFaultsEnabled && peripheral is TranslationCPU cpu)
+            {
+                var warning = string.Format("Raising a bus access fault on {0} address 0x{1:X}", access == Access.Write ? "write to" : "read from", address);
+                warning = DecorateWithCPUNameAndPC(warning);
+                this.Log(LogLevel.Warning, warning);
+                cpu.TlibRaiseSysbusAccessFault(access == Access.Write ? 1 : 0, address);
+            }
         }
 
         private ulong ReportNonExistingRead(ulong address, TagEntry? tag, SysbusAccessWidth type)
