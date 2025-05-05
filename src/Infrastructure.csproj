@@ -948,6 +948,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/NRF_USBREG.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/NRF52840_ECB.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/NRF52840_PPI.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/NRF_SharedMemory.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/USB/NRF_USBD.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/USB/CDCToUARTConverter.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/NRF52840_RNG.cs" />
