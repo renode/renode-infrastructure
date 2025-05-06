@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -212,7 +212,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private void InnerReset()
         {
-            registers = new regs();
+            registers = new regsValues();
             writeOccured = false;
             commandLength = 0;
             receiveFIFODataCount = 0;
@@ -283,10 +283,10 @@ namespace Antmicro.Renode.Peripherals.SPI
             // Analysis restore RedundantDefaultFieldInitializer
         }
 
-        private regs registers;
-        private class regs
+        private regsValues registers;
+        private class regsValues
         {
-            public regs()
+            public regsValues()
             {
                 Config = new ConfigRegister();
             }

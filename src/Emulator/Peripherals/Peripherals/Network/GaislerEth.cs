@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -28,7 +28,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
         public override void Reset()
         {
-            registers = new regs();
+            registers = new regsValues();
             MAC = new MACAddress();
             transmitDescriptorBase = 0;
             transmitDescriptorOffset = 0;
@@ -321,9 +321,9 @@ namespace Antmicro.Renode.Peripherals.Network
 
         #region registers
 
-        private regs registers;
+        private regsValues registers;
 
-        private class regs
+        private class regsValues
         {
             public uint Control = 1u << 7;
             public uint Status;
