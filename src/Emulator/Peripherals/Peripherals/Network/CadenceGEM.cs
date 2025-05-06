@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -352,6 +352,19 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithTag("tx_pbuf_addr", 26, 4)
                     .WithTag("axi", 30, 1)
                     .WithTag("spram", 31, 1)
+                },
+
+                {(long)Registers.DesignConfiguration6, new DoubleWordRegister(this)
+                    .WithReservedBits(0, 1)
+                    .WithTaggedFlags("dma_priority_queue", 1, 15)
+                    .WithTag("tx_pbuf_queue_segment_size", 16, 4)
+                    .WithTag("ext_tsu_timer", 20, 1)
+                    .WithTag("tx_add_fifo_if", 21, 1)
+                    .WithTag("host_if_soft_select", 22, 1)
+                    .WithFlag(23, FieldMode.Read, name: "dma_addr_width_is_64b", valueProviderCallback: _ => true)
+                    .WithTag("pfc_multi_quantum", 24, 1)
+                    .WithTag("pbuf_cutthru", 25, 1)
+                    .WithReservedBits(26, 6)
                 },
 
                 {(long)Registers.Timer1588SecondsLow, new DoubleWordRegister(this)
@@ -1206,6 +1219,7 @@ namespace Antmicro.Renode.Peripherals.Network
             DesignConfiguration3 = 0x288,
             DesignConfiguration4 = 0x28C,
             DesignConfiguration5 = 0x290,
+            DesignConfiguration6 = 0x294,
             // gap intended
             InterruptStatusPriorityQueue1 = 0x400,
             InterruptStatusPriorityQueue2 = 0x404,
