@@ -299,7 +299,9 @@ namespace Antmicro.Renode.Utilities.Binding
             var symbols = SharedLibraries.GetAllSymbols(libraryFileName);
             var classMethods = classToBind.GetType().GetAllMethods().ToArray();
             var exportedMethods = new List<MethodInfo>();
-            foreach(var originalCandidate in symbols.Where(x => x.Contains("renode_external_attach")))
+            // When tlib is built with gcov coverage reporting it creates functions prefixed with __gcov for each function in the binary
+            // so we need to exclude those since they should not be bound here
+            foreach(var originalCandidate in symbols.Where(x => x.Contains("renode_external_attach") && !x.StartsWith("__gcov")))
             {
                 var candidate  = FilterCppName(originalCandidate);
                 var parts = candidate.Split(new [] { "__" }, StringSplitOptions.RemoveEmptyEntries);
