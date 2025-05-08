@@ -388,6 +388,11 @@ namespace Antmicro.Renode.Core
             return exists;
         }
 
+        public bool TryRemoveBusController(IBusPeripheral peripheral)
+        {
+            return peripheralsBusControllers.Remove(peripheral);
+        }
+
         public IBusController GetSystemBus(IBusPeripheral peripheral)
         {
             if(!TryGetBusController(peripheral, out var controller))
