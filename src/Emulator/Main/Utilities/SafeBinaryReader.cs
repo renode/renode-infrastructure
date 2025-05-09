@@ -37,14 +37,29 @@ namespace Antmicro.Renode.Utilities
             return ExecuteAndHandleError(base.ReadBoolean);
         }
 
+        public bool TryReadBoolean(out bool value)
+        {
+            return TryExecuteAndLogError(base.ReadBoolean, out value);
+        }
+
         public override byte ReadByte()
         {
             return ExecuteAndHandleError(base.ReadByte);
         }
 
+        public bool TryReadByte(out byte value)
+        {
+            return TryExecuteAndLogError(base.ReadByte, out value);
+        }
+
         public override byte[] ReadBytes(int count)
         {
-            return ExecuteAndHandleError(delegate { return base.ReadBytes(count); });
+            return ExecuteAndHandleError(() => base.ReadBytes(count));
+        }
+
+        public bool TryReadBytes(int count, out byte[] value)
+        {
+            return TryExecuteAndLogError(() => base.ReadBytes(count), out value);
         }
 
         public override char ReadChar()
@@ -52,9 +67,19 @@ namespace Antmicro.Renode.Utilities
             return ExecuteAndHandleError(base.ReadChar);
         }
 
+        public bool TryReadChar(out char value)
+        {
+            return TryExecuteAndLogError(base.ReadChar, out value);
+        }
+
         public override char[] ReadChars(int count)
         {
-            return ExecuteAndHandleError(delegate { return base.ReadChars(count); });
+            return ExecuteAndHandleError(() => base.ReadChars(count));
+        }
+
+        public bool TryReadChars(int count, out char[] value)
+        {
+            return TryExecuteAndLogError(() => base.ReadChars(count), out value);
         }
 
         public override decimal ReadDecimal()
@@ -62,9 +87,19 @@ namespace Antmicro.Renode.Utilities
             return ExecuteAndHandleError(base.ReadDecimal);
         }
 
+        public bool TryReadDecimal(out decimal value)
+        {
+            return TryExecuteAndLogError(base.ReadDecimal, out value);
+        }
+
         public override double ReadDouble()
         {
             return ExecuteAndHandleError(base.ReadDouble);
+        }
+
+        public bool TryReadDouble(out double value)
+        {
+            return TryExecuteAndLogError(base.ReadDouble, out value);
         }
 
         public override short ReadInt16()
@@ -72,9 +107,19 @@ namespace Antmicro.Renode.Utilities
             return ExecuteAndHandleError(base.ReadInt16);
         }
 
+        public bool TryReadInt16(out short value)
+        {
+            return TryExecuteAndLogError(base.ReadInt16, out value);
+        }
+
         public override int ReadInt32()
         {
             return ExecuteAndHandleError(base.ReadInt32);
+        }
+
+        public bool TryReadInt32(out int value)
+        {
+            return TryExecuteAndLogError(base.ReadInt32, out value);
         }
 
         public override long ReadInt64()
@@ -82,9 +127,19 @@ namespace Antmicro.Renode.Utilities
             return ExecuteAndHandleError(base.ReadInt64);
         }
 
+        public bool TryReadInt64(out long value)
+        {
+            return TryExecuteAndLogError(base.ReadInt64, out value);
+        }
+
         public override sbyte ReadSByte()
         {
             return ExecuteAndHandleError(base.ReadSByte);
+        }
+
+        public bool TryReadSByte(out sbyte value)
+        {
+            return TryExecuteAndLogError(base.ReadSByte, out value);
         }
 
         public override float ReadSingle()
@@ -92,9 +147,19 @@ namespace Antmicro.Renode.Utilities
             return ExecuteAndHandleError(base.ReadSingle);
         }
 
+        public bool TryReadSingle(out float value)
+        {
+            return TryExecuteAndLogError(base.ReadSingle, out value);
+        }
+
         public override string ReadString()
         {
             return ExecuteAndHandleError(base.ReadString);
+        }
+
+        public bool TryReadString(out string value)
+        {
+            return TryExecuteAndLogError(base.ReadString, out value);
         }
 
         public override ushort ReadUInt16()
@@ -102,9 +167,19 @@ namespace Antmicro.Renode.Utilities
             return ExecuteAndHandleError(base.ReadUInt16);
         }
 
+        public bool TryReadUInt16(out ushort value)
+        {
+            return TryExecuteAndLogError(base.ReadUInt16, out value);
+        }
+
         public override uint ReadUInt32()
         {
             return ExecuteAndHandleError(base.ReadUInt32);
+        }
+
+        public bool TryReadUInt32(out uint value)
+        {
+            return TryExecuteAndLogError(base.ReadUInt32, out value);
         }
 
         public override ulong ReadUInt64()
@@ -112,9 +187,19 @@ namespace Antmicro.Renode.Utilities
             return ExecuteAndHandleError(base.ReadUInt64);
         }
 
+        public bool TryReadUInt64(out ulong value)
+        {
+            return TryExecuteAndLogError(base.ReadUInt64, out value);
+        }
+
         public string ReadCString()
         {
             return ExecuteAndHandleError(() => ((BinaryReader)this).ReadCString());
+        }
+
+        public bool TryReadCString(out string value)
+        {
+            return TryExecuteAndLogError(() => ((BinaryReader)this).ReadCString(), out value);
         }
 
         public bool SkipBytes(long count)
@@ -172,6 +257,21 @@ namespace Antmicro.Renode.Utilities
             {
                 EndOfStreamEvent?.Invoke(e.Message);
                 return default(T);
+            }
+        }
+
+        private bool TryExecuteAndLogError<T>(Func<T> func, out T value)
+        {
+            try
+            {
+                value = func();
+                return true;
+            }
+            catch(EndOfStreamException e)
+            {
+                EndOfStreamEvent?.Invoke(e.Message);
+                value = default(T);
+                return false;
             }
         }
     }
