@@ -24,10 +24,11 @@ namespace Antmicro.Renode.Utilities.RESD
 
         public T GetCurrentSample()
         {
-            if(!sampleReady)
+            if(!sampleReady && !reader.EOF && !currentSample.TryReadFromStream(reader))
             {
-                sampleReady = currentSample.TryReadFromStream(reader);
+                return null;
             }
+            sampleReady = true;
             return currentSample;
         }
 
