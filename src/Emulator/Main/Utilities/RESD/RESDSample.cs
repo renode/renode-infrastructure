@@ -56,9 +56,7 @@ namespace Antmicro.Renode.Utilities.RESD
     {
         public override bool TryReadFromStream(SafeBinaryReader reader)
         {
-            Temperature = reader.ReadInt32();
-
-            return true;
+            return reader.TryReadInt32(out temperature);
         }
 
         public override string ToString()
@@ -68,7 +66,9 @@ namespace Antmicro.Renode.Utilities.RESD
 
         public override int? Width => 4;
 
-        public int Temperature { get; private set; }
+        public int Temperature => temperature;
+
+        private int temperature;
     }
 
     [SampleType(SampleType.Acceleration)]
@@ -76,11 +76,9 @@ namespace Antmicro.Renode.Utilities.RESD
     {
         public override bool TryReadFromStream(SafeBinaryReader reader)
         {
-            AccelerationX = reader.ReadInt32();
-            AccelerationY = reader.ReadInt32();
-            AccelerationZ = reader.ReadInt32();
-
-            return true;
+            return reader.TryReadInt32(out accelerationX)
+                && reader.TryReadInt32(out accelerationY)
+                && reader.TryReadInt32(out accelerationZ);
         }
 
         public override string ToString()
@@ -94,9 +92,13 @@ namespace Antmicro.Renode.Utilities.RESD
 
         public override int? Width => 4 * 3;
 
-        public int AccelerationX { get; private set; }
-        public int AccelerationY { get; private set; }
-        public int AccelerationZ { get; private set; }
+        public int AccelerationX => accelerationX;
+        public int AccelerationY => accelerationY;
+        public int AccelerationZ => accelerationZ;
+
+        private int accelerationX;
+        private int accelerationY;
+        private int accelerationZ;
     }
 
     [SampleType(SampleType.AngularRate)]
@@ -104,11 +106,9 @@ namespace Antmicro.Renode.Utilities.RESD
     {
         public override bool TryReadFromStream(SafeBinaryReader reader)
         {
-            AngularRateX = reader.ReadInt32();
-            AngularRateY = reader.ReadInt32();
-            AngularRateZ = reader.ReadInt32();
-
-            return true;
+            return reader.TryReadInt32(out angularRateX)
+                && reader.TryReadInt32(out angularRateY)
+                && reader.TryReadInt32(out angularRateZ);
         }
 
         public override string ToString()
@@ -122,9 +122,13 @@ namespace Antmicro.Renode.Utilities.RESD
 
         public override int? Width => 4 * 3;
 
-        public int AngularRateX { get; private set; }
-        public int AngularRateY { get; private set; }
-        public int AngularRateZ { get; private set; }
+        public int AngularRateX => angularRateX;
+        public int AngularRateY => angularRateY;
+        public int AngularRateZ => angularRateZ;
+
+        private int angularRateX;
+        private int angularRateY;
+        private int angularRateZ;
     }
 
     [SampleType(SampleType.Voltage)]
@@ -132,9 +136,7 @@ namespace Antmicro.Renode.Utilities.RESD
     {
         public override bool TryReadFromStream(SafeBinaryReader reader)
         {
-            Voltage = reader.ReadUInt32();
-
-            return true;
+            return reader.TryReadUInt32(out voltage);
         }
 
         public override string ToString()
@@ -144,7 +146,9 @@ namespace Antmicro.Renode.Utilities.RESD
 
         public override int? Width => 4;
 
-        public uint Voltage { get; private set; }
+        public uint Voltage => voltage;
+
+        private uint voltage;
     }
 
     [SampleType(SampleType.ECG)]
@@ -152,9 +156,7 @@ namespace Antmicro.Renode.Utilities.RESD
     {
         public override bool TryReadFromStream(SafeBinaryReader reader)
         {
-            ECG = reader.ReadInt32();
-
-            return true;
+            return reader.TryReadInt32(out ecg);
         }
 
         public override string ToString()
@@ -164,7 +166,9 @@ namespace Antmicro.Renode.Utilities.RESD
 
         public override int? Width => 4;
 
-        public int ECG { get; private set; }
+        public int ECG => ecg;
+
+        private int ecg;
     }
 
     [SampleType(SampleType.Humidity)]
@@ -172,9 +176,7 @@ namespace Antmicro.Renode.Utilities.RESD
     {
         public override bool TryReadFromStream(SafeBinaryReader reader)
         {
-            Humidity = reader.ReadUInt32();
-
-            return true;
+            return reader.TryReadUInt32(out humidity);
         }
 
         public override string ToString()
@@ -184,7 +186,9 @@ namespace Antmicro.Renode.Utilities.RESD
 
         public override int? Width => 4;
 
-        public uint Humidity { get; private set; }
+        public uint Humidity => humidity;
+
+        private uint humidity;
     }
 
     [SampleType(SampleType.Pressure)]
@@ -192,9 +196,7 @@ namespace Antmicro.Renode.Utilities.RESD
     {
         public override bool TryReadFromStream(SafeBinaryReader reader)
         {
-            Pressure = reader.ReadUInt64();
-
-            return true;
+            return reader.TryReadUInt64(out pressure);
         }
 
         public override string ToString()
@@ -204,7 +206,9 @@ namespace Antmicro.Renode.Utilities.RESD
 
         public override int? Width => 8;
 
-        public ulong Pressure { get; private set; }
+        public ulong Pressure => pressure;
+
+        private ulong pressure;
     }
 
     [SampleType(SampleType.MagneticFluxDensity)]
@@ -212,11 +216,9 @@ namespace Antmicro.Renode.Utilities.RESD
     {
         public override bool TryReadFromStream(SafeBinaryReader reader)
         {
-            MagneticFluxDensityX = reader.ReadInt32();
-            MagneticFluxDensityY = reader.ReadInt32();
-            MagneticFluxDensityZ = reader.ReadInt32();
-
-            return true;
+            return reader.TryReadInt32(out magneticFluxDensityX)
+                && reader.TryReadInt32(out magneticFluxDensityY)
+                && reader.TryReadInt32(out magneticFluxDensityZ);
         }
 
         public override string ToString()
@@ -226,9 +228,13 @@ namespace Antmicro.Renode.Utilities.RESD
 
         public override int? Width => 4 * 3;
 
-        public int MagneticFluxDensityX { get; private set; }
-        public int MagneticFluxDensityY { get; private set; }
-        public int MagneticFluxDensityZ { get; private set; }
+        public int MagneticFluxDensityX => magneticFluxDensityX;
+        public int MagneticFluxDensityY => magneticFluxDensityY;
+        public int MagneticFluxDensityZ => magneticFluxDensityZ;
+
+        private int magneticFluxDensityX;
+        private int magneticFluxDensityY;
+        private int magneticFluxDensityZ;
     }
 
     [SampleType(SampleType.BinaryData)]
@@ -258,10 +264,8 @@ namespace Antmicro.Renode.Utilities.RESD
 
         public override bool TryReadFromStream(SafeBinaryReader reader)
         {
-            var length = reader.ReadUInt32();
-            Data = reader.ReadBytes((int)length);
-
-            return true;
+            return reader.TryReadUInt32(out var length)
+                && reader.TryReadBytes((int)length, out data);
         }
 
         public override string ToString()
@@ -271,7 +275,9 @@ namespace Antmicro.Renode.Utilities.RESD
 
         public override int? Width => null;
 
-        public byte[] Data { get; private set; } = new byte[0];
+        public byte[] Data => data ?? new byte[0];
+
+        private byte[] data;
 
         private const int LengthSize = 4;
     }

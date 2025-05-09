@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -968,12 +968,18 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             public override bool TryReadFromStream(SafeBinaryReader reader)
             {
-                var frameLength = reader.ReadByte();
+                if(!reader.TryReadByte(out var frameLength))
+                {
+                    return false;
+                }
                 var currentFrame = new int[frameLength];
 
                 for(var i = 0; i < frameLength; ++i)
                 {
-                    currentFrame[i] = reader.ReadInt32();
+                    if(!reader.TryReadInt32(out currentFrame[i]))
+                    {
+                        return false;
+                    }
                 }
 
                 Frame = currentFrame;
