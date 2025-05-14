@@ -160,7 +160,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 return GetMagneticSampleValueDefault(d);
             }
 
-            switch(magResdStream.TryGetCurrentSample(this, out var sample, out var _))
+            switch(stream.TryGetCurrentSample(this, out var sample, out var _))
             {
                 case RESDStreamStatus.OK:
                     this.Log(LogLevel.Noisy, "RESD stream status OK, setting sample: {0}", sample);
@@ -169,10 +169,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     this.Log(LogLevel.Noisy, "RESD before stream status, setting default value");
                     return GetMagneticSampleValueDefault(d);
                 case RESDStreamStatus.AfterStream:
-                    this.Log(LogLevel.Noisy, "RESD after stream status, setting default value");
-                    magResdStream.Dispose();
-                    magResdStream = null;
-                    return GetMagneticSampleValueDefault(d);
+                    this.Log(LogLevel.Noisy, "RESD after stream status, setting last sample: {0}", sample);
+                    return GetMagneticSampleValue(sample, d);
                 default:
                     throw new Exception("Unreachable");
             }
