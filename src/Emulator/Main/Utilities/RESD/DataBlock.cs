@@ -119,15 +119,15 @@ namespace Antmicro.Renode.Utilities.RESD
                 if(!samplesData.Move((int)samplesDiff))
                 {
                     // past the current block
-                    sample = null;
+                    sample = samplesData.LastSample;
                     return RESDStreamStatus.AfterStream;
                 }
 
                 currentSampleTimestamp += samplesDiff * Period;
                 sample = samplesData.GetCurrentSample();
-            }
 
-            return RESDStreamStatus.OK;
+                return RESDStreamStatus.OK;
+            }
         }
 
         public override RESDStreamStatus TryGetNextSample(out TimeInterval timestamp, out T sample)
@@ -266,7 +266,7 @@ namespace Antmicro.Renode.Utilities.RESD
                     if(!samplesData.Move(1))
                     {
                         // past the current block
-                        currentWrappedSample = samplesData.GetCurrentSample();
+                        currentWrappedSample = samplesData.LastSample;
                         result = RESDStreamStatus.AfterStream;
                         break;
                     }

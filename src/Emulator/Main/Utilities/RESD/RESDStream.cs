@@ -310,12 +310,18 @@ namespace Antmicro.Renode.Utilities.RESD
                 timestamp = timestamp + (ulong)currentSampleOffsetTime;
             }
 
+            if(blockEnumerator == null)
+            {
+                Owner?.Log(LogLevel.Debug, "RESD: Tried getting sample at timestamp {0}ns after the last sample of the current block", timestamp);
+            }
+
             while(blockEnumerator != null)
             {
                 if(currentBlock == null)
                 {
                     if(!TryGetNextBlock(out currentBlock))
                     {
+                        Owner?.Log(LogLevel.Debug, "RESD: That was the last block of the file");
                         break;
                     }
                     MetadataChanged?.Invoke();
@@ -335,14 +341,14 @@ namespace Antmicro.Renode.Utilities.RESD
                         // Find next block
                         Owner?.Log(LogLevel.Debug, "RESD: Tried getting sample at timestamp {0}ns after the last sample of the current block", timestamp);
                         currentBlock = null;
+                        lastSample = sample;
                         continue;
                 }
 
                 return RESDStreamStatus.OK;
             }
 
-            Owner?.Log(LogLevel.Debug, "RESD: That was the last block of the file");
-            sample = null;
+            sample = lastSample;
             return RESDStreamStatus.AfterStream;
         }
 
@@ -536,6 +542,7 @@ namespace Antmicro.Renode.Utilities.RESD
         private DataBlock<T> currentBlock;
         [Transient]
         private IEnumerator<DataBlock<T>> blockEnumerator;
+        private T lastSample;
         private ulong serializedTimestamp;
         private ulong currentTimestampInNanoseconds;
         private long currentBlockNumber;
