@@ -198,7 +198,7 @@ namespace Antmicro.Renode.Utilities.RESD
                         .Any(attribute =>
                             attribute.SampleType == sampleType &&
                             attribute.Status == status &&
-                            attribute.ChannelId == channel &&
+                            (!attribute.ChannelId.HasValue || attribute.ChannelId == channel) &&
                             attribute.Domain == domain));
 
             if(methodInfo == null)
