@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -286,7 +286,7 @@ namespace Antmicro.Renode.UserInterface.Commands
 
         private TimeInterval TimeStampToTimeInterval(ulong timeStamp)
         {
-            return TimeInterval.FromMicroseconds(timeStamp / 1000);
+            return TimeInterval.FromNanoseconds(timeStamp);
         }
 
         private string RESDPropertyNames => String.Join(", ", Enum.GetNames(typeof(RESDProperty)));
