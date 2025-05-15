@@ -149,7 +149,7 @@ namespace Antmicro.Renode.Utilities.RESD
 
                 currentSampleTimestamp += Period;
                 sample = samplesData.GetCurrentSample();
-                timestamp = TimeInterval.FromMicroseconds(currentSampleTimestamp / 1000);
+                timestamp = TimeInterval.FromNanoseconds(currentSampleTimestamp);
             }
 
             return RESDStreamStatus.OK;
@@ -164,7 +164,7 @@ namespace Antmicro.Renode.Utilities.RESD
         public override ulong SamplesCount => samplesCount.Value;
         public override ulong Duration => SamplesCount * Period;
         public override IDictionary<String, String> ExtraInformation => new Dictionary<String, String>() {
-            {"Period", TimeInterval.FromMicroseconds(Period / 1000).ToString()},
+            {"Period", TimeInterval.FromNanoseconds(Period).ToString()},
             {"Frequency", $"{Frequency}Hz"}
         };
 
@@ -185,7 +185,7 @@ namespace Antmicro.Renode.Utilities.RESD
 
                     while(!reader.EOF && currentSample.TryReadFromStream(reader))
                     {
-                        yield return new KeyValuePair<TimeInterval, RESDSample>(TimeInterval.FromMicroseconds(currentTime / 1000), currentSample);
+                        yield return new KeyValuePair<TimeInterval, RESDSample>(TimeInterval.FromNanoseconds(currentTime), currentSample);
                         currentSample = new T();
                         currentTime += Period;
                     }
