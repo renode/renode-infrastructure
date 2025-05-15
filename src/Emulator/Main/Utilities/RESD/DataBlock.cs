@@ -186,6 +186,7 @@ namespace Antmicro.Renode.Utilities.RESD
                     while(!reader.EOF && currentSample.TryReadFromStream(reader))
                     {
                         yield return new KeyValuePair<TimeInterval, RESDSample>(TimeInterval.FromMicroseconds(currentTime / 1000), currentSample);
+                        currentSample = new T();
                         currentTime += Period;
                     }
                 }
