@@ -11,10 +11,10 @@ namespace Antmicro.Renode.Hooks
 {
     public static class PSCIHookExtensions
     {
-        public static void AddCustomPSCIStub(this ICPUWithPSCI cpu, ulong functionIdentifier, string pythonScript)
+        public static void AddCustomPSCIHandler(this ICPUWithPSCI cpu, ulong functionIdentifier, string pythonScript)
         {
             var engine = new PSCIPythonEngine(cpu, pythonScript, functionIdentifier);
-            cpu.AddCustomPSCIStub(functionIdentifier, engine.Hook);
+            cpu.AddCustomPSCIHandler(functionIdentifier, engine.Hook);
         }
     }
 }

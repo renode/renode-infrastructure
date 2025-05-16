@@ -18,4 +18,4 @@ EXTERNAL_AS(uint32_t, ReadSystemRegisterGenericTimer32, tlib_read_system_registe
 EXTERNAL_AS(void, WriteSystemRegisterGenericTimer32, tlib_write_system_register_generic_timer_32, uint32_t, uint32_t)
 
 EXTERNAL_AS(void, OnExecutionModeChanged, tlib_on_execution_mode_changed, uint32_t, uint32_t)
-EXTERNAL_AS(void, HandleSMCCall, tlib_handle_smc_call)
+EXTERNAL_AS(void, HandlePSCICall, tlib_handle_psci_call)

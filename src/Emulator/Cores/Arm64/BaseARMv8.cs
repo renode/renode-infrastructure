@@ -10,7 +10,6 @@ using System.Collections.Generic;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Hooks;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities.Binding;
 
@@ -25,20 +24,20 @@ namespace Antmicro.Renode.Peripherals.CPU
             this.customFunctionHandlers = new Dictionary<ulong, Action>();
         }
 
-        public bool StubPSCICalls
+        public PSCIConduitEmulationMethod PSCIEmulationMethod
         {
             get
             {
-                return stubPSCICalls;
+                return psciEmulationMethod;
             }
             set
             {
-                stubPSCICalls = value;
-                TlibStubSmcCalls(stubPSCICalls ? 1u : 0);
+                psciEmulationMethod = value;
+                TlibPsciHandlerEnable((uint)psciEmulationMethod);
             }
         }
 
-        public void AddCustomPSCIStub(ulong functionIdentifier, Action stub)
+        public void AddCustomPSCIHandler(ulong functionIdentifier, Action stub)
         {
             try
             {
@@ -52,7 +51,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        private void HandleSMCCall()
+        private void HandlePSCICall()
         {
             var x0 = (uint)GetRegister((int)ARMv8ARegisters.X0);
             var x1 = (ulong)GetRegister((int)ARMv8ARegisters.X1);
@@ -92,11 +91,19 @@ namespace Antmicro.Renode.Peripherals.CPU
             cpu.IsHalted = false;
         }
 
-        private bool stubPSCICalls;
+        private PSCIConduitEmulationMethod psciEmulationMethod;
+
         private readonly Dictionary<ulong, Action> customFunctionHandlers;
         private const int PSCICallResultSuccess = 0;
         private const int PSCICallResultNotSupported = -1;
         private const int PSCIVersion = 2;
+
+        public enum PSCIConduitEmulationMethod
+        {
+            None = 0, // No PSCI emulation - we have a firmware which handles the calls natively, or no PSCI interface
+            SMC = 1,  // Emulate PSCI calls over SMC (Secure Monitor Call) instruction
+            HVC = 2,  // Emulate PSCI calls over HVC (HyperVisor Call) instruction
+        }
 
         protected enum GICCPUInterfaceVersion : uint
         {
@@ -115,7 +122,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
 #pragma warning disable 649
         [Import]
-        private Action<uint> TlibStubSmcCalls;
+        private Action<uint> TlibPsciHandlerEnable;
 #pragma warning restore 649
     }
 }
