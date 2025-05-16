@@ -732,8 +732,18 @@ namespace Antmicro.Renode.Utilities
 
         private static void AssertMaskParameters(int width, int position, int maxWidth)
         {
-            DebugHelper.Assert(width >= 0 && position >= 0, $"Width (0x{width:X}) and position (0x{position:X}) should be grater than 0.");
-            DebugHelper.Assert(checked(width + position) <= maxWidth, $"Sum of width (0x{width:X}) and position (0x{position:X}) should be lower than or equal to {maxWidth}.");
+            if(width < 0)
+            {
+                throw new ArgumentException($"'{nameof(width)}' (0x{width:X}) should be grater than 0.");
+            }
+            if(position < 0)
+            {
+                throw new ArgumentException($"'{nameof(position)} ({position}) should be grater than or equal to 0.");
+            }
+            if(checked(width + position) > maxWidth)
+            {
+                throw new ArgumentException($"Sum of '{nameof(width)}' ({width}) and '{nameof(position)}' ({position}) should be less than or equal to {maxWidth}.");
+            }
         }
 
         private static bool[] GetBitsInner(ulong reg, int length)

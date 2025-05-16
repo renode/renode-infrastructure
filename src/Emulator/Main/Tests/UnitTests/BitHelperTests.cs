@@ -51,7 +51,6 @@ namespace Antmicro.Renode.Utilities
             Assert.AreEqual(0xFFFFFFFF, BitHelper.CalculateMask(32, 0));
             Assert.AreEqual(0xFFFFFFF8, BitHelper.CalculateMask(29, 3));
             Assert.AreEqual(0x7FFFFFFE, BitHelper.CalculateMask(30, 1));
-            Assert.AreEqual(0x00, BitHelper.CalculateMask(32, 32));
         }
 
         [Test]
@@ -61,7 +60,6 @@ namespace Antmicro.Renode.Utilities
             Assert.AreEqual(0xFFFFFFFFFFFFFFFF, BitHelper.CalculateQuadWordMask(64, 0));
             Assert.AreEqual(0xFFFFFFFFFFFFFFF8, BitHelper.CalculateQuadWordMask(61, 3));
             Assert.AreEqual(0x7FFFFFFFFFFFFFFE, BitHelper.CalculateQuadWordMask(62, 1));
-            Assert.AreEqual(0x00, BitHelper.CalculateQuadWordMask(64, 64));
         }
 
         [Test]
