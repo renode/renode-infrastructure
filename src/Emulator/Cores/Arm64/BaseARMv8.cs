@@ -24,19 +24,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             this.customFunctionHandlers = new Dictionary<ulong, Action>();
         }
 
-        public PSCIConduitEmulationMethod PSCIEmulationMethod
-        {
-            get
-            {
-                return psciEmulationMethod;
-            }
-            set
-            {
-                psciEmulationMethod = value;
-                TlibPsciHandlerEnable((uint)psciEmulationMethod);
-            }
-        }
-
         public void AddCustomPSCIHandler(ulong functionIdentifier, Action stub)
         {
             try
@@ -48,6 +35,19 @@ namespace Antmicro.Renode.Peripherals.CPU
                 throw new RecoverableException(string.Format("There's already a handler for a function: 0x{0:X}", functionIdentifier));
             }
             this.Log(LogLevel.Debug, "Adding a handler for function: 0x{0:X}", functionIdentifier);
+        }
+
+        public PSCIConduitEmulationMethod PSCIEmulationMethod
+        {
+            get
+            {
+                return psciEmulationMethod;
+            }
+            set
+            {
+                psciEmulationMethod = value;
+                TlibPsciHandlerEnable((uint)psciEmulationMethod);
+            }
         }
 
         [Export]
