@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -165,7 +165,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 humidityBytes[1], humidityBytes[0], temperatureBytes[1], temperatureBytes[0]
             };
 
-            SetStatusBits(ref measurement[0], MeasurementStatus.Valid); 
+            SetStatusBits(ref measurement[0], MeasurementStatus.Valid);
             return measurement;
         }
 
@@ -227,7 +227,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             case RESDStreamStatus.AfterStream:
                 stream.Dispose();
                 stream = null;
-                return defaultValue;
+                return sample;
             default:
                 throw new Exception("Unreachable");
             }
