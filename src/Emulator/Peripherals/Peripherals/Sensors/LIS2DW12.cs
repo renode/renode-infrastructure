@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -76,9 +76,16 @@ namespace Antmicro.Renode.Peripherals.Sensors
         [AfterRESDSample(SampleType.Acceleration)]
         private void HandleAccelerationSampleEnded(AccelerationSample sample, TimeInterval timestamp)
         {
-            feederThread?.Stop();
-            feederThread = null;
-            accelerationFifo.KeepFifoOnReset = true;
+            if(isAfterStream)
+            {
+                feederThread?.Stop();
+                feederThread = null;
+                accelerationFifo.KeepFifoOnReset = true;
+                isAfterStream = false;
+                return;
+            }
+            HandleAccelerationSample(sample, timestamp);
+            isAfterStream = true;
         }
 
         public void FeedAccelerationSamplesFromRESD(string path, uint channel = 0, ulong startTime = 0,
@@ -100,8 +107,10 @@ namespace Antmicro.Renode.Peripherals.Sensors
             feederThread?.Stop();
             feederThread = resdStream.StartSampleFeedThread(this,
                 SampleRate,
-                startTime: startTime
+                startTime: startTime,
+                shouldStop: false
             );
+            isAfterStream = false;
         }
 
         public void FeedAccelerationSample(string path)
@@ -967,6 +976,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private IManagedThread feederThread;
         private RESDStream<AccelerationSample> resdStream;
+        private bool isAfterStream;
 
         private event Action<uint> SampleRateChanged;
         // This event is used in MultiFrequency RESD to precisely match RESD behavior with FIFO operation
