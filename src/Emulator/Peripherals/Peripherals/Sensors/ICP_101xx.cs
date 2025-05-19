@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -354,7 +354,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
 
             var currentTimestamp = machine.ClockSource.CurrentValue.TotalNanoseconds;
-            if(stream.TryGetSample(currentTimestamp, out sample) == RESDStreamStatus.OK)
+            if(stream.TryGetSample(currentTimestamp, out sample) != RESDStreamStatus.BeforeStream)
             {
                 return true;
             }
