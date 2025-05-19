@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -92,6 +92,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         [AfterRESDSample(SampleType.Acceleration)]
         private void HandleAccelerationSampleEnded(AccelerationSample sample, TimeInterval timestamp)
         {
+            HandleAccelerationSample(sample, timestamp);
             accelerometerFeederThread?.Stop();
             accelerometerFeederThread = null;
         }
