@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -76,7 +76,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         private uint HandleConversion(uint channelId)
         {
             EnsureChannelIsValid(channelId);
-            if(resdStream[channelId] == null || resdStream[channelId].TryGetCurrentSample(this, (sample) => sample.Voltage / 1000, out var voltage, out _) != RESDStreamStatus.OK)
+            if(resdStream[channelId] == null || resdStream[channelId].TryGetCurrentSample(this, (sample) => sample.Voltage / 1000, out var voltage, out _) == RESDStreamStatus.BeforeStream)
             {
                 return ParseResult(DefaultChannelVoltage);
             }
