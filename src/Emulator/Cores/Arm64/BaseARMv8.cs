@@ -34,7 +34,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 throw new RecoverableException(string.Format("There's already a handler for a function: 0x{0:X}", functionIdentifier));
             }
-            this.Log(LogLevel.Debug, "Adding a handler for function: 0x{0:X}", functionIdentifier);
+            this.Log(LogLevel.Debug, "Adding a handler for PSCI function: 0x{0:X}", functionIdentifier);
         }
 
         public PSCIConduitEmulationMethod PSCIEmulationMethod
@@ -55,6 +55,10 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             var x0 = (uint)GetRegister((int)ARMv8ARegisters.X0);
             var x1 = (ulong)GetRegister((int)ARMv8ARegisters.X1);
+            var x2 = (ulong)GetRegister((int)ARMv8ARegisters.X2);
+            var x3 = (ulong)GetRegister((int)ARMv8ARegisters.X3);
+
+            this.Log(LogLevel.Debug, "PSCI call, function: 0x{0:X}, with parameters: x1=0x{1:X}, x2=0x{2:X}, x3=0x{3:X}", x0, x1, x2, x3);
 
             if(customFunctionHandlers.TryGetValue(x0, out var handler))
             {
@@ -68,7 +72,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     GetPSCIVersion();
                     break;
                 case Function.CPUOn:
-                    UnhaltCpu((uint)x1);
+                    UnhaltCpu((uint)x1, x2);
                     break;
                 default:
                     this.Log(LogLevel.Error, "Encountered an unexpected PSCI call request: 0x{0:X}", x0);
@@ -85,9 +89,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             SetRegister((int)ARMv8ARegisters.X1, PSCIVersion);
         }
 
-        private void UnhaltCpu(uint cpuId)
+        private void UnhaltCpu(uint cpuId, ulong entryPoint)
         {
             var cpu = machine.SystemBus.GetCPUs().Where(x => x.MultiprocessingId == cpuId).Single();
+            this.Log(LogLevel.Info, "Starting {0} (MPIDR=0x{1:X}) with PSCI CPU_ON function at 0x{2:X}", cpu.GetName(), cpu.MultiprocessingId, entryPoint);
+            cpu.PC = entryPoint;
             cpu.IsHalted = false;
         }
 
