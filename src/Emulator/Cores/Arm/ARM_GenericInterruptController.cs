@@ -22,7 +22,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 {
     // NOTE: Memory mapped Virtual CPU Interface is currently not supported.
     //       It can be accesses only through system registers.
-    public class ARM_GenericInterruptController : IARMCPUsConnectionsProvider, IBusPeripheral, ILocalGPIOReceiver, INumberedGPIOOutput, IIRQController
+    public class ARM_GenericInterruptController : IARMCPUsConnectionsProvider, IBusPeripheral, ILocalGPIOReceiver, INumberedGPIOOutput, IIRQController, IHasAutomaticallyConnectedGPIOOutputs
     {
         public ARM_GenericInterruptController(IMachine machine, bool supportsTwoSecurityStates = true, ARM_GenericInterruptControllerVersion architectureVersion = ARM_GenericInterruptControllerVersion.Default, uint sharedPeripheralCount = 960)
         {
@@ -196,6 +196,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     target.RegisterLegacySGIRequester(cpuEntry);
                 }
             }
+
+            AddAutomaticGPIOConnections(cpu);
         }
 
         [ConnectionRegion("distributor")]
@@ -553,6 +555,15 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             return BuildInterruptFlagRegisters(startId, endId, name,
                 valueProviderCallback: irq => irq.State.Pending
             );
+        }
+
+        public void DisconnectAutomaticallyConnectedGPIOOutputs()
+        {
+            foreach(var connection in automaticallyConnectedGPIOs)
+            {
+                connection.Disconnect();
+            }
+            automaticallyConnectedGPIOs.Clear();
         }
 
         public long PeripheralIdentificationOffset => ArchitectureVersionAtLeast3
@@ -2015,6 +2026,19 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             forcedTargettedCpuForAffinityRouting = null;
         }
 
+        private void AddAutomaticGPIOConnections(IARMSingleSecurityStateCPU cpu)
+        {
+            var inputCount = cpu.GetPeripheralInputCount();
+            var processorNumber = (int)GetProcessorNumber(cpu);
+            // For the convention of connecting interrupt signals see `InterruptSignalType` definition
+            for(int i = 0; i < inputCount; i++)
+            {
+                var source = Connections[(processorNumber * 4) + i];
+                source.Connect(cpu, i);
+                automaticallyConnectedGPIOs.Add(source);
+            }
+        }
+
         private static uint GetProcessorNumber(ICPU cpu)
         {
             switch(cpu.Model)
@@ -2053,6 +2077,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private readonly Object locker = new Object();
         private readonly Dictionary<uint, IARMSingleSecurityStateCPU> cpusByProcessorNumberCache = new Dictionary<uint, IARMSingleSecurityStateCPU>();
         private readonly Dictionary<IARMSingleSecurityStateCPU, CPUEntry> cpuEntries = new Dictionary<IARMSingleSecurityStateCPU, CPUEntry>();
+        private readonly List<IGPIO> automaticallyConnectedGPIOs = new List<IGPIO>();
         private readonly InterruptSignalType[] supportedInterruptSignals;
         private readonly ReadOnlyDictionary<InterruptId, SharedInterrupt> sharedInterrupts;
         private readonly ReadOnlyDictionary<GroupType, InterruptGroup> groups;

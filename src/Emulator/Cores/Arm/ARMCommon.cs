@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -8,10 +8,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Core;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public interface IARMSingleSecurityStateCPU : ICPU
+    public interface IARMSingleSecurityStateCPU : ICPU, IGPIOReceiver
     {
         ExceptionLevel ExceptionLevel { get; }
 
@@ -59,8 +60,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         AArch64
     }
 
-    // GIC should use GPIO#0 of an ARM CPU to signal IRQ and GPIO#1 to signal FIQ
-    // An ARM CPU should be connected to a GIC following the convention `[<N*4>-<N*4+3>] -> cpuN@[0-3]`";
+    // GIC exposes a GPIO line with `<cpu.MultiprocessingId>*4 + I` ID for every interrupt type
+    // defined in the enum below (`I` is its enum value) and every `cpu` connected to it.
+    //
+    // The signals are connected automatically in GIC's `AttachCPU` method but are removed if any
+    // manual connections are present in REPL (e.g. `[0-3] -> cpu@[0-3]`).
     public enum InterruptSignalType
     {
         IRQ  = 0,

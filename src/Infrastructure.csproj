@@ -1609,6 +1609,7 @@
     <Compile Include="Emulator/Main/Peripherals/BackendManager.cs" />
     <Compile Include="Emulator/Main/Peripherals/Video/IVideo.cs" />
     <Compile Include="Emulator/Main/Core/INumberedGPIOOutput.cs" />
+    <Compile Include="Emulator/Main/Core/IHasAutomaticallyConnectedGPIOOutputs.cs" />
     <Compile Include="Emulator/Main/Peripherals/BasicPeripheralBackendAnalyzer.cs" />
     <Compile Include="Emulator/Main/Utilities/Collections/SerializableWeakKeyDictionary.cs" />
     <Compile Include="Emulator/Main/Core/Structure/IHasChildren.cs" />
