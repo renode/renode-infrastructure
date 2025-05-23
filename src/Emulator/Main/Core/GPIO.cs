@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -135,15 +135,9 @@ namespace Antmicro.Renode.Core
             stateChangedHook = delegate {};
         }
 
-        private static GPIOAttribute GetAttribute(IGPIOReceiver per)
-        {
-            return (GPIOAttribute)per.GetType().GetCustomAttributes(true).FirstOrDefault(x => x is GPIOAttribute);
-        }
-        
         private static void Validate(IGPIOReceiver to, int toNumber)
         {
-            var destPeriAttribute = GetAttribute(to);
-            var destPeriInNum = destPeriAttribute != null ? destPeriAttribute.NumberOfInputs : 0;
+            var destPeriInNum = to.GetPeripheralInputCount();
             if(destPeriInNum != 0 && toNumber >= destPeriInNum)
             {
                 throw new ConstructionException(string.Format(
