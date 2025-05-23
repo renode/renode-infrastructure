@@ -29,5 +29,28 @@ namespace Antmicro.Renode.Core
 #endif
             }
         }
+
+        public static string OSIdentifier
+        {
+            get
+            {
+#if NET
+                return OperatingSystem.IsLinux() ? "Linux" 
+                    : OperatingSystem.IsWindows() ? "Windows" 
+                    : OperatingSystem.IsMacOS() ? "MacOS" 
+                    : "Unknown Platform";
+#else
+    #if PLATFORM_WINDOWS
+                return "Windows";
+    #elif PLATFORM_LINUX
+                return "Linux";
+    #elif PLATFORM_OSX
+                return "MacOS";
+    #else
+                return "Unknown Platform";
+    #endif
+#endif
+            }
+        }
     }
 }

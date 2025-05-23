@@ -119,15 +119,16 @@ namespace Antmicro.Renode.Core
             {
                 var deserializationResult = serializer.TryDeserialize<Emulation>(stream, out var emulation, out var metadata);
                 string metadataStringFromFile = null;
-
+                
                 try
                 {
-                    if(metadata != null)
+                    if (metadata != null)
                     {
-                        metadataStringFromFile = Encoding.UTF8.GetString(metadata);
+                        var utf8 = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
+                        metadataStringFromFile = utf8.GetString(metadata);
                     }
                 }
-                catch(Exception) // Metadata is not a valid UTF-8 byte sequence
+                catch (Exception) // Metadata is not a valid UTF-8 byte sequence
                 {
                     throw CreateLoadException(DeserializationResult.MetadataCorrupted, metadataStringFromFile);
                 }
@@ -275,7 +276,7 @@ namespace Antmicro.Renode.Core
             }
         }
 
-        public string MetadataString => $"{VersionString} running on {RuntimeInfo.Version}";
+        public string MetadataString => $"{VersionString} running on {RuntimeInfo.OSIdentifier} {RuntimeInfo.Version}";
         
         public SimpleFileCache CompiledFilesCache { get; } = new SimpleFileCache("compiler-cache", !Emulator.InCIMode && ConfigurationManager.Instance.Get("general", "compiler-cache-enabled", false));
 
@@ -347,9 +348,7 @@ namespace Antmicro.Renode.Core
         {
             var errorMessage = result == DeserializationResult.MetadataCorrupted
                 ? $"The snapshot cannot be loaded as its metadata is corrupted."
-                : metadata == MetadataString
-                    ? $"The snapshot cannot be loaded as the emulation state is corrupted."
-                    : $"This snapshot is incompatible as it was created with {metadata}. Try loading it in that version instead.";
+                : $"This snapshot is incompatible or the emulation's state is corrupted. Snapshot version: {metadata}. Your version: {MetadataString}";
 
             return new RecoverableException(errorMessage); 
         }
