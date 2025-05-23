@@ -91,7 +91,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private void UnhaltCpu(uint cpuId, ulong entryPoint)
         {
-            var cpu = machine.SystemBus.GetCPUs().Where(x => x.MultiprocessingId == cpuId).Single();
+            var cpu = machine.SystemBus.GetCPUs().Where(x => x.MultiprocessingId == cpuId).SingleOrDefault();
+            if(cpu == null)
+            {
+                this.Log(LogLevel.Error, "Could not find CPU with given ID: 0x{0:X}", cpuId);
+                return;
+            }
             this.Log(LogLevel.Info, "Starting {0} (MPIDR=0x{1:X}) with PSCI CPU_ON function at 0x{2:X}", cpu.GetName(), cpu.MultiprocessingId, entryPoint);
             cpu.PC = entryPoint;
             cpu.IsHalted = false;
