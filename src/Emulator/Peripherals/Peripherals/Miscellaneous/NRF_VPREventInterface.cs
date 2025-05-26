@@ -100,7 +100,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private DoubleWordRegisterCollection registers;
 
-        private readonly IBusController sysbus;
         private readonly int numberOfEvents;
 
         private const int MaxEventCount = 32;
