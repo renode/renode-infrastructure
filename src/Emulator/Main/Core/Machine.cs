@@ -40,6 +40,7 @@ namespace Antmicro.Renode.Core
         public Machine(bool createLocalTimeSource = false)
         {
             InitAtomicMemoryState();
+            InitHstState();
 
             collectionSync = new object();
             pausingSync = new object();
@@ -75,7 +76,7 @@ namespace Antmicro.Renode.Core
         [PreSerialization]
         private void SerializeAtomicMemoryState()
         {
-            atomicMemoryState = new byte[AtomicMemoryStateSize];
+            atomicMemoryState = new byte[AtomicMemoryStateSizeBytes];
             Marshal.Copy(atomicMemoryStatePointer, atomicMemoryState, 0, atomicMemoryState.Length);
             // the first byte of an atomic memory state contains value 0 or 1
             // indicating if the mutex has already been initialized;
@@ -86,8 +87,7 @@ namespace Antmicro.Renode.Core
         [PostDeserialization]
         public void InitAtomicMemoryState()
         {
-            atomicMemoryStatePointer = Marshal.AllocHGlobal(AtomicMemoryStateSize);
-
+            atomicMemoryStatePointer = Marshal.AllocHGlobal(AtomicMemoryStateSizeBytes);
             // the beginning of an atomic memory state contains two 8-bit flags:
             // byte 0: information if the mutex has already been initialized
             // byte 1: information if the reservations array has already been initialized
@@ -109,14 +109,32 @@ namespace Antmicro.Renode.Core
             }
         }
 
+        [PostDeserialization]
+        public void InitHstState()
+        {
+            unsafe
+            {
+                storeTablePointer = (IntPtr) NativeMemory.AlignedAlloc(StoreTableSizeBytes, StoreTableAlignment);
+            }
+        }
+
         public IntPtr AtomicMemoryStatePointer => atomicMemoryStatePointer;
+        public IntPtr StoreTablePointer => storeTablePointer;
 
         [Transient]
         private IntPtr atomicMemoryStatePointer;
         private byte[] atomicMemoryState;
 
+        [Transient] 
+        private IntPtr storeTablePointer;
+        private byte[] storeTable; // todo: serialize data?
+
+        // It's important that the store table be aligned such that it's located on an address where the 
+        // last 28 bits are zero, so that it becomes easy to calculate the addresses of its elements.
+        private const int StoreTableAlignment = 1 << 28;
         // TODO: this probably should be dynamically get from Tlib, but how to nicely do that in `Machine` class?
-        private const int AtomicMemoryStateSize = 25600;
+        private const int StoreTableSizeBytes = 268_435_456; // 256 MiB
+        private const int AtomicMemoryStateSizeBytes = 25600 + StoreTableSizeBytes;
 
         public IEnumerable<IPeripheral> GetParentPeripherals(IPeripheral peripheral)
         {
