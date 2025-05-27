@@ -77,7 +77,12 @@ namespace Antmicro.Renode.Peripherals.Storage
                 this.Log(LogLevel.Error, "Error decoding block request header");
                 return false;
             }
-            SeekToSector(hdr.sector);
+            if(!SeekToSector(hdr.sector))
+            {
+                this.Log(LogLevel.Error, "Driver tried to seek beyond the loaded image end.");
+                return false;
+            }
+            
             vqueue.ReadDescriptorMetadata();
             var length = vqueue.Descriptor.Length;
 
@@ -137,14 +142,15 @@ namespace Antmicro.Renode.Peripherals.Storage
                 .WithValueField(0, 8, FieldMode.Read, name: "writeback", valueProviderCallback: _ => 0);
         }
 
-        private void SeekToSector(long sector)
+        private bool SeekToSector(long sector)
         {
             var positionToSeek = SectorSize * sector;
             if(positionToSeek >= this.storage.Length)
             {
-                throw new RecoverableException("Driver tried to seek beyond the loaded image end.");
+                return false;
             }
             storage.Seek(positionToSeek, SeekOrigin.Begin);
+            return true;
         }
 
         private long capacity;
