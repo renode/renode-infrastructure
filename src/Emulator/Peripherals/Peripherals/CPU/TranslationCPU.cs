@@ -1353,6 +1353,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 {
                     throw new ConstructionException("Failed to initialize atomic state, see the log for details");
                 }
+                TlibStoreTableInit(machine.StoreTablePointer);
             }
             HandleRamSetup();
             foreach(var hook in hooks)
@@ -1927,6 +1928,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private Func<IntPtr, int, int> TlibAtomicMemoryStateInit;
+
+        [Import]
+        private Func<IntPtr, int> TlibStoreTableInit;
 
         [Import]
         private Func<uint> TlibGetPageSize;
