@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -8,6 +8,7 @@
 using System;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Core;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -104,16 +105,16 @@ namespace Antmicro.Renode.Peripherals.CAN
                 {
                     if(FilterCANMessage(fifo, RxMsg) == true)
                     {
-                        this.Log(LogLevel.Debug, "Message received RIR={0:X}", message.Id);
+                        this.Log(LogLevel.Debug, "Message received RIR={0:X}", RxMsg.CAN_RIR);
                         ReceiveCANMessage(RxMsg);
                     }
                     else
                     {
-                       this.Log(LogLevel.Debug, "Message dropped by filter RIR={0:X}", message.Id);
+                       this.Log(LogLevel.Debug, "Message dropped by filter RIR={0:X}", RxMsg.CAN_RIR);
                     }
                 }
             }
-            FrameReceived?.Invoke((int)message.Id, message.Data);
+            FrameReceived?.Invoke((int)CANMessage.GetRIRFromCANMessageFrame(message), message.Data);
         }
 
         public void WriteDoubleWord(long address, uint value)  // cpu do per
@@ -361,11 +362,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             {
                 if(FrameSent != null)
                 {
-                    // Message frame created with receive identifier register
-                    // value because filtering can be implemented on bits other
-                    // than just standard/extended identifier value, e.g. IDE
-                    // or RTR bit.
-                    FrameSent(new CANMessageFrame(msg.CAN_RIR, msg.Data));
+                    FrameSent(msg.ToCANMessageFrame());
                 }
                 else
                 {
@@ -1584,10 +1581,21 @@ namespace Antmicro.Renode.Peripherals.CAN
 
         public class CANMessage
         {
+            public static uint GetRIRFromCANMessageFrame(CANMessageFrame message)
+            {
+                var rir = 0u;
+                rir.ReplaceBits(message.ExtendedId, EXIDWIDTH, EXIDSHIFT);
+                BitHelper.SetBit(ref rir, IDESHIFT, message.ExtendedFormat);
+                BitHelper.SetBit(ref rir, RTRSHIFT, message.RemoteFrame);
+                return rir;
+            }
+
             public const int STIDSHIFT = 21;
-            public const uint STIDMASK = 0x7FF;
+            public const byte STIDWIDTH = 11;
+            public const uint STIDMASK = (1u << STIDWIDTH) - 1;
             public const int EXIDSHIFT = 3;
-            public const uint EXIDMASK = 0x3FFFF;
+            public const byte EXIDWIDTH = 18;
+            public const uint EXIDMASK = (1u << EXIDWIDTH) - 1;
             public const int IDESHIFT = 2;
             public const uint IDEMASK = 0x1;
             public const int RTRSHIFT = 1;
@@ -1652,7 +1660,7 @@ namespace Antmicro.Renode.Peripherals.CAN
 
             public CANMessage(CANMessageFrame message)
             {
-                CAN_RIR = (uint)message.Id & RIRMASK;
+                CAN_RIR = GetRIRFromCANMessageFrame(message);
                 ExtractRIRRegister();
 
                 //this.TimeStamp = (Data[6] << 8) | Data[7];
@@ -1661,6 +1669,16 @@ namespace Antmicro.Renode.Peripherals.CAN
 
                 this.Data = message.Data;
                 GenerateDataRegisters();
+            }
+
+            public CANMessageFrame ToCANMessageFrame()
+            {
+                return CANMessageFrame.CreateWithExtendedId(
+                    id: BitHelper.GetValue(CAN_RIR, offset: EXIDSHIFT, size: EXIDWIDTH),
+                    data: Data,
+                    extendedFormat: BitHelper.IsBitSet(CAN_RIR, IDESHIFT),
+                    remoteFrame: BitHelper.IsBitSet(CAN_RIR, RTRSHIFT)
+                );
             }
 
             public void GenerateRegisters()
