@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -87,7 +87,7 @@ namespace Antmicro.Renode.Peripherals.CAN
 
             registerMap[(long)Register.TestRegister] = new DoubleWordRegister(this)
                 .WithReservedBits(0, 4)
-                .WithFlag(4, out rv.TestRegister.LoopBackMode, writeCallback: (oldVal, newVal) => 
+                .WithFlag(4, out rv.TestRegister.LoopBackMode, writeCallback: (oldVal, newVal) =>
                 {
                     if(!IsProtectedWrite && newVal != oldVal)
                     {
@@ -127,7 +127,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                         }
                         case Control.ConfigurationChangeEnable:
                         {
-                            if(!rv.CCControlRegister.ControlFields[(int)Control.Initialization].Value && rv.CCControlRegister.ControlFields[(int)Control.ConfigurationChangeEnable].Value) // oldVal was reset through resetting INIT 
+                            if(!rv.CCControlRegister.ControlFields[(int)Control.Initialization].Value && rv.CCControlRegister.ControlFields[(int)Control.ConfigurationChangeEnable].Value) // oldVal was reset through resetting INIT
                             {
                                 rv.CCControlRegister.ControlFields[idx].Value = oldVal;
                                 return;
@@ -522,7 +522,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             TransmitBuffer(bufferIdx);
         }
 
-        // It scans Tx Buffers section in the Message RAM and returns index of the buffer to be transmitted next according to Tx prioritization rules. 
+        // It scans Tx Buffers section in the Message RAM and returns index of the buffer to be transmitted next according to Tx prioritization rules.
         private int FindPrioritizedBuffer(out uint messageID)
         {
             var numberOfDedicatedTxBuffers = txBuffers.NumberOfDedicatedTxBuffers.Value;
@@ -530,7 +530,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             var txFIFOQueueMode = txBuffers.TxFIFOQueueMode.Value;
 
             var txScanMode = TxScanModeInternal.Dedicated;
-            
+
             if(txFIFOQueueSize == 0)
             {
                 txScanMode = TxScanModeInternal.Dedicated;
@@ -600,7 +600,7 @@ namespace Antmicro.Renode.Peripherals.CAN
         }
 
         private int ScanDedicatedTxBuffers(out uint messageID)
-        {   
+        {
             var startAddress = (int)(txBuffers.StartAddress.Value << 2);
             var dataSizeInBytes = MapDataFieldSizeToDataBytes(txBuffers.DataFieldSize.Value);
             var bufferSizeInBytes = BufferElementHeaderSizeInBytes + dataSizeInBytes;
@@ -652,7 +652,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             var offset = startAddress + getIndex * bufferSizeInBytes;
             byte[] scanBytes = messageRAM.ReadBytes((long)offset, 4);
             var scanRecord = Packet.Decode<TxScanBufferAndEventFIFOCommonHeader>(scanBytes);
-            
+
             var id = scanRecord.Identifier;
             id = scanRecord.ExtendedIdentifier ? id : (id >> 18);
 
@@ -705,7 +705,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             {
                 return; // it was cancelled
             }
-            
+
             var addr = (rv.TxBufferConfiguration.TxBuffersStartAddress.Value << 2) + (ulong)(i * bufferSizeInBytes);
             var frameBytes = messageRAM.ReadBytes((long)addr, (int)bufferSizeInBytes);
             var frame = Packet.Decode<TxBufferElementHeader>(frameBytes);
@@ -726,7 +726,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             var id = frame.Identifier;
             id = frame.ExtendedIdentifier ? id : (id >> 18); // 11 or 29 bit identifier, a standard identifier is stored in ID[28:18]
             var canMessage = new CANMessageFrame(id, data, frame.ExtendedIdentifier, frame.RemoteTransmissionRequest, frame.FDFormat, frame.BitRateSwitch);
-            
+
             var wasTransmitted = TransmitMessage(canMessage);
             if(wasTransmitted)
             {
@@ -871,7 +871,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             {
                 var startAddress = filterConfig.FilterListStartAddress.Value;
                 var filterSizeInBytes = isExtended ? ExtendedFilterSizeInBytes : StandardFilterSizeInBytes;
-                
+
                 var match = false;
                 for(var i = 0; i < (int)listSize; i++)
                 {
@@ -1261,7 +1261,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                 this.Log(LogLevel.Warning, "Invalid Data Field Size");
                 return 0;
             }
-            
+
             DataFieldSizeToBytesCountMap.TryGetValue(k, out var fieldSize);
             return fieldSize;
         }
@@ -1272,14 +1272,14 @@ namespace Antmicro.Renode.Peripherals.CAN
             {
                 return (byte)k;
             }
-            
+
             if(k > 64)
             {
                 this.Log(LogLevel.Warning, "Received frame has more than 64 bytes");
                 return 0;
             }
             var success = FDBytesCountToDataLengthCodeMap.TryGetValue(k, out var datalengthCode);
-            
+
             if(!success)
             {
                 this.Log(LogLevel.Warning, "Invalid length of received frame");
