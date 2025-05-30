@@ -21,7 +21,6 @@ using System.Reflection;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.Time;
-using Microsoft.CodeAnalysis;
 
 namespace Antmicro.Renode.Core
 {
@@ -262,9 +261,14 @@ namespace Antmicro.Renode.Core
 
                 try
                 {
-                    return string.Format("{0}, version {1} ({2})",
+                    var version = entryAssembly.GetName().Version;
+
+                    // version.Revision is intentionally skipped here
+                    return string.Format("{0}, version {1}.{2}.{3} ({4})",
                         entryAssembly.GetName().Name,
-                        entryAssembly.GetName().Version,
+                        version.Major,
+                        version.Minor,
+                        version.Build,
                         ((AssemblyInformationalVersionAttribute)entryAssembly.GetCustomAttributes(typeof(AssemblyInformationalVersionAttribute), false)[0]).InformationalVersion
                     );
                 }
