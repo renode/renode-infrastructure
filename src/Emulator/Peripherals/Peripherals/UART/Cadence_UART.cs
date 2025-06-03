@@ -471,6 +471,21 @@ namespace Antmicro.Renode.Peripherals.UART
                 {(long)Registers.BaudRateDivider, new DoubleWordRegister(this, resetValue: 0x0000000F)
                     .WithReservedBits(8, 24)
                     .WithValueField(0, 8, out baudDivider, name: "baudRateDivider")
+                },
+                {(long)Registers.RxFifoByteStatus, new DoubleWordRegister(this)
+                    .WithReservedBits(12, 20)
+                    .WithTaggedFlag("byte3_break", 11)
+                    .WithTaggedFlag("byte3_frm_err", 10)
+                    .WithTaggedFlag("byte3_par_err", 9)
+                    .WithTaggedFlag("byte2_break", 8)
+                    .WithTaggedFlag("byte2_frm_err", 7)
+                    .WithTaggedFlag("byte2_par_err", 6)
+                    .WithTaggedFlag("byte1_break", 5)
+                    .WithTaggedFlag("byte1_frm_err", 4)
+                    .WithTaggedFlag("byte1_par_err", 3)
+                    .WithTaggedFlag("byte0_break", 2)
+                    .WithTaggedFlag("byte0_frm_err", 1)
+                    .WithTaggedFlag("byte0_par_err", 0)
                 }
             };
         }
