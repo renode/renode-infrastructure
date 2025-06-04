@@ -52,7 +52,6 @@ namespace Antmicro.Renode.Peripherals.UART
 
         protected override void CharWritten()
         {
-            receiveFifoThresholdInterrupt.Value |= Count >= (int)receiveFifoThreshold.Value;
             UpdateInterrupts();
         }
 
@@ -184,6 +183,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private void UpdateInterrupts()
         {
+            receiveFifoThresholdInterrupt.Value |= Count >= (int)receiveFifoThreshold.Value;
             var state = false;
             state |= receiveFifoThresholdInterrupt.Value && receiveFifoThresholdInterruptEnable.Value;
             IRQ.Set(state);
