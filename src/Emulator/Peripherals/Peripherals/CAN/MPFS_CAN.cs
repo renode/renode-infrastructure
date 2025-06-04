@@ -1,5 +1,5 @@
-﻿﻿//
-// Copyright (c) 2010-2023 Antmicro
+﻿//
+// Copyright (c) 2010-2025 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -358,7 +358,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             {
                 this.Log(LogLevel.Warning, "FrameSent is not initialized. Am I connected to medium?");
             }
-            
+
             this.Log(LogLevel.Info, "Message sent: {0}.", message);
             txMessageInterruptsStatus.Value = true;
             UpdateInterrupts();
@@ -386,9 +386,9 @@ namespace Antmicro.Renode.Peripherals.CAN
         private IFlagRegisterField txMessageInterruptsStatus;
         private IFlagRegisterField rxMessageInterruptsStatus;
         private IFlagRegisterField swapEndian;
-        
+
         private readonly DoubleWordRegisterCollection registers;
-        
+
         private const int BufferCount = 32;
         private const int shiftBetweenRxRegisters = 0x20;
         private const int shiftBetweenTxRegisters = 0x10;
@@ -503,7 +503,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                     parent.Log(LogLevel.Warning, "Mailbox #{1} already contains a message: {0}", Message.ToString(), BufferId);
                     return false;
                 }
-                
+
                 // http://www.seanano.org/projects/canport/27241003.pdf, p.28:
                 // "When the 82527 receives a message, the entire message identifier, the data length code (DLC)
                 // and the Direction bit are stored into the corresponding message object."
