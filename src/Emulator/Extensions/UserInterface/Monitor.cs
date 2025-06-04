@@ -263,23 +263,23 @@ namespace Antmicro.Renode.UserInterface
             string machineName;
             if(EmulationManager.Instance.CurrentEmulation.TryGetMachineName(machine, out machineName))
             {
-                var activeMachine = _currentMachine;
-                _currentMachine = machine;
-                var macroName = GetVariableName("reset");
-                Token resetMacro;
-                if(macros.TryGetValue(macroName, out resetMacro))
+                using(ObtainMachineContext(machine))
                 {
-                    var macroLines = resetMacro.GetObjectValue().ToString().Split('\n');
-                    foreach(var line in macroLines)
+                    var macroName = GetVariableName("reset");
+                    Token resetMacro;
+                    if(macros.TryGetValue(macroName, out resetMacro))
                     {
-                        Parse(line, Interaction);
+                        var macroLines = resetMacro.GetObjectValue().ToString().Split('\n');
+                        foreach(var line in macroLines)
+                        {
+                            Parse(line, Interaction);
+                        }
+                    }
+                    else
+                    {
+                        Logger.LogAs(this, LogLevel.Warning, "No action for reset - macro {0} is not registered.", macroName);
                     }
                 }
-                else
-                {
-                    Logger.LogAs(this, LogLevel.Warning, "No action for reset - macro {0} is not registered.", macroName);
-                }
-                _currentMachine = activeMachine;
             }
         }
 
@@ -534,6 +534,13 @@ namespace Antmicro.Renode.UserInterface
                 }
             }
             return variableName;
+        }
+
+        private IDisposable ObtainMachineContext(IMachine machine)
+        {
+            var activeMachine = _currentMachine;
+            _currentMachine = machine;
+            return DisposableWrapper.New(() => _currentMachine = activeMachine);
         }
 
         public bool TryCompilePlugin(string filename, ICommandInteraction writer = null)
