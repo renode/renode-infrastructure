@@ -40,6 +40,8 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithFlag(5, name: "Double transfer rate protocol")
                 .WithFlag(6, name: "Dual I/O protocol")
                 .WithFlag(7, name: "Quad I/O protocol");
+            extendedAddressRegister = new ByteRegister(this)
+                .WithValueField(0, 8);
             statusRegister = new ByteRegister(this)
                 .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => false, name: "writeInProgress")
                 .WithFlag(1, out enable, writeStatusCanSetWriteEnable ? FieldMode.Read | FieldMode.Write : FieldMode.Read, name: "writeEnableLatch");
@@ -107,6 +109,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             volatileConfigurationRegister.Reset();
             nonVolatileConfigurationRegister.Reset();
             enhancedVolatileConfigurationRegister.Reset();
+            extendedAddressRegister.Reset();
             currentOperation = default(DecodedOperation);
             lockedRange = null;
             FinishTransmission();
@@ -365,6 +368,14 @@ namespace Antmicro.Renode.Peripherals.SPI
                     currentOperation.Operation = DecodedOperation.OperationType.ReadRegister;
                     currentOperation.Register = (uint)Register.Status;
                     break;
+                case (byte)Commands.ReadExtendedAddressRegister:
+                    currentOperation.Operation = DecodedOperation.OperationType.ReadRegister;
+                    currentOperation.Register = (uint)Register.ExtendedAddress;
+                    break;
+                case (byte)Commands.WriteExtendedAddressRegister:
+                    currentOperation.Operation = DecodedOperation.OperationType.WriteRegister;
+                    currentOperation.Register = (uint)Register.ExtendedAddress;
+                    break;
                 case (byte)Commands.ReadConfigurationRegister:
                     currentOperation.Operation = DecodedOperation.OperationType.ReadRegister;
                     currentOperation.Register = (uint)Register.Configuration;
@@ -500,6 +511,9 @@ namespace Antmicro.Renode.Peripherals.SPI
                 case Register.VolatileConfiguration:
                     volatileConfigurationRegister.Write(0, data);
                     break;
+                case Register.ExtendedAddress:
+                    extendedAddressRegister.Write(0, data);
+                    break;
                 case Register.NonVolatileConfiguration:
                 case Register.Configuration:
                     if((currentOperation.CommandBytesHandled) >= 2)
@@ -559,6 +573,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 case Register.EnhancedVolatileConfiguration:
                     return enhancedVolatileConfigurationRegister.Read();
                 case Register.ExtendedAddress:
+                    return extendedAddressRegister.Read();
                 default:
                     this.Log(LogLevel.Warning, "Trying to read from unsupported register \"{0}\"", register);
                     return 0;
@@ -654,14 +669,15 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private byte ReadFromMemory()
         {
-            if(currentOperation.ExecutionAddress + currentOperation.CommandBytesHandled > underlyingMemory.Size)
+            var memoryAddress = currentOperation.ExecutionAddress + currentOperation.CommandBytesHandled;
+            memoryAddress |= extendedAddressRegister.Read() << 24;
+            if(memoryAddress > underlyingMemory.Size)
             {
                 this.Log(LogLevel.Error, "Cannot read from address 0x{0:X} because it is bigger than configured memory size.", currentOperation.ExecutionAddress);
                 return 0;
             }
 
-            var position = currentOperation.ExecutionAddress + currentOperation.CommandBytesHandled;
-            return  underlyingMemory.ReadByte(position);
+            return underlyingMemory.ReadByte(memoryAddress);
         }
 
         // The addressingMode field is 1-bit wide, so a conditional expression covers all possible cases
@@ -677,6 +693,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private readonly IEnumRegisterField<AddressingMode> addressingMode;
         private readonly ByteRegister volatileConfigurationRegister;
         private readonly ByteRegister enhancedVolatileConfigurationRegister;
+        private readonly ByteRegister extendedAddressRegister;
         private readonly WordRegister nonVolatileConfigurationRegister;
         private readonly byte manufacturerId;
         private readonly byte memoryType;
