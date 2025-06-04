@@ -547,6 +547,7 @@ namespace Antmicro.Renode.Core
                             continue;
                         }
                         resetable.Reset();
+                        PeripheralReset?.Invoke(this, resetable);
                     }
                     var machineReset = MachineReset;
                     if(machineReset != null)
@@ -1312,6 +1313,8 @@ namespace Antmicro.Renode.Core
 
         [field: Transient]
         public event Action<IMachine> MachineReset;
+        [field: Transient]
+        public event Action<IMachine, IPeripheral> PeripheralReset;
         [field: Transient]
         public event Action<IMachine, PeripheralsChangedEventArgs> PeripheralsChanged;
         [field: Transient]
