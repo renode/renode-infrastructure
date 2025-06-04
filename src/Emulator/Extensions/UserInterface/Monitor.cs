@@ -7,6 +7,7 @@
 //
 using System;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Sockets;
@@ -125,6 +126,7 @@ namespace Antmicro.Renode.UserInterface
         private void RegisterResetCommand(IMachine machine)
         {
             machine.MachineReset += ResetMachine;
+            machine.PeripheralReset += ResetPeripheral;
         }
 
         private void UpdateMonitorPrompt(IMachine machine)
@@ -278,6 +280,31 @@ namespace Antmicro.Renode.UserInterface
                     else
                     {
                         Logger.LogAs(this, LogLevel.Warning, "No action for reset - macro {0} is not registered.", macroName);
+                    }
+                }
+            }
+        }
+
+        private void ResetPeripheral(IMachine machine, IPeripheral peripheral)
+        {
+            string macroName;
+            if(machine.TryGetLocalName(peripheral, out var localName))
+            {
+                macroName = $"{localName}.reset";
+            }
+            else
+            {
+                return;
+            }
+
+            using(ObtainMachineContext(machine))
+            {
+                if(macros.TryGetValue(macroName, out var resetMacro))
+                {
+                    var macroLines = resetMacro.GetObjectValue().ToString().Split('\n');
+                    foreach(var line in macroLines)
+                    {
+                        Parse(line, Interaction);
                     }
                 }
             }
@@ -515,6 +542,27 @@ namespace Antmicro.Renode.UserInterface
                 if(!ParseTokens(singleCommand, writer))
                     return false;
             }
+            return true;
+        }
+
+        public bool SetPeripheralMacro(IPeripheral peripheral, string macroName, string contents, IMachine machine = null)
+        {
+            machine = machine ?? currentMachine;
+            string variablePrefix;
+            if (peripheral == null)
+            {
+                variablePrefix = "";
+            }
+            else if (machine.TryGetLocalName(peripheral, out variablePrefix))
+            {
+                variablePrefix += ".";
+            }
+            else
+            {
+                return false;
+            }
+
+            SetVariable($"{variablePrefix}{macroName}", new StringToken(contents), macros);
             return true;
         }
 
