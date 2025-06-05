@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -183,7 +183,7 @@ namespace Antmicro.Renode.Peripherals.CAN
 
             public CANMessageFrame ToCANMessageFrame()
             {
-                return new CANMessageFrame(Id, Data.ToArray(), idExtendedBit, remoteTransmissionRequest, extendedDataLength, bitRateSwitch);
+                return new CANMessageFrame(standardId, extendedId, Data.ToArray(), idExtendedBit, remoteTransmissionRequest, extendedDataLength, bitRateSwitch);
             }
 
             public void FillReceivedFrame(IMultibyteWritePeripheral buffer, ulong offset, CANMessageFrame frame)
@@ -295,7 +295,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                 (RxMessageBufferCode)messageBufferCode == RxMessageBufferCode.Full ||
                 (RxMessageBufferCode)messageBufferCode == RxMessageBufferCode.Overrun;
 
-            public uint ExtendedId => standardId | extendedId << 11;
+            public uint ExtendedId => standardId << StandardIdOffset | extendedId;
             public uint StandardId => standardId;
 
             public uint Id => idExtendedBit ? ExtendedId : StandardId;
@@ -360,6 +360,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             public byte[] data;
 
             public const uint MetaSize = 0x8;
+            public const byte StandardIdOffset = 18;
         }
 
         private enum RxMessageBufferCode : byte
@@ -392,14 +393,8 @@ namespace Antmicro.Renode.Peripherals.CAN
                 @this.remoteFrame = frame.RemoteFrame;
                 @this.extendedFrame = frame.ExtendedFormat;
                 @this.identifierAcceptanceFilterHitIndicator = (ushort)filterIndex;
-                if(frame.ExtendedFormat)
-                {
-                    @this.extendedId = frame.Id;
-                }
-                else
-                {
-                    @this.standardId = frame.Id;
-                }
+                @this.extendedId = frame.ExtendedIdPart;
+                @this.standardId = frame.StandardIdPart;
                 @this.data = frame.Data.ToArray();
                 return @this;
             }
@@ -493,7 +488,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             public bool IsMatching(CANMessageFrame frame) =>
                 frame.ExtendedFormat == idExtendedBit &&
                 frame.RemoteFrame == remoteTransmissionRequest &&
-                (idExtendedBit ? rxFrameIdentifier == frame.Id : (rxFrameIdentifier >> 17) == frame.Id)
+                frame.ExtendedId == (idExtendedBit ? rxFrameIdentifier : (rxFrameIdentifier & StandardIdMask))
             ;
 
 #pragma warning disable 649
@@ -504,6 +499,10 @@ namespace Antmicro.Renode.Peripherals.CAN
             [PacketField, Offset(bits: 31), Width( 1)]
             public bool remoteTransmissionRequest;
 #pragma warning restore 649
+
+            private const byte StandardIdOffset = 18;
+            private const byte StandardIdWidth = 11;
+            private const uint StandardIdMask = ((1 << StandardIdWidth) - 1) << StandardIdOffset;
         }
 
         [LeastSignificantByteFirst]
@@ -517,12 +516,8 @@ namespace Antmicro.Renode.Peripherals.CAN
             }
 
             public bool IsMatching(CANMessageFrame frame) =>
-                (frame.ExtendedFormat == idExtendedBit0 &&
-                 frame.RemoteFrame == remoteTransmissionRequest0 &&
-                 (idExtendedBit0 ? rxFrameIdentifier0 == frame.Id : (rxFrameIdentifier0 >> 3) == frame.Id)) ||
-                (frame.ExtendedFormat == idExtendedBit1 &&
-                 frame.RemoteFrame == remoteTransmissionRequest1 &&
-                 (idExtendedBit1 ? rxFrameIdentifier1 == frame.Id : (rxFrameIdentifier1 >> 3) == frame.Id))
+                IsMatchingPartial(frame, rxFrameIdentifier0, idExtendedBit0, remoteTransmissionRequest0) ||
+                IsMatchingPartial(frame, rxFrameIdentifier1, idExtendedBit1, remoteTransmissionRequest1)
             ;
 
 #pragma warning disable 649
@@ -539,6 +534,19 @@ namespace Antmicro.Renode.Peripherals.CAN
             [PacketField, Offset(bits: 31), Width( 1)]
             public bool remoteTransmissionRequest0;
 #pragma warning restore 649
+
+            private static bool IsMatchingPartial(CANMessageFrame frame, uint rxFrameIdentifier, bool idExtendedBit, bool remoteTransmissionRequest) =>
+                frame.ExtendedFormat == idExtendedBit &&
+                frame.RemoteFrame == remoteTransmissionRequest &&
+                (frame.ExtendedId >> IgnoredIdBits) == (idExtendedBit ? rxFrameIdentifier : (rxFrameIdentifier & StandardIdMask))
+            ;
+
+            private const byte IdBits = 29;
+            private const byte ComparedIdBits = 14;
+            private const byte IgnoredIdBits = IdBits - ComparedIdBits;
+            private const byte StandardIdWidth = 11;
+            private const byte StandardIdOffset = ComparedIdBits - StandardIdWidth;
+            private const uint StandardIdMask = ((1 << StandardIdWidth) - 1) << StandardIdOffset;
         }
 
         [LeastSignificantByteFirst]
@@ -551,12 +559,15 @@ namespace Antmicro.Renode.Peripherals.CAN
                 return structure;
             }
 
-            public bool IsMatching(CANMessageFrame frame) =>
-                frame.Id == rxFrameIdentifier0 ||
-                frame.Id == rxFrameIdentifier1 ||
-                frame.Id == rxFrameIdentifier2 ||
-                frame.Id == rxFrameIdentifier3
-            ;
+            public bool IsMatching(CANMessageFrame frame)
+            {
+                var partialId = frame.ExtendedId >> IgnoredIdBits;
+                return partialId == rxFrameIdentifier0
+                    || partialId == rxFrameIdentifier1
+                    || partialId == rxFrameIdentifier2
+                    || partialId == rxFrameIdentifier3
+                ;
+            }
 
 #pragma warning disable 649
             [PacketField, Offset(bits:  0), Width(8)]
@@ -568,6 +579,10 @@ namespace Antmicro.Renode.Peripherals.CAN
             [PacketField, Offset(bits: 24), Width(8)]
             public uint rxFrameIdentifier0;
 #pragma warning restore 649
+
+            private const byte IdBits = 29;
+            private const byte ComparedIdBits = 8;
+            private const byte IgnoredIdBits = IdBits - ComparedIdBits;
         }
     }
 }
