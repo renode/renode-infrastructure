@@ -723,9 +723,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                 }
             }
 
-            var id = frame.Identifier;
-            id = frame.ExtendedIdentifier ? id : (id >> 18); // 11 or 29 bit identifier, a standard identifier is stored in ID[28:18]
-            var canMessage = new CANMessageFrame(id, data, frame.ExtendedIdentifier, frame.RemoteTransmissionRequest, frame.FDFormat, frame.BitRateSwitch);
+            var canMessage = CANMessageFrame.CreateWithExtendedId(frame.Identifier, data, frame.ExtendedIdentifier, frame.RemoteTransmissionRequest, frame.FDFormat, frame.BitRateSwitch);
 
             var wasTransmitted = TransmitMessage(canMessage);
             if(wasTransmitted)
@@ -1012,7 +1010,7 @@ namespace Antmicro.Renode.Peripherals.CAN
         {
             var rxBufferElementHeader = new RxBufferElementHeader
             {
-                Identifier = rxMessage.ExtendedFormat ? rxMessage.Id : rxMessage.Id << 18,
+                Identifier = rxMessage.ExtendedId,
                 RemoteTransmissionRequest = rxMessage.RemoteFrame,
                 ExtendedIdentifier = rxMessage.ExtendedFormat,
                 ErrorStateIndicator = false,
@@ -1114,7 +1112,7 @@ namespace Antmicro.Renode.Peripherals.CAN
         {
             var rxBufferElementHeader = new RxBufferElementHeader
             {
-                Identifier = rxMessage.ExtendedFormat ? rxMessage.Id : rxMessage.Id << 18,
+                Identifier = rxMessage.ExtendedId,
                 RemoteTransmissionRequest = rxMessage.RemoteFrame,
                 ExtendedIdentifier = rxMessage.ExtendedFormat,
                 ErrorStateIndicator = false,
