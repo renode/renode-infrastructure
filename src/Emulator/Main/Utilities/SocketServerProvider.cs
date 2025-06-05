@@ -113,13 +113,20 @@ namespace Antmicro.Renode.Utilities
                     {
                         while(queue.TryDequeue(out var dequeued))
                         {
-                            if(!telnetMode && (iacEscapePosition = Array.FindIndex(dequeued, x => x == IACEscape)) == -1)
+                            if(!telnetMode || (iacEscapePosition = Array.FindIndex(dequeued, x => x == IACEscape)) == -1)
                             {
                                 stream.Write(dequeued, 0, dequeued.Length);
                             }
                             else
                             {
-                                stream.Write(dequeued.Take(iacEscapePosition), 0, dequeued.Length);
+                                // If we're in telnetMode and we discover the IACEscape byte, we should double it
+                                stream.Write(dequeued, 0, iacEscapePosition + 1);
+                                stream.Write(new byte[]{ IACEscape }, 0, 1);
+                                var lengthOfRest = dequeued.Length - (iacEscapePosition + 1);
+                                if(lengthOfRest > 0)
+                                {
+                                    stream.Write(dequeued, iacEscapePosition + 1, lengthOfRest);
+                                }
                             }
                         }
                     }
