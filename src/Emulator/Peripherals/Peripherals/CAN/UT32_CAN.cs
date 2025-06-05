@@ -16,6 +16,7 @@ using System.Linq;
 
 namespace Antmicro.Renode.Peripherals.CAN
 {
+    // Implements PeliCAN Mode of Operation
     public class UT32_CAN : BasicBytePeripheral, IKnownSize, ICAN
     {
         public UT32_CAN(IMachine machine) : base(machine)
