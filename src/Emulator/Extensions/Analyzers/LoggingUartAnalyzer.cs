@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -22,7 +22,7 @@ namespace Antmicro.Renode.Analyzers
     // properties from Monitor. In order to do this one must create analyzer
     // and add it as external using command below:
     //
-    // showAnalyzer "ExternalName" sysbus.uart_name Antmicro.Renode.Analyzers.LoggingUartAnalyzer
+    // showAnalyzer "ExternalName" sysbus.uart_name LoggingUartAnalyzer
     //
     [Transient]
     public class LoggingUartAnalyzer : BasicPeripheralBackendAnalyzer<UARTBackend>, IExternal
