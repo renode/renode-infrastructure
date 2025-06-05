@@ -15,18 +15,18 @@ namespace Antmicro.Renode.Backends.Terminals
 {
     public static class ServerSocketTerminalExtensions
     {
-        public static void CreateServerSocketTerminal(this Emulation emulation, int port, string name, bool emitConfig = true, bool flushOnConnect = false)
+        public static void CreateServerSocketTerminal(this Emulation emulation, int port, string name, bool telnetMode = true, bool flushOnConnect = false)
         {
-            emulation.ExternalsManager.AddExternal(new ServerSocketTerminal(port, emitConfig, flushOnConnect), name);
+            emulation.ExternalsManager.AddExternal(new ServerSocketTerminal(port, telnetMode, flushOnConnect), name);
         }
     }
 
     [Transient]
     public class ServerSocketTerminal : BackendTerminal, IDisposable
     {
-        public ServerSocketTerminal(int port, bool emitConfigBytes = true, bool flushOnConnect = false)
+        public ServerSocketTerminal(int port, bool telnetMode = true, bool flushOnConnect = false)
         {
-            server = new SocketServerProvider(emitConfigBytes, flushOnConnect, serverName: "Terminal");
+            server = new SocketServerProvider(telnetMode, flushOnConnect, serverName: "Terminal");
             server.DataReceived += b => CallCharReceived((byte)b);
 
             server.Start(port);

@@ -22,11 +22,11 @@ namespace Antmicro.Renode.Utilities
 {
     public class SocketServerProvider : IDisposable
     {
-        public SocketServerProvider(bool emitConfigBytes = true, bool flushOnConnect = false, string serverName = "")
+        public SocketServerProvider(bool telnetMode = true, bool flushOnConnect = false, string serverName = "")
         {
             queue = new ConcurrentQueue<byte[]>();
             enqueuedEvent = new AutoResetEvent(false);
-            this.emitConfigBytes = emitConfigBytes;
+            this.telnetMode = telnetMode;
             this.flushOnConnect = flushOnConnect;
             this.serverName = serverName;
         }
@@ -113,13 +113,13 @@ namespace Antmicro.Renode.Utilities
                     {
                         while(queue.TryDequeue(out var dequeued))
                         {
-                            if(!emitConfigBytes && (iacEscapePosition = Array.FindIndex(dequeued, x => x == IACEscape)) == -1)
+                            if(!telnetMode && (iacEscapePosition = Array.FindIndex(dequeued, x => x == IACEscape)) == -1)
                             {
                                 stream.Write(dequeued, 0, dequeued.Length);
                             }
                             else
                             {
-                                stream.Write(dequeued.Take(iacEscapePosition):, 0, dequeued.Length);
+                                stream.Write(dequeued.Take(iacEscapePosition), 0, dequeued.Length);
                             }
                         }
                     }
@@ -244,7 +244,7 @@ namespace Antmicro.Renode.Utilities
                 }
                 try
                 {
-                    if(emitConfigBytes)
+                    if(telnetMode)
                     {
                         var initBytes = new byte[] {
                             255, 253,   0, // IAC DO    BINARY
@@ -312,7 +312,7 @@ namespace Antmicro.Renode.Utilities
 
         private CancellationTokenSource cancellationToken;
         private AutoResetEvent enqueuedEvent;
-        private bool emitConfigBytes;
+        private bool telnetMode;
         private bool flushOnConnect;
         private readonly string serverName;
         private volatile bool stopRequested;
