@@ -111,7 +111,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTaggedFlag("rx_ov", 3)
                 .WithFlag(4, out receiveFifoThresholdInterruptEnable, name: "rx_thd")
                 .WithReservedBits(5, 1)
-                .WithTaggedFlag("tx_he", 6)
+                .WithFlag(6, out transmitFifoHalfEmptyInteruptEnable, name: "tx_he")
                 .WithReservedBits(7, 25)
                 .WithChangeCallback((_, __) => UpdateInterrupts())
             ;
@@ -123,7 +123,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTaggedFlag("rx_ov", 3)
                 .WithFlag(4, out receiveFifoThresholdInterrupt, FieldMode.Read | FieldMode.WriteOneToClear, name: "rx_thd")
                 .WithReservedBits(5, 1)
-                .WithTaggedFlag("tx_he", 6)
+                .WithFlag(6, out transmitFifoHalfEmptyInterupt, FieldMode.Read | FieldMode.WriteOneToClear, name: "tx_he")
                 .WithReservedBits(7, 25)
                 .WithChangeCallback((_, __) => UpdateInterrupts())
             ;
@@ -152,7 +152,12 @@ namespace Antmicro.Renode.Peripherals.UART
             Registers.FifoData.Define(this)
                 .WithValueField(0, 8, name: "data",
                     valueProviderCallback: _ => TryGetCharacter(out var value) ? (ulong)value : 0,
-                    writeCallback: (_, value) => TransmitCharacter((byte)value)
+                    writeCallback: (_, value) =>
+                    {
+                        TransmitCharacter((byte)value);
+                        transmitFifoHalfEmptyInterupt.Value |= true;
+                        UpdateInterrupts();
+                    }
                 )
                 .WithTaggedFlag("rx_par", 8)
                 .WithReservedBits(9, 23)
@@ -186,6 +191,7 @@ namespace Antmicro.Renode.Peripherals.UART
             receiveFifoThresholdInterrupt.Value |= Count >= (int)receiveFifoThreshold.Value;
             var state = false;
             state |= receiveFifoThresholdInterrupt.Value && receiveFifoThresholdInterruptEnable.Value;
+            state |= transmitFifoHalfEmptyInterupt.Value && transmitFifoHalfEmptyInteruptEnable.Value;
             IRQ.Set(state);
             this.NoisyLog("IRQ {0}", state ? "set" : "unset");
         }
@@ -193,6 +199,8 @@ namespace Antmicro.Renode.Peripherals.UART
         private IValueRegisterField receiveFifoThreshold;
         private IFlagRegisterField receiveFifoThresholdInterruptEnable;
         private IFlagRegisterField receiveFifoThresholdInterrupt;
+        private IFlagRegisterField transmitFifoHalfEmptyInteruptEnable;
+        private IFlagRegisterField transmitFifoHalfEmptyInterupt;
         private IFlagRegisterField baudClockReady;
 
         private const int TransmitFifoDepth = 8;
