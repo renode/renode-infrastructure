@@ -45,7 +45,7 @@ namespace Antmicro.Renode.Core.CAN
             return $"[Message: Data={DataAsHex}, Remote={RemoteFrame}, Extended={ExtendedFormat}, BitRateSwitch={BitRateSwitch}, FDFormat={FDFormat}, Id={Id}, DataLength={Data.Length}]";
         }
 
-        public byte[] ToSocketCAN(bool useNetworkByteOrder)
+        public byte[] ToSocketCAN(bool useNetworkByteOrder = false)
         {
             if(!FDFormat)
             {

@@ -93,7 +93,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             byte[] frame;
             try
             {
-                frame = message.ToSocketCAN(false);
+                frame = message.ToSocketCAN();
             }
             catch(RecoverableException e)
             {
@@ -169,7 +169,7 @@ namespace Antmicro.Renode.Peripherals.CAN
 
                 buffer.AddRange(data);
 
-                if(!buffer.TryDecodeAsSocketCANFrame(out var frame, false))
+                if(!buffer.TryDecodeAsSocketCANFrame(out var frame))
                 {
                     // not enough bytes
                     continue;
