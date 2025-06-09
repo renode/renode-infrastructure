@@ -93,7 +93,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             byte[] frame;
             try
             {
-                frame = message.ToSocketCAN(true);
+                frame = message.ToSocketCAN(false);
             }
             catch(RecoverableException e)
             {
