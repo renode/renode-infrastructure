@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -31,6 +31,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             receiveFifo.Clear();
             fifoUsedBytes = 0;
             overrunPending = false;
+            resetMode = true;
             UpdateInterrupt();
         }
 
@@ -66,11 +67,12 @@ namespace Antmicro.Renode.Peripherals.CAN
         protected override void DefineRegisters()
         {
             Registers.Mode.Define(this, 1)
-                .WithFlag(0, out resetMode, name: "RM")
-                .WithConditionallyWritableFlag(1, out listenOnlyMode, () => resetMode.Value, this, name: "LOM")
-                .WithConditionallyWritableFlag(2, out selfTestMode, () => resetMode.Value, this, name: "STM")
-                .WithConditionallyWritableFlag(3, out singleAcceptanceFilter, () => resetMode.Value, this, name: "AFM")
+                .WithConditionallyWritableFlag(1, out listenOnlyMode, () => resetMode, this, name: "LOM")
+                .WithConditionallyWritableFlag(2, out selfTestMode, () => resetMode, this, name: "STM")
+                .WithConditionallyWritableFlag(3, out singleAcceptanceFilter, () => resetMode, this, name: "AFM")
                 .WithTaggedFlag("SM", 4) // Sleep mode, SJA1000 only
+                // Keep last to delay its action by relying on callback ordering
+                .WithFlag(0, changeCallback: (_, value) => resetMode = value, valueProviderCallback: _ => resetMode, name: "RM")
                 .WithReservedBits(5, 3);
 
             Registers.Command.Define(this)
@@ -175,14 +177,14 @@ namespace Antmicro.Renode.Peripherals.CAN
                 .WithTag("TX_ERROR_COUNTER", 0, 8); // Writable in reset mode only
 
             // Acceptance mask registers are only available in reset mode
-            ResetModeRegisters.AcceptanceCode.DefineManyConditional(this, AcceptanceCodeLength, () => resetMode.Value, (reg, index) => reg
+            ResetModeRegisters.AcceptanceCode.DefineManyConditional(this, AcceptanceCodeLength, () => resetMode, (reg, index) => reg
                 .WithValueField(0, 8, out acceptanceCode[index], name: $"ACR{index}"), resetValue: 0x51); // The reset value for ACR0 is 0x51, the rest are undefined
 
-            ResetModeRegisters.AcceptanceMask.DefineManyConditional(this, AcceptanceCodeLength, () => resetMode.Value, (reg, index) => reg
+            ResetModeRegisters.AcceptanceMask.DefineManyConditional(this, AcceptanceCodeLength, () => resetMode, (reg, index) => reg
                 .WithValueField(0, 8, out acceptanceMask[index], name: $"AMR{index}"), resetValue: 0xff); // Same as above, the reset value for AMR0 is 0xff
 
             // Frame info is only available in normal mode
-            Registers.FrameInfo.DefineConditional(this, () => !resetMode.Value)
+            Registers.FrameInfo.DefineConditional(this, () => !resetMode)
                 .WithValueField(0, 4, out dataLengthCode, name: "DLC",
                     valueProviderCallback: _ => (ulong)(RxFrame?.Data.Length ?? 0))
                 .WithReservedBits(4, 2)
@@ -198,37 +200,37 @@ namespace Antmicro.Renode.Peripherals.CAN
 
             // Normal mode, ID1..2 are common for SFF and EFF but interpreted differently. The ID is left-aligned
             // and the top 8 bits are always in ID1
-            Registers.Id1.DefineManyConditional(this, SffIdLength, () => !resetMode.Value, (reg, index) => reg
+            Registers.Id1.DefineManyConditional(this, SffIdLength, () => !resetMode, (reg, index) => reg
                 .WithValueField(0, 8, out id[index], name: $"ID{index + 1}",
                     valueProviderCallback: _ => GetRxIdByte(RxFrame, index, extendedFormat: extendedFrameFormat.Value)));
 
             // Normal mode, extended format extra ID bytes
-            ExtendedFrameFormatRegisters.Id3.DefineManyConditional(this, EffIdExtraLength, () => !resetMode.Value && extendedFrameFormat.Value, (reg, index) => reg
+            ExtendedFrameFormatRegisters.Id3.DefineManyConditional(this, EffIdExtraLength, () => !resetMode && extendedFrameFormat.Value, (reg, index) => reg
                 .WithValueField(0, 8, out id[index + SffIdLength], name: $"ID{index + SffIdLength + 1}",
                     valueProviderCallback: _ => GetRxIdByte(RxFrame, index + SffIdLength, extendedFormat: true)));
 
             // Normal mode, standard format data bytes
-            StandardFrameFormatRegisters.Data.DefineManyConditional(this, MaxDataLength, () => !resetMode.Value && !extendedFrameFormat.Value, (reg, index) => reg
+            StandardFrameFormatRegisters.Data.DefineManyConditional(this, MaxDataLength, () => !resetMode && !extendedFrameFormat.Value, (reg, index) => reg
                 .WithValueField(0, 8, out data[index], name: $"DATA{index}", valueProviderCallback: _ => RxFrame?.Data[index] ?? 0));
 
             // Normal mode, extended format data bytes
             // In the register object model, a field can be a part of only one register, but these are the same
             // data fields as in the standard frame format. We use the standard fields as a backing and mirror
             // values written here to them in the write callbacks.
-            ExtendedFrameFormatRegisters.Data.DefineManyConditional(this, MaxDataLength, () => !resetMode.Value && extendedFrameFormat.Value, (reg, index) => reg
+            ExtendedFrameFormatRegisters.Data.DefineManyConditional(this, MaxDataLength, () => !resetMode && extendedFrameFormat.Value, (reg, index) => reg
                 .WithValueField(0, 8, name: $"DATA{index}",
                     valueProviderCallback: _ => RxFrame?.Data[index] ?? 0,
                     writeCallback: (_, value) => data[index].Value = value));
 
             // Normal mode, standard format next frame info
-            StandardFrameFormatRegisters.NextFrameInfo.DefineConditional(this, () => !resetMode.Value && !extendedFrameFormat.Value)
+            StandardFrameFormatRegisters.NextFrameInfo.DefineConditional(this, () => !resetMode && !extendedFrameFormat.Value)
                 .WithValueField(0, 4, FieldMode.Read, name: "DLC", valueProviderCallback: _ => (ulong)(receiveFifo.ElementAtOrDefault(1)?.Data.Length ?? 0))
                 .WithReservedBits(4, 2)
                 .WithFlag(6, FieldMode.Read, name: "RTR", valueProviderCallback: _ => receiveFifo.ElementAtOrDefault(1)?.RemoteFrame ?? false)
                 .WithFlag(7, FieldMode.Read, name: "FF", valueProviderCallback: _ => extendedFrameFormat.Value);
 
             // Normal mode, standard format next frame ID1
-            StandardFrameFormatRegisters.NextId1.DefineConditional(this, () => !resetMode.Value && !extendedFrameFormat.Value)
+            StandardFrameFormatRegisters.NextId1.DefineConditional(this, () => !resetMode && !extendedFrameFormat.Value)
                 .WithValueField(0, 8, FieldMode.Read, name: "ID1",
                     valueProviderCallback: _ => GetRxIdByte(receiveFifo.ElementAtOrDefault(1), 0, extendedFormat: false));
 
@@ -421,7 +423,6 @@ namespace Antmicro.Renode.Peripherals.CAN
 
         private CANMessageFrame RxFrame => receiveFifo.FirstOrDefault();
 
-        private IFlagRegisterField resetMode;
         private IFlagRegisterField listenOnlyMode;
         private IFlagRegisterField selfTestMode;
         private IFlagRegisterField singleAcceptanceFilter;
@@ -441,6 +442,7 @@ namespace Antmicro.Renode.Peripherals.CAN
         private IFlagRegisterField dataOverrunInterruptEnable;
 
         private bool overrunPending;
+        private bool resetMode;
         private int fifoUsedBytes;
 
         private readonly Queue<CANMessageFrame> receiveFifo = new Queue<CANMessageFrame>();
