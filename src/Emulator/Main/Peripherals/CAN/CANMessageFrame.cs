@@ -106,19 +106,6 @@ namespace Antmicro.Renode.Core.CAN
             return false;
         }
 
-        public static bool TryFromSocketCAN(IList<byte> data, out CANMessageFrame message, out int bytesUsed, bool useNetworkByteOrder)
-        {
-            if(data.TryDecodeAsSocketCANFrame(out var frame, useNetworkByteOrder))
-            {
-                bytesUsed = frame.Size;
-                return TryFromSocketCAN(frame, out message);
-            }
-
-            message = default(CANMessageFrame);
-            bytesUsed = 0;
-            return false;
-        }
-
         public string DataAsHex => Misc.PrettyPrintCollectionHex(Data);
 
         public uint Id { get; }
