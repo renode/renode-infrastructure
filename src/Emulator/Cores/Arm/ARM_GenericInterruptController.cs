@@ -2940,10 +2940,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
                 var groupType = BestPending.Config.GroupType;
                 cpu.GetAtomicExceptionLevelAndSecurityState(out var exceptionLevel, out var securityState);
-                if(groupType == GroupType.Group0
+                if(gic.enableFIQ && (groupType == GroupType.Group0
                     || (groupType == GroupType.Group1NonSecure && securityState == SecurityState.Secure) // Includes the case when the current EL is EL3_MonitorMode
                     || (groupType == GroupType.Group1Secure && securityState == SecurityState.NonSecure)
-                    || (groupType == GroupType.Group1Secure && exceptionLevel == ExceptionLevel.EL3_MonitorMode && !cpu.IsEL3UsingAArch32State))
+                    || (groupType == GroupType.Group1Secure && exceptionLevel == ExceptionLevel.EL3_MonitorMode && !cpu.IsEL3UsingAArch32State)))
                 {
                     return InterruptSignalType.FIQ;
                 }
