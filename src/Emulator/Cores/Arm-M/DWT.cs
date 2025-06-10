@@ -52,8 +52,15 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(23, 5)
                 .WithTag("NUMCOMP", 28, 4);
             Registers.CycleCounter.Define(this)
-                .WithValueField(0, 32, writeCallback: (_, val) => { cycleCounter.Value = val; }, 
-                    valueProviderCallback: _ => (uint)cycleCounter.Value, name: "CYCCNT");
+                .WithValueField(0, 32, writeCallback: (_, val) => { cycleCounter.Value = val; },
+                    valueProviderCallback: _ =>
+                    {
+                        if(machine.SystemBus.TryGetCurrentCPU(out var cpu))
+                        {
+                            cpu.SyncTime();
+                        }
+                        return (uint)cycleCounter.Value;
+                    }, name: "CYCCNT");
             Registers.Count.Define(this)
                 .WithTag("CPICNT", 0, 8) 
                 .WithReservedBits(8, 24);
