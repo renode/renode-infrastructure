@@ -552,7 +552,7 @@ namespace Antmicro.Renode.Logging
 
                 StopLoggingThread();
 
-                if(aggregateLogs) 
+                if(aggregateLogs)
                 {
                     FlushAggregatedLogs();
                 }
@@ -626,8 +626,8 @@ namespace Antmicro.Renode.Logging
                             {
                                 FlushAggregatedLogs();
                             }
-                        } 
-                        else 
+                        }
+                        else
                         {
                             FlushAggregatedLogs();
 
@@ -700,7 +700,7 @@ namespace Antmicro.Renode.Logging
             {
                 lock(innerLock)
                 {
-                    if(aggregateLogs) 
+                    if(aggregateLogs)
                     {
                         logAggregatorTimer = new Timer(x =>
                         {
