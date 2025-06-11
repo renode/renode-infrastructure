@@ -67,6 +67,12 @@ namespace Antmicro.Renode.Logging
                     levels.TryRemove(level.Key, out var _);
                 }
                 UpdateMinimumLevel();
+
+                foreach(var nameEntry in backendNames.Where(pair => pair.Value == backend).ToArray())
+                {
+                    backendNames.TryRemove(nameEntry.Key, out var _);
+                }
+
                 backends.Remove(backend);
                 backend.Dispose();
             }
