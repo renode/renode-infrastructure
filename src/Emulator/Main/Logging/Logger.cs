@@ -37,38 +37,47 @@ namespace Antmicro.Renode.Logging
     {
         public static void AddBackend(ILoggerBackend backend, string name, bool overwrite = false)
         {
-            backendNames.AddOrUpdate(name, backend, (key, value) =>
+            lock(backendsChangeLock)
             {
-                if(!overwrite)
+                backendNames.AddOrUpdate(name, backend, (key, value) =>
                 {
-                    throw new RecoverableException(string.Format("Backend with name '{0}' already exists", key));
+                    if(!overwrite)
+                    {
+                        throw new RecoverableException(string.Format("Backend with name '{0}' already exists", key));
+                    }
+                    value.Dispose();
+                    return backend;
+                });
+                levels[new BackendSourceIdPair(backend, -1)] = backend.GetLogLevel();
+                foreach(var level in backend.GetCustomLogLevels())
+                {
+                    levels[new BackendSourceIdPair(backend, level.Key)] = level.Value;
                 }
-                value.Dispose();
-                return backend;
-            });
-            levels[new BackendSourceIdPair(backend, -1)] = backend.GetLogLevel();
-            foreach(var level in backend.GetCustomLogLevels())
-            {
-                levels[new BackendSourceIdPair(backend, level.Key)] = level.Value;
+                UpdateMinimumLevel();
+                backends.Add(backend);
             }
-            UpdateMinimumLevel();
-            backends.Add(backend);
         }
 
         public static void RemoveBackend(ILoggerBackend backend)
         {
-            foreach(var level in levels.Where(pair => pair.Key.backend == backend).ToList())
+            lock(backendsChangeLock)
             {
-                levels.TryRemove(level.Key, out var _);
+                foreach(var level in levels.Where(pair => pair.Key.backend == backend).ToList())
+                {
+                    levels.TryRemove(level.Key, out var _);
+                }
+                UpdateMinimumLevel();
+                backends.Remove(backend);
+                backend.Dispose();
             }
-            UpdateMinimumLevel();
-            backends.Remove(backend);
-            backend.Dispose();
         }
 
         public static IDictionary<string, ILoggerBackend> GetBackends()
         {
-            return backendNames;
+            lock(backendsChangeLock)
+            {
+                return backendNames;
+            }
         }
 
         public static void Dispose()
@@ -435,6 +444,7 @@ namespace Antmicro.Renode.Logging
 
         private static ulong nextEntryId = 0;
         private static LogLevel minLevel = DefaultLogLevel;
+        private static readonly object backendsChangeLock = new object();
         private static readonly ConcurrentDictionary<string, ILoggerBackend> backendNames = new ConcurrentDictionary<string, ILoggerBackend>();
         private static readonly FastReadConcurrentCollection<ILoggerBackend> backends = new FastReadConcurrentCollection<ILoggerBackend>();
         private static readonly ConcurrentDictionary<BackendSourceIdPair, LogLevel> levels = new ConcurrentDictionary<BackendSourceIdPair, LogLevel>();
