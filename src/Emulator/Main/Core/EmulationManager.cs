@@ -280,7 +280,7 @@ namespace Antmicro.Renode.Core
             }
         }
 
-        public string MetadataString => $"{VersionString} running on {RuntimeInfo.OSIdentifier} {RuntimeInfo.Version}";
+        public string MetadataString => $"{VersionString} running on {RuntimeInfo.OSIdentifier}-{RuntimeInfo.ArchitectureIdentifier} {RuntimeInfo.Version}";
         
         public SimpleFileCache CompiledFilesCache { get; } = new SimpleFileCache("compiler-cache", !Emulator.InCIMode && ConfigurationManager.Instance.Get("general", "compiler-cache-enabled", false));
 

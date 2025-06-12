@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Core
 
         public static string Version
         {
-            get 
+            get
             {
 #if MONO
                 var getDisplayName = Type.GetType("Mono.Runtime").GetMethod("GetDisplayName", BindingFlags.NonPublic | BindingFlags.Static);
@@ -50,6 +50,20 @@ namespace Antmicro.Renode.Core
                 return "Unknown Platform";
     #endif
 #endif
+            }
+        }
+
+        public static string ArchitectureIdentifier
+        {
+            get
+            {
+#if NET
+                return RuntimeInformation.ProcessArchitecture.ToString();
+#else
+                return "X64";
+#endif
+
+
             }
         }
     }
