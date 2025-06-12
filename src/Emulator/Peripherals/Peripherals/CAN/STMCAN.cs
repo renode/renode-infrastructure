@@ -1583,18 +1583,19 @@ namespace Antmicro.Renode.Peripherals.CAN
         {
             public static uint GetRIRFromCANMessageFrame(CANMessageFrame message)
             {
-                var rir = 0u;
-                rir.ReplaceBits(message.ExtendedId, EXIDWIDTH, EXIDSHIFT);
+                var rir = message.ExtendedId << IDSHIFT;
                 BitHelper.SetBit(ref rir, IDESHIFT, message.ExtendedFormat);
                 BitHelper.SetBit(ref rir, RTRSHIFT, message.RemoteFrame);
                 return rir;
             }
 
-            public const int STIDSHIFT = 21;
+            public const int IDSHIFT = 3;
+            public const int IDWIDTH = 29;
+            public const int STIDSHIFT = IDSHIFT + EXIDWIDTH;
             public const byte STIDWIDTH = 11;
             public const uint STIDMASK = (1u << STIDWIDTH) - 1;
-            public const int EXIDSHIFT = 3;
-            public const byte EXIDWIDTH = 18;
+            public const int EXIDSHIFT = IDSHIFT;
+            public const byte EXIDWIDTH = IDWIDTH - STIDWIDTH;
             public const uint EXIDMASK = (1u << EXIDWIDTH) - 1;
             public const int IDESHIFT = 2;
             public const uint IDEMASK = 0x1;
