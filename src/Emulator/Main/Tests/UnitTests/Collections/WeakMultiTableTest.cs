@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -17,19 +17,27 @@ namespace Antmicro.Renode.UnitTests.Collections
         [Test]
         public void ShouldHandleManyRightValuesForLeft()
         {
-            var table = new WeakMultiTable<int, int>();
-            table.Add(0, 5);
-            table.Add(0, 6);
-            Assert.AreEqual(2, table.GetAllForLeft(0).Count());
+            // Need something passed as ref rather than value to avoid GC collecting our values mid test
+            Object object0 = new Object();
+            Object object1 = new Object();
+            Object object2 = new Object();
+            var table = new WeakMultiTable<Object, Object>();
+            table.Add(object0, object1);
+            table.Add(object0, object2);
+            Assert.AreEqual(2, table.GetAllForLeft(object0).Count());
         }
 
         [Test]
         public void ShouldHandleManyLeftValuesForRight()
         {
-            var table = new WeakMultiTable<int, int>();
-            table.Add(5, 0);
-            table.Add(6, 0);
-            Assert.AreEqual(2, table.GetAllForRight(0).Count());
+            // Need something passed as ref rather than value to avoid GC collecting our values mid test
+            Object object0 = new Object();
+            Object object1 = new Object();
+            Object object2 = new Object();
+            var table = new WeakMultiTable<Object, Object>();
+            table.Add(object1, object0);
+            table.Add(object2, object0);
+            Assert.AreEqual(2, table.GetAllForRight(object0).Count());
         }
 
         [Test, Ignore("Ignored")]
