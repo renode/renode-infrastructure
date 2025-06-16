@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 {
     public class GenericSpiFlash : ISPIPeripheral, IGPIOReceiver
     {
-        public GenericSpiFlash(MappedMemory underlyingMemory, byte manufacturerId, byte memoryType,
+        public GenericSpiFlash(MappedMemory underlyingMemory, byte manufacturerId, byte memoryType, byte? capacityCode = null,
             bool writeStatusCanSetWriteEnable = true, byte extendedDeviceId = DefaultExtendedDeviceID,
             byte deviceConfiguration = DefaultDeviceConfiguration, byte remainingIdBytes = DefaultRemainingIDBytes,
             // "Sector" here is the largest erasable memory unit. It's also named "block" by many flash memory vendors.
@@ -58,7 +58,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             this.manufacturerId = manufacturerId;
             this.memoryType = memoryType;
-            this.capacityCode = GetCapacityCode();
+            this.capacityCode = capacityCode ?? GetCapacityCode();
             this.remainingIdBytes = remainingIdBytes;
             this.extendedDeviceId = extendedDeviceId;
             this.deviceConfiguration = deviceConfiguration;
