@@ -201,8 +201,14 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public bool TryGetAllSymbolAddresses(string symbolName, out IEnumerable<ulong> symbolAddresses, ICPU context = null)
         {
-            var result = GetLookup(context).TryGetSymbolsByName(symbolName, out var symbols);
-            symbolAddresses = symbols.Select(symbol => symbol.Start.RawValue);
+            if(context != null && GetLookup(context).TryGetSymbolsByName(symbolName, out var contextSymbols))
+            {
+                symbolAddresses = contextSymbols.Select(symbol => symbol.Start.RawValue);
+                return true;
+            }
+            // Search global context if CPU context was not provided or does not contain the symbol
+            var result = GetLookup().TryGetSymbolsByName(symbolName, out var globalSymbols);
+            symbolAddresses = globalSymbols.Select(symbol => symbol.Start.RawValue);
             return result;
         }
 
