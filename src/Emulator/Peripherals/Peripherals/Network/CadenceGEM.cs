@@ -1117,7 +1117,8 @@ namespace Antmicro.Renode.Peripherals.Network
             ReceiveComplete = 1,
             ReceiveUsedBitRead = 2,
             TransmitUsedBitRead = 3,
-            TransmitComplete = 7
+            TransmitComplete = 7,
+            ReceiveOverrun = 10,
         }
 
         private enum PhyOperation
