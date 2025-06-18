@@ -691,6 +691,7 @@ namespace Antmicro.Renode.Peripherals.Network
             // Entering deep sleep is equivalent to a power off, so we do a reset here.
             // NVRAM values will be preserved.
             Reset();
+            powerSavingModeActive = true;
         }
 
         protected void EnableModem()
