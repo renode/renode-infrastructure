@@ -211,14 +211,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithValueField(4, 4, name: "HPRE",
                     writeCallback: (previous, value) =>
                     {
-                        if(systick == null || previous == value)
+                        if (systick == null || previous == value)
                         {
                             return;
                         }
 
                         // SYSCLK is not divided unless HPRE is set to 0b1000 or higher,
                         // in which case it's divided by consecutive powers of 2.
-                        if((0b1000 & value) == 0)
+                        if ((0b1000 & value) == 0)
                         {
                             systick.Divider = 1;
                         }
@@ -241,7 +241,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithEnumField<DoubleWordRegister, PllSourceSelection>(16, 1, out pllSource, name: "PLLSRC",
                     writeCallback: (previous, value) =>
                     {
-                        if(pllOn.Value && previous != value)
+                        if (pllOn.Value && previous != value)
                         {
                             this.Log(LogLevel.Error, "PLLDIV modified while PLL is enabled");
                         }
@@ -250,12 +250,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithValueField(18, 4, name: "PLLMUL",
                     writeCallback: (previous, value) =>
                     {
-                        if(pllOn.Value && previous != value)
+                        if (pllOn.Value && previous != value)
                         {
                             this.Log(LogLevel.Error, "PLLMUL modified while PLL is enabled");
                         }
 
-                        switch(value)
+                        switch (value)
                         {
                             case 0b0000:
                                 pllMultiplier = 3;
@@ -295,19 +295,19 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithValueField(22, 2, name: "PLLDIV",
                     writeCallback: (previous, value) =>
                     {
-                        if(pllOn.Value && previous != value)
+                        if (pllOn.Value && previous != value)
                         {
                             this.Log(LogLevel.Error, "PLLDIV modified while PLL is enabled");
                         }
 
-                        switch(value)
+                        switch (value)
                         {
                             case 0b00:
                                 // Only emit the error if the PLL divisor has been set to a valid value previously.
                                 // If it hasn't, we'll still emit an error whenever PLL is enabled,
                                 // and if it has, we'll inform that the software changed it to an invalid value
                                 // (but only when the value actually changes)
-                                if(pllDivisor != 1 && previous != value)
+                                if (pllDivisor != 1 && previous != value)
                                 {
                                     this.Log(LogLevel.Error, "Invalid PLLDIV: 0");
                                 }
@@ -327,6 +327,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     })
                 .WithValueField(24, 4, name: "MCOSEL")
                 .WithValueField(28, 3, name: "MCOPRE")
+                .WithReservedBits(31, 1)
                 .WithWriteCallback((_, __) => UpdateClocks())
                 ;
 
