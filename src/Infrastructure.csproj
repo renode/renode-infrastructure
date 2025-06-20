@@ -1117,6 +1117,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/Timers/AmbiqApollo4_SystemTimer.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/EFR32xG12DeviceInformation.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/STM32L0_RCC.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/STM32L4_RCC.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Sensors/LSM6DSO_IMU.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/SPI/OpenTitan_SpiHost.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/SPI/OpenTitan_SpiDevice.cs" />
