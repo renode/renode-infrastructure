@@ -745,7 +745,7 @@ namespace Antmicro.Renode.UserInterface
 
         public object GetVariable(string name)
         {
-            return variables.GetOrDefault(GetVariableName(name))?.GetObjectValue();
+            return TryExpandVariable(new VariableToken(name), variables, out var value) ? value.GetObjectValue() : null;
         }
 
         private bool TryGetFilenameFromAvailablePaths(string fileName, out string fullPath)
