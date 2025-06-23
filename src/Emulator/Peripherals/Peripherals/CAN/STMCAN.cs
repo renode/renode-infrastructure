@@ -1675,7 +1675,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             public CANMessageFrame ToCANMessageFrame()
             {
                 return CANMessageFrame.CreateWithExtendedId(
-                    id: BitHelper.GetValue(CAN_RIR, offset: EXIDSHIFT, size: EXIDWIDTH),
+                    id: BitHelper.GetValue(CAN_RIR, offset: IDSHIFT, size: IDWIDTH),
                     data: Data,
                     extendedFormat: BitHelper.IsBitSet(CAN_RIR, IDESHIFT),
                     remoteFrame: BitHelper.IsBitSet(CAN_RIR, RTRSHIFT)
