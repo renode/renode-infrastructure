@@ -26,6 +26,7 @@ namespace Antmicro.Renode.Core
         {
             symbolsByName = new MultiValueDictionary<string, Symbol>();
             symbols = new SortedIntervals(this);
+            functionSymbols = new SortedIntervals(this);
             allSymbolSets.Add(this);
         }
 
@@ -87,7 +88,8 @@ namespace Antmicro.Renode.Core
         /// Inserts a batch of symbols.
         /// </summary>
         /// <param name="symbols">Symbols.</param>
-        public void InsertSymbols(IEnumerable<Symbol> symbols)
+        /// <param name="insertToFunctionSymbolLUT">Insert to function symbols LUT.</param>
+        public void InsertSymbols(IEnumerable<Symbol> symbols, bool insertToFunctionSymbolLUT = false)
         {
             var symbolsToAdd = new List<Symbol>();
 
@@ -99,6 +101,13 @@ namespace Antmicro.Renode.Core
                     continue;
                 }
                 symbolsToAdd.Add(GetUnique(symbol));
+            }
+
+            // Add symbols only to function symbols LUT
+            if(insertToFunctionSymbolLUT)
+            {
+                this.functionSymbols.Add(symbolsToAdd);
+                return;
             }
 
             // Add symbols to name map
@@ -202,11 +211,16 @@ namespace Antmicro.Renode.Core
 
             // All names on the excluded list are valid C identifiers, so someone may name their function like that
             // To guard against it we also check if the type of this symbol is not specified
-            var elfSymbols = symtab.Entries.Where(x => !(excludedSymbolNames.Contains(x.Name) && x.Type == SymbolType.NotSpecified))
+            var filteredSymtab = symtab.Entries.Where(x => !(excludedSymbolNames.Contains(x.Name) && x.Type == SymbolType.NotSpecified))
                                 .Where(x => !excludedSymbolTypes.Contains(x.Type))
-                                .Where(x => x.PointedSectionIndex != (uint)SpecialSectionIndex.Undefined)
+                                .Where(x => x.PointedSectionIndex != (uint)SpecialSectionIndex.Undefined);
+            var elfSymbols = filteredSymtab
                                 .Select(x => new Symbol(x.OffsetBy(offset), thumb));
+            var elfFunctionSymbols = filteredSymtab.Where(x => x.PointedSection != null && (x.PointedSection.Flags & SectionFlags.Executable) == SectionFlags.Executable)
+                                        .Where(x => x.PointedSectionIndex != (uint)SpecialSectionIndex.Absolute)
+                                        .Select(x => new Symbol(x.OffsetBy(offset), thumb));
             InsertSymbols(elfSymbols);
+            InsertSymbols(elfFunctionSymbols, true);
             EntryPoint = elf.GetEntryPoint();
             FirstNotNullSectionAddress  = elf.Sections
                                     .Where(x => x.Type != SectionType.Null && x.Flags.HasFlag(SectionFlags.Allocatable))
@@ -289,6 +303,11 @@ namespace Antmicro.Renode.Core
         /// Interval to symbol mapping.
         /// </summary>
         private readonly SortedIntervals symbols;
+
+        /// <summary>
+        /// Interval to function symbol mapping.
+        /// </summary>
+        private readonly SortedIntervals functionSymbols;
 
         /// <summary>
         /// Name to symbol mapping.
