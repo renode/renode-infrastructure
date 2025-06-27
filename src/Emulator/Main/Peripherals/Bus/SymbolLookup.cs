@@ -139,14 +139,15 @@ namespace Antmicro.Renode.Core
         /// <returns><c>true</c>, if a symbol was found, <c>false</c> when no symbol contains specified address.</returns>
         /// <param name="offset">Offset.</param>
         /// <param name="symbol">Symbol.</param>
-        public bool TryGetSymbolByAddress(SymbolAddress offset, out Symbol symbol)
+        /// <param name="functionOnly">Look only for function Symbols.</param>
+        public bool TryGetSymbolByAddress(SymbolAddress offset, out Symbol symbol, bool functionOnly = false)
         {
             if(offset > maxLoadAddress)
             {
                 symbol = default(Symbol);
                 return false;
             }
-            return symbols.TryGet(offset, out symbol);
+            return functionOnly ? functionSymbols.TryGet(offset, out symbol) : symbols.TryGet(offset, out symbol);
         }
 
         /// <summary>
@@ -154,10 +155,11 @@ namespace Antmicro.Renode.Core
         /// </summary>
         /// <returns>The symbol by address.</returns>
         /// <param name="offset">Offset.</param>
-        public Symbol GetSymbolByAddress(SymbolAddress offset)
+        /// <param name="functionOnly">Look only for function Symbols.</param>
+        public Symbol GetSymbolByAddress(SymbolAddress offset, bool functionOnly = false)
         {
             Symbol symbol;
-            if(!TryGetSymbolByAddress(offset, out symbol))
+            if(!TryGetSymbolByAddress(offset, out symbol, functionOnly))
             {
                 throw new KeyNotFoundException("No symbol for given address [" + offset + "] found.");
             }
