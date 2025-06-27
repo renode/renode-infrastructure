@@ -1887,6 +1887,7 @@
     <Compile Include="Emulator/Main/Utilities/LINDecoder.cs" />
     <Compile Include="Emulator/Main/Peripherals/UART/LINBase.cs" />
     <Compile Include="Emulator/Main/Peripherals/CAN/SocketCAN.cs" />
+    <Compile Include="Emulator/Extensions/UserInterface/Tokenizer/CommaToken.cs" />
     <Compile Include="Emulator/Main/Peripherals/Sensor/IMagneticSensor.cs" />
     <Compile Include="Emulator/Main/Peripherals/Sensor/IADC.cs" />
     <Compile Include="Emulator/Main/Peripherals/Bus/IIndirectCSRPeripheral.cs" />

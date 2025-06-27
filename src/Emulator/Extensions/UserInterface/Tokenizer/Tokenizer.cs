@@ -78,6 +78,9 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
             // ";" or new line
             tokenizer.AddToken(new Regex(@"^\;"), x => new CommandSplit(x));
 
+            // ","
+            tokenizer.AddToken(new Regex(@"^,"), x => new CommaToken(x));
+
             // literal
             tokenizer.AddToken(new Regex(@"^[\w\.\-\?]+"), x => new LiteralToken(x));
 
