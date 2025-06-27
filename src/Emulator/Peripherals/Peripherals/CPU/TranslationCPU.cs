@@ -453,9 +453,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         public bool DisableInterruptsWhileStepping { get; set; }
 
         // this is just for easier usage in Monitor
-        public void LogFunctionNames(bool value, bool removeDuplicates = false)
+        public void LogFunctionNames(bool value, bool removeDuplicates = false, bool useFunctionSymbolsOnly = true)
         {
-            LogFunctionNames(value, string.Empty, removeDuplicates);
+            LogFunctionNames(value, string.Empty, removeDuplicates, useFunctionSymbolsOnly);
         }
 
         public ulong GetCurrentInstructionsCount()
@@ -463,7 +463,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             return TlibGetTotalExecutedInstructions();
         }
 
-        public void LogFunctionNames(bool value, string spaceSeparatedPrefixes = "", bool removeDuplicates = false)
+        public void LogFunctionNames(bool value, string spaceSeparatedPrefixes = "", bool removeDuplicates = false, bool useFunctionSymbolsOnly = true)
         {
             if(!value)
             {
@@ -479,7 +479,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             SetInternalHookAtBlockBegin((pc, size) =>
             {
-                if(Bus.TryFindSymbolAt(pc, out var name, out var symbol, this))
+                if(Bus.TryFindSymbolAt(pc, out var name, out var symbol, this, useFunctionSymbolsOnly))
                 {
                     if(removeDuplicates && symbol == previousSymbol)
                     {
