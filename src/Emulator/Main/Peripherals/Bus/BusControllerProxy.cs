@@ -307,9 +307,9 @@ namespace Antmicro.Renode.Peripherals.Bus
             ParentController.SetPeripheralEnabled(peripheral, enabled);
         }
 
-        public virtual bool TryFindSymbolAt(ulong offset, out string name, out Symbol symbol, ICPU context = null)
+        public virtual bool TryFindSymbolAt(ulong offset, out string name, out Symbol symbol, ICPU context = null, bool functionOnly = false)
         {
-            return ParentController.TryFindSymbolAt(offset, out name, out symbol, context);
+            return ParentController.TryFindSymbolAt(offset, out name, out symbol, context, functionOnly);
         }
 
         public virtual ulong ReadQuadWord(ulong address, IPeripheral context = null, ulong? cpuState = null)

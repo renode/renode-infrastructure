@@ -87,7 +87,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         string FindSymbolAt(ulong offset, ICPU context = null);
 
         bool TryGetAllSymbolAddresses(string symbolName, out IEnumerable<ulong> symbolAddresses, ICPU context = null);
-        bool TryFindSymbolAt(ulong offset, out string name, out Symbol symbol, ICPU context = null);
+        bool TryFindSymbolAt(ulong offset, out string name, out Symbol symbol, ICPU context = null, bool functionOnly = false);
         string DecorateWithCPUNameAndPC(string str);
 
         void MapMemory(IMappedSegment segment, IBusPeripheral owner, bool relative = true, ICPUWithMappedMemory context = null);

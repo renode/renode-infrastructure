@@ -820,11 +820,11 @@ namespace Antmicro.Renode.Peripherals.Bus
             return name;
         }
 
-        public bool TryFindSymbolAt(ulong offset, out string name, out Symbol symbol, ICPU context = null)
+        public bool TryFindSymbolAt(ulong offset, out string name, out Symbol symbol, ICPU context = null, bool functionOnly = false)
         {
             if(!pcCache.TryGetValue(offset, out var entry))
             {
-                if(!GetLookup(context).TryGetSymbolByAddress(offset, out symbol))
+                if(!GetLookup(context).TryGetSymbolByAddress(offset, out symbol, functionOnly))
                 {
                     symbol = null;
                     name = null;
