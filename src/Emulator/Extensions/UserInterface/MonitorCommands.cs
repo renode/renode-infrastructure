@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -828,6 +828,39 @@ namespace Antmicro.Renode.UserInterface
             }
         }
 
+        private static bool ParseArrayArgument(IList<Token> tokens, ref int i, out TokenList arg)
+        {
+            arg = null;
+            if(tokens[i] is LeftBraceToken)
+            {
+                var result = new TokenList(isArray: true);
+                while(++i < tokens.Count && !(tokens[i] is RightBraceToken))
+                {
+                    result.Tokens.Add(tokens[i]);
+                    var next = tokens.ElementAtOrDefault(i + 1);
+                    if(next is CommaToken)
+                    {
+                        i++;
+                    }
+                    else if(!(next is RightBraceToken))
+                    {
+                        return false;
+                    }
+                }
+                if(i == tokens.Count)
+                {
+                    return false;
+                }
+                arg = result;
+                return true;
+            }
+            else
+            {
+                arg = TokenList.Single(tokens[i]);
+                return true;
+            }
+        }
+
         private object ConvertValue(object value, Type type)
         {
             var underlyingType = Nullable.GetUnderlyingType(type);
@@ -1075,6 +1108,71 @@ namespace Antmicro.Renode.UserInterface
             return external;
         }
 
+        private bool FitArgumentType(TokenList tokens, Type paramType, out object result)
+        {
+            result = default;
+            Type elemType;
+            var isGenericList = typeof(IList).IsAssignableFrom(paramType) && paramType.IsGenericType;
+            if(isGenericList)
+            {
+                elemType = paramType.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IList<>))?.GenericTypeArguments?.Single();
+                if(elemType == null)
+                {
+                    throw new ArgumentException("Got a non-generic list somehow.");
+                }
+            }
+            else if(paramType.IsArray)
+            {
+                elemType = paramType.GetElementType();
+            }
+            else
+            {
+                elemType = paramType;
+                if(tokens.IsArray)
+                {
+                    return false;
+                }
+            }
+            var genericListT = typeof(List<>).MakeGenericType(new [] { elemType });
+            var list = (IList)Activator.CreateInstance(genericListT);
+
+            foreach(var token in tokens)
+            {
+                if(!TryParseTokenForParamType(token, elemType, out var parsedValue))
+                {
+                    return false;
+                }
+                // For simple parameters (not arrays), the parameter type is equal to the element type which means
+                // we only expect, and will accept, one element. If we got an array in this case we will have already
+                // rejected it above, so now the correct thing to do is return this single element immediately instead
+                // of accumulating it into a list.
+                if(paramType == elemType)
+                {
+                    result = parsedValue;
+                    return true;
+                }
+                list.Add(parsedValue);
+            }
+
+            if(isGenericList)
+            {
+                result = list;
+                return true;
+            }
+            else if(paramType.IsArray)
+            {
+                var arr = Array.CreateInstance(elemType, list.Count);
+                for(var i = 0; i < list.Count; ++i)
+                {
+                    arr.SetValue(list[i], i);
+                }
+                result = arr;
+                return true;
+            }
+
+            throw new InvalidOperationException($"Unhandled parameter type {paramType}");
+        }
+
         private readonly HashSet<Tuple<Type, Type>> acceptableTokensTypes = new HashSet<Tuple<Type, Type>>() {
             { new Tuple<Type, Type>(typeof(string), typeof(StringToken)) },
             { new Tuple<Type, Type>(typeof(string), typeof(PathToken)) },
@@ -1111,15 +1209,19 @@ namespace Antmicro.Renode.UserInterface
             }
 
             //The last parameter can be a param array
+            Type paramArrayType = null;
             Type paramArrayElementType = null;
+            string paramArrayName = null;
             var lastParam = parameters.LastOrDefault();
             if(lastParam?.IsDefined(typeof(ParamArrayAttribute)) ?? false)
             {
                 parameters = parameters.Take(parameters.Count - 1).ToList();
-                paramArrayElementType = lastParam.ParameterType.GetElementType();
+                paramArrayType = lastParam.ParameterType;
+                paramArrayElementType = paramArrayType.GetElementType();
+                paramArrayName = lastParam.Name;
             }
 
-            var indexedValues = new Dictionary<int, Token>();
+            var indexedValues = new Dictionary<int, TokenList>();
             var allowPositional = true;
             for(int i = 0, currentPos = 0; i < values.Count; ++i, ++currentPos)
             {
@@ -1128,7 +1230,8 @@ namespace Antmicro.Renode.UserInterface
                     && values[i] is LiteralToken lit
                     && values[i + 1] is EqualityToken)
                 {
-                    var parameterIndex = parameters.IndexOf(p => p.Name == lit.Value);
+                    //Treat the params array as the position one after the last
+                    var parameterIndex = lit.Value == paramArrayName ? parameters.Count : parameters.IndexOf(p => p.Name == lit.Value);
                     //Fail on nonexistent or duplicate names
                     if(parameterIndex == -1 || indexedValues.ContainsKey(parameterIndex))
                     {
@@ -1137,8 +1240,12 @@ namespace Antmicro.Renode.UserInterface
                     //Disallow further positional arguments only if the name doesn't match the position
                     //For example, for f(a=0, b=0) `f a=4 9` is allowed, like in C#
                     allowPositional &= parameterIndex == currentPos;
-                    indexedValues[parameterIndex] = values[i + 2];
                     i += 2; //Skip the name and = sign
+                    if(!ParseArrayArgument(values, ref i, out var arg))
+                    {
+                        return false;
+                    }
+                    indexedValues[parameterIndex] = arg;
                 }
                 else
                 {
@@ -1148,7 +1255,11 @@ namespace Antmicro.Renode.UserInterface
                     {
                         return false;
                     }
-                    indexedValues[currentPos] = values[i];
+                    if(!ParseArrayArgument(values, ref i, out var arg))
+                    {
+                        return false;
+                    }
+                    indexedValues[currentPos] = arg;
                 }
             }
 
@@ -1160,7 +1271,7 @@ namespace Antmicro.Renode.UserInterface
             }
 
             //Grab all arguments that we can treat as positional off the front
-            values = new List<Token>(valueCount);
+            List<TokenList> positionalValues = new List<TokenList>(valueCount);
             for(int i = 0; i < valueCount; ++i)
             {
                 if(!indexedValues.TryGetValue(i, out var value))
@@ -1168,21 +1279,21 @@ namespace Antmicro.Renode.UserInterface
                     break;
                 }
                 indexedValues.Remove(i);
-                values.Add(value);
+                positionalValues.Add(value);
             }
 
             try
             {
                 int i;
                 //Convert all given positional parameters
-                for(i = 0; i < values.Count; ++i)
+                for(i = 0; i < positionalValues.Count; ++i)
                 {
-                    var paramType = parameters.ElementAtOrDefault(i)?.ParameterType ?? paramArrayElementType;
-                    if(!TryParseTokenForParamType(values[i], paramType, out var parsed))
+                    var paramType = parameters.ElementAtOrDefault(i)?.ParameterType ?? (positionalValues[i].IsArray ? paramArrayType : paramArrayElementType);
+                    if(!FitArgumentType(positionalValues[i], paramType, out var current))
                     {
                         return false;
                     }
-                    result.Add(parsed);
+                    result.Add(current);
                 }
                 //If not enough parameters, check for default values and named parameters
                 if(i < parameters.Count)
@@ -1192,13 +1303,12 @@ namespace Antmicro.Renode.UserInterface
                         //See if it was passed as a named parameter
                         if(indexedValues.TryGetValue(i, out var value))
                         {
-                            //This can technically be a params T[], but it's not worth handling since
-                            //it would only be possible to pass one value
-                            if(!TryParseTokenForParamType(value, parameters[i].ParameterType, out var parsed))
+                            var paramType = parameters[i].ParameterType;
+                            if(!FitArgumentType(value, paramType, out var current))
                             {
                                 return false;
                             }
-                            result.Add(parsed);
+                            result.Add(current);
                         }
                         else if(parameters[i].IsOptional)
                         {
@@ -1532,6 +1642,34 @@ namespace Antmicro.Renode.UserInterface
 
         public BindingFlags CurrentBindingFlags { get; set; }
         private readonly SimpleCache cache = new SimpleCache();
+
+        private class TokenList : IEnumerable<Token>
+        {
+            public static TokenList Single(Token token)
+            {
+                var list = new TokenList(false);
+                list.Tokens.Add(token);
+                return list;
+            }
+
+            public TokenList(bool isArray)
+            {
+                this.IsArray = isArray;
+            }
+
+            public IEnumerator<Token> GetEnumerator()
+            {
+                return Tokens.GetEnumerator();
+            }
+
+            IEnumerator IEnumerable.GetEnumerator()
+            {
+                return ((IEnumerable)Tokens).GetEnumerator();
+            }
+
+            public readonly List<Token> Tokens = new List<Token>();
+            public readonly bool IsArray;
+        }
 
         #endregion
     }
