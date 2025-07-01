@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -60,7 +60,7 @@ namespace Antmicro.Renode.Peripherals.Python
             {
                 if(!File.Exists(this.filename))
                 {
-                    throw new ConstructionException(string.Format("Could not find source file for the script: {0}.", this.filename));
+                    throw new ConstructionException($"Could not find source file for the script: {this.filename}.");
                 }
                 this.pythonRunner = new PeripheralPythonEngine(this, x => x.CreateScriptSourceFromFile(this.filename));
             }
