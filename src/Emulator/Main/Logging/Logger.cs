@@ -95,6 +95,7 @@ namespace Antmicro.Renode.Logging
             }
             backends.Clear();
             backendNames.Clear();
+            levels.Clear();
         }
 
         public static void SetLogLevel(ILoggerBackend backend, LogLevel level, int sourceId)
