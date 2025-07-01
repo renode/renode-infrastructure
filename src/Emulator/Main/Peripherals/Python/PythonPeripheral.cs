@@ -62,7 +62,15 @@ namespace Antmicro.Renode.Peripherals.Python
                 {
                     throw new ConstructionException($"Could not find source file for the script: {this.filename}.");
                 }
-                this.pythonRunner = new PeripheralPythonEngine(this, x => x.CreateScriptSourceFromFile(this.filename));
+
+                try
+                {
+                    this.pythonRunner = new PeripheralPythonEngine(this, x => x.CreateScriptSourceFromFile(this.filename));
+                }
+                catch (RecoverableException e)
+                {
+                    throw new ConstructionException($"Error encountered when loading Python peripheral from: {this.filename}.", e);
+                }
             }
         }
 
