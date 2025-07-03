@@ -823,6 +823,14 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public LLVMDisassembler Disassembler => LLVMDisasContainer.Disassembler;
 
+        public UInt32 BusFaultAddress
+        {
+            get
+            {
+                return TlibGetBusFaultAddress();
+            }
+        }
+
         public uint PageSize
         {
             get
@@ -1390,11 +1398,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        protected virtual void HandleBusAccessError(ulong address, SysbusAccessWidth width, BusAccess.Operation operation, BusAccessError error)
-        {
-            this.WarningLog("This CPU does not support handling bus access errors, ignoring {0} on a {1} access of width {2} at 0x{3:X}.", error, operation, width, address);
-        }
-
         protected ulong ReadByteFromBus(ulong offset)
         {
             return ReadByteFromBus(offset, GetCPUStateForMemoryTransaction());
@@ -1511,20 +1514,23 @@ namespace Antmicro.Renode.Peripherals.CPU
         protected Action<int> TlibRequestTranslationBlockInterrupt;
 
         [Import]
-        protected Action<int, ulong> TlibRaiseSysbusAccessFault;
-
-        [Import]
         protected readonly Action<ulong, ulong, uint> TlibEnableExternalPermissionHandlerForRange;
 
         [Import]
         protected readonly Action TlibCleanWfiProcState;
-#pragma warning restore 649
+
+        [Import]
+        private readonly Func<uint> TlibGetBusFaultAddress;
+
+        [Import]
+        private readonly Action<uint, int> TlibRaiseBusFault;
 
         [Export]
         private IntPtr Reallocate(IntPtr oldPointer, IntPtr newSize)
         {
             return memoryManager.Reallocate(oldPointer, newSize);
         }
+#pragma warning restore 649
 
         private void UpdateBlockBeginHookPresent()
         {
@@ -2539,6 +2545,14 @@ namespace Antmicro.Renode.Peripherals.CPU
             TargetExternal1 = 1 << 4,
             TargetExternal2 = 1 << 6,
             TargetExternal3 = 1 << 9,
+        }
+
+        // Must be in sync with cpu-defs:bus_fault_access_mode
+        public enum BusFaultAccessMode
+        {
+            None = 0,
+            Store = 1,
+            Load = 2,
         }
 
         private class HookDescriptor : HookDescriptorBase

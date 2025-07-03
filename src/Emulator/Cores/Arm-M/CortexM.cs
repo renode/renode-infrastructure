@@ -754,14 +754,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public UInt32 BusFaultAddress
-        {
-            get
-            {
-                return tlibGetBusFaultAddress();
-            }
-        }
-
         public UInt32 PmsaV8RbarAlias2
         {
             get
@@ -923,11 +915,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         public const uint IDAU_SAURegionMinSize = 32u;
 
         public const uint IDAU_SAURegionAddressMask = ~(IDAU_SAURegionMinSize - 1u);
-
-        protected override void HandleBusAccessError(ulong address, SysbusAccessWidth width, BusAccess.Operation operation, BusAccessError error)
-        {
-            tlibRaisePreciseBusFault(checked((uint)address));
-        }
 
         protected override UInt32 BeforePCWrite(UInt32 value)
         {
@@ -1341,12 +1328,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private readonly Func<uint, uint> tlibGetMemoryFaultAddress;
-
-        [Import]
-        private readonly Func<uint> tlibGetBusFaultAddress;
-
-        [Import]
-        private readonly Action<uint> tlibRaisePreciseBusFault;
 
         [Import]
         private readonly Action tlibEnterResetLockup;
