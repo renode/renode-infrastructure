@@ -309,28 +309,29 @@ namespace Antmicro.Renode.Utilities.Binding
                 var expectedTypeName = parts[1];
                 var csName = cName.StartsWith('$') ? GetCSharpName(cName.Substring(1)) : cName;
                 classToBind.NoisyLog("(NativeBinder) Binding {0} as {2} of type {1}.", cName, expectedTypeName, csName);
+
                 // let's find the desired method
-                var desiredMethodInfo = classMethods.FirstOrDefault(x => x.Name == csName);
+                var desiredMethodInfo = classMethods.FirstOrDefault(method =>
+                {
+                    var parameterTypes = method.GetParameters().Select(p => p.ParameterType).ToList();
+                    var actualTypeName = ShortTypeNameFromParamsAndReturn(parameterTypes, method.ReturnType);
+
+                    return method.Name == csName &&
+                        expectedTypeName == actualTypeName &&
+                        method.IsDefined(typeof(ExportAttribute), true);
+                });
+
                 if(desiredMethodInfo == null)
                 {
-                    throw new InvalidOperationException(string.Format("Could not find method {0} in a class {1}.",
-                                                                      csName, classToBind.GetType().Name));
-                }
-                if(!desiredMethodInfo.IsDefined(typeof(ExportAttribute), true))
-                {
                     throw new InvalidOperationException(
-                        string.Format("Method {0} is exported as {1} but it is not marked with the Export attribute.",
-                                  desiredMethodInfo.Name, cName));
+                        $"Could not find method {csName} of type {expectedTypeName} marked with the [Export] attribute in the class {classToBind.GetType().Name}."
+                    );
                 }
-                var parameterTypes = desiredMethodInfo.GetParameters().Select(p => p.ParameterType).ToList();
-                var actualTypeName = ShortTypeNameFromParamsAndReturn(parameterTypes, desiredMethodInfo.ReturnType);
-                if(expectedTypeName != actualTypeName)
-                {
-                    throw new InvalidOperationException($"Method {cName} has type {actualTypeName} but the native library expects {expectedTypeName}");
-                }
+
+                var desiredParameterTypes = desiredMethodInfo.GetParameters().Select(p => p.ParameterType).ToList();
                 exportedMethods.Add(desiredMethodInfo);
                 // let's make the delegate instance
-                var delegateType = DelegateTypeFromParamsAndReturn(parameterTypes, desiredMethodInfo.ReturnType);
+                var delegateType = DelegateTypeFromParamsAndReturn(desiredParameterTypes, desiredMethodInfo.ReturnType);
                 Delegate attachee;
                 try
                 {
