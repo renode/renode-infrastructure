@@ -83,6 +83,28 @@ namespace Antmicro.Renode.Utilities
             return true;
         }
 
+        public bool TryCreateDirectory(string dirName, out string path)
+        {
+            path = Path.Combine(emulatorTemporaryPath, dirName);
+
+            if(Directory.Exists(path))
+            {
+                return true;
+            }
+
+            try
+            {
+                Directory.CreateDirectory(path);
+            }
+            catch(Exception)
+            {
+                path = null;
+                return false;
+            }
+
+            return true;
+        }
+
         public void Cleanup()
         {
             if(!shouldCleanFiles)
@@ -97,7 +119,7 @@ namespace Antmicro.Renode.Utilities
                 var pid = entry.Substring(otherEmulatorTempPrefix.Length);
                 int processId;
                 if(pid != null && int.TryParse(pid, out processId) && IsProcessAlive(processId))
-                { 
+                {
                     continue;
                 }
                 ClearDirectory(entry);

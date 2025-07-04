@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -10,38 +10,38 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Logging
 {
-    public class NetworkBackend : FormattedTextBackend
+    public class WebSocketNetworkBackend : FormattedTextBackend
     {
-        public NetworkBackend(int port, bool plainMode = true)
+        public WebSocketNetworkBackend(string endpoint, bool plainMode = true)
         {
             PlainMode = plainMode;
-            socketServerProvider = new SocketServerProvider();
-            socketServerProvider.Start(port);
+            webSocketServer = new WebSocketSingleConnectionServer(endpoint, true);
+            webSocketServer.Start();
         }
 
         public override void Dispose()
         {
             lock(sync)
             {
-                socketServerProvider?.Stop();
-                socketServerProvider = null;
+                webSocketServer.Dispose();
+                webSocketServer = null;
             }
         }
 
         protected override void SetColor(ConsoleColor color)
         {
-            socketServerProvider?.Send(GetColorControlSequence(color));
+            webSocketServer?.Send(GetColorControlSequence(color));
         }
 
         protected override void ResetColor()
         {
-            socketServerProvider?.Send(setDefaultsControlSequence);
+            webSocketServer?.Send(setDefaultsControlSequence);
         }
 
         protected override void WriteLine(string line)
         {
-            socketServerProvider?.Send(Encoding.ASCII.GetBytes(line));
-            socketServerProvider?.Send(newLineSequence);
+            webSocketServer?.Send(Encoding.ASCII.GetBytes(line));
+            webSocketServer?.Send(newLineSequence);
         }
 
         private static byte[] GetColorControlSequence(ConsoleColor color)
@@ -60,9 +60,9 @@ namespace Antmicro.Renode.Logging
 
         private void WriteChar(byte value)
         {
-            socketServerProvider?.SendByte(value);
+            webSocketServer?.SendByte(value);
         }
 
-        private SocketServerProvider socketServerProvider;
+        private WebSocketSingleConnectionServer webSocketServer;
     }
 }
