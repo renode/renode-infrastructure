@@ -1280,6 +1280,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         private void ReportAbort(string message)
         {
             this.Log(LogLevel.Error, "CPU abort [PC=0x{0:X}]: {1}.", PC.RawValue, message);
+            /* If the trace writer runs asynchronyously, we need to disable it.
+             * Otherwise it might catch the CpuAbortException when we cross the tlib boundary
+             * since the tracer can read emulated CPU registers (tlib callbacks)
+             * and catch the exception there, before the CPU thread does.
+             */
+            ExecutionTracerExtensions.DisableExecutionTracing(this);
             throw new CpuAbortException(message);
         }
 
