@@ -549,11 +549,11 @@ namespace Antmicro.Renode.UserInterface
         {
             machine = machine ?? currentMachine;
             string variablePrefix;
-            if (peripheral == null)
+            if(peripheral == null)
             {
                 variablePrefix = "";
             }
-            else if (machine.TryGetLocalName(peripheral, out variablePrefix))
+            else if(machine.TryGetLocalName(peripheral, out variablePrefix))
             {
                 variablePrefix += ".";
             }
