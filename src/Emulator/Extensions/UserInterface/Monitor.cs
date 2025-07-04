@@ -299,7 +299,7 @@ namespace Antmicro.Renode.UserInterface
 
             using(ObtainMachineContext(machine))
             {
-                if(macros.TryGetValue(macroName, out var resetMacro))
+                if(TryExpandVariable(new VariableToken(macroName), macros, out var resetMacro))
                 {
                     var macroLines = resetMacro.GetObjectValue().ToString().Split('\n');
                     foreach(var line in macroLines)
@@ -562,7 +562,8 @@ namespace Antmicro.Renode.UserInterface
                 return false;
             }
 
-            SetVariable($"{variablePrefix}{macroName}", new StringToken(contents), macros);
+            var variableName = GetVariableName($"{variablePrefix}{macroName}");
+            SetVariable(variableName, new StringToken(contents), macros);
             return true;
         }
 
