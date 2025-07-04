@@ -55,6 +55,15 @@ namespace Antmicro.Renode.UI
         [Name("keep-temporary-files"), Description("Don't clean temporary files on exit")]
         public bool KeepTemporaryFiles { get; set; }
 
+        [Name("server-mode"), DefaultValue(false), Description("Insted of opening a window. Expose localhost:port/proxy endpoint (Works only in .NET build)")]
+        public bool ServerMode { get; set; }
+
+        [Name("server-mode-port"), DefaultValue(21234), Description("Set port for server mode")]
+        public int ServerModePort { get; set; }
+        
+        [Name("server-mode-work-dir"), DefaultValue("working-dir"), Description("Set working directory for server mode (relative for renode)")]
+        public string ServerModeWorkDir { get; set; }
+
         public bool Validate(out string error)
         {
             if(HideMonitor && Console)
@@ -68,7 +77,25 @@ namespace Antmicro.Renode.UI
                 HideMonitor = true;
             }
 
-            error = null;
+#if NET
+            if(ServerMode)
+            {
+                DisableXwt = true;
+            }
+            else if(ServerModePort != 21234 || !string.Equals(ServerModeWorkDir, "working-dir"))
+            {
+                error = "--server-mode-port and --server-mode-work-dir options are allowed only if --server-mode is enabled";
+                return false;
+            }
+#else
+            if(ServerMode)
+            {
+                error = "--server-mode is allowed only in .NET build";
+                return false;
+            }
+#endif
+
+                error = null;
             return true;
         }
     }
