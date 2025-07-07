@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -49,6 +49,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public long Size => 0x4000;
 
+        [IrqProvider]
         public GPIO AppIRQ { get; }
 
         private void DefineRegisters()
