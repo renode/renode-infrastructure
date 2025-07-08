@@ -109,7 +109,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             Register.Counter.Define(this)
                 .WithValueField(0, 32,
-                    valueProviderCallback: _ =>  compare0Timer.Value,
+                    valueProviderCallback: _ => compare0Timer.Value,
                     writeCallback: (_, value) =>
                     {
                         limitTimer.Value = value;
