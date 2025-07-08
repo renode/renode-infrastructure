@@ -531,6 +531,62 @@ namespace Antmicro.Renode.Config
 
 namespace Antmicro.Renode.Config
 {
+
+    #region TreeBuilder
+
+    public class TreeBuilder {
+
+        public const int BUFFER_CAPACITY = 2000;
+
+        private string pattern = "    ";
+        private TreeBuilderMode mode;
+        private StringBuilder builder = new StringBuilder(BUFFER_CAPACITY);
+        private string prefix = "";
+
+        public TreeBuilder(TreeBuilderMode mode) {
+            this.mode = mode;
+        }
+
+        public void AppendPrefix() {
+            if (mode == TreeBuilderMode.PRETTY) {
+                Append('\n');
+                Append(prefix);
+            }
+        }
+
+        public void Append(string value) {
+            builder.Append(value);
+        }
+
+        public void Append(char value) {
+            builder.Append(value);
+        }
+
+        public void Push() {
+            if (mode == TreeBuilderMode.PRETTY) {
+                prefix += pattern;
+            }
+        }
+
+        public void Pop() {
+            if (mode == TreeBuilderMode.PRETTY) {
+                prefix = prefix.Remove(prefix.Length - pattern.Length);
+            }
+        }
+
+        public override string ToString() {
+            return builder.ToString();
+        }
+
+    }
+
+    public enum TreeBuilderMode {
+        PLAIN,
+        PRETTY
+    }
+
+    #endregion
+
     #region JsonParser
 
     /// <summary>
@@ -554,7 +610,6 @@ namespace Antmicro.Renode.Config
         private const int TOKEN_TRUE = 9;
         private const int TOKEN_FALSE = 10;
         private const int TOKEN_NULL = 11;
-        private const int BUILDER_CAPACITY = 2000;
 
         /// <summary>
         /// Parses the string json into a value
@@ -644,16 +699,21 @@ namespace Antmicro.Renode.Config
         /// <param name="json">A IDictionary&lt;string,object> / IList&lt;object></param>
         /// <param name="jsonSerializerStrategy">Serializer strategy to use</param>
         /// <returns>A JSON encoded string, or null if object 'json' is not serializable</returns>
-        public static string SerializeObject(object json, IJsonSerializerStrategy jsonSerializerStrategy)
+        public static string SerializeObject(object json, IJsonSerializerStrategy jsonSerializerStrategy, TreeBuilderMode mode)
         {
-            StringBuilder builder = new StringBuilder(BUILDER_CAPACITY);
+            TreeBuilder builder = new TreeBuilder(mode);
             bool success = SerializeValue(jsonSerializerStrategy, json, builder);
             return (success ? builder.ToString() : null);
         }
 
         public static string SerializeObject(object json)
         {
-            return SerializeObject(json, CurrentJsonSerializerStrategy);
+            return SerializeObject(json, CurrentJsonSerializerStrategy, TreeBuilderMode.PLAIN);
+        }
+
+        public static string PrettySerializeObject(object json)
+        {
+            return SerializeObject(json, CurrentJsonSerializerStrategy, TreeBuilderMode.PRETTY);
         }
 
         public static string EscapeToJavascriptString(string jsonString)
@@ -867,7 +927,7 @@ namespace Antmicro.Renode.Config
 
         protected static string ParseString(char[] json, ref int index, ref bool success, ref int line)
         {
-            StringBuilder s = new StringBuilder(BUILDER_CAPACITY);
+            StringBuilder s = new StringBuilder(TreeBuilder.BUFFER_CAPACITY);
             char c;
 
             EatWhitespace(json, ref index, ref line);
@@ -1203,7 +1263,7 @@ namespace Antmicro.Renode.Config
             return TOKEN_NONE;
         }
 
-        protected static bool SerializeValue(IJsonSerializerStrategy jsonSerializerStrategy, object value, StringBuilder builder)
+        protected static bool SerializeValue(IJsonSerializerStrategy jsonSerializerStrategy, object value, TreeBuilder builder)
         {
             bool success = true;
 
@@ -1256,9 +1316,10 @@ namespace Antmicro.Renode.Config
             return success;
         }
 
-        protected static bool SerializeObject(IJsonSerializerStrategy jsonSerializerStrategy, IEnumerable keys, IEnumerable values, StringBuilder builder)
+        protected static bool SerializeObject(IJsonSerializerStrategy jsonSerializerStrategy, IEnumerable keys, IEnumerable values, TreeBuilder builder)
         {
             builder.Append("{");
+            builder.Push();
 
             IEnumerator ke = keys.GetEnumerator();
             IEnumerator ve = values.GetEnumerator();
@@ -1273,6 +1334,8 @@ namespace Antmicro.Renode.Config
                 {
                     builder.Append(",");
                 }
+
+                builder.AppendPrefix();
 
                 if(key is string)
                 {
@@ -1293,13 +1356,16 @@ namespace Antmicro.Renode.Config
                 first = false;
             }
 
+            builder.Pop();
+            builder.AppendPrefix();
             builder.Append("}");
             return true;
         }
 
-        protected static bool SerializeArray(IJsonSerializerStrategy jsonSerializerStrategy, IEnumerable anArray, StringBuilder builder)
+        protected static bool SerializeArray(IJsonSerializerStrategy jsonSerializerStrategy, IEnumerable anArray, TreeBuilder builder)
         {
             builder.Append("[");
+            builder.Push();
 
             bool first = true;
             foreach(object value in anArray)
@@ -1309,6 +1375,8 @@ namespace Antmicro.Renode.Config
                     builder.Append(",");
                 }
 
+                builder.AppendPrefix();
+
                 if(!SerializeValue(jsonSerializerStrategy, value, builder))
                 {
                     return false;
@@ -1317,11 +1385,13 @@ namespace Antmicro.Renode.Config
                 first = false;
             }
 
+            builder.Pop();
+            builder.AppendPrefix();
             builder.Append("]");
             return true;
         }
 
-        protected static bool SerializeString(string aString, StringBuilder builder)
+        protected static bool SerializeString(string aString, TreeBuilder builder)
         {
             builder.Append("\"");
 
@@ -1373,7 +1443,7 @@ namespace Antmicro.Renode.Config
             return true;
         }
 
-        protected static bool SerializeNumber(object number, StringBuilder builder)
+        protected static bool SerializeNumber(object number, TreeBuilder builder)
         {
             if(number is long)
             {

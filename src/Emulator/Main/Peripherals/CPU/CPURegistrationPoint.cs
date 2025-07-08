@@ -10,7 +10,7 @@ using Antmicro.Renode.Core.Structure;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public class CPURegistrationPoint : IRegistrationPoint
+    public class CPURegistrationPoint : IRegistrationPoint, IJsonSerializable
     {
         public CPURegistrationPoint(int? slot = null)
         {
@@ -23,6 +23,15 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return ToString();
             }
+        }
+
+        public Object SerializeJson()
+        {
+            return new
+            {
+                Type = "CPU",
+                Value = Slot
+            };
         }
 
         public override string ToString()

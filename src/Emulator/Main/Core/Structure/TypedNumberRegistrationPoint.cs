@@ -9,7 +9,7 @@ using Antmicro.Renode.Peripherals;
 
 namespace Antmicro.Renode.Core.Structure
 {
-    public class TypedNumberRegistrationPoint<T> : IRegistrationPoint
+    public class TypedNumberRegistrationPoint<T> : IRegistrationPoint, IJsonSerializable
     {
         public T Address { get; private set; }
         public Type Type { get; private set; }
@@ -29,6 +29,16 @@ namespace Antmicro.Renode.Core.Structure
         public TypedNumberRegistrationPoint<T> WithType<P>()
         {
             return new TypedNumberRegistrationPoint<T>(Address, typeof(P));
+        }
+
+        public Object SerializeJson()
+        {
+            return new
+            {
+                Type = "Typed",
+                Address = Address,
+                Name = Type.Name
+            };
         }
 
         public string PrettyString

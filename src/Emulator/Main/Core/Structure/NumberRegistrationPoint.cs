@@ -10,7 +10,7 @@ using System;
 namespace Antmicro.Renode.Core.Structure
 {
     //TODO: constraint on T
-    public class NumberRegistrationPoint<T> : IRegistrationPoint
+    public class NumberRegistrationPoint<T> : IRegistrationPoint, IJsonSerializable
     {
         public T Address { get; private set ;}
         
@@ -19,6 +19,15 @@ namespace Antmicro.Renode.Core.Structure
             Address = address;
         }
         
+        public Object SerializeJson()
+        {
+            return new
+            {
+                Type = "Numeric",
+                Value = Address
+            };
+        }
+
         public string PrettyString
         {
             get

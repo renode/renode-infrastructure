@@ -1439,6 +1439,7 @@
     <Compile Include="Emulator/Main/Peripherals/SPI/ISPIPeripheral.cs" />
     <Compile Include="Emulator/Main/Core/Structure/IRegistered.cs" />
     <Compile Include="Emulator/Main/Core/Structure/IRegistrationPoint.cs" />
+    <Compile Include="Emulator/Main/Core/Structure/IJsonSerializable.cs" />
     <Compile Include="Emulator/Main/Core/Structure/IConditionalRegistration.cs" />
     <Compile Include="Emulator/Main/Peripherals/Bus/IBusRegistered.cs" />
     <Compile Include="Emulator/Main/Peripherals/Bus/BusRegistered.cs" />

@@ -9,13 +9,21 @@ using System;
 
 namespace Antmicro.Renode.Core.Structure
 {
-    public sealed class AttachedRegistrationPoint : ITheOnlyPossibleRegistrationPoint
+    public sealed class AttachedRegistrationPoint : ITheOnlyPossibleRegistrationPoint, IJsonSerializable
     {
         public static AttachedRegistrationPoint Instance { get; private set; }
 
         static AttachedRegistrationPoint()
         {
             Instance = new AttachedRegistrationPoint();
+        }
+
+        public Object SerializeJson()
+        {
+            return new
+            {
+                Type = "Attached"
+            };
         }
 
         public string PrettyString

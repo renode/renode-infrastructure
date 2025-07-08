@@ -10,15 +10,26 @@ using Antmicro.Renode.Core.Structure;
 
 namespace Antmicro.Renode.Peripherals.Network
 {
-    public class PHYRegistrationPoint : IRegistrationPoint
+    public class PHYRegistrationPoint : IRegistrationPoint, IJsonSerializable
     {
         public PHYRegistrationPoint(uint id)
         {
             Id = id;
         }
 
-        public string PrettyString {
-            get {
+        public Object SerializeJson()
+        {
+            return new
+            {
+                Type = "Network",
+                Value = Id
+            };
+        }
+
+        public string PrettyString
+        {
+            get
+            {
                 return ToString();
             }
         }

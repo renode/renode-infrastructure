@@ -12,7 +12,7 @@ using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Peripherals.Bus
 {
-    public abstract class BusRegistration : IBusRegistration, IConditionalRegistration
+    public abstract class BusRegistration : IBusRegistration, IConditionalRegistration, IJsonSerializable
     {
         protected BusRegistration(ulong startingPoint, ulong offset = 0, IPeripheral cpu = null, ICluster<ICPU> cluster = null, StateMask? stateMask = null, string condition = null)
         {
@@ -27,6 +27,15 @@ namespace Antmicro.Renode.Peripherals.Bus
             Condition = condition;
             Offset = offset;
             StartingPoint = startingPoint;
+        }
+
+        public Object SerializeJson()
+        {
+            return new
+            {
+                Type = "Bus",
+                Value = StartingPoint
+            };
         }
 
         public IPeripheral Initiator { get; }

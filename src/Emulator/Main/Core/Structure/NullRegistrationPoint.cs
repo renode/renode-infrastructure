@@ -9,9 +9,17 @@ using System;
 
 namespace Antmicro.Renode.Core.Structure
 {
-    public sealed class NullRegistrationPoint : ITheOnlyPossibleRegistrationPoint
+    public sealed class NullRegistrationPoint : ITheOnlyPossibleRegistrationPoint, IJsonSerializable
     {
         public static NullRegistrationPoint Instance { get; private set; }
+
+        public Object SerializeJson()
+        {
+            return new
+            {
+                Type = "Null"
+            };
+        }
 
         public string PrettyString
         {
