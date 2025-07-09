@@ -925,7 +925,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 // Overflow on 64bits currently not possible due to type constraints
                 if(this.bitness == CpuBitness.Bits32)
                 {
-                    useInclusiveEndRange = ((endAddress - 1) == UInt32.MaxValue); 
+                    useInclusiveEndRange = ((endAddress - 1) == UInt32.MaxValue);
                 }
 
                 if(useInclusiveEndRange)
@@ -1133,14 +1133,14 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         private IntPtr GetDirty(IntPtr size)
         {
-            var dirtyAddressesList = machine.GetNewDirtyAddressesForCore(this); 
+            var dirtyAddressesList = machine.GetNewDirtyAddressesForCore(this);
             var newAddressesCount = dirtyAddressesList.Length;
 
             if(newAddressesCount > 0)
             {
                 dirtyAddressesPtr = memoryManager.Reallocate(dirtyAddressesPtr, new IntPtr(newAddressesCount * 8));
                 Marshal.Copy(dirtyAddressesList, 0, dirtyAddressesPtr, newAddressesCount);
-            }      
+            }
             Marshal.WriteInt64(size, newAddressesCount);
 
             return dirtyAddressesPtr;
@@ -1295,7 +1295,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             It has to survive emulation reset, so the file names remain unique.
         */
         private static int CpuCounter = 0;
-        
+
         protected override bool UpdateHaltedState(bool ignoreExecutionMode = false)
         {
             if(!base.UpdateHaltedState(ignoreExecutionMode))
@@ -1400,7 +1400,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         /// It's used to restore the atomic state after deserialization
         /// </summary>
         private int atomicId;
-        
+
         [Transient]
         private string libraryFile;
 
@@ -1815,14 +1815,16 @@ namespace Antmicro.Renode.Peripherals.CPU
         /// </returns>
         public bool TryTranslateAddress(ulong logicalAddress, MpuAccess accessType, out ulong physicalAddress)
         {
-            var result = TranslateAddress(logicalAddress, accessType);
-            if(result == ulong.MaxValue) // No translation
+            try
+            {
+                physicalAddress = TranslateAddress(logicalAddress, accessType);
+                return true;
+            }
+            catch (RecoverableException)
             {
                 physicalAddress = logicalAddress;
                 return false;
             }
-            physicalAddress = result;
-            return true;
         }
 
         public void NativeUnwind()
@@ -2132,7 +2134,11 @@ namespace Antmicro.Renode.Peripherals.CPU
                 return;
             }
 
-            var phy = TranslateAddress(pc, MpuAccess.InstructionFetch);
+            if(!TryTranslateAddress(pc, MpuAccess.InstructionFetch, out var phy))
+            {
+                this.Log(LogLevel.Warning, "Failed to translate address 0x{0:X} while trying to log instruction disassembly", pc);
+                return;
+            }
             var symbol = Bus.FindSymbolAt(pc, this);
             var tab = Bus.ReadBytes(phy, (int)size, true, context: this);
             Disassembler.DisassembleBlock(pc, tab, flags, out var disas);

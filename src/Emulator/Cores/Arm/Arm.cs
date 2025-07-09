@@ -426,7 +426,11 @@ namespace Antmicro.Renode.Peripherals.CPU
                 case 4: // SYS_WRITE0
                     if(uart == null) break;
                     string s = "";
-                    var addr = this.TranslateAddress(r1, MpuAccess.InstructionFetch);
+                    if(!this.TryTranslateAddress(r1, MpuAccess.InstructionFetch, out var addr))
+                    {
+                        this.Log(LogLevel.Debug, "Address translation failed when executing semihosting write operation for address: 0x{0:X}", r1);
+                        break;
+                    }
                     do
                     {
                         var c = this.Bus.ReadByte(addr++);

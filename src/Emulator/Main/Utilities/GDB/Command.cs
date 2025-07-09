@@ -68,23 +68,30 @@ namespace Antmicro.Renode.Utilities.GDB
                 translatedAddress = address;
                 return true;
             }
-            
+
             var errorValue = ulong.MaxValue;
             translatedAddress = errorValue;
 
             if(write)
             {
-                translatedAddress = cpu.TranslateAddress(address, MpuAccess.Write);
-
-                if(translatedAddress == errorValue)
+                if(!cpu.TryTranslateAddress(address, MpuAccess.Write, out translatedAddress))
                 {
                     Logger.LogAs(this, LogLevel.Warning, "Translation address failed for write access type!");
+                    return false;
                 }
             }
             else
             {
-                var fetchAddress = cpu.TranslateAddress(address, MpuAccess.InstructionFetch);
-                var readAddress = cpu.TranslateAddress(address, MpuAccess.Read);
+                if(!cpu.TryTranslateAddress(address, MpuAccess.InstructionFetch, out var fetchAddress))
+                {
+                    Logger.LogAs(this, LogLevel.Warning, "Translation address failed for fetch access type!");
+                    return false;
+                }
+                if(!cpu.TryTranslateAddress(address, MpuAccess.Read, out var readAddress))
+                {
+                    Logger.LogAs(this, LogLevel.Warning, "Translation address failed for read access type!");
+                    return false;
+                }
 
                 if(fetchAddress == errorValue && readAddress == errorValue)
                 {
@@ -123,7 +130,7 @@ namespace Antmicro.Renode.Utilities.GDB
                     new MemoryFragment(address, length)
                 };
             }
-                
+
             var pageSize = (ulong)cpu.PageSize;
             var accesses = new List<MemoryFragment>();
             var firstLength = Math.Min(length, pageSize - address % pageSize);
