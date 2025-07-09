@@ -22,15 +22,15 @@ namespace Antmicro.Renode.Peripherals.Timers
             limitTimer.LimitReached += () => interruptManager.SetInterrupt(Interrupt.Overflow);
 
             compare0Timer = new ComparingTimer(machine.ClockSource, frequency, this, "compare0Timer",
-                limit: uint.MaxValue, compare: uint.MaxValue, workMode: WorkMode.Periodic, eventEnabled: true);
+                limit: uint.MaxValue, compare: uint.MaxValue, workMode: WorkMode.Periodic);
             compare0Timer.CompareReached += HandleCompare0TimerCompareReached;
 
             compare1Timer = new ComparingTimer(machine.ClockSource, frequency, this, "compare1Timer",
-                limit: uint.MaxValue, compare: uint.MaxValue, workMode: WorkMode.Periodic, eventEnabled: true);
+                limit: uint.MaxValue, compare: uint.MaxValue, workMode: WorkMode.Periodic);
             compare1Timer.CompareReached += HandleCompare1TimerCompareReached;
 
             capture0Timer = new ComparingTimer(machine.ClockSource, frequency, this, "capture0Timer",
-                limit: uint.MaxValue, compare: uint.MaxValue, workMode: WorkMode.Periodic, eventEnabled: true);
+                limit: uint.MaxValue, compare: uint.MaxValue, workMode: WorkMode.Periodic);
             capture0Timer.CompareReached += HandleCapture0TimerCompareReached;
 
             DefineRegisters();
