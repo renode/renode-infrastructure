@@ -23,15 +23,15 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             compare0Timer = new ComparingTimer(machine.ClockSource, frequency, this, "compare0Timer",
                 limit: uint.MaxValue, compare: uint.MaxValue, workMode: WorkMode.Periodic);
-            compare0Timer.CompareReached += HandleCompare0TimerCompareReached;
+            compare0Timer.CompareReached += () => interruptManager.SetInterrupt(Interrupt.Compare0Match);
 
             compare1Timer = new ComparingTimer(machine.ClockSource, frequency, this, "compare1Timer",
                 limit: uint.MaxValue, compare: uint.MaxValue, workMode: WorkMode.Periodic);
-            compare1Timer.CompareReached += HandleCompare1TimerCompareReached;
+            compare1Timer.CompareReached += () => interruptManager.SetInterrupt(Interrupt.Compare1Match);
 
             capture0Timer = new ComparingTimer(machine.ClockSource, frequency, this, "capture0Timer",
                 limit: uint.MaxValue, compare: uint.MaxValue, workMode: WorkMode.Periodic);
-            capture0Timer.CompareReached += HandleCapture0TimerCompareReached;
+            capture0Timer.CompareReached += () => interruptManager.SetInterrupt(Interrupt.Capture0);
 
             DefineRegisters();
         }
@@ -139,10 +139,9 @@ namespace Antmicro.Renode.Peripherals.Timers
                 .WithReservedBits(11, 21)
                 .WithChangeCallback((_, __) =>
                 {
-                    compare0Timer.Enabled = group0Compare0Enable.Value;
-                    compare1Timer.Enabled = group0Compare1Enable.Value;
-                    capture0Timer.Enabled = group0Capture0Enable.Value;
-                    limitTimer.Enabled = compare0Timer.Enabled | compare1Timer.Enabled | capture0Timer.Enabled;
+                    compare0Timer.EventEnabled = group0Compare0Enable.Value;
+                    compare1Timer.EventEnabled = group0Compare1Enable.Value;
+                    capture0Timer.EventEnabled = group0Capture0Enable.Value;
                 });
 
             Register.Group0Compare0.Define(this)
@@ -177,30 +176,6 @@ namespace Antmicro.Renode.Peripherals.Timers
             RegistersCollection.AddRegister((long)Register.Group0InterruptFlags_Clear, interruptManager.GetInterruptClearRegister<DoubleWordRegister>());
 
             RegistersCollection.AddRegister((long)Register.Group0InterruptEnable_Clear, interruptManager.GetInterruptEnableClearRegister<DoubleWordRegister>());
-        }
-
-        private void HandleCompare0TimerCompareReached()
-        {
-            if(group0Compare0Enable.Value)
-            {
-                interruptManager.SetInterrupt(Interrupt.Compare0Match);
-            }
-        }
-
-        private void HandleCompare1TimerCompareReached()
-        {
-            if(group0Compare1Enable.Value)
-            {
-                interruptManager.SetInterrupt(Interrupt.Compare1Match);
-            }
-        }
-
-        private void HandleCapture0TimerCompareReached()
-        {
-            if(group0Capture0Enable.Value)
-            {
-                interruptManager.SetInterrupt(Interrupt.Capture0);
-            }
         }
 
         private readonly InterruptManager<Interrupt> interruptManager;
