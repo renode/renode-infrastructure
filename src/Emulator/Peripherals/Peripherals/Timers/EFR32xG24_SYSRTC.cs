@@ -151,14 +151,14 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             Register.Status.Define(this)
                 .WithFlag(0, FieldMode.Read,
-                    valueProviderCallback: _ => compare0Timer.Enabled,
+                    valueProviderCallback: _ => limitTimer.Enabled,
                     name: "RUNNING")
                 .WithTaggedFlag("LOCKSTATUS", 1)
                 .WithReservedBits(2, 30);
 
             Register.Counter.Define(this)
                 .WithValueField(0, 32,
-                    valueProviderCallback: _ => compare0Timer.Value,
+                    valueProviderCallback: _ => limitTimer.Value,
                     writeCallback: (_, value) =>
                     {
                         limitTimer.Value = value;
