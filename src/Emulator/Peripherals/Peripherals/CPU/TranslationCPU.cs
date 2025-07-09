@@ -1794,7 +1794,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         /// </returns>
         public ulong TranslateAddress(ulong logicalAddress, MpuAccess accessType)
         {
-            return TlibTranslateToPhysicalAddress(logicalAddress, (uint)accessType);
+            var physicalAddress = TlibTranslateToPhysicalAddress(logicalAddress, (uint)accessType);
+            if(physicalAddress == ulong.MaxValue)
+            {
+                throw new RecoverableException($"Failed to translate address: 0x{logicalAddress:X}");
+            }
+            return physicalAddress;
         }
 
         /// <summary>
