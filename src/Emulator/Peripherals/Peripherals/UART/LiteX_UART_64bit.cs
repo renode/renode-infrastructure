@@ -14,7 +14,8 @@ namespace Antmicro.Renode.Peripherals.UART
     // this is a model of LiteX UART with register layout to simulate 64 bit bus read/write access
     public class LiteX_UART64 : LiteX_UART
     {
-        public LiteX_UART64(IMachine machine) : base(machine)
+        public LiteX_UART64(IMachine machine, uint txFifoCapacity = DefaultTxFifoCapacity, ulong? flushDelayNs = null, ulong? timeoutNs = null)
+            : base(machine, txFifoCapacity, flushDelayNs, timeoutNs)
         {
         }
 
@@ -46,20 +47,25 @@ namespace Antmicro.Renode.Peripherals.UART
             return new Dictionary<long, DoubleWordRegister>
             {
                 {(long)Registers.RxTx, new DoubleWordRegister(this)
-                    .WithValueField(0, 8, writeCallback: (_, value) => this.TransmitCharacter((byte)value),
-                        valueProviderCallback: _ => {
+                    .WithValueField(0, 8,
+                        writeCallback: (_, value) => WriteData(value),
+                        valueProviderCallback: _ =>
+                        {
                             if(!TryGetCharacter(out var character))
                             {
                                 this.Log(LogLevel.Warning, "Trying to read from an empty Rx FIFO.");
                             }
                             return character;
-                        })
+                        }
+                    )
                 },
                 {(long)Registers.RxTxHi, new DoubleWordRegister(this)
                     .WithReservedBits(0, 32) // simulating an upper half of a 64bit register, never used bits
                 },
                 {(long)Registers.TxFull, new DoubleWordRegister(this)
-                    .WithFlag(0, FieldMode.Read) //tx is never full
+                    .WithFlag(0, FieldMode.Read,
+                        valueProviderCallback: _ => txFifo?.Count >= txFifoCapacity
+                    )
                 },
                 {(long)Registers.TxFullHi, new DoubleWordRegister(this)
                     .WithReservedBits(0, 32) // simulating an upper half of a 64bit register, never used bits
@@ -71,9 +77,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithReservedBits(0, 32) // simulating an upper half of a 64bit register, never used bits
                 },
                 {(long)Registers.EventPending, new DoubleWordRegister(this)
-                    // `txEventPending` implements `WriteOneToClear` semantics to avoid fake warnings
-                    // `txEventPending` is generated on the falling edge of TxFull; in our case it means never
-                    .WithFlag(0, FieldMode.Read | FieldMode.WriteOneToClear, valueProviderCallback: _ => false, name: "txEventPending")
+                    .WithFlag(0, out txEventPending, FieldMode.Read | FieldMode.WriteOneToClear, valueProviderCallback: _ => false, name: "txEventPending")
                     .WithFlag(1, out rxEventPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "rxEventPending")
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
@@ -81,8 +85,8 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithReservedBits(0, 32) // simulating an upper half of a 64bit register, never used bits
                 },
                 {(long)Registers.EventEnable, new DoubleWordRegister(this)
-                    .WithFlag(0, name: "txEventEnabled")
-                    .WithFlag(1, out rxEventEnabled)
+                    .WithFlag(0, out txEventEnabled, name: "txEventEnabled")
+                    .WithFlag(1, out rxEventEnabled, name: "rxEventEnabled")
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
                 {(long)Registers.EventEnableHi, new DoubleWordRegister(this)

@@ -4,19 +4,63 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
 using System.Collections.Generic;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Time;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
     public class LiteX_UART : UARTBase, IDoubleWordPeripheral, IBytePeripheral, IKnownSize
     {
-        public LiteX_UART(IMachine machine) : base(machine)
+        public LiteX_UART(IMachine machine, uint txFifoCapacity = DefaultTxFifoCapacity, ulong? flushDelayNs = null, ulong? timeoutNs = null) : base(machine)
         {
+            this.flushDelayTicks = TimeInterval.TicksPerNanosecond * flushDelayNs ?? DefaultFlushDelayNs;
+            this.timeoutTicks = TimeInterval.TicksPerNanosecond * timeoutNs ?? DefaultTimeoutNs;
+
+            this.txFifoCapacity = txFifoCapacity;
+
             IRQ = new GPIO();
+
+            if(txFifoCapacity > 0)
+            {
+                if(flushDelayNs == 0)
+                {
+                    throw new ConstructionException($"'{nameof(flushDelayNs)}' must be greater than zero when '{nameof(txFifoCapacity)}' is non-zero");
+                }
+                if(timeoutNs == 0)
+                {
+                    throw new ConstructionException($"'{nameof(timeoutTicks)}' must be greater than zero when '{nameof(txFifoCapacity)}' is non-zero");
+                }
+
+                txFifo = new Queue<byte>();
+                machine.ClockSource.AddClockEntry(new ClockEntry(
+                    this.timeoutTicks,
+                    (long)TimeInterval.TicksPerSecond,
+                    FlushTransmissionBuffer,
+                    this,
+                    "UART flush",
+                    false
+                ));
+            }
+            else // unbuffered
+            {    
+                if(flushDelayNs.HasValue)
+                {
+                    throw new ConstructionException($"'{nameof(flushDelayNs)}' must not be specified when '{nameof(txFifoCapacity)}' is zero");
+                }
+
+                if(timeoutNs.HasValue)
+                {
+                    throw new ConstructionException($"'{nameof(timeoutNs)}' must not be specified when '{nameof(txFifoCapacity)}' is zero");
+                }
+            }
+
             registers = new DoubleWordRegisterCollection(this, CreateRegisterMap());
         }
 
@@ -40,6 +84,7 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             base.Reset();
             registers.Reset();
+            txFifo?.Clear();
 
             UpdateInterrupts();
         }
@@ -76,31 +121,34 @@ namespace Antmicro.Renode.Peripherals.UART
             return new Dictionary<long, DoubleWordRegister>
             {
                 {(long)Registers.RxTx, new DoubleWordRegister(this)
-                    .WithValueField(0, 8, writeCallback: (_, value) => this.TransmitCharacter((byte)value),
-                        valueProviderCallback: _ => {
+                    .WithValueField(0, 8,
+                        writeCallback: (_, value) => WriteData(value),
+                        valueProviderCallback: _ =>
+                        {
                             if(!TryGetCharacter(out var character))
                             {
                                 this.Log(LogLevel.Warning, "Trying to read from an empty Rx FIFO.");
                             }
                             return character;
-                        })
+                        }
+                    )
                 },
                 {(long)Registers.TxFull, new DoubleWordRegister(this)
-                    .WithFlag(0, FieldMode.Read) //tx is never full
+                    .WithFlag(0, FieldMode.Read,
+                        valueProviderCallback: _ => txFifo?.Count >= txFifoCapacity
+                    )
                 },
                 {(long)Registers.RxEmpty, new DoubleWordRegister(this)
                     .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => Count == 0)
                 },
                 {(long)Registers.EventPending, new DoubleWordRegister(this)
-                    // `txEventPending` implements `WriteOneToClear` semantics to avoid fake warnings
-                    // `txEventPending` is generated on the falling edge of TxFull; in our case it means never
-                    .WithFlag(0, FieldMode.Read | FieldMode.WriteOneToClear, valueProviderCallback: _ => false, name: "txEventPending")
+                    .WithFlag(0, out txEventPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "txEventPending")
                     .WithFlag(1, out rxEventPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "rxEventPending")
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
                 {(long)Registers.EventEnable, new DoubleWordRegister(this)
-                    .WithFlag(0, name: "txEventEnabled")
-                    .WithFlag(1, out rxEventEnabled)
+                    .WithFlag(0, out txEventEnabled, name: "txEventEnabled")
+                    .WithFlag(1, out rxEventEnabled, name: "rxEventEnabled")
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
             };
@@ -116,19 +164,74 @@ namespace Antmicro.Renode.Peripherals.UART
             UpdateInterrupts();
         }
 
+        protected void WriteData(ulong value)
+        {
+            if(txFifo == null)
+            {
+                TransmitCharacter((byte)value);
+                return;
+            }
+
+            if(txFifo.Count == txFifoCapacity)
+            {
+                this.Log(LogLevel.Warning, "Attempted write to full buffer, ignoring 0x{0:X}", value);
+                return;
+            }
+
+            txFifo.Enqueue((byte)value);
+
+            if(txFifo.Count < txFifoCapacity)
+            {
+                Machine.ClockSource.ExchangeClockEntryWith(
+                    FlushTransmissionBuffer,
+                    oldClock => oldClock.With(enabled: true, period: timeoutTicks)
+                );
+            }
+            else
+            {
+                txEventPending.Value = false;
+                Machine.ClockSource.ExchangeClockEntryWith(
+                    FlushTransmissionBuffer,
+                    oldClock => oldClock.With(enabled: true, period: flushDelayTicks)
+                );
+            }
+        }
+
+        protected void FlushTransmissionBuffer()
+        {
+            this.Machine.ClockSource.ExchangeClockEntryWith(
+                FlushTransmissionBuffer,
+                oldClock => oldClock.With(enabled: false)
+            );
+            Array.ForEach(txFifo.DequeueAll<byte>(), TransmitCharacter);
+            txEventPending.Value = true;
+            UpdateInterrupts();
+        }
+
         protected void UpdateInterrupts()
         {
             // rxEventPending is latched
             rxEventPending.Value = (Count != 0);
 
-            // tx fifo is never full, so `txEventPending` is always false
-            var eventPending = (rxEventEnabled.Value && rxEventPending.Value);
+            var eventPending = (rxEventEnabled.Value && rxEventPending.Value)
+                || (txEventEnabled.Value && txEventPending.Value);
             IRQ.Set(eventPending);
         }
 
+        protected readonly ulong timeoutTicks;
+        protected readonly ulong flushDelayTicks;
+        protected readonly uint txFifoCapacity;
+        protected readonly Queue<byte> txFifo;
+
+        protected IFlagRegisterField txEventEnabled;
         protected IFlagRegisterField rxEventEnabled;
+        protected IFlagRegisterField txEventPending;
         protected IFlagRegisterField rxEventPending;
         protected readonly DoubleWordRegisterCollection registers;
+
+        protected const uint DefaultTxFifoCapacity = 8;
+        protected const ulong DefaultFlushDelayNs = 100;
+        protected const ulong DefaultTimeoutNs = 200 * 1000 * 1000;
 
         private enum Registers : long
         {
