@@ -198,7 +198,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
-        void DisableTranslatedAccesses()
+        private void DisableTranslatedAccesses()
         {
             DebugHelper.Assert(!(ReadByte.Target is HookWrapper));
 
