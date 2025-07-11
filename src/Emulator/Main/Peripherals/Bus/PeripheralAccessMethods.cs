@@ -185,6 +185,25 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
+        public bool HasWrappersOfType(Type readWrapperType, Type writeWrapperType)
+        {
+            var readByte = ReadByte.Target as ReadHookWrapper<byte>;
+            var writeByte = WriteByte.Target as WriteHookWrapper<byte>;
+
+            while(readByte != null && writeByte != null)
+            {
+                if(readWrapperType == readByte.GetType().GetGenericTypeDefinition()
+                    && writeWrapperType == writeByte.GetType().GetGenericTypeDefinition())
+                {
+                    return true;
+                }
+
+                readByte = readByte.OriginalMethod.Target as ReadHookWrapper<byte>;
+                writeByte = writeByte.OriginalMethod.Target as WriteHookWrapper<byte>;
+            }
+            return false;
+        }
+
         public bool AllTranslationsEnabled { get; private set; }
 
         private static void SetReadOrWriteMethod<TR, TW>(MethodInfo i, object obj, BusAccess.Operation operation, ref TR readMethod, ref TW writeMethod)
