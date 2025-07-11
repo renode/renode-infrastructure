@@ -412,35 +412,41 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public void LogAllPeripheralsAccess(bool enable = true)
         {
-            foreach(var p in allPeripherals.SelectMany(x => x.Peripherals))
-            {
-                LogPeripheralAccess(p.Peripheral, enable);
-            }
+            EnableAllPeripheralAccessWrappers(typeof(ReadLoggingWrapper<>), typeof(WriteLoggingWrapper<>), enable, "Logging");
         }
 
         public void LogPeripheralAccess(IBusPeripheral busPeripheral, bool enable = true)
+        {
+            EnablePeripheralAccessWrappers(busPeripheral, typeof(ReadLoggingWrapper<>), typeof(WriteLoggingWrapper<>), enable, "Logging");
+        }
+
+        public void EnableAllPeripheralAccessWrappers(Type readWrapper, Type writeWrapper, bool enable = true, string name = null)
+        {
+            foreach(var p in allPeripherals.SelectMany(x => x.Peripherals))
+            {
+                EnablePeripheralAccessWrappers(p.Peripheral, readWrapper, writeWrapper, enable, name);
+            }
+        }
+
+        public void EnablePeripheralAccessWrappers(IBusPeripheral busPeripheral, Type readWrapper, Type writeWrapper, bool enable = true, string name = null)
         {
             foreach(var peripherals in allPeripherals)
             {
                 peripherals.VisitAccessMethods(busPeripheral, pam =>
                 {
-                    // first check whether logging is already enabled, method should be idempotent
-                    var loggingAlreadEnabled = pam.WriteByte.Target is HookWrapper;
-                    this.Log(LogLevel.Info, "Logging already enabled: {0}.", loggingAlreadEnabled);
-                    if(enable == loggingAlreadEnabled)
+                    if(enable == pam.HasWrappersOfType(readWrapper, writeWrapper))
                     {
-                        return pam;
+                        busPeripheral.Log(LogLevel.Info, "{0} is already {1}", name ?? $"The {readWrapper} wrapper", enable ? "enabled" : "disabled");
                     }
-                    if(enable)
+                    else if(enable)
                     {
-                        pam.WrapMethods(typeof(ReadLoggingWrapper<>), typeof(WriteLoggingWrapper<>));
-                        return pam;
+                        pam.WrapMethods(readWrapper, writeWrapper);
                     }
                     else
                     {
-                        pam.RemoveWrappersOfType(typeof(ReadLoggingWrapper<>), typeof(WriteLoggingWrapper<>));
-                        return pam;
+                        pam.RemoveWrappersOfType(readWrapper, writeWrapper);
                     }
+                    return pam;
                 });
             }
         }
