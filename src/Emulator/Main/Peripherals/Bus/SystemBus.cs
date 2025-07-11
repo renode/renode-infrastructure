@@ -1918,7 +1918,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         /// This is useful when adding or relocating peripherals to the locked range.
         /// <summary>
         /// <remarks>
-        /// Locking should almost always be done by calling <see cref="SetAddressRangeLocked"/> 
+        /// Locking should almost always be done by calling <see cref="SetAddressRangeLocked"/>
         /// since this method doesn't update locked ranges and so should be used with caution.
         /// </remarks>
         private void RelockRange(Range range, bool locked, IPeripheral context)
