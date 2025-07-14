@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -80,7 +80,7 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             registers.Write(offset, value);
         }
-         
+
         public void WriteByte(long offset, byte value)
         {
             if(offset % 4 != 0)
@@ -92,7 +92,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
             WriteDoubleWord(offset, value);
         }
-        
+
         public long Size => 0x100;
 
         public GPIO IRQ { get; private set; }
