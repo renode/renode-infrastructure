@@ -2248,14 +2248,17 @@ namespace Antmicro.Renode.Peripherals.Bus
             // Perform a mutation on the value collection for a specific initiator state and mask pair (for example to add a new peripheral)
             public void WithStateCollection(IPeripheral context, StateMask? stateMask, Action<TValue> action)
             {
-                var collection = context == null ? globalValue : cpuLocalValues[context];
-                var effectiveMask = stateMask ?? StateMask.AllAccess;
-                if(!collection.ContainsKey(effectiveMask))
+                lock(locker)
                 {
-                    collection[effectiveMask] = defaultFactory();
+                    var collection = context == null ? globalValue : cpuLocalValues[context];
+                    var effectiveMask = stateMask ?? StateMask.AllAccess;
+                    if(!collection.ContainsKey(effectiveMask))
+                    {
+                        collection[effectiveMask] = defaultFactory();
+                    }
+                    action(collection[effectiveMask]);
+                    DropCaches();
                 }
-                action(collection[effectiveMask]);
-                DropCaches();
             }
 
             public IEnumerable<TValue> GetAllDistinctValues()
@@ -2344,6 +2347,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             private readonly Dictionary<IPeripheral, Dictionary<StateMask, TValue>> cpuLocalValues = new Dictionary<IPeripheral, Dictionary<StateMask, TValue>>();
             private readonly Dictionary<IPeripheral, Dictionary<ulong, TValue>> cpuInStateCache = new Dictionary<IPeripheral, Dictionary<ulong, TValue>>();
             private readonly Func<TValue> defaultFactory;
+            private readonly object locker = new object();
             private readonly Dictionary<StateMask, TValue> globalValue = new Dictionary<StateMask, TValue>();
             private readonly Dictionary<ulong, TValue> globalCache = new Dictionary<ulong, TValue>();
             // Please take performance into account before removing these caches (they were added because looking up a value
