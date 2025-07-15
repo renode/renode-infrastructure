@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class X86KVM
     {
-        public void SetRegister(int register, RegisterValue value)
+        public override void SetRegister(int register, RegisterValue value)
         {
             if(!mapping.TryGetValue((X86KVMRegisters)register, out var r))
             {
@@ -27,7 +27,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             SetRegisterValue32(r.Index, checked((uint)value));
         }
 
-        public RegisterValue GetRegister(int register)
+        public override RegisterValue GetRegister(int register)
         {
             if(!mapping.TryGetValue((X86KVMRegisters)register, out var r))
             {
@@ -36,7 +36,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             return GetRegisterValue32(r.Index);
         }
 
-        public IEnumerable<CPURegister> GetRegisters()
+        public override IEnumerable<CPURegister> GetRegisters()
         {
             return mapping.Values.OrderBy(x => x.Index);
         }
@@ -306,7 +306,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        protected void InitializeRegisters()
+        protected override void InitializeRegisters()
         {
         }
 

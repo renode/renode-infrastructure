@@ -2,6 +2,31 @@
 
 
 typedef enum {
+#ifndef TARGET_X86KVM
+    RAX_64    = 0,
+    RCX_64    = 1,
+    RDX_64    = 2,
+    RBX_64    = 3,
+    RSP_64    = 4,
+    RBP_64    = 5,
+    RSI_64    = 6,
+    RDI_64    = 7,
+    RIP_64    = 8,
+    EFLAGS_64 = 9,
+    CS_64     = 10,
+    SS_64     = 11,
+    DS_64     = 12,
+    ES_64     = 13,
+    FS_64     = 14,
+    GS_64     = 15,
+    CR0_64    = 16,
+    CR1_64    = 17,
+    CR2_64    = 18,
+    CR3_64    = 19,
+    CR4_64    = 20,
+    CR8_64    = 24,
+    EFER_64   = 25,
+#else
     EAX_32    = 0,
     ECX_32    = 1,
     EDX_32    = 2,
@@ -23,4 +48,5 @@ typedef enum {
     CR2_32    = 18,
     CR3_32    = 19,
     CR4_32    = 20,
+#endif
 } Registers;

@@ -25,10 +25,10 @@ using Range = Antmicro.Renode.Core.Range;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public partial class X86KVM : BaseCPU, IGPIOReceiver, ICPUWithRegisters, IControllableCPU, ICPUWithMappedMemory
+    public abstract class X86KVMBase : BaseCPU, IGPIOReceiver, ICPUWithRegisters, IControllableCPU, ICPUWithMappedMemory
     {
-        public X86KVM(string cpuType, IMachine machine, uint cpuId = 0)
-            : base(cpuId, cpuType, machine, Endianess.LittleEndian, CpuBitness.Bits32)
+        public X86KVMBase(string cpuType, IMachine machine, CpuBitness cpuBitness, uint cpuId = 0)
+            : base(cpuId, cpuType, machine, Endianess.LittleEndian, cpuBitness)
         {
             currentMappings = new List<SegmentMappingWithSlotNumber>();
             Init();
@@ -100,7 +100,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         public void RegisterAccessFlags(ulong startAddress, ulong size, bool isIoMemory = false)
         {
             // all ArrayMemory is set as executable by default
-            throw new ConstructionException($"Use of ArrayMemory with {nameof(X86KVM)} core is not supported: Execution via IO accesses is not implemented");
+            throw new ConstructionException($"Use of ArrayMemory with {nameof(X86KVMBase)} core is not supported: Execution via IO accesses is not implemented");
         }
 
         public void SetPageAccessViaIo(ulong address)
@@ -179,9 +179,24 @@ namespace Antmicro.Renode.Peripherals.CPU
             return $"[CPU: {this.GetCPUThreadName(machine)}]";
         }
 
-        public override string Architecture => "i386";
+        public abstract void SetRegister(int register, RegisterValue value);
+
+        public abstract RegisterValue GetRegister(int register);
+
+        public abstract IEnumerable<CPURegister> GetRegisters();
 
         public override ulong ExecutedInstructions => throw new RecoverableException("ExecutedInstructions property is not implemented");
+
+        /*
+            Increments each time a new translation library resource is created.
+            This counter marks each new instance of a kvm library with a new number, which is used in file names to avoid collisions.
+            It has to survive emulation reset, so the file names remain unique.
+        */
+        protected static int CpuCounter = 0;
+
+        protected virtual void InitializeRegisters()
+        {
+        }
 
         protected override void DisposeInner(bool silent = false)
         {
@@ -209,16 +224,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             return false;
         }
 
-        /*
-            Increments each time a new translation library resource is created.
-            This counter marks each new instance of a kvm library with a new number, which is used in file names to avoid collisions.
-            It has to survive emulation reset, so the file names remain unique.
-        */
-        private static int CpuCounter = 0;
-
-        private void Init()
+        protected virtual void Init()
         {
-            var libraryResource = string.Format("Antmicro.Renode.kvm-{0}.so", Architecture);
+            var libraryResource = $"Antmicro.Renode.kvm-{Architecture}.so";
             foreach(var assembly in AppDomain.CurrentDomain.GetAssemblies())
             {
                 if(assembly.TryFromResourceToTemporaryFile(libraryResource, out libraryFile, $"{CpuCounter}-{libraryResource}"))
@@ -239,7 +247,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             KvmInit();
         }
 
-        private void OnMachinePeripheralsChanged(IMachine machine, PeripheralsChangedEventArgs args)
+        protected virtual void OnMachinePeripheralsChanged(IMachine machine, PeripheralsChangedEventArgs args)
         {
             // We have another CPU in platform, currently we don't support it in KVM based emulation.
             if(args.Peripheral is ICPU && args.Peripheral != this)
@@ -249,169 +257,168 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [PreSerialization]
-        private void BeforeSerialization()
+        protected virtual void BeforeSerialization()
         {
             throw new NonSerializableTypeException($"Serialization of {this.GetType()} is not implemented");
         }
 
         [Export]
-        private void LogAsCpu(int level, string s)
+        protected void LogAsCpu(int level, string s)
         {
             this.Log((LogLevel)level, s);
         }
 
         [Export]
-        private void ReportAbort(string message)
+        protected void ReportAbort(string message)
         {
             this.Log(LogLevel.Error, "CPU abort [PC=0x{0:X}]: {1}.", PC.RawValue, message);
             throw new CpuAbortException(message);
         }
 
         [Export]
-        private ulong ReadByteFromBus(ulong offset)
+        protected ulong ReadByteFromBus(ulong offset)
         {
             return (ulong)machine.SystemBus.ReadByte(offset, this);
         }
 
         [Export]
-        private ulong ReadWordFromBus(ulong offset)
+        protected ulong ReadWordFromBus(ulong offset)
         {
             return (ulong)machine.SystemBus.ReadWord(offset, this);
         }
 
         [Export]
-        private ulong ReadDoubleWordFromBus(ulong offset)
+        protected ulong ReadDoubleWordFromBus(ulong offset)
         {
-            return machine.SystemBus.ReadDoubleWord(offset, this);
+            return (ulong)machine.SystemBus.ReadDoubleWord(offset, this);
         }
 
         [Export]
-        private ulong ReadQuadWordFromBus(ulong offset)
+        protected ulong ReadQuadWordFromBus(ulong offset)
         {
             return machine.SystemBus.ReadQuadWord(offset, this);
         }
 
         [Export]
-        private void WriteByteToBus(ulong offset, ulong value)
+        protected void WriteByteToBus(ulong offset, ulong value)
         {
             machine.SystemBus.WriteByte(offset, unchecked((byte)value), this);
         }
 
         [Export]
-        private void WriteWordToBus(ulong offset, ulong value)
+        protected void WriteWordToBus(ulong offset, ulong value)
         {
             machine.SystemBus.WriteWord(offset, unchecked((ushort)value), this);
         }
 
         [Export]
-        private void WriteDoubleWordToBus(ulong offset, ulong value)
+        protected void WriteDoubleWordToBus(ulong offset, ulong value)
         {
-            machine.SystemBus.WriteDoubleWord(offset, (uint)value, this);
+            machine.SystemBus.WriteDoubleWord(offset, unchecked((uint)value), this);
         }
 
         [Export]
-        private void WriteQuadWordToBus(ulong offset, ulong value)
+        protected void WriteQuadWordToBus(ulong offset, ulong value)
         {
             machine.SystemBus.WriteQuadWord(offset, value, this);
         }
 
         [Export]
-        private uint ReadByteFromPort(ushort address)
+        protected uint ReadByteFromPort(ushort address)
         {
             return (uint)ReadByteFromBus(IoPortBaseAddress + address);
         }
 
         [Export]
-        private uint ReadWordFromPort(ushort address)
+        protected uint ReadWordFromPort(ushort address)
         {
             return (uint)ReadWordFromBus(IoPortBaseAddress + address);
         }
 
         [Export]
-        private uint ReadDoubleWordFromPort(ushort address)
+        protected uint ReadDoubleWordFromPort(ushort address)
         {
             return (uint)ReadDoubleWordFromBus(IoPortBaseAddress + address);
         }
 
         [Export]
-        private void WriteByteToPort(ushort address, uint value)
+        protected void WriteByteToPort(ushort address, uint value)
         {
-            WriteByteToBus(IoPortBaseAddress + address, value);
-
+            WriteByteToBus(IoPortBaseAddress + address, (byte)value);
         }
 
         [Export]
-        private void WriteWordToPort(ushort address, uint value)
+        protected void WriteWordToPort(ushort address, uint value)
         {
-            WriteWordToBus(IoPortBaseAddress + address, value);
+            WriteWordToBus(IoPortBaseAddress + address, (ushort)value);
         }
 
         [Export]
-        private void WriteDoubleWordToPort(ushort address, uint value)
+        protected void WriteDoubleWordToPort(ushort address, uint value)
         {
-            WriteDoubleWordToBus(IoPortBaseAddress + address, value);
+            WriteDoubleWordToBus(IoPortBaseAddress + address, (uint)value);
         }
 
 // 649:  Field '...' is never assigned to, and will always have its default value null
 #pragma warning disable 649
 
         [Import]
-        private Action KvmInit;
+        protected Action KvmInit;
 
         [Import]
-        private Func<ulong, ulong> KvmExecute;
+        protected Func<ulong, ulong> KvmExecute;
 
         [Import]
-        private Func<ulong> KvmExecuteSingleStep;
+        protected Func<ulong> KvmExecuteSingleStep;
 
         [Import]
-        private Action KvmInterruptExecution;
+        protected Action KvmInterruptExecution;
 
         [Import]
-        private Action KvmDispose;
+        protected Action KvmDispose;
 
         [Import]
-        private Action<int, ulong, ulong, ulong> KvmMapRange;
+        protected Action<int, ulong, ulong, ulong> KvmMapRange;
 
         [Import]
-        private Action<int> KvmUnmapRange;
+        protected Action<int> KvmUnmapRange;
 
         [Import]
-        private Action<ulong, uint, uint, uint> KvmSetCsDescriptor;
+        protected Action<ulong, uint, uint, uint> KvmSetCsDescriptor;
 
         [Import]
-        private Action<ulong, uint, uint, uint> KvmSetDsDescriptor;
+        protected Action<ulong, uint, uint, uint> KvmSetDsDescriptor;
 
         [Import]
-        private Action<ulong, uint, uint, uint> KvmSetEsDescriptor;
+        protected Action<ulong, uint, uint, uint> KvmSetEsDescriptor;
 
         [Import]
-        private Action<ulong, uint, uint, uint> KvmSetSsDescriptor;
+        protected Action<ulong, uint, uint, uint> KvmSetSsDescriptor;
 
         [Import]
-        private Action<ulong, uint, uint, uint> KvmSetFsDescriptor;
+        protected Action<ulong, uint, uint, uint> KvmSetFsDescriptor;
 
         [Import]
-        private Action<ulong, uint, uint, uint> KvmSetGsDescriptor;
+        protected Action<ulong, uint, uint, uint> KvmSetGsDescriptor;
 
         [Import]
-        private Action<int, int> KvmSetIrq;
+        protected Action<int, int> KvmSetIrq;
 
 #pragma warning restore 649
 
-        private string libraryFile;
+        protected string libraryFile;
 
-        private NativeBinder binder;
+        protected NativeBinder binder;
 
-        private int numberOfSegmentSlots;
+        protected int numberOfSegmentSlots;
 
-        private readonly List<SegmentMappingWithSlotNumber> currentMappings;
+        protected readonly List<SegmentMappingWithSlotNumber> currentMappings;
 
-        private readonly MinimalRangesCollection mappedMemory = new MinimalRangesCollection();
+        protected readonly MinimalRangesCollection mappedMemory = new MinimalRangesCollection();
 
-        private const uint IoPortBaseAddress = 0xE0000000;
+        protected const ulong IoPortBaseAddress = 0xE0000000;
 
-        private const int MaxRedirectionTableEntries = 24;
+        protected const int MaxRedirectionTableEntries = 24;
 
         public enum SegmentDescriptor
         {
@@ -423,7 +430,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             GS
         }
 
-        private class SegmentMappingWithSlotNumber : SegmentMapping
+        protected class SegmentMappingWithSlotNumber : SegmentMapping
         {
             public SegmentMappingWithSlotNumber(IMappedSegment segment, int slotNumber) : base(segment)
             {

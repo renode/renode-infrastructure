@@ -84,8 +84,11 @@
       <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/translate-riscv64-le.so">
         <LogicalName>Antmicro.Renode.translate-riscv64-le.so</LogicalName>
       </EmbeddedResource>
-      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/kvm-$(Architecture).so" Condition="$(CurrentPlatform) == 'Linux' And $(Architecture) == 'i386'">
-          <LogicalName>Antmicro.Renode.kvm-$(Architecture).so</LogicalName>
+      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/kvm-i386.so" Condition="$(CurrentPlatform) == 'Linux' And $(Architecture) == 'i386'">
+        <LogicalName>Antmicro.Renode.kvm-i386.so</LogicalName>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/kvm-i386_64.so" Condition="$(CurrentPlatform) == 'Linux' And $(Architecture) == 'i386'">
+        <LogicalName>Antmicro.Renode.kvm-i386_64.so</LogicalName>
       </EmbeddedResource>
     </ItemGroup>
     <ItemGroup>
@@ -313,9 +316,14 @@
     </None>
   </ItemGroup>
   <ItemGroup Condition="$(CurrentPlatform) == 'Linux' And $(Architecture) == 'i386'">
-    <Compile Include="Emulator/Cores/X86KVM/X86KVM.cs" />
-    <Compile Include="Emulator/Cores/X86KVM/X86KVMRegisters.cs">
+    <Compile Include="Emulator/Cores/i386KVM/X86KVM_Base/X86KVMBase.cs" />
+    <Compile Include="Emulator/Cores/i386KVM/X86KVM/X86KVM.cs" />
+    <Compile Include="Emulator/Cores/i386KVM/X86KVM/X86KVMRegisters.cs">
       <DependentUpon>X86KVMRegisters.tt</DependentUpon>
+    </Compile>
+    <Compile Include="Emulator/Cores/i386KVM/X86_64KVM/X86_64KVM.cs" />
+    <Compile Include="Emulator/Cores/i386KVM/X86_64KVM/X86_64KVMRegisters.cs">
+      <DependentUpon>X86_64KVMRegisters.tt</DependentUpon>
     </Compile>
   </ItemGroup>
   <ItemGroup>
