@@ -1908,6 +1908,12 @@
     <Compile Include="Emulator/Peripherals/Peripherals/SPI/ZynqMP_GQSPI.cs" />
     <Compile Include="Emulator/Main/Core/RuntimeInfo.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/UART/NXP_FLEXCOMM.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/IMXRT700_ClockControl.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/IMXRT700_ClockControl/IMXRT700_ClockControl0.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/IMXRT700_ClockControl/IMXRT700_ClockControl1.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/IMXRT700_ClockControl/IMXRT700_ClockControl2.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/IMXRT700_ClockControl/IMXRT700_ClockControl3.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/IMXRT700_ClockControl/IMXRT700_ClockControl4.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Emulator/Main/Peripherals/Bus/SystemBusGenerated.tt">
