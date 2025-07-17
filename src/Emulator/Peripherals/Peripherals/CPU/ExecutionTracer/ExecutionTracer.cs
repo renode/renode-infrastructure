@@ -115,7 +115,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             else
             {
-                writer.FlushBuffer();
+                writer.Dispose();
             }
 
             this.Log(LogLevel.Info, "Execution tracer stopped, output file: {0}", writerBuilder.Path);
