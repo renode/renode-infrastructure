@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -699,7 +699,15 @@ namespace Antmicro.Renode.Utilities
         {
             if(!type.IsGenericType)
             {
-                return type.IsGenericParameter ? type.ToString() : type.FullName;
+                if(type.IsGenericParameter)
+                {
+                    return type.ToString();
+                }
+                if(type.IsArray)
+                {
+                    return string.Format("{0}[]", GetSimpleFullTypeName(type.GetElementType()));
+                }
+                return type.FullName;
             }
             var result = string.Format("{0}<{1}>", type.GetGenericTypeDefinition().FullName,
                                        type.GetGenericArguments().Select(x => GetSimpleFullTypeName(x)).Aggregate((x, y) => x + "," + y));
