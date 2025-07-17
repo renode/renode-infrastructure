@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -74,6 +74,75 @@ namespace Antmicro.Renode.MonitorTests.CommandTests
 
         [TestCase("emulation MethodWithOptionalParametersAndParamArray c=5 b=4 a=3 9 6", "a: 3, b: 4, c: 5; 9, 6",
             TestName = "OptionalParametersProvideAllByNameAndArray")]
+
+        [TestCase("emulation MethodWithArrayThenString [1, 2, 3] \",\"", "numbers: [1, 2, 3] separator: ,",
+            TestName = "ArrayAsNonLastParameterPositional")]
+
+        [TestCase("emulation MethodWithArrayThenString numbers=[1, 2, 3] separator=\",\"", "numbers: [1, 2, 3] separator: ,",
+            TestName = "ArrayAsNonLastParameterNamed")]
+
+        [TestCase("emulation MethodWithArrayThenString [1, 2, 3] separator=\",\"", "numbers: [1, 2, 3] separator: ,",
+            TestName = "ArrayAsNonLastParameterMixed")]
+
+        [TestCase("emulation MethodWithArrayThenString [] \",\"", "numbers: [] separator: ,",
+            TestName = "EmptyArrayAsNonLastParameter")]
+
+        [TestCase("emulation MethodWithArrayThenString [1, 2, 3, ] \",\"", "numbers: [1, 2, 3] separator: ,",
+            TestName = "ArrayWithTrailingComma")]
+
+        [TestCase("emulation MethodWithListOfStrings words=[\"a\", \"b\",]", "words: [\"a\", \"b\"]",
+            TestName = "ListOfStringsWithTrailingComma")]
+
+        [TestCase("emulation MethodWithListOfStrings [\"a\", \"b c\", \"d\"]", "words: [\"a\", \"b c\", \"d\"]",
+            TestName = "ListOfStringsPositional")]
+
+        [TestCase("emulation MethodWithListOfStrings words=[\"a\", \"b\", \"c\"]", "words: [\"a\", \"b\", \"c\"]",
+            TestName = "ListOfStringsNamed")]
+
+        [TestCase("emulation MethodWithListOfStrings []", "words: []",
+            TestName = "ListOfStringsEmptyPositional")]
+
+        [TestCase("emulation MethodWithListOfStrings words=[]", "words: []",
+            TestName = "ListOfStringsEmptyNamed")]
+
+        [TestCase("emulation MethodWithParamsStringArray \"one\" \"two three\" \"four\"", "args: [\"one\", \"two three\", \"four\"]",
+            TestName = "ParamsStringArrayPositional")]
+
+        [TestCase("emulation MethodWithStringThenIntArrayThenAnotherString \"abc\" [1, 2] \"def\"", "s1:abc numbers:[1,2] s2:def",
+            TestName = "ArrayPositionalNonLast")]
+
+        [TestCase("emulation MethodWithParamsStringArray \"one\" \"two three\"", "args: [\"one\", \"two three\"]",
+            TestName = "ParamsStringArrayParams")]
+
+        [TestCase("emulation MethodWithParamsStringArray [\"one\", \"two three\"]", "args: [\"one\", \"two three\"]",
+            TestName = "ParamsStringArrayPositional")]
+
+        [TestCase("emulation MethodWithParamsStringArray args=[\"one\",\"two three\"]", "args: [\"one\", \"two three\"]",
+            TestName = "ParamsStringArrayNamed")]
+
+        [TestCase("emulation MethodWithParamsStringArray", "args: []",
+            TestName = "ParamsStringArrayEmptyParams")]
+
+        [TestCase("emulation MethodWithParamsStringArray []", "args: []",
+            TestName = "ParamsStringArrayEmptyPositional")]
+
+        [TestCase("emulation MethodWithParamsStringArray args=[]", "args: []",
+            TestName = "ParamsStringArrayEmptyNamed")]
+
+        [TestCase("emulation MethodWithNullableIntArray [1, null, 3]", "numbers: [1, null, 3]",
+            TestName = "NullableIntArrayContainingNulls")]
+
+        [TestCase("emulation MethodWithNullableIntArray numbers=[1, null, 3]", "numbers: [1, null, 3]",
+            TestName = "NullableIntArrayContainingNullsNamed")]
+
+        [TestCase("emulation MethodWithNullableIntList [1, null, 3]", "numbers: [1, null, 3]",
+            TestName = "NullableIntListContainingNulls")]
+
+        [TestCase("emulation MethodWithNullableIntList numbers=[1, null, 3]", "numbers: [1, null, 3]",
+            TestName = "NullableIntListContainingNullsNamed")]
+
+        [TestCase("emulation MethodWithNullableIntList []", "numbers: []",
+            TestName = "NullableIntListEmpty")]
         public void CommandResultShouldContain(string command, string expected)
         {
             monitor.Parse(command, commandEater);
@@ -89,6 +158,27 @@ namespace Antmicro.Renode.MonitorTests.CommandTests
 
         [TestCase("emulation MethodWithOptionalParameters b=1 4",
             TestName = "OptionalParametersFailOnPositionalAfterNamed")]
+
+        [TestCase("emulation MethodWithStringThenIntArrayThenAnotherString s2=\"a\" [1, 2, 3] s1=\"b\"",
+            TestName = "PositionalAfterNamedWithMismatchedPosition")]
+
+        [TestCase("emulation MethodThatTakesParamsIntArray 1 \"2\" 3",
+            TestName = "TypeMismatchInParamsArray")]
+
+        [TestCase("emulation MethodWithArrayThenString [1, \"2\", 3] \",\"",
+            TestName = "TypeMismatchInArray")]
+
+        [TestCase("emulation MethodWithArrayThenString [1, 2, 3 \",\"",
+            TestName = "UnclosedBracket")]
+
+        [TestCase("emulation MethodThatTakesParamsIntArray [1,",
+            TestName = "UnclosedBracketWithTrailingComma")]
+
+        [TestCase("emulation MethodWithArrayThenString [1, , 3] \",\"",
+            TestName = "EmptyElement")]
+
+        [TestCase("emulation MethodWithArrayThenString [1, 2, 3, ,] \",\"",
+            TestName = "TwoTrailingCommas")]
         public void CommandShouldFail(string command)
         {
             CommandResultShouldContain(command, "The following methods are available");
