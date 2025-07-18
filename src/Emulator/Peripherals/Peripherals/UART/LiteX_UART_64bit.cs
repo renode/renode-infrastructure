@@ -58,6 +58,7 @@ namespace Antmicro.Renode.Peripherals.UART
                             return character;
                         }
                     )
+                    .WithReservedBits(8, 24)
                 },
                 {(long)Registers.RxTxHi, new DoubleWordRegister(this)
                     .WithReservedBits(0, 32) // simulating an upper half of a 64bit register, never used bits
@@ -66,12 +67,14 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithFlag(0, FieldMode.Read,
                         valueProviderCallback: _ => txFifo?.Count >= txFifoCapacity
                     )
+                    .WithReservedBits(1, 31)
                 },
                 {(long)Registers.TxFullHi, new DoubleWordRegister(this)
                     .WithReservedBits(0, 32) // simulating an upper half of a 64bit register, never used bits
                 },
                 {(long)Registers.RxEmpty, new DoubleWordRegister(this)
                     .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => Count == 0)
+                    .WithReservedBits(1, 31)
                 },
                 {(long)Registers.RxEmptyHi, new DoubleWordRegister(this)
                     .WithReservedBits(0, 32) // simulating an upper half of a 64bit register, never used bits
@@ -79,6 +82,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 {(long)Registers.EventPending, new DoubleWordRegister(this)
                     .WithFlag(0, out txEventPending, FieldMode.Read | FieldMode.WriteOneToClear, valueProviderCallback: _ => false, name: "txEventPending")
                     .WithFlag(1, out rxEventPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "rxEventPending")
+                    .WithReservedBits(2, 30)
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
                 {(long)Registers.EventPendingHi, new DoubleWordRegister(this)
@@ -87,6 +91,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 {(long)Registers.EventEnable, new DoubleWordRegister(this)
                     .WithFlag(0, out txEventEnabled, name: "txEventEnabled")
                     .WithFlag(1, out rxEventEnabled, name: "rxEventEnabled")
+                    .WithReservedBits(2, 30)
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
                 {(long)Registers.EventEnableHi, new DoubleWordRegister(this)

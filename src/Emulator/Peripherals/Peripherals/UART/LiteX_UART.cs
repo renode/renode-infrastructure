@@ -132,23 +132,28 @@ namespace Antmicro.Renode.Peripherals.UART
                             return character;
                         }
                     )
+                    .WithReservedBits(8, 24)
                 },
                 {(long)Registers.TxFull, new DoubleWordRegister(this)
                     .WithFlag(0, FieldMode.Read,
                         valueProviderCallback: _ => txFifo?.Count >= txFifoCapacity
                     )
+                    .WithReservedBits(1, 31)
                 },
                 {(long)Registers.RxEmpty, new DoubleWordRegister(this)
                     .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => Count == 0)
+                    .WithReservedBits(1, 31)
                 },
                 {(long)Registers.EventPending, new DoubleWordRegister(this)
                     .WithFlag(0, out txEventPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "txEventPending")
                     .WithFlag(1, out rxEventPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "rxEventPending")
+                    .WithReservedBits(2, 30)
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
                 {(long)Registers.EventEnable, new DoubleWordRegister(this)
                     .WithFlag(0, out txEventEnabled, name: "txEventEnabled")
                     .WithFlag(1, out rxEventEnabled, name: "rxEventEnabled")
+                    .WithReservedBits(2, 30)
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
             };
