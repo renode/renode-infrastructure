@@ -1086,9 +1086,11 @@ namespace Antmicro.Renode.UserInterface
 
         private bool TryParseTokenForParamType(Token token, Type type, out object result)
         {
-            var tokenTypes = acceptableTokensTypes.Where(x => x.Item1 == type);
+            var underlyingType = Nullable.GetUnderlyingType(type);
+            var tokenTypes = acceptableTokensTypes.Where(x => x.Item1 == (underlyingType ?? type));
+            var isNull = underlyingType != null && token is NullToken;
             //If this result type is limited to specific token types, and this is not one of them, fail
-            if(tokenTypes.Any() && !tokenTypes.Any(tt => tt.Item2.IsInstanceOfType(token)))
+            if(tokenTypes.Any() && !(isNull || tokenTypes.Any(tt => tt.Item2.IsInstanceOfType(token))))
             {
                 result = null;
                 return false;
