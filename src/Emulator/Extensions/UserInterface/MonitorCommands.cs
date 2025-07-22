@@ -835,6 +835,13 @@ namespace Antmicro.Renode.UserInterface
             {
                 return null;
             }
+            if(value is bool && !type.IsInstanceOfType(value))
+            {
+                throw new FormatException(String.Format(
+                    "Bool value {0} is not convertible to {1}!",
+                    value, type.Name
+                ));
+            }
             if(type.IsInstanceOfType(value))
             {
                 return Dynamic.InvokeConvert(value, type, true);
