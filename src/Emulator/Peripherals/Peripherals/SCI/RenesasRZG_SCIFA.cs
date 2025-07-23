@@ -137,7 +137,6 @@ namespace Antmicro.Renode.Peripherals.SCI
         }
 
         public long Frequency { get; set; }
-
         [field: Transient]
         public event Action<byte> CharReceived;
 
@@ -267,7 +266,7 @@ namespace Antmicro.Renode.Peripherals.SCI
                 .WithFlag(1, FieldMode.Read | FieldMode.WriteOneToClear, name: "RFRST", writeCallback: (_, __) => receiveQueue.Clear())
                 .WithTaggedFlag("TFRST", 2)
                 .WithTaggedFlag("MCE", 3)
-                .WithTag("TTRG", 4, 2)
+                .WithValueField(4, 2, out transmitFifoDataTriggerNumberSelect, name: "TTRG")
                 .WithValueField(6, 2, out receiveFifoDataTriggerNumberSelect, name: "RTRG")
                 .WithTag("RSTRG", 8, 3)
                 .WithReservedBits(11, 5)
@@ -321,9 +320,9 @@ namespace Antmicro.Renode.Peripherals.SCI
             // "When the number of entries in the reception FIFO ... rises to or above the specified trigger number for reception,
             //  the RDF flag is set to 1 and a receive FIFO data full interrupt (RXI) request is generated"
             Registers.FifoTriggerControl.Define(this, 0x1f1f)
-                .WithTag("TFTC", 0, 5)
+                .WithValueField(0, 5, out transmitFifoDataTriggerNumber, name: "TFTC")
                 .WithReservedBits(5, 2)
-                .WithTaggedFlag("TTRGS", 7)
+                .WithFlag(7, out transmitTriggerSelect, name:"TTRGS")
                 .WithValueField(8, 5, out receiveFifoDataTriggerNumber, name: "RFTC")
                 .WithReservedBits(13, 2)
                 .WithFlag(15, out receiveTriggerSelect, name: "RTRGS");
@@ -354,6 +353,38 @@ namespace Antmicro.Renode.Peripherals.SCI
                                 "{0} has invalid value {1}. Defaulting to 0x1.",
                                 nameof(receiveFifoDataTriggerNumberSelect),
                                 receiveFifoDataTriggerNumberSelect.Value
+                            );
+                            return 1;
+                    }
+                }
+            }
+        }
+
+        private int TranmitFIFOTriggerCount
+        {
+            get
+            {
+                if(transmitTriggerSelect.Value)
+                {
+                    return (int)transmitFifoDataTriggerNumber.Value;
+                }
+                else
+                {
+                    switch(transmitFifoDataTriggerNumberSelect.Value)
+                    {
+                        case 0:
+                            return 8;
+                        case 1:
+                            return 4;
+                        case 2:
+                            return 2;
+                        case 3:
+                            return 0;
+                        default:
+                            this.ErrorLog(
+                                "{0} has invalid value {1}. Defaulting to 0x1.",
+                                nameof(transmitFifoDataTriggerNumberSelect),
+                                transmitFifoDataTriggerNumberSelect.Value
                             );
                             return 1;
                     }
@@ -393,6 +424,9 @@ namespace Antmicro.Renode.Peripherals.SCI
         private IValueRegisterField receiveFifoDataTriggerNumber;
         private IFlagRegisterField receiveTriggerSelect;
         private IValueRegisterField receiveFifoDataTriggerNumberSelect;
+        private IValueRegisterField transmitFifoDataTriggerNumber;
+        private IFlagRegisterField transmitTriggerSelect;
+        private IValueRegisterField transmitFifoDataTriggerNumberSelect;
         private IFlagRegisterField asynchronousBaseClock8Times;
         private IEnumRegisterField<ModulationDutyRegisterSelect> registerSelect;
         private IEnumRegisterField<CommunicationMode> communicationMode;
