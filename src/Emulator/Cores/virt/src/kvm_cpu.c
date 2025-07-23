@@ -114,6 +114,7 @@ static void cpu_init(CpuState *s)
     }
 
     cpu->exit_request = false;
+    cpu->sregs_state = CLEAR;
 }
 
 static void sigalarm_handler(int sig)
@@ -196,21 +197,24 @@ EXC_VOID_1(kvm_unmap_range, int32_t, slot)
 #define SECTOR_DESCRIPTOR_SETTER(name) \
     void kvm_set_##name##_descriptor(uint64_t base, uint32_t limit, uint32_t selector, uint32_t flags) \
     { \
-        struct kvm_sregs sregs; \
-        get_sregs(&sregs); \
+        struct kvm_sregs *sregs = &(cpu->sregs); \
+        if (cpu->sregs_state == CLEAR) { \
+            get_sregs(sregs); \
+        } \
 \
-        sregs.name.base = base; \
-        sregs.name.limit = limit; \
-        sregs.name.selector = selector; \
-        sregs.name.type = GET_FIELD(flags, 8, 4); \
-        sregs.name.present = GET_FIELD(flags, 15, 1); \
-        sregs.name.dpl = GET_FIELD(flags, 13, 2); \
-        sregs.name.db = GET_FIELD(flags, 22, 1); \
-        sregs.name.s = GET_FIELD(flags, 12, 1); \
-        sregs.name.l = GET_FIELD(flags, 21, 1); \
-        sregs.name.g = GET_FIELD(flags, 23, 1); \
-        sregs.name.avl = GET_FIELD(flags, 20, 1); \
-        set_sregs(&sregs); \
+        sregs->name.base = base; \
+        sregs->name.limit = limit; \
+        sregs->name.selector = selector; \
+        sregs->name.type = GET_FIELD(flags, 8, 4); \
+        sregs->name.present = GET_FIELD(flags, 15, 1); \
+        sregs->name.dpl = GET_FIELD(flags, 13, 2); \
+        sregs->name.db = GET_FIELD(flags, 22, 1); \
+        sregs->name.s = GET_FIELD(flags, 12, 1); \
+        sregs->name.l = GET_FIELD(flags, 21, 1); \
+        sregs->name.g = GET_FIELD(flags, 23, 1); \
+        sregs->name.avl = GET_FIELD(flags, 20, 1); \
+\
+        cpu->sregs_state = DIRTY; \
     } \
 \
     EXC_VOID_4(kvm_set_##name##_descriptor, uint64_t, base, uint32_t, limit, uint32_t, selector, uint32_t, flags)
@@ -364,6 +368,11 @@ static void set_next_run_as_single_step() {
 /* Run KVM and handle it's exit reason */
 void kvm_run()
 {
+    if (cpu->sregs_state == DIRTY) {
+        set_sregs(&(cpu->sregs));
+    }
+    cpu->sregs_state = CLEAR;
+
     struct kvm_run *run = cpu->kvm_run;
     int ret;
 

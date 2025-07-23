@@ -88,9 +88,13 @@ uint64_t kvm_get_register_value_64(int reg_number)
     uint64_t* ptr = NULL;
 
     if (is_special_register(reg_number)) {
-        struct kvm_sregs sregs;
-        get_sregs(&sregs);
-        ptr = get_sreg_pointer_64(&sregs, reg_number);
+        struct kvm_sregs *sregs = &cpu->sregs;
+        if (cpu->sregs_state == CLEAR)
+        {
+            get_sregs(sregs);
+            cpu->sregs_state = PRESENT;
+        }
+        ptr = get_sreg_pointer_64(sregs, reg_number);
     } else {
         struct kvm_regs regs;
         get_regs(&regs);
@@ -114,12 +118,14 @@ EXC_INT_1(uint32_t, kvm_get_register_value_32, int, reg_number)
 void kvm_set_register_value_64(int reg_number, uint64_t value)
 {
     struct kvm_regs regs;
-    struct kvm_sregs sregs;
+    struct kvm_sregs *sregs = &(cpu->sregs);
     uint64_t *ptr = NULL;
 
     if (is_special_register(reg_number)) {
-        get_sregs(&sregs);
-        ptr = get_sreg_pointer_64(&sregs, reg_number);
+        if (cpu->sregs_state == CLEAR) {
+            get_sregs(sregs);
+        }
+        ptr = get_sreg_pointer_64(sregs, reg_number);
     } else {
         get_regs(&regs);
         ptr = get_reg_pointer_64(&regs, reg_number);
@@ -132,7 +138,7 @@ void kvm_set_register_value_64(int reg_number, uint64_t value)
     *ptr = value;
 
     if (is_special_register(reg_number)) {
-        set_sregs(&sregs);
+        cpu->sregs_state = DIRTY;
     } else {
         set_regs(&regs);
     }

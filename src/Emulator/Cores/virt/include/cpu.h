@@ -30,6 +30,12 @@ typedef enum {
     ABORTED = UINT64_MAX
 } ExecutionResult;
 
+typedef enum {
+    CLEAR,
+    PRESENT,
+    DIRTY
+} RegisterState;
+
 typedef struct CpuState {
     pid_t tid;  /* id of cpu thread */
     pid_t tgid; /* id of cpu process */
@@ -48,6 +54,10 @@ typedef struct CpuState {
     bool timer_expired;
     /* flag set when there is exit request from C# */
     bool exit_request;
+
+    /* cached special register state */
+    struct kvm_sregs sregs;
+    RegisterState sregs_state;
 } CpuState;
 
 extern struct CpuState *cpu;
