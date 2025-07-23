@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class RenesasRZG_CPG_SYSC : IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize, IPeripheralRegister<RenesasRZG_Watchdog, NumberRegistrationPoint<byte>>
     {
-        public RenesasRZG_CPG_SYSC(ICPU cpu0, ICPU cpu1 = null)
+        public RenesasRZG_CPG_SYSC(ICPU cpu0 = null, ICPU cpu1 = null)
         {
             this.cpu0 = cpu0;
             this.cpu1 = cpu1;
