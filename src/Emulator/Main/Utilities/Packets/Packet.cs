@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
@@ -21,35 +21,7 @@ namespace Antmicro.Renode.Utilities.Packets
 
         public static int CalculateOffset<T>(string fieldName)
         {
-            lock(cache)
-            {
-                return cache.Get(Tuple.Create(typeof(T), fieldName), _ =>
-                {
-                    var fieldsAndProperties = GetFieldsAndProperties(typeof(T));
-
-                    var maxOffset = 0;
-                    var offset = 0;
-                    foreach(var element in fieldsAndProperties)
-                    {
-                        if(element.ElementName == fieldName)
-                        {
-                            return maxOffset;
-                        }
-
-                        if(element.ByteOffset.HasValue)
-                        {
-                            offset = element.ByteOffset.Value;
-                        }
-
-                        var bytesRequired = element.BytesRequired;
-                        var co = offset + bytesRequired;
-                        maxOffset = Math.Max(co, maxOffset);
-                        offset += bytesRequired;
-                    }
-
-                    return -1;
-                });
-            }
+            return CalculateOffset(typeof(T), fieldName);
         }
 
         public static T Decode<T>(IList<byte> data, int dataOffset = 0)
@@ -425,42 +397,84 @@ namespace Antmicro.Renode.Utilities.Packets
         {
             lock(cache)
             {
-                return cache.Get(t, _ =>
-                {
-                    var fieldsAndProperties = GetFieldsAndProperties(t);
-
-                    var maxOffset = 0;
-                    var offset = 0;
-                    foreach(var element in fieldsAndProperties)
-                    {
-                        var bytesRequired = element.BytesRequired;
-                        offset = element.ByteOffset ?? offset;
-
-                        var co = offset + bytesRequired;
-                        maxOffset = Math.Max(co, maxOffset);
-                        offset += bytesRequired;
-                    }
-
-                    return maxOffset;
-                });
+                return cache.Get(t, CalculateLengthCacheGenerator);
             }
+        }
+
+        // Separate function to prevent unintentional context capture when using a lambda, which completely destroys caching.
+        private static int CalculateLengthCacheGenerator(Type t)
+        {
+            var fieldsAndProperties = GetFieldsAndProperties(t);
+
+            var maxOffset = 0;
+            var offset = 0;
+            foreach(var element in fieldsAndProperties)
+            {
+                var bytesRequired = element.BytesRequired;
+                offset = element.ByteOffset ?? offset;
+
+                var co = offset + bytesRequired;
+                maxOffset = Math.Max(co, maxOffset);
+                offset += bytesRequired;
+            }
+
+            return maxOffset;
         }
 
         private static FieldPropertyInfoWrapper[] GetFieldsAndProperties(Type t)
         {
             lock(cache)
             {
-                return cache.Get(t, _ =>
-                {
-                    return t.GetFields()
-                        .Where(x => Attribute.IsDefined(x, typeof(PacketFieldAttribute)))
-                        .Select(x => new FieldPropertyInfoWrapper(x))
-                        .Union(t.GetProperties()
-                            .Where(x => Attribute.IsDefined(x, typeof(PacketFieldAttribute)))
-                            .Select(x => new FieldPropertyInfoWrapper(x))
-                        ).OrderBy(x => x.Order).ToArray();
-                });
+                return cache.Get(t, GetFieldsAndPropertiesCacheGenerator);
             }
+        }
+
+        // Separate function for the same reasons as CalculateLengthCacheGenerator
+        private static FieldPropertyInfoWrapper[] GetFieldsAndPropertiesCacheGenerator(Type t)
+        {
+            return t.GetFields()
+                .Where(x => Attribute.IsDefined(x, typeof(PacketFieldAttribute)))
+                .Select(x => new FieldPropertyInfoWrapper(x))
+                .Union(t.GetProperties()
+                    .Where(x => Attribute.IsDefined(x, typeof(PacketFieldAttribute)))
+                    .Select(x => new FieldPropertyInfoWrapper(x))
+                ).OrderBy(x => x.Order).ToArray();
+        }
+
+        private static int CalculateOffset(Type t, string fieldName)
+        {
+            lock(cache)
+            {
+                return cache.Get(t, fieldName, CalculateOffsetGenerator);
+            }
+        }
+
+        // Separate function for the same reasons as CalculateLengthCacheGenerator
+        private static int CalculateOffsetGenerator(Type t, string fieldName)
+        {
+            var fieldsAndProperties = GetFieldsAndProperties(t);
+
+            var maxOffset = 0;
+            var offset = 0;
+            foreach(var element in fieldsAndProperties)
+            {
+                if(element.ElementName == fieldName)
+                {
+                    return maxOffset;
+                }
+
+                if(element.ByteOffset.HasValue)
+                {
+                    offset = element.ByteOffset.Value;
+                }
+
+                var bytesRequired = element.BytesRequired;
+                var co = offset + bytesRequired;
+                maxOffset = Math.Max(co, maxOffset);
+                offset += bytesRequired;
+            }
+
+            return -1;
         }
 
         private static readonly SimpleCache cache = new SimpleCache();
