@@ -406,7 +406,7 @@ namespace Antmicro.Renode.Peripherals.SCI
         private const int ReceiveFifoFullIrqIdx = 2;
         private const int TransmitFifoEmptyIrqIdx = 3;
         private const int TransmitEndReceiveReadyIrqIdx = 4;
-        private const int TransmitInterruptDelay = 5;
+        private const int TransmitInterruptDelay = 10;
 
         private enum CommunicationMode
         {
