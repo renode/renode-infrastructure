@@ -79,6 +79,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             SetPCFromEntryPoint(uImage.EntryPoint);
         }
 
+        public void DelayStepCommand()
+        {
+            singleStepSynchronizer.DelayStepCommand();
+        }
+
         public ulong Step(int count = 1)
         {
             if(IsHalted)
@@ -142,6 +147,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                 return PC;
             }
+        }
+
+        public void ContinueAndEnterStepModeAfterFinishingTimeInterval()
+        {
+            ExecutionMode = ExecutionMode.Continuous;
+            enterStepModeAfterFinishingTimeInterval = true;
         }
 
         public void SkipTime(TimeInterval amountOfTime)
@@ -498,6 +509,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 restart:
                         while(!isPaused && !isAborted)
                         {
+                            var skipThisRound = false;
                             var singleStep = false;
                             // locking here is to ensure that execution mode does not change
                             // before calling `WaitForStepCommand` method
@@ -519,10 +531,38 @@ restart:
                                         }
                                         this.Trace();
                                     }
+
+                                    skipThisRound = stepResult == Synchronizer.StepResult.Delayed;
+
+                                    // If the stepping cpu used all its time in current grant we need to
+                                    // progress other cpus before we can make another step.
+                                    // To do so we disable single step mode on blocking CPUs so that they
+                                    // can catch up. We reenable it after they finish their time intervals.
+                                    var emulation = EmulationManager.Instance.CurrentEmulation;
+                                    var timeSource = (TimeSourceBase)TimeHandle.TimeSource;
+                                    var steppingCpus = emulation.Machines
+                                        .SelectMany(x => x.SystemBus.GetCPUs())
+                                        .Where(cpu => cpu.ExecutionMode == ExecutionMode.SingleStep && cpu != this);
+                                    if(stepResult == Synchronizer.StepResult.Granted && TimeHandle.FinishedTimeInterval)
+                                    {
+                                        foreach(var cpu in steppingCpus)
+                                        {
+                                            // It's safe to do cast here since all CPUs inherit from BaseCPU
+                                            ((BaseCPU)cpu).ContinueAndEnterStepModeAfterFinishingTimeInterval();
+                                        }
+                                    }
+                                    else if (stepResult == Synchronizer.StepResult.Granted && timeSource.ExecuteInSerial)
+                                    {
+                                        foreach(var cpu in steppingCpus)
+                                        {
+                                            // It's safe to do cast here since all CPUs inherit from BaseCPU
+                                            ((BaseCPU)cpu).DelayStepCommand();
+                                        }
+                                    }
                                 }
                             }
 
-                            var cpuResult = CpuThreadBodyInner(singleStep);
+                            var cpuResult = CpuThreadBodyInner(singleStep, skipThisRound);
 
                             if(singleStep)
                             {
@@ -539,6 +579,12 @@ restart:
                                         singleStepSynchronizer.StepFinished();
                                         break;
                                 }
+                            }
+
+                            if(enterStepModeAfterFinishingTimeInterval && TimeHandle.FinishedTimeInterval)
+                            {
+                                ExecutionMode = ExecutionMode.SingleStep;
+                                enterStepModeAfterFinishingTimeInterval = false;
                             }
                         }
 
@@ -595,7 +641,7 @@ restart:
             return false;
         }
 
-        protected CpuResult CpuThreadBodyInner(bool singleStep)
+        protected CpuResult CpuThreadBodyInner(bool singleStep, bool skipThisRound = false)
         {
             if(!TimeHandle.RequestTimeInterval(out var interval))
             {
@@ -620,6 +666,12 @@ restart:
                 }
                 instructionsLeftThisRound = Math.Min(instructionsToExecuteThisRound - executedResiduum, singleStep ? 1 : ulong.MaxValue);
                 instructionsExecutedThisRound = executedResiduum;
+
+                var emulation = EmulationManager.Instance.CurrentEmulation;
+                if(skipThisRound)
+                {
+                    instructionsLeftThisRound = 0;
+                }
 
                 while(!isPaused && !currentHaltedState && instructionsLeftThisRound > 0)
                 {
@@ -960,6 +1012,7 @@ restart:
         private ulong instructionsLeftThisRound;
         private ulong instructionsExecutedThisRound;
         private ulong skipInstructions;
+        private bool enterStepModeAfterFinishingTimeInterval;
 
         [Transient]
         private volatile bool pauseLockTimeHandleMarker;
