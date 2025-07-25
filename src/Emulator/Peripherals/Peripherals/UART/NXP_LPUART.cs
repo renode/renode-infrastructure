@@ -308,12 +308,13 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             lock (locker)
             {
-                base.Reset();
+                base.Reset(); // reset clears all buffered characters
                 registers.Reset();
                 txQueue.Clear();
                 latestBufferState = BufferState.Empty;
                 rxMaxBytes = 1;
                 txMaxBytes = 1;
+                UpdateBufferState();
                 UpdateGPIOOutputs();
                 reset.Value = true;
             }
