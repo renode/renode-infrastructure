@@ -498,6 +498,7 @@
     <Compile Include="Emulator/Extensions/UserInterface/Commands/StartCommand.cs" />
     <Compile Include="Emulator/Extensions/UserInterface/Commands/SetCommand.cs" />
     <Compile Include="Emulator/Extensions/UserInterface/Commands/PythonExecuteCommand.cs" />
+    <Compile Include="Emulator/Extensions/UserInterface/Commands/AutoSaveCommand.cs" />
     <Compile Include="Emulator/Extensions/UserInterface/Tokenizer/LeftBraceToken.cs" />
     <Compile Include="Emulator/Extensions/UserInterface/Tokenizer/RightBraceToken.cs" />
     <Compile Include="Emulator/Extensions/TAPHelper/DynamicModuleSpawner.cs" />
@@ -1899,6 +1900,7 @@
     <Compile Include="Emulator/Main/Peripherals/CPU/CPUState.cs" />
     <Compile Include="Emulator/Main/Peripherals/IEndiannessAware.cs" />
     <Compile Include="Emulator/Main/Utilities/SnapshotTracker.cs" />
+    <Compile Include="Emulator/Main/Utilities/AutoSnapshotCreator.cs" />
     <Compile Include="Emulator/Main/Core/Structure/IBusRegistration.cs" />
     <Compile Include="Emulator/Main/Peripherals/UART/ILIN.cs" />
     <Compile Include="Emulator/Main/Peripherals/UART/LINHub.cs" />

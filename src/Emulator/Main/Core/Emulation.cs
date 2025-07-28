@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -67,6 +67,7 @@ namespace Antmicro.Renode.Core
             BlobManager = new BlobManager();
             theBag = new Dictionary<string, object>();
             SnapshotTracker = new SnapshotTracker();
+            AutoSnapshotCreator = new AutoSnapshotCreator();
         }
 
         public IDisposable ObtainSafeState()
@@ -616,6 +617,8 @@ namespace Antmicro.Renode.Core
         public SnapshotTracker SnapshotTracker { get; }
 
         public BlobManager BlobManager { get; set; }
+
+        public AutoSnapshotCreator AutoSnapshotCreator { get; }
 
         [field: Transient]
         public event Action<IMachine, MachineStateChangedEventArgs> MachineStateChanged;
