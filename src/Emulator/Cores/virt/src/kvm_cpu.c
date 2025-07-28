@@ -7,7 +7,6 @@
  * This code uses KVM API, documentation for it may be found on
  * https://docs.kernel.org/virt/kvm/api.html
  */
-
 #include "callbacks.h"
 #include "cpu.h"
 #include "utils.h"
@@ -191,42 +190,6 @@ void kvm_unmap_range(int32_t slot)
     }
 }
 EXC_VOID_1(kvm_unmap_range, int32_t, slot)
-
-#define GET_FIELD(val, offset, width) ((uint8_t)(((val) >> (offset)) & (0xff >> (8 - (width)))))
-
-#define SECTOR_DESCRIPTOR_SETTER(name) \
-    void kvm_set_##name##_descriptor(uint64_t base, uint32_t limit, uint32_t selector, uint32_t flags) \
-    { \
-        struct kvm_sregs *sregs = &(cpu->sregs); \
-        if (cpu->sregs_state == CLEAR) { \
-            get_sregs(sregs); \
-        } \
-\
-        sregs->name.base = base; \
-        sregs->name.limit = limit; \
-        sregs->name.selector = selector; \
-        sregs->name.type = GET_FIELD(flags, 8, 4); \
-        sregs->name.present = GET_FIELD(flags, 15, 1); \
-        sregs->name.dpl = GET_FIELD(flags, 13, 2); \
-        sregs->name.db = GET_FIELD(flags, 22, 1); \
-        sregs->name.s = GET_FIELD(flags, 12, 1); \
-        sregs->name.l = GET_FIELD(flags, 21, 1); \
-        sregs->name.g = GET_FIELD(flags, 23, 1); \
-        sregs->name.avl = GET_FIELD(flags, 20, 1); \
-\
-        cpu->sregs_state = DIRTY; \
-    } \
-\
-    EXC_VOID_4(kvm_set_##name##_descriptor, uint64_t, base, uint32_t, limit, uint32_t, selector, uint32_t, flags)
-
-/* Segment descriptor setters
- * For more info plase refer to Intel(R) 64 and IA-32 Architectures Software Developer’s Manual Volume 3 (3.4.3) */
-SECTOR_DESCRIPTOR_SETTER(cs)
-SECTOR_DESCRIPTOR_SETTER(ds)
-SECTOR_DESCRIPTOR_SETTER(es)
-SECTOR_DESCRIPTOR_SETTER(ss)
-SECTOR_DESCRIPTOR_SETTER(fs)
-SECTOR_DESCRIPTOR_SETTER(gs)
 
 void kvm_dispose()
 {
