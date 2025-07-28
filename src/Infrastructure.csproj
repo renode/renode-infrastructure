@@ -1915,6 +1915,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/IMXRT700_ClockControl/IMXRT700_ClockControl3.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/IMXRT700_ClockControl/IMXRT700_ClockControl4.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/IMXRT700_MessagingUnit.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/IMXRT700_OSC32KNP.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Emulator/Main/Peripherals/Bus/SystemBusGenerated.tt">
