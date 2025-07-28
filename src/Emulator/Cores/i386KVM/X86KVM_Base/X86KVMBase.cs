@@ -147,7 +147,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         // field in the 'flags' variable are defined in
         // Intel(R) 64 and IA-32 Architectures Software Developer’s Manual - Volume 3 (3.4.5)
-        public void SetDescriptor(SegmentDescriptor descriptor, byte selector, ulong baseAddress, uint limit, uint flags)
+        public void SetDescriptor(SegmentDescriptor descriptor, ushort selector, ulong baseAddress, uint limit, uint flags)
         {
             switch(descriptor)
             {
@@ -384,22 +384,22 @@ namespace Antmicro.Renode.Peripherals.CPU
         protected Action<int> KvmUnmapRange;
 
         [Import]
-        protected Action<ulong, uint, uint, uint> KvmSetCsDescriptor;
+        protected Action<ulong, uint, ushort, uint> KvmSetCsDescriptor;
 
         [Import]
-        protected Action<ulong, uint, uint, uint> KvmSetDsDescriptor;
+        protected Action<ulong, uint, ushort, uint> KvmSetDsDescriptor;
 
         [Import]
-        protected Action<ulong, uint, uint, uint> KvmSetEsDescriptor;
+        protected Action<ulong, uint, ushort, uint> KvmSetEsDescriptor;
 
         [Import]
-        protected Action<ulong, uint, uint, uint> KvmSetSsDescriptor;
+        protected Action<ulong, uint, ushort, uint> KvmSetSsDescriptor;
 
         [Import]
-        protected Action<ulong, uint, uint, uint> KvmSetFsDescriptor;
+        protected Action<ulong, uint, ushort, uint> KvmSetFsDescriptor;
 
         [Import]
-        protected Action<ulong, uint, uint, uint> KvmSetGsDescriptor;
+        protected Action<ulong, uint, ushort, uint> KvmSetGsDescriptor;
 
         [Import]
         protected Action<int, int> KvmSetIrq;
