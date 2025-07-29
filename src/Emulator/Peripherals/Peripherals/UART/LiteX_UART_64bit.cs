@@ -111,7 +111,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public long Size => 0x100;
 
-        public GPIO IRQ { get; private set; }
+        public GPIO IRQ { get; }
 
         public override Bits StopBits => Bits.One;
 
