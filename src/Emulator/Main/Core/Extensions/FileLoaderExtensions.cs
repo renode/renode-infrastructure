@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Core.Extensions
 {
     public static class FileLoaderExtensions
     {
-        public static void LoadBinary(this ICanLoadFiles loader, ReadFilePath fileName, ulong loadPoint, ICPU cpu = null, long offset = 0)
+        public static void LoadBinary(this ICanLoadFiles loader, ReadFilePath fileName, ulong loadPoint, ICPU cpu = null, long offset = 0, ulong? size = null)
         {
             const int bufferSize = 100 * 1024;
             List<FileChunk> chunks = new List<FileChunk>();
@@ -43,18 +43,34 @@ namespace Antmicro.Renode.Core.Extensions
                     var bytesCount = reader.Read(buffer, 0, buffer.Length);
                     var addr = loadPoint;
 
+                    if(size < (ulong)bytesCount)
+                    {
+                        bytesCount = (int)size;
+                    }
+
                     while(bytesCount > 0)
                     {
                         chunks.Add(new FileChunk() { Data = buffer.Take(bytesCount), OffsetToLoad = addr });
                         addr += (ulong)bytesCount;
+                        size -= (ulong)bytesCount;
                         buffer = new byte[bufferSize];
                         bytesCount = reader.Read(buffer, 0, buffer.Length);
+
+                        if(size < (ulong)bytesCount)
+                        {
+                            bytesCount = (int)size;
+                        }
                     }
                 }
             }
             catch(IOException e)
             {
                 throw new RecoverableException(string.Format("Exception while loading file {0}: {1}", fileName, e.Message));
+            }
+
+            if(size > 0)
+            {
+                Logger.LogAs(loader, LogLevel.Warning, "Encountered end of file for {0} with {1} bytes left to read", fileName, size);
             }
 
             chunks = SortAndJoinConsecutiveFileChunks(chunks);
