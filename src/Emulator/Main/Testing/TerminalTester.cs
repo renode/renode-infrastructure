@@ -91,6 +91,11 @@ namespace Antmicro.Renode.Testing
 
         public override void WriteChar(byte value)
         {
+            if(!binaryMode && value == 0)
+            {
+                return;
+            }
+
             if(!binaryMode && value == CarriageReturn && endLineOption == EndLineOption.TreatLineFeedAsEndLine)
             {
                 return;
