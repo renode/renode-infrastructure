@@ -143,7 +143,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTaggedFlag("PEIE / Parity Error Interrupt Enable", 24)
                 .WithTaggedFlag("FEIE / Framing Error Interrupt Enable", 25)
                 .WithTaggedFlag("NEIE / Noise Error Interrupt Enable", 26)
-                .WithTaggedFlag("ORIE / Overrun Interrupt Enable", 27)
+                .WithFlag(27, out overrunInterruptEnable, name: "ORIE / Overrun Interrupt Enable")
                 .WithTaggedFlag("TXINV / Transmit Data Inversion", 28)
                 .WithFlag(29, out transmissionPinDirectionOutNotIn, name: "TXDIR / TXD Pin Direction in Single-Wire Mode")
                 .WithTaggedFlag("R9T8 / Receive Bit 9 / Transmit Bit 8", 30)
@@ -496,7 +496,8 @@ namespace Antmicro.Renode.Peripherals.UART
             var rxUnderflow = receiveFifoUnderflowEnabled.Value && receiveFifoUnderflowInterrupt.Value;
             var rx = receiverInterruptEnabled.Value && BufferState == BufferState.Ready; // Watermark level exceeded
             var linBreak = linBreakDetect.Value && linBreakDetectInterruptEnable.Value;
-            var rxRequest = rxUnderflow || rx || linBreak;
+            var rxOverrun = overrunInterruptEnable.Value && receiverOverrun.Value;
+            var rxRequest = rxUnderflow || rx || linBreak || rxOverrun;
 
             var txOverflow = transmitFifoOverflowEnabled.Value && transmitFifoOverflowInterrupt.Value;
             var tx = transmitterInterruptEnabled.Value && transmitDataRegisterEmpty.Value;
@@ -598,6 +599,7 @@ namespace Antmicro.Renode.Peripherals.UART
         private readonly IFlagRegisterField receiverInterruptEnabled;
         private readonly IFlagRegisterField transmissionCompleteInterruptEnabled;
         private readonly IFlagRegisterField transmitterInterruptEnabled;
+        private readonly IFlagRegisterField overrunInterruptEnable;
         private readonly IFlagRegisterField transmissionPinDirectionOutNotIn;
         private readonly IFlagRegisterField receiveFifoEnabled;
         private readonly IFlagRegisterField transmitFifoEnabled;
