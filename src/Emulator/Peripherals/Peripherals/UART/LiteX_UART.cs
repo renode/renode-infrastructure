@@ -17,7 +17,63 @@ namespace Antmicro.Renode.Peripherals.UART
         public LiteX_UART(IMachine machine) : base(machine)
         {
             IRQ = new GPIO();
-            var registersMap = new Dictionary<long, DoubleWordRegister>
+            registers = new DoubleWordRegisterCollection(this, CreateRegisterMap());
+        }
+
+        public uint ReadDoubleWord(long offset)
+        {
+            return registers.Read(offset);
+        }
+
+        public virtual byte ReadByte(long offset)
+        {
+            if(offset % 4 != 0)
+            {
+                // in the current configuration, only the lowest byte
+                // contains a meaningful data
+                return 0;
+            }
+            return (byte)ReadDoubleWord(offset);
+        }
+
+        public override void Reset()
+        {
+            base.Reset();
+            registers.Reset();
+
+            UpdateInterrupts();
+        }
+
+        public void WriteDoubleWord(long offset, uint value)
+        {
+            registers.Write(offset, value);
+        }
+
+        public virtual void WriteByte(long offset, byte value)
+        {
+            if(offset % 4 != 0)
+            {
+                // in the current configuration, only the lowest byte
+                // contains a meaningful data
+                return;
+            }
+
+            WriteDoubleWord(offset, value);
+        }
+
+        public long Size => 0x100;
+
+        public GPIO IRQ { get; }
+
+        public override Bits StopBits => Bits.One;
+
+        public override Parity ParityBit => Parity.None;
+
+        public override uint BaudRate => 115200;
+
+        protected virtual Dictionary<long, DoubleWordRegister> CreateRegisterMap()
+        {
+            return new Dictionary<long, DoubleWordRegister>
             {
                 {(long)Registers.RxTx, new DoubleWordRegister(this)
                     .WithValueField(0, 8, writeCallback: (_, value) => this.TransmitCharacter((byte)value),
@@ -48,60 +104,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
             };
-
-            registers = new DoubleWordRegisterCollection(this, registersMap);
         }
-
-        public uint ReadDoubleWord(long offset)
-        {
-            return registers.Read(offset);
-        }
-
-        public byte ReadByte(long offset)
-        {
-            if(offset % 4 != 0)
-            {
-                // in the current configuration, only the lowest byte
-                // contains a meaningful data
-                return 0;
-            }
-            return (byte)ReadDoubleWord(offset);
-        }
-
-        public override void Reset()
-        {
-            base.Reset();
-            registers.Reset();
-
-            UpdateInterrupts();
-        }
-
-        public void WriteDoubleWord(long offset, uint value)
-        {
-            registers.Write(offset, value);
-        }
-
-        public void WriteByte(long offset, byte value)
-        {
-            if(offset % 4 != 0)
-            {
-                // in the current configuration, only the lowest byte
-                // contains a meaningful data
-                return;
-            }
-
-            WriteDoubleWord(offset, value);
-        }
-
-        public long Size => 0x100;
-
-        public GPIO IRQ { get; }
-
-        public override Bits StopBits => Bits.One;
-
-        public override Parity ParityBit => Parity.None;
-
-        public override uint BaudRate => 115200;
 
         protected override void CharWritten()
         {
@@ -113,7 +116,7 @@ namespace Antmicro.Renode.Peripherals.UART
             UpdateInterrupts();
         }
 
-        private void UpdateInterrupts()
+        protected void UpdateInterrupts()
         {
             // rxEventPending is latched
             rxEventPending.Value = (Count != 0);
@@ -123,9 +126,9 @@ namespace Antmicro.Renode.Peripherals.UART
             IRQ.Set(eventPending);
         }
 
-        private IFlagRegisterField rxEventEnabled;
-        private IFlagRegisterField rxEventPending;
-        private readonly DoubleWordRegisterCollection registers;
+        protected IFlagRegisterField rxEventEnabled;
+        protected IFlagRegisterField rxEventPending;
+        protected readonly DoubleWordRegisterCollection registers;
 
         private enum Registers : long
         {

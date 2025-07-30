@@ -5,7 +5,6 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
@@ -13,12 +12,38 @@ using Antmicro.Renode.Logging;
 namespace Antmicro.Renode.Peripherals.UART
 {
     // this is a model of LiteX UART with register layout to simulate 64 bit bus read/write access
-    public class LiteX_UART64 : UARTBase, IDoubleWordPeripheral, IBytePeripheral, IKnownSize
+    public class LiteX_UART64 : LiteX_UART
     {
         public LiteX_UART64(IMachine machine) : base(machine)
         {
-            IRQ = new GPIO();
-            var registersMap = new Dictionary<long, DoubleWordRegister>
+        }
+
+        public override byte ReadByte(long offset)
+        {
+            if(offset % 8 != 0)
+            {
+                // in the current configuration, only the lowest byte
+                // contains a meaningful data
+                return 0;
+            }
+            return (byte)ReadDoubleWord(offset);
+        }
+
+        public override void WriteByte(long offset, byte value)
+        {
+            if(offset % 8 != 0)
+            {
+                // in the current configuration, only the lowest byte
+                // contains a meaningful data
+                return;
+            }
+
+            WriteDoubleWord(offset, value);
+        }
+
+        protected override Dictionary<long, DoubleWordRegister> CreateRegisterMap()
+        {
+            return new Dictionary<long, DoubleWordRegister>
             {
                 {(long)Registers.RxTx, new DoubleWordRegister(this)
                     .WithValueField(0, 8, writeCallback: (_, value) => this.TransmitCharacter((byte)value),
@@ -64,84 +89,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithReservedBits(0, 32) // simulating an upper half of a 64bit register, never used bits
                 },
             };
-
-            registers = new DoubleWordRegisterCollection(this, registersMap);
         }
-
-        public uint ReadDoubleWord(long offset)
-        {
-            return registers.Read(offset);
-        }
-
-        public byte ReadByte(long offset)
-        {
-            if(offset % 8 != 0)
-            {
-                // in the current configuration, only the lowest byte
-                // contains a meaningful data
-                return 0;
-            }
-            return (byte)ReadDoubleWord(offset);
-        }
-
-        public override void Reset()
-        {
-            base.Reset();
-            registers.Reset();
-
-            UpdateInterrupts();
-        }
-
-        public void WriteDoubleWord(long offset, uint value)
-        {
-            registers.Write(offset, value);
-        }
-
-        public void WriteByte(long offset, byte value)
-        {
-            if(offset % 8 != 0)
-            {
-                // in the current configuration, only the lowest byte
-                // contains a meaningful data
-                return;
-            }
-
-            WriteDoubleWord(offset, value);
-        }
-
-        public long Size => 0x100;
-
-        public GPIO IRQ { get; }
-
-        public override Bits StopBits => Bits.One;
-
-        public override Parity ParityBit => Parity.None;
-
-        public override uint BaudRate => 115200;
-
-        protected override void CharWritten()
-        {
-            UpdateInterrupts();
-        }
-
-        protected override void QueueEmptied()
-        {
-            UpdateInterrupts();
-        }
-
-        private void UpdateInterrupts()
-        {
-            // rxEventPending is latched
-            rxEventPending.Value = (Count != 0);
-
-            // tx fifo is never full, so `txEventPending` is always false
-            var eventPending = (rxEventEnabled.Value && rxEventPending.Value);
-            IRQ.Set(eventPending);
-        }
-
-        private IFlagRegisterField rxEventEnabled;
-        private IFlagRegisterField rxEventPending;
-        private readonly DoubleWordRegisterCollection registers;
 
         private enum Registers : long
         {
