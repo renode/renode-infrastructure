@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -79,6 +79,20 @@ namespace Antmicro.Renode.Utilities
             return result;
         }
 
+        public bool TryGet<T>(string group, string name, out T result)
+        {
+            var config = Config.Source.Configs[group];
+            if(config == null || !config.Contains(name))
+            {
+                result = default(T);
+                return false;
+            }
+
+            // value for this variable already exists so default value will not be used
+            result = Get<T>(group, name, default(T));
+            return true;
+        }
+
         public void SetNonPersistent<T>(string group, string name, T value)
         {
             AddToCache(group, name, value);
@@ -100,13 +114,13 @@ namespace Antmicro.Renode.Utilities
 
         private IConfig VerifyValue(string group, string name, object defaultValue)
         {
-            if(defaultValue == null)
-            {
-                throw new ArgumentException("Default value cannot be null", "defaultValue");
-            }
             var config = VerifyGroup(group);
             if(!config.Contains(name))
             {
+                if(defaultValue == null)
+                {
+                    throw new ArgumentException("Default value cannot be null", "defaultValue");
+                }
                 config.Set(name, defaultValue);
             }
             return config;
