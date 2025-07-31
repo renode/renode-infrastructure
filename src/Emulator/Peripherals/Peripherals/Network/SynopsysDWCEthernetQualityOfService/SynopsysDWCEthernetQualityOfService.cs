@@ -24,8 +24,18 @@ namespace Antmicro.Renode.Peripherals.Network
 {
     public partial class SynopsysDWCEthernetQualityOfService : NetworkWithPHY, IMACInterface, IKnownSize
     {
-        public SynopsysDWCEthernetQualityOfService(IMachine machine, long systemClockFrequency, ICPU cpuContext = null) : base(machine)
+        public SynopsysDWCEthernetQualityOfService(IMachine machine, long systemClockFrequency, ICPU cpuContext = null, BusWidth? dmaBusWidth = null) : base(machine)
         {
+            if(dmaBusWidth.HasValue)
+            {
+                DMABusWidth = dmaBusWidth.Value;
+            }
+            else
+            {
+                this.WarningLog("DMA bus width not provided to an instance of {0}, defaulting to {1}", nameof(SynopsysDWCEthernetQualityOfService), nameof(BusWidth.Bits32));
+                DMABusWidth = BusWidth.Bits32;
+            }
+
             if(DMAChannelOffsets.Length < 1 || DMAChannelOffsets.Length > MaxDMAChannels)
             {
                 throw new ConstructionException($"Invalid DMA channel count {DMAChannelOffsets.Length}. Expected value between 1 and {MaxDMAChannels}");
@@ -114,7 +124,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
         // Offset at which each channel should start. This also determinates the amount of DMA channels
         protected virtual long[] DMAChannelOffsets => new long[]{ 0x100 };
-        protected virtual BusWidth DMABusWidth => BusWidth.Bits32;
+        protected BusWidth DMABusWidth { get; private set; }
         protected virtual int RxQueueSize => 8192;
         protected virtual bool SeparateDMAInterrupts => false;
 

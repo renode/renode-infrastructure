@@ -28,7 +28,7 @@ namespace Antmicro.Renode.Peripherals.Network
     {
         protected readonly DMAChannel[] dmaChannels;
 
-        protected enum BusWidth
+        public enum BusWidth
         {
             Bits32  = 4,
             Bits64  = 8,

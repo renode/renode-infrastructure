@@ -12,7 +12,7 @@ namespace Antmicro.Renode.Peripherals.Network
     public class S32K3XX_GMAC : SynopsysDWCEthernetQualityOfService
     {
         public S32K3XX_GMAC(IMachine machine, long systemClockFrequency, ICPU cpuContext = null)
-            : base(machine, systemClockFrequency, cpuContext)
+            : base(machine, systemClockFrequency, cpuContext, BusWidth.Bits64)
         {
             Reset();
         }
@@ -62,7 +62,6 @@ namespace Antmicro.Renode.Peripherals.Network
             (long)Registers.DMAChannel1Control - (long)Registers.DMAMode,
             (long)Registers.DMAChannel2Control - (long)Registers.DMAMode,
         };
-        protected override BusWidth DMABusWidth => BusWidth.Bits64;
         protected override int RxQueueSize => 16384;
         protected override bool SeparateDMAInterrupts => true;
 
