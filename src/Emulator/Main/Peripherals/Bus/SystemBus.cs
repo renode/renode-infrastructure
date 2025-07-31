@@ -1079,12 +1079,12 @@ namespace Antmicro.Renode.Peripherals.Bus
             svdDevices.Add(svdDevice);
         }
 
-        public void Tag(Range range, string tag, ulong defaultValue = 0, bool pausing = false)
+        public void Tag(Range range, string tag, ulong defaultValue = 0, bool pausing = false, bool silent = false)
         {
             var intersectings = tags.Where(x => x.Key.Intersects(range)).ToArray();
             if(intersectings.Length == 0)
             {
-                tags.Add(range, new TagEntry { Name = tag, DefaultValue = defaultValue });
+                tags.Add(range, new TagEntry { Name = tag, DefaultValue = defaultValue, Silent = silent });
                 if(pausing)
                 {
                     pausingTags.Add(tag);
@@ -2066,7 +2066,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             return true;
         }
 
-        private string TryGetTag(ulong address, out ulong defaultValue)
+        private string TryGetTag(ulong address, out ulong defaultValue, out bool silent)
         {
             // The `return` inside is intentional; we just want to find the first tag.
             // `FirstOrDefault` isn't used cause the default `Range` is a valid `<0, 0>` range.
@@ -2075,16 +2075,18 @@ namespace Antmicro.Renode.Peripherals.Bus
             foreach(var tag in tags.Where(x => x.Key.Contains(address)).Select(x => x.Value))
             {
                 defaultValue = tag.DefaultValue;
+                silent = tag.Silent;
                 return tag.Name;
             }
             defaultValue = default(ulong);
+            silent = false;
             return null;
         }
 
-        private string EnterTag(string str, ulong address, out bool tagEntered, out ulong defaultValue)
+        private string EnterTag(string str, ulong address, out bool tagEntered, out ulong defaultValue, out bool silent)
         {
             // TODO: also pausing here in a bit hacky way
-            var tag = TryGetTag(address, out defaultValue);
+            var tag = TryGetTag(address, out defaultValue, out silent);
             if(tag == null)
             {
                 tagEntered = false;
@@ -2102,8 +2104,9 @@ namespace Antmicro.Renode.Peripherals.Bus
         {
             Interlocked.Increment(ref unexpectedReads);
             bool tagged;
+            bool silent;
             ulong defaultValue;
-            var warning = EnterTag(NonExistingRead, address, out tagged, out defaultValue);
+            var warning = EnterTag(NonExistingRead, address, out tagged, out defaultValue, out silent);
             warning = DecorateWithCPUNameAndPC(warning);
             if(UnhandledAccessBehaviour == UnhandledAccessBehaviour.DoNotReport)
             {
@@ -2116,8 +2119,9 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
             if(tagged)
             {
+                var logLevel = silent ? LogLevel.Debug : LogLevel.Warning;
                 //strange parsing of default value ensures we get the right width, depending on the access type
-                this.Log(LogLevel.Warning, warning.TrimEnd('.') + ", returning 0x{2}.", address, type, defaultValue.ToString("X16").Substring(16 - (int)type * 2));
+                this.Log(logLevel, warning.TrimEnd('.') + ", returning 0x{2}.", address, type, defaultValue.ToString("X16").Substring(16 - (int)type * 2));
             }
             else
             {
@@ -2142,7 +2146,8 @@ namespace Antmicro.Renode.Peripherals.Bus
                 return;
             }
             bool tagged;
-            var warning = EnterTag(NonExistingWrite, address, out tagged, out var _);
+            bool silent;
+            var warning = EnterTag(NonExistingWrite, address, out tagged, out var _, out silent);
             warning = DecorateWithCPUNameAndPC(warning);
             if((UnhandledAccessBehaviour == UnhandledAccessBehaviour.ReportIfTagged && !tagged)
                 || (UnhandledAccessBehaviour == UnhandledAccessBehaviour.ReportIfNotTagged && tagged))
@@ -2156,7 +2161,8 @@ namespace Antmicro.Renode.Peripherals.Bus
                     return;
                 }
             }
-            this.Log(LogLevel.Warning, warning, address, value, type);
+            var logLevel = silent ? LogLevel.Debug : LogLevel.Warning;
+            this.Log(logLevel, warning, address, value, type);
         }
 
         private IDisposable SetLocalContext(IPeripheral context, ulong? initiatorState = null)
@@ -2517,6 +2523,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         {
             public string Name;
             public ulong DefaultValue;
+            public bool Silent;
         }
 
         private class ThreadLocalContext : IDisposable
