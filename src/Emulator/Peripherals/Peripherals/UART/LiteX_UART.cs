@@ -16,7 +16,7 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
-    public class LiteX_UART : UARTBase, IDoubleWordPeripheral, IBytePeripheral, IKnownSize
+    public class LiteX_UART : UARTBase, IDoubleWordPeripheral, IBytePeripheral, IKnownSize, IProvidesRegisterCollection<DoubleWordRegisterCollection>
     {
         public LiteX_UART(IMachine machine, uint txFifoCapacity = DefaultTxFifoCapacity, ulong? flushDelayNs = null, ulong? timeoutNs = null) : base(machine)
         {
@@ -61,12 +61,12 @@ namespace Antmicro.Renode.Peripherals.UART
                 }
             }
 
-            registers = new DoubleWordRegisterCollection(this, CreateRegisterMap());
+            RegistersCollection = new DoubleWordRegisterCollection(this, CreateRegisterMap());
         }
 
         public uint ReadDoubleWord(long offset)
         {
-            return registers.Read(offset);
+            return RegistersCollection.Read(offset);
         }
 
         public virtual byte ReadByte(long offset)
@@ -83,7 +83,7 @@ namespace Antmicro.Renode.Peripherals.UART
         public override void Reset()
         {
             base.Reset();
-            registers.Reset();
+            RegistersCollection.Reset();
             txFifo?.Clear();
 
             UpdateInterrupts();
@@ -91,7 +91,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public void WriteDoubleWord(long offset, uint value)
         {
-            registers.Write(offset, value);
+            RegistersCollection.Write(offset, value);
         }
 
         public virtual void WriteByte(long offset, byte value)
@@ -109,6 +109,8 @@ namespace Antmicro.Renode.Peripherals.UART
         public long Size => 0x100;
 
         public GPIO IRQ { get; }
+
+        public DoubleWordRegisterCollection RegistersCollection { get; }
 
         public override Bits StopBits => Bits.One;
 
@@ -232,7 +234,6 @@ namespace Antmicro.Renode.Peripherals.UART
         protected IFlagRegisterField rxEventEnabled;
         protected IFlagRegisterField txEventPending;
         protected IFlagRegisterField rxEventPending;
-        protected readonly DoubleWordRegisterCollection registers;
 
         protected const uint DefaultTxFifoCapacity = 8;
         protected const ulong DefaultFlushDelayNs = 100;
