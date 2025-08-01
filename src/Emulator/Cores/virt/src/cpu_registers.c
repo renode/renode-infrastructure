@@ -5,9 +5,7 @@
  */
 
 #include <stdint.h>
-#include <stdio.h>
 #include <sys/ioctl.h>
-#include <errno.h>
 
 #include "cpu.h"
 #include "cpu_registers.h"
