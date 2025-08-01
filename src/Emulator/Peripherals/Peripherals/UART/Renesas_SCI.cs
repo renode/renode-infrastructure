@@ -140,6 +140,91 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithReservedBits(25, 7)
                 .WithWriteCallback((_, __) => UpdateInterrupts());
 
+            Registers.CommonControl1.Define(this, resetValue: 0x10)
+                .WithTaggedFlag("CTSE", 0)
+                .WithTaggedFlag("CTSPEN", 1)
+                .WithReservedBits(2, 2)
+                .WithTaggedFlag("SPB2DT", 4)
+                .WithTaggedFlag("SPB2IO", 5)
+                .WithReservedBits(6, 2)
+                .WithTaggedFlag("PE", 8)
+                .WithTaggedFlag("PM", 9)
+                .WithReservedBits(10, 2)
+                .WithTaggedFlag("TINV", 12)
+                .WithTaggedFlag("RINV", 13)
+                .WithReservedBits(14, 2)
+                .WithTaggedFlag("SPLP", 16)
+                .WithReservedBits(17, 3)
+                .WithTaggedFlag("SHARPS", 20)
+                .WithReservedBits(21, 3)
+                .WithTag("NFCS", 24, 3)
+                .WithReservedBits(27, 1)
+                .WithTaggedFlag("NFEN", 28)
+                .WithReservedBits(29, 3);
+
+            Registers.CommonControl2.Define(this, 0xff00ff04)
+                .WithTag("BCP", 0, 3)
+                .WithReservedBits(3, 1)
+                .WithTaggedFlag("BGDM", 4)
+                .WithTaggedFlag("ABCS", 5)
+                .WithTaggedFlag("ABCSE", 6)
+                .WithReservedBits(7, 1)
+                .WithTag("BRR", 8, 8)
+                .WithTaggedFlag("BRME", 16)
+                .WithReservedBits(17, 3)
+                .WithTag("CKS", 20, 2)
+                .WithReservedBits(22, 2)
+                .WithTag("MDDR", 24, 8);
+
+            Registers.CommonControl3.Define(this, 0x00001203)
+                .WithTaggedFlag("CPHA", 0)
+                .WithTaggedFlag("CPOL", 1)
+                .WithReservedBits(2, 5)
+                .WithTaggedFlag("BPEN", 7)
+                .WithTag("CHR", 8, 2)
+                .WithReservedBits(10, 2)
+                .WithTaggedFlag("LSBF", 12)
+                .WithTaggedFlag("SINV", 13)
+                .WithTaggedFlag("STP", 14)
+                .WithTaggedFlag("RXDESEL", 15)
+                .WithTag("MOD", 16, 3)
+                .WithTaggedFlag("MP", 19)
+                .WithTaggedFlag("FM", 20)
+                .WithTaggedFlag("DEN", 21)
+                .WithReservedBits(22, 2)
+                .WithTag("CKE", 24, 2)
+                .WithReservedBits(26, 2)
+                .WithTaggedFlag("GM", 28)
+                .WithTaggedFlag("BLK", 29)
+                .WithReservedBits(30, 2);
+
+            Registers.CommonControl4.Define(this)
+                .WithTag("CMPD", 0, 9)
+                .WithReservedBits(9, 7)
+                .WithTaggedFlag("ASEN", 16)
+                .WithTaggedFlag("ATEN", 17)
+                .WithReservedBits(18, 6)
+                .WithTag("AST", 24, 3)
+                .WithTaggedFlag("AJD", 27)
+                .WithTag("ATT", 28, 3)
+                .WithTaggedFlag("AET", 31);
+
+            Registers.SimpleI2CControl.Define(this)
+                .WithTag("IICDL", 0, 5)
+                .WithReservedBits(5, 3)
+                .WithTaggedFlag("IICINTM", 8)
+                .WithTaggedFlag("IICCSC", 9)
+                .WithReservedBits(10, 3)
+                .WithTaggedFlag("IICACKT", 13)
+                .WithReservedBits(14, 2)
+                .WithTaggedFlag("IICSTAREQ", 16)
+                .WithTaggedFlag("IICRSTAREQ", 17)
+                .WithTaggedFlag("IICSTPREQ", 18)
+                .WithReservedBits(19, 1)
+                .WithTag("IICSDAS", 20, 2)
+                .WithTag("IICSLS", 22, 2)
+                .WithReservedBits(24, 8);
+
             Registers.FIFOControlRegister.Define(this, resetValue: 0x1f1f0000)
                 .WithTaggedFlag("DRES", 0)
                 .WithReservedBits(1, 7)
@@ -163,6 +248,14 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTag("RSTRG", 24, 5)
                 .WithReservedBits(29, 3);
 
+            Registers.DriverControl.Define(this)
+                .WithTaggedFlag("DEPOL", 0)
+                .WithReservedBits(1, 7)
+                .WithTag("DEAST", 8, 5)
+                .WithReservedBits(13, 3)
+                .WithTag("DENGT", 16, 5)
+                .WithReservedBits(21, 11);
+
             Registers.CommonStatus.Define(this, 0x60008000)
                 .WithReservedBits(0, 4).WithTaggedFlag("ERS", 4).WithReservedBits(5, 10)
                 .WithTaggedFlag("RXDM ON", 15)
@@ -181,6 +274,12 @@ namespace Antmicro.Renode.Peripherals.UART
                 {
                     return true;
                 });
+
+            Registers.SimpleI2CStatus.Define(this)
+                .WithTaggedFlag("IICACKR", 0)
+                .WithReservedBits(1, 2)
+                .WithTaggedFlag("IICSTIF", 3)
+                .WithReservedBits(4, 28);
 
             Registers.FIFOReceiveStatus.Define(this, resetValue: 0x0)
                 .WithFlag(0, mode: FieldMode.Read, name: "DR",
@@ -203,6 +302,32 @@ namespace Antmicro.Renode.Peripherals.UART
                     return 0;
                 })
                 .WithReservedBits(6, 26);
+
+            Registers.CommonFlagClear.Define(this)
+                .WithReservedBits(0, 4)
+                .WithTaggedFlag("ERSC", 4)
+                .WithReservedBits(5, 11)
+                .WithTaggedFlag("DCMFC", 16)
+                .WithTaggedFlag("DPERC", 17)
+                .WithTaggedFlag("DFERC", 18)
+                .WithReservedBits(19, 5)
+                .WithTaggedFlag("ORERC", 24)
+                .WithReservedBits(25, 1)
+                .WithTaggedFlag("MFFS", 26)
+                .WithTaggedFlag("PERC", 27)
+                .WithTaggedFlag("FERC", 28)
+                .WithTaggedFlag("TDREC", 29)
+                .WithReservedBits(30, 1)
+                .WithTaggedFlag("RDRFC", 31);
+
+            Registers.SimpleI2CFlagClear.Define(this)
+                .WithReservedBits(0, 3)
+                .WithTaggedFlag("IICSTIFC", 3)
+                .WithReservedBits(4, 27);
+
+            Registers.FIFOFlagClear.Define(this)
+                .WithTaggedFlag("DRC", 0)
+                .WithReservedBits(1, 31);
         }
 
         private IValueRegisterField receiveFifoDataTriggerNumber;
@@ -223,9 +348,14 @@ namespace Antmicro.Renode.Peripherals.UART
             CommonControl4 = 0x18, // CCR4
             SimpleI2CControl = 0x20, // ICR
             FIFOControlRegister = 0x24, // FCR
+            DriverControl = 0x30, // DCR
             CommonStatus = 0x48, // CSR
+            SimpleI2CStatus = 0x4C, // ISR
             FIFOReceiveStatus = 0x50, // FRSR
             FIFOTransmitStatus = 0x54, // FTSR
+            CommonFlagClear = 0x68, // CFCLR
+            SimpleI2CFlagClear = 0x6C, // ICFCLR
+            FIFOFlagClear = 0x70 // FFCLR
         }
     }
 }
