@@ -1,11 +1,5 @@
 #pragma once
 
-#define TARGET_LONG_BITS 64
-#define TARGET_SHORT_ALIGNMENT 2
-#define TARGET_INT_ALIGNMENT 4
-#define TARGET_LONG_ALIGNMENT 4
-#define TARGET_LLONG_ALIGNMENT 4
-#include "../../tlib/include/cpu-defs.h"
 
 typedef enum {
     EAX_32    = 0,

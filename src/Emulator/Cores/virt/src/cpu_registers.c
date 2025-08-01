@@ -12,6 +12,7 @@
 #include "cpu.h"
 #include "cpu_registers.h"
 #include "utils.h"
+#include "unwind.h"
 
 uint32_t *get_reg_pointer_32(struct kvm_regs *regs, int reg)
 {
