@@ -163,6 +163,25 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTag("RSTRG", 24, 5)
                 .WithReservedBits(29, 3);
 
+            Registers.CommonStatus.Define(this, 0x60008000)
+                .WithReservedBits(0, 4).WithTaggedFlag("ERS", 4).WithReservedBits(5, 10)
+                .WithTaggedFlag("RXDM ON", 15)
+                .WithTaggedFlag("DCMF", 16)
+                .WithTaggedFlag("DPER", 17)
+                .WithTaggedFlag("DFER", 18)
+                .WithReservedBits(19, 5)
+                .WithTaggedFlag("ORER", 24)
+                .WithReservedBits(25, 1)
+                .WithTaggedFlag("MFF", 26)
+                .WithTaggedFlag("PER", 27)
+                .WithTaggedFlag("FER", 28)
+                .WithFlag(29, FieldMode.Read, name: "TDRE", valueProviderCallback: _ => true)
+                .WithFlag(30, FieldMode.Read, name: "TEND", valueProviderCallback: _ => true)
+                .WithFlag(31, FieldMode.Read, name: "RDRF", valueProviderCallback: _ =>
+                {
+                    return true;
+                });
+
             Registers.FIFOReceiveStatus.Define(this, resetValue: 0x0)
                 .WithFlag(0, mode: FieldMode.Read, name: "DR",
                     valueProviderCallback: _ =>
@@ -177,6 +196,13 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithReservedBits(22, 2)
                 .WithTag("FNUM", 24, 6)
                 .WithReservedBits(30, 2);
+
+            Registers.FIFOTransmitStatus.Define(this)
+                .WithValueField(0, 6, FieldMode.Read, name: "T", valueProviderCallback: _ =>
+                {
+                    return 0;
+                })
+                .WithReservedBits(6, 26);
         }
 
         private IValueRegisterField receiveFifoDataTriggerNumber;
@@ -188,11 +214,18 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private enum Registers : long
         {
-            ReceiveData = 0x0,
-            TransmitData = 0x4,
-            CommonControl0 = 0x8,
-            FIFOControlRegister = 0x24,
-            FIFOReceiveStatus = 0x50,
+            ReceiveData = 0x0, // RDR
+            TransmitData = 0x4, // TDR
+            CommonControl0 = 0x8, // CCR0
+            CommonControl1 = 0xC, // CCR1
+            CommonControl2 = 0x10, // CCR2
+            CommonControl3 = 0x14, // CCR3
+            CommonControl4 = 0x18, // CCR4
+            SimpleI2CControl = 0x20, // ICR
+            FIFOControlRegister = 0x24, // FCR
+            CommonStatus = 0x48, // CSR
+            FIFOReceiveStatus = 0x50, // FRSR
+            FIFOTransmitStatus = 0x54, // FTSR
         }
     }
 }
