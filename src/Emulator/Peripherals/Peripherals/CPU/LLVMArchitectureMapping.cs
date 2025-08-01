@@ -44,6 +44,17 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 // For arm64 there are two flags: bit[0] means Thumb and bit[1] means AArch32.
                 // The valid values are 00, 10, and 11 (no 64-bit Thumb).
+
+                // ARMv8 defines AArch32 and AArch64 execution modes, but not every ARMv8 processor
+                // supports both. `cpu.Architecture` is used to load the correct tlib version, so we need to
+                // special-case Cortex-R52 which only supports AArch32 so that the correct arguments are
+                // passed to LLVM.
+                // This occurs for example in AssembleBlock, which has a default flags = 0
+                if(cpu.Model == "cortex-r52")
+                {
+                    flags |= 0b10; // Set AArch32 bit
+                }
+
                 if(flags == 0b10)
                 {
                     triple = "armv7a";
@@ -67,11 +78,6 @@ namespace Antmicro.Renode.Peripherals.CPU
                 {
                     model = cpu.Model.ToLower();
                 }
-            }
-
-            if(model == "cortex-r52")
-            {
-                triple = "arm";
             }
         }
 
