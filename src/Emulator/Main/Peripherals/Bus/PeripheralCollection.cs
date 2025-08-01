@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -38,6 +38,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 shortBlocks = new Dictionary<ulong, Block>();
                 sync = new object();
                 InvalidateLastBlock();
+                RefreshPeripheralsCache();
             }
 
             public IEnumerable<IBusRegistered<IBusPeripheral>> Peripherals
@@ -46,7 +47,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 {
                     lock(sync)
                     {
-                        return blocks.Union(shortBlocks.Select(x => x.Value)).Select(x => x.Peripheral).Distinct();
+                        return peripherals;
                     }
                 }
             }
@@ -89,6 +90,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     }
                     if(!goToDictionary)
                     {
+                        RefreshPeripheralsCache();
                         return;
                     }
                     // note that truncating is in fact good thing here
@@ -96,6 +98,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     {
                         shortBlocks.Add(start + i * PageSize, block);
                     }
+                    RefreshPeripheralsCache();
                     sysbus.NoisyLog("Added {0} to dictionary.", name);
                 }
             }
@@ -160,6 +163,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                         shortBlocks.Remove(keyToRemove);
                     }
                     InvalidateLastBlock();
+                    RefreshPeripheralsCache();
                 }
             }
 
@@ -174,6 +178,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                         shortBlocks.Remove(keyToRemove);
                     }
                     InvalidateLastBlock();
+                    RefreshPeripheralsCache();
                 }
             }
 
@@ -201,6 +206,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                         return new KeyValuePair<ulong, Block>(dEntry.Key, block);
                     }).ToDictionary(x => x.Key, x => x.Value);
                     InvalidateLastBlock();
+                    RefreshPeripheralsCache();
                 }
             }
 
@@ -273,6 +279,15 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
 #endif
 
+            private void RefreshPeripheralsCache()
+            {
+                peripherals = blocks
+                    .Union(shortBlocks.Select(x => x.Value))
+                    .Select(x => x.Peripheral)
+                    .Distinct()
+                    .ToArray();
+            }
+
             private int BinarySearch(ulong offset)
             {
                 var min = 0;
@@ -312,6 +327,8 @@ namespace Antmicro.Renode.Peripherals.Bus
             private ThreadLocal<Block> lastBlockStorage;
             private object sync;
             private readonly SystemBus sysbus;
+
+            IBusRegistered<IBusPeripheral>[] peripherals = Array.Empty<IBusRegistered<IBusPeripheral>>();
 
 #if DEBUG
             private long queryCount;
