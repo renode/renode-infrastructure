@@ -59,10 +59,8 @@ typedef struct CpuState {
     /* struct containing KVM execution details */
     struct kvm_run *kvm_run;
 
-    /* flag set when time limit for execution is reached */
-    bool timer_expired;
-    /* flag set when there is exit request from C# */
-    bool exit_request;
+    /* Flag set when there is exit request from from C# or timer */
+    bool exit_requested;
 
     /* cached special register state */
     struct kvm_sregs sregs;

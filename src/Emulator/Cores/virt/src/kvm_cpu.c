@@ -115,14 +115,14 @@ static void cpu_init(CpuState *s)
         kvm_abortf("mmap kvm_run: %s", strerror(errno));
     }
 
-    cpu->exit_request = false;
+    cpu->exit_requested = false;
     cpu->sregs_state = CLEAR;
 }
 
 static void sigalarm_handler(int sig)
 {
     if (gettid() == cpu->tid) {
-        cpu->timer_expired = true;
+        cpu->exit_requested = true;
     } else {
         /* we are not the CPU thread, redirect signal */
         if (tgkill(cpu->tgid, cpu->tid, SIGALRM) < 0)
@@ -409,18 +409,13 @@ uint64_t kvm_execute(uint64_t time_in_us)
     cpu->tgid = getpid();
     cpu->tid = gettid();
 
-    cpu->timer_expired = false;
+    cpu->exit_requested = false;
 
     execution_timer_set(time_in_us);
 
     /* timer_expired flag will be set by the SIGALRM handler */
-    while(!cpu->timer_expired) {
+    while(!cpu->exit_requested) {
         kvm_run();
-
-        if (cpu->exit_request) {
-            cpu->exit_request = false;
-            break;
-        }
     }
 
     return OK;
@@ -441,7 +436,6 @@ EXC_VALUE_0(uint64_t, kvm_execute_single_step, 0)
 void kvm_interrupt_execution()
 {
     execution_timer_disarm();
-    cpu->exit_request = true;
     if (tgkill(cpu->tgid, cpu->tid, SIGALRM) < 0) {
         /* ESRCH means there is no such process. Such situation may occur when cpu thread already exited. */
         if (errno != ESRCH) {
