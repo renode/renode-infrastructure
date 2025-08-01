@@ -31,6 +31,12 @@ namespace Antmicro.Renode.Core.Extensions
             {
                 using(var reader = new FileStream(fileName, FileMode.Open, FileAccess.Read))
                 {
+                    if(offset >= reader.Length)
+                    {
+                        Logger.LogAs(loader, LogLevel.Warning, $"Provided '{nameof(offset)}' for {fileName} points outside the file, skipping load");
+                        return;
+                    }
+
                     reader.Seek(offset, SeekOrigin.Current);
 
                     var buffer = new byte[bufferSize];
