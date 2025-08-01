@@ -119,14 +119,23 @@ static void cpu_init(CpuState *s)
     cpu->sregs_state = CLEAR;
 }
 
+static void kill_cpu_thread(int sig)
+{
+    if (tgkill(cpu->tgid, cpu->tid, sig) < 0) {
+        /* ESRCH means there is no such process. Such situation may occur when cpu thread already exited. */
+        if (errno != ESRCH) {
+            kvm_abortf("tgkill: %s", strerror(errno));
+        }
+    }
+}
+
 static void sigalarm_handler(int sig)
 {
     if (gettid() == cpu->tid) {
         cpu->exit_requested = true;
     } else {
         /* we are not the CPU thread, redirect signal */
-        if (tgkill(cpu->tgid, cpu->tid, SIGALRM) < 0)
-            kvm_abort("tgkill: failed to send signal");
+        kill_cpu_thread(SIGALRM);
     }
 }
 
@@ -436,11 +445,6 @@ EXC_VALUE_0(uint64_t, kvm_execute_single_step, 0)
 void kvm_interrupt_execution()
 {
     execution_timer_disarm();
-    if (tgkill(cpu->tgid, cpu->tid, SIGALRM) < 0) {
-        /* ESRCH means there is no such process. Such situation may occur when cpu thread already exited. */
-        if (errno != ESRCH) {
-            kvm_abortf("tgkill: %s", strerror(errno));
-        }
-    }
+    kill_cpu_thread(SIGALRM);
 }
 EXC_VOID_0(kvm_interrupt_execution)
