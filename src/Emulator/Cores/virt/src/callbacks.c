@@ -12,19 +12,19 @@ DEFAULT_VOID_HANDLER2(void kvm_log, int log_level, char* message)
 
 DEFAULT_VOID_HANDLER1(void kvm_abort, char* message)
 
-DEFAULT_INT_HANDLER1(uint32_t kvm_io_port_read_byte, uint32_t address)
+DEFAULT_INT_HANDLER1(uint32_t kvm_io_port_read_byte, uint16_t address)
 
-DEFAULT_INT_HANDLER1(uint32_t kvm_io_port_read_word, uint32_t address)
+DEFAULT_INT_HANDLER1(uint32_t kvm_io_port_read_word, uint16_t address)
 
-DEFAULT_INT_HANDLER1(uint32_t kvm_io_port_read_double_word, uint32_t address)
+DEFAULT_INT_HANDLER1(uint32_t kvm_io_port_read_double_word, uint16_t address)
 
 DEFAULT_INT_HANDLER1(uint64_t kvm_read_quad_word, uint64_t address)
 
-DEFAULT_VOID_HANDLER2(void kvm_io_port_write_byte, uint32_t address, uint32_t value)
+DEFAULT_VOID_HANDLER2(void kvm_io_port_write_byte, uint16_t address, uint32_t value)
 
-DEFAULT_VOID_HANDLER2(void kvm_io_port_write_word, uint32_t address, uint32_t value)
+DEFAULT_VOID_HANDLER2(void kvm_io_port_write_word, uint16_t address, uint32_t value)
 
-DEFAULT_VOID_HANDLER2(void kvm_io_port_write_double_word, uint32_t address,
+DEFAULT_VOID_HANDLER2(void kvm_io_port_write_double_word, uint16_t address,
                       uint32_t value)
 
 DEFAULT_VOID_HANDLER2(void kvm_write_quad_word, uint64_t address,

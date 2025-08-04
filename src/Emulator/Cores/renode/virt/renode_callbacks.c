@@ -10,14 +10,14 @@
 EXTERNAL_AS(void, LogAsCpu, kvm_log, int32_t, charptr)
 EXTERNAL_AS(void, ReportAbort, kvm_abort, charptr)
 
-EXTERNAL_AS(uint32_t, ReadByteFromPort, kvm_io_port_read_byte, uint32_t)
-EXTERNAL_AS(uint32_t, ReadWordFromPort, kvm_io_port_read_word, uint32_t)
-EXTERNAL_AS(uint32_t, ReadDoubleWordFromPort, kvm_io_port_read_double_word, uint32_t)
+EXTERNAL_AS(uint32_t, ReadByteFromPort, kvm_io_port_read_byte, uint16_t)
+EXTERNAL_AS(uint32_t, ReadWordFromPort, kvm_io_port_read_word, uint16_t)
+EXTERNAL_AS(uint32_t, ReadDoubleWordFromPort, kvm_io_port_read_double_word, uint16_t)
 
-EXTERNAL_AS(void, WriteByteToPort, kvm_io_port_write_byte, uint32_t, uint32_t)
-EXTERNAL_AS(void, WriteWordToPort, kvm_io_port_write_word, uint32_t, uint32_t)
+EXTERNAL_AS(void, WriteByteToPort, kvm_io_port_write_byte, uint16_t, uint32_t)
+EXTERNAL_AS(void, WriteWordToPort, kvm_io_port_write_word, uint16_t, uint32_t)
 EXTERNAL_AS(void, WriteDoubleWordToPort,
-            kvm_io_port_write_double_word, uint32_t, uint32_t)
+            kvm_io_port_write_double_word, uint16_t, uint32_t)
 
 EXTERNAL_AS(uint64_t, ReadByteFromBus, kvm_sysbus_read_byte, uint64_t)
 EXTERNAL_AS(uint64_t, ReadWordFromBus, kvm_sysbus_read_word, uint64_t)

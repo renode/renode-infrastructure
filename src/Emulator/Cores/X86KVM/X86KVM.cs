@@ -316,38 +316,38 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        private uint ReadByteFromPort(uint address)
+        private uint ReadByteFromPort(ushort address)
         {
             return (uint)ReadByteFromBus(IoPortBaseAddress + address);
         }
 
         [Export]
-        private uint ReadWordFromPort(uint address)
+        private uint ReadWordFromPort(ushort address)
         {
             return (uint)ReadWordFromBus(IoPortBaseAddress + address);
         }
 
         [Export]
-        private uint ReadDoubleWordFromPort(uint address)
+        private uint ReadDoubleWordFromPort(ushort address)
         {
             return (uint)ReadDoubleWordFromBus(IoPortBaseAddress + address);
         }
 
         [Export]
-        private void WriteByteToPort(uint address, uint value)
+        private void WriteByteToPort(ushort address, uint value)
         {
             WriteByteToBus(IoPortBaseAddress + address, value);
 
         }
 
         [Export]
-        private void WriteWordToPort(uint address, uint value)
+        private void WriteWordToPort(ushort address, uint value)
         {
             WriteWordToBus(IoPortBaseAddress + address, value);
         }
 
         [Export]
-        private void WriteDoubleWordToPort(uint address, uint value)
+        private void WriteDoubleWordToPort(ushort address, uint value)
         {
             WriteDoubleWordToBus(IoPortBaseAddress + address, value);
         }
