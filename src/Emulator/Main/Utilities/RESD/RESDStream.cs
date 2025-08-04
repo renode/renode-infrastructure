@@ -273,10 +273,9 @@ namespace Antmicro.Renode.Utilities.RESD
             this.managedThreads = new List<ISimpleManagedThread>();
             this.parser = new LowLevelRESDParser(path);
             this.parser.LogCallback += (logLevel, message) => Owner?.Log(logLevel, message);
-            this.blockEnumerator = parser.GetDataBlockEnumerator<T>().GetEnumerator();
             this.extraFilter = extraFilter;
 
-            PrereadFirstBlock();
+            PostInitialization();
         }
 
         public RESDStreamStatus TryGetCurrentSample(IPeripheral peripheral, out T sample, out TimeInterval timestamp)
@@ -534,8 +533,14 @@ namespace Antmicro.Renode.Utilities.RESD
         [PostDeserialization]
         private void AfterDeserialization()
         {
-            PrereadFirstBlock();
+            PostInitialization();
             TryGetSample(serializedTimestamp, out _);
+        }
+
+        private void PostInitialization()
+        {
+            this.blockEnumerator = parser.GetDataBlockEnumerator<T>().GetEnumerator();
+            PrereadFirstBlock();
         }
 
         [Transient]
