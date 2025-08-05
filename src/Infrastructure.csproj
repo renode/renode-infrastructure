@@ -1929,6 +1929,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/I2C/TAS2572.cs" />
     <Compile Include="Emulator/Main/Core/IIdentifiable.cs" />
     <Compile Include="Emulator/Main/Core/IdentifiableObject.cs" />
+    <Compile Include="Emulator/Main/Peripherals/Bus/Wrappers/PeripheralAccessProfiler.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Emulator/Main/Peripherals/Bus/SystemBusGenerated.tt">
