@@ -45,7 +45,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         internal SystemBus(IMachine machine)
         {
             this.Machine = machine;
-            cpuSync = new object();
+            cpuSync = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
             binaryFingerprints = new List<BinaryFingerprint>();
             cpuById = new Dictionary<int, ICPU>();
             idByCpu = new Dictionary<ICPU, int>();
@@ -295,7 +295,8 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public void Register(ICPU cpu, CPURegistrationPoint registrationPoint)
         {
-            lock(cpuSync)
+            cpuSync.EnterWriteLock();
+            try
             {
                 if(mappingsRemoved)
                 {
@@ -338,6 +339,10 @@ namespace Antmicro.Renode.Peripherals.Bus
                 idByCpu.Add(cpu, registrationPoint.Slot.Value);
                 AddContextKeys(cpu);
             }
+            finally
+            {
+                cpuSync.ExitWriteLock();
+            }
         }
 
         public void Unregister(ICPU cpu)
@@ -345,12 +350,17 @@ namespace Antmicro.Renode.Peripherals.Bus
             using(Machine.ObtainPausedState(true))
             {
                 Machine.UnregisterFromParent(cpu);
-                lock(cpuSync)
+                cpuSync.EnterWriteLock();
+                try
                 {
                     var id = idByCpu[cpu];
                     idByCpu.Remove(cpu);
                     cpuById.Remove(id);
                     RemoveContextKeys(cpu);
+                }
+                finally
+                {
+                    cpuSync.ExitWriteLock();
                 }
             }
         }
@@ -359,12 +369,17 @@ namespace Antmicro.Renode.Peripherals.Bus
         {
             using(Machine.ObtainPausedState(true))
             {
-                lock(cpuSync)
+                cpuSync.EnterWriteLock();
+                try
                 {
                     foreach(var p in idByCpu.Keys.Cast<ICPU>())
                     {
                         p.PC = pc;
                     }
+                }
+                finally
+                {
+                    cpuSync.ExitWriteLock();
                 }
             }
         }
@@ -426,21 +441,31 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public IEnumerable<ICPU> GetCPUs()
         {
-            lock(cpuSync)
+            cpuSync.EnterReadLock();
+            try
             {
                 return new ReadOnlyCollection<ICPU>(idByCpu.Keys.ToList());
+            }
+            finally
+            {
+                cpuSync.ExitReadLock();
             }
         }
 
         public int GetCPUSlot(ICPU cpu)
         {
-            lock(cpuSync)
+            cpuSync.EnterReadLock();
+            try
             {
                 if(idByCpu.ContainsKey(cpu))
                 {
                     return idByCpu[cpu];
                 }
                 throw new KeyNotFoundException("Given CPU is not registered.");
+            }
+            finally
+            {
+                cpuSync.ExitReadLock();
             }
         }
 
@@ -542,7 +567,8 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         private bool TryFindCurrentThreadCPUAndId(out ICPU cpu, out int cpuId)
         {
-            lock(cpuSync)
+            cpuSync.EnterReadLock();
+            try
             {
                 foreach(var entry in cpuById)
                 {
@@ -559,11 +585,16 @@ namespace Antmicro.Renode.Peripherals.Bus
                 cpuId = -1;
                 return false;
             }
+            finally
+            {
+                cpuSync.ExitReadLock();
+            }
         }
 
         public bool TryGetCurrentCPU(out ICPU cpu)
         {
-            lock(cpuSync)
+            cpuSync.EnterReadLock();
+            try
             {
                 int id;
                 if(TryGetCurrentCPUId(out id))
@@ -573,6 +604,10 @@ namespace Antmicro.Renode.Peripherals.Bus
                 }
                 cpu = null;
                 return false;
+            }
+            finally
+            {
+                cpuSync.ExitReadLock();
             }
         }
 
@@ -606,6 +641,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             cachedCpuId.Dispose();
             threadLocalContext.Dispose();
             globalLookup.Dispose();
+            cpuSync.Dispose();
             foreach(var lookup in localLookups.Values)
             {
                 lookup.Dispose();
@@ -948,13 +984,18 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public void UnmapMemory(Range range, ICPU context = null)
         {
-            lock(cpuSync)
+            cpuSync.EnterWriteLock();
+            try
             {
                 foreach(var cpu in GetCPUsForContext<ICPUWithMappedMemory>(context))
                 {
                     mappingsRemoved = true;
                     cpu.UnmapMemory(range);
                 }
+            }
+            finally
+            {
+                cpuSync.ExitWriteLock();
             }
         }
 
@@ -1943,7 +1984,8 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         private void ClearAll()
         {
-            lock(cpuSync)
+            cpuSync.EnterWriteLock();
+            try
             {
                 foreach(var group in Machine.PeripheralsGroups.ActiveGroups)
                 {
@@ -1957,6 +1999,10 @@ namespace Antmicro.Renode.Peripherals.Bus
 
                 mappingsRemoved = false;
                 InitStructures();
+            }
+            finally
+            {
+                cpuSync.ExitWriteLock();
             }
         }
 
@@ -2005,7 +2051,8 @@ namespace Antmicro.Renode.Peripherals.Bus
         {
             using(Machine.ObtainPausedState(true))
             {
-                lock(cpuSync)
+                cpuSync.EnterWriteLock();
+                try
                 {
                     var mappingsList = newMappings.ToList();
                     if(mappingsForPeripheral.ContainsKey(owner))
@@ -2024,6 +2071,10 @@ namespace Antmicro.Renode.Peripherals.Bus
                             cpu.MapMemory(mapping);
                         }
                     }
+                }
+                finally
+                {
+                    cpuSync.ExitWriteLock();
                 }
             }
         }
@@ -2392,7 +2443,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         private ThreadLocal<int> cachedCpuId;
         [Transient]
         private ThreadLocalContext threadLocalContext;
-        private object cpuSync;
+        private readonly ReaderWriterLockSlim cpuSync;
         private SymbolLookup globalLookup;
         private Dictionary<ICPU, SymbolLookup> localLookups;
         private Dictionary<Range, TagEntry> tags;
