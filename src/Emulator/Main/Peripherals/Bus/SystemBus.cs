@@ -613,12 +613,13 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 lookup.Dispose();
             }
-            #if DEBUG
             foreach(var peripherals in allPeripherals)
             {
+#if DEBUG
                 peripherals.ShowStatistics();
+#endif
+                peripherals.Dispose();
             }
-            #endif
         }
 
         /// <summary>Checks what is at a given address.</summary>

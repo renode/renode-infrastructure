@@ -29,25 +29,35 @@ namespace Antmicro.Renode.Peripherals.Bus
 #endif
         }
 
-        private class PeripheralCollection : IReadOnlyPeripheralCollection, ICoalescable<PeripheralCollection>
+        private class PeripheralCollection : IReadOnlyPeripheralCollection, ICoalescable<PeripheralCollection>, IDisposable
         {
             internal PeripheralCollection(SystemBus sysbus)
             {
                 this.sysbus = sysbus;
                 blocks = new Block[0];
                 shortBlocks = new Dictionary<ulong, Block>();
-                sync = new object();
+                sync = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
                 InvalidateLastBlock();
                 RefreshPeripheralsCache();
+            }
+
+            public void Dispose()
+            {
+                sync.Dispose();
             }
 
             public IEnumerable<IBusRegistered<IBusPeripheral>> Peripherals
             {
                 get
                 {
-                    lock(sync)
+                    sync.EnterReadLock();
+                    try
                     {
                         return peripherals;
+                    }
+                    finally
+                    {
+                        sync.ExitReadLock();
                     }
                 }
             }
@@ -56,7 +66,8 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 // the idea here is that we prefer the peripheral to go to dictionary
                 // ideally it can go to dicitonary wholly, but we try to put there as much as we can
-                lock(sync)
+                sync.EnterWriteLock();
+                try
                 {
                     var name = string.Format("{0} @ {1}.", peripheral.Peripheral.GetType().Name, peripheral.RegistrationPoint);
                     // TODO: check index (and start/stop)
@@ -101,6 +112,10 @@ namespace Antmicro.Renode.Peripherals.Bus
                     RefreshPeripheralsCache();
                     sysbus.NoisyLog("Added {0} to dictionary.", name);
                 }
+                finally
+                {
+                    sync.ExitWriteLock();
+                }
             }
 
             public void Coalesce(PeripheralCollection source)
@@ -121,7 +136,8 @@ namespace Antmicro.Renode.Peripherals.Bus
             public void Move(IBusRegistered<IBusPeripheral> registeredPeripheral, BusRangeRegistration newRegistration)
             {
                 var newRegisteredPeripheral = new BusRegistered<IBusPeripheral>(registeredPeripheral.Peripheral, newRegistration);
-                lock(sync)
+                sync.EnterWriteLock();
+                try
                 {
                     var block = blocks.FirstOrDefault(x => x.Peripheral == registeredPeripheral);
                     if(block.Peripheral == registeredPeripheral)
@@ -148,11 +164,16 @@ namespace Antmicro.Renode.Peripherals.Bus
                     // End address is one past the end.
                     Add(newStart, newStart + size, newRegisteredPeripheral, block.AccessMethods);
                 }
+                finally
+                {
+                    sync.ExitWriteLock();
+                }
             }
 
             public void Remove(IPeripheral peripheral)
             {
-                lock(sync)
+                sync.EnterWriteLock();
+                try
                 {
                     // list is scanned first
                     blocks = blocks.Where(x => x.Peripheral.Peripheral != peripheral).ToArray();
@@ -165,11 +186,16 @@ namespace Antmicro.Renode.Peripherals.Bus
                     InvalidateLastBlock();
                     RefreshPeripheralsCache();
                 }
+                finally
+                {
+                    sync.ExitWriteLock();
+                }
             }
 
             public void Remove(ulong start, ulong end)
             {
-                lock(sync)
+                sync.EnterWriteLock();
+                try
                 {
                     blocks = blocks.Where(x => x.Start > end || x.End < start).ToArray();
                     var toRemove = shortBlocks.Where(x => x.Value.Start >= start && x.Value.End <= end).Select(x => x.Key).ToArray();
@@ -180,11 +206,16 @@ namespace Antmicro.Renode.Peripherals.Bus
                     InvalidateLastBlock();
                     RefreshPeripheralsCache();
                 }
+                finally
+                {
+                    sync.ExitWriteLock();
+                }
             }
 
             public void VisitAccessMethods(IBusPeripheral peripheral, Func<PeripheralAccessMethods, PeripheralAccessMethods> onPam)
             {
-                lock(sync)
+                sync.EnterWriteLock();
+                try
                 {
                     blocks = blocks.Select(block =>
                     {
@@ -208,6 +239,10 @@ namespace Antmicro.Renode.Peripherals.Bus
                     InvalidateLastBlock();
                     RefreshPeripheralsCache();
                 }
+                finally
+                {
+                    sync.ExitWriteLock();
+                }
             }
 
             public PeripheralAccessMethods FindAccessMethods(ulong address, out ulong startAddress, out ulong endAddress)
@@ -227,7 +262,8 @@ namespace Antmicro.Renode.Peripherals.Bus
                     endAddress = lastBlock.End;
                     return lastBlock.AccessMethods;
                 }
-                lock(sync)
+                sync.EnterWriteLock();
+                try
                 {
                     // let's try dictionary
                     Block block;
@@ -256,6 +292,10 @@ namespace Antmicro.Renode.Peripherals.Bus
                     endAddress = block.End;
                     lastBlockStorage.Value = block;
                     return block.AccessMethods;
+                }
+                finally
+                {
+                    sync.ExitWriteLock();
                 }
             }
 
@@ -325,10 +365,10 @@ namespace Antmicro.Renode.Peripherals.Bus
             private Block[] blocks;
             [Constructor]
             private ThreadLocal<Block> lastBlockStorage;
-            private object sync;
+            private readonly ReaderWriterLockSlim sync;
             private readonly SystemBus sysbus;
 
-            IBusRegistered<IBusPeripheral>[] peripherals = Array.Empty<IBusRegistered<IBusPeripheral>>();
+            private IBusRegistered<IBusPeripheral>[] peripherals = Array.Empty<IBusRegistered<IBusPeripheral>>();
 
 #if DEBUG
             private long queryCount;
