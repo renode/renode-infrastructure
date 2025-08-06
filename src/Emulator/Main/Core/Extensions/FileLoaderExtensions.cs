@@ -27,6 +27,13 @@ namespace Antmicro.Renode.Core.Extensions
             List<FileChunk> chunks = new List<FileChunk>();
 
             Logger.LogAs(loader, LogLevel.Debug, "Loading binary file {0}.", fileName);
+
+            if(size == 0)
+            {
+                Logger.LogAs(loader, LogLevel.Warning, $"Provided '{nameof(size)}' is zero for {fileName}, skipping load");
+                return;
+            }
+            
             try
             {
                 using(var reader = new FileStream(fileName, FileMode.Open, FileAccess.Read))
