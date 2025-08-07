@@ -462,8 +462,12 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         private void LogInstructionExecuted(Instruction insn, DMAThreadType threadType, int threadId, ulong? address = null)
         {
-            this.Log(LogLevel.Noisy, "[{0}] Executing: {1} {2}", threadType == DMAThreadType.Manager ? "M" : threadId.ToString(),
-                insn.ToString(), address != null ? $"@ 0x{address:X}" : "" );
+            // We check log level here to avoid string interpolation
+            if(Logger.MinimumLogLevel <= LogLevel.Noisy)
+            {
+                this.Log(LogLevel.Noisy, "[{0}] Executing: {1} {2}", threadType == DMAThreadType.Manager ? "M" : threadId.ToString(),
+                    insn.ToString(), address != null ? $"@ 0x{address:X}" : "" );
+            }
         }
 
         private ICPU GetCurrentCPUOrNull()
