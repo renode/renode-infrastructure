@@ -23,6 +23,12 @@ namespace Antmicro.Renode.UserInterface.Commands
         {
             var autoSnapshotCreator = EmulationManager.Instance.CurrentEmulation.AutoSnapshotCreator;
 
+            if(!enableAutoSave && EmulationManager.Instance.CurrentEmulation.ReverseExecutionEnabled)
+            {
+                LogMessageToLoggerAndMonitor("Cannot disable autosaving when Reverse Execution mode is enabled!", writer, LogLevel.Error);
+                return;
+            }
+
             if(!enableAutoSave)
             {
                 autoSnapshotCreator.DisableSnapshotCreator();

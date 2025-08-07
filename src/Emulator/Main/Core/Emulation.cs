@@ -644,6 +644,8 @@ namespace Antmicro.Renode.Core
 
         public AutoSnapshotCreator AutoSnapshotCreator { get; }
 
+        public bool ReverseExecutionEnabled { get; set; }
+
         [field: Transient]
         public event Action<IMachine, MachineStateChangedEventArgs> MachineStateChanged;
 

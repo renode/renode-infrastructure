@@ -577,6 +577,7 @@
     <Compile Include="Emulator/Extensions/Utilities/GDB/Commands/ThreadAttachedCommand.cs" />
     <Compile Include="Emulator/Extensions/Utilities/GDB/Commands/ThreadContextCommand.cs" />
     <Compile Include="Emulator/Extensions/Utilities/GDB/Commands/Trace32Commands.cs" />
+    <Compile Include="Emulator/Extensions/Utilities/GDB/Commands/ReverseExecutionCommand.cs" />
     <Compile Include="Emulator/Extensions/Utilities/USBIP/USBIPServer.cs" />
     <Compile Include="Emulator/Extensions/Utilities/USBIP/InterfaceDescriptor.cs" />
     <Compile Include="Emulator/Extensions/Utilities/USBIP/DeviceDescriptor.cs" />
@@ -592,6 +593,7 @@
     <Compile Include="Emulator/Extensions/Utilities/UartFileBackend.cs" />
     <Compile Include="Emulator/Extensions/UserInterface/Commands/LastLogCommand.cs" />
     <Compile Include="Emulator/Extensions/UserInterface/Commands/DisplayImageCommand.cs" />
+    <Compile Include="Emulator/Extensions/UserInterface/Commands/ReverseExecModeCommand.cs" />
     <Compile Include="Emulator/Extensions/Hooks/InterruptPythonEngine.cs" />
     <Compile Include="Emulator/Extensions/UserInterface/InlineImage.cs" />
     <Compile Include="Emulator/Extensions/HostInterfaces/Camera/HostCamera.cs" />

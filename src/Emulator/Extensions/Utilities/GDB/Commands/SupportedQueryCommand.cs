@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -24,6 +24,11 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             {
                 command.Append(";qXfer:threads:read+;vContSupported+");
             }
+            else
+            {
+                command.Append(";ReverseStep+");
+            }
+
             return new PacketData(command.ToString());
         }
     }
