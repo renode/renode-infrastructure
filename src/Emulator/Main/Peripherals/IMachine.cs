@@ -110,6 +110,8 @@ namespace Antmicro.Renode.Core
 
         void StartGdbServer(int port, bool autostartEmulation, ICluster<ICpuSupportingGdb> cpu);
 
+        void StartGdbServer(SocketServerProvider terminal, IEnumerable<string> cpuNames = null);
+
         void StopGdbServer(int? port = null);
 
         bool AttachConnectionAcceptedListenerToGdbStub(int port, Action<System.IO.Stream> listener);

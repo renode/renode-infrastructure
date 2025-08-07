@@ -436,6 +436,42 @@ namespace Antmicro.Renode.Core
             }
         }
 
+        public void StartGdbServer(SocketServerProvider terminal, IEnumerable<string> cpuNames = null)
+        {
+            if(!terminal.IsStarted)
+            {
+                throw new RecoverableException("Cannot start GDB server without started Socket");
+            }
+
+            var cpus = SystemBus.GetCPUs().OfType<ICpuSupportingGdb>();
+            if(!cpus.Any())
+            {
+                throw new RecoverableException("Cannot start GDB server with no CPUs");
+            }
+
+            if(cpuNames != null)
+            {
+                try
+                {
+                    var cpusByName = cpus.ToDictionary(x => GetLocalName(x), x => x);
+                    cpus = cpuNames.Select(cpuName => cpusByName[cpuName]);
+                }
+                catch(KeyNotFoundException)
+                {
+                    throw new RecoverableException("Could not find requested CPUs for GDB server");
+                }
+            }
+
+            try
+            {
+                AddCpusToGdbStub(terminal, cpus);
+            }
+            catch(SocketException e)
+            {
+                throw new RecoverableException($"Could not start GDB server: {e.Message}");
+            }
+        }
+
         // Name of the last parameter is kept as 'cpu' for backward compatibility.
         public void StartGdbServer(int port, bool autostartEmulation, ICluster<ICpuSupportingGdb> cpu)
         {
@@ -1506,6 +1542,21 @@ namespace Antmicro.Renode.Core
                 gdbStubs.Add(port, new GdbStub(this, cpus, port, autostartEmulation));
                 this.Log(LogLevel.Info, "CPUs: {0} were added to a new GDB server created on port :{1}", Misc.PrettyPrintCollection(cpus, c => $"\"{c.GetName()}\""), port);
             }
+        }
+
+        private void AddCpusToGdbStub(SocketServerProvider terminal, IEnumerable<ICpuSupportingGdb> cpus)
+        {
+            foreach(var cpu in cpus)
+            {
+                CheckIsCpuAlreadyAttached(cpu);
+            }
+            int port = terminal.Port.Value;
+
+            if(gdbStubs.ContainsKey(port))
+            {
+                throw new RecoverableException($"There is already a GdbStub for port ({port}) used by this Socket. Use port variant of this function if this is expected");
+            }
+            gdbStubs.Add(port, new GdbStub(this, cpus, terminal));
         }
 
         private void InnerUnregisterFromParent(IPeripheral peripheral)
