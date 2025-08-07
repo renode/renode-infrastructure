@@ -7,6 +7,7 @@
 using System;
 using System.Threading;
 
+using Antmicro.Migrant;
 using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
@@ -878,6 +879,7 @@ namespace Antmicro.Renode.Time
 
         private bool enabled;
         private bool sinkSideActive;
+        [Transient]
         private bool sourceSideActive;
 
         private bool changingEnabled;
