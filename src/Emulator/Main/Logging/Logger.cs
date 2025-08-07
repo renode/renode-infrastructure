@@ -437,6 +437,8 @@ namespace Antmicro.Renode.Logging
 
         public static bool PrintFullName { get; set; }
 
+        public static LogLevel MinimumLogLevel => minLevel;
+
         public static readonly LogLevel DefaultLogLevel = LogLevel.Info;
 
         internal static ILogger GetLogger()
