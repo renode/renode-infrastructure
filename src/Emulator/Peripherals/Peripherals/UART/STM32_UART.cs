@@ -14,15 +14,18 @@ using Antmicro.Migrant;
 using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Time;
+using Antmicro.Renode.Peripherals.DMA;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
     [AllowedTranslations(AllowedTranslation.WordToDoubleWord | AllowedTranslation.ByteToDoubleWord)]
     public class STM32_UART : BasicDoubleWordPeripheral, IUART
     {
-        public STM32_UART(IMachine machine, uint frequency = 8000000) : base(machine)
+        public STM32_UART(IMachine machine, uint frequency = 8000000,  IDMA dmaPeripheral = null, int dmaChannel = 5) : base(machine)
         {
             this.frequency = frequency;
+            this.dmaPeripheral = dmaPeripheral;
+            this.dmaChannel = dmaChannel;
             DefineRegisters();
         }
 
@@ -47,8 +50,14 @@ namespace Antmicro.Renode.Peripherals.UART
 
                 var idleLineIn = (8 * 1000000) / BaudRate;
                 idleLineDetectedCancellationTokenSrc = new CancellationTokenSource();
-                machine.ScheduleAction(TimeInterval.FromMicroseconds(idleLineIn), _ => ReportIdleLineDetected(idleLineDetectedCancellationTokenSrc.Token), name: $"{nameof(STM32_UART)} Idle line detected");
+
+                var token = idleLineDetectedCancellationTokenSrc.Token; 
+                machine.ScheduleAction(TimeInterval.FromMicroseconds(idleLineIn), _ => ReportIdleLineDetected(token), name: $"{nameof(STM32_UART)} Idle line detected");
             }
+            
+            // If there is an assigned dma peripheral, then generate a request
+            // when a byte appears in the data register
+            this.dmaPeripheral?.RequestTransfer(this.dmaChannel);
 
             Update();
         }
@@ -234,6 +243,8 @@ namespace Antmicro.Renode.Peripherals.UART
         private IFlagRegisterField transmissionComplete;
         private IValueRegisterField dividerMantissa;
         private IValueRegisterField dividerFraction;
+        private IDMA dmaPeripheral;
+        private readonly int dmaChannel;
 
         private readonly Queue<byte> receiveFifo = new Queue<byte>();
 
