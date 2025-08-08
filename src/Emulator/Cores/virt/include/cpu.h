@@ -28,7 +28,7 @@ typedef enum {
     STOPPED_AT_WATCHPOINT = 4,
     EXTERNAL_MMU_FAULT = 5,
     ABORTED = UINT64_MAX
-} execution_result;
+} ExecutionResult;
 
 typedef struct CpuState {
     pid_t tid;  /* id of cpu thread */
