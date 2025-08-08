@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.Analog
     {
         public SAM4S_ADC(Machine machine, long baseFrequency = 32768, decimal referenceVoltage = 5m) : base(machine)
         {
-            internalTimer = new LimitTimer(machine.ClockSource, baseFrequency, this, "internalTimer", limit: 1, divider: 2, eventEnabled: true, workMode: WorkMode.OneShot);
+            internalTimer = new LimitTimer(machine.ClockSource, baseFrequency, this, "internalTimer", limit: 1, divider: 2, eventEnabled: true, workMode: WorkMode.Periodic);
             internalTimer.LimitReached += ConversionFinished;
 
             ReferenceVoltage = referenceVoltage;
@@ -129,9 +129,9 @@ namespace Antmicro.Renode.Peripherals.Analog
             dataReadyInterruptPending.Value |= endOfConversionInterruptPending.Any(interrupt => interrupt.Value);
             UpdateInterrupts();
 
-            if(freerunMode.Value)
+            if(!freerunMode.Value)
             {
-                StartConversion();
+                internalTimer.Enabled = false;
             }
         }
 
