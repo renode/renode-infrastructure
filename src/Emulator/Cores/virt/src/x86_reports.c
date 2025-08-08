@@ -52,7 +52,7 @@ void handle_64bit_access(InvalidAccess invalid_access, unsigned int access_len, 
     switch (cpu->on64BitDetected)
     {
     case FAULT:
-        kvm_abortf(get_access_message(invalid_access), get_access_length_text(access_len), get_access_type_text(is_write), addr);
+        kvm_runtime_abortf(get_access_message(invalid_access), get_access_length_text(access_len), get_access_type_text(is_write), addr);
         break;
     case WARN:
         kvm_logf(LOG_LEVEL_WARNING, get_access_message(invalid_access), get_access_length_text(access_len), get_access_type_text(is_write), addr);
@@ -106,7 +106,7 @@ void handle_64bit_register_value(int reg_number, uint64_t value)
     switch (cpu->on64BitDetected)
     {
     case FAULT:
-        kvm_abortf("Register %s holds 64bit value 0x%lx in 32 bit mode", get_register_name(reg_number), value);
+        kvm_runtime_abortf("Register %s holds 64bit value 0x%lx in 32 bit mode", get_register_name(reg_number), value);
         break;
     case WARN:
         kvm_logf(LOG_LEVEL_WARNING, "Register %s holds 64bit value 0x%lx in 32 bit mode", get_register_name(reg_number), value);

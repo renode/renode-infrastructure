@@ -9,6 +9,7 @@
 
 EXTERNAL_AS(void, LogAsCpu, kvm_log, int32_t, charptr)
 EXTERNAL_AS(void, ReportAbort, kvm_abort, charptr)
+EXTERNAL_AS(void, ReportRuntimeAbort, kvm_runtime_abort, charptr, uint64_t)
 
 EXTERNAL_AS(uint32_t, ReadByteFromPort, kvm_io_port_read_byte, uint16_t)
 EXTERNAL_AS(uint32_t, ReadWordFromPort, kvm_io_port_read_word, uint16_t)

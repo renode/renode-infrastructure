@@ -116,7 +116,7 @@ reg_t kvm_get_register_value(int reg_number)
     }
 
     if (ptr == NULL) {
-        kvm_abortf("Read from undefined CPU register number %d detected", reg_number);
+        kvm_runtime_abortf("Read from undefined CPU register number %d detected", reg_number);
     }
 
 #ifdef TARGET_X86KVM
@@ -146,7 +146,7 @@ void kvm_set_register_value(int reg_number, reg_t value)
     }
 
     if (ptr == NULL) {
-        kvm_abortf("Write to undefined CPU register number %d detected", reg_number);
+        kvm_runtime_abortf("Write to undefined CPU register number %d detected", reg_number);
     }
 
     *ptr = value;

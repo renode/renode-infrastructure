@@ -26,6 +26,7 @@
 
 void kvm_log(int level, char *message);
 void kvm_abort(char *message);
+void kvm_runtime_abort(char *message, uint64_t pc);
 
 uint32_t kvm_io_port_read_byte(uint16_t address);
 uint32_t kvm_io_port_read_word(uint16_t address);

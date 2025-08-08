@@ -124,7 +124,7 @@ static void kill_cpu_thread(int sig)
     if (tgkill(cpu->tgid, cpu->tid, sig) < 0) {
         /* ESRCH means there is no such process. Such situation may occur when cpu thread already exited. */
         if (errno != ESRCH) {
-            kvm_abortf("tgkill: %s", strerror(errno));
+            kvm_runtime_abortf("tgkill: %s", strerror(errno));
         }
     }
 }
@@ -167,7 +167,7 @@ void kvm_set_irq(int level, int interrupt_number)
     irq_level.irq = interrupt_number;
     irq_level.level = level;
     if (ioctl(cpu->vm_fd, KVM_IRQ_LINE, &irq_level) < 0) {
-        kvm_abort("KVM_IRQ_LINE");
+        kvm_runtime_abortf("KVM_IRQ_LINE");
     }
 }
 EXC_VOID_2(kvm_set_irq, int, level, int, interrupt_number)
@@ -236,7 +236,7 @@ static void kvm_exit_io(CpuState *s, struct kvm_run *run)
                 kvm_io_port_write_double_word(run->io.port, *(uint32_t *)ptr);
                 break;
             default:
-                kvm_abortf("invalid io access width: %d bytes", run->io.size);
+                kvm_runtime_abortf("invalid io access width: %d bytes", run->io.size);
             }
         } else {
             switch(run->io.size) {
@@ -250,7 +250,7 @@ static void kvm_exit_io(CpuState *s, struct kvm_run *run)
                 *(uint32_t *)ptr = kvm_io_port_read_double_word(run->io.port);
                 break;
             default:
-                kvm_abortf("invalid io access width: %d bytes", run->io.size);
+                kvm_runtime_abortf("invalid io access width: %d bytes", run->io.size);
             }
         }
         ptr += run->io.size;
@@ -286,7 +286,7 @@ static void kvm_exit_mmio(CpuState *s, struct kvm_run *run)
             kvm_sysbus_write_quad_word(addr, *(uint64_t *)data);
             break;
         default:
-            kvm_abortf("invalid mmio access width: %d bytes", run->mmio.len);
+            kvm_runtime_abortf("invalid mmio access width: %d bytes", run->mmio.len);
         }
     } else {
         switch(run->mmio.len) {
@@ -306,7 +306,7 @@ static void kvm_exit_mmio(CpuState *s, struct kvm_run *run)
             *(uint64_t *)data = kvm_sysbus_read_quad_word(addr);
             break;
         default:
-            kvm_abortf("invalid mmio access width: %d bytes", run->mmio.len);
+            kvm_runtime_abortf("invalid mmio access width: %d bytes", run->mmio.len);
         }
     }
 }
@@ -328,7 +328,7 @@ static void execution_timer_set(uint64_t timeout_in_us)
     }
 
     if (setitimer(ITIMER_REAL, &ival, NULL) < 0)
-        kvm_abortf("setitimer: %s", strerror(errno));
+        kvm_runtime_abortf("setitimer: %s", strerror(errno));
 }
 
 static void execution_timer_disarm()
@@ -339,7 +339,7 @@ static void execution_timer_disarm()
     ival.it_interval.tv_sec = 0;
     ival.it_interval.tv_usec = 0;
     if (setitimer(ITIMER_REAL, &ival, NULL) < 0)
-        kvm_abortf("setitimer: %s", strerror(errno));
+        kvm_runtime_abortf("setitimer: %s", strerror(errno));
 }
 
 /* Get execution time since calling kvm_execute */
@@ -356,7 +356,7 @@ static void set_next_run_as_single_step() {
     };
     ret = ioctl(cpu->vcpu_fd, KVM_SET_GUEST_DEBUG, &debug);
     if (ret < 0) {
-        kvm_abortf("KVM_SET_GUEST_DEBUG: %s", strerror(errno));
+        kvm_runtime_abortf("KVM_SET_GUEST_DEBUG: %s", strerror(errno));
         exit(1);
     }
 }
@@ -380,7 +380,7 @@ void kvm_run()
              * Otherwise, signal is ignored. */
             return;
         }
-        kvm_abortf("KVM_RUN: %s", strerror(errno));
+        kvm_runtime_abortf("KVM_RUN: %s", strerror(errno));
     }
 
     /* KVM exited - check for possible reasons */
@@ -397,18 +397,18 @@ void kvm_run()
         /* this case occurs when single-stepping is enabled */
         break;
     case KVM_EXIT_FAIL_ENTRY:
-        kvm_abortf("KVM_EXIT_FAIL_ENTRY: reason=0x%" PRIx64 "\n",
+        kvm_runtime_abortf("KVM_EXIT_FAIL_ENTRY: reason=0x%" PRIx64 "\n",
                     (uint64_t)run->fail_entry.hardware_entry_failure_reason);
         break;
     case KVM_EXIT_INTERNAL_ERROR:
-        kvm_abortf("KVM_EXIT_INTERNAL_ERROR: suberror=0x%x\n",
+        kvm_runtime_abortf("KVM_EXIT_INTERNAL_ERROR: suberror=0x%x\n",
                     (uint32_t)run->internal.suberror);
         break;
     case KVM_EXIT_SHUTDOWN:
-        kvm_abort("KVM shutdown requested");
+        kvm_runtime_abortf("KVM shutdown requested");
         break;
     default:
-        kvm_abortf("KVM: unsupported exit_reason=%d\n", run->exit_reason);
+        kvm_runtime_abortf("KVM: unsupported exit_reason=%d\n", run->exit_reason);
     }
 }
 

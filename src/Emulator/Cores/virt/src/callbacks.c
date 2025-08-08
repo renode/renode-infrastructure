@@ -12,6 +12,8 @@ DEFAULT_VOID_HANDLER2(void kvm_log, int log_level, char* message)
 
 DEFAULT_VOID_HANDLER1(void kvm_abort, char* message)
 
+DEFAULT_VOID_HANDLER2(void kvm_runtime_abort, char* message, uint64_t pc)
+
 DEFAULT_INT_HANDLER1(uint32_t kvm_io_port_read_byte, uint16_t address)
 
 DEFAULT_INT_HANDLER1(uint32_t kvm_io_port_read_word, uint16_t address)

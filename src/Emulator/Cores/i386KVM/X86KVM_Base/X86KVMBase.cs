@@ -247,7 +247,14 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         protected void ReportAbort(string message)
         {
-            this.Log(LogLevel.Error, "CPU abort [PC=0x{0:X}]: {1}.", PC.RawValue, message);
+            this.Log(LogLevel.Error, message);
+            throw new CpuAbortException(message);
+        }
+
+        [Export]
+        protected void ReportRuntimeAbort(string message, ulong pc)
+        {
+            this.Log(LogLevel.Error, "CPU abort [PC=0x{0:X}]: {1}", pc, message);
             throw new CpuAbortException(message);
         }
 

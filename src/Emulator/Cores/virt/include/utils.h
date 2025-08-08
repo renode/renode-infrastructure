@@ -4,6 +4,8 @@
 
 void kvm_abortf(const char *fmt, ...);
 
+void kvm_runtime_abortf(const char *fmt, ...);
+
 
 typedef enum {
     LOG_LEVEL_NOISY = -1,

@@ -15,6 +15,7 @@
 #include <sys/ioctl.h>
 #include <errno.h>
 
+
 void kvm_abortf(const char *fmt, ...)
 {
     char result[1024];
@@ -22,6 +23,20 @@ void kvm_abortf(const char *fmt, ...)
     va_start(ap, fmt);
     vsnprintf(result, 1024, fmt, ap);
     kvm_abort(result);
+    va_end(ap);
+}
+
+void kvm_runtime_abortf(const char *fmt, ...)
+{
+    struct kvm_regs regs;
+    get_regs(&regs);
+    uint64_t pc = regs.rip;
+
+    char result[1024];
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(result, 1024, fmt, ap);
+    kvm_runtime_abort(result, pc);
     va_end(ap);
 }
 
