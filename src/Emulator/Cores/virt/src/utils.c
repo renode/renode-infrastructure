@@ -6,6 +6,7 @@
 
 #include "cpu.h"
 #include "callbacks.h"
+#include "utils.h"
 
 #include <string.h>
 #include <stdarg.h>
@@ -21,6 +22,16 @@ void kvm_abortf(const char *fmt, ...)
     va_start(ap, fmt);
     vsnprintf(result, 1024, fmt, ap);
     kvm_abort(result);
+    va_end(ap);
+}
+
+void kvm_logf(LogLevel level, const char *fmt, ...)
+{
+    char result[1024];
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(result, 1024, fmt, ap);
+    kvm_log(level, result);
     va_end(ap);
 }
 
