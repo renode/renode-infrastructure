@@ -425,6 +425,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 // TODO: in case of infinite loop, this will hang the emulation.
                 // It's not ideal - separate thread will be good, but what about time flow?
                 // Still, it's enough in the beginning, for simple use cases
+                var insnBuffer = new byte[7];
                 do
                 {
                     foreach(var channelThread in channels.Where(c => c.Status == Channel.ChannelStatus.Executing))
@@ -434,18 +435,20 @@ namespace Antmicro.Renode.Peripherals.DMA
                         while(channelThread.Status == Channel.ChannelStatus.Executing)
                         {
                             var address = channelThread.PC;
-                            var insn = sysbus.ReadByte(address, context: context);
-                            if(!decoderRoot.TryParseOpcode(insn, out var instruction))
+                            sysbus.ReadBytes(address, insnBuffer.Length, insnBuffer, 0, context: context);
+
+                            if(!decoderRoot.TryParseOpcode(insnBuffer[0], out var instruction))
                             {
-                                this.Log(LogLevel.Error, "Invalid instruction with opcode 0x{0:X} at address: 0x{1:X}. Aborting thread {2}.", insn, address, channelThread.Id);
+                                this.Log(LogLevel.Error, "Invalid instruction with opcode 0x{0:X} at address: 0x{1:X}. Aborting thread {2}.", insnBuffer[0], address, channelThread.Id);
                                 channelThread.SignalChannelAbort(Channel.ChannelFaultReason.UndefinedInstruction);
                                 continue;
                             }
 
+                            var insnIdx = 0;
                             while(!instruction.IsFinished)
                             {
-                                instruction.Parse(sysbus.ReadByte(address, context: context));
-                                address += sizeof(byte);
+                                instruction.Parse(insnBuffer[insnIdx]);
+                                insnIdx++;
                             }
 
                             LogInstructionExecuted(instruction, DMAThreadType.Channel, channelThread.Id, channelThread.PC);
