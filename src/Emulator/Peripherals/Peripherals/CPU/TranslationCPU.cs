@@ -1214,13 +1214,43 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public void InvalidateTranslationBlocks(IntPtr start, IntPtr end)
+        public void OrderTranslationBlocksInvalidation(IntPtr start, IntPtr end, bool delayInvalidation = false)
         {
             if(disposing)
             {
                 return;
             }
-            TlibInvalidateTranslationBlocks(start, end);
+
+            lock(addressesToInvalidate)
+            {
+                // Address ranges are passed to tlib as interleaved pairs of start and end addresses
+                addressesToInvalidate.Add(start);
+                addressesToInvalidate.Add(end);
+            }
+
+            if(!delayInvalidation)
+            {
+                InvalidateTranslationBlocks();
+            }
+        }
+
+        public void InvalidateTranslationBlocks()
+        {
+            lock(addressesToInvalidate)
+            {
+                var count = (ulong)addressesToInvalidate.Count / 2;
+                if(count > 0)
+                {
+                    unsafe
+                    {
+                        fixed(void *addresses = addressesToInvalidate.ToArray())
+                        {
+                            TlibInvalidateTranslationBlocks((IntPtr)addresses, count);
+                        }
+                    }
+                    addressesToInvalidate.Clear();
+                }
+            }
         }
 
         public void RemoveHooksAt(ulong addr)
@@ -1464,7 +1494,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             var otherCpus = machine.SystemBus.GetCPUs().OfType<TranslationCPU>().Where(x => x != this);
             foreach(var cpu in otherCpus)
             {
-                cpu.InvalidateTranslationBlocks(start, end);
+                cpu.OrderTranslationBlocksInvalidation(start, end);
             }
         }
 
@@ -1852,6 +1882,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 this.Log(LogLevel.Warning, "Could not initialize assembly engine");
             }
             dirtyAddressesPtr = IntPtr.Zero;
+            addressesToInvalidate = new List<IntPtr>();
         }
 
         public uint PageSize
@@ -1962,7 +1993,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private Func<ulong, ulong, uint> TlibIsRangeMapped;
 
         [Import]
-        private Action<IntPtr, IntPtr> TlibInvalidateTranslationBlocks;
+        private Action<IntPtr, ulong> TlibInvalidateTranslationBlocks;
 
         [Import]
         protected Func<ulong, uint, ulong> TlibTranslateToPhysicalAddress;
@@ -2471,6 +2502,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         private Dictionary<ulong, HookDescriptor> hooks;
         private Dictionary<Interrupt, HashSet<int>> decodedIrqs;
         private bool isInterruptLoggingEnabled;
+
+        [Transient]
+        private List<IntPtr> addressesToInvalidate;
 
         private class HookDescriptor
         {

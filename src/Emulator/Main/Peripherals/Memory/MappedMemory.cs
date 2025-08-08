@@ -707,7 +707,7 @@ namespace Antmicro.Renode.Peripherals.Memory
                     try
                     {
                         //it's dynamic to avoid cyclic dependency to TranslationCPU
-                        ((dynamic)cpu).InvalidateTranslationBlocks(new IntPtr(regPoint + start), new IntPtr(regPoint + start + length));
+                        ((dynamic)cpu).OrderTranslationBlocksInvalidation(new IntPtr(regPoint + start), new IntPtr(regPoint + start + length));
                     }
                     catch(RuntimeBinderException)
                     {
