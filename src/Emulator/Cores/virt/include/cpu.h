@@ -36,6 +36,15 @@ typedef enum {
     DIRTY
 } RegisterState;
 
+#ifdef TARGET_X86KVM
+typedef enum
+{
+    FAULT = 0,
+    WARN = 1,
+    IGNORE = 2,
+} Detected64BitBehaviour;
+#endif
+
 typedef struct CpuState {
     pid_t tid;  /* id of cpu thread */
     pid_t tgid; /* id of cpu process */
@@ -58,6 +67,10 @@ typedef struct CpuState {
     /* cached special register state */
     struct kvm_sregs sregs;
     RegisterState sregs_state;
+
+#ifdef TARGET_X86KVM
+    Detected64BitBehaviour on64BitDetected;
+#endif
 } CpuState;
 
 extern struct CpuState *cpu;

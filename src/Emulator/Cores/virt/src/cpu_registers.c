@@ -13,66 +13,72 @@
 #include "cpu_registers.h"
 #include "utils.h"
 #include "unwind.h"
+#ifdef TARGET_X86KVM
+#include "x86_reports.h"
+#endif
 
-uint64_t *get_reg_pointer_64(struct kvm_regs *regs, int reg)
+
+uint64_t *get_reg_pointer(struct kvm_regs *regs, int reg)
 {
     switch (reg) {
-    case RAX_64:
+    case RAX:
         return (uint64_t *)&(regs->rax);
-    case RCX_64:
+    case RCX:
         return (uint64_t *)&(regs->rcx);
-    case RDX_64:
+    case RDX:
         return (uint64_t *)&(regs->rdx);
-    case RBX_64:
+    case RBX:
         return (uint64_t *)&(regs->rbx);
-    case RSP_64:
+    case RSP:
         return (uint64_t *)&(regs->rsp);
-    case RBP_64:
+    case RBP:
         return (uint64_t *)&(regs->rbp);
-    case RSI_64:
+    case RSI:
         return (uint64_t *)&(regs->rsi);
-    case RDI_64:
+    case RDI:
         return (uint64_t *)&(regs->rdi);
-    case RIP_64:
+    case RIP:
         return (uint64_t *)&(regs->rip);
-    case EFLAGS_64:
+    case EFLAGS:
         return (uint64_t *)&(regs->rflags);
-
+        
     default:
         return NULL;
     }
 }
 
-uint64_t *get_sreg_pointer_64(struct kvm_sregs *sregs, int reg)
+uint64_t *get_sreg_pointer(struct kvm_sregs *sregs, int reg)
 {
     switch (reg) {
-    case CS_64:
+    case CS:
         return (uint64_t *)&(sregs->cs.base);
-    case SS_64:
+    case SS:
         return (uint64_t *)&(sregs->ss.base);
-    case DS_64:
+    case DS:
         return (uint64_t *)&(sregs->ds.base);
-    case ES_64:
+    case ES:
         return (uint64_t *)&(sregs->es.base);
-    case FS_64:
+    case FS:
         return (uint64_t *)&(sregs->fs.base);
-    case GS_64:
+    case GS:
         return (uint64_t *)&(sregs->gs.base);
-
-    case CR0_64:
+        
+    case CR0:
         return (uint64_t *)&(sregs->cr0);
-    case CR1_64:
+    case CR1:
         return (uint64_t *)&(sregs->cr0);
-    case CR2_64:
+    case CR2:
         return (uint64_t *)&(sregs->cr2);
-    case CR3_64:
+    case CR3:
         return (uint64_t *)&(sregs->cr3);
-    case CR4_64:
+    case CR4:
         return (uint64_t *)&(sregs->cr4);
-    case CR8_64:
+#ifdef TARGET_X86_64KVM
+    case CR8:
         return (uint64_t *)&(sregs->cr8);
-    case EFER_64:
+    case EFER:
         return (uint64_t *)&(sregs->efer);
+#endif
 
     default:
         return NULL;
@@ -80,10 +86,20 @@ uint64_t *get_sreg_pointer_64(struct kvm_sregs *sregs, int reg)
 }
 
 static bool is_special_register(int reg_number) {
-    return reg_number >= CS_64;
+    return reg_number >= CS;
 }
 
-uint64_t kvm_get_register_value_64(int reg_number)
+#define EXPAND_ARGUMENTS(macro, ...) macro(__VA_ARGS__)
+#ifdef TARGET_X86_64KVM
+#define kvm_get_register_value kvm_get_register_value_64
+#define kvm_set_register_value kvm_set_register_value_64
+#else
+#define kvm_get_register_value kvm_get_register_value_32
+#define kvm_set_register_value kvm_set_register_value_32
+#endif
+
+
+reg_t kvm_get_register_value(int reg_number)
 {
     uint64_t* ptr = NULL;
 
@@ -94,28 +110,28 @@ uint64_t kvm_get_register_value_64(int reg_number)
             get_sregs(sregs);
             cpu->sregs_state = PRESENT;
         }
-        ptr = get_sreg_pointer_64(sregs, reg_number);
+        ptr = get_sreg_pointer(sregs, reg_number);
     } else {
         struct kvm_regs regs;
         get_regs(&regs);
-        ptr = get_reg_pointer_64(&regs, reg_number);
+        ptr = get_reg_pointer(&regs, reg_number);
     }
 
     if (ptr == NULL) {
         kvm_abortf("Read from undefined CPU register number %d detected", reg_number);
     }
 
+#ifdef TARGET_X86KVM
+    if (*ptr > UINT32_MAX) {
+        handle_64bit_register_value(reg_number, *ptr);
+    }
+#endif
+
     return *ptr;
 }
-EXC_INT_1(uint64_t, kvm_get_register_value_64, int, reg_number)
+EXPAND_ARGUMENTS(EXC_INT_1, reg_t, kvm_get_register_value, int, reg_number)
 
-uint32_t kvm_get_register_value_32(int reg_number)
-{
-    return kvm_get_register_value_64(reg_number);
-}
-EXC_INT_1(uint32_t, kvm_get_register_value_32, int, reg_number)
-
-void kvm_set_register_value_64(int reg_number, uint64_t value)
+void kvm_set_register_value(int reg_number, reg_t value)
 {
     struct kvm_regs regs;
     struct kvm_sregs *sregs = &(cpu->sregs);
@@ -125,10 +141,10 @@ void kvm_set_register_value_64(int reg_number, uint64_t value)
         if (cpu->sregs_state == CLEAR) {
             get_sregs(sregs);
         }
-        ptr = get_sreg_pointer_64(sregs, reg_number);
+        ptr = get_sreg_pointer(sregs, reg_number);
     } else {
         get_regs(&regs);
-        ptr = get_reg_pointer_64(&regs, reg_number);
+        ptr = get_reg_pointer(&regs, reg_number);
     }
 
     if (ptr == NULL) {
@@ -143,13 +159,7 @@ void kvm_set_register_value_64(int reg_number, uint64_t value)
         set_regs(&regs);
     }
 }
-EXC_VOID_2(kvm_set_register_value_64, int, reg_number, uint64_t, value)
-
-void kvm_set_register_value_32(int reg_number, uint32_t value)
-{
-    kvm_set_register_value_64(reg_number, value);
-}
-EXC_VOID_2(kvm_set_register_value_32, int, reg_number, uint64_t, value)
+EXPAND_ARGUMENTS(EXC_VOID_2, kvm_set_register_value, int, reg_number, reg_t, value)
 
 
 #define GET_FIELD(val, offset, width) ((uint8_t)(((val) >> (offset)) & (0xff >> (8 - (width)))))

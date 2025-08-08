@@ -43,6 +43,10 @@ target_link_libraries (virt-x86
     -shared
 )
 
+target_compile_definitions(virt-x86 PRIVATE
+    TARGET_X86KVM
+)
+
 set_target_properties(virt-x86 PROPERTIES
     PREFIX ""
     OUTPUT_NAME "kvm-i386"
@@ -55,6 +59,10 @@ add_library (virt-x86_64 SHARED ${SOURCES})
 target_link_libraries (virt-x86_64
     -fPIC
     -shared
+)
+
+target_compile_definitions(virt-x86_64 PRIVATE
+    TARGET_X86_64KVM
 )
 
 set_target_properties(virt-x86_64 PROPERTIES

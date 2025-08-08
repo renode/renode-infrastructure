@@ -11,6 +11,9 @@
 #include "cpu.h"
 #include "utils.h"
 #include "unwind.h"
+#ifdef TARGET_X86KVM
+#include "x86_reports.h"
+#endif
 
 #include <linux/kvm.h>
 #include <string.h>
@@ -191,6 +194,14 @@ void kvm_unmap_range(int32_t slot)
 }
 EXC_VOID_1(kvm_unmap_range, int32_t, slot)
 
+#ifdef TARGET_X86KVM
+void kvm_set64_bit_behaviour(uint32_t on64BitDetected)
+{
+    cpu->on64BitDetected = (Detected64BitBehaviour)on64BitDetected;
+}
+EXC_VOID_1(kvm_set64_bit_behaviour, uint32_t, on64BitDetected)
+#endif
+
 void kvm_dispose()
 {
     free(cpu);
@@ -241,6 +252,13 @@ static void kvm_exit_mmio(CpuState *s, struct kvm_run *run)
 {
     uint8_t *data = run->mmio.data;
     uint64_t addr = run->mmio.phys_addr;
+
+    #ifdef TARGET_X86KVM
+    if (addr > UINT32_MAX) {
+        handle_64bit_access(INVALID_ACCESS_64BIT_ADDRESS, run->mmio.len, run->mmio.is_write, addr);
+    }
+#endif
+
     if (run->mmio.is_write) {
         switch(run->mmio.len) {
         case 1:
@@ -253,6 +271,9 @@ static void kvm_exit_mmio(CpuState *s, struct kvm_run *run)
             kvm_sysbus_write_double_word(addr, *(uint32_t *)data);
             break;
         case 8:
+#ifdef TARGET_X86KVM
+            handle_64bit_access(INVALID_ACCESS_64BIT_WIDTH, 8, true, addr);
+#endif
             kvm_sysbus_write_quad_word(addr, *(uint64_t *)data);
             break;
         default:
@@ -270,6 +291,9 @@ static void kvm_exit_mmio(CpuState *s, struct kvm_run *run)
             *(uint32_t *)data = kvm_sysbus_read_double_word(addr);
             break;
         case 8:
+#ifdef TARGET_X86KVM
+            handle_64bit_access(INVALID_ACCESS_64BIT_WIDTH, 8, false, addr);
+#endif
             *(uint64_t *)data = kvm_sysbus_read_quad_word(addr);
             break;
         default:
