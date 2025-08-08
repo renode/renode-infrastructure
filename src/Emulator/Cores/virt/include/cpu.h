@@ -30,7 +30,7 @@ typedef enum {
     ABORTED = UINT64_MAX
 } execution_result;
 
-typedef struct cpu_state {
+typedef struct CpuState {
     pid_t tid;  /* id of cpu thread */
     pid_t tgid; /* id of cpu process */
 
@@ -48,6 +48,6 @@ typedef struct cpu_state {
     bool timer_expired;
     /* flag set when there is exit request from C# */
     bool exit_request;
-} cpu_state;
+} CpuState;
 
-extern struct cpu_state *cpu;
+extern struct CpuState *cpu;

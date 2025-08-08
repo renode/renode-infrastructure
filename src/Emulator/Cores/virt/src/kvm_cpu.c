@@ -32,9 +32,9 @@
 #define CPUID_FEATURE_INFO 0x1
 #define CPUID_FEATURE_INFO_EXTENDED 0x80000001
 
-cpu_state *cpu;
+CpuState *cpu;
 __thread struct unwind_state unwind_state;
-static void kvm_set_cpuid(cpu_state *s)
+static void kvm_set_cpuid(CpuState *s)
 {
     struct kvm_cpuid2 *kvm_cpuid;
 
@@ -51,7 +51,7 @@ static void kvm_set_cpuid(cpu_state *s)
     free(kvm_cpuid);
 }
 
-static void cpu_init(cpu_state *s)
+static void cpu_init(CpuState *s)
 {
     int ret;
     struct kvm_pit_config pit_config;
@@ -230,7 +230,7 @@ void kvm_dispose()
 }
 EXC_VOID_0(kvm_dispose)
 
-static void kvm_exit_io(cpu_state *s, struct kvm_run *run)
+static void kvm_exit_io(CpuState *s, struct kvm_run *run)
 {
     uint8_t *ptr;
     int i;
@@ -270,7 +270,7 @@ static void kvm_exit_io(cpu_state *s, struct kvm_run *run)
     }
 }
 
-static void kvm_exit_mmio(cpu_state *s, struct kvm_run *run)
+static void kvm_exit_mmio(CpuState *s, struct kvm_run *run)
 {
     uint8_t *data = run->mmio.data;
     uint64_t addr = run->mmio.phys_addr;
