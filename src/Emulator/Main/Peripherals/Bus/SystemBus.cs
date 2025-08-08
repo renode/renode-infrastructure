@@ -1118,12 +1118,21 @@ namespace Antmicro.Renode.Peripherals.Bus
             svdDevices.Add(svdDevice);
         }
 
-        public void Tag(Range range, string tag, ulong defaultValue = 0, bool pausing = false, bool silent = false)
+        public void Tag(Range range, string tag, ulong defaultValue = 0, bool pausing = false, bool silent = false, bool overridePeripheralAccesses = false)
         {
             var intersectings = tags.Where(x => x.Key.Intersects(range)).ToArray();
             if(intersectings.Length == 0)
             {
-                tags.Add(range, new TagEntry { Name = tag, DefaultValue = defaultValue, Silent = silent });
+                tags.Add(range, new TagEntry { Name = tag, DefaultValue = defaultValue, Silent = silent, OverridePeripheralAccesses = overridePeripheralAccesses });
+
+                var onMappedMemory  = GetRegisteredPeripherals()
+                    .Where(x => x.Peripheral is MappedMemory)
+                    .Any(reg => reg.RegistrationPoint.Range.Intersects(range));
+                if(overridePeripheralAccesses && onMappedMemory)
+                {
+                    this.WarningLog("Tags with OverridePeripheralAccesses property do not override mapped memory for the CPU.");
+                }
+
                 if(pausing)
                 {
                     pausingTags.Add(tag);
@@ -1157,7 +1166,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 Tag(new Range(range.EndAddress + 1, parentRangeAfterSplitSizeRight), parentName, parentDefaultValue, parentPausing);
             }
-            Tag(range, string.Format("{0}/{1}", parentName, tag), defaultValue, pausing);
+            Tag(range, string.Format("{0}/{1}", parentName, tag), defaultValue, pausing, overridePeripheralAccesses);
         }
 
         public void RemoveTag(ulong address)
@@ -2451,8 +2460,10 @@ namespace Antmicro.Renode.Peripherals.Bus
         private HashSet<string> pausingTags;
         private readonly List<BinaryFingerprint> binaryFingerprints;
         private const string NonExistingRead = "Read{1} from non existing peripheral at 0x{0:X}.";
+        private const string TagOverriddenRead = "Read{1} from overriding tag at 0x{0:X}.";
         private const string NonExistingWrite = "Write{2} to non existing peripheral at 0x{0:X}, value 0x{1:X}.";
-        private const string IOExctionMessage = "I/O error while loading ELF: {0}.";
+        private const string TagOverriddenWrite = "Write{2} to overriding tag at 0x{0:X}, value 0x{1:X}.";
+        private const string IOExceptionMessage = "I/O error while loading ELF: {0}.";
         private const string CantFindCpuIdMessage = "Can't verify current CPU in the given context.";
 
         private int unexpectedReads;
@@ -2573,6 +2584,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             public string Name;
             public ulong DefaultValue;
             public bool Silent;
+            public bool OverridePeripheralAccesses;
         }
 
         private class ThreadLocalContext : IDisposable

@@ -442,9 +442,9 @@ namespace Antmicro.Renode.Peripherals.Bus
             ParentController.LoadFileChunks(path, chunks, cpu);
         }
 
-        public virtual void Tag(Range range, string tag, ulong defaultValue = 0, bool pausing = false, bool silent = false)
+        public virtual void Tag(Range range, string tag, ulong defaultValue = 0, bool pausing = false, bool silent = false, bool overridePeripheralAccesses = false)
         {
-            ParentController.Tag(range, tag, defaultValue, pausing, silent);
+            ParentController.Tag(range, tag, defaultValue, pausing, silent, overridePeripheralAccesses);
         }
 
         public virtual void ApplySVD(string path)
