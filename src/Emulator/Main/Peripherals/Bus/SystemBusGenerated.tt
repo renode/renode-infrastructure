@@ -58,7 +58,8 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress, cpuState))
                 {
-                    return (<#= type #>)ReportNonExistingRead(address, accessWidth);
+                    TryGetTag(address, out var tag);
+                    return (<#= type #>)ReportNonExistingRead(address, tag, accessWidth);
                 }
                 if(!IsPeripheralEnabled(accessMethods.Peripheral))
                 {
@@ -114,7 +115,8 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress, cpuState))
                 {
-                    ReportNonExistingWrite(address, value, accessWidth);
+                    TryGetTag(address, out var tag);
+                    ReportNonExistingWrite(address, value, tag, accessWidth);
                     return;
                 }
                 if(!IsPeripheralEnabled(accessMethods.Peripheral))

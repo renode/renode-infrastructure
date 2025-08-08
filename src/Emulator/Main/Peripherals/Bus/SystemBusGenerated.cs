@@ -1,4 +1,4 @@
-﻿/********************************************************
+/********************************************************
 *
 * Warning!
 * This file was generated automatically.
@@ -34,7 +34,8 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress, cpuState))
                 {
-                    return (byte)ReportNonExistingRead(address, accessWidth);
+                    TryGetTag(address, out var tag);
+                    return (byte)ReportNonExistingRead(address, tag, accessWidth);
                 }
                 if(!IsPeripheralEnabled(accessMethods.Peripheral))
                 {
@@ -90,7 +91,8 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress, cpuState))
                 {
-                    ReportNonExistingWrite(address, value, accessWidth);
+                    TryGetTag(address, out var tag);
+                    ReportNonExistingWrite(address, value, tag, accessWidth);
                     return;
                 }
                 if(!IsPeripheralEnabled(accessMethods.Peripheral))
@@ -148,7 +150,8 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress, cpuState))
                 {
-                    return (ushort)ReportNonExistingRead(address, accessWidth);
+                    TryGetTag(address, out var tag);
+                    return (ushort)ReportNonExistingRead(address, tag, accessWidth);
                 }
                 if(!IsPeripheralEnabled(accessMethods.Peripheral))
                 {
@@ -204,7 +207,8 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress, cpuState))
                 {
-                    ReportNonExistingWrite(address, value, accessWidth);
+                    TryGetTag(address, out var tag);
+                    ReportNonExistingWrite(address, value, tag, accessWidth);
                     return;
                 }
                 if(!IsPeripheralEnabled(accessMethods.Peripheral))
@@ -262,7 +266,8 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress, cpuState))
                 {
-                    return (uint)ReportNonExistingRead(address, accessWidth);
+                    TryGetTag(address, out var tag);
+                    return (uint)ReportNonExistingRead(address, tag, accessWidth);
                 }
                 if(!IsPeripheralEnabled(accessMethods.Peripheral))
                 {
@@ -318,7 +323,8 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress, cpuState))
                 {
-                    ReportNonExistingWrite(address, value, accessWidth);
+                    TryGetTag(address, out var tag);
+                    ReportNonExistingWrite(address, value, tag, accessWidth);
                     return;
                 }
                 if(!IsPeripheralEnabled(accessMethods.Peripheral))
@@ -376,7 +382,8 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress, cpuState))
                 {
-                    return (ulong)ReportNonExistingRead(address, accessWidth);
+                    TryGetTag(address, out var tag);
+                    return (ulong)ReportNonExistingRead(address, tag, accessWidth);
                 }
                 if(!IsPeripheralEnabled(accessMethods.Peripheral))
                 {
@@ -432,7 +439,8 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress, cpuState))
                 {
-                    ReportNonExistingWrite(address, value, accessWidth);
+                    TryGetTag(address, out var tag);
+                    ReportNonExistingWrite(address, value, tag, accessWidth);
                     return;
                 }
                 if(!IsPeripheralEnabled(accessMethods.Peripheral))

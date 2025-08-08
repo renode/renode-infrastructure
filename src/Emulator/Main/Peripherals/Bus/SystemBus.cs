@@ -2115,7 +2115,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             return true;
         }
 
-        private string TryGetTag(ulong address, out ulong defaultValue, out bool silent)
+        private bool TryGetTag(ulong address, out TagEntry? foundTag)
         {
             // The `return` inside is intentional; we just want to find the first tag.
             // `FirstOrDefault` isn't used cause the default `Range` is a valid `<0, 0>` range.
@@ -2123,39 +2123,34 @@ namespace Antmicro.Renode.Peripherals.Bus
             // `ToArray` isn't used to avoid analyzing all `tags` keys since we only use the first one.
             foreach(var tag in tags.Where(x => x.Key.Contains(address)).Select(x => x.Value))
             {
-                defaultValue = tag.DefaultValue;
-                silent = tag.Silent;
-                return tag.Name;
+                foundTag = tag;
+                return true;
             }
-            defaultValue = default(ulong);
-            silent = false;
-            return null;
+            foundTag = null;
+            return false;
         }
 
-        private string EnterTag(string str, ulong address, out bool tagEntered, out ulong defaultValue, out bool silent)
+        private string EnterTag(string str, TagEntry tag)
         {
-            // TODO: also pausing here in a bit hacky way
-            var tag = TryGetTag(address, out defaultValue, out silent);
-            if(tag == null)
-            {
-                tagEntered = false;
-                return str;
-            }
-            tagEntered = true;
-            if(pausingTags.Contains(tag))
+            // TODO: pausing here in a bit hacky way
+            if(pausingTags.Contains(tag.Name))
             {
                 Machine.Pause();
             }
-            return string.Format("(tag: '{0}') {1}", tag, str);
+            return string.Format("(tag: '{0}') {1}", tag.Name, str);
         }
 
-        private ulong ReportNonExistingRead(ulong address, SysbusAccessWidth type)
+        private ulong ReportNonExistingRead(ulong address, TagEntry? tag, SysbusAccessWidth type)
         {
             Interlocked.Increment(ref unexpectedReads);
-            bool tagged;
-            bool silent;
-            ulong defaultValue;
-            var warning = EnterTag(NonExistingRead, address, out tagged, out defaultValue, out silent);
+            var tagged = tag is TagEntry;
+            var defaultValue = tag?.DefaultValue ?? default(ulong);
+            var silent = tag?.Silent ?? false;
+            var warning = NonExistingRead;
+            if(tag is TagEntry foundTag)
+            {
+                warning = EnterTag(warning, foundTag);
+            }
             warning = DecorateWithCPUNameAndPC(warning);
             if(UnhandledAccessBehaviour == UnhandledAccessBehaviour.DoNotReport)
             {
@@ -2187,16 +2182,21 @@ namespace Antmicro.Renode.Peripherals.Bus
             return defaultValue;
         }
 
-        private void ReportNonExistingWrite(ulong address, ulong value, SysbusAccessWidth type)
+        private void ReportNonExistingWrite(ulong address, ulong value, TagEntry? tag, SysbusAccessWidth type)
         {
             Interlocked.Increment(ref unexpectedWrites);
             if(UnhandledAccessBehaviour == UnhandledAccessBehaviour.DoNotReport)
             {
                 return;
             }
-            bool tagged;
-            bool silent;
-            var warning = EnterTag(NonExistingWrite, address, out tagged, out var _, out silent);
+
+            var tagged = tag is TagEntry;
+            var silent = tag?.Silent ?? false;
+            var warning = NonExistingWrite;
+            if(tag is TagEntry filledTag)
+            {
+                warning = EnterTag(warning, filledTag);
+            }
             warning = DecorateWithCPUNameAndPC(warning);
             if((UnhandledAccessBehaviour == UnhandledAccessBehaviour.ReportIfTagged && !tagged)
                 || (UnhandledAccessBehaviour == UnhandledAccessBehaviour.ReportIfNotTagged && tagged))
@@ -2452,7 +2452,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         private readonly List<BinaryFingerprint> binaryFingerprints;
         private const string NonExistingRead = "Read{1} from non existing peripheral at 0x{0:X}.";
         private const string NonExistingWrite = "Write{2} to non existing peripheral at 0x{0:X}, value 0x{1:X}.";
-        private const string IOExceptionMessage = "I/O error while loading ELF: {0}.";
+        private const string IOExctionMessage = "I/O error while loading ELF: {0}.";
         private const string CantFindCpuIdMessage = "Can't verify current CPU in the given context.";
 
         private int unexpectedReads;
