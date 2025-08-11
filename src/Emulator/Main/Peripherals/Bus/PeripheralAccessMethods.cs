@@ -108,7 +108,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         {
             DebugHelper.Assert(!(ReadByte.Target is HookWrapper));
 
-            var accssMethods = new dynamic []
+            var accessMethods = new dynamic []
             {
                 Tuple.Create(ReadByte, WriteByte, (BusAccess.ByteReadMethod)Peripheral.ReadByteNotTranslated),
                 Tuple.Create(ReadWord, WriteWord, (BusAccess.WordReadMethod)Peripheral.ReadWordNotTranslated),
@@ -120,7 +120,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             dynamic read = null;
             dynamic write = null;
 
-            foreach(var methods in accssMethods)
+            foreach(var methods in accessMethods)
             {
                 var readMethod = methods.Item1;
                 var writeMethod = methods.Item2;
