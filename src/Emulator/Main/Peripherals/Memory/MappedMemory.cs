@@ -44,7 +44,7 @@ using Endianess = ELFSharp.ELF.Endianess;
 namespace Antmicro.Renode.Peripherals.Memory
 {
     [Icon("memory")]
-    public sealed class MappedMemory : IBytePeripheral, IWordPeripheral, IDoubleWordPeripheral, IQuadWordPeripheral, IMapped, IDisposable, IKnownSize, ISpeciallySerializable, IMemory, IMultibyteWritePeripheral, ICanLoadFiles, IEndiannessAware
+    public sealed class MappedMemory : IBytePeripheral, IWordPeripheral, IDoubleWordPeripheral, IQuadWordPeripheral, IMapped, IDisposable, IKnownSize, ISpeciallySerializable, IMemory, IMultibyteWritePeripheral, ICanLoadFiles, IEndiannessAware, IHasDelayedInvalidationContext
     {
 #if PLATFORM_WINDOWS
         static MappedMemory()
@@ -448,6 +448,16 @@ namespace Antmicro.Renode.Peripherals.Memory
             WriteBytes(rangeStart, array);
         }
 
+        public DelayedInvalidationContext EnterDelayedInvalidationContext()
+        {
+            return new DelayedInvalidationContext(this);
+        }
+
+        public void SetDelayedInvalidation(bool value)
+        {
+            delayedInvalidation = value;
+        }
+
         public void Dispose()
         {
             Free();
@@ -575,6 +585,7 @@ namespace Antmicro.Renode.Peripherals.Memory
 
         private void Init()
         {
+            delayedInvalidation = false;
             PrepareSegments();
         }
 
@@ -707,7 +718,7 @@ namespace Antmicro.Renode.Peripherals.Memory
                     try
                     {
                         //it's dynamic to avoid cyclic dependency to TranslationCPU
-                        ((dynamic)cpu).OrderTranslationBlocksInvalidation(new IntPtr(regPoint + start), new IntPtr(regPoint + start + length));
+                        ((dynamic)cpu).OrderTranslationBlocksInvalidation(new IntPtr(regPoint + start), new IntPtr(regPoint + start + length), delayedInvalidation);
                     }
                     catch(RuntimeBinderException)
                     {
@@ -748,6 +759,8 @@ namespace Antmicro.Renode.Peripherals.Memory
         private string sharedMemoryFileRoot;
         private List<long> registrationPointsCached;
         private readonly IMachine machine;
+
+        private bool delayedInvalidation;
 
         private const uint Magic = 0xABCD6366;
         private const int Alignment = 0x1000;

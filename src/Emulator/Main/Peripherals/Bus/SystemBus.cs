@@ -30,6 +30,7 @@ using Antmicro.Renode.Core.Extensions;
 using System.Reflection;
 using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.Peripherals.Memory;
+using Microsoft.CSharp.RuntimeBinder;
 
 using Range = Antmicro.Renode.Core.Range;
 
@@ -236,6 +237,31 @@ namespace Antmicro.Renode.Peripherals.Bus
                     }
                 }
             }
+        }
+
+        public DelayedInvalidationContext EnterDelayedInvalidationContext()
+        {
+            return new DelayedInvalidationContext(this);
+        }
+
+        public void SetDelayedInvalidation(bool value)
+        {
+            // When leaving delayed invalidation handle all queued memory blocks
+            if(delayedInvalidation != value && !value)
+            {
+                foreach(var cpu in GetCPUs())
+                {
+                    try
+                    {
+                        ((TranslationCPU)cpu).InvalidateTranslationBlocks();
+                    }
+                    catch(RuntimeBinderException)
+                    {
+                        // CPU does not implement `InvalidateTranslationBlocks`, there is not much we can do
+                    }
+                }
+            }
+            delayedInvalidation = value;
         }
 
         private Dictionary<string, List<StateMask>> ParseNewConditions(string newCondition)
@@ -784,7 +810,11 @@ namespace Antmicro.Renode.Peripherals.Bus
                     {
                         checked
                         {
-                            multibytePeripheral.WriteBytes(checked((long)(target.Offset - target.What.RegistrationPoint.Range.StartAddress + target.What.RegistrationPoint.Offset)), bytes, startingIndex + (int)target.SourceIndex, (int)target.SourceLength);
+                            var invalidationCtx = delayedInvalidation ? multibytePeripheral as IHasDelayedInvalidationContext : null;
+                            using(var ctx = invalidationCtx?.EnterDelayedInvalidationContext())
+                            {
+                                multibytePeripheral.WriteBytes(checked((long)(target.Offset - target.What.RegistrationPoint.Range.StartAddress + target.What.RegistrationPoint.Offset)), bytes, startingIndex + (int)target.SourceIndex, (int)target.SourceLength);
+                            }
                         }
                     }
                     else
@@ -1255,6 +1285,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             globalLookup = new SymbolLookup();
             localLookups = new Dictionary<ICPU, SymbolLookup>();
             pcCache.Invalidate();
+            delayedInvalidation = false;
         }
 
         public string DecorateWithCPUNameAndPC(string str)
@@ -2470,6 +2501,8 @@ namespace Antmicro.Renode.Peripherals.Bus
         private int unexpectedWrites;
 
         private LRUCache<ulong, Tuple<string, Symbol>> pcCache = new LRUCache<ulong, Tuple<string, Symbol>>(10000);
+
+        private bool delayedInvalidation;
 
         public class MappedSegmentWrapper : IMappedSegment
         {

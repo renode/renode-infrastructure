@@ -1410,6 +1410,7 @@
     <Compile Include="Emulator/Main/Peripherals/IPeripheral.cs" />
     <Compile Include="Emulator/Main/Peripherals/IContextState.cs" />
     <Compile Include="Emulator/Main/Peripherals/ICluster.cs" />
+    <Compile Include="Emulator/Main/Peripherals/DelayedInvalidationContext.cs" />
     <Compile Include="Emulator/Main/Utilities/Misc.cs" />
     <Compile Include="Emulator/Main/Utilities/VideoCapturer.cs" />
     <Compile Include="Emulator/Main/Core/GPIOAttribute.cs" />

@@ -22,7 +22,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 {
     public interface IBusController: IPeripheralContainer<IBusPeripheral, BusRangeRegistration>, IPeripheralRegister<IKnownSize, BusPointRegistration>,
         IPeripheralRegister<ICPU, CPURegistrationPoint>, IPeripheralRegister<IBusPeripheral, BusMultiRegistration>, IPeripheralRegister<IPeripheral, NullRegistrationPoint>,
-        IPeripheralRegister<IBusPeripheral, BusParametrizedRegistration>, ICanLoadFiles, IPeripheral, IMultibyteWritePeripheral
+        IPeripheralRegister<IBusPeripheral, BusParametrizedRegistration>, ICanLoadFiles, IPeripheral, IMultibyteWritePeripheral, IHasDelayedInvalidationContext
     {
         byte ReadByte(ulong address, IPeripheral context = null, ulong? cpuState = null);
         byte ReadByteWithState(ulong address, IPeripheral context, IContextState stateObj);

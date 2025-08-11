@@ -154,7 +154,11 @@ namespace Antmicro.Renode.Peripherals.Bus
                     {
                         accessMethods.SetAbsoluteAddress(address);
                     }
-                    accessMethods.Write<#=name#>(checked((long)(address - startAddress)), value);
+                    var invalidationCtx = delayedInvalidation ? context as IHasDelayedInvalidationContext : null;
+                    using(var ctx = invalidationCtx?.EnterDelayedInvalidationContext())
+                    {
+                        accessMethods.Write<#=name#>(checked((long)(address - startAddress)), value);
+                    }
                 }
                 finally
                 {

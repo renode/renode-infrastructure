@@ -30,6 +30,16 @@ namespace Antmicro.Renode.Peripherals.Bus
             ParentController = parentController;
         }
 
+        public DelayedInvalidationContext EnterDelayedInvalidationContext()
+        {
+            return ParentController.EnterDelayedInvalidationContext();
+        }
+
+        public void SetDelayedInvalidation(bool value)
+        {
+            ParentController.SetDelayedInvalidation(value);
+        }
+
         public virtual byte ReadByte(ulong address, IPeripheral context = null, ulong? cpuState = null)
         {
             if(ValidateOperation(ref address, BusAccessPrivileges.Read, context))

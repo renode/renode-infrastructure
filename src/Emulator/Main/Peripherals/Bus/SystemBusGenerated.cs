@@ -99,7 +99,6 @@ namespace Antmicro.Renode.Peripherals.Bus
             using(SetLocalContext(context, cpuState))
             {
                 TryGetTag(address, out var tag);
-
                 var warning = TagOverriddenWrite;
                 if(tag is TagEntry foundTag && foundTag.OverridePeripheralAccesses)
                 {
@@ -131,7 +130,11 @@ namespace Antmicro.Renode.Peripherals.Bus
                     {
                         accessMethods.SetAbsoluteAddress(address);
                     }
-                    accessMethods.WriteByte(checked((long)(address - startAddress)), value);
+                    var invalidationCtx = delayedInvalidation ? context as IHasDelayedInvalidationContext : null;
+                    using(var ctx = invalidationCtx?.EnterDelayedInvalidationContext())
+                    {
+                        accessMethods.WriteByte(checked((long)(address - startAddress)), value);
+                    }
                 }
                 finally
                 {
@@ -234,7 +237,6 @@ namespace Antmicro.Renode.Peripherals.Bus
             using(SetLocalContext(context, cpuState))
             {
                 TryGetTag(address, out var tag);
-
                 var warning = TagOverriddenWrite;
                 if(tag is TagEntry foundTag && foundTag.OverridePeripheralAccesses)
                 {
@@ -266,7 +268,11 @@ namespace Antmicro.Renode.Peripherals.Bus
                     {
                         accessMethods.SetAbsoluteAddress(address);
                     }
-                    accessMethods.WriteWord(checked((long)(address - startAddress)), value);
+                    var invalidationCtx = delayedInvalidation ? context as IHasDelayedInvalidationContext : null;
+                    using(var ctx = invalidationCtx?.EnterDelayedInvalidationContext())
+                    {
+                        accessMethods.WriteWord(checked((long)(address - startAddress)), value);
+                    }
                 }
                 finally
                 {
@@ -369,7 +375,6 @@ namespace Antmicro.Renode.Peripherals.Bus
             using(SetLocalContext(context, cpuState))
             {
                 TryGetTag(address, out var tag);
-
                 var warning = TagOverriddenWrite;
                 if(tag is TagEntry foundTag && foundTag.OverridePeripheralAccesses)
                 {
@@ -401,7 +406,11 @@ namespace Antmicro.Renode.Peripherals.Bus
                     {
                         accessMethods.SetAbsoluteAddress(address);
                     }
-                    accessMethods.WriteDoubleWord(checked((long)(address - startAddress)), value);
+                    var invalidationCtx = delayedInvalidation ? context as IHasDelayedInvalidationContext : null;
+                    using(var ctx = invalidationCtx?.EnterDelayedInvalidationContext())
+                    {
+                        accessMethods.WriteDoubleWord(checked((long)(address - startAddress)), value);
+                    }
                 }
                 finally
                 {
@@ -504,7 +513,6 @@ namespace Antmicro.Renode.Peripherals.Bus
             using(SetLocalContext(context, cpuState))
             {
                 TryGetTag(address, out var tag);
-
                 var warning = TagOverriddenWrite;
                 if(tag is TagEntry foundTag && foundTag.OverridePeripheralAccesses)
                 {
@@ -536,7 +544,11 @@ namespace Antmicro.Renode.Peripherals.Bus
                     {
                         accessMethods.SetAbsoluteAddress(address);
                     }
-                    accessMethods.WriteQuadWord(checked((long)(address - startAddress)), value);
+                    var invalidationCtx = delayedInvalidation ? context as IHasDelayedInvalidationContext : null;
+                    using(var ctx = invalidationCtx?.EnterDelayedInvalidationContext())
+                    {
+                        accessMethods.WriteQuadWord(checked((long)(address - startAddress)), value);
+                    }
                 }
                 finally
                 {
