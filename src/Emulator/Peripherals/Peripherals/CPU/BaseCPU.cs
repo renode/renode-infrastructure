@@ -495,12 +495,13 @@ restart:
                                 singleStep = IsSingleStepMode;
                                 if(singleStep)
                                 {
+                                    var stepResult = Synchronizer.StepResult.Disabled;
                                     // we become incactive as we wait for step command
                                     using(this.ObtainSinkInactiveState())
                                     {
                                         this.Log(LogLevel.Noisy, "Waiting for a step instruction (PC=0x{0:X8}).", PC.RawValue);
                                         InvokeHalted(new HaltArguments(HaltReason.Step, this));
-                                        if(!singleStepSynchronizer.WaitForStepCommand())
+                                        if(!singleStepSynchronizer.WaitForStepCommand(out stepResult))
                                         {
                                             this.Trace();
                                             continue;

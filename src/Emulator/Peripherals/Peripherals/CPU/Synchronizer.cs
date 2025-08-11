@@ -39,16 +39,25 @@ namespace Antmicro.Renode.Peripherals.CPU
                 counter = steps;
                 Monitor.Pulse(Guard);
             }
-        }   
-        
-        public bool WaitForStepCommand()
+        }
+
+        public bool WaitForStepCommand(out StepResult result)
         {
             lock(Guard)
             {
-                while(enabled && counter == 0)
+                while(enabled && !stepDelayed && counter == 0)
                 {
                     Monitor.Wait(Guard);
                 }   
+
+                if(stepDelayed)
+                {
+                    stepDelayed = false;
+                    result = StepResult.Delayed;
+                    return enabled;
+                }
+
+                result = enabled ? StepResult.Granted : StepResult.Disabled;
                 return enabled;
             }
         }
@@ -73,6 +82,15 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
         
+        public void DelayStepCommand()
+        {
+            lock(Guard)
+            {
+                stepDelayed = true;
+                Monitor.Pulse(Guard);
+            }
+        }
+
         public object Guard { get; }
         
         public bool Enabled
@@ -88,6 +106,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     enabled = value;
                     if(!enabled)
                     {
+                        stepDelayed = false;
                         Monitor.PulseAll(Guard);
                     }
                 }
@@ -95,7 +114,15 @@ namespace Antmicro.Renode.Peripherals.CPU
         }   
         
         private bool enabled;
+        private bool stepDelayed;
         private int counter;
+
+        public enum StepResult
+        {
+            Granted,
+            Delayed,
+            Disabled,
+        }
     }
 }
 
