@@ -139,6 +139,7 @@ namespace Antmicro.Renode.Time
                 sourceSideInProgress = true;
 
                 intervalGranted = interval;
+                finishedTimeInterval = false;
 
                 if(enabled)
                 {
@@ -351,6 +352,7 @@ namespace Antmicro.Renode.Time
                 DebugHelper.Assert(slaveTimeResiduum == TimeInterval.Empty, "Time residuum should be empty here.");
                 slaveTimeResiduum = timeLeft;
                 intervalToReport = intervalGranted;
+                finishedTimeInterval = true;
 
                 reportPending = true;
 
@@ -807,6 +809,8 @@ namespace Antmicro.Renode.Time
             }
         }
 
+        public bool FinishedTimeInterval => finishedTimeInterval;
+
         /// <summary>
         /// Informs the sink that the source wants to pause its execution.
         /// </summary>
@@ -881,6 +885,7 @@ namespace Antmicro.Renode.Time
         private bool recentlyUnblocked;
         private bool delayGrant;
         private bool interrupt;
+        private bool finishedTimeInterval;
         private volatile bool isDone;
 
         private readonly object innerLock;
