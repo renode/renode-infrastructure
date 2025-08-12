@@ -1050,6 +1050,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             ZVE64F = 12,
             ZVE64D = 13,
             ZACAS = 14,
+            SSCOFPMF = 15,
         }
 
         public enum InterruptMode
@@ -1222,6 +1223,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                             "Extension will not be enabled", name);
                         break;
                     case "SMEPMP": standardExtensions.Add(StandardInstructionSetExtensions.SMEPMP); break;
+                    case "SSCOFPMF": standardExtensions.Add(StandardInstructionSetExtensions.SSCOFPMF); break;
                     case "XANDES": Andes_AndeStarV5Extension.RegisterIn(machine, (RiscV32)parent); break;
                     case "ZBA": standardExtensions.Add(StandardInstructionSetExtensions.BA); break;
                     case "ZBB": standardExtensions.Add(StandardInstructionSetExtensions.BB); break;
