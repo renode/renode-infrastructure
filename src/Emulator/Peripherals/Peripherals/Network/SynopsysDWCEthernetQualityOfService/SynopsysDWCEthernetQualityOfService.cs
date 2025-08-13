@@ -7,6 +7,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -46,6 +48,7 @@ namespace Antmicro.Renode.Peripherals.Network
             MAC1 = EmulationManager.Instance.CurrentEmulation.MACRepository.GenerateUniqueMAC();
             Bus = machine.GetSystemBus(this);
             this.CpuContext = cpuContext;
+            timestampTimer = new LimitTimer(machine.ClockSource, TimestampTimerFrequency, this, "Timestamp timer", ulong.MaxValue, Direction.Ascending);
 
             dmaChannels = new DMAChannel[DMAChannelOffsets.Length];
             for(var i = 0; i < dmaChannels.Length; i++)
@@ -105,6 +108,7 @@ namespace Antmicro.Renode.Peripherals.Network
         {
             ResetRegisters();
             SoftwareReset();
+            timestampTimer.Reset();
             UpdateInterrupts();
         }
 
@@ -298,8 +302,66 @@ namespace Antmicro.Renode.Peripherals.Network
             IRQ.Set(irq);
         }
 
+        private void GetTimestamp(out ulong seconds, out ulong nanoseconds)
+        {
+            if(enableTimestamp.Value && Bus.TryGetCurrentCPU(out var cpu))
+            {
+                cpu.SyncTime();
+            }
+
+            var value = timestampTimer.Value;
+            if(timestampDigitalOrBinaryRollover.Value)
+            {
+                seconds = value / NanosecondsPerSecond;
+                nanoseconds = value % NanosecondsPerSecond;
+            }
+            else
+            {
+                seconds = value >> 32;
+                nanoseconds = value | 0xFFFFFFFFUL;
+            }
+        }
+
+        private void SetTimestamp(ulong seconds, ulong nanoseconds, bool init)
+        {
+            if(!init)
+            {
+                GetTimestamp(out var currentSeconds, out var currentNanoseconds);
+                if(addOrSubtractTime.Value)
+                {
+                    currentSeconds -= (1ul << 32) - seconds;
+                    if(timestampDigitalOrBinaryRollover.Value)
+                    {
+                        // When TSCTRLSSR field in the Timestamp control Register is 1 the programmed value must be 10^9 – <subsecond value>
+                        currentNanoseconds -= (ulong)Math.Pow(10, 9) - nanoseconds;
+                    }
+                    else
+                    {
+                        // When TSCTRLSSR field in the Timestamp control Register is 1 the programmed value must be 2^31 - <subsecond_value>
+                        currentNanoseconds -= (1ul << 31) - nanoseconds;
+                    }
+                }
+                else
+                {
+                    currentSeconds += seconds;
+                    currentNanoseconds += nanoseconds;
+                }
+                seconds = currentSeconds;
+                nanoseconds = currentNanoseconds;
+            }
+            if(timestampDigitalOrBinaryRollover.Value)
+            {
+                timestampTimer.Value = seconds * NanosecondsPerSecond + nanoseconds;
+            }
+            else
+            {
+                timestampTimer.Value = (seconds << 32) | (nanoseconds & 0xFFFFFFFFUL);
+            }
+        }
+
         private IBusController Bus { get; }
         private ICPU CpuContext { get; }
+        private readonly LimitTimer timestampTimer;
 
         private bool MMCTxInterruptStatus =>
             (txGoodPacketCounterInterrupt.Value && txGoodPacketCounterInterruptEnable.Value)           ||
@@ -323,8 +385,143 @@ namespace Antmicro.Renode.Peripherals.Network
         private const ulong CounterMaxValue = UInt32.MaxValue;
         private const int RxWatchdogDivider = 256;
         private const uint EtherTypeMinimalValue = 0x600;
+        private const ulong NanosecondsPerSecond = 1000000000;
+        private const long TimestampTimerFrequency = 1000000000;
 
         // This value may be increased if required, but some changes in register creation may be required
         private const int MaxDMAChannels = 3;
+
+        private struct PTPInfo
+        {
+            public static PTPInfo? FromFrame(EthernetFrame frame)
+            {
+                try
+                {
+                    var packet = frame.UnderlyingPacket;
+                    if(packet.Type == EthernetPacketType.PrecisionTimeProtocol)
+                    {
+                        return ExtractInfo(packet.PayloadPacket.Bytes, TransportType.Ethernet);
+                    }
+                    else if(packet.Type == EthernetPacketType.IpV4 || packet.Type == EthernetPacketType.IpV6)
+                    {
+                        var ipPacket = (IpPacket)packet.PayloadPacket;
+                        if(!ptpIpAddresses.Contains(ipPacket.DestinationAddress))
+                        {
+                            return null;
+                        }
+
+                        if(ipPacket.PayloadPacket is UdpPacket udpPacket)
+                        {
+                            if(!ptpPorts.Contains(udpPacket.DestinationPort))
+                            {
+                                return null;
+                            }
+                            var transportType = packet.Type == EthernetPacketType.IpV4 ? TransportType.IpV4 : TransportType.IpV6;
+                            return ExtractInfo(udpPacket.PayloadData, transportType);
+                        }
+                    }
+                }
+                catch(Exception)
+                {
+                    // Something went wrong during packet decoding
+                }
+                return null;
+            }
+
+            private static PTPInfo? ExtractInfo(byte[] ptpData, TransportType transport)
+            {
+                var info = new PTPInfo();
+                info.Transport = transport;
+                switch(ptpData[0] & 0x0F)
+                {
+                case 0x0:
+                    info.MessageType = PTPMessageType.Sync;
+                    break;
+                case 0x1:
+                    info.MessageType = PTPMessageType.DelayRequest;
+                    break;
+                case 0x2:
+                    info.MessageType = PTPMessageType.PdelayRequest;
+                    break;
+                case 0x3:
+                    info.MessageType = PTPMessageType.PdelayResponse;
+                    break;
+                case 0x8:
+                    info.MessageType = PTPMessageType.FollowUp;
+                    break;
+                case 0x9:
+                    info.MessageType = PTPMessageType.DelayResponse;
+                    break;
+                case 0xA:
+                    info.MessageType = PTPMessageType.PdelayResponseFollowUp;
+                    break;
+                case 0xB:
+                    info.MessageType = PTPMessageType.Announce;
+                    break;
+                case 0xC:
+                    info.MessageType = PTPMessageType.Signaling;
+                    break;
+                case 0xD:
+                    info.MessageType = PTPMessageType.Management;
+                    break;
+                default:
+                    return null; // Invalid message type
+                }
+
+                switch(ptpData[1] & 0x0F)
+                {
+                case 1:
+                    info.Version = PTPVersion.IEEE1588version1;
+                    break;
+                case 2:
+                    info.Version = PTPVersion.IEEE1588version2;
+                    break;
+                default:
+                    return null; // Invalid version
+                }
+
+                return info;
+            }
+
+            public enum TransportType
+            {
+                Ethernet,
+                IpV4,
+                IpV6,
+            }
+
+            private static readonly HashSet<IPAddress> ptpIpAddresses = new HashSet<IPAddress>()
+            {
+                IPAddress.Parse("224.0.0.107"),
+                IPAddress.Parse("224.0.1.129"),
+                IPAddress.Parse("224.0.1.130"),
+                IPAddress.Parse("224.0.1.131"),
+                IPAddress.Parse("224.0.1.132"),
+                // Expanded `FF0x::181`
+                IPAddress.Parse("FF00::181"),
+                IPAddress.Parse("FF01::181"),
+                IPAddress.Parse("FF02::181"),
+                IPAddress.Parse("FF03::181"),
+                IPAddress.Parse("FF04::181"),
+                IPAddress.Parse("FF05::181"),
+                IPAddress.Parse("FF06::181"),
+                IPAddress.Parse("FF07::181"),
+                IPAddress.Parse("FF08::181"),
+                IPAddress.Parse("FF09::181"),
+                IPAddress.Parse("FF0A::181"),
+                IPAddress.Parse("FF0B::181"),
+                IPAddress.Parse("FF0C::181"),
+                IPAddress.Parse("FF0D::181"),
+                IPAddress.Parse("FF0E::181"),
+                IPAddress.Parse("FF0F::181"),
+                IPAddress.Parse("FF02::6B"),
+            };
+
+            private static readonly HashSet<ushort> ptpPorts = new HashSet<ushort>(){ 319, 320 };
+
+            public PTPMessageType MessageType { get; private set; }
+            public TransportType Transport { get; private set; }
+            public PTPVersion Version { get; private set; }
+        }
     }
 }

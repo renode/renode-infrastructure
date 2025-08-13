@@ -437,6 +437,8 @@ namespace Antmicro.Renode.Peripherals.Network
                 var frame = incomingFrames.Peek();
                 var bytes = frame.Bytes;
                 var isFirst = true;
+                PTPInfo? ptpInfo = null;
+                var insertTimestamp = false;
                 while(!rxFinishedRing && parent.rxEnable.Value && startRx.Value)
                 {
                     var descriptor = GetRxDescriptor();
@@ -490,12 +492,13 @@ namespace Antmicro.Renode.Peripherals.Network
 
                     if(rxOffset >= (ulong)bytes.Length)
                     {
-                        if(parent.enableTimestamp.Value && (parent.enableTimestampForAll.Value /* || is PTP */))
+                        if(insertTimestamp)
                         {
-                            this.Log(LogLevel.Error, "Receive: Timestamping is not supported.");
                             var contextStructure = descriptor.GetAsContextDescriptor();
                             contextStructure.contextType = true;
                             contextStructure.owner = DescriptorOwner.Application;
+                            parent.GetTimestamp(out var seconds, out var nanoseconds);
+                            contextStructure.receivePacketTimestamp = (seconds << 32) | nanoseconds;
     #if DEBUG
                             this.Log(LogLevel.Noisy, "Receive: Writing {0} to 0x{1:X}.", contextStructure, descriptor.Address);
     #endif
@@ -503,6 +506,9 @@ namespace Antmicro.Renode.Peripherals.Network
                             descriptor.Write();
                             IncreaseRxDescriptorPointer();
                         }
+                        ptpInfo = null;
+                        insertTimestamp = false;
+
                         rxOffset = 0;
                         incomingFrames.Dequeue();
                         rxQueueLength -= bytes.Length;
@@ -591,7 +597,37 @@ namespace Antmicro.Renode.Peripherals.Network
                             break;
                     }
 
-                    writeBackStructure.timestampAvailable = parent.enableTimestamp.Value;
+                    if(writeBackStructure.lastDescriptor)
+                    {
+                        if(parent.enableTimestamp.Value)
+                        {
+                            var parsePtp = false;
+                            switch(frame.UnderlyingPacket.Type)
+                            {
+                            case EthernetPacketType.PrecisionTimeProtocol:
+                                parsePtp = parent.processPtpOverEthernet.Value;
+                                break;
+                            case EthernetPacketType.IpV4:
+                                parsePtp = parent.processPtpOverIpv4.Value;
+                                break;
+                            case EthernetPacketType.IpV6:
+                                parsePtp = parent.processPtpOverIpv6.Value;
+                                break;
+                            }
+                            ptpInfo = parsePtp ? PTPInfo.FromFrame(frame) : null;
+                            insertTimestamp = parent.enableTimestamp.Value && (ptpInfo != null || parent.enableTimestampForAll.Value);
+                        }
+                        else
+                        {
+                            ptpInfo = null;
+                            insertTimestamp = false;
+                        }
+                    }
+
+                    writeBackStructure.timestampAvailable = insertTimestamp;
+                    writeBackStructure.ptpMessageType = ptpInfo?.MessageType ?? PTPMessageType.NoPTPMessageReceived;
+                    writeBackStructure.ptpPacketType = (ptpInfo?.Transport ?? PTPInfo.TransportType.IpV4) == PTPInfo.TransportType.Ethernet;
+                    writeBackStructure.ptpVersion = ptpInfo?.Version ?? PTPVersion.IEEE1588version1;
                     writeBackStructure.timestampDropped = false;
                     writeBackStructure.dribbleBitError = false;
                     writeBackStructure.receiveError = false;
@@ -839,7 +875,9 @@ namespace Antmicro.Renode.Peripherals.Network
 
                         if(structure.transmitTimestampEnable && parent.enableTimestamp.Value)
                         {
-                            this.Log(LogLevel.Error, "Transmission: Timestamping is not supported.");
+                            writeBackStructure.txTimestampCaptured = true;
+                            parent.GetTimestamp(out var seconds, out var nanoseconds);
+                            writeBackStructure.txPacketTimestamp = (seconds << 32) | nanoseconds;
                         }
     #if DEBUG
                         this.Log(LogLevel.Noisy, "Transmission: Writing {0} to 0x{1:X}.", writeBackStructure, descriptor.Address);

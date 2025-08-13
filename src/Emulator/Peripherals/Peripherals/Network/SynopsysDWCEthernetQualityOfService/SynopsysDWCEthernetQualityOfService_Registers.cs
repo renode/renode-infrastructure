@@ -911,20 +911,43 @@ namespace Antmicro.Renode.Peripherals.Network
                 {(long)RegistersMacAndMmc.Layer3Address3Filter1, new DoubleWordRegister(this)
                     .WithTag("MACL3A31R.L3A31 (L3A31)", 0, 32)
                 },
-                {(long)RegistersMacAndMmc.TimestampControl, new DoubleWordRegister(this, 0x0200)
-                    .WithFlag(0, out enableTimestamp, name: "MACTSCR.TSENA (TSENA)")
-                    .WithTaggedFlag("MACTSCR.TSCFUPDT (TSCFUPDT)", 1)
-                    .WithTaggedFlag("MACTSCR.TSINIT (TSINIT)", 2)
-                    .WithTaggedFlag("MACTSCR.TSUPDT (TSUPDT)", 3)
+                { (long)RegistersMacAndMmc.TimestampControl, new DoubleWordRegister(this, 0x2000)
+                    .WithFlag(0, out enableTimestamp, name: "MACTSCR.TSENA (TSENA)",
+                        changeCallback: (_, value) => timestampTimer.Enabled = value)
+                    .WithFlag(1, out fineOrCoarseTimestampUpdate, name: "MACTSCR.TSCFUPDT (TSCFUPDT)",
+                        changeCallback: (_, value) =>
+                        {
+                            if(fineOrCoarseTimestampUpdate.Value)
+                            {
+                                this.WarningLog("'Fine' timestamp update mode is not supported, reverting to the 'Coarse' method");
+                                fineOrCoarseTimestampUpdate.Value = false;
+                            }
+                        })
+                    .WithFlag(2, FieldMode.Read | FieldMode.WriteOneToClear, name: "MACTSCR.TSINIT (TSINIT)",
+                        writeCallback: (_, value) =>
+                        {
+                            if(value)
+                            {
+                                SetTimestamp(systemTimeSecondUpdate.Value, systemTimeNanosecondUpdate.Value, init: true);
+                            }
+                        })
+                    .WithFlag(3, FieldMode.Read | FieldMode.WriteOneToClear, name: "MACTSCR.TSUPDT (TSUPDT)",
+                        writeCallback: (_, value) =>
+                        {
+                            if(value)
+                            {
+                                SetTimestamp(systemTimeSecondUpdate.Value, systemTimeNanosecondUpdate.Value, init: false);
+                            }
+                        })
                     .WithReservedBits(4, 1)
                     .WithTaggedFlag("MACTSCR.TSADDREG (TSADDREG)", 5)
                     .WithReservedBits(6, 2)
                     .WithFlag(8, out enableTimestampForAll, name: "MACTSCR.TSENALL (TSENALL)")
-                    .WithTaggedFlag("MACTSCR.TSCTRLSSR (TSCTRLSSR)", 9)
+                    .WithFlag(9, out timestampDigitalOrBinaryRollover, name: "MACTSCR.TSCTRLSSR (TSCTRLSSR)")
                     .WithTaggedFlag("MACTSCR.TSVER2ENA (TSVER2ENA)", 10)
-                    .WithTaggedFlag("MACTSCR.TSIPENA (TSIPENA)", 11)
-                    .WithTaggedFlag("MACTSCR.TSIPV6ENA (TSIPV6ENA)", 12)
-                    .WithTaggedFlag("MACTSCR.TSIPV4ENA (TSIPV4ENA)", 13)
+                    .WithFlag(11, out processPtpOverEthernet, name: "MACTSCR.TSIPENA (TSIPENA)")
+                    .WithFlag(12, out processPtpOverIpv6, name: "MACTSCR.TSIPV6ENA (TSIPV6ENA)")
+                    .WithFlag(13, out processPtpOverIpv4, name: "MACTSCR.TSIPV4ENA (TSIPV4ENA)")
                     .WithTaggedFlag("MACTSCR.TSEVNTENA (TSEVNTENA)", 14)
                     .WithTaggedFlag("MACTSCR.TSMSTRENA (TSMSTRENA)", 15)
                     .WithTag("MACTSCR.SNAPTYPSEL (SNAPTYPSEL)", 16, 2)
@@ -941,18 +964,28 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithReservedBits(24, 8)
                 },
                 {(long)RegistersMacAndMmc.SystemTimeSeconds, new DoubleWordRegister(this)
-                    .WithTag("MACSTSR.TSS (TSS)", 0, 32)
+                    .WithValueField(0, 32, FieldMode.Read, name: "MACSTSR.TSS (TSS)",
+                        valueProviderCallback: _ =>
+                        {
+                            GetTimestamp(out var seconds, out _);
+                            return seconds;
+                        })
                 },
                 {(long)RegistersMacAndMmc.SystemTimeNanoseconds, new DoubleWordRegister(this)
-                    .WithTag("MACSTNR.TSSS (TSSS)", 0, 31)
+                    .WithValueField(0, 31, FieldMode.Read, name: "MACSTNR.TSSS (TSSS)",
+                        valueProviderCallback: _ =>
+                        {
+                            GetTimestamp(out _, out var nanoseconds);
+                            return nanoseconds;
+                        })
                     .WithReservedBits(31, 1)
                 },
                 {(long)RegistersMacAndMmc.SystemTimeSecondsUpdate, new DoubleWordRegister(this)
-                    .WithTag("MACSTSUR.TSS (TSS)", 0, 32)
+                    .WithValueField(0, 32, out systemTimeSecondUpdate, name: "MACSTSUR.TSS (TSS)")
                 },
                 {(long)RegistersMacAndMmc.SystemTimeNanosecondsUpdate, new DoubleWordRegister(this)
-                    .WithTag("MACSTNUR.TSSS (TSSS)", 0, 31)
-                    .WithTaggedFlag("MACSTNUR.ADDSUB (ADDSUB)", 31)
+                    .WithValueField(0, 31, out systemTimeNanosecondUpdate, name: "MACSTNUR.TSSS (TSSS)")
+                    .WithFlag(31, out addOrSubtractTime, name: "MACSTNUR.ADDSUB (ADDSUB)")
                 },
                 {(long)RegistersMacAndMmc.TimestampAddend, new DoubleWordRegister(this)
                     .WithTag("MACTSAR.TSAR (TSAR)", 0, 32)
@@ -1393,6 +1426,14 @@ namespace Antmicro.Renode.Peripherals.Network
         private IValueRegisterField rxFifoPacketCounter;
         private IFlagRegisterField enableTimestamp;
         private IFlagRegisterField enableTimestampForAll;
+        private IFlagRegisterField timestampDigitalOrBinaryRollover;
+        private IValueRegisterField systemTimeSecondUpdate;
+        private IValueRegisterField systemTimeNanosecondUpdate;
+        private IFlagRegisterField addOrSubtractTime;
+        private IFlagRegisterField processPtpOverEthernet;
+        private IFlagRegisterField processPtpOverIpv4;
+        private IFlagRegisterField processPtpOverIpv6;
+        private IFlagRegisterField fineOrCoarseTimestampUpdate;
 
         private readonly IFlagRegisterField[] rxIpcPacketCounterInterruptEnable;
         private readonly IFlagRegisterField[] rxIpcByteCounterInterruptEnable;
