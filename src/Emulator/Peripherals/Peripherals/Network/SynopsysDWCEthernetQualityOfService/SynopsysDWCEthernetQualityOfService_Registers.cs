@@ -1156,7 +1156,7 @@ namespace Antmicro.Renode.Peripherals.Network
                         if(value)
                         {
                             this.Log(LogLevel.Info, "Software reset.");
-                            Reset();
+                            SoftwareReset();
                         }
                     },
                     valueProviderCallback: _ => false, name: "DMAMR.SWR (Software Reset)")

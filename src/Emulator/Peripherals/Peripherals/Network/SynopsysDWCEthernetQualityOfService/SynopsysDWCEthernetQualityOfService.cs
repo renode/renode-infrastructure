@@ -104,10 +104,7 @@ namespace Antmicro.Renode.Peripherals.Network
         public override void Reset()
         {
             ResetRegisters();
-            foreach(var channel in dmaChannels)
-            {
-                channel.Reset();
-            }
+            SoftwareReset();
             UpdateInterrupts();
         }
 
@@ -127,6 +124,15 @@ namespace Antmicro.Renode.Peripherals.Network
         protected BusWidth DMABusWidth { get; private set; }
         protected virtual int RxQueueSize => 8192;
         protected virtual bool SeparateDMAInterrupts => false;
+
+        private void SoftwareReset()
+        {
+            foreach(var channel in dmaChannels)
+            {
+                channel.Reset();
+            }
+            UpdateInterrupts();
+        }
 
         private void SendFrame(EthernetFrame frame)
         {
