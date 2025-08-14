@@ -106,7 +106,7 @@ namespace Antmicro.Renode.Core
             CompiledFilesCache.Enabled = value;
         }
 
-        public void Load(ReadFilePath path)
+        public void Load(ReadFilePath path, bool preserveState = false)
         {
             FileStream fstream = null;
             MemoryStream ms = null;
@@ -114,6 +114,12 @@ namespace Antmicro.Renode.Core
 
             try
             {
+                Dictionary<string, object> preservedStates = null;
+                if(preserveState)
+                {
+                    preservedStates = PreservableManager.ExtractPreservableStates();
+                }
+
                 fstream = new FileStream(path, FileMode.Open, FileAccess.Read);
 
                 if(path.ToString().EndsWith(".gz", StringComparison.InvariantCulture))
@@ -131,6 +137,7 @@ namespace Antmicro.Renode.Core
                 {
                     stream = fstream;
                 }
+
                 EmulationEpoch++;
                 var deserializationResult = serializer.TryDeserialize<Emulation>(stream, out var emulation, out var metadata);
                 string metadataStringFromFile = null;
@@ -159,6 +166,14 @@ namespace Antmicro.Renode.Core
                 if(metadataStringFromFile != MetadataString)
                 {
                     Logger.Log(LogLevel.Warning, "Version of deserialized emulation ({0}) does not match current one ({1}). Things may go awry!", metadataStringFromFile, MetadataString);
+                }
+
+                if(preserveState)
+                {
+                    if(!PreservableManager.LoadPreservedStates(preservedStates))
+                    {
+                        throw new RecoverableException("Unexpected state while loading preserved states. Things may go wrong!");
+                    }
                 }
             }
             finally
