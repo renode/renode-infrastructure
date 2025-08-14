@@ -42,7 +42,7 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
             }
         }
 
-        public string ToString(long offset, string format)
+        public string ToString(long offset)
         {
             string name;
             if(!map.ContainsKey(offset))
@@ -63,7 +63,7 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
                 name = map[offset];
             }
 
-            return string.Format(format, name);
+            return name;
         }
 
         private readonly Dictionary<long, string> map = new Dictionary<long, string>();
