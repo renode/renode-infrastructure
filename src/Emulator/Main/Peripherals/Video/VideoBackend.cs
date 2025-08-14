@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -20,6 +20,13 @@ namespace Antmicro.Renode.Backends.Video
             Video = peripheral;
             Video.FrameRendered += HandleFrameRendered;
             Video.ConfigurationChanged += HandleConfigurationChanged;
+        }
+
+        public void Detach()
+        {
+            Video.FrameRendered -= HandleFrameRendered;
+            Video.ConfigurationChanged -= HandleConfigurationChanged;
+            Video = null;
         }
 
         public int Width { get; private set; }

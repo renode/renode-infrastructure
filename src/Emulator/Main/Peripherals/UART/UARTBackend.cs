@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -48,13 +48,13 @@ namespace Antmicro.Renode.Peripherals.UART
         public void Attach(IUART uart)
         {
             UART = uart;
-            UART.CharReceived += b =>
-            {
-                lock(lockObject)
-                {
-                    history.Enqueue(b);
-                }
-            };
+            UART.CharReceived += EnqueueHistory;
+        }
+
+        public void Detach()
+        {
+            UART.CharReceived -= EnqueueHistory;
+            UART = null;
         }
 
         public void BindAnalyzer(IOProvider io)
@@ -120,6 +120,14 @@ namespace Antmicro.Renode.Peripherals.UART
         public IUART UART { get; private set; }
 
         public IAnalyzable AnalyzableElement { get { return UART; } }
+
+        private void EnqueueHistory(byte b)
+        {
+            lock(lockObject)
+            {
+                history.Enqueue(b);
+            }
+        }
 
         private void ByteRead(int b)
         {
