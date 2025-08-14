@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -45,13 +45,13 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
         public string ToString(long offset, string format)
         {
             string name;
-            if (!map.ContainsKey(offset))
+            if(!map.ContainsKey(offset))
             {
                 var closestCandidates = map.Keys.Where(k => k < offset).ToList();
-                if (closestCandidates.Count > 0)
+                if(closestCandidates.Count > 0)
                 {
                     var closest = closestCandidates.Max();
-                    name = string.Format("{0}+0x{1:x}", map[closest], offset - closest);
+                    name = $"{map[closest]}+0x{offset - closest:x}";
                 }
                 else
                 {
