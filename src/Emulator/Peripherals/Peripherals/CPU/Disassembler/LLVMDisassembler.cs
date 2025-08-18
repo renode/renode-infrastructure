@@ -127,6 +127,7 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
                 case "sparc":
                 case "i386":
                 case "x86_64":
+                case "xtensa":
                     HexFormatter = FormatHexForx86;
                     break;
                 case "riscv64":
