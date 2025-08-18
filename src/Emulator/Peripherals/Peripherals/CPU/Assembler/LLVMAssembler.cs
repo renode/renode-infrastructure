@@ -9,6 +9,7 @@ using System;
 using System.Runtime.InteropServices;
 
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.CPU.Assembler
 {
@@ -29,6 +30,11 @@ namespace Antmicro.Renode.Peripherals.CPU.Assembler
             // We need to initialize the architecture to be used before trying to assemble.
             // It's OK and cheap to initialize it multiple times, as this only sets a few pointers.
             init_llvm_architecture(triple);
+            if(!xtensaSupportWarningIssued && triple == "xtensa")
+            {
+                Logger.Log(LogLevel.Warning, "The assembler for Xtensa is currently an experimental feature in Renode");
+                xtensaSupportWarningIssued = true;
+            }
             bool ok;
             IntPtr output;
             IntPtr outLen;
@@ -61,6 +67,8 @@ namespace Antmicro.Renode.Peripherals.CPU.Assembler
 
         [DllImport("libllvm-disas")]
         private static extern void llvm_free_asm_result(IntPtr result);
+
+        private static bool xtensaSupportWarningIssued = false;
 
         private readonly ICPU cpu;
     }

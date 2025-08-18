@@ -72,6 +72,8 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
             return sofar;
         }
 
+        private static bool xtensaSupportWarningIssued = false;
+
         private IDisassembler GetDisassembler(uint flags)
         {
             LLVMArchitectureMapping.GetTripleAndModelKey(cpu, ref flags, out var triple, out var model);
@@ -79,6 +81,11 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
             if(!cache.ContainsKey(key))
             {
                 IDisassembler disas = new LLVMDisasWrapper(model, triple, flags);
+                if(!xtensaSupportWarningIssued && triple == "xtensa")
+                {
+                    Logger.Log(LogLevel.Warning, "The disassembler for Xtensa is currently an experimental feature in Renode");
+                    xtensaSupportWarningIssued = true;
+                }
                 if(cpu.Architecture == "arm-m")
                 {
                     disas = new CortexMDisassemblerWrapper(disas);
