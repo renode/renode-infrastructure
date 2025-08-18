@@ -1362,6 +1362,10 @@ namespace Antmicro.Renode.Core
             var firstUnread = firstUnbroadcastedDirtyAddressIndex.Values.Min();
             if(firstUnread == 0)
             {
+                var laggingCPUNames = firstUnbroadcastedDirtyAddressIndex.Where(pair => pair.Value == 0).Select(pair => pair.Key.GetName());
+                cpu.DebugLog(
+                    "Attempted reduction of {0} dirty addresses list failed, current count: {1}, CPUs that didn't fetch any: {2}",
+                    cpu.Architecture, invalidatedAddressesByCpu[cpu].Count, string.Join(", ", laggingCPUNames));
                 return;
             }
 
