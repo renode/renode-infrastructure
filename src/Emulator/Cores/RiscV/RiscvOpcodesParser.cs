@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -94,6 +94,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             { BaseRiscV.InstructionSet.M, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rv32m" } },
             { BaseRiscV.InstructionSet.A, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rv32a" } },
             { BaseRiscV.InstructionSet.F, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rv32f" } },
+            { BaseRiscV.InstructionSet.B, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rv32b" } },
             { BaseRiscV.InstructionSet.D, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rv32d", "Antmicro.Renode.Cores.RiscV.Opcodes.Rv32d-zfh" } },
             { BaseRiscV.InstructionSet.C, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rvc", "Antmicro.Renode.Cores.RiscV.Opcodes.Rv32c" } },
             { BaseRiscV.InstructionSet.V, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rvv", "Antmicro.Renode.Cores.RiscV.Opcodes.Rvv-pseudo" } },
@@ -107,6 +108,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             { BaseRiscV.InstructionSet.M, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rv32m", "Antmicro.Renode.Cores.RiscV.Opcodes.Rv64m" } },
             { BaseRiscV.InstructionSet.A, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rv32a", "Antmicro.Renode.Cores.RiscV.Opcodes.Rv64a" } },
             { BaseRiscV.InstructionSet.F, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rv32f", "Antmicro.Renode.Cores.RiscV.Opcodes.Rv64f" } },
+            { BaseRiscV.InstructionSet.B, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rv32b", "Antmicro.Renode.Cores.RiscV.Opcodes.Rv64b" } },
             { BaseRiscV.InstructionSet.D, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rv32d", "Antmicro.Renode.Cores.RiscV.Opcodes.Rv64d" } },
             { BaseRiscV.InstructionSet.C, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rvc", "Antmicro.Renode.Cores.RiscV.Opcodes.Rv64c" } },
             { BaseRiscV.InstructionSet.V, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rvv", "Antmicro.Renode.Cores.RiscV.Opcodes.Rvv-pseudo" } },
