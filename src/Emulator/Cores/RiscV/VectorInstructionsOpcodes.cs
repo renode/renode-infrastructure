@@ -10,7 +10,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     {
         public static void EnableVectorOpcodesCounting(this BaseRiscV cpu)
         {
-            cpu.EnableRiscvOpcodesCounting(BaseRiscV.InstructionSet.V);
+            cpu.EnableRiscvOpcodesCountingByExtension(BaseRiscV.InstructionSet.V);
         }
     }
 }

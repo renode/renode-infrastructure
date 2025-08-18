@@ -32,7 +32,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             foreach(var set in cpu.ArchitectureSets)
             {
-                cpu.EnableRiscvOpcodesCounting(set);
+                cpu.EnableRiscvOpcodesCountingByExtension(set);
             }
         }
 
@@ -53,7 +53,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             return assembly.GetManifestResourceNames().Where(x => x.StartsWith(ResourceNamePrefix)).Select(x => x.Substring(ResourceNamePrefix.Length + 1));
         }
 
-        public static void EnableRiscvOpcodesCounting(this BaseRiscV cpu, BaseRiscV.InstructionSet instructionSet)
+        public static void EnableRiscvOpcodesCountingByExtension(this BaseRiscV cpu, BaseRiscV.InstructionSet instructionSet)
         {
             Dictionary<BaseRiscV.InstructionSet, IEnumerable<string>> map = null;
             if(cpu.Architecture == "riscv")
