@@ -245,6 +245,14 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public void RegisterCustomInternalInterrupt(ulong id, bool mipTriggered = false, bool sipTriggered = false)
+        {
+            if(TlibInstallCustomInterrupt(id, mipTriggered, sipTriggered) == -1)
+            {
+                throw new ConstructionException($"Failed to install custom internal interrupt because it clashes with a standard interrupt. Id {id}");
+            }
+        }
+
         public void SilenceUnsupportedInstructionSet(InstructionSet set, bool silent = true)
         {
             TlibMarkFeatureSilent((uint)set, silent ? 1 : 0u);
@@ -347,6 +355,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         public void ClicPresentInterrupt(int index, bool vectored, int level, PrivilegeLevel mode)
         {
             TlibSetClicInterruptState(index, vectored ? 1u : 0, (uint)level, (uint)mode);
+        }
+
+        public void RaiseInterrupt(uint interruptId)
+        {
+            TlibRaiseInterrupt(interruptId);
         }
 
         public CSRValidationLevel CSRValidation
@@ -879,7 +892,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private readonly Action<bool>[] postGprAccessHooks;
 
         // 649:  Field '...' is never assigned to, and will always have its default value null
-#pragma warning disable 649
+    #pragma warning disable 649
         [Import]
         private Action<uint> TlibAllowFeature;
 
@@ -915,6 +928,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import(Name="tlib_install_custom_csr")]
         private Func<ulong, int> TlibInstallCustomCSR;
+
+        [Import]
+        private Func<ulong, bool, bool, int> TlibInstallCustomInterrupt;
+
+        [Import]
+        private Action<uint> TlibRaiseInterrupt;
 
         [Import]
         private Action<uint, uint> TlibMarkFeatureSilent;
@@ -970,7 +989,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Import]
         private Action<int, uint, uint, uint> TlibSetClicInterruptState;
 
-#pragma warning restore 649
+    #pragma warning restore 649
 
         private readonly Dictionary<ulong, string> InterruptDescriptionsMap = new Dictionary<ulong, string>
         {
@@ -1264,8 +1283,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             private void ValidateInstructionSetForBaseE()
             {
-                if(instructionSets.Contains(InstructionSet.E) 
-                    && (instructionSets.Any(x => (x != InstructionSet.E) 
+                if(instructionSets.Contains(InstructionSet.E)
+                    && (instructionSets.Any(x => (x != InstructionSet.E)
                                                 && (x != InstructionSet.M)
                                                 && (x != InstructionSet.A)
                                                 && (x != InstructionSet.C))))
