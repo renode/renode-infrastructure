@@ -427,7 +427,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             registerMap.Add((long)Registers.CortexM33Config3, new DoubleWordRegister(this, 0x10018000)
                 .WithReservedBits(0, 7)
-                .WithTag("INITNSVTOR", 7, 25)
+                .WithValueField(7, 25, out cortexM33ResetVectorNonSecure, name: "INITNSVTOR")
             );
 
             registerMap.Add((long)Registers.CortexM33Lock, new DoubleWordRegister(this)
@@ -977,12 +977,15 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private IValueRegisterField cortexA55Core1ResetVectorLow;
         private IValueRegisterField cortexA55Core1ResetVectorHigh;
 
+        private IValueRegisterField cortexM33ResetVectorNonSecure;
+
         private readonly RenesasRZG_Watchdog[] watchdogs = new RenesasRZG_Watchdog[MaxWatchdogCount];
 
         private readonly ICPU cpu0;
         private readonly ICPU cpu1;
 
         private const int NrOfCa55Clocks = 13;
+        private const int NrOfCm33Clocks = 2;
         private const int NrOfGicClocks = 2;
         private const int NrOfIA55Clocks = 2;
         private const int NrOfMhuClocks = 1;
@@ -1023,6 +1026,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             // Clock Control
             ClockControlCA55                           = 0x500 + CPGOffset, // CPG_CLKON_CA55
+            ClockControlCM33                           = 0x504 + CPGOffset, // CPG_CLKON_CM33
             ClockControlGIC                            = 0x514 + CPGOffset, // CPG_CLKON_GIC600
             ClockControlIA55                           = 0x518 + CPGOffset, // CPG_CLKON_IA55
             ClockControlMHU                            = 0x520 + CPGOffset, // CPG_CLKON_MHU
@@ -1036,6 +1040,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             // Clock Monitor
             ClockMonitorCA55                           = 0x680 + CPGOffset, // CPG_CLMON_CA55
+            ClockMonitorCM33                           = 0x684 + CPGOffset, // CPG_CLKMON_CM33
             ClockMonitorGIC                            = 0x694 + CPGOffset, // CPG_CLKMON_GIC600
             ClockMonitorIA55                           = 0x698 + CPGOffset, // CPG_CLKMON_IA55
             ClockMonitorMHU                            = 0x6A0 + CPGOffset, // CPG_CLMON_MHU
@@ -1049,6 +1054,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             // Reset Control
             ResetControlCA55                           = 0x800 + CPGOffset, // CPG_RST_CA55
+            ResetControlCM33                           = 0x804 + CPGOffset, // CPG_RST_CM33
             ResetControlGIC                            = 0x814 + CPGOffset, // CPG_RST_GIC600
             ResetControlIA55                           = 0x818 + CPGOffset, // CPG_RST_IA55
             ResetControlMHU                            = 0x820 + CPGOffset, // CPG_RST_MHU
@@ -1062,6 +1068,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             // Reset Monitor
             ResetMonitorCA55                           = 0x980 + CPGOffset, // CPG_RSTMON_CA55
+            ResetMonitorCM33                           = 0x984 + CPGOffset, // CPG_RSTMON_CM33
             ResetMonitorGIC                            = 0x994 + CPGOffset, // CPG_RSTMON_GIC600
             ResetMonitorIA55                           = 0x998 + CPGOffset, // CPG_RSTMON_IA55
             ResetMonitorMHU                            = 0x9A0 + CPGOffset, // CPG_RSTMON_MHU
