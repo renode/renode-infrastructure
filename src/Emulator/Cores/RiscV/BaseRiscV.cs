@@ -598,6 +598,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         protected abstract byte MostSignificantBit { get; }
 
+        [Import]
+        protected Action<uint, uint> TlibSetMipBit;
+
         private static void ReportInvalidCustomInstructionFormat(ulong pattern, int bitsLength, string format)
         {
             throw new RecoverableException($"Pattern 0x{pattern:X} is invalid for {bitsLength} bits long instruction. Expected instruction in format: {format}");
@@ -892,7 +895,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private readonly Action<bool>[] postGprAccessHooks;
 
         // 649:  Field '...' is never assigned to, and will always have its default value null
-    #pragma warning disable 649
+#pragma warning disable 649
         [Import]
         private Action<uint> TlibAllowFeature;
 
@@ -907,9 +910,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import(Name="tlib_set_privilege_architecture")]
         private Action<int> TlibSetPrivilegeArchitecture;
-
-        [Import]
-        private Action<uint, uint> TlibSetMipBit;
 
         [Import]
         private Action<uint> TlibSetHartId;
