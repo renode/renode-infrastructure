@@ -1,34 +1,18 @@
 ﻿//
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 //  This file is licensed under the MIT License.
 //  Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Threading;
+using Antmicro.Renode.Core;
 
 namespace Antmicro.Renode.Debugging
 {
-    public class IdentifiableObject : IIdentifiable
-    {
+    public class IdentifiableObject
 #if DEBUG
-        public IdentifiableObject()
-        {
-            uniqueObjectId = Interlocked.Increment(ref IdCounter);
-        }
-
-        public int UniqueObjectId
-        {
-            get { return uniqueObjectId; }
-        }
-
-        public override string ToString()
-        {
-            return $"[IdentifiableObject: {uniqueObjectId}]";
-        }
-
-        private int uniqueObjectId;
-
-        private static int IdCounter = 0;
+        : Core.IdentifiableObject
 #endif
+    {
     }
 }

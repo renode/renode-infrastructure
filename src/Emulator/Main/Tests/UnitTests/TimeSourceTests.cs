@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -19,6 +19,8 @@ using Antmicro.Renode.EventRecording;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Logging;
+
+using IdentifiableObject = Antmicro.Renode.Debugging.IdentifiableObject;
 
 namespace UnitTests
 {

@@ -15,6 +15,8 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
 using Antmicro.Migrant;
 
+using IdentifiableObject = Antmicro.Renode.Debugging.IdentifiableObject;
+
 namespace Antmicro.Renode.Time
 {
     /// <summary>

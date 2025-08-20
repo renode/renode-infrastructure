@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -7,7 +7,7 @@
 
 using System;
 using Antmicro.Migrant;
-using Antmicro.Renode.Debugging;
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.CPU
