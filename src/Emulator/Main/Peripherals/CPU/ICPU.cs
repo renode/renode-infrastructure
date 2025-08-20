@@ -15,7 +15,7 @@ using System.Collections.Generic;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public interface ICPU : IPeripheral, IHasOwnLife, IHaltable
+    public interface ICPU : IPeripheral, IHasOwnLife, IHaltable, IIdentifiable
     {
         string Architecture { get; }
         uint MultiprocessingId { get; }
