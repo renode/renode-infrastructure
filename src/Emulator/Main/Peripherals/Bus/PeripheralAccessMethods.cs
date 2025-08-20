@@ -104,6 +104,104 @@ namespace Antmicro.Renode.Peripherals.Bus
             AllTranslationsEnabled = enable;
         }
 
+        public void WrapMethods(Type readWrapperType, Type writeWrapperType)
+        {
+            // Make closed types by binding generic parameters of the wrapper classes
+            var byteReadWrapperType = readWrapperType.MakeGenericType(new [] {typeof(byte)});
+            var wordReadWrapperType = readWrapperType.MakeGenericType(new [] {typeof(ushort)});
+            var doubleWordReadWrapperType = readWrapperType.MakeGenericType(new [] {typeof(uint)});
+            var quadWordReadWrapperType = readWrapperType.MakeGenericType(new [] {typeof(ulong)});
+            var byteWriteWrapperType = writeWrapperType.MakeGenericType(new [] {typeof(byte)});
+            var wordWriteWrapperType = writeWrapperType.MakeGenericType(new [] {typeof(ushort)});
+            var doubleWordWriteWrapperType = writeWrapperType.MakeGenericType(new [] {typeof(uint)});
+            var quadWordWriteWrapperType = writeWrapperType.MakeGenericType(new [] {typeof(ulong)});
+
+            // Prepare argument lists for each type's constructor
+            var byteReadWrapperArgs = new object[] {Peripheral, new Func<long, byte>(ReadByte)};
+            var wordReadWrapperArgs = new object[] {Peripheral, new Func<long, ushort>(ReadWord)};
+            var doubleWordReadWrapperArgs = new object[] {Peripheral, new Func<long, uint>(ReadDoubleWord)};
+            var quadWordReadWrapperArgs = new object[] {Peripheral, new Func<long, ulong>(ReadQuadWord)};
+            var byteWriteWrapperArgs = new object[] {Peripheral, new Action<long, byte>(WriteByte)};
+            var wordWriteWrapperArgs = new object[] {Peripheral, new Action<long, ushort>(WriteWord)};
+            var doubleWordWriteWrapperArgs = new object[] {Peripheral, new Action<long, uint>(WriteDoubleWord)};
+            var quadWordWriteWrapperArgs = new object[] {Peripheral, new Action<long, ulong>(WriteQuadWord)};
+
+            // Instantiate each type
+            var byteReadWrapperObj = (ReadHookWrapper<byte>)Activator.CreateInstance(byteReadWrapperType, byteReadWrapperArgs);
+            var wordReadWrapperObj = (ReadHookWrapper<ushort>)Activator.CreateInstance(wordReadWrapperType, wordReadWrapperArgs);
+            var doubleWordReadWrapperObj = (ReadHookWrapper<uint>)Activator.CreateInstance(doubleWordReadWrapperType, doubleWordReadWrapperArgs);
+            var quadWordReadWrapperObj = (ReadHookWrapper<ulong>)Activator.CreateInstance(quadWordReadWrapperType, quadWordReadWrapperArgs);
+            var byteWriteWrapperObj = (WriteHookWrapper<byte>)Activator.CreateInstance(byteWriteWrapperType, byteWriteWrapperArgs);
+            var wordWriteWrapperObj = (WriteHookWrapper<ushort>)Activator.CreateInstance(wordWriteWrapperType, wordWriteWrapperArgs);
+            var doubleWordWriteWrapperObj = (WriteHookWrapper<uint>)Activator.CreateInstance(doubleWordWriteWrapperType, doubleWordWriteWrapperArgs);
+            var quadWordWriteWrapperObj = (WriteHookWrapper<ulong>)Activator.CreateInstance(quadWordWriteWrapperType, quadWordWriteWrapperArgs);
+
+            // Replace methods with wrapped versions
+            ReadByte = new BusAccess.ByteReadMethod(byteReadWrapperObj.Read);
+            ReadWord = new BusAccess.WordReadMethod(wordReadWrapperObj.Read);
+            ReadDoubleWord = new BusAccess.DoubleWordReadMethod(doubleWordReadWrapperObj.Read);
+            ReadQuadWord = new BusAccess.QuadWordReadMethod(quadWordReadWrapperObj.Read);
+            WriteByte = new BusAccess.ByteWriteMethod(byteWriteWrapperObj.Write);
+            WriteWord = new BusAccess.WordWriteMethod(wordWriteWrapperObj.Write);
+            WriteDoubleWord = new BusAccess.DoubleWordWriteMethod(doubleWordWriteWrapperObj.Write);
+            WriteQuadWord = new BusAccess.QuadWordWriteMethod(quadWordWriteWrapperObj.Write);
+        }
+
+        public Tuple<Type, Type> UnwrapMethods()
+        {
+            var readWrapperType = ReadByte.Target.GetType().GetGenericTypeDefinition();
+            var writeWrapperType = WriteByte.Target.GetType().GetGenericTypeDefinition();
+            ReadByte = (BusAccess.ByteReadMethod)(((ReadHookWrapper<byte>)ReadByte.Target).OriginalMethod).Target;
+            ReadWord = (BusAccess.WordReadMethod)(((ReadHookWrapper<ushort>)ReadWord.Target).OriginalMethod).Target;
+            ReadDoubleWord = (BusAccess.DoubleWordReadMethod)(((ReadHookWrapper<uint>)ReadDoubleWord.Target).OriginalMethod).Target;
+            ReadQuadWord = (BusAccess.QuadWordReadMethod)(((ReadHookWrapper<ulong>)ReadQuadWord.Target).OriginalMethod).Target;
+            WriteByte = (BusAccess.ByteWriteMethod)(((WriteHookWrapper<byte>)WriteByte.Target).OriginalMethod).Target;
+            WriteWord = (BusAccess.WordWriteMethod)(((WriteHookWrapper<ushort>)WriteWord.Target).OriginalMethod).Target;
+            WriteDoubleWord = (BusAccess.DoubleWordWriteMethod)(((WriteHookWrapper<uint>)WriteDoubleWord.Target).OriginalMethod).Target;
+            WriteQuadWord = (BusAccess.QuadWordWriteMethod)(((WriteHookWrapper<ulong>)WriteQuadWord.Target).OriginalMethod).Target;
+            return new Tuple<Type, Type>(readWrapperType, writeWrapperType);
+        }
+
+        public void RemoveWrappersOfType(Type readWrapperType, Type writeWrapperType)
+        {
+            var wrapperStack = new Stack<Tuple<Type, Type>>();
+
+            while(ReadByte.Target is HookWrapper)
+            {
+                if(readWrapperType == ReadByte.Target.GetType().GetGenericTypeDefinition()
+                    && writeWrapperType == WriteByte.Target.GetType().GetGenericTypeDefinition())
+                {
+                    UnwrapMethods();
+                    continue;
+                }
+
+                wrapperStack.Push(UnwrapMethods());
+            }
+
+            while(wrapperStack.Count != 0)
+            {
+                var t = wrapperStack.Pop();
+                WrapMethods(t.Item1, t.Item2);
+            }
+        }
+
+        public bool AllTranslationsEnabled { get; private set; }
+
+        private static void SetReadOrWriteMethod<TR, TW>(MethodInfo i, object obj, BusAccess.Operation operation, ref TR readMethod, ref TW writeMethod)
+        {
+            switch(operation)
+            {
+            case BusAccess.Operation.Read:
+                readMethod = (TR)(object)i.CreateDelegate(typeof(TR), obj);
+                break;
+            case BusAccess.Operation.Write:
+                writeMethod = (TW)(object)i.CreateDelegate(typeof(TW), obj);
+                break;
+            default:
+                throw new ArgumentException(string.Format("Unsupported access operation: {0}", operation));
+            }
+        }
+
         private void BuildMissingAccesses(Endianess endianess)
         {
             DebugHelper.Assert(!(ReadByte.Target is HookWrapper));
@@ -228,104 +326,6 @@ namespace Antmicro.Renode.Peripherals.Bus
                 quadWordAccessTranslationEnabledDynamically = false;
                 ReadQuadWord = Peripheral.ReadQuadWordNotTranslated;
                 WriteQuadWord = Peripheral.WriteQuadWordNotTranslated;
-            }
-        }
-
-        public void WrapMethods(Type readWrapperType, Type writeWrapperType)
-        {
-            // Make closed types by binding generic parameters of the wrapper classes
-            var byteReadWrapperType = readWrapperType.MakeGenericType(new [] {typeof(byte)});
-            var wordReadWrapperType = readWrapperType.MakeGenericType(new [] {typeof(ushort)});
-            var doubleWordReadWrapperType = readWrapperType.MakeGenericType(new [] {typeof(uint)});
-            var quadWordReadWrapperType = readWrapperType.MakeGenericType(new [] {typeof(ulong)});
-            var byteWriteWrapperType = writeWrapperType.MakeGenericType(new [] {typeof(byte)});
-            var wordWriteWrapperType = writeWrapperType.MakeGenericType(new [] {typeof(ushort)});
-            var doubleWordWriteWrapperType = writeWrapperType.MakeGenericType(new [] {typeof(uint)});
-            var quadWordWriteWrapperType = writeWrapperType.MakeGenericType(new [] {typeof(ulong)});
-
-            // Prepare argument lists for each type's constructor
-            var byteReadWrapperArgs = new object[] {Peripheral, new Func<long, byte>(ReadByte)};
-            var wordReadWrapperArgs = new object[] {Peripheral, new Func<long, ushort>(ReadWord)};
-            var doubleWordReadWrapperArgs = new object[] {Peripheral, new Func<long, uint>(ReadDoubleWord)};
-            var quadWordReadWrapperArgs = new object[] {Peripheral, new Func<long, ulong>(ReadQuadWord)};
-            var byteWriteWrapperArgs = new object[] {Peripheral, new Action<long, byte>(WriteByte)};
-            var wordWriteWrapperArgs = new object[] {Peripheral, new Action<long, ushort>(WriteWord)};
-            var doubleWordWriteWrapperArgs = new object[] {Peripheral, new Action<long, uint>(WriteDoubleWord)};
-            var quadWordWriteWrapperArgs = new object[] {Peripheral, new Action<long, ulong>(WriteQuadWord)};
-
-            // Instantiate each type
-            var byteReadWrapperObj = (ReadHookWrapper<byte>)Activator.CreateInstance(byteReadWrapperType, byteReadWrapperArgs);
-            var wordReadWrapperObj = (ReadHookWrapper<ushort>)Activator.CreateInstance(wordReadWrapperType, wordReadWrapperArgs);
-            var doubleWordReadWrapperObj = (ReadHookWrapper<uint>)Activator.CreateInstance(doubleWordReadWrapperType, doubleWordReadWrapperArgs);
-            var quadWordReadWrapperObj = (ReadHookWrapper<ulong>)Activator.CreateInstance(quadWordReadWrapperType, quadWordReadWrapperArgs);
-            var byteWriteWrapperObj = (WriteHookWrapper<byte>)Activator.CreateInstance(byteWriteWrapperType, byteWriteWrapperArgs);
-            var wordWriteWrapperObj = (WriteHookWrapper<ushort>)Activator.CreateInstance(wordWriteWrapperType, wordWriteWrapperArgs);
-            var doubleWordWriteWrapperObj = (WriteHookWrapper<uint>)Activator.CreateInstance(doubleWordWriteWrapperType, doubleWordWriteWrapperArgs);
-            var quadWordWriteWrapperObj = (WriteHookWrapper<ulong>)Activator.CreateInstance(quadWordWriteWrapperType, quadWordWriteWrapperArgs);
-
-            // Replace methods with wrapped versions
-            ReadByte = new BusAccess.ByteReadMethod(byteReadWrapperObj.Read);
-            ReadWord = new BusAccess.WordReadMethod(wordReadWrapperObj.Read);
-            ReadDoubleWord = new BusAccess.DoubleWordReadMethod(doubleWordReadWrapperObj.Read);
-            ReadQuadWord = new BusAccess.QuadWordReadMethod(quadWordReadWrapperObj.Read);
-            WriteByte = new BusAccess.ByteWriteMethod(byteWriteWrapperObj.Write);
-            WriteWord = new BusAccess.WordWriteMethod(wordWriteWrapperObj.Write);
-            WriteDoubleWord = new BusAccess.DoubleWordWriteMethod(doubleWordWriteWrapperObj.Write);
-            WriteQuadWord = new BusAccess.QuadWordWriteMethod(quadWordWriteWrapperObj.Write);
-        }
-
-        public Tuple<Type, Type> UnwrapMethods()
-        {
-            var readWrapperType = ReadByte.Target.GetType().GetGenericTypeDefinition();
-            var writeWrapperType = WriteByte.Target.GetType().GetGenericTypeDefinition();
-            ReadByte = (BusAccess.ByteReadMethod)(((ReadHookWrapper<byte>)ReadByte.Target).OriginalMethod).Target;
-            ReadWord = (BusAccess.WordReadMethod)(((ReadHookWrapper<ushort>)ReadWord.Target).OriginalMethod).Target;
-            ReadDoubleWord = (BusAccess.DoubleWordReadMethod)(((ReadHookWrapper<uint>)ReadDoubleWord.Target).OriginalMethod).Target;
-            ReadQuadWord = (BusAccess.QuadWordReadMethod)(((ReadHookWrapper<ulong>)ReadQuadWord.Target).OriginalMethod).Target;
-            WriteByte = (BusAccess.ByteWriteMethod)(((WriteHookWrapper<byte>)WriteByte.Target).OriginalMethod).Target;
-            WriteWord = (BusAccess.WordWriteMethod)(((WriteHookWrapper<ushort>)WriteWord.Target).OriginalMethod).Target;
-            WriteDoubleWord = (BusAccess.DoubleWordWriteMethod)(((WriteHookWrapper<uint>)WriteDoubleWord.Target).OriginalMethod).Target;
-            WriteQuadWord = (BusAccess.QuadWordWriteMethod)(((WriteHookWrapper<ulong>)WriteQuadWord.Target).OriginalMethod).Target;
-            return new Tuple<Type, Type>(readWrapperType, writeWrapperType);
-        }
-
-        public void RemoveWrappersOfType(Type readWrapperType, Type writeWrapperType)
-        {
-            var wrapperStack = new Stack<Tuple<Type, Type>>();
-
-            while(ReadByte.Target is HookWrapper)
-            {
-                if(readWrapperType == ReadByte.Target.GetType().GetGenericTypeDefinition()
-                    && writeWrapperType == WriteByte.Target.GetType().GetGenericTypeDefinition())
-                {
-                    UnwrapMethods();
-                    continue;
-                }
-
-                wrapperStack.Push(UnwrapMethods());
-            }
-
-            while(wrapperStack.Count != 0)
-            {
-                var t = wrapperStack.Pop();
-                WrapMethods(t.Item1, t.Item2);
-            }
-        }
-
-        public bool AllTranslationsEnabled { get; private set; }
-
-        private static void SetReadOrWriteMethod<TR, TW>(MethodInfo i, object obj, BusAccess.Operation operation, ref TR readMethod, ref TW writeMethod)
-        {
-            switch(operation)
-            {
-            case BusAccess.Operation.Read:
-                readMethod = (TR)(object)i.CreateDelegate(typeof(TR), obj);
-                break;
-            case BusAccess.Operation.Write:
-                writeMethod = (TW)(object)i.CreateDelegate(typeof(TW), obj);
-                break;
-            default:
-                throw new ArgumentException(string.Format("Unsupported access operation: {0}", operation));
             }
         }
 
