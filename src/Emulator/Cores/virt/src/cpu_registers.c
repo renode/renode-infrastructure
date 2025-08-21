@@ -154,29 +154,29 @@ EXC_VOID_2(kvm_set_register_value_32, int, reg_number, uint64_t, value)
 
 #define GET_FIELD(val, offset, width) ((uint8_t)(((val) >> (offset)) & (0xff >> (8 - (width)))))
 
-#define SECTOR_DESCRIPTOR_SETTER(name) \
-    void kvm_set_##name##_descriptor(uint64_t base, uint32_t limit, uint16_t selector, uint32_t flags) \
-    { \
-        struct kvm_sregs *sregs = &(cpu->sregs); \
-        if (cpu->sregs_state == CLEAR) { \
-            get_sregs(sregs); \
-        } \
-\
-        sregs->name.base = base; \
-        sregs->name.limit = limit; \
-        sregs->name.selector = selector; \
-        sregs->name.type = GET_FIELD(flags, 8, 4); \
-        sregs->name.present = GET_FIELD(flags, 15, 1); \
-        sregs->name.dpl = GET_FIELD(flags, 13, 2); \
-        sregs->name.db = GET_FIELD(flags, 22, 1); \
-        sregs->name.s = GET_FIELD(flags, 12, 1); \
-        sregs->name.l = GET_FIELD(flags, 21, 1); \
-        sregs->name.g = GET_FIELD(flags, 23, 1); \
-        sregs->name.avl = GET_FIELD(flags, 20, 1); \
-\
-        cpu->sregs_state = DIRTY; \
-    } \
-\
+#define SECTOR_DESCRIPTOR_SETTER(name)                                                                              \
+    void kvm_set_##name##_descriptor(uint64_t base, uint32_t limit, uint16_t selector, uint32_t flags)              \
+    {                                                                                                               \
+        struct kvm_sregs *sregs = &(cpu->sregs);                                                                    \
+        if (cpu->sregs_state == CLEAR) {                                                                            \
+            get_sregs(sregs);                                                                                       \
+        }                                                                                                           \
+                                                                                                                    \
+        sregs->name.base = base;                                                                                    \
+        sregs->name.limit = limit;                                                                                  \
+        sregs->name.selector = selector;                                                                            \
+        sregs->name.type = GET_FIELD(flags, 8, 4);                                                                  \
+        sregs->name.present = GET_FIELD(flags, 15, 1);                                                              \
+        sregs->name.dpl = GET_FIELD(flags, 13, 2);                                                                  \
+        sregs->name.db = GET_FIELD(flags, 22, 1);                                                                   \
+        sregs->name.s = GET_FIELD(flags, 12, 1);                                                                    \
+        sregs->name.l = GET_FIELD(flags, 21, 1);                                                                    \
+        sregs->name.g = GET_FIELD(flags, 23, 1);                                                                    \
+        sregs->name.avl = GET_FIELD(flags, 20, 1);                                                                  \
+                                                                                                                    \
+        cpu->sregs_state = DIRTY;                                                                                   \
+    }                                                                                                               \
+                                                                                                                    \
     EXC_VOID_4(kvm_set_##name##_descriptor, uint64_t, base, uint32_t, limit, uint16_t, selector, uint32_t, flags)
 
 /* Segment descriptor setters
