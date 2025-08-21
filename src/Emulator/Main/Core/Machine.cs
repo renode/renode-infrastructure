@@ -1362,10 +1362,14 @@ namespace Antmicro.Renode.Core
 
         private void TryReduceBroadcastedDirtyAddresses(ICPU cpu)
         {
-            var firstUnread = firstUnbroadcastedDirtyAddressIndex.Values.Min();
+            var sameArchitectureCPUs = firstUnbroadcastedDirtyAddressIndex
+                .Where(pair => pair.Key.Architecture == cpu.Architecture)
+                .ToArray();
+
+            var firstUnread = sameArchitectureCPUs.Select(pair => pair.Value).Min();
             if(firstUnread == 0)
             {
-                var laggingCPUNames = firstUnbroadcastedDirtyAddressIndex.Where(pair => pair.Value == 0).Select(pair => pair.Key.GetName());
+                var laggingCPUNames = sameArchitectureCPUs.Where(pair => pair.Value == 0).Select(pair => pair.Key.GetName());
                 cpu.DebugLog(
                     "Attempted reduction of {0} dirty addresses list failed, current count: {1}, CPUs that didn't fetch any: {2}",
                     cpu.Architecture, invalidatedAddressesByCpu[cpu].Count, string.Join(", ", laggingCPUNames));
@@ -1373,7 +1377,7 @@ namespace Antmicro.Renode.Core
             }
 
             invalidatedAddressesByCpu[cpu].RemoveRange(0, (int)firstUnread);
-            foreach(var key in firstUnbroadcastedDirtyAddressIndex.Keys.ToArray())
+            foreach(var key in sameArchitectureCPUs.Select(pair => pair.Key))
             {
                 firstUnbroadcastedDirtyAddressIndex[key] -= firstUnread;
             }
