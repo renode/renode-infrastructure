@@ -91,6 +91,17 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 ExecutionMode = ExecutionMode.SingleStep;
 
+                // If the TimeHandle is already waiting to be unblocked, it missed
+                // step synchronization phase. Let's interrupt it and go back to step synchronization.
+                // If we don't do so we risk freeze in a scenario when one CPU is already in SingleStep mode.
+                if(TimeHandle.SourceSideActive)
+                {
+                    // It's ok to Interrupt here even if we wouldn't block
+                    // since we will just repeat the time request.
+                    bool success = false;
+                    TimeHandle.Interrupt(ref success);
+                }
+
                 // Starting emulation has to be done after changing ExecutionMode. Otherwise, continuous CPUs won't be waiting for step command.
                 var emulation = EmulationManager.Instance.CurrentEmulation;
                 if(!emulation.IsStarted)
