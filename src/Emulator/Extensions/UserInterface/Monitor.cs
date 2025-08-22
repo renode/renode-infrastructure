@@ -325,7 +325,12 @@ namespace Antmicro.Renode.UserInterface
                         return null;
                     }
                     // replace the last token with the expanded version
-                    var newString = result.Tokens.Take(result.Tokens.Count() - 1).Select(x => x.OriginalValue).Stringify() + lastExpandedToken.OriginalValue + cmd.Substring(cmd.Length - result.UnmatchedCharactersLeft);
+                    var newString = String.Concat(
+                        result.Tokens.Take(result.Tokens.Count() - 1).Select(x => x.OriginalValue).Stringify(),
+                        " ",
+                        lastExpandedToken.OriginalValue,
+                        cmd.Substring(cmd.Length - result.UnmatchedCharactersLeft)
+                    );
                     return Tokenize(newString, writer);
                 }
                 var messages = new StringBuilder();
