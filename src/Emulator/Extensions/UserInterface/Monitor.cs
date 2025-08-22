@@ -594,30 +594,36 @@ namespace Antmicro.Renode.UserInterface
 
         public bool TryCompilePlugin(string[] filenames, ICommandInteraction writer = null)
         {
-            var filename = filenames[0];
             if(writer == null)
             {
                 writer = Interaction;
             }
+
+            // Sort filenames to have consistent order when calculating hash
+            Array.Sort(filenames);
+
             string sha;
             using(var shaComputer = SHA256.Create())
             {
-                using(var f = File.OpenRead(filename))
+                var buffer = new List<byte[]>();
+                foreach(string filename in filenames)
                 {
-                    var bytesSha = shaComputer.ComputeHash(f);
+                    buffer.Add(File.ReadAllBytes(filename));
+                }
 
-                    var strBldr = new StringBuilder(32 * 2);
-                    foreach(var b in bytesSha)
-                    {
-                        strBldr.AppendFormat("{0:X2}", b);
-                    }
-                    sha = strBldr.ToString();
+                var bytesSha = shaComputer.ComputeHash(buffer.SelectMany(x => x).ToArray());
 
-                    if(scannedFilesCache.Contains(sha))
-                    {
-                        writer.WriteLine($"Code from file {filename} has already been compiled. Ignoring...");
-                        return true;
-                    }
+                var strBldr = new StringBuilder(32 * 2);
+                foreach(var b in bytesSha)
+                {
+                    strBldr.AppendFormat("{0:X2}", b);
+                }
+                sha = strBldr.ToString();
+
+                if(scannedFilesCache.Contains(sha))
+                {
+                    writer.WriteLine($"Code from file {filenames} has already been compiled. Ignoring...");
+                    return true;
                 }
             }
 
@@ -626,7 +632,7 @@ namespace Antmicro.Renode.UserInterface
                 if(!EmulationManager.Instance.CompiledFilesCache.TryGetEntryWithSha(sha, out var compiledCode))
                 {
                     var compiler = new AdHocCompiler();
-                    compiledCode = compiler.Compile(new[] { filename });
+                    compiledCode = compiler.Compile(filenames);
                     // Load dynamically compiled assembly to memory. It presents an advantage that next
                     // ad-hoc compiled assembly can reference types from this one without any extra steps.
                     // Therefore "EnsureTypeIsLoaded" call is no necessary as dependencies are already loaded.
