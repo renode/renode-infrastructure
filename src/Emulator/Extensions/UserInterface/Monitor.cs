@@ -325,7 +325,7 @@ namespace Antmicro.Renode.UserInterface
                         return null;
                     }
                     // replace the last token with the expanded version
-                    var newString = result.Tokens.Take(result.Tokens.Count() - 1).Select(x => x.OriginalValue).Stringify() + lastExpandedToken.OriginalValue + cmd.Substring(cmd.Length - result.UnmatchedCharactersLeft);
+                    var newString = result.Tokens.Take(result.Tokens.Count() - 1).Select(x => x.OriginalValue).Stringify() + " " + lastExpandedToken.OriginalValue + cmd.Substring(cmd.Length - result.UnmatchedCharactersLeft);
                     return Tokenize(newString, writer);
                 }
                 var messages = new StringBuilder();
@@ -392,10 +392,9 @@ namespace Antmicro.Renode.UserInterface
                     }
                     reParse = true;
                 }
-
-                var pathToken = token as PathToken;
-                if(pathToken != null)
+                if(token is PathToken)
                 {
+                    var pathToken = token as PathToken;
                     string fileName;
                     if(TryGetFilenameFromAvailablePaths(pathToken.Value, out fileName))
                     {
