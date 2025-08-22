@@ -1913,7 +1913,6 @@
     <Compile Include="Emulator/Main/Peripherals/Miscellaneous/LogicGate.cs" />
     <Compile Include="Emulator/Main/Core/ISimpleManagedThread.cs" />
     <Compile Include="Emulator/Main/Peripherals/UART/UARTRESDFeeder.cs" />
-    <Compile Include="Emulator/Main/Core/AccessConditionParser.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/I2C/PCA9548.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/I2C/TCA6416.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/SPI/ZynqMP_GQSPI.cs" />
