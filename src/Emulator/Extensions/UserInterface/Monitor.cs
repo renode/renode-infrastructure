@@ -325,7 +325,7 @@ namespace Antmicro.Renode.UserInterface
                         return null;
                     }
                     // replace the last token with the expanded version
-                    var newString = result.Tokens.Take(result.Tokens.Count() - 1).Select(x => x.OriginalValue).Stringify() + lastExpandedToken.OriginalValue + cmd.Substring(cmd.Length - result.UnmatchedCharactersLeft);
+                    var newString = result.Tokens.Take(result.Tokens.Count() - 1).Select(x => x.OriginalValue).Stringify() + " " + lastExpandedToken.OriginalValue + cmd.Substring(cmd.Length - result.UnmatchedCharactersLeft);
                     return Tokenize(newString, writer);
                 }
                 var messages = new StringBuilder();
@@ -392,10 +392,9 @@ namespace Antmicro.Renode.UserInterface
                     }
                     reParse = true;
                 }
-
-                var pathToken = token as PathToken;
-                if(pathToken != null)
+                if(token is PathToken)
                 {
+                    var pathToken = token as PathToken;
                     string fileName;
                     if(TryGetFilenameFromAvailablePaths(pathToken.Value, out fileName))
                     {
@@ -592,31 +591,33 @@ namespace Antmicro.Renode.UserInterface
             return DisposableWrapper.New(() => _currentMachine = activeMachine);
         }
 
-        public bool TryCompilePlugin(string filename, ICommandInteraction writer = null)
+        public bool TryCompilePlugin(string[] filenames, ICommandInteraction writer = null)
         {
             if(writer == null)
             {
                 writer = Interaction;
             }
             string sha;
-            using(var shaComputer = SHA256.Create())
+            using (var shaComputer = IncrementalHash.CreateHash(HashAlgorithmName.SHA256))
             {
-                using(var f = File.OpenRead(filename))
+                foreach (string filename in filenames)
                 {
-                    var bytesSha = shaComputer.ComputeHash(f);
+                    shaComputer.AppendData(File.ReadAllBytes(filename));
+                }
 
-                    var strBldr = new StringBuilder(32 * 2);
-                    foreach(var b in bytesSha)
-                    {
-                        strBldr.AppendFormat("{0:X2}", b);
-                    }
-                    sha = strBldr.ToString();
+                var bytesSha = shaComputer.GetHashAndReset();
 
-                    if(scannedFilesCache.Contains(sha))
-                    {
-                        writer.WriteLine($"Code from file {filename} has already been compiled. Ignoring...");
-                        return true;
-                    }
+                var strBldr = new StringBuilder(32 * 2);
+                foreach (var b in bytesSha)
+                {
+                    strBldr.AppendFormat("{0:X2}", b);
+                }
+                sha = strBldr.ToString();
+
+                if (scannedFilesCache.Contains(sha))
+                {
+                    writer.WriteLine($"Code from file {filenames} has already been compiled. Ignoring...");
+                    return true;
                 }
             }
 
@@ -625,7 +626,7 @@ namespace Antmicro.Renode.UserInterface
                 if(!EmulationManager.Instance.CompiledFilesCache.TryGetEntryWithSha(sha, out var compiledCode))
                 {
                     var compiler = new AdHocCompiler();
-                    compiledCode = compiler.Compile(filename);
+                    compiledCode = compiler.Compile(filenames);
                     // Load dynamically compiled assembly to memory. It presents an advantage that next
                     // ad-hoc compiled assembly can reference types from this one without any extra steps.
                     // Therefore "EnsureTypeIsLoaded" call is no necessary as dependencies are already loaded.
