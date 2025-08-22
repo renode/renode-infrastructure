@@ -21,10 +21,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class RenesasRZG_CPG_SYSC : IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize, IPeripheralRegister<RenesasRZG_Watchdog, NumberRegistrationPoint<byte>>
     {
-        public RenesasRZG_CPG_SYSC(ICPU cpu0 = null, ICPU cpu1 = null)
+        public RenesasRZG_CPG_SYSC(ICPU cpu0 = null, ICPU cpu1 = null, CortexM cpu_m33 = null)
         {
             this.cpu0 = cpu0;
             this.cpu1 = cpu1;
+            this.cpuM33 = cpu_m33;
             RegistersCollection = new DoubleWordRegisterCollection(this, BuildRegisterMap());
         }
 
@@ -989,6 +990,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private readonly ICPU cpu0;
         private readonly ICPU cpu1;
+        private readonly CortexM cpuM33;
 
         private const int NrOfCa55Clocks = 6;
         private const int NrOfCm33Clocks = 2;
