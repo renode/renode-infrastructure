@@ -592,8 +592,9 @@ namespace Antmicro.Renode.UserInterface
             return DisposableWrapper.New(() => _currentMachine = activeMachine);
         }
 
-        public bool TryCompilePlugin(string filename, ICommandInteraction writer = null)
+        public bool TryCompilePlugin(string[] filenames, ICommandInteraction writer = null)
         {
+            var filename = filenames[0];
             if(writer == null)
             {
                 writer = Interaction;
