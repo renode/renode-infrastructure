@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -442,9 +442,10 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             ;
 
             Registers.WriteProtectionMode.Define(this)
-                .WithTaggedFlag("WPEN", 0)
+                // Those fields are not tags to silence warnings
+                .WithFlag(0, name: "WPEN")
                 .WithReservedBits(1, 7)
-                .WithTag("WPKEY", 8, 24)
+                .WithValueField(8, 24, name: "WPKEY")
             ;
 
             Registers.WriteProtectionStatus.Define(this)
