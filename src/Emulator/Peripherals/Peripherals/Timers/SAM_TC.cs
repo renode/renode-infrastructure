@@ -259,9 +259,10 @@ namespace Antmicro.Renode.Peripherals.Timers
             ;
 
             Registers.WriteProtectionMode.Define(this)
-                .WithTaggedFlag("WPEN", 0)
+                // Those fields are not tags to silence warnings
+                .WithFlag(0, name: "WPEN")
                 .WithReservedBits(1, 7)
-                .WithTag("WPKEY", 8, 24)
+                .WithValueField(8, 24, name: "WPKEY")
             ;
         }
 
