@@ -146,6 +146,8 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         public MappedMemory UnderlyingMemory => underlyingMemory;
 
+        public byte[] SFDPSignature { get; set; }
+
         // Dummy SFDP header: 0 parameter tables, one empty required
         public virtual byte[] DefaultSFDPSignature { get; } = new byte[]
         {
@@ -689,7 +691,6 @@ namespace Antmicro.Renode.Peripherals.SPI
         private uint temporaryConfiguration; //this should be an ushort, but due to C# type promotions it's easier to use uint
 
         private readonly byte[] deviceData;
-        private readonly byte[] SFDPSignature;
         private readonly IFlagRegisterField enable;
         private readonly ByteRegister flagStatusRegister;
         private readonly IEnumRegisterField<AddressingMode> addressingMode;

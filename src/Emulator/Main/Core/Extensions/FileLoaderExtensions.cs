@@ -14,6 +14,7 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU;
+using Antmicro.Renode.Peripherals.SPI;
 using Antmicro.Renode.Utilities;
 using ELFSharp.ELF.Segments;
 
@@ -394,6 +395,19 @@ namespace Antmicro.Renode.Core.Extensions
 
             chunks = SortAndJoinConsecutiveFileChunks(chunks);
             loader.LoadFileChunks(fileName, chunks, cpu);
+        }
+
+        public static void LoadSFDP(this GenericSpiFlash loader, ReadFilePath fileName)
+        {
+            Logger.LogAs(loader, LogLevel.Debug, "Loading SFDP file {0}.", fileName);
+            try
+            {
+                loader.SFDPSignature = File.ReadAllBytes(fileName);
+            }
+            catch(IOException e)
+            {
+                throw new RecoverableException(string.Format("Exception while loading file {0}: {1}", fileName, e.Message));
+            }
         }
 
         // Name of the last parameter is kept as 'cpu' for backward compatibility.
