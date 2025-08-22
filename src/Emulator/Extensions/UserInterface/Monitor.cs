@@ -625,7 +625,7 @@ namespace Antmicro.Renode.UserInterface
                 if(!EmulationManager.Instance.CompiledFilesCache.TryGetEntryWithSha(sha, out var compiledCode))
                 {
                     var compiler = new AdHocCompiler();
-                    compiledCode = compiler.Compile(filename);
+                    compiledCode = compiler.Compile(new[] { filename });
                     // Load dynamically compiled assembly to memory. It presents an advantage that next
                     // ad-hoc compiled assembly can reference types from this one without any extra steps.
                     // Therefore "EnsureTypeIsLoaded" call is no necessary as dependencies are already loaded.
