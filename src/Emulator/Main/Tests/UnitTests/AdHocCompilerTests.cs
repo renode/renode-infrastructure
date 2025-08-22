@@ -25,7 +25,7 @@ namespace Antmicro.Renode.Utilities
         public void ShouldNotThrowOnEmptyFile()
         {
             var extension = TemporaryFilesManager.Instance.GetTemporaryFile();
-            Assert.DoesNotThrow(() => { file = adhoc.Compile(extension); });
+            Assert.DoesNotThrow(() => { file = adhoc.Compile(new[] { extension }); });
             Assert.IsTrue(manager.ScanFile(file));
         }
 
@@ -35,7 +35,7 @@ namespace Antmicro.Renode.Utilities
             var extension = GetType().Assembly.FromResourceToTemporaryFile("MockExtension.cs");
             var methodsBefore = manager.GetExtensionMethods(typeof(Emulation));
             Assert.IsFalse(methodsBefore.Any(x => x.Name == "GetMockString"));
-            Assert.DoesNotThrow(() => { file = adhoc.Compile(extension); });
+            Assert.DoesNotThrow(() => { file = adhoc.Compile(new[] { extension }); });
             Assert.IsTrue(manager.ScanFile(file));
             var methodsAfter = manager.GetExtensionMethods(typeof(Emulation));
             Assert.IsNotEmpty(methodsAfter);
