@@ -799,6 +799,27 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             DefineRegistersForPeripheral(registerMap, Registers.ClockControlCA55, Registers.ClockMonitorCA55,
                 Registers.ResetControlCA55, Registers.ResetMonitorCA55, NrOfCa55Clocks, NrOfCa55ResetLines);
 
+            DefineRegistersForPeripheral(registerMap, Registers.ClockControlCM33, Registers.ClockMonitorCM33,
+                Registers.ResetControlCM33, Registers.ResetMonitorCM33, NrOfCm33Clocks, NrOfCm33ResetLines);
+            registerMap[(long)Registers.ResetControlCM33].WithWriteCallback((oldVal, newVal) =>
+            {
+                // Check if all reset signals are stopped
+                if(BitHelper.AreAllBitsSet(newVal, 0, NrOfCm33ResetLines))
+                {
+                    if(cpuM33 == null)
+                    {
+                        this.WarningLog("Tried to wake up non-existent Cortex-M core");
+                        return;
+                    }
+                    uint vtorNonSecure = (uint) cortexM33ResetVectorNonSecure.Value << 7;
+
+                    cpuM33.Reset();
+                    cpuM33.VectorTableOffset = vtorNonSecure;
+                    cpuM33.IsHalted = false;
+                    cpuM33.Resume();
+                }
+            });
+
             DefineRegistersForPeripheral(registerMap, Registers.ClockControlGIC, Registers.ClockMonitorGIC,
                 Registers.ResetControlGIC, Registers.ResetMonitorGIC, NrOfGicClocks);
 
