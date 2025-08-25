@@ -31,6 +31,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             : base(cpuId, cpuType, machine, Endianess.LittleEndian, cpuBitness)
         {
             currentMappings = new List<SegmentMappingWithSlotNumber>();
+            InitBinding();
             Init();
             machine.PeripheralsChanged += OnMachinePeripheralsChanged;
         }
@@ -187,13 +188,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override ulong ExecutedInstructions => throw new RecoverableException("ExecutedInstructions property is not implemented");
 
-        /*
-            Increments each time a new translation library resource is created.
-            This counter marks each new instance of a kvm library with a new number, which is used in file names to avoid collisions.
-            It has to survive emulation reset, so the file names remain unique.
-        */
-        protected static int CpuCounter = 0;
-
         protected virtual void InitializeRegisters()
         {
         }
@@ -226,24 +220,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         protected virtual void Init()
         {
-            var libraryResource = $"Antmicro.Renode.kvm-{Architecture}.so";
-            foreach(var assembly in AppDomain.CurrentDomain.GetAssemblies())
-            {
-                if(assembly.TryFromResourceToTemporaryFile(libraryResource, out libraryFile, $"{CpuCounter}-{libraryResource}"))
-                {
-                    break;
-                }
-            }
-
-            Interlocked.Increment(ref CpuCounter);
-
-            if(libraryFile == null)
-            {
-                throw new ConstructionException($"Cannot find library {libraryResource}");
-            }
-
-            binder = new NativeBinder(this, libraryFile);
-
             KvmInit();
         }
 
@@ -419,6 +395,33 @@ namespace Antmicro.Renode.Peripherals.CPU
         protected const ulong IoPortBaseAddress = 0xE0000000;
 
         protected const int MaxRedirectionTableEntries = 24;
+
+        /*
+            Increments each time a new translation library resource is created.
+            This counter marks each new instance of a kvm library with a new number, which is used in file names to avoid collisions.
+            It has to survive emulation reset, so the file names remain unique.
+        */
+        private static int CpuCounter = 0;
+        private void InitBinding()
+        {
+            var libraryResource = $"Antmicro.Renode.kvm-{Architecture}.so";
+            foreach(var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                if(assembly.TryFromResourceToTemporaryFile(libraryResource, out libraryFile, $"{CpuCounter}-{libraryResource}"))
+                {
+                    break;
+                }
+            }
+
+            Interlocked.Increment(ref CpuCounter);
+
+            if(libraryFile == null)
+            {
+                throw new ConstructionException($"Cannot find library {libraryResource}");
+            }
+
+            binder = new NativeBinder(this, libraryFile);
+        }
 
         public enum SegmentDescriptor
         {
