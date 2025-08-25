@@ -2,7 +2,7 @@
 
 #include "cpu.h"
 
-void kvm_abortf(char *fmt, ...);
+void kvm_abortf(const char *fmt, ...);
 
 void get_regs(struct kvm_regs *regs);
 

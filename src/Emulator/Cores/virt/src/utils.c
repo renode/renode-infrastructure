@@ -14,7 +14,7 @@
 #include <sys/ioctl.h>
 #include <errno.h>
 
-void kvm_abortf(char *fmt, ...)
+void kvm_abortf(const char *fmt, ...)
 {
     char result[1024];
     va_list ap;
