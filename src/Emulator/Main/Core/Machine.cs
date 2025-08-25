@@ -1406,12 +1406,12 @@ namespace Antmicro.Renode.Core
         {
             lock(invalidatedAddressesLock)
             {
-                if(!invalidatedAddressesByArchitecture.TryGetValue(cpu.Architecture, out var newInvalidatedAddressesList))
+                if(!invalidatedAddressesByArchitecture.TryGetValue(cpu.Architecture, out var invalidatedAddressesList))
                 {
-                    newInvalidatedAddressesList = new List<long>() { Capacity = InitialDirtyListLength };
-                    invalidatedAddressesByArchitecture.Add(cpu.Architecture, newInvalidatedAddressesList);
+                    invalidatedAddressesList = new List<long>() { Capacity = InitialDirtyListLength };
+                    invalidatedAddressesByArchitecture.Add(cpu.Architecture, invalidatedAddressesList);
                 }
-                invalidatedAddressesByCpu[cpu] = newInvalidatedAddressesList;
+                invalidatedAddressesByCpu[cpu] = invalidatedAddressesList;
             }
         }
 
