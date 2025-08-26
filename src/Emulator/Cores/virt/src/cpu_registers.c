@@ -93,7 +93,7 @@ uint32_t kvm_get_register_value_32(int reg_number)
         ptr = get_reg_pointer_32(&regs, reg_number);
     }
 
-    if(ptr == NULL) {
+    if (ptr == NULL) {
         kvm_abortf("Read from undefined CPU register number %d detected", reg_number);
     }
 
@@ -116,7 +116,7 @@ void kvm_set_register_value_32(int reg_number, uint32_t value)
         ptr = get_reg_pointer_32(&regs, reg_number);
     }
 
-    if(ptr == NULL) {
+    if (ptr == NULL) {
         kvm_abortf("Write to undefined CPU register number %d detected", reg_number);
     }
 
