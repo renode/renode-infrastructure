@@ -15,6 +15,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
+
 using Antmicro.Migrant;
 using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Core.Structure;
@@ -30,7 +31,9 @@ using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Collections;
 using Antmicro.Renode.Utilities.GDB;
+
 using Microsoft.CSharp.RuntimeBinder;
+
 using Monitor = System.Threading.Monitor;
 
 namespace Antmicro.Renode.Core
@@ -1382,6 +1385,21 @@ namespace Antmicro.Renode.Core
             {
                 lock(collectionSync)
                 {
+                    if(peripheral is TranslationCPU cpu)
+                    {
+                        if(cpu.Architecture == null)
+                        {
+                            throw new RecoverableException($"{cpu.Model ?? "Unknown model"}: CPU architecture not provided");
+                        }
+                        invalidatedAddressesByCpu.Remove(cpu);
+                        firstUnbroadcastedDirtyAddressIndex.Remove(cpu);
+
+                        if(!invalidatedAddressesByCpu.Any(pair => pair.Key.Architecture == cpu.Architecture))
+                        {
+                            invalidatedAddressesByArchitecture.Remove(cpu.Architecture);
+                        }
+                    }
+
                     var parents = GetParents(peripheral);
                     if(parents.Count > 1)
                     {
@@ -1429,14 +1447,18 @@ namespace Antmicro.Renode.Core
                     var parentNode = registeredPeripherals.GetNode(parent);
                     parentNode.AddChild(peripheral, registrationPoint);
                     var ownLife = peripheral as IHasOwnLife;
-                    if(peripheral is ICPU cpu)
+                    if(peripheral is TranslationCPU cpu)
                     {
                         if(cpu.Architecture == null)
                         {
                             throw new RecoverableException($"{cpu.Model ?? "Unknown model"}: CPU architecture not provided");
                         }
-                        InitializeInvalidatedAddressesList(cpu);
-                        firstUnbroadcastedDirtyAddressIndex[cpu] = 0;
+
+                        if(architecturesWithBroadcastSupport.Contains(cpu.Architecture))
+                        {
+                            InitializeInvalidatedAddressesList(cpu);
+                            firstUnbroadcastedDirtyAddressIndex[cpu] = 0;
+                        }
                     }
                     if(ownLife != null)
                     {
@@ -1711,13 +1733,19 @@ namespace Antmicro.Renode.Core
 
         public void PostCreationActions()
         {
-            // Enable broadcasting dirty addresses on multicore platforms
-            var cpus = SystemBus.GetCPUs().OfType<ICPUWithMappedMemory>().ToArray();
-            if(cpus.Length > 1)
+            // Enable broadcasting dirty addresses if there are multiple CPUs of an architecture supporting the mechanism.
+            foreach(var architecture in architecturesWithBroadcastSupport)
             {
-                foreach(var cpu in cpus)
+                var translationCPUs = SystemBus.GetCPUs()
+                    .Where(cpu => cpu.Architecture == architecture)
+                    .OfType<TranslationCPU>().ToArray();
+
+                if(translationCPUs.Count() > 1)
                 {
-                    cpu.SetBroadcastDirty(true);
+                    foreach(var cpu in translationCPUs)
+                    {
+                        cpu.SetBroadcastDirty(true);
+                    }
                 }
             }
 
@@ -1730,7 +1758,7 @@ namespace Antmicro.Renode.Core
                     var perCore = registration.RegistrationPoint.Initiator;
                     if(perCore == null)
                     {
-                        cpus = SystemBus.GetCPUs().OfType<ICPUWithMappedMemory>().ToArray();
+                        var cpus = SystemBus.GetCPUs().OfType<ICPUWithMappedMemory>().ToArray();
                         foreach(var cpu in cpus)
                         {
                             cpu.RegisterAccessFlags(range.StartAddress, range.Size, isIoMemory: true);
@@ -1802,12 +1830,22 @@ namespace Antmicro.Renode.Core
 
         /*
          *  Variables used for memory invalidation
+         *  Currently the mechanism only applies to ARM and RISC-V CPUs.
          */
-        private const int InitialDirtyListLength = 1 << 10;
+        private readonly string[] architecturesWithBroadcastSupport = new string[] {
+            "arm",
+            "arm-m",
+            "arm64",
+            "riscv",
+            "riscv64",
+        };
+
         private readonly Dictionary<ICPU, int> firstUnbroadcastedDirtyAddressIndex;
         private readonly Dictionary<ICPU, List<long>> invalidatedAddressesByCpu;
         private readonly Dictionary<string, List<long>> invalidatedAddressesByArchitecture;
         private readonly object invalidatedAddressesLock;
+
+        private const int InitialDirtyListLength = 1 << 10;
 
         private enum State
         {
