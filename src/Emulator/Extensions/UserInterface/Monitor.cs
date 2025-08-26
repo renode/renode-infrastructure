@@ -524,9 +524,10 @@ namespace Antmicro.Renode.UserInterface
                     stringEaterValue = stringEaterValue + cmd;
                     return true;
                 }
-                SetVariable(stringEaterVariableName, null, variableCollections[recordingType.Value]);
+                SetVariable(stringEaterVariableName, new StringToken(cmd), variableCollections[recordingType.Value]);
                 stringEaterValue = "";
                 stringEaterMode = 0;
+                return true;
             }
 
             if(string.IsNullOrWhiteSpace(cmd))
