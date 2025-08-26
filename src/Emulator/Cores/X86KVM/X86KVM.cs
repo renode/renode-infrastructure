@@ -6,18 +6,20 @@
 //
 using System;
 using System.Collections.Generic;
-using Antmicro.Migrant;
 using System.IO;
 using System.Linq;
+using System.Threading;
+
+using Antmicro.Migrant;
 using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Time;
-using Antmicro.Renode.Utilities.Binding;
-using ELFSharp.ELF;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Utilities;
-using System.Threading;
+using Antmicro.Renode.Utilities.Binding;
+
+using ELFSharp.ELF;
 
 using Range = Antmicro.Renode.Core.Range;
 
@@ -149,26 +151,26 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             switch(descriptor)
             {
-                case SegmentDescriptor.CS:
-                    KvmSetCsDescriptor(baseAddress, limit, selector, flags);
-                    break;
-                case SegmentDescriptor.DS:
-                    KvmSetDsDescriptor(baseAddress, limit, selector, flags);
-                    break;
-                case SegmentDescriptor.ES:
-                    KvmSetEsDescriptor(baseAddress, limit, selector, flags);
-                    break;
-                case SegmentDescriptor.SS:
-                    KvmSetSsDescriptor(baseAddress, limit, selector, flags);
-                    break;
-                case SegmentDescriptor.FS:
-                    KvmSetFsDescriptor(baseAddress, limit, selector, flags);
-                    break;
-                case SegmentDescriptor.GS:
-                    KvmSetGsDescriptor(baseAddress, limit, selector, flags);
-                    break;
-                default:
-                    throw new RecoverableException($"Setting the {descriptor} descriptor is not implemented, ignoring");
+            case SegmentDescriptor.CS:
+                KvmSetCsDescriptor(baseAddress, limit, selector, flags);
+                break;
+            case SegmentDescriptor.DS:
+                KvmSetDsDescriptor(baseAddress, limit, selector, flags);
+                break;
+            case SegmentDescriptor.ES:
+                KvmSetEsDescriptor(baseAddress, limit, selector, flags);
+                break;
+            case SegmentDescriptor.SS:
+                KvmSetSsDescriptor(baseAddress, limit, selector, flags);
+                break;
+            case SegmentDescriptor.FS:
+                KvmSetFsDescriptor(baseAddress, limit, selector, flags);
+                break;
+            case SegmentDescriptor.GS:
+                KvmSetGsDescriptor(baseAddress, limit, selector, flags);
+                break;
+            default:
+                throw new RecoverableException($"Setting the {descriptor} descriptor is not implemented, ignoring");
             }
         }
 
@@ -350,8 +352,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             WriteDoubleWordToBus(IoPortBaseAddress + address, value);
         }
 
-        // 649:  Field '...' is never assigned to, and will always have its default value null
-        #pragma warning disable 649
+// 649:  Field '...' is never assigned to, and will always have its default value null
+#pragma warning disable 649
 
         [Import]
         private Action KvmInit;
@@ -395,7 +397,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Import]
         private Action<int, int> KvmSetIrq;
 
-        #pragma warning restore 649
+#pragma warning restore 649
 
         private string libraryFile;
 
@@ -423,12 +425,11 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private class SegmentMappingWithSlotNumber : SegmentMapping
         {
-            public int SlotNumber { get; set; }
-
             public SegmentMappingWithSlotNumber(IMappedSegment segment, int slotNumber) : base(segment)
             {
                 SlotNumber = slotNumber;
             }
+            public int SlotNumber { get; set; }
         }
     }
 }
