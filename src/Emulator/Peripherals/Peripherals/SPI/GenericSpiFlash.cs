@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -64,7 +64,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             this.deviceConfiguration = deviceConfiguration;
 
             deviceData = GetDeviceData();
-            SFDPSignature = GetSFDPSignature();
+            SFDPSignature = DefaultSFDPSignature;
         }
 
         public void OnGPIO(int number, bool value)
@@ -146,6 +146,13 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         public MappedMemory UnderlyingMemory => underlyingMemory;
 
+        // Dummy SFDP header: 0 parameter tables, one empty required
+        public virtual byte[] DefaultSFDPSignature { get; } = new byte[]
+        {
+            0x53, 0x46, 0x44, 0x50, 0x06, 0x01, 0x00, 0xFF,
+            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
+        };
+
         protected virtual void WriteToMemory(byte val)
         {
             if(!TryVerifyWriteToMemory(out var position))
@@ -195,11 +202,6 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
 
             return capacityCode;
-        }
-
-        protected virtual byte[] GetSFDPSignature()
-        {
-            return DefaultSFDPSignature;
         }
 
         protected virtual int GetDummyBytes(Commands command)
@@ -707,13 +709,6 @@ namespace Antmicro.Renode.Peripherals.SPI
         private const byte DefaultExtendedDeviceID = DeviceGeneration << 6;
         private const byte DefaultDeviceConfiguration = 0x0;   // standard
         private const int DefaultSectorSizeKB = 64;
-
-        // Dummy SFDP header: 0 parameter tables, one empty required
-        private readonly byte[] DefaultSFDPSignature = new byte[]
-        {
-            0x53, 0x46, 0x44, 0x50, 0x06, 0x01, 0x00, 0xFF,
-            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
-        };
 
         protected enum Commands : byte
         {
