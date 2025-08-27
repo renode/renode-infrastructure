@@ -43,8 +43,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithTaggedFlag("REQFLAG", 31);
 
             Instance2Registers.XTALOscillatorControl0.Define(collection)
-                .WithTaggedFlag("LP_ENABLE", 0)
-                .WithTaggedFlag("BYPASS_ENABLE", 1)
+                .WithFlag(0, name: "LP_ENABLE")
+                .WithFlag(1, name: "BYPASS_ENABLE")
                 .WithReservedBits(2, 30);
 
             Instance2Registers.OSCBypassClockSourceSelect.Define(collection)
@@ -68,24 +68,24 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(2, 30);
 
             Instance2Registers.MainPLL0Control0.Define(collection, 0x160002)
-                .WithTaggedFlag("BYPASS", 0)
+                .WithFlag(0, name: "BYPASS")
                 .WithTaggedFlag("RESET", 1)
                 .WithReservedBits(2, 11)
                 .WithTaggedFlag("HOLD_RING_OFF_ENA", 13)
                 .WithReservedBits(14, 2)
-                .WithTag("MULT", 16, 8)
+                .WithValueField(16, 8, name: "MULT")
                 .WithReservedBits(24, 8);
 
             Instance2Registers.MainPLL0LockTimeDiv2.Define(collection, 0xCAFE)
-                .WithTag("LOCKTIMEDIV2", 0, 16)
+                .WithValueField(0, 16, name: "LOCKTIMEDIV2")
                 .WithReservedBits(16, 16);
 
             Instance2Registers.MainPLL0Numerator.Define(collection, 0x4DD2F15)
-                .WithTag("NUM", 0, 30)
+                .WithValueField(0, 30, name: "NUM")
                 .WithReservedBits(30, 2);
 
             Instance2Registers.MainPLL0Denominator.Define(collection, 0x1FFFFFDB)
-                .WithTag("DENOM", 0, 30)
+                .WithValueField(0, 30, name: "DENOM")
                 .WithReservedBits(30, 2);
 
             Instance2Registers.MainPLL0PFD.Define(collection) // Manual says reset value is 0x80808080, but it should be 0x0 when ready
@@ -141,25 +141,25 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(2, 30);
 
             Instance2Registers.AudioPLL0Control0.Define(collection, 0x160002)
-                .WithTaggedFlag("BYPASS", 0)
+                .WithFlag(0, name: "BYPASS")
                 .WithTaggedFlag("RESET", 1)
                 .WithReservedBits(2, 11)
                 .WithTaggedFlag("HOLD_RING_OFF_ENA", 13)
                 .WithReservedBits(14, 2)
-                .WithTag("MULT", 16, 8)
-                .WithTaggedFlag("VCO_OUT_ENABLE", 24)
+                .WithValueField(16, 8, name: "MULT")
+                .WithFlag(24, name: "VCO_OUT_ENABLE")
                 .WithReservedBits(25, 7);
 
             Instance2Registers.AudioPLL0LockTimeDivideby2.Define(collection, 0xCAFE)
-                .WithTag("LOCKTIMEDIV2", 0, 16)
+                .WithValueField(0, 16, name: "LOCKTIMEDIV2")
                 .WithReservedBits(16, 16);
 
             Instance2Registers.AudioPLL0Numerator.Define(collection, 0x4DD2F15)
-                .WithTag("NUM", 0, 30)
+                .WithValueField(0, 30, name: "NUM")
                 .WithReservedBits(30, 2);
 
             Instance2Registers.AudioPLL0Denominator.Define(collection, 0x1FFFFFDB)
-                .WithTag("DENOM", 0, 30)
+                .WithValueField(0, 30, name: "DENOM")
                 .WithReservedBits(30, 2);
 
             Instance2Registers.AudioPLL0PFD.Define(collection, 0x0)
@@ -211,13 +211,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(31, 1);
 
             Instance2Registers.AudioPLL0VCOClockEnable.Define(collection, 0x7F)
-                .WithTaggedFlag("VCO_OF_CMPT", 0)
-                .WithTaggedFlag("VCO_OF_VDD1_SENSE", 1)
-                .WithTaggedFlag("VCO_OF_VDD2_DSP", 2)
-                .WithTaggedFlag("VCO_OF_MD2", 3)
-                .WithTaggedFlag("VCO_OF_MDN", 4)
-                .WithTaggedFlag("VCO_OF_VDD2_COM", 5)
-                .WithTaggedFlag("VCO_OF_COMN", 6)
+                .WithFlag(0, name: "VCO_OF_CMPT")
+                .WithFlag(1, name: "VCO_OF_VDD1_SENSE")
+                .WithFlag(2, name: "VCO_OF_VDD2_DSP")
+                .WithFlag(3, name: "VCO_OF_MD2")
+                .WithFlag(4, name: "VCO_OF_MDN")
+                .WithFlag(5, name: "VCO_OF_VDD2_COM")
+                .WithFlag(6, name: "VCO_OF_COMN")
                 .WithReservedBits(7, 25);
 
             Instance2Registers.CKIL32kHzClockGate.Define(collection, 0x1)

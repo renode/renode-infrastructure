@@ -66,8 +66,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Instance3Registers.OneSourceClockSliceEnable.Define(collection)
 
                 .WithFlag(0, name: "RTC_FCLK_EN")
-                .WithTaggedFlag("dGDET2_FCLK_EN", 1)
-                .WithTaggedFlag("dGDET3_FCLK_EN", 2)
+                .WithFlag(1, name: "dGDET2_FCLK_EN")
+                .WithFlag(2, name: "dGDET3_FCLK_EN")
                 .WithReservedBits(3, 29);
 
             Instance3Registers.LowPowerOscillatorControl0.Define(collection, 0x807BC4D4)
@@ -255,8 +255,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             Instance3Registers.OneSourceClockSliceEnableForVVD1_SENSE.Define(collection)
                 .WithFlag(0, valueProviderCallback: (_) => true, name: "RTC_FCLK_EN")
-                .WithTaggedFlag("dGDET2_FCLK_EN", 1)
-                .WithTaggedFlag("dGDET3_FCLK_EN", 2)
+                .WithFlag(1, name: "dGDET2_FCLK_EN")
+                .WithFlag(2, name: "dGDET3_FCLK_EN")
                 .WithReservedBits(3, 29);
             return collection;
         }
