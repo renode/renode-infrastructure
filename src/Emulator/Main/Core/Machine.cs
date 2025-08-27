@@ -1845,7 +1845,7 @@ namespace Antmicro.Renode.Core
         private readonly Dictionary<string, List<long>> invalidatedAddressesByArchitecture;
         private readonly object invalidatedAddressesLock;
 
-        private const int InitialDirtyListLength = 1 << 10;
+        private const int InitialDirtyListLength = 1 << 16;
 
         private enum State
         {
