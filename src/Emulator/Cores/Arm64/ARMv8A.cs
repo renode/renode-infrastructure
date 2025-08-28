@@ -223,6 +223,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
+        protected void OnTcmMappingUpdate(int index, ulong newAddress)
+        {
+            throw new CpuAbortException($"TCM regions are not supported on {nameof(ARMv8A)}");
+        }
+
+        [Export]
         protected ulong ReadSystemRegisterInterruptCPUInterface(uint offset)
         {
             return gic.ReadSystemRegisterCPUInterface(offset);

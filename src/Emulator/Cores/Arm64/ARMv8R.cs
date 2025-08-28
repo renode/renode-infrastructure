@@ -5,12 +5,14 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities.Binding;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Peripherals.IRQControllers;
 using Antmicro.Renode.Debugging;
@@ -196,6 +198,40 @@ namespace Antmicro.Renode.Peripherals.CPU
                 default:
                     this.Log(LogLevel.Error, "Unexpected interrupt type for IRQ#{0}", number);
                     throw InvalidInterruptNumberException;
+            }
+        }
+
+        [Export]
+        protected void OnTcmMappingUpdate(int index, ulong newAddress)
+        {
+            using(ObtainGenericPauseGuard())
+            {
+                var regionPeripheral = defaultTCMConfiguration
+                    .Where(configuration => configuration.RegionIndex == index)
+                    .SingleOrDefault()
+                    ?.Memory;
+
+                if(regionPeripheral == null)
+                {
+                    this.Log(LogLevel.Error, "Tried to remap non existing TCM region #{0}", index);
+                    return;
+                }
+
+                var registrationPoint = machine.SystemBus
+                    .GetRegistrationPoints(regionPeripheral)
+                    .Where(x => x.Initiator == this)
+                    .SingleOrDefault()
+                ;
+
+                registrationPoint = new BusRangeRegistration(
+                    registrationPoint.Range
+                        .MoveToZero()
+                        .ShiftBy((long)newAddress))
+                ;
+
+                machine.SystemBus
+                    .MoveRegistrationWithinContext(regionPeripheral, registrationPoint, this)
+                ;
             }
         }
 
