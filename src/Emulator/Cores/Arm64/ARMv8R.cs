@@ -158,13 +158,11 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private bool TryRegisterTCMRegion(IMemory memory, uint regionIndex)
         {
-            ulong address;
-            if(!TCMConfiguration.TryFindRegistrationAddress(machine.SystemBus, this, memory, out address))
+            if(!TCMConfiguration.TryCreate(this, memory, regionIndex, out var config))
             {
                 return false;
             }
 
-            var config = new TCMConfiguration(checked((uint)address), checked((ulong)memory.Size), regionIndex);
             RegisterTCMRegion(config);
             defaultTCMConfiguration.Add(config);
 
