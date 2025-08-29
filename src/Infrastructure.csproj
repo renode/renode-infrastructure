@@ -1022,6 +1022,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/Network/LiteX_Ethernet_CSR32.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Timers/LiteX_Timer_CSR32.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Timers/STM32_IndependentWatchdog.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Timers/STM32H7_SystemWindowWatchdog.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/OpenTitan_VerilatorSwTestStatus.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/OpenTitan_PowerManager.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/OpenTitan_HMAC.cs" />
