@@ -544,7 +544,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     throw new RecoverableException("You need to enable TrustZone to use VTOR_NS");
                 }
                 vtorInitialized = true;
-                if(machine.SystemBus.FindMemory(value, this) == null)
+                if(!machine.SystemBus.IsMemory(value, this))
                 {
                     this.Log(LogLevel.Warning, "Tried to set VTOR_NS address at 0x{0:X} which does not lay in memory. Aborted.", value);
                     return;
