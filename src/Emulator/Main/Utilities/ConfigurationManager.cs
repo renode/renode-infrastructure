@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -36,7 +36,16 @@ namespace Antmicro.Renode.Utilities
             T result;
             if(!TryFindInCache(group, name, out result))
             {
-                var config = VerifyValue(group, name, defaultValue);
+                if(!TryGetGroup(group, out var config) || !config.Contains(name))
+                {
+                    if(defaultValue == null)
+                    {
+                        throw new ArgumentException("Default value cannot be null", "defaultValue");
+                    }
+                    Set(group, name, defaultValue);
+                    return defaultValue;
+                }
+
                 try
                 {
                     if(typeof(T) == typeof(int))
@@ -100,7 +109,11 @@ namespace Antmicro.Renode.Utilities
 
         public void Set<T>(string group, string name, T value)
         {
-            var config = VerifyValue(group, name, value);
+            if(!TryGetGroup(group, out var config))
+            {
+                config = Config.Source.AddConfig(group);
+            }
+
             AddToCache(group, name, value);
             config.Set(name, value);
         }
@@ -112,24 +125,10 @@ namespace Antmicro.Renode.Utilities
             Config = new ConfigSource(configFile);
         }
 
-        private IConfig VerifyValue(string group, string name, object defaultValue)
+        private bool TryGetGroup(string group, out IConfig config)
         {
-            var config = VerifyGroup(group);
-            if(!config.Contains(name))
-            {
-                if(defaultValue == null)
-                {
-                    throw new ArgumentException("Default value cannot be null", "defaultValue");
-                }
-                config.Set(name, defaultValue);
-            }
-            return config;
-        }
-
-        private IConfig VerifyGroup(string group)
-        {
-            var config = Config.Source.Configs[group];
-            return config ?? Config.Source.AddConfig(group);
+            config = Config.Source.Configs[group];
+            return config != null;
         }
 
         private void AddToCache<T>(string group, string name, T value)
