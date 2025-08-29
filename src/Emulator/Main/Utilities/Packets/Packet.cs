@@ -419,7 +419,12 @@ namespace Antmicro.Renode.Utilities.Packets
                 offset += bytesRequired;
             }
 
-            return maxOffset;
+            var attrWidth = (int?)t.GetCustomAttribute<WidthAttribute>()?.Value / 8; // attribute value is in bits
+            if(attrWidth < maxOffset)
+            {
+                throw new ArgumentException($"Explicitly-specified width ({attrWidth}) is less than actual width ({maxOffset})");
+            }
+            return attrWidth ?? maxOffset;
         }
 
         private static FieldPropertyInfoWrapper[] GetFieldsAndProperties(Type t)
