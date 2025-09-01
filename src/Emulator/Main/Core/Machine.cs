@@ -576,6 +576,11 @@ namespace Antmicro.Renode.Core
                     {
                         peripheral.Reset();
                     }
+                    var machineReset = MachineReset;
+                    if(machineReset != null)
+                    {
+                        machineReset(this);
+                    }
                 }
                 postReset?.Invoke();
             };
