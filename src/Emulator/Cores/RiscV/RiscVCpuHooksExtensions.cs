@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -13,13 +13,13 @@ namespace Antmicro.Renode.Hooks
 {
     public static class RiscVCpuHooksExtensions
     {
-        public static void RegisterCSRHandlerFromString(this BaseRiscV cpu, ulong csr, string pythonScript, bool initable = false)
+        public static void RegisterCSRHandlerFromString(this BaseRiscV cpu, ushort csr, string pythonScript, bool initable = false)
         {
             var engine = new RiscVCsrPythonEngine(cpu, csr, initable, script: pythonScript);
             cpu.RegisterCSR(csr, engine.CsrReadHook, engine.CsrWriteHook);
         }
 
-        public static void RegisterCSRHandlerFromFile(this BaseRiscV cpu, ulong csr, string path, bool initable = false)
+        public static void RegisterCSRHandlerFromFile(this BaseRiscV cpu, ushort csr, string path, bool initable = false)
         {
             var engine = new RiscVCsrPythonEngine(cpu, csr, initable, path: path);
             cpu.RegisterCSR(csr, engine.CsrReadHook, engine.CsrWriteHook);

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -19,10 +19,10 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private void RegisterCustomCSRs()
         {
-            RegisterCSR((ulong)CSRs.CpuControl, () => 0ul, _ => {});
+            RegisterCSR((ushort)CSRs.CpuControl, () => 0ul, _ => {});
         }
 
-        private enum CSRs
+        private enum CSRs : ushort
         {
             CpuControl = 0x7c0,
         }

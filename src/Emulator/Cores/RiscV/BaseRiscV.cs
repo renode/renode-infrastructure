@@ -85,18 +85,18 @@ namespace Antmicro.Renode.Peripherals.CPU
             TlibSetPmpaddrBits(pmpNumberOfAddrBits);
             TlibSetNapotGrain(minimalPmpNapotInBytes);
 
-            RegisterCSR((ulong)StandardCSR.Miselect, () => miselectValue, s => miselectValue = (uint)s, "miselect");
-            for(uint i = 0; i < 6; ++i)
+            RegisterCSR((ushort)StandardCSR.Miselect, () => miselectValue, s => miselectValue = (uint)s, "miselect");
+            for(ushort i = 0; i < 6; ++i)
             {
                 var j = i;
-                RegisterCSR((ulong)StandardCSR.Mireg + i, () => ReadIndirectCSR(miselectValue, j), v => WriteIndirectCSR(miselectValue, j, (uint)v), $"mireg{i + 1}");
+                RegisterCSR((ushort)(StandardCSR.Mireg + i), () => ReadIndirectCSR(miselectValue, j), v => WriteIndirectCSR(miselectValue, j, (uint)v), $"mireg{i + 1}");
             }
 
-            RegisterCSR((ulong)StandardCSR.Siselect, () => siselectValue, s => siselectValue = (uint)s, "siselect");
-            for(uint i = 0; i < 6; ++i)
+            RegisterCSR((ushort)StandardCSR.Siselect, () => siselectValue, s => siselectValue = (uint)s, "siselect");
+            for(ushort i = 0; i < 6; ++i)
             {
                 var j = i;
-                RegisterCSR((ulong)StandardCSR.Sireg + i, () => ReadIndirectCSR(siselectValue, j), v => WriteIndirectCSR(siselectValue, j, (uint)v), $"sireg{i + 1}");
+                RegisterCSR((ushort)(StandardCSR.Sireg + i), () => ReadIndirectCSR(siselectValue, j), v => WriteIndirectCSR(siselectValue, j, (uint)v), $"sireg{i + 1}");
             }
         }
 
@@ -225,7 +225,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             SetPCFromResetVector();
         }
 
-        public void RegisterCustomCSR(string name, uint number, PrivilegeLevel mode)
+        public void RegisterCustomCSR(string name, ushort number, PrivilegeLevel mode)
         {
             var customCSR = new SimpleCSR(name, number, mode);
             if(simpleCSRs.Keys.Any(x => x.Number == customCSR.Number))
@@ -236,7 +236,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             RegisterCSR(customCSR.Number, () => simpleCSRs[customCSR], value => simpleCSRs[customCSR] = value, name);
         }
 
-        public void RegisterCSR(ulong csr, Func<ulong> readOperation, Action<ulong> writeOperation, string name = null)
+        public void RegisterCSR(ushort csr, Func<ulong> readOperation, Action<ulong> writeOperation, string name = null)
         {
             nonstandardCSR.Add(csr, new NonstandardCSR(readOperation, writeOperation, name));
             if(TlibInstallCustomCSR(csr) == -1)
@@ -927,7 +927,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private Func<ulong, ulong, ulong, ulong> TlibInstallCustomInstruction;
 
         [Import(Name="tlib_install_custom_csr")]
-        private Func<ulong, int> TlibInstallCustomCSR;
+        private Func<ushort, int> TlibInstallCustomCSR;
 
         [Import]
         private Func<ulong, bool, bool, int> TlibInstallCustomInterrupt;
@@ -1378,7 +1378,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             MachineExternalInterrupt = 0xb
         }
 
-        protected enum StandardCSR
+        protected enum StandardCSR : ushort
         {
             Siselect = 0x150,
             Sireg = 0x151, // sireg, sireg2, ..., sireg6 (0x156)

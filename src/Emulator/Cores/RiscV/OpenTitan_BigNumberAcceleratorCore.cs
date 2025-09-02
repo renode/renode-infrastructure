@@ -232,42 +232,42 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private void RegisterCustomCSRs()
         {
-            RegisterCSR((ulong)CustomCSR.FlagGroup0,
+            RegisterCSR((ushort)CustomCSR.FlagGroup0,
                         () => (ulong)flagsGroup[0],
                         val => { flagsGroup[0] = (CustomFlags)val; },
                         name: "FG0");
 
-            RegisterCSR((ulong)CustomCSR.FlagGroup1,
+            RegisterCSR((ushort)CustomCSR.FlagGroup1,
                         () => (ulong)flagsGroup[1],
                         val => { flagsGroup[1] = (CustomFlags)val; },
                         name: "FG1");
 
-            RegisterCSR((ulong)CustomCSR.Flags,
+            RegisterCSR((ushort)CustomCSR.Flags,
                         () => (ulong)((uint)flagsGroup[0] | ((uint)flagsGroup[1] << 4)),
                         val => { flagsGroup[0] = (CustomFlags)(val & 0xF); flagsGroup[1] = (CustomFlags)(val >> 4); },
                         name: "FLAGS");
 
-            for(var x = 0; x < 8; x++)
+            for(ushort x = 0; x < 8; x++)
             {
                 var index = x;
-                RegisterCSR((ulong)(CustomCSR.Mod0 + index),
+                RegisterCSR((ushort)(CustomCSR.Mod0 + index),
                             () => (ulong)(wideSpecialPurposeRegisters[(int)WideSPR.Mod].PartialGet(index * sizeof(uint), sizeof(uint))),
                             val => { wideSpecialPurposeRegisters[(int)WideSPR.Mod].PartialSet(new BigInteger(val), index * sizeof(uint), 4); },
                             name: $"MOD{index}");
             }
 
-            RegisterCSR((ulong)CustomCSR.RndPrefetch,
+            RegisterCSR((ushort)CustomCSR.RndPrefetch,
                         () => 0,
                         val => { }, // there is no need for any prefetch action in the simulation
                         name: "RND_PREFETCH");
 
             // both RND and URND are implemented the same way in the simulation
-            RegisterCSR((ulong)CustomCSR.Rnd,
+            RegisterCSR((ushort)CustomCSR.Rnd,
                         () => GetPseudoRandom(),
                         val => { },
                         name: "RND");
 
-            RegisterCSR((ulong)CustomCSR.URnd,
+            RegisterCSR((ushort)CustomCSR.URnd,
                         () => GetPseudoRandom(),
                         val => { },
                         name: "URND");
@@ -965,7 +965,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private const int MaximumStackCapacity = 8;
         private const int MaxLoopStackHeight = 8;
 
-        private enum CustomCSR
+        private enum CustomCSR : ushort
         {
             FlagGroup0 = 0x7c0,
             FlagGroup1 = 0x7c1,

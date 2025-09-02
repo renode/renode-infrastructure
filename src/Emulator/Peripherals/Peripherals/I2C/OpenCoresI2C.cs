@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -167,7 +167,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                 {
                     dataFromSlave.Enqueue(b);
                 }
-                
+
                 if(dataFromSlave.Count == 0)
                 {
                     this.Log(LogLevel.Warning, "Trying to read from slave, but no data is available");

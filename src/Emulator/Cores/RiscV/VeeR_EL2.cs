@@ -59,8 +59,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private void CreateCSRStub(IConvertible csr, string name, ulong returnValue = 0)
         {
-            var offset = Convert.ToUInt64(csr);
-            RegisterCSR(Convert.ToUInt64(csr),
+            var offset = Convert.ToUInt16(csr);
+            RegisterCSR(Convert.ToUInt16(csr),
                 readOperation: () =>
                 {
                     this.WarningLog("Reading 0x{0:X} from an unimplemented CSR: {1} (0x{2:X})", returnValue, name, offset);

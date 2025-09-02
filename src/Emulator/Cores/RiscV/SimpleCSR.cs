@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -11,7 +11,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public struct SimpleCSR : IEquatable<SimpleCSR>
     {
-        public SimpleCSR(string name, uint number, PrivilegeLevel mode)
+        public SimpleCSR(string name, ushort number, PrivilegeLevel mode)
         {
             Name = name;
             Number = number;
@@ -37,7 +37,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             return (int)Mode ^ ((int)Number << 3) ^ Name.GetHashCode();
         }
 
-        public uint Number { get; }
+        public ushort Number { get; }
         public PrivilegeLevel Mode { get; }
         public string Name { get; }
     }
