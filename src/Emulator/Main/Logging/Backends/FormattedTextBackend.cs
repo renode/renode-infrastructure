@@ -13,23 +13,23 @@ namespace Antmicro.Renode.Logging
     {
         public override void Log(LogEntry entry)
         {
-            if(!ShouldBeLogged(entry))
+            if (!ShouldBeLogged(entry))
             {
                 return;
             }
 
             var color = entry.Type.Color;
             var line = FormatLogEntry(entry);
-            lock(sync)
+            lock (sync)
             {
-                if(!PlainMode && color.HasValue)
+                if (!PlainMode && color.HasValue)
                 {
                     SetColor(color.Value);
                 }
 
                 WriteLine(line);
 
-                if(!PlainMode && color.HasValue)
+                if (!PlainMode && color.HasValue)
                 {
                     ResetColor();
                 }
@@ -43,7 +43,7 @@ namespace Antmicro.Renode.Logging
         protected override string FormatLogEntry(LogEntry entry)
         {
             var threadString = "";
-            if(LogThreadId && entry.ThreadId.HasValue)
+            if (LogThreadId && entry.ThreadId.HasValue)
             {
                 threadString = $" ({entry.ThreadId})";
             }

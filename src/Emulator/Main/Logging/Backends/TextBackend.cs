@@ -19,11 +19,11 @@ namespace Antmicro.Renode.Logging
             var messages = entry.Message.Split('\n').GetEnumerator();
             messages.MoveNext();
 
-            if(entry.ObjectName != null)
+            if (entry.ObjectName != null)
             {
                 var currentEmulation = EmulationManager.Instance.CurrentEmulation;
                 var machineCount = currentEmulation.MachinesCount;
-                if((entry.ForceMachineName || machineCount > 1) && entry.MachineName != null)
+                if ((entry.ForceMachineName || machineCount > 1) && entry.MachineName != null)
                 {
                     messageBuilder.AppendFormat("{2}/{0}: {1}", entry.ObjectName, messages.Current, entry.MachineName);
                 }
@@ -36,14 +36,14 @@ namespace Antmicro.Renode.Logging
             {
                 messageBuilder.Append(messages.Current);
             }
-            while(messages.MoveNext())
+            while (messages.MoveNext())
             {
                 messageBuilder.Append(Environment.NewLine);
                 messageBuilder.Append("    ");
                 messageBuilder.Append(messages.Current);
             }
 
-            if(entry.Count > 1)
+            if (entry.Count > 1)
             {
                 messageBuilder.AppendFormat(" ({0})", entry.Count);
             }

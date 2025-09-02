@@ -25,6 +25,7 @@ using Antmicro.Renode.UserInterface.Exceptions;
 using System.Runtime.InteropServices;
 using System.Globalization;
 using System.Text;
+using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.UserInterface
 {
@@ -1399,6 +1400,7 @@ namespace Antmicro.Renode.UserInterface
                 }
                 if(!foundExts.Any())
                 {
+                    Logger.LogAs(this, LogLevel.Debug, "ParametersMismatchException: No matching method overloads found for command '{0}' on device '{1}' of type '{2}'", commandValue, name, type.Name);
                     throw new ParametersMismatchException(type, commandValue, name);
                 }
             }
@@ -1414,6 +1416,7 @@ namespace Antmicro.Renode.UserInterface
                         return InvokeExtensionMethod(device, foundExt, parameters);
                     }
                 }
+                Logger.LogAs(this, LogLevel.Debug, "ParametersMismatchException: No matching extension method overloads found for command '{0}' on device '{1}' of type '{2}'", commandValue, name, type.Name);
                 throw new ParametersMismatchException(type, commandValue, name);
 
             }
@@ -1494,11 +1497,13 @@ namespace Antmicro.Renode.UserInterface
                 setValue = null;
                 if(parameterArray.Length < 3 || !(parameterArray[0] is LeftBraceToken))
                 {
+                    Logger.LogAs(this, LogLevel.Debug, "ParametersMismatchException: Invalid indexer syntax for command '{0}' on device '{1}' of type '{2}' - expected at least 3 parameters and left brace", commandValue, name, type.Name);
                     throw new ParametersMismatchException(type, commandValue, name);
                 }
                 var index = parameterArray.IndexOf(x => x is RightBraceToken);
                 if(index == -1)
                 {
+                    Logger.LogAs(this, LogLevel.Debug, "ParametersMismatchException: Missing right brace token in indexer syntax for command '{0}' on device '{1}' of type '{2}'", commandValue, name, type.Name);
                     throw new ParametersMismatchException(type, commandValue, name);
                 }
                 if(index == parameterArray.Length - 2)
@@ -1507,6 +1512,7 @@ namespace Antmicro.Renode.UserInterface
                 }
                 else if(index != parameterArray.Length - 1)
                 {
+                    Logger.LogAs(this, LogLevel.Debug, "ParametersMismatchException: Invalid indexer parameter positioning for command '{0}' on device '{1}' of type '{2}' - right brace at wrong position", commandValue, name, type.Name);
                     throw new ParametersMismatchException(type, commandValue, name);
                 }
                 var getParameters = parameterArray.Skip(1).Take(index - 1).ToArray();
@@ -1544,6 +1550,7 @@ namespace Antmicro.Renode.UserInterface
                         }
                     }
                 }
+                Logger.LogAs(this, LogLevel.Debug, "ParametersMismatchException: No matching indexer overloads found for command '{0}' on device '{1}' of type '{2}'", commandValue, name, type.Name);
                 throw new ParametersMismatchException(type, commandValue, name);
             }
             if(command is LiteralToken)

@@ -63,7 +63,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithWriteCallback((_, __) => UpdateInterrupts())
             ;
 
-            if(easyDMA)
+            if (easyDMA)
             {
                 Registers.EnableInterrupt.Define(this)
                     .WithReservedBits(0, 1)
@@ -86,19 +86,19 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithReservedBits(2, 2)
                     .WithFlag(4, name: "ENDRX",
                         valueProviderCallback: _ => endRxEnabled.Value,
-                        writeCallback: (_, val) => { if(val) endRxEnabled.Value = false; })
+                        writeCallback: (_, val) => { if (val) endRxEnabled.Value = false; })
                     .WithReservedBits(5, 1)
                     .WithFlag(6, name: "END",
                         valueProviderCallback: _ => endEnabled.Value,
-                        writeCallback: (_, val) => { if(val) endEnabled.Value = false; })
+                        writeCallback: (_, val) => { if (val) endEnabled.Value = false; })
                     .WithReservedBits(7, 1)
                     .WithFlag(8, name: "ENDTX",
                         valueProviderCallback: _ => endTxEnabled.Value,
-                        writeCallback: (_, val) => { if(val) endTxEnabled.Value = false; })
+                        writeCallback: (_, val) => { if (val) endTxEnabled.Value = false; })
                     .WithReservedBits(9, 10)
                     .WithFlag(19, name: "STARTED",
                         valueProviderCallback: _ => startedEnabled.Value,
-                        writeCallback: (_, val) => { if(val) startedEnabled.Value = false; })
+                        writeCallback: (_, val) => { if (val) startedEnabled.Value = false; })
                     .WithReservedBits(20, 12)
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 ;
@@ -128,10 +128,10 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithReservedBits(0, 2)
                     .WithFlag(2, name: "READY",
                         valueProviderCallback: _ => readyEnabled.Value,
-                        writeCallback: (_, val) => { if(val) readyEnabled.Value = false; })
+                        writeCallback: (_, val) => { if (val) readyEnabled.Value = false; })
                     .WithReservedBits(3, 3)
                     .WithFlag(6, name: "END",
-                        writeCallback: (_, val) => { if(val) endEnabled.Value = false; })
+                        writeCallback: (_, val) => { if (val) endEnabled.Value = false; })
                     .WithReservedBits(7, 25)
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 ;
@@ -142,7 +142,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                     valueProviderCallback: _ => enabled ? 1 : 0u,
                     writeCallback: (_, val) =>
                     {
-                        switch(val)
+                        switch (val)
                         {
                             case 0:
                                 // disabled
@@ -151,7 +151,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
                             case 1:
                                 // enabled, standard mode
-                                if(!easyDMA)
+                                if (!easyDMA)
                                 {
                                     enabled = true;
                                 }
@@ -159,7 +159,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
                             case 7:
                                 // enabled, easyDMA mode
-                                if(easyDMA)
+                                if (easyDMA)
                                 {
                                     enabled = true;
                                 }
@@ -186,20 +186,20 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithValueField(0, 8, FieldMode.Read, name: "RXD",
                     valueProviderCallback: _ =>
                     {
-                        if(receiveFifo.Count == 0)
+                        if (receiveFifo.Count == 0)
                         {
                             this.Log(LogLevel.Warning, "Tried to read from an empty buffer");
                             return 0;
                         }
 
-                        lock(receiveFifo)
+                        lock (receiveFifo)
                         {
                             var result = receiveFifo.Dequeue();
 
                             // some new byte moved to the head
                             // of the queue - let's generate the
                             // READY event
-                            if(receiveFifo.Count > 0)
+                            if (receiveFifo.Count > 0)
                             {
                                 readyPending.Value = true;
                                 UpdateInterrupts();
@@ -210,12 +210,12 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithReservedBits(8, 24)
             ;
 
-            if(easyDMA)
+            if (easyDMA)
             {
                 Registers.TasksStart.Define(this)
                     .WithFlag(0, FieldMode.Write, name: "TASKS_START", writeCallback: (_, val) =>
                     {
-                        if(val)
+                        if (val)
                         {
                             machine.LocalTimeSource.ExecuteInNearestSyncedState(__ => ExecuteTransaction());
                         }
@@ -280,6 +280,122 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithReservedBits(8, 24)
                 ;
             }
+
+            Registers.PinSelectSCK.Define(this)
+                .WithValueField(0, 32, name: "PSEL.SCK", writeCallback: (_, value) =>
+                {
+                    this.Log(LogLevel.Debug, "PinSelectSCK set to 0x{0:X}", value);
+                })
+            ;
+
+            Registers.PinSelectMOSI.Define(this)
+                .WithValueField(0, 32, name: "PSEL.MOSI", writeCallback: (_, value) =>
+                {
+                    this.Log(LogLevel.Debug, "PinSelectMOSI set to 0x{0:X}", value);
+                })
+            ;
+
+            Registers.PinSelectMISO.Define(this)
+                .WithValueField(0, 32, name: "PSEL.MISO", writeCallback: (_, value) =>
+                {
+                    this.Log(LogLevel.Debug, "PinSelectMISO set to 0x{0:X}", value);
+                })
+            ;
+
+            Registers.PinSelectCSN.Define(this, resetValue: 0xFFFFFFFF)
+                .WithValueField(0, 5, name: "PIN", writeCallback: (_, value) =>
+                {
+                    this.Log(LogLevel.Debug, "PinSelectCSN PIN set to {0}", value);
+                })
+                .WithValueField(5, 1, name: "PORT", writeCallback: (_, value) =>
+                {
+                    this.Log(LogLevel.Debug, "PinSelectCSN PORT set to {0}", value);
+                })
+                .WithIgnoredBits(6, 25)
+                .WithFlag(31, name: "CONNECT", writeCallback: (_, value) =>
+                {
+                    var connectionStr = value ? "Disconnected" : "Connected";
+                    this.Log(LogLevel.Debug, "PinSelectCSN {0}", connectionStr);
+                })
+            ;
+
+            Registers.Frequency.Define(this, resetValue: 0x04000000)
+                .WithValueField(0, 32, name: "FREQUENCY", writeCallback: (_, value) =>
+                {
+                    string frequencyStr;
+                    switch (value)
+                    {
+                        case 0x02000000:
+                            frequencyStr = "125 kbps";
+                            break;
+                        case 0x04000000:
+                            frequencyStr = "250 kbps";
+                            break;
+                        case 0x08000000:
+                            frequencyStr = "500 kbps";
+                            break;
+                        case 0x10000000:
+                            frequencyStr = "1 Mbps";
+                            break;
+                        case 0x20000000:
+                            frequencyStr = "2 Mbps";
+                            break;
+                        case 0x40000000:
+                            frequencyStr = "4 Mbps";
+                            break;
+                        case 0x80000000:
+                            frequencyStr = "8 Mbps";
+                            break;
+                        case 0x0A000000:
+                            frequencyStr = "16 Mbps";
+                            break;
+                        case 0x14000000:
+                            frequencyStr = "32 Mbps";
+                            break;
+                        default:
+                            frequencyStr = $"Unknown (0x{value:X})";
+                            break;
+                    }
+                    this.Log(LogLevel.Debug, "SPI Frequency set to {0}", frequencyStr);
+                })
+            ;
+
+            Registers.Configuration.Define(this)
+                .WithFlag(0, name: "ORDER", writeCallback: (_, value) =>
+                {
+                    var orderStr = value ? "LSB first" : "MSB first";
+                    this.Log(LogLevel.Debug, "SPI bit order set to {0}", orderStr);
+                })
+                .WithFlag(1, name: "CPHA", writeCallback: (_, value) =>
+                {
+                    var phaseStr = value ? "Sample on trailing edge" : "Sample on leading edge";
+                    this.Log(LogLevel.Debug, "SPI clock phase set to {0}", phaseStr);
+                })
+                .WithFlag(2, name: "CPOL", writeCallback: (_, value) =>
+                {
+                    var polarityStr = value ? "Active low" : "Active high";
+                    this.Log(LogLevel.Debug, "SPI clock polarity set to {0}", polarityStr);
+                })
+                .WithReservedBits(3, 29)
+            ;
+
+            Registers.IFTIMING_CSNDUR.Define(this, resetValue: 0x00000002)
+                .WithValueField(0, 8, name: "CSNDUR", writeCallback: (_, value) =>
+                {
+                    var durationNs = value * 15.625; // 64 MHz clock cycles to nanoseconds
+                    this.Log(LogLevel.Debug, "CSN duration set to {0} cycles ({1:F1} ns)", value, durationNs);
+                })
+                .WithReservedBits(8, 24)
+            ;
+
+            Registers.CSNPOL.Define(this)
+                .WithFlag(0, name: "CSNPOL", writeCallback: (_, value) =>
+                {
+                    var polarityStr = value ? "Active high (idle state low)" : "Active low (idle state high)";
+                    this.Log(LogLevel.Debug, "CSN polarity set to {0}", polarityStr);
+                })
+                .WithReservedBits(1, 31)
+            ;
         }
 
         private void ExecuteTransaction()
@@ -288,7 +404,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             startedPending.Value = true;
 
-            if(RegisteredPeripheral == null)
+            if (RegisteredPeripheral == null)
             {
                 this.Log(LogLevel.Warning, "Issued a transaction, but no device is connected - returning dummy bytes");
 
@@ -300,17 +416,17 @@ namespace Antmicro.Renode.Peripherals.SPI
                 this.Log(LogLevel.Debug, "Starting SPI transaction using easyDMA interface");
 
                 var bytesToSend = sysbus.ReadBytes(txDataPointer.Value, (int)txMaxDataCount.Value);
-                if(rxMaxDataCount.Value > txMaxDataCount.Value)
+                if (rxMaxDataCount.Value > txMaxDataCount.Value)
                 {
                     // fill the rest of bytes to transmit with the ORC byte
                     bytesToSend = bytesToSend.Concat(Enumerable.Repeat((byte)orcByte.Value, (int)(rxMaxDataCount.Value - txMaxDataCount.Value))).ToArray();
                 }
 
                 var counter = 0;
-                foreach(var b in bytesToSend)
+                foreach (var b in bytesToSend)
                 {
                     var result = RegisteredPeripheral.Transmit(b);
-                    if(counter < receivedBytes.Length)
+                    if (counter < receivedBytes.Length)
                     {
                         receivedBytes[counter++] = result;
                     }
@@ -328,19 +444,19 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private void SendData(byte b)
         {
-            if(!enabled)
+            if (!enabled)
             {
                 this.Log(LogLevel.Warning, "Trying to send data, but the controller is disabled");
                 return;
             }
 
-            if(RegisteredPeripheral == null)
+            if (RegisteredPeripheral == null)
             {
                 this.Log(LogLevel.Warning, "No device connected");
                 return;
             }
 
-            if(receiveFifo.Count == ReceiveBufferSize)
+            if (receiveFifo.Count == ReceiveBufferSize)
             {
                 this.Log(LogLevel.Warning, "Buffers full, ignoring data");
                 return;
@@ -348,14 +464,14 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             // there is no need to queue transmitted bytes - let's send them right away
             var result = RegisteredPeripheral.Transmit(b);
-            lock(receiveFifo)
+            lock (receiveFifo)
             {
                 receiveFifo.Enqueue(result);
 
                 // the READY event is generated
                 // only when the head
                 // of the queue changes
-                if(receiveFifo.Count == 1)
+                if (receiveFifo.Count == 1)
                 {
                     readyPending.Value = true;
                     UpdateInterrupts();
@@ -370,7 +486,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             var status = false;
 
-            if(easyDMA)
+            if (easyDMA)
             {
                 status |= startedPending.Value && startedEnabled.Value;
                 status |= endPending.Value && endEnabled.Value;
@@ -432,6 +548,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             PinSelectSCK = 0x508,
             PinSelectMOSI = 0x50C,
             PinSelectMISO = 0x510,
+            PinSelectCSN = 0x514,
             ReceiveBuffer = 0x518,
             TransmitBuffer = 0x51C,
             Frequency = 0x524,
@@ -444,6 +561,8 @@ namespace Antmicro.Renode.Peripherals.SPI
             TxTransferredDataAmount = 0x54C,
             TxListType = 0x550,
             Configuration = 0x554,
+            IFTIMING_CSNDUR = 0x564,
+            CSNPOL = 0x568,
             ORC = 0x5C0,
         }
     }

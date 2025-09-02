@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     {
         public NRF52840_PPI(IMachine machine) : base(machine)
         {
-            for(var i = 0; i < Channels; i++)
+            for (var i = 0; i < Channels; i++)
             {
                 var j = i;
                 eventCallbacks[i] = offset => EventReceived(j, offset);
@@ -30,20 +30,20 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         public override void Reset()
         {
             base.Reset();
-            for(var i = 0; i < ChannelGroups; i++)
+            for (var i = 0; i < ChannelGroups; i++)
             {
                 channelGroupEnabled[i] = false;
             }
-            for(var i = 0; i < ConfigurableChannels; i++)
+            for (var i = 0; i < ConfigurableChannels; i++)
             {
                 eventEndpoint[i] = 0;
                 taskEndpoint[i] = 0;
             }
-            for(var i = 0; i < Channels; i++)
+            for (var i = 0; i < Channels; i++)
             {
                 forkEndpoint[i] = 0;
             }
-            foreach(var sender in registeredEventSenders)
+            foreach (var sender in registeredEventSenders)
             {
                 sender.Provider.EventTriggered -= eventCallbacks[sender.Channel];
             }
@@ -53,7 +53,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public override void WriteDoubleWord(long offset, uint value)
         {
-            if(!initialized)
+            if (!initialized)
             {
                 DefinePreprogrammedChannels();
                 initialized = true;
@@ -65,13 +65,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private void DefineRegisters()
         {
-            for(var i = 0; i < ChannelGroups; i++)
+            for (var i = 0; i < ChannelGroups; i++)
             {
                 var j = i;
                 ((Registers)((int)Registers.ChannelGroup0Enable + i * 8)).Define(this, name: "TASKS_CHG[n].EN")
                     .WithFlag(0, FieldMode.Write, name: "EN", writeCallback: (_, value) =>
                     {
-                        if(value)
+                        if (value)
                         {
                             channelGroupEnabled[j] = true;
                         }
@@ -81,7 +81,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 ((Registers)((int)Registers.ChannelGroup0Disable + i * 8)).Define(this, name: "TASKS_CHG[n].DIS")
                     .WithFlag(0, FieldMode.Write, name: "DIS", writeCallback: (_, value) =>
                     {
-                        if(value)
+                        if (value)
                         {
                             channelGroupEnabled[j] = false;
                         }
@@ -96,7 +96,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Registers.ChannelEnableSet.Define(this, name: "CHENSET")
                 .WithFlags(0, 32, name: "CH[i]", writeCallback: (i, _, value) =>
                 {
-                    if(value)
+                    if (value)
                     {
                         this.Log(LogLevel.Noisy, "PPI enable channel {0}", i);
                         channelEnabled[i].Value = true;
@@ -107,7 +107,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Registers.ChannelEnableClear.Define(this, name: "CHENCLR")
                 .WithFlags(0, 32, name: "CH[i]", writeCallback: (i, _, value) =>
                 {
-                    if(value)
+                    if (value)
                     {
                         this.Log(LogLevel.Noisy, "PPI disable channel {0}", i);
                         channelEnabled[i].Value = false;
@@ -115,7 +115,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 }, valueProviderCallback: (i, _) => channelEnabled[i].Value)
             ;
 
-            for(var i = 0; i < ConfigurableChannels; i++)
+            for (var i = 0; i < ConfigurableChannels; i++)
             {
                 var j = i;
 
@@ -132,7 +132,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 ;
             }
 
-            for(var i = 0; i < ChannelGroups; i++)
+            for (var i = 0; i < ChannelGroups; i++)
             {
                 var j = i;
                 ((Registers)((int)Registers.ChannelGroup0 + i * 4)).Define(this, name: "CHG[n]")
@@ -140,7 +140,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 ;
             }
 
-            for(var i = 0; i < Channels; i++)
+            for (var i = 0; i < Channels; i++)
             {
                 var j = i;
 
@@ -184,7 +184,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 // RTC0 Compare0 -> Timer0 Start
                 Tuple.Create(0x4000B140u, 0x40008000u),
             };
-            for(var i = ConfigurableChannels; i < Channels; i++)
+            for (var i = ConfigurableChannels; i < Channels; i++)
             {
                 var entry = entries[i - ConfigurableChannels];
                 UpdateEventEndpoint(0, entry.Item1, i);
@@ -194,10 +194,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private void UpdateEventEndpoint(uint oldValue, uint newValue, int eventId)
         {
-            if(oldValue != 0)
+            if (oldValue != 0)
             {
                 var target = sysbus.WhatPeripheralIsAt(oldValue);
-                if(target is INRFEventProvider nrfTarget)
+                if (target is INRFEventProvider nrfTarget)
                 {
                     //todo: how to do it on reset?
                     nrfTarget.EventTriggered -= eventCallbacks[eventId];
@@ -210,10 +210,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 }
             }
             eventEndpoint[eventId] = newValue;
-            if(newValue != 0)
+            if (newValue != 0)
             {
                 var target = sysbus.WhatPeripheralIsAt(newValue);
-                if(target is INRFEventProvider nrfTarget)
+
+                this.Log(LogLevel.Debug, "PPI event endpoint updated: oldValue={0}, newValue={1}, target={2}", oldValue, newValue, target);
+
+                if (target is INRFEventProvider nrfTarget)
                 {
                     nrfTarget.EventTriggered += eventCallbacks[eventId];
                     registeredEventSenders.Add(EventEntry.Create(nrfTarget, eventId));
@@ -228,30 +231,30 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private void EventReceived(int id, uint offset)
         {
-            if((eventEndpoint[id] & EventOffsetMask) != offset)
+            if ((eventEndpoint[id] & EventOffsetMask) != offset)
             {
                 // this happens when we are registered for an event in the peripheral, but we receive a different one
                 return;
             }
-            if(!channelEnabled[id].Value)
+            if (!channelEnabled[id].Value)
             {
                 var foundGroup = false;
                 // if the channel is disabled, it may be enabled by a group
-                for(var i = 0; i < ChannelGroups; i++)
+                for (var i = 0; i < ChannelGroups; i++)
                 {
-                    if(channelGroupEnabled[i] && channelGroups[i][id].Value)
+                    if (channelGroupEnabled[i] && channelGroups[i][id].Value)
                     {
                         foundGroup = true;
                         break;
                     }
                 }
-                if(!foundGroup)
+                if (!foundGroup)
                 {
                     this.Log(LogLevel.Noisy, "Received an event on channel {0} from 0x{1:X}, but it's disabled.", id, eventEndpoint[id]);
                     return;
                 }
             }
-            if(taskEndpoint[id] != 0)
+            if (taskEndpoint[id] != 0)
             {
                 this.Log(LogLevel.Noisy, "Received an event on channel {0} from 0x{1:X}. Triggering task at 0x{2:X}", id, eventEndpoint[id], taskEndpoint[id]);
                 machine.LocalTimeSource.ExecuteInNearestSyncedState(_ => sysbus.WriteDoubleWord(taskEndpoint[id], 1));
@@ -260,7 +263,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 this.Log(LogLevel.Warning, "Received an event on channel {0} from 0x{1:X}, but there is no task configured", id, eventEndpoint[id]);
             }
-            if(forkEndpoint[id] != 0)
+            if (forkEndpoint[id] != 0)
             {
                 this.Log(LogLevel.Noisy, "Received an event on channel {0} from 0x{1:X}. Triggering fork task at 0x{2:X}", id, eventEndpoint[id], forkEndpoint[id]);
                 machine.LocalTimeSource.ExecuteInNearestSyncedState(_ => sysbus.WriteDoubleWord(forkEndpoint[id], 1));
@@ -289,7 +292,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             public static EventEntry Create(INRFEventProvider provider, int channel)
             {
-               return new EventEntry { Provider = provider, Channel = channel };
+                return new EventEntry { Provider = provider, Channel = channel };
             }
             public INRFEventProvider Provider;
             public int Channel;

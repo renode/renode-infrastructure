@@ -36,6 +36,14 @@ namespace Antmicro.Renode.Peripherals.Timers
                     this.Log(LogLevel.Noisy, "Compare Reached on CC{0} is {1}", j, innerTimers[j].Compare);
                     eventCompareEnabled[j].Value = true;
                     EventTriggered?.Invoke((uint)Register.Compare0EventPending + 0x4u * j);
+                    
+                    // Handle COMPARE1_CLEAR shortcut
+                    if(j == 1 && compare1ClearShortcut.Value)
+                    {
+                        this.Log(LogLevel.Debug, "COMPARE1_CLEAR shortcut triggered");
+                        TriggerClearTask();
+                    }
+                    
                     UpdateInterrupts();
                 };
             }
@@ -132,10 +140,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     if(value)
                     {
-                        foreach(var timer in innerTimers)
-                        {
-                            timer.Value = 0;
-                        }
+                        TriggerClearTask();
                     }
                 })
                 .WithReservedBits(1, 31)
@@ -160,6 +165,12 @@ namespace Antmicro.Renode.Peripherals.Timers
                     })
                     .WithReservedBits(1, 31);
             });
+
+            Register.Shortcuts.Define(this)
+                .WithReservedBits(0, 1)
+                .WithFlag(1, out compare1ClearShortcut, name: "COMPARE1_CLEAR")
+                .WithReservedBits(2, 30)
+            ;
 
             Register.InterruptEnableSet.Define(this)
                 .WithReservedBits(0, 16)
@@ -202,6 +213,14 @@ namespace Antmicro.Renode.Peripherals.Timers
                 .WithReservedBits(12, 20)
             ;
 
+            Register.BitMode.Define(this)
+                .WithValueField(0, 2, out bitMode, name: "BITMODE", writeCallback: (_, value) =>
+                {
+                    this.Log(LogLevel.Debug, "BITMODE register set to: {0} ({1}-bit timer)", value, GetBitModeDescription(value));
+                })
+                .WithReservedBits(2, 30)
+            ;
+
             Register.Compare0.DefineMany(this, (uint)numberOfEvents, setup: (register, idx) =>
             {
                 register
@@ -235,10 +254,33 @@ namespace Antmicro.Renode.Peripherals.Timers
             IRQ.Set(flag);
         }
 
+        private void TriggerClearTask()
+        {
+            this.Log(LogLevel.Debug, "TASK_CLEAR triggered");
+            foreach(var timer in innerTimers)
+            {
+                timer.Value = 0;
+            }
+        }
+
+        private string GetBitModeDescription(ulong value)
+        {
+            switch(value)
+            {
+                case 0: return "16";
+                case 1: return "8"; 
+                case 2: return "24";
+                case 3: return "32";
+                default: return "invalid";
+            }
+        }
+
         private IFlagRegisterField[] eventCompareEnabled;
         private IFlagRegisterField[] eventCompareInterruptEnabled;
         private IValueRegisterField prescaler;
         private IEnumRegisterField<Mode> mode;
+        private IFlagRegisterField compare1ClearShortcut;
+        private IValueRegisterField bitMode;
         private bool timerRunning;
 
         private readonly ComparingTimer[] innerTimers;
