@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -7,7 +7,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-
+using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.CPU;
 using ELFSharp.ELF;
@@ -16,63 +16,82 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
 {
     internal class Trace32Commands : Command
     {
-        public Trace32Commands(CommandsManager manager) : base(manager)
+        public Trace32Commands(CommandsManager manager) : base(manager) { }
+
+        [Execute("Mc")]
+        public PacketData AArch32SystemRegisterSetOld(
+            [Argument(Separator = ':', Encoding = ArgumentAttribute.ArgumentEncoding.DecimalNumber)]uint coprocessor,
+            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint trace32Encoding,
+            [Argument(Separator = ':', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint sizeInBytes,
+            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexBytesString)]byte[] valueBytes)
         {
+            if(coprocessor != 14 && coprocessor != 15)
+            {
+                throw new ArgumentException($"Invalid coprocessor: {coprocessor}");
+            }
+            return HandleAccessingArmSystemRegisters((ArmSystemRegisterEncoding.CoprocessorEnum)coprocessor, trace32Encoding, sizeInBytes, isRead: false, valueBytes);
         }
 
-        [Execute("mspr:")]  // get AArch64 system register
-        public PacketData Execute(
+        [Execute("mc")]
+        public PacketData AArch32SystemRegisterGetOld(
+            [Argument(Separator = ':', Encoding = ArgumentAttribute.ArgumentEncoding.DecimalNumber)]uint coprocessor,
             [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint trace32Encoding,
-            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]int sizeInBytes)
+            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint sizeInBytes)
         {
-            if(!(manager.Cpu is ICPUWithAArch64Support cpu))
+            if(coprocessor != 14 && coprocessor != 15)
             {
-                manager.Cpu.Log(LogLevel.Error, "GDBStub: This CPU doesn't support getting AArch64 system registers.");
-                return PacketData.ErrorReply(Error.OperationNotPermitted);
+                throw new ArgumentException($"Invalid coprocessor: {coprocessor}");
             }
+            return HandleAccessingArmSystemRegisters((ArmSystemRegisterEncoding.CoprocessorEnum)coprocessor, trace32Encoding, sizeInBytes, isRead: true);
+        }
 
-            // Multiples of 8 can be used to read registers with incrementing encodings.
-            if(sizeInBytes != 4 && (sizeInBytes % 8) != 0)
             {
-                manager.Cpu.Log(LogLevel.Error, "GDBStub: Invalid size: 0x{0:X}", sizeInBytes);
-                return PacketData.ErrorReply(Error.InvalidArgument);
             }
-            var registersToRead = sizeInBytes <= 8 ? 1 : sizeInBytes / 8;
-            var valueSize = sizeInBytes <= 8 ? sizeInBytes : 8;
+        [Execute("Mspr:")]
+        public PacketData AArch64SystemRegisterSet(
+            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint trace32Encoding,
+            [Argument(Separator = ':', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint sizeInBytes,
+            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexBytesString)]byte[] valueBytes)
+        {
+            return HandleAccessingArmSystemRegisters(ArmSystemRegisterEncoding.CoprocessorEnum.AArch64, trace32Encoding, sizeInBytes, isRead: false, valueBytes);
+        }
 
-            var bytes = new List<byte>(registersToRead * valueSize);
-            for(var encoding = CreateAArch64Encoding(trace32Encoding); registersToRead > 0; registersToRead--, encoding.Op2++)
+        [Execute("mspr:")]
+        public PacketData AArch64SystemRegisterGet(
+            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint trace32Encoding,
+            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint sizeInBytes)
+        {
+            return HandleAccessingArmSystemRegisters(ArmSystemRegisterEncoding.CoprocessorEnum.AArch64, trace32Encoding, sizeInBytes, isRead: true);
+        }
+
+        private static PacketData HandleReadingArmSystemRegisters(IArmWithSystemRegisters cpu, ArmSystemRegisterEncoding encoding, uint registerSizeInBytes, uint sizeInBytes)
+        {
+            var registersToRead = sizeInBytes <= registerSizeInBytes ? 1 : sizeInBytes / registerSizeInBytes;
+            var valueSize = Math.Min(sizeInBytes, registerSizeInBytes);
+
+            var bytes = new List<byte>((int)(registersToRead * valueSize));
+            while(registersToRead > 0)
             {
                 if(!cpu.TryGetSystemRegisterValue(encoding, out var value))
                 {
                     // The 'TryGet' method will log failure details.
                     return PacketData.ErrorReply(Error.InvalidArgument);
                 }
-                bytes = bytes.Append(BitHelper.GetBytesFromValue(value, valueSize, reverse: cpu.Endianness == Endianess.LittleEndian)).ToList();
+                bytes = bytes.Append(BitHelper.GetBytesFromValue(value, (int)valueSize, reverse: cpu.Endianness == Endianess.LittleEndian)).ToList();
+
+                registersToRead--;
+                if(registersToRead >= 1)
+                {
+                    encoding = encoding.NextInGroup();
+                }
             }
             return new PacketData(string.Join("", bytes.Select(x => x.ToString("X2"))));
         }
 
-        [Execute("Mspr:")]  // set AArch64 system register
-        public PacketData Execute(
-            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint trace32Encoding,
-            [Argument(Separator = ':', Encoding = ArgumentAttribute.ArgumentEncoding.DecimalNumber)]int sizeInBytes,
-            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexBytesString)]byte[] valueBytes)
+        private static PacketData HandleWritingArmSystemRegisters(IArmWithSystemRegisters cpu, ArmSystemRegisterEncoding encoding, uint sizeInBytes, byte[] valueBytes)
         {
-            if(!(manager.Cpu is ICPUWithAArch64Support cpu))
-            {
-                manager.Cpu.Log(LogLevel.Error, "GDBStub: This CPU doesn't support setting AArch64 system registers.");
-                return PacketData.ErrorReply(Error.OperationNotPermitted);
-            }
-
-            if(sizeInBytes != 4 && sizeInBytes != 8)
-            {
-                manager.Cpu.Log(LogLevel.Error, "GDBStub: Invalid size: 0x{0:X}", sizeInBytes);
-                return PacketData.ErrorReply(Error.InvalidArgument);
-            }
-
-            var value = BitHelper.ToUInt64(valueBytes, index: 0, length: sizeInBytes, reverse: cpu.Endianness == Endianess.LittleEndian);
-            if(!cpu.TrySetSystemRegisterValue(CreateAArch64Encoding(trace32Encoding), value))
+            var value = BitHelper.ToUInt64(valueBytes, index: 0, length: (int)sizeInBytes, reverse: cpu.Endianness == Endianess.LittleEndian);
+            if(!cpu.TrySetSystemRegisterValue(encoding, value))
             {
                 // The 'TrySet' method will log failure details.
                 return PacketData.ErrorReply(Error.InvalidArgument);
@@ -80,18 +99,136 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             return PacketData.Success;
         }
 
-        private static AArch64SystemRegisterEncoding CreateAArch64Encoding(uint trace32Encoding)
+        private static bool IsCommandSizeValid(ICPU cpu, uint sizeInBytes, bool multipleAllowed, uint registerSizeInBytes, out PacketData errorReply)
         {
-            // In Trace32's system register encoding, each hex digit refers to op0, op1... values from MRS/MSR instructions accessing
-            // the given register. For example, 0x30040 refers to op0=3, op1=0, crn=0, crm=4, op2=0 (ID_AA64PFR0_EL1).
-            var nibbles = BitHelper.GetNibbles(trace32Encoding).Reverse().TakeLast(5);
+            DebugHelper.Assert(registerSizeInBytes == 4 || registerSizeInBytes == 8);
 
-            var op0 = nibbles.ElementAt(0);
-            var op1 = nibbles.ElementAt(1);
-            var crn = nibbles.ElementAt(2);
-            var crm = nibbles.ElementAt(3);
-            var op2 = nibbles.ElementAt(4);
-            return new AArch64SystemRegisterEncoding(op0, op1, crn, crm, op2);
+            // 4-byte accesses are allowed for AArch64 registers.
+            if(sizeInBytes == 4 || sizeInBytes == registerSizeInBytes || (multipleAllowed && (sizeInBytes % registerSizeInBytes) == 0))
+            {
+                errorReply = null;
+                return true;
+            }
+            cpu.Log(LogLevel.Error, "GDBStub: Invalid size: 0x{0:X}", sizeInBytes);
+            errorReply = PacketData.ErrorReply(Error.InvalidArgument);
+            return false;
+        }
+
+        private static bool TryGetArmWithSystemRegistersCPU(ICPU cpu, ExecutionState requiredExecutionState, out IArmWithSystemRegisters armWithSystemRegisters, out PacketData errorReply)
+        {
+            armWithSystemRegisters = cpu as IArmWithSystemRegisters;
+            if(armWithSystemRegisters != null && armWithSystemRegisters.SupportedExecutionStates.Contains(requiredExecutionState))
+            {
+                errorReply = null;
+                return true;
+            }
+            cpu.Log(LogLevel.Error, $"GDBStub: This CPU doesn't support accessing {requiredExecutionState} system registers.");
+            errorReply = PacketData.ErrorReply(Error.OperationNotPermitted);
+            return false;
+        }
+
+        private PacketData HandleAccessingArmSystemRegisters(ArmSystemRegisterEncoding.CoprocessorEnum coprocessor, uint trace32Encoding, uint sizeInBytes, bool isRead, byte[] valueBytes = null)
+        {
+            var encoding = ArmSystemRegisterEncodingExtensions.ParseTrace32Encoding(coprocessor, trace32Encoding);
+            var registerSizeInBytes = encoding.Width / 8;
+
+            var requiredExecutionState = coprocessor == ArmSystemRegisterEncoding.CoprocessorEnum.AArch64 ? ExecutionState.AArch64 : ExecutionState.AArch32;
+            if(!TryGetArmWithSystemRegistersCPU(manager.Cpu, requiredExecutionState, out var cpu, out var errorReply)
+               || !IsCommandSizeValid(cpu, sizeInBytes, multipleAllowed: true, registerSizeInBytes, out errorReply))
+            {
+                return errorReply;
+            }
+
+            if(isRead)
+            {
+                return HandleReadingArmSystemRegisters(cpu, encoding, registerSizeInBytes, sizeInBytes);
+            }
+            else
+            {
+                return HandleWritingArmSystemRegisters(cpu, encoding, sizeInBytes, valueBytes);
+            }
+        }
+
+    }
+
+    internal static class ArmSystemRegisterEncodingExtensions
+    {
+        internal static ArmSystemRegisterEncoding NextInGroup(this ArmSystemRegisterEncoding encoding)
+        {
+            var nextRegistersCrm = encoding.Crm;
+            var nextRegistersOp1 = encoding.Op1;
+            var nextRegistersOp2 = (byte)encoding.Op2;
+
+            switch(encoding.Coprocessor)
+            {
+                case ArmSystemRegisterEncoding.CoprocessorEnum.AArch64:
+                    // Based on ID_ISAR0_EL1 .. ID_ISAR5_EL1.
+                    nextRegistersOp2++;
+                    break;
+                case ArmSystemRegisterEncoding.CoprocessorEnum.CP15:
+                    if(encoding.Width == 32)
+                    {
+                        // Based on ID_ISAR0 .. ID_ISAR5.
+                        nextRegistersOp2++;
+                    }
+                    else
+                    {
+                        // based on AMEVCNTR00 .. AMEVCNTR03 and AMEVCNTR10 .. AMEVCNTR13.
+                        nextRegistersOp1++;
+                    }
+                    break;
+                case ArmSystemRegisterEncoding.CoprocessorEnum.CP14:
+                    // Based on 32-bit DBGBCR0 .. DBGBCR15 and the only 64-bit CP14 registers,
+                    // i.e. DBGDRAR/DBGDSAR, though reading them this way seems very unlikely.
+                    nextRegistersCrm++;
+                    break;
+                default:
+                    throw new ArgumentException($"Invalid coprocessor: {encoding.Coprocessor}");
+            }
+            return new ArmSystemRegisterEncoding(encoding.Coprocessor, nextRegistersCrm, nextRegistersOp1, encoding.Crn, encoding.Op0, nextRegistersOp2);
+        }
+
+        internal static ArmSystemRegisterEncoding ParseTrace32Encoding(ArmSystemRegisterEncoding.CoprocessorEnum coprocessor, uint trace32Encoding)
+        {
+            // In Trace32's system register encoding, each hex digit refers to op0, crn... parts of ARM
+            // instructions accessing the given register, with instruction-related differences in meaning.
+            var nibbles = BitHelper.GetNibbles(trace32Encoding);
+
+            byte crm, op1;
+            byte? crn = null, op0 = null, op2 = null;
+            var width = 64u;
+            if(coprocessor == ArmSystemRegisterEncoding.CoprocessorEnum.AArch64)
+            {
+                // For example, 0x30040 refers to MSR/MRS instructions with op0=3, op1=0, crn=0, crm=4, op2=0
+                // (ID_AA64PFR0_EL1).
+                op0 = nibbles.ElementAt(4);
+                op1 = nibbles.ElementAt(3);
+                crn = nibbles.ElementAt(2);
+                crm = nibbles.ElementAt(1);
+                op2 = nibbles.ElementAt(0);
+            }
+            else
+            {
+                // This can be a 32-bit (MCR/MRC) or 64-bit (MCRR/MRRC) access which is indicated by 0 or 1,
+                // respectively, in the fifth nibble (bit16 to be exact). The instructions differ in that
+                // 64-bit MCRR/MRRC ones have neither crn nor op2 but Trace32 always passes 0 for them in the
+                // same order as for 32-bit accesses so the nibble handling below is the same for both.
+                var accessing64BitRegister = nibbles.ElementAt(4) == 1;
+
+                // For example:
+                // * 0x412A refers to MCR/MRC with op1=4, crn=A, crm=2 and op2=1 (HMAIR1)
+                // * 0x14020 (the MSB=1 is 64-bit flag) refers to MCRR/MRRC with crm=2, op1=4 (HTTBR)
+                crm = nibbles.ElementAt(1);
+                op1 = nibbles.ElementAt(3);
+
+                if(!accessing64BitRegister)
+                {
+                    crn = nibbles.ElementAt(0);
+                    op2 = nibbles.ElementAt(2);
+                    width = 32u;
+                }
+            }
+            return new ArmSystemRegisterEncoding(coprocessor, op0: op0, op1: op1, op2: op2, crm: crm, crn: crn, width: width);
         }
     }
 }
