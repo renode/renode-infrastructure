@@ -115,7 +115,13 @@ namespace Antmicro.Renode.Utilities
             }
 
             AddToCache(group, name, value);
-            config.Set(name, value);
+            // Note that `Config.Source` takes a LockSource when the file does not exist.
+            // The sequence below is safe, because `TryGetGroup` ensures the file is created.
+            using(var locker = Config.LockSource())
+            {
+                config.Set(name, value);
+                Config.Source.Save();
+            }
         }
 
         public string FilePath => Config.FileName;
@@ -160,13 +166,15 @@ namespace Antmicro.Renode.Utilities
             FileName = filePath;
         }
 
+        public IDisposable LockSource() => new FileLocker(FileName + ConfigurationLockSuffix);
+
         public IConfigSource Source
         {
             get
             {
                 if(source == null)
                 {
-                    using(var locker = new FileLocker(FileName + ConfigurationLockSuffix))
+                    using(var locker = LockSource())
                     {
                         if(File.Exists(FileName))
                         {
@@ -186,7 +194,6 @@ namespace Antmicro.Renode.Utilities
                         }
                     }
                 }
-                source.AutoSave = !Emulator.InCIMode;
                 return source;
             }
         }
