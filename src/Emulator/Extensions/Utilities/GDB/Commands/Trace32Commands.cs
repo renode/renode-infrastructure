@@ -45,8 +45,33 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             return HandleAccessingArmSystemRegisters((ArmSystemRegisterEncoding.CoprocessorEnum)coprocessor, trace32Encoding, sizeInBytes, isRead: true);
         }
 
+        [Execute("Qtrace32.memory:c")]
+        public PacketData AArch32SystemRegisterSet(
+            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.DecimalNumber)]uint coprocessor,
+            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint trace32Encoding,
+            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint sizeInBytes,
+            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexBytesString)]byte[] valueBytes)
+        {
+            if(coprocessor != 14 && coprocessor != 15)
             {
+                throw new ArgumentException($"Invalid coprocessor: {coprocessor}");
             }
+            return HandleAccessingArmSystemRegisters((ArmSystemRegisterEncoding.CoprocessorEnum)coprocessor, trace32Encoding, sizeInBytes, isRead: false, valueBytes);
+        }
+
+        [Execute("qtrace32.memory:c")]
+        public PacketData AArch32SystemRegisterGet(
+            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.DecimalNumber)]uint coprocessor,
+            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint trace32Encoding,
+            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint sizeInBytes)
+        {
+            if(coprocessor != 14 && coprocessor != 15)
+            {
+                throw new ArgumentException($"Invalid coprocessor: {coprocessor}");
+            }
+            return HandleAccessingArmSystemRegisters((ArmSystemRegisterEncoding.CoprocessorEnum)coprocessor, trace32Encoding, sizeInBytes, isRead: true);
+        }
+
         [Execute("Mspr:")]
         public PacketData AArch64SystemRegisterSet(
             [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint trace32Encoding,
