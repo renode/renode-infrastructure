@@ -54,12 +54,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         EL3_MonitorMode = 3
     }
 
-    public enum ExecutionState
-    {
-        AArch32,
-        AArch64
-    }
-
     // GIC exposes a GPIO line with `<cpu.MultiprocessingId>*4 + I` ID for every interrupt type
     // defined in the enum below (`I` is its enum value) and every `cpu` connected to it.
     //

@@ -57,13 +57,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public ulong GetSystemRegisterValue(string name)
-        {
-            ValidateSystemRegisterAccess(name, isWrite: false);
-
-            return TlibGetSystemRegister(name, 1u /* log_unhandled_access: true */);
-        }
-
         public void SetAvailableExceptionLevels(bool el2Enabled, bool el3Enabled)
         {
             if(started)
@@ -83,13 +76,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             default:
                 throw new ArgumentException("Invalid TlibSetAvailableEls return value!");
             }
-        }
-
-        public void SetSystemRegisterValue(string name, ulong value)
-        {
-            ValidateSystemRegisterAccess(name, isWrite: true);
-
-            TlibSetSystemRegister(name, value, 1u /* log_unhandled_access: true */);
         }
 
         public void Register(ARM_GenericTimer peripheral, NullRegistrationPoint registrationPoint)
@@ -129,6 +115,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 coreFeature.Registers.Add(new GDBRegisterDescriptor((uint)ARMv8RRegisters.R15, 32, "pc", "code_ptr", "general"));
                 coreFeature.Registers.Add(new GDBRegisterDescriptor((uint)ARMv8RRegisters.CPSR, 32, "cpsr", "uint32", "general"));
                 features.Add(coreFeature);
+
+                AddSystemRegistersFeature(features, "org.renode.gdb.aarch32.sysregs");
 
                 return features;
             }
@@ -182,6 +170,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         public bool IRQMaskOverride => (GetSystemRegisterValue("hcr") & 0b10000) != 0 || TrapGeneralExceptions;
 
         public Affinity Affinity { get; }
+
+        public override ExecutionState ExecutionState => ExecutionState.AArch32;
+
+        public override ExecutionState[] SupportedExecutionStates => new[] { ExecutionState.AArch32 };
+
+        protected override Type RegistersEnum => typeof(ARMv8RRegisters);
 
         protected override Interrupt DecodeInterrupt(int number)
         {
@@ -350,21 +344,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
 #pragma warning disable 649
         [Import]
-        private Action<GICCPUInterfaceVersion> TlibSetGicCpuRegisterInterfaceVersion;
-
-        [Import]
-        private Func<string, uint, uint> TlibCheckSystemRegisterAccess;
-
-        [Import]
-        // The arguments are: char *name, bool log_unhandled_access.
-        private Func<string, uint, ulong> TlibGetSystemRegister;
-
-        [Import]
         private Func<uint, uint, uint> TlibSetAvailableEls;
-
-        [Import]
-        // The arguments are: char *name, uint64_t value, bool log_unhandled_access.
-        private Action<string, ulong, uint> TlibSetSystemRegister;
 
         [Import]
         private Action<uint, uint> TlibSetMpuRegionsCount;

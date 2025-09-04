@@ -1575,7 +1575,7 @@
     </Compile>
     <Compile Include="Emulator/Main/Utilities/IAutoLoadType.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/ICPU.cs" />
-    <Compile Include="Emulator/Main/Peripherals/CPU/ICPUWithAArch64Support.cs" />
+    <Compile Include="Emulator/Main/Peripherals/CPU/IArmWithSystemRegisters.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/ICPUWithMetrics.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/ICPUWithNMI.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/ICPUWithExternalMmu.cs" />
