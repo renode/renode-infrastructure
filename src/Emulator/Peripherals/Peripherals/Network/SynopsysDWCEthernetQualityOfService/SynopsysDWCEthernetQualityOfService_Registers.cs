@@ -944,7 +944,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithReservedBits(6, 2)
                     .WithFlag(8, out enableTimestampForAll, name: "MACTSCR.TSENALL (TSENALL)")
                     .WithFlag(9, out timestampDigitalOrBinaryRollover, name: "MACTSCR.TSCTRLSSR (TSCTRLSSR)")
-                    .WithTaggedFlag("MACTSCR.TSVER2ENA (TSVER2ENA)", 10)
+                    .WithEnumField(10, 1, out usedPtpVersion, name: "MACTSCR.TSVER2ENA")
                     .WithFlag(11, out processPtpOverEthernet, name: "MACTSCR.TSIPENA (TSIPENA)")
                     .WithFlag(12, out processPtpOverIpv6, name: "MACTSCR.TSIPV6ENA (TSIPV6ENA)")
                     .WithFlag(13, out processPtpOverIpv4, name: "MACTSCR.TSIPV4ENA (TSIPV4ENA)")
@@ -1427,6 +1427,7 @@ namespace Antmicro.Renode.Peripherals.Network
         private IFlagRegisterField enableTimestamp;
         private IFlagRegisterField enableTimestampForAll;
         private IFlagRegisterField timestampDigitalOrBinaryRollover;
+        private IEnumRegisterField<PTPVersion> usedPtpVersion;
         private IValueRegisterField systemTimeSecondUpdate;
         private IValueRegisterField systemTimeNanosecondUpdate;
         private IFlagRegisterField addOrSubtractTime;

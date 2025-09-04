@@ -393,14 +393,14 @@ namespace Antmicro.Renode.Peripherals.Network
 
         private struct PTPInfo
         {
-            public static PTPInfo? FromFrame(EthernetFrame frame)
+            public static PTPInfo? FromFrame(EthernetFrame frame, PTPVersion supportedPtpVersion)
             {
                 try
                 {
                     var packet = frame.UnderlyingPacket;
                     if(packet.Type == EthernetPacketType.PrecisionTimeProtocol)
                     {
-                        return ExtractInfo(packet.PayloadPacket.Bytes, TransportType.Ethernet);
+                        return ExtractInfo(packet.PayloadPacket.Bytes, TransportType.Ethernet, supportedPtpVersion);
                     }
                     else if(packet.Type == EthernetPacketType.IpV4 || packet.Type == EthernetPacketType.IpV6)
                     {
@@ -417,7 +417,7 @@ namespace Antmicro.Renode.Peripherals.Network
                                 return null;
                             }
                             var transportType = packet.Type == EthernetPacketType.IpV4 ? TransportType.IpV4 : TransportType.IpV6;
-                            return ExtractInfo(udpPacket.PayloadData, transportType);
+                            return ExtractInfo(udpPacket.PayloadData, transportType, supportedPtpVersion);
                         }
                     }
                 }
@@ -428,10 +428,17 @@ namespace Antmicro.Renode.Peripherals.Network
                 return null;
             }
 
-            private static PTPInfo? ExtractInfo(byte[] ptpData, TransportType transport)
+            private static PTPInfo? ExtractInfo(byte[] ptpData, TransportType transport, PTPVersion ptpVersion)
             {
                 var info = new PTPInfo();
                 info.Transport = transport;
+                // Documentation states that you can either process PTPv1 packets or PTPv2 packets, but never both
+                if((ptpData[1] & 0x0F) - 1 != (int)ptpVersion)
+                {
+                    return null; // PTP version of the packet doesn't match what controller supports
+                }
+                info.Version = ptpVersion;
+
                 switch(ptpData[0] & 0x0F)
                 {
                 case 0x0:
@@ -466,18 +473,6 @@ namespace Antmicro.Renode.Peripherals.Network
                     break;
                 default:
                     return null; // Invalid message type
-                }
-
-                switch(ptpData[1] & 0x0F)
-                {
-                case 1:
-                    info.Version = PTPVersion.IEEE1588version1;
-                    break;
-                case 2:
-                    info.Version = PTPVersion.IEEE1588version2;
-                    break;
-                default:
-                    return null; // Invalid version
                 }
 
                 return info;

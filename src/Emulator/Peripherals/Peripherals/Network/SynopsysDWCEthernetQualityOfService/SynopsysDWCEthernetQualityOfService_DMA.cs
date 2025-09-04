@@ -614,7 +614,7 @@ namespace Antmicro.Renode.Peripherals.Network
                                 parsePtp = parent.processPtpOverIpv6.Value;
                                 break;
                             }
-                            ptpInfo = parsePtp ? PTPInfo.FromFrame(frame) : null;
+                            ptpInfo = parsePtp ? PTPInfo.FromFrame(frame, parent.usedPtpVersion.Value) : null;
                             insertTimestamp = parent.enableTimestamp.Value && (ptpInfo != null || parent.enableTimestampForAll.Value);
                         }
                         else
