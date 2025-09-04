@@ -271,6 +271,8 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
         }
 
+        public bool LogTransfers { get; set; }
+
         private void FinalizeReceiverTransfer()
         {
             if(receiverBuffer.Count == 0)
@@ -286,6 +288,10 @@ namespace Antmicro.Renode.Peripherals.DMA
                 transferType,
                 transferType
             );
+            if(LogTransfers)
+            {
+                parent.DebugLog("DMA Read: {0}", receiverBuffer.ToArray().ToHexString());
+            }
 
             parent.DebugLog("Executing receiver transfer to 0x{0:X} of {1} bytes", receivePointer.Value, receiverBuffer.Count);
             engine.IssueCopy(request);
@@ -349,6 +355,10 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             parent.DebugLog("Executing transmitter transfer from 0x{0:X} of {1} bytes", transmitPointer.Value, transmitterBuffer.Length);
             engine.IssueCopy(request);
+            if(LogTransfers)
+            {
+                parent.DebugLog("DMA Write: {0}", transmitterBuffer.ToHexString());
+            }
         }
 
         private void TriggerReceiverInner()

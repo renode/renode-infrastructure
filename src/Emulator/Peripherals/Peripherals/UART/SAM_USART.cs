@@ -108,6 +108,19 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
+        public bool LogTransfers
+        {
+            get => logTransfers;
+            set
+            {
+                logTransfers = value;
+                if(pdc != null)
+                {
+                    pdc.LogTransfers = value;
+                }
+            }
+        }
+
         protected override void CharWritten()
         {
             receiverReady.Value = true;
@@ -442,7 +455,15 @@ namespace Antmicro.Renode.Peripherals.UART
             ;
 
             Registers.ReceiveHolding.Define(this)
-                .WithValueField(0, 9, FieldMode.Read, valueProviderCallback: _ => ReadBuffer(true) ?? 0x0, name: "RXCHR")
+                .WithValueField(0, 9, FieldMode.Read, valueProviderCallback: _ =>
+                {
+                    var value = ReadBuffer(true) ?? 0x0;
+                    if(LogTransfers)
+                    {
+                        this.DebugLog("Read: {0:X2}", value);
+                    }
+                    return value;
+                }, name: "RXCHR")
                 .WithReservedBits(9, 6)
                 .If(uartOnlyMode)
                     .Then(reg => reg
@@ -455,7 +476,14 @@ namespace Antmicro.Renode.Peripherals.UART
             ;
 
             Registers.TransmitHolding.Define(this)
-                .WithValueField(0, 9, FieldMode.Write, writeCallback: (_, b) => Transmit((byte)b), name: "TXCHR")
+                .WithValueField(0, 9, FieldMode.Write, writeCallback: (_, b) =>
+                {
+                    if(LogTransfers)
+                    {
+                        this.DebugLog("Write: {0:X2}", b);
+                    }
+                    Transmit((byte)b);
+                }, name: "TXCHR")
                 .WithReservedBits(9, 6)
                 .If(uartOnlyMode)
                     .Then(reg => reg
@@ -603,6 +631,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private bool receiverEnabled;
         private bool transmitterEnabled;
+        private bool logTransfers;
 
         private readonly SAM_PDC pdc;
 
