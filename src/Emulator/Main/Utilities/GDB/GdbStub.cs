@@ -237,7 +237,6 @@ namespace Antmicro.Renode.Utilities.GDB
                     {
                         if(LogsEnabled)
                         {
-                            commandsManager.Cpu.Log(LogLevel.Debug, "{0}", e);
                             // Get to the inner-most exception. The outer-most exception here is often
                             // 'Reflection.TargetInvocationException' which doesn't have any useful message.
                             while(e.InnerException != null)
