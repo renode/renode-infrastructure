@@ -285,15 +285,19 @@ namespace Antmicro.Renode.Peripherals.SCI
             // According to the documentation this register should have a reset value of 0x20.
             // Some software expects the TEND flag to be set even before transmitting the first character.
             // Error status flags are modeled as fields to reduce the amount of logs generated during the simulation.
+            //
+            // This register has an uncommon property: "0 can be only written to clear the flag after 1 is read."
+            // from: RZG/2L PDF Datasheet section 22.2.7 Serial Status Register (FSR)
+            // It is solved via RenesasFlagState flag extension tracking whether flag was read after most recent write (also via code).
             Registers.SerialStatus.Define(this, 0x60)
-                .WithFlag(0, out receiveDataReady, FieldMode.Read | FieldMode.WriteZeroToClear, name: "DR")
-                .WithFlag(1, out receiveFifoFull, FieldMode.Read | FieldMode.WriteZeroToClear, name: "RDF")
-                .WithFlag(2, FieldMode.Read | FieldMode.WriteZeroToClear, name: "PER")
-                .WithFlag(3, FieldMode.Read | FieldMode.WriteZeroToClear, name: "FER")
-                .WithFlag(4, FieldMode.Read | FieldMode.WriteZeroToClear, name: "BRK")
-                .WithFlag(5, out transmitFIFOEmpty, FieldMode.Read | FieldMode.WriteZeroToClear, name: "TDFE")
-                .WithFlag(6, out transmitEnd, FieldMode.Read | FieldMode.WriteZeroToClear, name: "TEND")
-                .WithFlag(7, FieldMode.Read | FieldMode.WriteZeroToClear, name: "ER")
+                .WithWriteAllowedAfterReadingOneFlag(0, this, out receiveDataReady, "RD")
+                .WithWriteAllowedAfterReadingOneFlag(1, this, out receiveFifoFull, "RDF")
+                .WithFlag(2, FieldMode.Read, name: "PER")
+                .WithFlag(3, FieldMode.Read, name: "FER")
+                .WithWriteAllowedAfterReadingOneFlag(4, this, "BRK")
+                .WithWriteAllowedAfterReadingOneFlag(5, this, out transmitFIFOEmpty, "TDFE")
+                .WithWriteAllowedAfterReadingOneFlag(6, this, out transmitEnd, "TEND")
+                .WithWriteAllowedAfterReadingOneFlag(7, this, "ER")
                 .WithReservedBits(8, 8)
                 .WithWriteCallback((_, __) => UpdateInterrupts());
 
@@ -462,10 +466,10 @@ namespace Antmicro.Renode.Peripherals.SCI
         private IFlagRegisterField receiveEnabled;
         private IFlagRegisterField receiveInterruptEnabled;
         private IFlagRegisterField transmitInterruptEnabled;
-        private IFlagRegisterField transmitFIFOEmpty;
-        private IFlagRegisterField transmitEnd;
-        private IFlagRegisterField receiveDataReady;
-        private IFlagRegisterField receiveFifoFull;
+        private WriteAllowedAfterReadingOneFlag transmitFIFOEmpty;
+        private WriteAllowedAfterReadingOneFlag transmitEnd;
+        private WriteAllowedAfterReadingOneFlag receiveDataReady;
+        private WriteAllowedAfterReadingOneFlag receiveFifoFull;
         private IValueRegisterField bitRate;
         private IValueRegisterField clockSource;
         private IValueRegisterField receiveFifoDataTriggerNumber;
@@ -490,6 +494,49 @@ namespace Antmicro.Renode.Peripherals.SCI
         private const int TransmitFifoEmptyIrqIdx = 3;
         private const int TransmitEndReceiveReadyIrqIdx = 4;
         private const int TransmitInterruptDelay = 10;
+
+        internal class WriteAllowedAfterReadingOneFlag
+        {
+            public WriteAllowedAfterReadingOneFlag(int position, PeripheralRegister register, IPeripheral parent, string name)
+            {
+                flag = register.DefineFlagField(position, FieldMode.Read | FieldMode.WriteZeroToClear, readCallback: ReadCallback, changeCallback: ChangeCallback, name: name);
+                this.name = name;
+                this.parent = parent;
+            }
+
+            public bool Value
+            {
+                get => flag.Value;
+                set
+                {
+                    flag.Value = value;
+                    canWrite = false;
+                }
+            }
+
+            private void ReadCallback(bool oldValue, bool value)
+            {
+                if (oldValue)
+                {
+                    canWrite = true;
+                }
+            }
+
+            private void ChangeCallback(bool oldValue, bool value)
+            {
+                if (!canWrite)
+                {
+                    parent.WarningLog("Flag {0} was changed while this was not allowed, write ignored", name);
+                    flag.Value = oldValue;
+                }
+                canWrite = false;
+            }
+
+            private bool canWrite;
+            private readonly IFlagRegisterField flag;
+            private readonly string name;
+            private readonly IPeripheral parent;
+        }
 
         private enum CommunicationMode
         {
@@ -520,6 +567,21 @@ namespace Antmicro.Renode.Peripherals.SCI
             LineStatus          = 0x12, // LSR
             SerialExtendedMode  = 0x14,  // SEMR
             FifoTriggerControl  = 0x16,  // FTCR
+        }
+    }
+
+    internal static class RenesasRZG_SCIFA_Extensions
+    {
+        public static T WithWriteAllowedAfterReadingOneFlag<T>(this T register, int position, IPeripheral parent, string name = null)
+            where T : PeripheralRegister
+        {
+            return WithWriteAllowedAfterReadingOneFlag(register, position, parent, out _, name);
+        }
+        public static T WithWriteAllowedAfterReadingOneFlag<T>(this T register, int position, IPeripheral parent, out RenesasRZG_SCIFA.WriteAllowedAfterReadingOneFlag flag, string name = null)
+            where T : PeripheralRegister
+        {
+            flag = new RenesasRZG_SCIFA.WriteAllowedAfterReadingOneFlag(position, register, parent, name);
+            return register;
         }
     }
 }
