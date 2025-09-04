@@ -124,6 +124,7 @@ namespace Antmicro.Renode.Peripherals.UART
         protected override void CharWritten()
         {
             receiverReady.Value = true;
+            pdc?.TriggerReceiver();
             UpdateInterrupts();
         }
 
