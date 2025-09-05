@@ -21,3 +21,5 @@ EXTERNAL_AS(void, WriteSystemRegisterGenericTimer32, tlib_write_system_register_
 
 EXTERNAL_AS(void, OnExecutionModeChanged, tlib_on_execution_mode_changed, uint32_t, uint32_t)
 EXTERNAL_AS(void, HandlePSCICall, tlib_handle_psci_call)
+
+EXTERNAL_AS(uint64_t, GetRandomUlong, tlib_get_random_ulong)

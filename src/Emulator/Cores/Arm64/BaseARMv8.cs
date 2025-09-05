@@ -23,6 +23,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         public BaseARMv8(uint cpuId, string cpuType, IMachine machine, Endianess endianness = Endianess.LittleEndian) : base(cpuId, cpuType, machine, endianness, CpuBitness.Bits64)
         {
             this.customFunctionHandlers = new Dictionary<ulong, Action>();
+            this.rng = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
         }
 
         public void AddCustomPSCIHandler(ulong functionIdentifier, Action stub)
@@ -85,6 +86,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             SetRegister((int)ARMv8ARegisters.X0, PSCICallResultSuccess);
         }
 
+        [Export]
+        private ulong GetRandomUlong()
+        {
+            return rng.NextUlong();
+        }
+
         private void GetPSCIVersion()
         {
             SetRegister((int)ARMv8ARegisters.X1, PSCIVersion);
@@ -104,6 +111,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         private PSCIConduitEmulationMethod psciEmulationMethod;
+        private PseudorandomNumberGenerator rng;
 
         private readonly Dictionary<ulong, Action> customFunctionHandlers;
         private const int PSCICallResultSuccess = 0;
