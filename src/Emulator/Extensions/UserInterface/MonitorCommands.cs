@@ -867,6 +867,22 @@ namespace Antmicro.Renode.UserInterface
             }
         }
 
+        /// <summary>
+        /// Parses an optional argument, which can be a single token like "a", or a list like [1, 2, 3],
+        /// starting at index <paramref name="i"/> within <paramref name="tokens"/>. The resulting
+        /// <paramref name="arg"/> will be a <see cref="TokenList"/> representing the argument,
+        /// or null if no argument was present.
+        /// </summary>
+        private static bool ParseOptionalArgument(IList<Token> tokens, out TokenList arg, int i = 0)
+        {
+            if(tokens.Count <= i)
+            {
+                arg = null;
+                return true;
+            }
+            return ParseArgument(tokens, ref i, out arg);
+        }
+
         private object ConvertValue(object value, Type type)
         {
             var underlyingType = Nullable.GetUnderlyingType(type);
@@ -1387,8 +1403,6 @@ namespace Antmicro.Renode.UserInterface
 
             var parameterArray = p.Skip(command is LeftBraceToken ? 0 : 1).ToArray(); //Don't skip left brace, proper code to do that is below.
 
-            var setValue = parameterArray.FirstOrDefault();
-
             if(foundMethods.Any())
             {
                 foreach(var foundMethod in foundMethods.OrderBy(x=>x.GetParameters().Count())
@@ -1425,8 +1439,13 @@ namespace Antmicro.Renode.UserInterface
             }
             else if(foundField != null)
             {
+                TokenList setValue = null;
+                if(!ParseOptionalArgument(parameterArray, out setValue))
+                {
+                    throw new RecoverableException($"Failed to parse argument: {Misc.PrettyPrintCollection(parameterArray)}");
+                }
                 //if setValue is a LiteralToken then it must contain the next command to process in recursive call
-                if(CanTypeBeChained(foundField.FieldType) && setValue != null && setValue is LiteralToken)
+                if(CanTypeBeChained(foundField.FieldType) && setValue?.FirstOrDefault() is LiteralToken)
                 {
                     var currentObject = InvokeGet(device, foundField);
                     var objectFullName = $"{name} {commandValue}";
@@ -1434,18 +1453,9 @@ namespace Antmicro.Renode.UserInterface
                 }
                 else if(setValue != null && !foundField.IsLiteral && !foundField.IsInitOnly)
                 {
-                    object value;
-                    try
+                    if(!FitArgumentType(setValue, foundField.FieldType, out var value))
                     {
-                        value = ConvertValue(setValue.GetObjectValue(), foundField.FieldType);
-                    }
-                    catch(Exception e)
-                    {
-                        if(e is FormatException || e is RuntimeBinderException)
-                        {
-                            throw new RecoverableException(e);
-                        }
-                        throw;
+                        throw new RecoverableException($"Could not convert {setValue} to {foundField.FieldType}");
                     }
                     InvokeSet(device, foundField, value);
                     return null;
@@ -1457,8 +1467,13 @@ namespace Antmicro.Renode.UserInterface
             }
             else if(foundProp != null)
             {
+                TokenList setValue = null;
+                if(!ParseOptionalArgument(parameterArray, out setValue))
+                {
+                    throw new RecoverableException($"Failed to parse argument: {Misc.PrettyPrintCollection(parameterArray)}");
+                }
                 //if setValue is a LiteralToken then it must contain the next command to process in recursive call
-                if(CanTypeBeChained(foundProp.PropertyType) && setValue != null && setValue is LiteralToken)
+                if(CanTypeBeChained(foundProp.PropertyType) && setValue?.FirstOrDefault() is LiteralToken)
                 {
                     var currentObject = InvokeGet(device, foundProp);
                     var objectFullName = $"{name} {commandValue}";
@@ -1466,18 +1481,9 @@ namespace Antmicro.Renode.UserInterface
                 }
                 else if(setValue != null && foundProp.IsCurrentlySettable(CurrentBindingFlags))
                 {
-                    object value;
-                    try
+                    if(!FitArgumentType(setValue, foundProp.PropertyType, out var value))
                     {
-                        value = ConvertValue(setValue.GetObjectValue(), foundProp.PropertyType);
-                    }
-                    catch(Exception e)
-                    {
-                        if(e is FormatException || e is RuntimeBinderException)
-                        {
-                            throw new RecoverableException(e);
-                        }
-                        throw;
+                        throw new RecoverableException($"Could not convert {setValue} to {foundProp.PropertyType}");
                     }
                     InvokeSet(device, foundProp, value);
                     return null;
@@ -1497,42 +1503,33 @@ namespace Antmicro.Renode.UserInterface
             }
             else if(foundIndexers.Any())
             {
-                setValue = null;
-                if(parameterArray.Length < 3 || !(parameterArray[0] is LeftBraceToken))
+                var i = 0;
+                if(!ParseArgument(parameterArray, ref i, out var index))
                 {
-                    throw new ParametersMismatchException(type, commandValue, name);
+                    throw new RecoverableException($"Failed to parse index from {Misc.PrettyPrintCollection(parameterArray)}");
                 }
-                var index = parameterArray.IndexOf(x => x is RightBraceToken);
-                if(index == -1)
+                if(!ParseOptionalArgument(parameterArray, out var value, ++i))
                 {
-                    throw new ParametersMismatchException(type, commandValue, name);
+                    throw new RecoverableException($"Failed to parse value from {Misc.PrettyPrintCollection(parameterArray.Skip(i))}");
                 }
-                if(index == parameterArray.Length - 2)
-                {
-                    setValue = parameterArray[parameterArray.Length - 1];
-                }
-                else if(index != parameterArray.Length - 1)
-                {
-                    throw new ParametersMismatchException(type, commandValue, name);
-                }
-                var getParameters = parameterArray.Skip(1).Take(index - 1).ToArray();
                 foreach(var foundIndexer in foundIndexers.OrderBy(x=>x.GetIndexParameters ().Count())
                          .ThenByDescending(y=>y.GetIndexParameters().Count(z=>z.ParameterType==typeof(String))))
                 {
                     List<object> parameters;
                     var indexerParameters = foundIndexer.GetIndexParameters();
 
-                    object value;
-                    if(TryPrepareParameters(getParameters, indexerParameters, out parameters))
+                    if(TryPrepareParameters(index.Tokens, indexerParameters, out parameters))
                     {
                         try
                         {
-                            if(setValue != null && foundIndexer.IsCurrentlySettable(CurrentBindingFlags))
+                            if(value != null && foundIndexer.IsCurrentlySettable(CurrentBindingFlags))
                             {
-                                value = ConvertValue(setValue.GetObjectValue(), foundIndexer.PropertyType);
+                                if(!FitArgumentType(value, foundIndexer.PropertyType, out var convertedValue))
+                                {
+                                    throw new RecoverableException($"Could not convert {value} to {foundIndexer.PropertyType}");
+                                }
 
-
-                                InvokeSetIndex(device, foundIndexer, parameters.Concat(new[] { value }).ToList());
+                                InvokeSetIndex(device, foundIndexer, parameters.Concat(new[] { convertedValue }).ToList());
                                 return null;
                             }
                             else
