@@ -15,7 +15,7 @@ using Antmicro.Migrant.Hooks;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
-    public abstract class UARTBase : NullRegistrationPointPeripheralContainer<IUART>, IUART
+    public abstract class UARTBase : NullRegistrationPointPeripheralContainer<IUART>, IUARTWithBufferState
     {
         protected UARTBase(IMachine machine) : base(machine)
         {
@@ -34,6 +34,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 }
 
                 queue.Enqueue(value);
+                BufferStateChanged?.Invoke(BufferState);
                 CharWritten();
             }
         }
@@ -60,6 +61,9 @@ namespace Antmicro.Renode.Peripherals.UART
         [field: Transient]
         public event Action<byte> CharReceived;
 
+        public event Action<BufferState> BufferStateChanged;
+        public BufferState BufferState => Count != 0 ? BufferState.Ready : BufferState.Empty;
+
         protected abstract void CharWritten();
         protected abstract void QueueEmptied();
 
@@ -82,6 +86,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 }
                 if(queue.Count == 0)
                 {
+                    BufferStateChanged?.Invoke(BufferState);
                     QueueEmptied();
                 }
                 return true;
@@ -98,6 +103,7 @@ namespace Antmicro.Renode.Peripherals.UART
             lock(innerLock)
             {
                 queue.Clear();
+                BufferStateChanged?.Invoke(BufferState);
                 QueueEmptied();
             }
         }
