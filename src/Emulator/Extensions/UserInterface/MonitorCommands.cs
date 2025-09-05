@@ -1128,10 +1128,10 @@ namespace Antmicro.Renode.UserInterface
             else
             {
                 elemType = paramType;
-                if(tokens.IsArray)
-                {
-                    return false;
-                }
+            }
+            if(tokens.IsArray != (paramType.IsArray || isGenericList))
+            {
+                return false;
             }
             var genericListT = typeof(List<>).MakeGenericType(new [] { elemType });
             var list = (IList)Activator.CreateInstance(genericListT);

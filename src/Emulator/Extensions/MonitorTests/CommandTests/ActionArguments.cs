@@ -179,6 +179,12 @@ namespace Antmicro.Renode.MonitorTests.CommandTests
 
         [TestCase("emulation MethodWithArrayThenString [1, 2, 3, ,] \",\"",
             TestName = "TwoTrailingCommas")]
+
+        [TestCase("emulation MethodWithListOfStrings \"a\"",
+            TestName = "SingleElementPassedAsListParameter")]
+
+        [TestCase("emulation MethodWithArrayThenString 1 \",\"",
+            TestName = "SingleElementPassedAsNonParamsArrayParameter")]
         public void CommandShouldFail(string command)
         {
             CommandResultShouldContain(command, "The following methods are available");
