@@ -263,6 +263,24 @@ namespace Antmicro.Renode.Core
             }
         }
 
+        public void LoadLatestSnapshot(bool autoStart = false)
+        {
+            var currentTimeStamp = CurrentEmulation.MasterTimeSource.ElapsedVirtualTime;
+            LoadLatestSnapshot(currentTimeStamp - TimeInterval.FromTicks(1), autoStart);
+        }
+
+        public void LoadLatestSnapshot(TimeInterval beforeOrAtTimestamp, bool autoStart = false)
+        {
+            var snapshotPath = CurrentEmulation.SnapshotTracker.GetLastSnapshotBeforeOrAtTimeStamp(beforeOrAtTimestamp);
+
+            Load(snapshotPath, preserveState: true);
+
+            if(autoStart)
+            {
+                CurrentEmulation.StartAll();
+            }
+        }
+
         public Emulation CurrentEmulation
         {
             get
