@@ -70,5 +70,31 @@ namespace Antmicro.Renode.Storage.VirtIO
         protected IFlagRegisterField driverFeatureBitsIndex;
         protected IFlagRegisterField hasUsedBuffer;
         protected IFlagRegisterField configHasChanged;
+
+        protected enum DeviceType {
+            Reserved = 0,
+            NetworkCard = 1,
+            BlockDevice = 2,
+            Console = 3,
+            EntropySource = 4,
+            MemoryBallooningTraditional = 5,
+            IoMemory = 6,
+            RPMSG = 7,
+            SCSIHost = 8,
+            NinePTransport = 9,
+            Mac80211Wlan = 10,
+            RPROCSerial = 11,
+            VirtIOCAIF = 12,
+            MemoryBalloon = 13,
+            GPUDevice = 16,
+            TimerClockDevice = 17,
+            InputDevice = 18,
+            SocketDevice = 19,
+            CryptoDevice = 20,
+            SignalDistributionModule = 21,
+            PStoreDevice = 22,
+            IOMMUDevice = 23,
+            MemoryDevice = 24
+        }
     }
 }
