@@ -343,6 +343,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             TlibEnablePostGprAccessHookOn(registerIndex, value);
         }
 
+        public void EnablePreStackAccessHook(bool value)
+        {
+            TlibEnablePreStackAccessHook(value);
+        }
+
         public void RegisterLocalInterruptController(CoreLocalInterruptController clic)
         {
             if(this.clic != null)
@@ -384,6 +389,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 TlibSetHartId(value);
             }
         }
+
+        public PrivilegeLevel CurrentPrivilegeLevel => (PrivilegeLevel)TlibGetCurrentPriv();
 
         public ulong ResetVector
         {
@@ -475,6 +482,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         public event Action<ulong> MipChanged;
+
+        public event Action<ulong, uint, bool> PreStackAccess;
 
         public Dictionary<string, object> UserState { get; }
 
@@ -839,6 +848,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
+        protected virtual void HandlePreStackAccessHook(ulong address, uint width, uint isWrite)
+        {
+            PreStackAccess?.Invoke(address, width, isWrite > 0);
+        }
+
+        [Export]
         private void ClicClearEdgeInterrupt()
         {
             if(clic == null)
@@ -918,6 +933,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         private Func<uint> TlibGetHartId;
 
         [Import]
+        private Func<uint> TlibGetCurrentPriv;
+
+        [Import]
         private Action<uint> TlibSetNapotGrain;
 
         [Import]
@@ -985,6 +1003,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private Action<uint, uint> TlibEnablePostGprAccessHookOn;
+
+        [Import]
+        private Action<bool> TlibEnablePreStackAccessHook;
 
         [Import]
         private Action<int, uint, uint, uint> TlibSetClicInterruptState;

@@ -377,6 +377,7 @@
     <Compile Include="Emulator/Cores/RiscV/RiscVCpuHooksExtensions.cs" />
     <Compile Include="Emulator/Cores/RiscV/RiscVInstructionPythonEngine.cs" />
     <Compile Include="Emulator/Cores/RiscV/RiscVCsrPythonEngine.cs" />
+    <Compile Include="Emulator/Cores/RiscV/RiscVStackAccessPythonEngine.cs" />
     <Compile Include="Emulator/Cores/RiscV/CV32E40P.cs" />
     <Compile Include="Emulator/Cores/RiscV/PULP_InterruptController.cs" />
     <Compile Include="Emulator/Cores/RiscV/PULP_EventController.cs" />
