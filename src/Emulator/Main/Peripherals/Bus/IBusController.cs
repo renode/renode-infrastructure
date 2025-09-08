@@ -96,8 +96,6 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         IEnumerable<IBusRegistered<IBusPeripheral>> GetRegistrationsForPeripheralType<T>(IPeripheral context = null);
 
-        IEnumerable<BusRangeRegistration> GetRegistrationPoints(IBusPeripheral peripheral);
-
         bool TryGetCurrentCPU(out ICPU cpu);
 
         bool TryGetCurrentContextState<T>(out IPeripheralWithTransactionState context, out T stateObj);
