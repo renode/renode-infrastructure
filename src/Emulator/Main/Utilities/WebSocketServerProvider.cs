@@ -345,7 +345,7 @@ namespace Antmicro.Renode.Utilities
                         await webSocket.SendAsync(new ArraySegment<byte>(dequeued, 0, dequeued.Length), WebSocketMessageType.Text, true, cancellationToken.Token);
                     }
                 }
-                catch(Exception e)
+                catch(Exception)
                 {
                     break;
                 }
