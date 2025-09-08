@@ -913,16 +913,16 @@ namespace Antmicro.Renode.Peripherals.Network
                 },
                 { (long)RegistersMacAndMmc.TimestampControl, new DoubleWordRegister(this, 0x2000)
                     .WithFlag(0, out enableTimestamp, name: "MACTSCR.TSENA (TSENA)",
-                        changeCallback: (_, value) => timestampTimer.Enabled = value)
-                    .WithFlag(1, out fineOrCoarseTimestampUpdate, name: "MACTSCR.TSCFUPDT (TSCFUPDT)",
                         changeCallback: (_, value) =>
                         {
-                            if(fineOrCoarseTimestampUpdate.Value)
+                            if(!value)
                             {
-                                this.WarningLog("'Fine' timestamp update mode is not supported, reverting to the 'Coarse' method");
-                                fineOrCoarseTimestampUpdate.Value = false;
+                                // Only disable the timer here. According to the documentation timestamp timer
+                                // starts counting only after setting the `TSINIT` bit
+                                timestampSubsecondTimer.Enabled = false;
                             }
                         })
+                    .WithFlag(1, out fineOrCoarseTimestampUpdate, name: "MACTSCR.TSCFUPDT (TSCFUPDT)")
                     .WithFlag(2, FieldMode.Read | FieldMode.WriteOneToClear, name: "MACTSCR.TSINIT (TSINIT)",
                         writeCallback: (_, value) =>
                         {
@@ -940,10 +940,12 @@ namespace Antmicro.Renode.Peripherals.Network
                             }
                         })
                     .WithReservedBits(4, 1)
-                    .WithTaggedFlag("MACTSCR.TSADDREG (TSADDREG)", 5)
+                    .WithFlag(5, name: "MACTSCR.TSADDREG (TSADDREG)",
+                        valueProviderCallback: _ => false) // Addend is updated instantly
                     .WithReservedBits(6, 2)
                     .WithFlag(8, out enableTimestampForAll, name: "MACTSCR.TSENALL (TSENALL)")
-                    .WithFlag(9, out timestampDigitalOrBinaryRollover, name: "MACTSCR.TSCTRLSSR (TSCTRLSSR)")
+                    .WithFlag(9, out timestampDigitalOrBinaryRollover, name: "MACTSCR.TSCTRLSSR (TSCTRLSSR)",
+                        changeCallback: (_, value) => timestampSubsecondTimer.Limit = value ? DigitalSubsecondRollover : BinarySubsecondRollover)
                     .WithEnumField(10, 1, out usedPtpVersion, name: "MACTSCR.TSVER2ENA")
                     .WithFlag(11, out processPtpOverEthernet, name: "MACTSCR.TSIPENA (TSIPENA)")
                     .WithFlag(12, out processPtpOverIpv6, name: "MACTSCR.TSIPV6ENA (TSIPV6ENA)")
@@ -960,7 +962,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 {(long)RegistersMacAndMmc.SubsecondIncrement, new DoubleWordRegister(this)
                     .WithReservedBits(0, 8)
                     .WithTag("MACSSIR.SNSINC (SNSINC)", 8, 8)
-                    .WithTag("MACSSIR.SSINC (SSINC)", 16, 8)
+                    .WithValueField(16, 8, out timestampSubsecondIncrement, name: "MACSSIR.SSINC (SSINC)")
                     .WithReservedBits(24, 8)
                 },
                 {(long)RegistersMacAndMmc.SystemTimeSeconds, new DoubleWordRegister(this)
@@ -988,7 +990,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithFlag(31, out addOrSubtractTime, name: "MACSTNUR.ADDSUB (ADDSUB)")
                 },
                 {(long)RegistersMacAndMmc.TimestampAddend, new DoubleWordRegister(this)
-                    .WithTag("MACTSAR.TSAR (TSAR)", 0, 32)
+                    .WithValueField(0, 32, out timestampAddend, name: "MACTSAR.TSAR (TSAR)")
                 },
                 {(long)RegistersMacAndMmc.TimestampStatus, new DoubleWordRegister(this)
                     .WithTaggedFlag("MACTSSR.TSSOVF (TSSOVF)", 0)
@@ -1431,10 +1433,12 @@ namespace Antmicro.Renode.Peripherals.Network
         private IValueRegisterField systemTimeSecondUpdate;
         private IValueRegisterField systemTimeNanosecondUpdate;
         private IFlagRegisterField addOrSubtractTime;
+        private IValueRegisterField timestampAddend;
         private IFlagRegisterField processPtpOverEthernet;
         private IFlagRegisterField processPtpOverIpv4;
         private IFlagRegisterField processPtpOverIpv6;
         private IFlagRegisterField fineOrCoarseTimestampUpdate;
+        private IValueRegisterField timestampSubsecondIncrement;
 
         private readonly IFlagRegisterField[] rxIpcPacketCounterInterruptEnable;
         private readonly IFlagRegisterField[] rxIpcByteCounterInterruptEnable;

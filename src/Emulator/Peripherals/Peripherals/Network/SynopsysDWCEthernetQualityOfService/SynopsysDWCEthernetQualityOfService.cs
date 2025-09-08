@@ -26,7 +26,7 @@ namespace Antmicro.Renode.Peripherals.Network
 {
     public partial class SynopsysDWCEthernetQualityOfService : NetworkWithPHY, IMACInterface, IKnownSize
     {
-        public SynopsysDWCEthernetQualityOfService(IMachine machine, long systemClockFrequency, ICPU cpuContext = null, BusWidth? dmaBusWidth = null) : base(machine)
+        public SynopsysDWCEthernetQualityOfService(IMachine machine, long systemClockFrequency, ICPU cpuContext = null, BusWidth? dmaBusWidth = null, long? ptpClockFrequency = null) : base(machine)
         {
             if(dmaBusWidth.HasValue)
             {
@@ -48,7 +48,9 @@ namespace Antmicro.Renode.Peripherals.Network
             MAC1 = EmulationManager.Instance.CurrentEmulation.MACRepository.GenerateUniqueMAC();
             Bus = machine.GetSystemBus(this);
             this.CpuContext = cpuContext;
-            timestampTimer = new LimitTimer(machine.ClockSource, TimestampTimerFrequency, this, "Timestamp timer", ulong.MaxValue, Direction.Ascending);
+            this.ptpClockFrequency = ptpClockFrequency ?? systemClockFrequency;
+            timestampSubsecondTimer = new LimitTimer(machine.ClockSource, this.ptpClockFrequency, this, "Timestamp timer", BinarySubsecondRollover, Direction.Ascending, eventEnabled: true);
+            timestampSubsecondTimer.LimitReached += () => timestampSecondTimer += 1;
 
             dmaChannels = new DMAChannel[DMAChannelOffsets.Length];
             for(var i = 0; i < dmaChannels.Length; i++)
@@ -108,7 +110,8 @@ namespace Antmicro.Renode.Peripherals.Network
         {
             ResetRegisters();
             SoftwareReset();
-            timestampTimer.Reset();
+            timestampSecondTimer = 0;
+            timestampSubsecondTimer.Reset();
             UpdateInterrupts();
         }
 
@@ -309,17 +312,9 @@ namespace Antmicro.Renode.Peripherals.Network
                 cpu.SyncTime();
             }
 
-            var value = timestampTimer.Value;
-            if(timestampDigitalOrBinaryRollover.Value)
-            {
-                seconds = value / NanosecondsPerSecond;
-                nanoseconds = value % NanosecondsPerSecond;
-            }
-            else
-            {
-                seconds = value >> 32;
-                nanoseconds = value | 0xFFFFFFFFUL;
-            }
+            seconds = timestampSecondTimer;
+            // `SSINC` dictates the accuracy of the subsecond value
+            nanoseconds = (timestampSubsecondTimer.Value / timestampSubsecondIncrement.Value) * timestampSubsecondIncrement.Value;
         }
 
         private void SetTimestamp(ulong seconds, ulong nanoseconds, bool init)
@@ -349,19 +344,47 @@ namespace Antmicro.Renode.Peripherals.Network
                 seconds = currentSeconds;
                 nanoseconds = currentNanoseconds;
             }
-            if(timestampDigitalOrBinaryRollover.Value)
+
+            ConfigureTimestampTimer();
+            timestampSecondTimer = (uint)seconds;
+            timestampSubsecondTimer.Value = nanoseconds;
+            if(init)
             {
-                timestampTimer.Value = seconds * NanosecondsPerSecond + nanoseconds;
+                timestampSubsecondTimer.Enabled = true;
+            }
+        }
+
+        private void ConfigureTimestampTimer()
+        {
+            long effectiveFrequency;
+            // Check for values that would cause an invalid operation, either:
+            // * Timer frequency equal to 0Hz
+            // * Division by 0
+            if((timestampAddend.Value != 0 || !fineOrCoarseTimestampUpdate.Value) && timestampSubsecondIncrement.Value != 0)
+            {
+                // Subsecond increment (SSINC) controls by what value the timestamp timer is incremented each clock cycle.
+                // This is implemented by multiplying the frequency of Renode's timer by SSINC.
+                var subsecondTicksPerSecond = ptpClockFrequency * (long)timestampSubsecondIncrement.Value;
+                // In the fine update method subsecond timer is incremented when a 32-bit accumulator overflows while the timestamp addend (TSAR)
+                // is added to the accumulator. This creates a frequency divider so it is implemented in this way.
+                var timeBetweenTimeSyncs = fineOrCoarseTimestampUpdate.Value ? (1L << 32) / (double)timestampAddend.Value : 1;
+                effectiveFrequency = (long)Math.Round(subsecondTicksPerSecond / timeBetweenTimeSyncs);
             }
             else
             {
-                timestampTimer.Value = (seconds << 32) | (nanoseconds & 0xFFFFFFFFUL);
+                this.ErrorLog("Register configuration would cause an invalid timestamp timer frequency (SSINC=0x{0:X}, TSAR=0x{1:X}, TSCFUPDT={2}), using the default frequency of {3}Hz",
+                    timestampSubsecondIncrement.Value, timestampAddend.Value, fineOrCoarseTimestampUpdate.Value, ptpClockFrequency);
+                effectiveFrequency = ptpClockFrequency;
             }
+            timestampSubsecondTimer.Frequency = effectiveFrequency;
+            this.DebugLog("Effective timestamp timer frequency is {0}Hz", effectiveFrequency);
         }
 
         private IBusController Bus { get; }
         private ICPU CpuContext { get; }
-        private readonly LimitTimer timestampTimer;
+        private uint timestampSecondTimer;
+        private readonly LimitTimer timestampSubsecondTimer;
+        private readonly long ptpClockFrequency;
 
         private bool MMCTxInterruptStatus =>
             (txGoodPacketCounterInterrupt.Value && txGoodPacketCounterInterruptEnable.Value)           ||
@@ -385,8 +408,8 @@ namespace Antmicro.Renode.Peripherals.Network
         private const ulong CounterMaxValue = UInt32.MaxValue;
         private const int RxWatchdogDivider = 256;
         private const uint EtherTypeMinimalValue = 0x600;
-        private const ulong NanosecondsPerSecond = 1000000000;
-        private const long TimestampTimerFrequency = 1000000000;
+        private const ulong DigitalSubsecondRollover = 0x3B9AC9FFUL;
+        private const ulong BinarySubsecondRollover = 0x7FFFFFFFUL;
 
         // This value may be increased if required, but some changes in register creation may be required
         private const int MaxDMAChannels = 3;
