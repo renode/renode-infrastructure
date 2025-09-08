@@ -370,6 +370,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 Tx = gqspiCommandTransmit.Value,
                 Rx = gqspiCommandReceive.Value,
                 Stripe = gqspiCommandStripe.Value,
+                Poll = gqspiCommandPoll.Value,
             };
 
             genericFifo.Enqueue(entry);
