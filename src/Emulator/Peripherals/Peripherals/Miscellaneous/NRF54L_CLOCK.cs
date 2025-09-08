@@ -27,7 +27,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             hfxoStarted = false;
             pllStarted = false;
             lfclkStarted = false;
-            hfxoTuneStarted = false;
             UpdateInterrupts();
         }
 
@@ -168,7 +167,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         {
                             return;
                         }
-                        hfxoTuneStarted = true;
                         hfxoTuneEventGenerated.Value = true;
                         UpdateInterrupts();
                     }, name: "TASKS_XOTUNE")
@@ -182,7 +180,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         {
                             return;
                         }
-                        hfxoTuneStarted = false;
                         hfxoTuneEventGenerated.Value = false;
                         UpdateInterrupts();
                     }, name: "TASKS_XOTUNEABORT")
@@ -404,7 +401,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private bool hfxoStarted;
         private bool pllStarted;
         private bool lfclkStarted;
-        private bool hfxoTuneStarted;
 
         private IFlagRegisterField hfxoEventGenerated;
         private IFlagRegisterField pllEventGenerated;
