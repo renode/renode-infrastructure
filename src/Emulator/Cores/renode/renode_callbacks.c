@@ -42,6 +42,8 @@ EXTERNAL_AS(void, WriteWordToBus, tlib_write_word, uint64_t, uint64_t, uint64_t)
 EXTERNAL_AS(void, WriteDoubleWordToBus, tlib_write_double_word, uint64_t, uint64_t, uint64_t)
 EXTERNAL_AS(void, WriteQuadWordToBus, tlib_write_quad_word, uint64_t, uint64_t, uint64_t)
 
+EXTERNAL_AS(uint64_t, GetTotalElapsedCycles, tlib_get_total_elapsed_cycles)
+
 EXTERNAL_AS(uint32_t, OnBlockBegin, tlib_on_block_begin, uint64_t, uint32_t)
 
 EXTERNAL_AS(void, OnBlockFinished, tlib_on_block_finished, uint64_t, uint32_t)

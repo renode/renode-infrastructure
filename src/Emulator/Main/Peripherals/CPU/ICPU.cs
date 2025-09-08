@@ -23,6 +23,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         string Model { get; }
 
+        ulong ElapsedCycles { get; }
+
         RegisterValue PC { get; set; }
 
         // Extend `IsHalted` with a getter by using the `new` keyword

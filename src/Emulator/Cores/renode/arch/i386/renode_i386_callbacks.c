@@ -56,3 +56,15 @@ uint64_t tlib_get_instruction_count()
 {
     return get_instruction_count();
 }
+
+EXTERNAL(void, set_tsc_deadline_value, uint64_t)
+void tlib_set_tsc_deadline_value(uint64_t value)
+{
+    return set_tsc_deadline_value(value);
+}
+
+EXTERNAL(void, set_apic_base_value, uint64_t)
+void tlib_set_apic_base_value(uint64_t value)
+{
+    return set_apic_base_value(value);
+}

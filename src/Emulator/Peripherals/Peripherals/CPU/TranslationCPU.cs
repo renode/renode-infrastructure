@@ -1729,6 +1729,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
+        private ulong GetTotalElapsedCycles()
+        {
+            return this.ElapsedCycles;
+        }
+
+        [Export]
         private uint IsMemoryDisabled(ulong start, ulong size)
         {
             return disabledMemory.ContainsOverlappingRange(start.By(size)) ? 1u : 0u;

@@ -10,6 +10,7 @@ using System.Collections.Generic;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.IRQControllers;
 using Antmicro.Renode.Utilities.Binding;
 
@@ -23,6 +24,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         public BaseX86(string cpuType, IMachine machine, LAPIC lapic, CpuBitness bitness) : base(cpuType, machine, Endianess.LittleEndian, bitness)
         {
             Lapic = lapic;
+
+            if(lapic != null)
+            {
+                lapic.Cpu = this;
+            }
         }
 
         public void SetDescriptor(SegmentDescriptor descriptor, uint selector, uint baseAddress, uint limit, uint flags)
@@ -46,6 +52,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public ulong ApicBase => TlibGetApicBase();
+
         public LAPIC Lapic { get; }
 
         protected override Interrupt DecodeInterrupt(int number)
@@ -55,6 +63,19 @@ namespace Antmicro.Renode.Peripherals.CPU
                 return Interrupt.Hard;
             }
             throw InvalidInterruptNumberException;
+        }
+
+        [Export]
+        protected void SetTscDeadlineValue(ulong value)
+        {
+            this.Log(LogLevel.Debug, "Set deadline to {0}, current cycles count {1}, mips {2}", value, this.ElapsedCycles, this.PerformanceInMips);
+            Lapic.SetTscDeadlineValue(value, this.ElapsedCycles, this.PerformanceInMips);
+        }
+
+        [Export]
+        protected void SetApicBaseValue(ulong value)
+        {
+            Lapic.SetApicBase(value);
         }
 
         protected override string GetExceptionDescription(ulong exceptionIndex)
@@ -116,6 +137,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         // 649:  Field '...' is never assigned to, and will always have its default value null
         [Import]
         private readonly Action<uint, uint, uint, uint> TlibSetCsDescriptor;
+
+        [Import]
+        private readonly Func<ulong> TlibGetApicBase;
 #pragma warning restore 649
 
         private readonly Dictionary<ulong, string> ExceptionDescriptionsMap = new Dictionary<ulong, string>
