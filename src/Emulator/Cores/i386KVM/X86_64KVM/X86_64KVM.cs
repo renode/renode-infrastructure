@@ -15,6 +15,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
         }
 
-        public override string Architecture => "i386_64";
+        public override string Architecture => "x86_64";
     }
 }

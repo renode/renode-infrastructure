@@ -67,6 +67,6 @@ target_compile_definitions(virt-x86_64 PRIVATE
 
 set_target_properties(virt-x86_64 PROPERTIES
     PREFIX ""
-    OUTPUT_NAME "kvm-i386_64"
+    OUTPUT_NAME "kvm-x86_64"
     SUFFIX ".so"
 )
