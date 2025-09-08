@@ -2721,7 +2721,7 @@ namespace Antmicro.Renode.Peripherals.I3C
                     }
                     set
                     {
-                        memory[spanBegin + 3] = (byte)(memory[spanBegin + 3] & 0xe3U | (value & 0x7U) << 2);
+                        memory[spanBegin + 3] = (byte)(memory[spanBegin + 3] & 0xe3U | (uint)(value & 0x7U) << 2);
                     }
                 }
                 /// <summary> Offset: 0x1d, Width: 2 bits </summary>
@@ -2734,7 +2734,7 @@ namespace Antmicro.Renode.Peripherals.I3C
                     }
                     set
                     {
-                        memory[spanBegin + 3] = (byte)(memory[spanBegin + 3] & 0x9fU | (value & 0x3U) << 5);
+                        memory[spanBegin + 3] = (byte)(memory[spanBegin + 3] & 0x9fU | (uint)(value & 0x3U) << 5);
                     }
                 }
                 /// <summary> Offset: 0x1f, Width: 1 bits </summary>
@@ -2799,7 +2799,7 @@ namespace Antmicro.Renode.Peripherals.I3C
                     }
                     set
                     {
-                        memory[spanBegin + 6] = (byte)(memory[spanBegin + 6] & 0x7U | value << 3);
+                        memory[spanBegin + 6] = (byte)(memory[spanBegin + 6] & 0x7U | (uint)value << 3);
                     }
                 }
 
