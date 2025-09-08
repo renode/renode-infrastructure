@@ -1,15 +1,12 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Linq;
 
-using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
@@ -17,20 +14,15 @@ using Antmicro.Renode.Utilities;
 namespace Antmicro.Renode.Peripherals.IRQControllers
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
-    public class IOAPIC : IDoubleWordPeripheral, IIRQController, IKnownSize, INumberedGPIOOutput
+    public class IOAPIC : IAPICPeripheral, IDoubleWordPeripheral, IIRQController, IKnownSize
     {
-        public IOAPIC(LAPIC lapic)
+        public IOAPIC()
         {
-            this.lapic = lapic;
-            var irqs = new Dictionary<int, IGPIO>();
-            mask = new bool[MaxRedirectionTableEntries];
+            this.messageHelper = new APICMessageHelper(this);
+            redirectionTable = new IValueRegisterField[MaxRedirectionTableEntries * 2];
+            IRQStatus = new bool[MaxRedirectionTableEntries];
             internalLock = new object();
-            for(int i = 0; i < NumberOfOutgoingInterrupts; i++)
-            {
-                irqs[i] = new GPIO();
-            }
-            Connections = new ReadOnlyDictionary<int, IGPIO>(irqs);
-            externalIrqToVectorMapping = new Dictionary<int, int>();
+            DefineRegisters();
             Reset();
         }
 
@@ -38,15 +30,30 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             lock(internalLock)
             {
-                if(number < 0 || number > MaxRedirectionTableEntries)
+                if(number < 0 || number >= MaxRedirectionTableEntries)
                 {
-                    throw new ArgumentOutOfRangeException(string.Format("IOAPIC has {0} interrupts, but {1} was triggered", MaxRedirectionTableEntries, number));
+                    this.Log(LogLevel.Warning, "IRQ number {0} is too big - max supported number of IRQ {1}", number, MaxRedirectionTableEntries);
+                    return;
                 }
 
-                if(!mask[number])
+                ulong tableEntry = redirectionTable[number * 2].Value | redirectionTable[number * 2 + 1].Value << 32;
+
+                // We store IRQ status only for level triggered interrupts
+                // edge trigger irq are stateless
+                if((tableEntry & TriggerModeBit) != 0)
                 {
-                    Connections[externalIrqToVectorMapping[number]].Set(value);
+                    this.Log(LogLevel.Debug, "Line {0} status changed to {1}", number, value);
+                    IRQStatus[number] = value;
                 }
+
+                // Changing irq status to false does not affect IOAPIC/LAPIC
+                if(!value)
+                {
+                    return;
+                }
+
+                this.Log(LogLevel.Noisy, "Received IRQ on line {0}, sending the message", number);
+                TrySendShortMessage(number);
             }
         }
 
@@ -54,24 +61,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             lock(internalLock)
             {
-                if(offset == (long)Registers.Index)
-                {
-                    return lastIndex;
-                }
-                if(offset == (long)Registers.Data)
-                {
-                    if(lastIndex >= (uint)IndirectRegisters.IoRedirectionTable0 && lastIndex <= (uint)IndirectRegisters.IoRedirectionTable23 + 1)
-                    {
-                        if(lastIndex % 2 == 0)
-                        {
-                            var tableIndex = (int)((lastIndex - (uint)IndirectRegisters.IoRedirectionTable0) / 2);
-                            return (uint)((mask[tableIndex] ? MaskedBitMask : 0x0) | externalIrqToVectorMapping[tableIndex]);
-                        }
-                        return 0;
-                    }
-                }
-                this.LogUnhandledRead(offset);
-                return 0;
+                return registers.Read(offset);
             }
         }
 
@@ -79,53 +69,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             lock(internalLock)
             {
-                switch((Registers)offset)
-                {
-                case Registers.Index:
-                    lastIndex = value;
-                    break;
-                case Registers.Data:
-                    if(lastIndex >= (uint)IndirectRegisters.IoRedirectionTable0 && lastIndex <= (uint)IndirectRegisters.IoRedirectionTable23 + 1)
-                    {
-                        var tableIndex = (int)((lastIndex - (uint)IndirectRegisters.IoRedirectionTable0) / 2);
-                        if(lastIndex % 2 != 0)
-                        {
-                            // high bits
-                            this.Log(LogLevel.Noisy, "Write to high bits of {0} table index: {0}. It contains physical/logical destination address (APIC ID or set o processors) that is not supported right now.", tableIndex, value);
-                        }
-                        else
-                        {
-                            // low bits
-                            externalIrqToVectorMapping[tableIndex] = (int)(value & 0xFF);
-                            mask[tableIndex] = (value & MaskedBitMask) != 0;
-
-                            this.Log(LogLevel.Info, "Setting {0} table index: interrupt vector=0x{1:X}, mask={2}", tableIndex, externalIrqToVectorMapping[tableIndex], mask[tableIndex]);
-                        }
-                    }
-                    break;
-                case Registers.EndOfInterrupt:
-                    // value here means irq vector
-                    var externalIrqIds = externalIrqToVectorMapping.Where(x => x.Value == (int)value).Select(x => x.Key).ToArray();
-                    if(externalIrqIds.Length == 0)
-                    {
-                        //We filter out lapic internal timer vector. Due to a bug in HW the software clears all interrupts on ioapic, although this one is only handled by lapic.
-                        if(value != lapic.InternalTimerVector)
-                        {
-                            this.Log(LogLevel.Warning, "Calling end of interrupt on unmapped vector: {0}", value);
-                        }
-                        return;
-                    }
-
-                    foreach(var id in externalIrqIds.Where(x => Connections[x].IsSet))
-                    {
-                        Connections[id].Unset();
-                        this.Log(LogLevel.Debug, "Ending interrupt #{0} (vector 0x{1:X})", id, value);
-                    }
-                    break;
-                default:
-                    this.LogUnhandledWrite(offset, value);
-                    break;
-                }
+                registers.Write(offset, value);
             }
         }
 
@@ -133,52 +77,170 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             lock(internalLock)
             {
-                for(int i = 0; i < Connections.Count; i++)
-                {
-                    Connections[i].Unset();
-                }
-                for(int i = 0; i < mask.Length; i++)
-                {
-                    mask[i] = true;
-                }
-                externalIrqToVectorMapping.Clear();
-                lastIndex = 0;
+                registers.Reset();
             }
         }
 
-        public long Size
+        public void EndOfInterrupt(byte vector)
         {
-            get
+            for(int i = 0; i < MaxRedirectionTableEntries; i++)
             {
-                return 1.MB();
+                var lowerReg = redirectionTable[i * 2];
+
+                if((lowerReg.Value & 0xFF) == vector)
+                {
+                    if((lowerReg.Value & RemoteIRRBit) == 0)
+                    {
+                        this.Log(LogLevel.Warning, "Requested EOI for IRQ {0}->{1} but, IRR bit is not set", i, vector);
+                        return;
+                    }
+
+                    // Remove Remote IRR flag
+                    lowerReg.Value &= ~RemoteIRRBit;
+                    this.Log(LogLevel.Debug, "IRQ {0}->{1} EOI", i, vector);
+
+                    if(IRQStatus[i])
+                    {
+                        this.Log(LogLevel.Debug, "Level on line {0} is still high - rising another interrupt {1}", i, vector);
+                        TrySendShortMessage(i);
+                    }
+
+                    return;
+                }
             }
         }
 
-        public IReadOnlyDictionary<int, IGPIO> Connections { get; private set; }
+        public long Size => 1.MB();
 
-        private uint lastIndex;
+        public APICPeripheralType APICPeripheralType => APICPeripheralType.IOAPIC;
 
-        private readonly bool[] mask;
+        private void DefineRegisters()
+        {
+            // In IOREGSEL and innerRegisters Intel uses notation where offset 0x1 = 32 bit,
+            // so we need to multiply everything by 4 to avoid register overlaping
+
+            var addresses = new Dictionary<long, DoubleWordRegister>
+            {
+                {(long)Registers.IOREGSEL, new DoubleWordRegister(this)
+                    .WithValueField(0, 8, out ioregsel, name: "APIC Register Address")
+                    .WithReservedBits(8, 24)
+                },
+                {(long)Registers.IOWIN, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, name: "APIC Register Data",
+                        writeCallback: (_, val) => {
+                            var offset = ioregsel.Value * 4;
+                            innerRegisters.Write((long)offset, (uint)val);
+                        },
+                        valueProviderCallback: (val) => {
+                            var offset = ioregsel.Value * 4;
+                            return innerRegisters.Read((long)offset);
+                        }
+                    )
+                },
+                {(long)Registers.IRQAssertion, new DoubleWordRegister(this)
+                    .WithValueField(0, 8, writeCallback: (_, val) => OnGPIO((int)val, true), name: "Vector")
+                    .WithReservedBits(8, 24)
+                },
+                {(long)Registers.IOEOI, new DoubleWordRegister(this)
+                    .WithValueField(0, 8, writeCallback: (_, val) => EndOfInterrupt((byte)val), name: "Vector")
+                    .WithReservedBits(8, 24)
+                }
+            };
+
+            var innerAddresses = new Dictionary<long, DoubleWordRegister>
+            {
+                {(long)InnerRegisters.IOAPICID * 4, new DoubleWordRegister(this)
+                    .WithReservedBits(0, 24)
+                    .WithTag("IOAPIC Identification", 24, 4)
+                    .WithReservedBits(28, 4)
+                },
+                {(long)InnerRegisters.IOAPICVER * 4, new DoubleWordRegister(this)
+                    .WithValueField(0, 8, valueProviderCallback: (_) => 0x11, name: "APIC Version")
+                    .WithReservedBits(8, 8)
+                    .WithValueField(16, 8, valueProviderCallback: (_) => MaxRedirectionTableEntries, name: "Maximum Redirection Entry")
+                    .WithReservedBits(24, 8)
+                },
+                {(long)InnerRegisters.IOAPICARB * 4, new DoubleWordRegister(this)
+                    .WithReservedBits(0, 24)
+                    .WithTag("IOAPIC Identification", 24, 4)
+                    .WithReservedBits(28, 4)
+                }
+            };
+
+            // Create IOREDTBL registers 
+            for(int reg = 0; reg < MaxRedirectionTableEntries; reg++)
+            {
+                var regOffset = ((long)InnerRegisters.IOREDTBL0 + (reg * 2));
+                var lowerOffset = regOffset * 4;
+                var upperOffset = (regOffset + 1) * 4;
+
+                var lower = new DoubleWordRegister(this, 0x00010000)
+                    .WithValueField(0, 32, out redirectionTable[reg * 2], name: $"Redirection entry{reg} lower");
+
+                var upper = new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out redirectionTable[reg * 2 + 1], name: $"Redirection entry{reg} upper");
+
+                innerAddresses.Add(lowerOffset, lower);
+                innerAddresses.Add(upperOffset, upper);
+            }
+
+            registers = new DoubleWordRegisterCollection(this, addresses);
+            innerRegisters = new DoubleWordRegisterCollection(this, innerAddresses);
+        }
+
+        private void TrySendShortMessage(int number)
+        {
+            ulong tableEntry = redirectionTable[number * 2].Value | redirectionTable[number * 2 + 1].Value << 32;
+
+            // Check if mask or remote irr bits are set
+            if((tableEntry & (RemoteIRRBit | InterruptMaskBit)) != 0)
+            {
+                this.Log(LogLevel.Debug, "Rejecting IRQ from line {0}", number);
+                return;
+            }
+
+            // Check if trigger mode = level sensitive
+            if((tableEntry & TriggerModeBit) != 0)
+            {
+                // Set Remote IRR field to 1
+                redirectionTable[number * 2].Value |= RemoteIRRBit;
+            }
+
+            messageHelper.SendShortMessage(new APICMessageHelper.ShortMessage(tableEntry));
+        }
+
+        private IValueRegisterField ioregsel;
+
+        private DoubleWordRegisterCollection registers;
+        private DoubleWordRegisterCollection innerRegisters;
+
+        private readonly IValueRegisterField[] redirectionTable;
+        private readonly bool[] IRQStatus;
+        private readonly APICMessageHelper messageHelper;
         private readonly object internalLock;
-        private readonly Dictionary<int, int> externalIrqToVectorMapping;
-        private readonly LAPIC lapic;
 
-        private const int MaxRedirectionTableEntries = 24;
+        private const int MaxRedirectionTableEntries = 239;
         private const int NumberOfOutgoingInterrupts = 256;
-        private const int MaskedBitMask = 0x10000;
+        private const ulong RemoteIRRBit = (1 << 14);
+        private const ulong TriggerModeBit = (1 << 15);
+        private const ulong InterruptMaskBit = (1 << 16);
 
         public enum Registers
         {
-            Index = 0x0,
-            Data = 0x10,
-            IRQPinAssertion = 0x20,
-            EndOfInterrupt = 0x40
+            IOREGSEL = 0x00,
+            IOWIN = 0x10,
+            IRQAssertion = 0x20,
+            IOEOI = 0x40,
         }
 
-        public enum IndirectRegisters
+        public enum InnerRegisters
         {
-            IoRedirectionTable0 = 0x10,
-            IoRedirectionTable23 = 0x3E
+            IOAPICID = 0x00,
+            IOAPICVER = 0x01,
+            IOAPICARB = 0x02,
+            IOREDTBL0 = 0x10,
+            // ...
+            IOREDTBL23 = 0x3F
         }
     }
 }
