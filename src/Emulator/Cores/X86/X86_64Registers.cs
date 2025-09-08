@@ -594,9 +594,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         private static readonly Dictionary<X86_64Registers, CPURegister> mapping = new Dictionary<X86_64Registers, CPURegister>
         {
             { X86_64Registers.RAX,  new CPURegister(0, 64, isGeneral: true, isReadonly: false, aliases: new [] { "RAX" }) },
-            { X86_64Registers.RBX,  new CPURegister(1, 64, isGeneral: true, isReadonly: false, aliases: new [] { "RBX" }) },
-            { X86_64Registers.RCX,  new CPURegister(2, 64, isGeneral: true, isReadonly: false, aliases: new [] { "RCX" }) },
-            { X86_64Registers.RDX,  new CPURegister(3, 64, isGeneral: true, isReadonly: false, aliases: new [] { "RDX" }) },
+            { X86_64Registers.RCX,  new CPURegister(1, 64, isGeneral: true, isReadonly: false, aliases: new [] { "RCX" }) },
+            { X86_64Registers.RDX,  new CPURegister(2, 64, isGeneral: true, isReadonly: false, aliases: new [] { "RDX" }) },
+            { X86_64Registers.RBX,  new CPURegister(3, 64, isGeneral: true, isReadonly: false, aliases: new [] { "RBX" }) },
             { X86_64Registers.RSP,  new CPURegister(4, 64, isGeneral: true, isReadonly: false, aliases: new [] { "RSP" }) },
             { X86_64Registers.RBP,  new CPURegister(5, 64, isGeneral: true, isReadonly: false, aliases: new [] { "RBP" }) },
             { X86_64Registers.RSI,  new CPURegister(6, 64, isGeneral: true, isReadonly: false, aliases: new [] { "RSI" }) },
@@ -636,9 +636,9 @@ namespace Antmicro.Renode.Peripherals.CPU
     public enum X86_64Registers
     {
         RAX = 0,
-        RCX = 2,
-        RDX = 3,
-        RBX = 1,
+        RCX = 1,
+        RDX = 2,
+        RBX = 3,
         RSP = 4,
         RBP = 5,
         RSI = 6,

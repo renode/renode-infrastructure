@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -44,7 +44,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                 coreFeature.Registers.Add(new GDBRegisterDescriptor(16, 64, "rip", "code_ptr"));
 
-                coreFeature.Registers.Add(new GDBRegisterDescriptor(17, 32, "eflags"));
+                coreFeature.Registers.Add(new GDBRegisterDescriptor(17, 32, "eflags", "int32"));
 
                 coreFeature.Registers.Add(new GDBRegisterDescriptor(18, 32, "cs", "int32"));
                 coreFeature.Registers.Add(new GDBRegisterDescriptor(19, 32, "ss", "int32"));
