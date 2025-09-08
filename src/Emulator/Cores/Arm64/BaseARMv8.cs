@@ -219,7 +219,14 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             if(!matchingEntries.Any())
             {
-                this.Log(LogLevel.Warning, "Unknown {0}", encoding);
+                if(encoding.Coprocessor != ArmSystemRegisterEncoding.CoprocessorEnum.AArch64 && encoding.Width == 64)
+                {
+                    this.Log(LogLevel.Warning, "Accessing 64-bit CP14/CP15 registers is not yet supported.");
+                }
+                else
+                {
+                    this.Log(LogLevel.Warning, "Unknown {0}", encoding);
+                }
                 return false;
             }
             index = matchingEntries.Single().Key;
