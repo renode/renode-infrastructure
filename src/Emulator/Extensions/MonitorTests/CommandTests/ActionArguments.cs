@@ -21,6 +21,7 @@ namespace Antmicro.Renode.MonitorTests.CommandTests
 
             var file = GetType().Assembly.FromResourceToTemporaryFile("MockExtension.cs");
             monitor.Parse($"i @{file}", commandEater);
+            monitor.Parse("emulation AddMockExternal");
             commandEater.Clear();
         }
 
@@ -143,6 +144,18 @@ namespace Antmicro.Renode.MonitorTests.CommandTests
 
         [TestCase("emulation MethodWithNullableIntList []", "numbers: []",
             TestName = "NullableIntListEmpty")]
+
+        [TestCase("external[\"a\"]", "1D: a",
+            TestName = "IndexerOneDGet")]
+
+        [TestCase("external[\"a\"] \"b\"; external[\"c\"]", "1D: [a]=b and c",
+            TestName = "IndexerOneDSetGet")]
+
+        [TestCase("external[\"a\", \"b\"]", "2D: a and b",
+            TestName = "IndexerTwoDGet")]
+
+        [TestCase("external[\"a\", \"b\"] \"c\"; external[\"d\", \"e\"]", "2D: [a, b]=c and d and e",
+            TestName = "IndexerTwoDSetGet")]
         public void CommandResultShouldContain(string command, string expected)
         {
             monitor.Parse(command, commandEater);
@@ -193,6 +206,7 @@ namespace Antmicro.Renode.MonitorTests.CommandTests
         [TearDown]
         public void TearDown()
         {
+            monitor.Parse("external Clear");
             commandEater.Clear();
         }
 

@@ -9,8 +9,35 @@ using System.Linq;
 using Antmicro.Renode.Core;
 namespace Antmicro.Renode.Utilities
 {
+    public class MockExternal : IExternal
+    {
+        public string this[string a]
+        {
+            get => "1D: " + string.Join(" and ", new [] { result, a }.Where(x => !string.IsNullOrEmpty(x)));
+            set => result = $"[{a}]={value}";
+        }
+
+        public string this[string a, string b]
+        {
+            get => "2D: " + string.Join(" and ", new [] { result, a, b }.Where(x => !string.IsNullOrEmpty(x)));
+            set => result = $"[{a}, {b}]={value}";
+        }
+
+        public void Clear()
+        {
+            result = null;
+        }
+
+        private string result;
+    }
+
     public static class MockExtension
     {
+        public static void AddMockExternal(this Emulation emulation)
+        {
+            emulation.ExternalsManager.AddExternal(new MockExternal(), "external");
+        }
+
         public static string GetMockString(this Emulation str)
         {
             return "this is an extension";
