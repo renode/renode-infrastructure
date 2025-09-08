@@ -34,7 +34,7 @@ namespace Antmicro.Renode.Core.Extensions
             var fixedACPIDescriptionTable = new FixedACPIDescriptionTable(multipleAPICDescriptionTableHeaderAddress - (uint)address, fixedACPIDescriptionTableAddress);
             bus.WriteBytes(Packet.Encode(fixedACPIDescriptionTable), fixedACPIDescriptionTableAddress);
 
-            var ids = bus.GetCPUs().OfType<BaseX86>().Select(x => (ulong)x.Lapic.ID).ToList();
+            var ids = bus.GetCPUs().OfType<BaseX86>().Select(x => (ulong)x.Lapic.PhysicalID).ToList();
 
             var multipleAPICDescriptionTableLength = Packet.CalculateLength<MultipleAPICDescriptionTable>();
             var recordLength = (uint)Packet.CalculateLength<ProcessorLocalAPICRecord>();
@@ -53,7 +53,7 @@ namespace Antmicro.Renode.Core.Extensions
                     EntryType = 0x0,    // 0x0 means local APIC entry type
                     RecordLength = 0x8,
                     APICID = (byte)id,
-                    Flags = 0x01        // bit 0 = Processor Enabled
+                    Flags = 0x01,       // bit 0 = Processor Enabled
                 };
                 var table = Packet.Encode(processorLocalAPICRecord).ToArray();
                 bus.WriteBytes(table, recordAddress);

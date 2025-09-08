@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Core.ACPI
                 Signature = Encoding.ASCII.GetBytes("APIC"),
                 TableLength = tableLength
             };
-            LocalAPICAddress = 0;
+            LocalAPICAddress = 0xfee00000;
             Flags = 0;
         }
 
