@@ -318,6 +318,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 if(thisEventEnabledAndSet)
                 {
                     this.Log(LogLevel.Noisy, "Interrupt set by CC{0}.", i);
+                    EventTriggered?.Invoke((uint)(Register.CompareEvent + i * 0x4));
                 }
                 flag |= thisEventEnabledAndSet;
             }
