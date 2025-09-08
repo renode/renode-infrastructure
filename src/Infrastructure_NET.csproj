@@ -85,7 +85,7 @@
     <Compile Remove="**/obj/**/*AssemblyAttributes.cs"/>
   </ItemGroup>
   <ItemGroup Condition="$(CurrentPlatform) != 'Linux' Or $(Architecture) != 'i386'">
-    <Compile Remove="Emulator/Cores/i386KVM/*" />
+    <Compile Remove="Emulator/Cores/X86KVM/*" />
   </ItemGroup>
 
   <Target Name="PrepareEmbeddedResources" BeforeTargets="ResolveReferences" >
