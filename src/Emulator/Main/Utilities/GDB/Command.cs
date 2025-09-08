@@ -76,21 +76,18 @@ namespace Antmicro.Renode.Utilities.GDB
             {
                 if(!cpu.TryTranslateAddress(address, MpuAccess.Write, out translatedAddress))
                 {
-                    Logger.LogAs(this, LogLevel.Warning, "Translation address failed for write access type!");
-                    return false;
+                    translatedAddress = errorValue;
                 }
             }
             else
             {
                 if(!cpu.TryTranslateAddress(address, MpuAccess.InstructionFetch, out var fetchAddress))
                 {
-                    Logger.LogAs(this, LogLevel.Warning, "Translation address failed for fetch access type!");
-                    return false;
+                    fetchAddress = errorValue;
                 }
                 if(!cpu.TryTranslateAddress(address, MpuAccess.Read, out var readAddress))
                 {
-                    Logger.LogAs(this, LogLevel.Warning, "Translation address failed for read access type!");
-                    return false;
+                    readAddress = errorValue;
                 }
 
                 if(fetchAddress == errorValue && readAddress == errorValue)
