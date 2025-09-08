@@ -289,6 +289,7 @@
     </Compile>
     <Compile Include="Emulator/Cores/X86/LAPIC.cs" />
     <Compile Include="Emulator/Cores/X86/IOAPIC.cs" />
+    <Compile Include="Emulator/Cores/X86/APICMessageHelper.cs" />
     <Compile Include="Emulator/Cores/X86/ACPI/ACPIExtensions.cs" />
     <Compile Include="Emulator/Cores/X86/ACPI/RootSystemDescriptionPointer.cs" />
     <Compile Include="Emulator/Cores/X86/ACPI/RootSystemDescriptionTable.cs" />
