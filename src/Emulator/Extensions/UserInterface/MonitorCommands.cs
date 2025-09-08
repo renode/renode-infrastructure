@@ -1186,7 +1186,7 @@ namespace Antmicro.Renode.UserInterface
         {
             var underlyingType = Nullable.GetUnderlyingType(type);
             var tokenTypes = acceptableTokensTypes.Where(x => x.Item1 == (underlyingType ?? type));
-            var isNull = underlyingType != null && token is NullToken;
+            var isNull = (underlyingType != null || !type.IsValueType) && token is NullToken;
             //If this result type is limited to specific token types, and this is not one of them, fail
             if(tokenTypes.Any() && !(isNull || tokenTypes.Any(tt => tt.Item2.IsInstanceOfType(token))))
             {
