@@ -675,8 +675,8 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private byte ReadFromMemory()
         {
-            var memoryAddress = currentOperation.ExecutionAddress + currentOperation.CommandBytesHandled;
-            memoryAddress |= extendedAddressRegister.Read() << 24;
+            var memoryAddress = (long)currentOperation.ExecutionAddress + currentOperation.CommandBytesHandled;
+            memoryAddress |= (uint)extendedAddressRegister.Read() << 24;
             if(memoryAddress > underlyingMemory.Size)
             {
                 this.Log(LogLevel.Error, "Cannot read from address 0x{0:X} because it is bigger than configured memory size.", currentOperation.ExecutionAddress);
