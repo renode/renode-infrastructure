@@ -1657,6 +1657,11 @@ namespace Antmicro.Renode.UserInterface
                 this.IsArray = isArray;
             }
 
+            public override string ToString()
+            {
+                return IsArray ? Misc.PrettyPrintCollection(Tokens) : Tokens.FirstOrDefault()?.ToString() ?? "null";
+            }
+
             public IEnumerator<Token> GetEnumerator()
             {
                 return Tokens.GetEnumerator();
