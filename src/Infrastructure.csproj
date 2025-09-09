@@ -1941,6 +1941,7 @@
     <Compile Include="Emulator/Main/Core/IIdentifiable.cs" />
     <Compile Include="Emulator/Main/Core/IdentifiableObject.cs" />
     <Compile Include="Emulator/Main/Peripherals/Bus/Wrappers/PeripheralAccessProfiler.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/STM32_DMAMUX.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Emulator/Main/Peripherals/Bus/SystemBusGenerated.tt">
