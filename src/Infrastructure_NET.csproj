@@ -132,8 +132,8 @@
       <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/translate-sparc-be.so">
         <LogicalName>Antmicro.Renode.translate-sparc-be.so</LogicalName>
       </EmbeddedResource>
-      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/kvm-i386.so" Condition="$(CurrentPlatform) == 'Linux' And $(Architecture) == 'i386'">
-        <LogicalName>Antmicro.Renode.kvm-i386.so</LogicalName>
+      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/kvm-x86.so" Condition="$(CurrentPlatform) == 'Linux' And $(Architecture) == 'i386'">
+        <LogicalName>Antmicro.Renode.kvm-x86.so</LogicalName>
       </EmbeddedResource>
       <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/kvm-x86_64.so" Condition="$(CurrentPlatform) == 'Linux' And $(Architecture) == 'i386'">
         <LogicalName>Antmicro.Renode.kvm-x86_64.so</LogicalName>

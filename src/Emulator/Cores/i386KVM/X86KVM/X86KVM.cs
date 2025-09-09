@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             KvmSet64BitBehaviour((uint)on64BitDetected);
         }
 
-        public override string Architecture => "i386";
+        public override string Architecture => "x86";
 
         // 649:  Field '...' is never assigned to, and will always have its default value null
         #pragma warning disable 649
