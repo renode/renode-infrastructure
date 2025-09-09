@@ -101,6 +101,8 @@ namespace Antmicro.Renode.Utilities
 
         public int? Port => (server?.LocalEndPoint as IPEndPoint)?.Port;
 
+        public bool IsStarted => server?.IsBound ?? false;
+
         public event Action ConnectionClosed;
 
         public event Action<Stream> ConnectionAccepted;
