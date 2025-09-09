@@ -52,6 +52,14 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public bool RNDRSupported
+        {
+            set
+            {
+                TlibSetRndrSupported(value ? 1u : 0);
+            }
+        }
+
         [Export]
         private void HandlePSCICall()
         {
@@ -143,6 +151,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 #pragma warning disable 649
         [Import]
         private Action<uint> TlibPsciHandlerEnable;
+
+        [Import]
+        private Action<uint> TlibSetRndrSupported;
 #pragma warning restore 649
     }
 }
