@@ -9,6 +9,7 @@
 #include <sys/syscall.h>
 #include <stdint.h>
 
+#include "debug.h"
 #include "memory_range.h"
 
 #ifndef SYS_gettid
@@ -70,6 +71,8 @@ typedef struct CpuState {
     RegisterState sregs_state;
 
     LIST_HEAD(, MemoryRegion) memory_regions;
+
+    LIST_HEAD(, Breakpoint) breakpoints;
 
 #ifdef TARGET_X86KVM
     Detected64BitBehaviour on64BitDetected;

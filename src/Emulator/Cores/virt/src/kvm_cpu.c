@@ -9,6 +9,7 @@
  */
 #include "callbacks.h"
 #include "cpu.h"
+#include "debug.h"
 #include "memory_range.h"
 #include "utils.h"
 #include "unwind.h"
@@ -184,6 +185,13 @@ EXC_VOID_1(kvm_set64_bit_behaviour, uint32_t, on64BitDetected)
 
 void kvm_dispose()
 {
+    Breakpoint *bp = LIST_FIRST(&cpu->breakpoints);
+    while (bp != NULL) {
+        Breakpoint* next = LIST_NEXT(bp, list);
+        free(bp);
+        bp = next;
+    }
+
     MemoryRegion *mr = LIST_FIRST(&cpu->memory_regions);
     while (mr != NULL) {
         MemoryRegion* next = LIST_NEXT(mr, list);
