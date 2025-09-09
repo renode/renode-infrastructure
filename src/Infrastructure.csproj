@@ -316,18 +316,19 @@
     </None>
   </ItemGroup>
   <ItemGroup Condition="$(CurrentPlatform) == 'Linux' And $(Architecture) == 'i386'">
-    <Compile Include="Emulator/Cores/X86KVM/X86KVM_Base/X86KVMBase.cs" />
-    <Compile Include="Emulator/Cores/X86KVM/X86KVM/X86KVM.cs" />
-    <Compile Include="Emulator/Cores/X86KVM/X86KVM/X86KVMRegisters.cs">
+    <Compile Include="Emulator/Cores/KVM/KVMCPU.cs" />
+    <Compile Include="Emulator/Cores/KVM/X86/X86KVMBase.cs" />
+    <Compile Include="Emulator/Cores/KVM/X86/X86KVM.cs" />
+    <Compile Include="Emulator/Cores/KVM/X86/X86KVMRegisters.cs">
       <DependentUpon>X86KVMRegisters.tt</DependentUpon>
     </Compile>
-    <Compile Include="Emulator/Cores/X86KVM/X86_64KVM/X86_64KVM.cs" />
-    <Compile Include="Emulator/Cores/X86KVM/X86_64KVM/X86_64KVMRegisters.cs">
+    <Compile Include="Emulator/Cores/KVM/X86/X86_64KVM.cs" />
+    <Compile Include="Emulator/Cores/KVM/X86/X86_64KVMRegisters.cs">
       <DependentUpon>X86_64KVMRegisters.tt</DependentUpon>
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Emulator/Cores/X86KVM/X86KVMRegisters.tt" Condition="$(CurrentPlatform) == 'Linux' And $(Architecture) == 'i386'">
+    <None Include="Emulator/Cores/KVM/X86/X86KVMRegisters.tt" Condition="$(CurrentPlatform) == 'Linux' And $(Architecture) == 'i386'">
       <Generator>TextTemplatingFileGenerator</Generator>
       <LastGenOutput>X86KVMRegisters.cs</LastGenOutput>
     </None>

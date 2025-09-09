@@ -25,10 +25,10 @@ using Range = Antmicro.Renode.Core.Range;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public abstract class X86KVMBase : BaseCPU, IGPIOReceiver, ICPUWithRegisters, IControllableCPU, ICPUWithMappedMemory
+    public abstract class KVMCPU : BaseCPU, IGPIOReceiver, ICPUWithRegisters, IControllableCPU, ICPUWithMappedMemory
     {
-        public X86KVMBase(string cpuType, IMachine machine, CpuBitness cpuBitness, uint cpuId = 0)
-            : base(cpuId, cpuType, machine, Endianess.LittleEndian, cpuBitness)
+        public KVMCPU(string cpuType, IMachine machine, Endianess endianess, CpuBitness cpuBitness, uint cpuId = 0)
+            : base(cpuId, cpuType, machine, endianess, cpuBitness)
         {
             currentMappings = new List<SegmentMappingWithSlotNumber>();
             InitBinding();
@@ -101,7 +101,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         public void RegisterAccessFlags(ulong startAddress, ulong size, bool isIoMemory = false)
         {
             // all ArrayMemory is set as executable by default
-            throw new ConstructionException($"Use of ArrayMemory with {nameof(X86KVMBase)} core is not supported: Execution via IO accesses is not implemented");
+            throw new ConstructionException($"Use of ArrayMemory with {nameof(KVMCPU)} core is not supported: Execution via IO accesses is not implemented");
         }
 
         public void SetPageAccessViaIo(ulong address)
@@ -143,35 +143,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             if(this.IsStarted)
             {
                 KvmInterruptExecution();
-            }
-        }
-
-        // field in the 'flags' variable are defined in
-        // Intel(R) 64 and IA-32 Architectures Software Developer’s Manual - Volume 3 (3.4.5)
-        public void SetDescriptor(SegmentDescriptor descriptor, ushort selector, ulong baseAddress, uint limit, uint flags)
-        {
-            switch(descriptor)
-            {
-            case SegmentDescriptor.CS:
-                KvmSetCsDescriptor(baseAddress, limit, selector, flags);
-                break;
-            case SegmentDescriptor.DS:
-                KvmSetDsDescriptor(baseAddress, limit, selector, flags);
-                break;
-            case SegmentDescriptor.ES:
-                KvmSetEsDescriptor(baseAddress, limit, selector, flags);
-                break;
-            case SegmentDescriptor.SS:
-                KvmSetSsDescriptor(baseAddress, limit, selector, flags);
-                break;
-            case SegmentDescriptor.FS:
-                KvmSetFsDescriptor(baseAddress, limit, selector, flags);
-                break;
-            case SegmentDescriptor.GS:
-                KvmSetGsDescriptor(baseAddress, limit, selector, flags);
-                break;
-            default:
-                throw new RecoverableException($"Setting the {descriptor} descriptor is not implemented, ignoring");
             }
         }
 
@@ -367,24 +338,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         protected Action<int> KvmUnmapRange;
 
         [Import]
-        protected Action<ulong, uint, ushort, uint> KvmSetCsDescriptor;
-
-        [Import]
-        protected Action<ulong, uint, ushort, uint> KvmSetDsDescriptor;
-
-        [Import]
-        protected Action<ulong, uint, ushort, uint> KvmSetEsDescriptor;
-
-        [Import]
-        protected Action<ulong, uint, ushort, uint> KvmSetSsDescriptor;
-
-        [Import]
-        protected Action<ulong, uint, ushort, uint> KvmSetFsDescriptor;
-
-        [Import]
-        protected Action<ulong, uint, ushort, uint> KvmSetGsDescriptor;
-
-        [Import]
         protected Action<int, int> KvmSetIrq;
 
 #pragma warning restore 649
@@ -429,16 +382,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
 
             binder = new NativeBinder(this, libraryFile);
-        }
-
-        public enum SegmentDescriptor
-        {
-            CS,
-            SS,
-            DS,
-            ES,
-            FS,
-            GS
         }
 
         protected class SegmentMappingWithSlotNumber : SegmentMapping
