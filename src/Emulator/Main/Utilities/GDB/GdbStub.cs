@@ -18,48 +18,22 @@ using Antmicro.Renode.Peripherals.CPU;
 namespace Antmicro.Renode.Utilities.GDB
 {
     [Transient]
-    public class GdbStub : IDisposable, IExternal
+    public class GdbStub : IDisposable, IExternal, IDisconnectableState
     {
         public GdbStub(IMachine machine, IEnumerable<ICpuSupportingGdb> cpus, int port, bool autostartEmulation)
+            : this(machine, cpus)
         {
-            this.cpus = cpus;
-            Port = port;
-
-            LogsEnabled = true;
-
-            pcktBuilder = new PacketBuilder();
-            commandsManager = new CommandsManager(machine, cpus);
-            TypeManager.Instance.AutoLoadedType += commandsManager.Register;
-
             terminal = new SocketServerProvider(false, serverName: "GDB");
-            terminal.DataReceived += OnByteWritten;
-            terminal.ConnectionAccepted += delegate
-            {
-                commandsManager.CanAttachCPU = false;
-                foreach(var cpu in commandsManager.ManagedCpus)
-                {
-                    cpu.Halted += OnHalted;
-                    cpu.ExecutionMode = ExecutionMode.SingleStep;
-                    cpu.DebuggerConnected = true;
-                }
-                if(autostartEmulation && !EmulationManager.Instance.CurrentEmulation.IsStarted)
-                {
-                    EmulationManager.Instance.CurrentEmulation.StartAll();
-                }
-            };
-            terminal.ConnectionClosed += delegate
-            {
-                foreach(var cpu in commandsManager.ManagedCpus)
-                {
-                    cpu.Halted -= OnHalted;
-                    cpu.ExecutionMode = ExecutionMode.Continuous;
-                    cpu.DebuggerConnected = false;
-                }
-                commandsManager.CanAttachCPU = true;
-            };
+            SetupTerminal(connected: false, autostartEmulation: autostartEmulation);
             terminal.Start(port);
-            commHandler = new CommunicationHandler(this, commandsManager);
+            LogsEnabled = false;
+        }
 
+        public GdbStub(IMachine machine, IEnumerable<ICpuSupportingGdb> cpus, SocketServerProvider terminal)
+            : this(machine, cpus)
+        {
+            this.terminal = terminal;
+            SetupTerminal(connected: true, autostartEmulation: false);
             LogsEnabled = false;
         }
 
@@ -73,13 +47,23 @@ namespace Antmicro.Renode.Utilities.GDB
             return commandsManager.IsCPUAttached(cpu);
         }
 
+        public void DisconnectState()
+        {
+            terminal.ClearConnectionEvents();
+            disconnectedState = true;
+        }
+
         public void Dispose()
         {
             foreach(var cpu in cpus)
             {
                 cpu.Halted -= OnHalted;
             }
-            terminal.Dispose();
+
+            if(!disconnectedState)
+            {
+                terminal.Dispose();
+            }
         }
 
         public event Action<Stream> ConnectionAccepted
@@ -88,11 +72,43 @@ namespace Antmicro.Renode.Utilities.GDB
             remove => terminal.ConnectionAccepted -= value;
         }
 
-        public int Port { get; private set; }
+        public int Port => Terminal.Port.Value;
 
         public bool LogsEnabled { get; set; }
 
         public bool GdbClientConnected => !commandsManager.CanAttachCPU;
+
+        private GdbStub(IMachine machine, IEnumerable<ICpuSupportingGdb> cpus)
+        {
+            this.cpus = cpus;
+            LogsEnabled = true;
+
+            pcktBuilder = new PacketBuilder();
+            commandsManager = new CommandsManager(machine, cpus);
+            commHandler = new CommunicationHandler(this, commandsManager);
+            TypeManager.Instance.AutoLoadedType += commandsManager.Register;
+            EmulationManager.PreservableManager.RegisterPreservable(this, livesThroughEmulationChange: false);
+        }
+
+        private void SetupTerminal(bool connected, bool autostartEmulation)
+        {
+            terminal.DataReceived += OnByteWritten;
+            terminal.ConnectionClosed += OnConnectionClosed;
+
+            terminal.ConnectionAccepted += delegate
+            {
+                OnConnectionAccepted();
+                if(autostartEmulation && !EmulationManager.Instance.CurrentEmulation.IsStarted)
+                {
+                    EmulationManager.Instance.CurrentEmulation.StartAll();
+                }
+            };
+
+            if(connected)
+            {
+                OnConnectionAccepted();
+            }
+        }
 
         private void OnByteWritten(int b)
         {
@@ -267,7 +283,30 @@ namespace Antmicro.Renode.Utilities.GDB
             }
         }
 
+        private void OnConnectionAccepted()
+        {
+            commandsManager.CanAttachCPU = false;
+            foreach(var cpu in commandsManager.ManagedCpus)
+            {
+                cpu.Halted += OnHalted;
+                cpu.ExecutionMode = ExecutionMode.SingleStep;
+                cpu.DebuggerConnected = true;
+            }
+        }
+
+        private void OnConnectionClosed()
+        {
+            foreach(var cpu in commandsManager.ManagedCpus)
+            {
+                cpu.Halted -= OnHalted;
+                cpu.ExecutionMode = ExecutionMode.Continuous;
+                cpu.DebuggerConnected = false;
+            }
+            commandsManager.CanAttachCPU = true;
+        }
+
         private ICpuSupportingGdb stopReplyingCpu;
+        private bool disconnectedState;
 
         private readonly PacketBuilder pcktBuilder;
         private readonly IEnumerable<ICpuSupportingGdb> cpus;
