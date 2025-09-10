@@ -172,37 +172,6 @@ void kvm_set_irq(int level, int interrupt_number)
 }
 EXC_VOID_2(kvm_set_irq, int, level, int, interrupt_number)
 
-void kvm_map_range(int32_t slot, uint64_t address, uint64_t size, uint64_t pointer)
-{
-    struct kvm_userspace_memory_region region;
-
-    region.slot = slot;
-    region.flags = 0;
-    region.guest_phys_addr = address;
-    region.memory_size = size;
-    region.userspace_addr = (uintptr_t)pointer;
-
-    if (ioctl(cpu->vm_fd, KVM_SET_USER_MEMORY_REGION, &region) < 0) {
-        kvm_abortf("KVM_SET_USER_MEMORY_REGION: %s", strerror(errno));
-    }
-}
-EXC_VOID_4(kvm_map_range, int32_t, slot, uint64_t, address, uint64_t, size, uint64_t, pointer)
-
-void kvm_unmap_range(int32_t slot)
-{
-    struct kvm_userspace_memory_region region;
-
-    region.slot = slot;
-
-    // according to the KVM docs, memory region is removed by setting memory_size to 0
-    region.memory_size = 0;
-
-    if (ioctl(cpu->vm_fd, KVM_SET_USER_MEMORY_REGION, &region) < 0) {
-        kvm_abortf("KVM_SET_USER_MEMORY_REGION: %s", strerror(errno));
-    }
-}
-EXC_VOID_1(kvm_unmap_range, int32_t, slot)
-
 #ifdef TARGET_X86KVM
 void kvm_set64_bit_behaviour(uint32_t on64BitDetected)
 {
