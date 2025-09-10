@@ -16,6 +16,7 @@ using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Utilities.GDB;
 
 namespace Antmicro.Renode.Core
 {
@@ -148,6 +149,8 @@ namespace Antmicro.Renode.Core
         int StoreTableBits { get; }
 
         IClockSource ClockSource { get; }
+
+        IReadOnlyDictionary<int, GdbStub> GdbStubs { get; }
 
         bool HasRecorder { get; }
 

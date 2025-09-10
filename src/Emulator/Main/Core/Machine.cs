@@ -1221,6 +1221,8 @@ namespace Antmicro.Renode.Core
             }
         }
 
+        public IReadOnlyDictionary<int, GdbStub> GdbStubs => new ReadOnlyDictionary<int, GdbStub>(gdbStubs);
+
         public Profiler Profiler { get; private set; }
 
         public bool HasPlayer => player != null;
