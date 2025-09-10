@@ -35,23 +35,6 @@ namespace Antmicro.Renode.Peripherals.Network
             Bits128 = 16,
         }
 
-        protected enum DMAChannelInterruptMode
-        {
-            Pulse            = 0b00,
-            Level            = 0b01,
-            LevelAndReassert = 0b10,
-            Reserved         = 0b11,
-        }
-
-        private enum DMAState
-        {
-            Stopped = 0,
-            Running = 1,
-            ProcessingIntermediate = 2,
-            ProcessingSecond = 4,
-            Suspended = 8,
-        }
-
         protected class DMAChannel
         {
             public DMAChannel(SynopsysDWCEthernetQualityOfService parent, int channelNumber, long systemClockFrequency, bool hasInterrupts)
@@ -1017,6 +1000,23 @@ namespace Antmicro.Renode.Peripherals.Network
             private readonly SynopsysDWCEthernetQualityOfService parent;
             private readonly int channelNumber;
             private readonly bool hasInterrupts;
+        }
+
+        protected enum DMAChannelInterruptMode
+        {
+            Pulse            = 0b00,
+            Level            = 0b01,
+            LevelAndReassert = 0b10,
+            Reserved         = 0b11,
+        }
+
+        private enum DMAState
+        {
+            Stopped = 0,
+            Running = 1,
+            ProcessingIntermediate = 2,
+            ProcessingSecond = 4,
+            Suspended = 8,
         }
     }
 }
