@@ -12,3 +12,5 @@ typedef struct MemoryRegion {
 void kvm_map_range(int32_t slot, uint64_t address, uint64_t size, uint64_t pointer);
 
 void kvm_unmap_range(int32_t slot);
+
+void* kvm_translate_guest_physical_to_host(uint64_t address, uint64_t* size);

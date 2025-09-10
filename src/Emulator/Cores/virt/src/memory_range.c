@@ -62,3 +62,20 @@ void kvm_unmap_range(int32_t slot)
     free(memory_region);
 }
 EXC_VOID_1(kvm_unmap_range, int32_t, slot)
+
+void* kvm_translate_guest_physical_to_host(uint64_t address, uint64_t* size)
+{
+    MemoryRegion* memory_region = LIST_FIRST(&cpu->memory_regions);
+    while(memory_region != NULL) {
+        uint64_t guest_phys_address = memory_region->kvm_memory_region.guest_phys_addr;
+        uint64_t memory_size = memory_region->kvm_memory_region.memory_size;
+        if (guest_phys_address <= address && address < guest_phys_address + memory_size) {
+            uint64_t offset = address - guest_phys_address;
+            *size = memory_size - offset;
+            return (void*)(memory_region->kvm_memory_region.userspace_addr + offset);
+        }
+        memory_region = LIST_NEXT(memory_region, list);
+    }
+
+    return NULL;
+}
