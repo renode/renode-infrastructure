@@ -1,6 +1,13 @@
 #pragma once
 
+#include <linux/kvm.h>
 #include <stdint.h>
+#include <sys/queue.h>
+
+typedef struct MemoryRegion {
+    struct kvm_userspace_memory_region kvm_memory_region;
+    LIST_ENTRY(MemoryRegion) list;
+} MemoryRegion;
 
 void kvm_map_range(int32_t slot, uint64_t address, uint64_t size, uint64_t pointer);
 

@@ -5,8 +5,11 @@
 #include <sys/types.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <sys/queue.h>
 #include <sys/syscall.h>
 #include <stdint.h>
+
+#include "memory_range.h"
 
 #ifndef SYS_gettid
 #error "SYS_gettid unavailable on this system"
@@ -65,6 +68,8 @@ typedef struct CpuState {
     /* cached special register state */
     struct kvm_sregs sregs;
     RegisterState sregs_state;
+
+    LIST_HEAD(, MemoryRegion) memory_regions;
 
 #ifdef TARGET_X86KVM
     Detected64BitBehaviour on64BitDetected;

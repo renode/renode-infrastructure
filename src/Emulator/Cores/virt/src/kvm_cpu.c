@@ -9,6 +9,7 @@
  */
 #include "callbacks.h"
 #include "cpu.h"
+#include "memory_range.h"
 #include "utils.h"
 #include "unwind.h"
 #ifdef TARGET_X86KVM
@@ -20,6 +21,7 @@
 #include <inttypes.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <sys/queue.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 #include <signal.h>
@@ -182,6 +184,13 @@ EXC_VOID_1(kvm_set64_bit_behaviour, uint32_t, on64BitDetected)
 
 void kvm_dispose()
 {
+    MemoryRegion *mr = LIST_FIRST(&cpu->memory_regions);
+    while (mr != NULL) {
+        MemoryRegion* next = LIST_NEXT(mr, list);
+        free(mr);
+        mr = next;
+    }
+
     free(cpu);
 }
 EXC_VOID_0(kvm_dispose)
