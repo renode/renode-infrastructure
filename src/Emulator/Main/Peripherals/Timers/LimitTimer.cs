@@ -180,7 +180,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public bool AutoUpdate { get; set; }
 
-        public bool Enabled
+        public virtual bool Enabled
         {
             get
             {
