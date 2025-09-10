@@ -119,6 +119,7 @@ static void cpu_init(CpuState *s)
     }
 
     cpu->exit_requested = false;
+    cpu->single_step = false;
     cpu->sregs_state = CLEAR;
 }
 
@@ -320,55 +321,67 @@ static void set_next_run_as_single_step() {
     }
 }
 
-/* Run KVM and handle it's exit reason */
-void kvm_run()
+/* Run KVM. Returns true if run was interrupted by planned timer. */
+static bool kvm_run()
+{
+    if (ioctl(cpu->vcpu_fd, KVM_RUN, 0) < 0) {
+        if (errno == EINTR) {
+            /* We were interrupted by the signal.
+             * If it was SIGALRM, cpu->timer_expired is set and we will finish the execution.
+             * Otherwise, signal is ignored. */
+            return true;
+        }
+        kvm_runtime_abortf("KVM_RUN: %s", strerror(errno));
+    }
+
+    return false;
+}
+
+static ExecutionResult kvm_run_loop()
 {
     if (cpu->sregs_state == DIRTY) {
         set_sregs(&(cpu->sregs));
     }
     cpu->sregs_state = CLEAR;
 
-    struct kvm_run *run = cpu->kvm_run;
-    int ret;
-
-    ret = ioctl(cpu->vcpu_fd, KVM_RUN, 0);
-    if (ret < 0) {
-        if (errno == EINTR) {
-            /* We were interrupted by the signal.
-             * If it was SIGALRM, cpu->timer_expired is set and we will finish the execution.
-             * Otherwise, signal is ignored. */
-            return;
+    /* timer_expired flag will be set by the SIGALRM handler */
+    while(!cpu->exit_requested) {
+        if (kvm_run()) {
+            break;
         }
-        kvm_runtime_abortf("KVM_RUN: %s", strerror(errno));
+
+        struct kvm_run *run = cpu->kvm_run;
+
+        /* KVM exited - check for possible reasons */
+        switch(run->exit_reason) {
+        case KVM_EXIT_IO:
+            /* handle IN / OUT instructions */
+            kvm_exit_io(cpu, run);
+            break;
+        case KVM_EXIT_MMIO:
+            /* handle sysbus accesses */
+            kvm_exit_mmio(cpu, run);
+            break;
+        case KVM_EXIT_DEBUG:
+            /* this case occurs when single-stepping is enabled */
+            break;
+        case KVM_EXIT_FAIL_ENTRY:
+            kvm_runtime_abortf("KVM_EXIT_FAIL_ENTRY: reason=0x%" PRIx64 "\n",
+                        (uint64_t)run->fail_entry.hardware_entry_failure_reason);
+            break;
+        case KVM_EXIT_INTERNAL_ERROR:
+            kvm_runtime_abortf("KVM_EXIT_INTERNAL_ERROR: suberror=0x%x\n",
+                        (uint32_t)run->internal.suberror);
+            break;
+        case KVM_EXIT_SHUTDOWN:
+            kvm_runtime_abortf("KVM shutdown requested");
+            break;
+        default:
+            kvm_runtime_abortf("KVM: unsupported exit_reason=%d\n", run->exit_reason);
+        }
     }
 
-    /* KVM exited - check for possible reasons */
-    switch(run->exit_reason) {
-    case KVM_EXIT_IO:
-        /* handle IN / OUT instructions */
-        kvm_exit_io(cpu, run);
-        break;
-    case KVM_EXIT_MMIO:
-        /* handle sysbus accesses */
-        kvm_exit_mmio(cpu, run);
-        break;
-    case KVM_EXIT_DEBUG:
-        /* this case occurs when single-stepping is enabled */
-        break;
-    case KVM_EXIT_FAIL_ENTRY:
-        kvm_runtime_abortf("KVM_EXIT_FAIL_ENTRY: reason=0x%" PRIx64 "\n",
-                    (uint64_t)run->fail_entry.hardware_entry_failure_reason);
-        break;
-    case KVM_EXIT_INTERNAL_ERROR:
-        kvm_runtime_abortf("KVM_EXIT_INTERNAL_ERROR: suberror=0x%x\n",
-                    (uint32_t)run->internal.suberror);
-        break;
-    case KVM_EXIT_SHUTDOWN:
-        kvm_runtime_abortf("KVM shutdown requested");
-        break;
-    default:
-        kvm_runtime_abortf("KVM: unsupported exit_reason=%d\n", run->exit_reason);
-    }
+    return OK;
 }
 
 /* Run KVM execution for time_in_us microseconds. */
@@ -376,28 +389,24 @@ uint64_t kvm_execute(uint64_t time_in_us)
 {
     cpu->tgid = getpid();
     cpu->tid = gettid();
-
     cpu->exit_requested = false;
+    cpu->single_step = false;
 
     execution_timer_set(time_in_us);
 
-    /* timer_expired flag will be set by the SIGALRM handler */
-    while(!cpu->exit_requested) {
-        kvm_run();
-    }
-
-    return OK;
+    return (uint64_t)kvm_run_loop();
 }
 EXC_VALUE_1(uint64_t, kvm_execute, 0, uint64_t, time)
 
 /* Run KVM execution for single instruction. */
 uint64_t kvm_execute_single_step()
 {
+    cpu->exit_requested = false;
+    cpu->single_step = true;
+
     set_next_run_as_single_step();
 
-    kvm_run();
-
-    return OK;
+    return (uint64_t)kvm_run_loop();
 }
 EXC_VALUE_0(uint64_t, kvm_execute_single_step, 0)
 
