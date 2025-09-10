@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -7,10 +7,11 @@
 //
 
 using System;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Time;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.CPU;
+using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -274,6 +275,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                 RequestReturnOnCurrentCpu();
             }
         }
+
+        public string LocalName => localName;
 
         public virtual void Reset()
         {
