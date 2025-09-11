@@ -269,6 +269,118 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Register]
+        public RegisterValue ST0
+        {
+            get
+            {
+                return GetRegisterValue32((int)X86KVMRegisters.ST0);
+            }
+
+            set
+            {
+                SetRegisterValue32((int)X86KVMRegisters.ST0, value);
+            }
+        }
+
+        [Register]
+        public RegisterValue ST1
+        {
+            get
+            {
+                return GetRegisterValue32((int)X86KVMRegisters.ST1);
+            }
+
+            set
+            {
+                SetRegisterValue32((int)X86KVMRegisters.ST1, value);
+            }
+        }
+
+        [Register]
+        public RegisterValue ST2
+        {
+            get
+            {
+                return GetRegisterValue32((int)X86KVMRegisters.ST2);
+            }
+
+            set
+            {
+                SetRegisterValue32((int)X86KVMRegisters.ST2, value);
+            }
+        }
+
+        [Register]
+        public RegisterValue ST3
+        {
+            get
+            {
+                return GetRegisterValue32((int)X86KVMRegisters.ST3);
+            }
+
+            set
+            {
+                SetRegisterValue32((int)X86KVMRegisters.ST3, value);
+            }
+        }
+
+        [Register]
+        public RegisterValue ST4
+        {
+            get
+            {
+                return GetRegisterValue32((int)X86KVMRegisters.ST4);
+            }
+
+            set
+            {
+                SetRegisterValue32((int)X86KVMRegisters.ST4, value);
+            }
+        }
+
+        [Register]
+        public RegisterValue ST5
+        {
+            get
+            {
+                return GetRegisterValue32((int)X86KVMRegisters.ST5);
+            }
+
+            set
+            {
+                SetRegisterValue32((int)X86KVMRegisters.ST5, value);
+            }
+        }
+
+        [Register]
+        public RegisterValue ST6
+        {
+            get
+            {
+                return GetRegisterValue32((int)X86KVMRegisters.ST6);
+            }
+
+            set
+            {
+                SetRegisterValue32((int)X86KVMRegisters.ST6, value);
+            }
+        }
+
+        [Register]
+        public RegisterValue ST7
+        {
+            get
+            {
+                return GetRegisterValue32((int)X86KVMRegisters.ST7);
+            }
+
+            set
+            {
+                SetRegisterValue32((int)X86KVMRegisters.ST7, value);
+            }
+        }
+
+        [Register]
         public RegisterValue CR0
         {
             get
@@ -385,11 +497,19 @@ namespace Antmicro.Renode.Peripherals.CPU
             { X86KVMRegisters.ES,  new CPURegister(13, 32, isGeneral: true, isReadonly: false, aliases: new [] { "ES" }) },
             { X86KVMRegisters.FS,  new CPURegister(14, 32, isGeneral: true, isReadonly: false, aliases: new [] { "FS" }) },
             { X86KVMRegisters.GS,  new CPURegister(15, 32, isGeneral: true, isReadonly: false, aliases: new [] { "GS" }) },
-            { X86KVMRegisters.CR0,  new CPURegister(16, 32, isGeneral: true, isReadonly: false, aliases: new [] { "CR0" }) },
-            { X86KVMRegisters.CR1,  new CPURegister(17, 32, isGeneral: true, isReadonly: false, aliases: new [] { "CR1" }) },
-            { X86KVMRegisters.CR2,  new CPURegister(18, 32, isGeneral: true, isReadonly: false, aliases: new [] { "CR2" }) },
-            { X86KVMRegisters.CR3,  new CPURegister(19, 32, isGeneral: true, isReadonly: false, aliases: new [] { "CR3" }) },
-            { X86KVMRegisters.CR4,  new CPURegister(20, 32, isGeneral: true, isReadonly: false, aliases: new [] { "CR4" }) },
+            { X86KVMRegisters.ST0,  new CPURegister(16, 32, isGeneral: true, isReadonly: false, aliases: new [] { "ST0" }) },
+            { X86KVMRegisters.ST1,  new CPURegister(17, 32, isGeneral: true, isReadonly: false, aliases: new [] { "ST1" }) },
+            { X86KVMRegisters.ST2,  new CPURegister(18, 32, isGeneral: true, isReadonly: false, aliases: new [] { "ST2" }) },
+            { X86KVMRegisters.ST3,  new CPURegister(19, 32, isGeneral: true, isReadonly: false, aliases: new [] { "ST3" }) },
+            { X86KVMRegisters.ST4,  new CPURegister(20, 32, isGeneral: true, isReadonly: false, aliases: new [] { "ST4" }) },
+            { X86KVMRegisters.ST5,  new CPURegister(21, 32, isGeneral: true, isReadonly: false, aliases: new [] { "ST5" }) },
+            { X86KVMRegisters.ST6,  new CPURegister(22, 32, isGeneral: true, isReadonly: false, aliases: new [] { "ST6" }) },
+            { X86KVMRegisters.ST7,  new CPURegister(23, 32, isGeneral: true, isReadonly: false, aliases: new [] { "ST7" }) },
+            { X86KVMRegisters.CR0,  new CPURegister(24, 32, isGeneral: true, isReadonly: false, aliases: new [] { "CR0" }) },
+            { X86KVMRegisters.CR1,  new CPURegister(25, 32, isGeneral: true, isReadonly: false, aliases: new [] { "CR1" }) },
+            { X86KVMRegisters.CR2,  new CPURegister(26, 32, isGeneral: true, isReadonly: false, aliases: new [] { "CR2" }) },
+            { X86KVMRegisters.CR3,  new CPURegister(27, 32, isGeneral: true, isReadonly: false, aliases: new [] { "CR3" }) },
+            { X86KVMRegisters.CR4,  new CPURegister(28, 32, isGeneral: true, isReadonly: false, aliases: new [] { "CR4" }) },
         };
     }
 
@@ -411,11 +531,19 @@ namespace Antmicro.Renode.Peripherals.CPU
         ES = 13,
         FS = 14,
         GS = 15,
-        CR0 = 16,
-        CR1 = 17,
-        CR2 = 18,
-        CR3 = 19,
-        CR4 = 20,
+        ST0 = 16,
+        ST1 = 17,
+        ST2 = 18,
+        ST3 = 19,
+        ST4 = 20,
+        ST5 = 21,
+        ST6 = 22,
+        ST7 = 23,
+        CR0 = 24,
+        CR1 = 25,
+        CR2 = 26,
+        CR3 = 27,
+        CR4 = 28,
         PC = 8,
     }
 }

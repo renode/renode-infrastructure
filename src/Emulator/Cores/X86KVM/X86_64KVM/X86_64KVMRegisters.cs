@@ -157,6 +157,118 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Register]
+        public RegisterValue R8
+        {
+            get
+            {
+                return GetRegisterValue64((int)X86_64KVMRegisters.R8);
+            }
+
+            set
+            {
+                SetRegisterValue64((int)X86_64KVMRegisters.R8, value);
+            }
+        }
+
+        [Register]
+        public RegisterValue R9
+        {
+            get
+            {
+                return GetRegisterValue64((int)X86_64KVMRegisters.R9);
+            }
+
+            set
+            {
+                SetRegisterValue64((int)X86_64KVMRegisters.R9, value);
+            }
+        }
+
+        [Register]
+        public RegisterValue R10
+        {
+            get
+            {
+                return GetRegisterValue64((int)X86_64KVMRegisters.R10);
+            }
+
+            set
+            {
+                SetRegisterValue64((int)X86_64KVMRegisters.R10, value);
+            }
+        }
+
+        [Register]
+        public RegisterValue R11
+        {
+            get
+            {
+                return GetRegisterValue64((int)X86_64KVMRegisters.R11);
+            }
+
+            set
+            {
+                SetRegisterValue64((int)X86_64KVMRegisters.R11, value);
+            }
+        }
+
+        [Register]
+        public RegisterValue R12
+        {
+            get
+            {
+                return GetRegisterValue64((int)X86_64KVMRegisters.R12);
+            }
+
+            set
+            {
+                SetRegisterValue64((int)X86_64KVMRegisters.R12, value);
+            }
+        }
+
+        [Register]
+        public RegisterValue R13
+        {
+            get
+            {
+                return GetRegisterValue64((int)X86_64KVMRegisters.R13);
+            }
+
+            set
+            {
+                SetRegisterValue64((int)X86_64KVMRegisters.R13, value);
+            }
+        }
+
+        [Register]
+        public RegisterValue R14
+        {
+            get
+            {
+                return GetRegisterValue64((int)X86_64KVMRegisters.R14);
+            }
+
+            set
+            {
+                SetRegisterValue64((int)X86_64KVMRegisters.R14, value);
+            }
+        }
+
+        [Register]
+        public RegisterValue R15
+        {
+            get
+            {
+                return GetRegisterValue64((int)X86_64KVMRegisters.R15);
+            }
+
+            set
+            {
+                SetRegisterValue64((int)X86_64KVMRegisters.R15, value);
+            }
+        }
+
+        [Register]
         public RegisterValue RIP
         {
             get
@@ -265,6 +377,118 @@ namespace Antmicro.Renode.Peripherals.CPU
             set
             {
                 SetRegisterValue64((int)X86_64KVMRegisters.GS, value);
+            }
+        }
+
+        [Register]
+        public RegisterValue ST0
+        {
+            get
+            {
+                return GetRegisterValue64((int)X86_64KVMRegisters.ST0);
+            }
+
+            set
+            {
+                SetRegisterValue64((int)X86_64KVMRegisters.ST0, value);
+            }
+        }
+
+        [Register]
+        public RegisterValue ST1
+        {
+            get
+            {
+                return GetRegisterValue64((int)X86_64KVMRegisters.ST1);
+            }
+
+            set
+            {
+                SetRegisterValue64((int)X86_64KVMRegisters.ST1, value);
+            }
+        }
+
+        [Register]
+        public RegisterValue ST2
+        {
+            get
+            {
+                return GetRegisterValue64((int)X86_64KVMRegisters.ST2);
+            }
+
+            set
+            {
+                SetRegisterValue64((int)X86_64KVMRegisters.ST2, value);
+            }
+        }
+
+        [Register]
+        public RegisterValue ST3
+        {
+            get
+            {
+                return GetRegisterValue64((int)X86_64KVMRegisters.ST3);
+            }
+
+            set
+            {
+                SetRegisterValue64((int)X86_64KVMRegisters.ST3, value);
+            }
+        }
+
+        [Register]
+        public RegisterValue ST4
+        {
+            get
+            {
+                return GetRegisterValue64((int)X86_64KVMRegisters.ST4);
+            }
+
+            set
+            {
+                SetRegisterValue64((int)X86_64KVMRegisters.ST4, value);
+            }
+        }
+
+        [Register]
+        public RegisterValue ST5
+        {
+            get
+            {
+                return GetRegisterValue64((int)X86_64KVMRegisters.ST5);
+            }
+
+            set
+            {
+                SetRegisterValue64((int)X86_64KVMRegisters.ST5, value);
+            }
+        }
+
+        [Register]
+        public RegisterValue ST6
+        {
+            get
+            {
+                return GetRegisterValue64((int)X86_64KVMRegisters.ST6);
+            }
+
+            set
+            {
+                SetRegisterValue64((int)X86_64KVMRegisters.ST6, value);
+            }
+        }
+
+        [Register]
+        public RegisterValue ST7
+        {
+            get
+            {
+                return GetRegisterValue64((int)X86_64KVMRegisters.ST7);
+            }
+
+            set
+            {
+                SetRegisterValue64((int)X86_64KVMRegisters.ST7, value);
             }
         }
 
@@ -405,21 +629,37 @@ namespace Antmicro.Renode.Peripherals.CPU
             { X86_64KVMRegisters.RBP,  new CPURegister(5, 64, isGeneral: true, isReadonly: false, aliases: new [] { "RBP" }) },
             { X86_64KVMRegisters.RSI,  new CPURegister(6, 64, isGeneral: true, isReadonly: false, aliases: new [] { "RSI" }) },
             { X86_64KVMRegisters.RDI,  new CPURegister(7, 64, isGeneral: true, isReadonly: false, aliases: new [] { "RDI" }) },
-            { X86_64KVMRegisters.RIP,  new CPURegister(8, 64, isGeneral: true, isReadonly: false, aliases: new [] { "RIP", "PC" }) },
-            { X86_64KVMRegisters.EFLAGS,  new CPURegister(9, 64, isGeneral: true, isReadonly: false, aliases: new [] { "EFLAGS" }) },
-            { X86_64KVMRegisters.CS,  new CPURegister(10, 64, isGeneral: true, isReadonly: false, aliases: new [] { "CS" }) },
-            { X86_64KVMRegisters.SS,  new CPURegister(11, 64, isGeneral: true, isReadonly: false, aliases: new [] { "SS" }) },
-            { X86_64KVMRegisters.DS,  new CPURegister(12, 64, isGeneral: true, isReadonly: false, aliases: new [] { "DS" }) },
-            { X86_64KVMRegisters.ES,  new CPURegister(13, 64, isGeneral: true, isReadonly: false, aliases: new [] { "ES" }) },
-            { X86_64KVMRegisters.FS,  new CPURegister(14, 64, isGeneral: true, isReadonly: false, aliases: new [] { "FS" }) },
-            { X86_64KVMRegisters.GS,  new CPURegister(15, 64, isGeneral: true, isReadonly: false, aliases: new [] { "GS" }) },
-            { X86_64KVMRegisters.CR0,  new CPURegister(16, 64, isGeneral: true, isReadonly: false, aliases: new [] { "CR0" }) },
-            { X86_64KVMRegisters.CR1,  new CPURegister(17, 64, isGeneral: true, isReadonly: false, aliases: new [] { "CR1" }) },
-            { X86_64KVMRegisters.CR2,  new CPURegister(18, 64, isGeneral: true, isReadonly: false, aliases: new [] { "CR2" }) },
-            { X86_64KVMRegisters.CR3,  new CPURegister(19, 64, isGeneral: true, isReadonly: false, aliases: new [] { "CR3" }) },
-            { X86_64KVMRegisters.CR4,  new CPURegister(20, 64, isGeneral: true, isReadonly: false, aliases: new [] { "CR4" }) },
-            { X86_64KVMRegisters.CR8,  new CPURegister(24, 64, isGeneral: true, isReadonly: false, aliases: new [] { "CR8" }) },
-            { X86_64KVMRegisters.EFER,  new CPURegister(25, 64, isGeneral: true, isReadonly: false, aliases: new [] { "EFER" }) },
+            { X86_64KVMRegisters.R8,  new CPURegister(8, 64, isGeneral: true, isReadonly: false, aliases: new [] { "R8" }) },
+            { X86_64KVMRegisters.R9,  new CPURegister(9, 64, isGeneral: true, isReadonly: false, aliases: new [] { "R9" }) },
+            { X86_64KVMRegisters.R10,  new CPURegister(10, 64, isGeneral: true, isReadonly: false, aliases: new [] { "R10" }) },
+            { X86_64KVMRegisters.R11,  new CPURegister(11, 64, isGeneral: true, isReadonly: false, aliases: new [] { "R11" }) },
+            { X86_64KVMRegisters.R12,  new CPURegister(12, 64, isGeneral: true, isReadonly: false, aliases: new [] { "R12" }) },
+            { X86_64KVMRegisters.R13,  new CPURegister(13, 64, isGeneral: true, isReadonly: false, aliases: new [] { "R13" }) },
+            { X86_64KVMRegisters.R14,  new CPURegister(14, 64, isGeneral: true, isReadonly: false, aliases: new [] { "R14" }) },
+            { X86_64KVMRegisters.R15,  new CPURegister(15, 64, isGeneral: true, isReadonly: false, aliases: new [] { "R15" }) },
+            { X86_64KVMRegisters.RIP,  new CPURegister(16, 64, isGeneral: true, isReadonly: false, aliases: new [] { "RIP", "PC" }) },
+            { X86_64KVMRegisters.EFLAGS,  new CPURegister(17, 64, isGeneral: true, isReadonly: false, aliases: new [] { "EFLAGS" }) },
+            { X86_64KVMRegisters.CS,  new CPURegister(18, 64, isGeneral: true, isReadonly: false, aliases: new [] { "CS" }) },
+            { X86_64KVMRegisters.SS,  new CPURegister(19, 64, isGeneral: true, isReadonly: false, aliases: new [] { "SS" }) },
+            { X86_64KVMRegisters.DS,  new CPURegister(20, 64, isGeneral: true, isReadonly: false, aliases: new [] { "DS" }) },
+            { X86_64KVMRegisters.ES,  new CPURegister(21, 64, isGeneral: true, isReadonly: false, aliases: new [] { "ES" }) },
+            { X86_64KVMRegisters.FS,  new CPURegister(22, 64, isGeneral: true, isReadonly: false, aliases: new [] { "FS" }) },
+            { X86_64KVMRegisters.GS,  new CPURegister(23, 64, isGeneral: true, isReadonly: false, aliases: new [] { "GS" }) },
+            { X86_64KVMRegisters.ST0,  new CPURegister(24, 64, isGeneral: true, isReadonly: false, aliases: new [] { "ST0" }) },
+            { X86_64KVMRegisters.ST1,  new CPURegister(25, 64, isGeneral: true, isReadonly: false, aliases: new [] { "ST1" }) },
+            { X86_64KVMRegisters.ST2,  new CPURegister(26, 64, isGeneral: true, isReadonly: false, aliases: new [] { "ST2" }) },
+            { X86_64KVMRegisters.ST3,  new CPURegister(27, 64, isGeneral: true, isReadonly: false, aliases: new [] { "ST3" }) },
+            { X86_64KVMRegisters.ST4,  new CPURegister(28, 64, isGeneral: true, isReadonly: false, aliases: new [] { "ST4" }) },
+            { X86_64KVMRegisters.ST5,  new CPURegister(29, 64, isGeneral: true, isReadonly: false, aliases: new [] { "ST5" }) },
+            { X86_64KVMRegisters.ST6,  new CPURegister(30, 64, isGeneral: true, isReadonly: false, aliases: new [] { "ST6" }) },
+            { X86_64KVMRegisters.ST7,  new CPURegister(31, 64, isGeneral: true, isReadonly: false, aliases: new [] { "ST7" }) },
+            { X86_64KVMRegisters.CR0,  new CPURegister(32, 64, isGeneral: true, isReadonly: false, aliases: new [] { "CR0" }) },
+            { X86_64KVMRegisters.CR1,  new CPURegister(33, 64, isGeneral: true, isReadonly: false, aliases: new [] { "CR1" }) },
+            { X86_64KVMRegisters.CR2,  new CPURegister(34, 64, isGeneral: true, isReadonly: false, aliases: new [] { "CR2" }) },
+            { X86_64KVMRegisters.CR3,  new CPURegister(35, 64, isGeneral: true, isReadonly: false, aliases: new [] { "CR3" }) },
+            { X86_64KVMRegisters.CR4,  new CPURegister(36, 64, isGeneral: true, isReadonly: false, aliases: new [] { "CR4" }) },
+            { X86_64KVMRegisters.CR8,  new CPURegister(40, 64, isGeneral: true, isReadonly: false, aliases: new [] { "CR8" }) },
+            { X86_64KVMRegisters.EFER,  new CPURegister(41, 64, isGeneral: true, isReadonly: false, aliases: new [] { "EFER" }) },
         };
     }
 
@@ -433,21 +673,37 @@ namespace Antmicro.Renode.Peripherals.CPU
         RBP = 5,
         RSI = 6,
         RDI = 7,
-        RIP = 8,
-        EFLAGS = 9,
-        CS = 10,
-        SS = 11,
-        DS = 12,
-        ES = 13,
-        FS = 14,
-        GS = 15,
-        CR0 = 16,
-        CR1 = 17,
-        CR2 = 18,
-        CR3 = 19,
-        CR4 = 20,
-        CR8 = 24,
-        EFER = 25,
-        PC = 8,
+        R8 = 8,
+        R9 = 9,
+        R10 = 10,
+        R11 = 11,
+        R12 = 12,
+        R13 = 13,
+        R14 = 14,
+        R15 = 15,
+        RIP = 16,
+        EFLAGS = 17,
+        CS = 18,
+        SS = 19,
+        DS = 20,
+        ES = 21,
+        FS = 22,
+        GS = 23,
+        ST0 = 24,
+        ST1 = 25,
+        ST2 = 26,
+        ST3 = 27,
+        ST4 = 28,
+        ST5 = 29,
+        ST6 = 30,
+        ST7 = 31,
+        CR0 = 32,
+        CR1 = 33,
+        CR2 = 34,
+        CR3 = 35,
+        CR4 = 36,
+        CR8 = 40,
+        EFER = 41,
+        PC = 16,
     }
 }

@@ -16,6 +16,7 @@
 #endif
 
 
+
 uint64_t *get_reg_pointer(struct kvm_regs *regs, int reg)
 {
     switch (reg) {
@@ -39,7 +40,25 @@ uint64_t *get_reg_pointer(struct kvm_regs *regs, int reg)
         return (uint64_t *)&(regs->rip);
     case EFLAGS:
         return (uint64_t *)&(regs->rflags);
-        
+#ifdef TARGET_X86_64KVM
+    case R8:
+        return (uint64_t *)&(regs->r8);
+    case R9:
+        return (uint64_t *)&(regs->r9);
+    case R10:
+        return (uint64_t *)&(regs->r10);
+    case R11:
+        return (uint64_t *)&(regs->r11);
+    case R12:
+        return (uint64_t *)&(regs->r12);
+    case R13:
+        return (uint64_t *)&(regs->r13);
+    case R14:
+        return (uint64_t *)&(regs->r14);
+    case R15:
+        return (uint64_t *)&(regs->r15);
+#endif
+
     default:
         return NULL;
     }
@@ -116,6 +135,10 @@ reg_t kvm_get_register_value(int reg_number)
     }
 
     if (ptr == NULL) {
+        if (ST0 <= reg_number && reg_number <= ST7) {
+            kvm_logf(LOG_LEVEL_INFO, "Reading from STX registers is not implemented");
+            return 0;
+        }
         kvm_runtime_abortf("Read from undefined CPU register number %d detected", reg_number);
     }
 
@@ -146,6 +169,10 @@ void kvm_set_register_value(int reg_number, reg_t value)
     }
 
     if (ptr == NULL) {
+        if (ST0 <= reg_number && reg_number <= ST7) {
+            kvm_logf(LOG_LEVEL_INFO, "Writing to STX registers is not implemented");
+            return;
+        }
         kvm_runtime_abortf("Write to undefined CPU register number %d detected", reg_number);
     }
 

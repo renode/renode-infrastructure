@@ -17,6 +17,6 @@
 
     PC_REGISTER = "EIP";
 
-    GENERAL_REGISTERS.AddRange(new[] { "EAX", "ECX", "EDX", "EBX", "ESP", "EBP", "ESI", "EDI", "EIP", "EFLAGS", "CS", "SS", "DS", "ES", "FS", "GS", "CR0", "CR1", "CR2", "CR3", "CR4" });
+    GENERAL_REGISTERS.AddRange(new[] { "EAX", "ECX", "EDX", "EBX", "ESP", "EBP", "ESI", "EDI", "EIP", "EFLAGS", "CS", "SS", "DS", "ES", "FS", "GS", "ST0", "ST1", "ST2", "ST3", "ST4", "ST5", "ST6", "ST7", "CR0", "CR1", "CR2", "CR3", "CR4" });
 #>
 <#@ include file="../../Common/RegisterTemplate.tt" #>
