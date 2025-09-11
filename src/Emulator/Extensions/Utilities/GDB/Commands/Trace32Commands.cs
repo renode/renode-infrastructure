@@ -180,7 +180,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
     {
         internal static ArmSystemRegisterEncoding NextInGroup(this ArmSystemRegisterEncoding encoding)
         {
-            var nextRegistersCrm = encoding.Crm;
+            var nextRegistersCrn = encoding.Crn;
             var nextRegistersOp1 = encoding.Op1;
             var nextRegistersOp2 = (byte)encoding.Op2;
 
@@ -203,14 +203,13 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
                     }
                     break;
                 case ArmSystemRegisterEncoding.CoprocessorEnum.CP14:
-                    // Based on 32-bit DBGBCR0 .. DBGBCR15 and the only 64-bit CP14 registers,
-                    // i.e. DBGDRAR/DBGDSAR, though reading them this way seems very unlikely.
-                    nextRegistersCrm++;
+                    // Based on 32-bit Jazelle registers.
+                    nextRegistersCrn++;
                     break;
                 default:
                     throw new ArgumentException($"Invalid coprocessor: {encoding.Coprocessor}");
             }
-            return new ArmSystemRegisterEncoding(encoding.Coprocessor, nextRegistersCrm, nextRegistersOp1, encoding.Crn, encoding.Op0, nextRegistersOp2);
+            return new ArmSystemRegisterEncoding(encoding.Coprocessor, encoding.Crm, nextRegistersOp1, nextRegistersCrn, encoding.Op0, nextRegistersOp2, encoding.Width);
         }
 
         internal static ArmSystemRegisterEncoding ParseTrace32Encoding(ArmSystemRegisterEncoding.CoprocessorEnum coprocessor, uint trace32Encoding)
