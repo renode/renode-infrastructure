@@ -143,7 +143,7 @@ namespace Antmicro.Renode.Peripherals.Network
                         name: "DMACRxDLAR.RDESLA (Start of Receive List)")
                     },
                     {(long)RegistersDMAChannel.TxDescriptorTailPointer + offset, new DoubleWordRegister(parent)
-                        .WithValueField(0, 32, out txDescriptorRingTail, changeCallback: (previousValue, _) =>
+                        .WithValueField(0, 32, out txDescriptorRingTail, writeCallback: (previousValue, _) =>
                         {
                             var clearTxFinishedRing = txDescriptorRingTail.Value != txDescriptorRingCurrent.Value;
                             if((txState & DMAState.Suspended) != 0 || clearTxFinishedRing)
@@ -155,7 +155,7 @@ namespace Antmicro.Renode.Peripherals.Network
                         }, name: "DMACTxDTPR.TDT (Transmit Descriptor Tail Pointer)")
                     },
                     {(long)RegistersDMAChannel.RxDescriptorTailPointer + offset, new DoubleWordRegister(parent)
-                        .WithValueField(0, 32, out rxDescriptorRingTail, changeCallback: (previousValue, _) =>
+                        .WithValueField(0, 32, out rxDescriptorRingTail, writeCallback: (previousValue, _) =>
                         {
                             var clearRxFinishedRing = rxDescriptorRingTail.Value != rxDescriptorRingCurrent.Value;
                             if((rxState & DMAState.Suspended) != 0 || clearRxFinishedRing)
