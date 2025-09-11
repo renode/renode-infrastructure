@@ -165,13 +165,6 @@ namespace Antmicro.Renode.Peripherals.CPU
                             // Currently, GIC and Generic Timer system registers can only be accessed by software.
                             // Let's not add them to the dictionary so that GDB won't fail on read until it's fixed.
                             .Where(systemRegister => !IsGICOrGenericTimerSystemRegister(systemRegister))
-                            // The same goes for 64-bit CP14/CP15 registers.
-                            .Where(systemRegister =>
-                            {
-                                var aarch64Coprocessor = ArmSystemRegisterEncoding.CoprocessorEnum.AArch64;
-                                var coprocessor = systemRegister.Encoding.Coprocessor;
-                                return systemRegister.Width == 32 || coprocessor == aarch64Coprocessor;
-                            })
                             .OrderBy(systemRegister => systemRegister.Name)
                             .ToDictionary(_ => ++lastRegisterIndex);
                     }
@@ -219,14 +212,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             if(!matchingEntries.Any())
             {
-                if(encoding.Coprocessor != ArmSystemRegisterEncoding.CoprocessorEnum.AArch64 && encoding.Width == 64)
-                {
-                    this.Log(LogLevel.Warning, "Accessing 64-bit CP14/CP15 registers is not yet supported.");
-                }
-                else
-                {
-                    this.Log(LogLevel.Warning, "Unknown {0}", encoding);
-                }
+                this.Log(LogLevel.Warning, "Unknown {0}", encoding);
                 return false;
             }
             index = matchingEntries.Single().Key;
