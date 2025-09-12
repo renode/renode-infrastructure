@@ -123,12 +123,7 @@ reg_t kvm_get_register_value(int reg_number)
     uint64_t* ptr = NULL;
 
     if (is_special_register(reg_number)) {
-        struct kvm_sregs *sregs = &cpu->sregs;
-        if (cpu->sregs_state == CLEAR)
-        {
-            get_sregs(sregs);
-            cpu->sregs_state = PRESENT;
-        }
+        struct kvm_sregs *sregs = get_sregs();
         ptr = get_sreg_pointer(sregs, reg_number);
     } else {
         struct kvm_regs regs;
@@ -157,13 +152,10 @@ EXPAND_ARGUMENTS(EXC_INT_1, reg_t, kvm_get_register_value, int, reg_number)
 void kvm_set_register_value(int reg_number, reg_t value)
 {
     struct kvm_regs regs;
-    struct kvm_sregs *sregs = &(cpu->sregs);
     uint64_t *ptr = NULL;
 
     if (is_special_register(reg_number)) {
-        if (cpu->sregs_state == CLEAR) {
-            get_sregs(sregs);
-        }
+        struct kvm_sregs *sregs = get_sregs();
         ptr = get_sreg_pointer(sregs, reg_number);
     } else {
         get_regs(&regs);
@@ -194,10 +186,7 @@ EXPAND_ARGUMENTS(EXC_VOID_2, kvm_set_register_value, int, reg_number, reg_t, val
 #define SECTOR_DESCRIPTOR_SETTER(name)                                                                              \
     void kvm_set_##name##_descriptor(uint64_t base, uint32_t limit, uint16_t selector, uint32_t flags)              \
     {                                                                                                               \
-        struct kvm_sregs *sregs = &(cpu->sregs);                                                                    \
-        if (cpu->sregs_state == CLEAR) {                                                                            \
-            get_sregs(sregs);                                                                                       \
-        }                                                                                                           \
+        struct kvm_sregs *sregs = get_sregs();                                                                      \
                                                                                                                     \
         sregs->name.base = base;                                                                                    \
         sregs->name.limit = limit;                                                                                  \
@@ -239,16 +228,27 @@ void set_regs(struct kvm_regs *regs)
     }
 }
 
-void get_sregs(struct kvm_sregs *sregs)
+struct kvm_sregs *get_sregs()
 {
-    if (ioctl(cpu->vcpu_fd, KVM_GET_SREGS, sregs) < 0) {
-        kvm_abortf("KVM_GET_SREGS: %s", strerror(errno));
+    if (cpu->sregs_state == CLEAR) {
+        if (ioctl(cpu->vcpu_fd, KVM_GET_SREGS, &cpu->sregs) < 0) {
+            kvm_abortf("KVM_GET_SREGS: %s", strerror(errno));
+        }
+        if (!cpu->is_executing) {
+            cpu->sregs_state = PRESENT;
+        }
     }
+    return &cpu->sregs;
 }
 
 void set_sregs(struct kvm_sregs *sregs)
 {
+    if (sregs != &cpu->sregs) {
+        cpu->sregs = *sregs;
+    }
+
     if (ioctl(cpu->vcpu_fd, KVM_SET_SREGS, sregs) < 0) {
         kvm_abortf("KVM_SET_SREGS: %s", strerror(errno));
     }
+    cpu->sregs_state = PRESENT;
 }

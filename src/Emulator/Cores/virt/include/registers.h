@@ -13,5 +13,5 @@ typedef uint32_t reg_t;
 void get_regs(struct kvm_regs *regs);
 void set_regs(struct kvm_regs *regs);
 
-void get_sregs(struct kvm_sregs *sregs);
+struct kvm_sregs *get_sregs();
 void set_sregs(struct kvm_sregs *sregs);
