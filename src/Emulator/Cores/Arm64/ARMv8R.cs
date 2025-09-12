@@ -67,6 +67,23 @@ namespace Antmicro.Renode.Peripherals.CPU
             foreach(var config in defaultTCMConfiguration)
             {
                 RegisterTCMRegion(config);
+
+                if(CfgTcmBoot && config.RegionIndex == 0)
+                {
+                    // If CFGTCMBOOTx is asserted, we keep TCM#0 enabled
+                    continue;
+                }
+
+                TlibEnableTcmRegion(
+                    config.RegionIndex,
+                    TcmRegionEnable.Disable, // EL0 & EL1
+                    TcmRegionEnable.Disable  // EL2
+                );
+
+                config.El01Enabled = false;
+                config.El2Enabled = false;
+
+                TlibEnableExternalPermissionHandlerForRange(config.Address, config.Size, 1U);
             }
         }
 
@@ -127,6 +144,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         public ExceptionLevel ExceptionLevel { get; private set; }
+
+        public bool CfgTcmBoot { get; set; }
 
         // ARMv8R AArch32 cores always execute in NonSecure mode ("Arm Architecture Reference Manual Supplement Armv8, for the Armv8-R AArch32 architecture profile" - A1.3.1)
         // ARMv8R AArch64 cores always execute in Secure mode ("Arm Architecture Reference Manual Supplement Armv8, for R-profile AArch64 architecture" - C1.11 and A1.3)
@@ -357,6 +376,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private readonly Action<uint, ulong, ulong> TlibRegisterTcmRegion;
+
+        [Import]
+        private readonly Action<ulong, TcmRegionEnable, TcmRegionEnable> TlibEnableTcmRegion;
 #pragma warning restore 649
 
         private readonly ARM_GenericInterruptController gic;
@@ -378,6 +400,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             RegisterNotFound = 1,
             AccessorNotFound = 2,
             AccessValid      = 3,
+        }
+
+        private enum TcmRegionEnable : uint
+        {
+            Disable = 0,
+            Enable = 1,
         }
     }
 }
