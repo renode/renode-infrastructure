@@ -211,6 +211,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             switch(command)
             {
                 case Commands.FastRead:
+                case Commands.ReadSerialFlashDiscoveryParameter:
                     return 1;
                 default:
                     return 0;
