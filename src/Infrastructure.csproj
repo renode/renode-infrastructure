@@ -748,6 +748,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/I2C/SHT21.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/I2C/BMC050.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/Button.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/VirtIOMMIOEntropy.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Network/SynopsysEthernetMAC.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/SPI/XilinxQSPI.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/SPI/Cadence_xSPI.cs" />
