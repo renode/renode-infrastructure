@@ -53,9 +53,6 @@ typedef struct CpuState {
     pid_t tid;  /* id of cpu thread */
     pid_t tgid; /* id of cpu process */
 
-    /* number of microseconds since calling kvm_execute */
-    ulong execution_time_in_us;
-
     /* KVM specific file descriptors */
     int kvm_fd;
     int vm_fd;

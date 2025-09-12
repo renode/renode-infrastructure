@@ -328,13 +328,6 @@ static void execution_timer_disarm()
         kvm_runtime_abortf("setitimer: %s", strerror(errno));
 }
 
-/* Get execution time since calling kvm_execute */
-uint64_t kvm_get_execution_time_in_us()
-{
-    return cpu->execution_time_in_us;
-}
-EXC_VALUE_0(uint64_t, kvm_get_execution_time_in_us, 0)
-
 static void set_next_run_as_single_step() {
     int ret;
     struct kvm_guest_debug debug = {
