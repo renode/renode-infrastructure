@@ -11,6 +11,7 @@
 #include "cpu.h"
 #include "debug.h"
 #include "memory_range.h"
+#include "registers.h"
 #include "utils.h"
 #include "unwind.h"
 #ifdef TARGET_X86KVM
