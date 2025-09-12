@@ -828,7 +828,13 @@ namespace Antmicro.Renode.UserInterface
             }
         }
 
-        private static bool ParseArrayArgument(IList<Token> tokens, ref int i, out TokenList arg)
+        /// <summary>
+        /// Parses a single argument, which can be a single token like "a", or a list like [1, 2, 3],
+        /// starting at index <paramref name="i"/> within <paramref name="tokens"/>. The resulting
+        /// <paramref name="arg"/> will be a <see cref="TokenList"/> representing the argument,
+        /// with <paramref name="i"/> updated to point at the last parsed token.
+        /// </summary>
+        private static bool ParseArgument(IList<Token> tokens, ref int i, out TokenList arg)
         {
             arg = null;
             if(tokens[i] is LeftBraceToken)
@@ -1241,7 +1247,7 @@ namespace Antmicro.Renode.UserInterface
                     //For example, for f(a=0, b=0) `f a=4 9` is allowed, like in C#
                     allowPositional &= parameterIndex == currentPos;
                     i += 2; //Skip the name and = sign
-                    if(!ParseArrayArgument(values, ref i, out var arg))
+                    if(!ParseArgument(values, ref i, out var arg))
                     {
                         return false;
                     }
@@ -1255,7 +1261,7 @@ namespace Antmicro.Renode.UserInterface
                     {
                         return false;
                     }
-                    if(!ParseArrayArgument(values, ref i, out var arg))
+                    if(!ParseArgument(values, ref i, out var arg))
                     {
                         return false;
                     }
