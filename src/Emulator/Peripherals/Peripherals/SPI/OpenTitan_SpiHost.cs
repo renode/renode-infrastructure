@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -345,13 +345,19 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private void HandleCommand(CommandDefinition command)
         {
+            // Number of bytes (or dummy cycles) to transfer is equal to `COMMAND.LEN + 1`
+            var commandLength = command.Length + 1;
             if(command.Direction == CommandDirection.Dummy)
             {
-                return;
+                var rounded = (commandLength + 7) / 8;
+                if(commandLength % 8 != 0)
+                {
+                    this.WarningLog("Rounding up the amount of cycles from {0} to {1} as in Renode the SPI interface allows only byte transactions", commandLength, rounded * 8);
+                }
+                commandLength = rounded;
             }
 
-            // number of bytes to transfer is equal to `COMMAND.LEN + 1`
-            for(var i = 0; i <= command.Length; i++)
+            for(var i = 0; i < commandLength; i++)
             {
                 var byteToTransfer = (byte)0;
                 if(command.Direction == CommandDirection.TxOnly || command.Direction == CommandDirection.TxRx)
