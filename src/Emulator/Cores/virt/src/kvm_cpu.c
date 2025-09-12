@@ -364,10 +364,14 @@ static ExecutionResult kvm_run_loop()
     cpu->tid = gettid();
     cpu->is_executing = true;
 
+    ExecutionResult execution_result = OK;
+    bool override_exception_capture = false;
+
     /* timer_expired flag will be set by the SIGALRM handler */
     while(!cpu->exit_requested) {
         if (kvm_run()) {
-            break;
+            execution_result = OK;
+            goto finalize;
         }
 
         struct kvm_run *run = cpu->kvm_run;
@@ -383,7 +387,29 @@ static ExecutionResult kvm_run_loop()
             kvm_exit_mmio(cpu, run);
             break;
         case KVM_EXIT_DEBUG:
-            /* this case occurs when single-stepping is enabled */
+            /* this case occurs when single-stepping is enabled or a software event was triggered */
+            if (is_breakpoint_address(run->debug.arch.pc)) {
+                execution_result = STOPPED_AT_BREAKPOINT;
+                goto finalize;
+            }
+            if (cpu->single_step) {
+                execution_result = OK;
+                goto finalize;
+            }
+            if (override_exception_capture) {
+                set_debug_flags(DEFAULT_DEBUG_FLAGS);
+                override_exception_capture = false;
+                break;
+            }
+
+            /* KVM_GUESTDBG_USE_SW_BP causes us to capture all exceptions, even ones guest software
+             * would expect to handle by itself. If we encounter an exception and do not expect
+             * it then this instruction will be single-stepped with exception capture turned off.
+             * This will allow guest to jump to exception handler from which we can continue to
+             * capture exceptions */
+            kvm_logf(LOG_LEVEL_DEBUG, "KVM_EXIT_DEBUG: exception=0x%lx at pc 0x%lx, turning off interrupt capture for this instruction", run->debug.arch.exception, run->debug.arch.pc);
+            set_debug_flags(SINGLE_STEP_DEBUG_FLAGS);
+            override_exception_capture = true;
             break;
         case KVM_EXIT_FAIL_ENTRY:
             kvm_runtime_abortf("KVM_EXIT_FAIL_ENTRY: reason=0x%" PRIx64 "\n",
@@ -401,8 +427,9 @@ static ExecutionResult kvm_run_loop()
         }
     }
 
+finalize:
     cpu->is_executing = false;
-    return OK;
+    return execution_result;
 }
 
 /* Run KVM execution for time_in_us microseconds. */
