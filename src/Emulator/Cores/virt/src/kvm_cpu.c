@@ -183,26 +183,6 @@ void kvm_set64_bit_behaviour(uint32_t on64BitDetected)
 EXC_VOID_1(kvm_set64_bit_behaviour, uint32_t, on64BitDetected)
 #endif
 
-void kvm_dispose()
-{
-    Breakpoint *bp = LIST_FIRST(&cpu->breakpoints);
-    while (bp != NULL) {
-        Breakpoint* next = LIST_NEXT(bp, list);
-        free(bp);
-        bp = next;
-    }
-
-    MemoryRegion *mr = LIST_FIRST(&cpu->memory_regions);
-    while (mr != NULL) {
-        MemoryRegion* next = LIST_NEXT(mr, list);
-        free(mr);
-        mr = next;
-    }
-
-    free(cpu);
-}
-EXC_VOID_0(kvm_dispose)
-
 static void kvm_exit_io(CpuState *s, struct kvm_run *run)
 {
     uint8_t *ptr;
@@ -427,3 +407,26 @@ void kvm_interrupt_execution()
     kill_cpu_thread(SIGALRM);
 }
 EXC_VOID_0(kvm_interrupt_execution)
+
+void kvm_dispose()
+{
+    /* Make sure we are not executing KVMCPU before disposing */
+    kvm_interrupt_execution();
+
+    Breakpoint *bp = LIST_FIRST(&cpu->breakpoints);
+    while (bp != NULL) {
+        Breakpoint* next = LIST_NEXT(bp, list);
+        free(bp);
+        bp = next;
+    }
+
+    MemoryRegion *mr = LIST_FIRST(&cpu->memory_regions);
+    while (mr != NULL) {
+        MemoryRegion* next = LIST_NEXT(mr, list);
+        free(mr);
+        mr = next;
+    }
+
+    free(cpu);
+}
+EXC_VOID_0(kvm_dispose)
