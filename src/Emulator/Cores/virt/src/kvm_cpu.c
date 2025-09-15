@@ -413,6 +413,10 @@ void kvm_dispose()
     /* Make sure we are not executing KVMCPU before disposing */
     kvm_interrupt_execution();
 
+    close(cpu->vcpu_fd);
+    close(cpu->vm_fd);
+    close(cpu->kvm_fd);
+
     Breakpoint *bp = LIST_FIRST(&cpu->breakpoints);
     while (bp != NULL) {
         Breakpoint* next = LIST_NEXT(bp, list);
