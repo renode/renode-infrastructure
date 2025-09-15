@@ -50,8 +50,9 @@ typedef enum
 #endif
 
 typedef struct CpuState {
-    pid_t tid;  /* id of cpu thread */
-    pid_t tgid; /* id of cpu process */
+    bool is_executing;
+    pid_t tid;  /* id of cpu thread, valid when is_executing */
+    pid_t tgid; /* id of cpu process, valid when is_executing */
 
     /* KVM specific file descriptors */
     int kvm_fd;

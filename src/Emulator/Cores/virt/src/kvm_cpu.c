@@ -121,10 +121,15 @@ static void cpu_init(CpuState *s)
     cpu->exit_requested = false;
     cpu->single_step = false;
     cpu->sregs_state = CLEAR;
+    cpu->is_executing = false;
 }
 
 static void kill_cpu_thread(int sig)
 {
+    if (!cpu->is_executing) {
+        return;
+    }
+
     if (tgkill(cpu->tgid, cpu->tid, sig) < 0) {
         /* ESRCH means there is no such process. Such situation may occur when cpu thread already exited. */
         if (errno != ESRCH) {
@@ -344,6 +349,10 @@ static ExecutionResult kvm_run_loop()
     }
     cpu->sregs_state = CLEAR;
 
+    cpu->tgid = getpid();
+    cpu->tid = gettid();
+    cpu->is_executing = true;
+
     /* timer_expired flag will be set by the SIGALRM handler */
     while(!cpu->exit_requested) {
         if (kvm_run()) {
@@ -381,14 +390,13 @@ static ExecutionResult kvm_run_loop()
         }
     }
 
+    cpu->is_executing = false;
     return OK;
 }
 
 /* Run KVM execution for time_in_us microseconds. */
 uint64_t kvm_execute(uint64_t time_in_us)
 {
-    cpu->tgid = getpid();
-    cpu->tid = gettid();
     cpu->exit_requested = false;
     cpu->single_step = false;
 
