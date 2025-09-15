@@ -2559,6 +2559,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             private bool IsSoftwareGeneratedInterruptAccessValid(Interrupt interrupt, CPUEntry accessingCPU, string registerTypeName)
             {
+                if(accessingCPU == null)
+                {
+                    return true;
+                }
+
                 if(interrupt is SoftwareGeneratedInterrupt sgi)
                 {
                     if(sgi.Requester != null && sgi.Requester != accessingCPU && !gic.IsAffinityRoutingEnabled(sgi.Requester))
@@ -2583,7 +2588,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         }
                     }
                 }
-                else if(accessingCPU != null && accessingCPU.processorNumber != 0)
+                else if(accessingCPU.processorNumber != 0)
                 {
                     gic.Log(LogLevel.Debug, "{0}: Processor Number ({1}) passed for non-SGI interrupt ({2}).", registerTypeName, accessingCPU.processorNumber, interrupt.Identifier);
                 }
