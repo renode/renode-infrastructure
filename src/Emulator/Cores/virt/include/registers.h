@@ -9,9 +9,10 @@ typedef uint64_t reg_t;
 typedef uint32_t reg_t;
 #endif
 
+#include "cpu_registers.h"
 
-void get_regs(struct kvm_regs *regs);
-void set_regs(struct kvm_regs *regs);
+void kvm_registers_synchronize();
+void kvm_registers_invalidate();
 
-struct kvm_sregs *get_sregs();
-void set_sregs(struct kvm_sregs *sregs);
+reg_t get_register_value(Registers reg_number);
+void set_register_value(Registers reg_number, reg_t value);

@@ -121,7 +121,7 @@ static void cpu_init(CpuState *s)
 
     cpu->exit_requested = false;
     cpu->single_step = false;
-    cpu->sregs_state = CLEAR;
+    cpu->regs_state = cpu->sregs_state = CLEAR;
     cpu->is_executing = false;
 }
 
@@ -345,10 +345,8 @@ static bool kvm_run()
 
 static ExecutionResult kvm_run_loop()
 {
-    if (cpu->sregs_state == DIRTY) {
-        set_sregs(&(cpu->sregs));
-    }
-    cpu->sregs_state = CLEAR;
+    kvm_registers_synchronize();
+    kvm_registers_invalidate();
 
     cpu->tgid = getpid();
     cpu->tid = gettid();

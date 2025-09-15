@@ -68,6 +68,10 @@ typedef struct CpuState {
     bool single_step;
 
     /* cached special register state */
+    struct kvm_regs regs;
+    RegisterState regs_state;
+
+    /* cached special register state */
     struct kvm_sregs sregs;
     RegisterState sregs_state;
 

@@ -28,9 +28,7 @@ void kvm_abortf(const char *fmt, ...)
 
 void kvm_runtime_abortf(const char *fmt, ...)
 {
-    struct kvm_regs regs;
-    get_regs(&regs);
-    uint64_t pc = regs.rip;
+    uint64_t pc = get_register_value(RIP);
 
     char result[VSNPRINTF_BUFFER_SIZE];
     va_list ap;
