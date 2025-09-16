@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -42,7 +42,7 @@ namespace Antmicro.Renode.Storage.VirtIO
 
         public uint QueueSel { set; get; }
 
-        public long Size => 0x150;
+        public long Size => 0x200;
 
         public GPIO IRQ { get; } = new GPIO();
 

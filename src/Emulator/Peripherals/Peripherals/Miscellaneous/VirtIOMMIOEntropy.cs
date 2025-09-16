@@ -29,11 +29,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             DefineMMIORegisters();
         }
 
-        public override bool ProcessChain(Virtqueue vqueue)
+        public override bool ProcessChain(Virtqueue virtq)
         {
             // Place random bytes into the buffers
             // Get Buffer Size
-            var virtq = Virtqueues[0];
             virtq.ReadDescriptorMetadata();
             var descriptor = virtq.Descriptor;
             var length = descriptor.Length;

@@ -17,10 +17,18 @@ namespace Antmicro.Renode.Storage.VirtIO
     // Source: https://docs.oasis-open.org/virtio/virtio/v1.2/csd01/virtio-v1.2-csd01.html#x1-350007
     public class Virtqueue
     {
+        public Virtqueue(VirtIO parent, uint maxSize, ulong arrayIndex)
+        {
+            this.parent = parent;
+            this.MaxSize = maxSize;
+            this.ArrayIndex = arrayIndex;
+        }
+
         public Virtqueue(VirtIO parent, uint maxSize)
         {
             this.parent = parent;
             this.MaxSize = maxSize;
+            this.ArrayIndex = 0;
         }
 
         public void Reset()
@@ -36,6 +44,9 @@ namespace Antmicro.Renode.Storage.VirtIO
             IsReset = false;
         }
 
+        // A lenght that is smaller than the received buffers length will not read the entire buffer
+        // But also not report any problems. Length of the received buffer can be acquired to the 
+        // caller using the Descriptor field
         public bool TryReadFromBuffers(int len, out byte[] data)
         {
             var readLen = 0;
@@ -117,7 +128,6 @@ namespace Antmicro.Renode.Storage.VirtIO
 
                 if(!parent.ProcessChain(this))
                 {
-                    parent.Log(LogLevel.Error, "Error processing virtqueue requests");
                     BytesWritten = 0;
                     return;
                 }
@@ -159,7 +169,7 @@ namespace Antmicro.Renode.Storage.VirtIO
 
         public void ReadDescriptorMetadata()
         {
-            parent.Log(LogLevel.Debug, "Reading desc meta, queueSel: {0}, descIndex: {1}", parent.QueueSel, DescriptorIndex);
+            parent.Log(LogLevel.Debug, "Reading desc meta, queueIndex: {0}, descIndex: {1}", ArrayIndex, DescriptorIndex);
             var descriptorAddress = DescTableAddress + DescriptorSize * (ulong)DescriptorIndex;
             var scanBytes = parent.SystemBus.ReadBytes(descriptorAddress, DescriptorSizeOffset, context: GetCurrentContext());
             Descriptor = Packet.Decode<DescriptorMetadata>(scanBytes);
@@ -193,6 +203,8 @@ namespace Antmicro.Renode.Storage.VirtIO
         public int BytesWritten { get; set; }
 
         public readonly uint MaxSize;
+        // The index this queue has in its parents index
+        public readonly ulong ArrayIndex;
 
         public const uint AvailableRingEntrySize = 0x2;
         public const uint UsedRingEntrySize = 0x8;

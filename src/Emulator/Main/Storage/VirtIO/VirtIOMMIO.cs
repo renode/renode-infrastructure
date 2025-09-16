@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -22,10 +22,9 @@ namespace Antmicro.Renode.Peripherals.Storage
             BitHelper.SetBit(ref deviceFeatureBits, (byte)MMIOFeatureBits.AccessPlatform, true);
         }
 
-        protected void VirtqueueHandle()
+        protected void VirtqueueHandle(ulong idx)
         {
-            this.Log(LogLevel.Debug, "Handling virtqueue {0}", QueueSel);
-            var vqueue = Virtqueues[QueueSel];
+            var vqueue = Virtqueues[idx];
             vqueue.Handle();
         }
 
@@ -110,6 +109,7 @@ namespace Antmicro.Renode.Peripherals.Storage
                 )
                 .WithReservedBits(1, 31);
 
+            // Note: This does not exist in the spec
             MMIORegisters.QueueReset.Define(this)
                 .WithFlag(0, name: "queue_reset",
                     writeCallback: (_, val) => { if(val) Virtqueues[QueueSel].Reset(); },
@@ -208,7 +208,7 @@ namespace Antmicro.Renode.Peripherals.Storage
                         }
                         else
                         {
-                            VirtqueueHandle();
+                            VirtqueueHandle(idx);
                         }
                     });
 
