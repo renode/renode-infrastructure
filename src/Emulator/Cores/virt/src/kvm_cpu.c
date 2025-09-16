@@ -426,6 +426,7 @@ EXC_VALUE_0(uint64_t, kvm_execute_single_step, 0)
 void kvm_interrupt_execution()
 {
     execution_timer_disarm();
+    cpu->exit_requested = true;
     kill_cpu_thread(SIGALRM);
 }
 EXC_VOID_0(kvm_interrupt_execution)
