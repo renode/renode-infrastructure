@@ -39,6 +39,9 @@
 #define CPUID_FEATURE_INFO 0x1
 #define CPUID_FEATURE_INFO_EXTENDED 0x80000001
 
+#define DEFAULT_DEBUG_FLAGS (KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_USE_SW_BP)
+#define SINGLE_STEP_DEBUG_FLAGS (KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_SINGLESTEP)
+
 CpuState *cpu;
 __thread struct unwind_state unwind_state;
 static void kvm_set_cpuid(CpuState *s)
@@ -59,6 +62,18 @@ static void kvm_set_cpuid(CpuState *s)
         kvm_abortf("KVM_SET_CPUID2: %s", strerror(errno));
     }
     free(kvm_cpuid);
+}
+
+static void set_debug_flags(uint32_t flags)
+{
+    /* Changing debug flags may alter sregs, make sure they are up to date */
+    kvm_registers_synchronize();
+    struct kvm_guest_debug debug = {
+        .control = flags,
+    };
+    if (ioctl(cpu->vcpu_fd, KVM_SET_GUEST_DEBUG, &debug) < 0) {
+        kvm_runtime_abortf("KVM_SET_GUEST_DEBUG: %s", strerror(errno));
+    }
 }
 
 static void cpu_init(CpuState *s)
@@ -122,6 +137,8 @@ static void cpu_init(CpuState *s)
     if (!s->kvm_run) {
         kvm_abortf("mmap kvm_run: %s", strerror(errno));
     }
+
+    set_debug_flags(DEFAULT_DEBUG_FLAGS);
 
     cpu->exit_requested = false;
     cpu->single_step = false;
@@ -322,18 +339,6 @@ static void execution_timer_disarm()
         kvm_runtime_abortf("setitimer: %s", strerror(errno));
 }
 
-static void set_next_run_as_single_step() {
-    int ret;
-    struct kvm_guest_debug debug = {
-        .control = KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_SINGLESTEP,
-    };
-    ret = ioctl(cpu->vcpu_fd, KVM_SET_GUEST_DEBUG, &debug);
-    if (ret < 0) {
-        kvm_runtime_abortf("KVM_SET_GUEST_DEBUG: %s", strerror(errno));
-        exit(1);
-    }
-}
-
 /* Run KVM. Returns true if run was interrupted by planned timer. */
 static bool kvm_run()
 {
@@ -423,9 +428,10 @@ uint64_t kvm_execute_single_step()
     cpu->exit_requested = false;
     cpu->single_step = true;
 
-    set_next_run_as_single_step();
-
-    return (uint64_t)kvm_run_loop();
+    set_debug_flags(SINGLE_STEP_DEBUG_FLAGS);
+    ExecutionResult result = kvm_run_loop();
+    set_debug_flags(DEFAULT_DEBUG_FLAGS);
+    return (uint64_t)result;
 }
 EXC_VALUE_0(uint64_t, kvm_execute_single_step, 0)
 
