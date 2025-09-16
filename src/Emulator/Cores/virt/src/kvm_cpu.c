@@ -46,6 +46,9 @@ static void kvm_set_cpuid(CpuState *s)
     struct kvm_cpuid2 *kvm_cpuid;
 
     kvm_cpuid = calloc(sizeof(struct kvm_cpuid2) + CPUID_MAX_NUMBER_OF_ENTRIES, sizeof(kvm_cpuid->entries[0]));
+    if (kvm_cpuid == NULL) {
+        kvm_abort("Calloc failed");
+    }
 
     kvm_cpuid->nent = CPUID_MAX_NUMBER_OF_ENTRIES;
     if (ioctl(s->kvm_fd, KVM_GET_SUPPORTED_CPUID, kvm_cpuid) < 0) {
@@ -165,6 +168,9 @@ void kvm_init()
     sigaction(SIGALRM, &act, NULL);
 
     cpu = calloc(1, sizeof(*cpu));
+    if (cpu == NULL) {
+        kvm_abort("Calloc failed");
+    }
 
     cpu_init(cpu);
 }
