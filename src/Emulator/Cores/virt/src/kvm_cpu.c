@@ -18,15 +18,16 @@
 #include "x86_reports.h"
 #endif
 
-#include <linux/kvm.h>
-#include <string.h>
-#include <inttypes.h>
-#include <fcntl.h>
 #include <errno.h>
-#include <sys/queue.h>
-#include <sys/mman.h>
-#include <sys/ioctl.h>
+#include <fcntl.h>
+#include <inttypes.h>
+#include <linux/kvm.h>
 #include <signal.h>
+#include <stdint.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <sys/mman.h>
+#include <sys/queue.h>
 #include <sys/time.h>
 
 #define USEC_IN_SEC 1000000
