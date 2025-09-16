@@ -74,7 +74,6 @@ namespace Antmicro.Renode.Peripherals.I2C
                         }
                         else
                         {
-                            state = States.Idle;
                             break;
                         }
                     }
