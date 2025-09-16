@@ -157,6 +157,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
             {
                 case Registers.DeviceID:
                     return DevID;
+                case Registers.SourceOfInterrupts:
+                    return (1 << SourceOfInterruptsDataReadyOffset);
                 case Registers.Xdata0:
                     return currentSample.X.GetLowByte(fullResolution, range);
                 case Registers.Xdata1:
@@ -296,6 +298,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private readonly Queue<Sample> samplesFifo;
 
         private const byte DevID = 0xe5;
+        private const byte SourceOfInterruptsDataReadyOffset = 7;
 
         private struct Sample
         {
