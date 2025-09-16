@@ -318,7 +318,12 @@ namespace Antmicro.Renode.Peripherals.I2C
                     .WithReservedBits(16, 16)
                     .WithChangeCallback((_, __) => UpdateInterrupts())
                 },
-                {(long)Registers.ReceiveControl0, new DoubleWordRegister(this)
+                { (long)Registers.FIFOLength, new DoubleWordRegister(this, 0x8080)
+                    .WithValueField(0, 8, FieldMode.Read, name: "rx_depth")
+                    .WithValueField(8, 8, FieldMode.Read, name: "tx_depth")
+                    .WithReservedBits(16, 16)
+                },
+                { (long)Registers.ReceiveControl0, new DoubleWordRegister(this)
                     .WithTaggedFlag("RX_CTRL0.dnr", 0)
                     .WithReservedBits(1, 6)
                     .WithFlag(7, FieldMode.Read | FieldMode.WriteOneToClear, name: "RX_CTRL0.rxfsh",
