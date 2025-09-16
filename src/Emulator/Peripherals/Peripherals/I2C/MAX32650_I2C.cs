@@ -119,6 +119,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                     {
                         state = ((data & 0x1) != 0) ? States.Reading : States.Writing;
                         destinationAddress = (uint)(data >> 1) & 0x7F;
+                        interruptAddressAckPending.Value = true;
 
                         if(CurrentSlave == null)
                         {
@@ -136,6 +137,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                     state = ((destinationAddress & 0x1) != 0) ? States.Reading : States.Writing;
                     destinationAddress = (destinationAddress & 0x6) << 7;
                     destinationAddress |= data;
+                    interruptAddressAckPending.Value = true;
 
                     if(CurrentSlave == null)
                     {
@@ -218,6 +220,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             pending |= interruptTxThresholdEnabled.Value && interruptTxThresholdPending.Value;
             pending |= interruptStopEnabled.Value && interruptStopPending.Value;
             pending |= interruptDoneEnabled.Value && interruptDonePending.Value;
+            pending |= interruptAddressAckEnabled.Value && interruptAddressAckPending.Value;
             IRQ.Set(pending);
         }
 
@@ -282,7 +285,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                     .WithFlag(4, out interruptRxThresholdPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "INT_FL0.rxthi")
                     .WithFlag(5, out interruptTxThresholdPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "INT_FL0.txthi")
                     .WithFlag(6, out interruptStopPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "INT_FL0.stopi")
-                    .WithTaggedFlag("INT_FL0.adracki", 7)
+                    .WithFlag(7, out interruptAddressAckPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "INT_FL0.adracki")
                     .WithTaggedFlag("INT_FL0.arberi", 8)
                     .WithFlag(9, out interruptTimeoutPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "INT_FL0.toeri")
                     .WithTaggedFlag("INT_FL0.adreri", 10)
@@ -303,7 +306,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                     .WithFlag(4, out interruptRxThresholdEnabled, name: "INT_EN0.rxthi")
                     .WithFlag(5, out interruptTxThresholdEnabled, name: "INT_EN0.txthi")
                     .WithFlag(6, out interruptStopEnabled, name: "INT_EN0.stopi")
-                    .WithTaggedFlag("INT_EN0.adracki", 7)
+                    .WithFlag(7, out interruptAddressAckEnabled, name: "INT_EN0.adracki")
                     .WithTaggedFlag("INT_EN0.arberi", 8)
                     .WithFlag(9, out interruptTimeoutEnabled, name: "INT_EN0.toeri")
                     .WithTaggedFlag("INT_EN0.adreri", 10)
@@ -402,12 +405,14 @@ namespace Antmicro.Renode.Peripherals.I2C
         private IValueRegisterField rxThreshold;
         private IValueRegisterField txThreshold;
 
+        private IFlagRegisterField interruptAddressAckPending;
         private IFlagRegisterField interruptTimeoutPending;
         private IFlagRegisterField interruptRxThresholdPending;
         private IFlagRegisterField interruptTxThresholdPending;
         private IFlagRegisterField interruptStopPending;
         private IFlagRegisterField interruptDonePending;
 
+        private IFlagRegisterField interruptAddressAckEnabled;
         private IFlagRegisterField interruptTimeoutEnabled;
         private IFlagRegisterField interruptRxThresholdEnabled;
         private IFlagRegisterField interruptTxThresholdEnabled;
