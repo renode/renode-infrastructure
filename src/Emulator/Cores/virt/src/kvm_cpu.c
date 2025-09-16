@@ -402,7 +402,12 @@ uint64_t kvm_execute(uint64_t time_in_us)
 
     execution_timer_set(time_in_us);
 
-    return (uint64_t)kvm_run_loop();
+    ExecutionResult result = kvm_run_loop();
+    if (result != OK) {
+        /* Disarm timer if it did not cause the exit */
+        execution_timer_disarm();
+    }
+    return result;
 }
 EXC_VALUE_1(uint64_t, kvm_execute, 0, uint64_t, time)
 
