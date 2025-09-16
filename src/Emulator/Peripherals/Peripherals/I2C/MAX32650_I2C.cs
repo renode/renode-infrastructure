@@ -11,9 +11,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.SPI;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.I2C
