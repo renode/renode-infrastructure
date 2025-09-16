@@ -58,7 +58,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             return false;
         }
 
-        private bool TryFindWindowIndex(ulong address, out int index)
+        protected bool TryFindWindowIndex(ulong address, out int index)
         {
             for(index = 0; index < Windows.Count; index++)
             {
