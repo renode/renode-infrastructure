@@ -133,7 +133,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         public override ExecutionState ExecutionState => ExecutionState.AArch64;
-        public override ExecutionState[] SupportedExecutionStates => new[] { ExecutionState.AArch64 };
+        public override ExecutionState[] SupportedExecutionStates => new[] { ExecutionState.AArch32, ExecutionState.AArch64 };
 
         public SecurityState SecurityState
         {
