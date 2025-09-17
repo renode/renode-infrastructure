@@ -651,7 +651,6 @@
     <Compile Include="Emulator/Peripherals/Peripherals/IRQControllers/STM32_EXTICore.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/IRQControllers/STM32H7_EXTI.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/IRQControllers/STM32WBA_EXTI.cs" />
-    <Compile Include="Emulator/Peripherals/Peripherals/DMA/STM32DMA_Deprecated.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/DMA/UDMA.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/DMA/MPFS_PDMA.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/DMA/NPCX_MDMA.cs" />
