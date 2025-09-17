@@ -18,31 +18,38 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
     {
         public Trace32Commands(CommandsManager manager) : base(manager) { }
 
-        [Execute("Mc")]
-        public PacketData AArch32SystemRegisterSetOld(
-            [Argument(Separator = ':', Encoding = ArgumentAttribute.ArgumentEncoding.DecimalNumber)]uint coprocessor,
+        [Execute("Mc14:")]
+        public PacketData CP14SetOld(
             [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint trace32Encoding,
             [Argument(Separator = ':', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint sizeInBytes,
             [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexBytesString)]byte[] valueBytes)
         {
-            if(coprocessor != 14 && coprocessor != 15)
-            {
-                throw new ArgumentException($"Invalid coprocessor: {coprocessor}");
-            }
-            return HandleAccessingArmSystemRegisters((ArmSystemRegisterEncoding.CoprocessorEnum)coprocessor, trace32Encoding, sizeInBytes, isRead: false, valueBytes);
+            return HandleAccessingArmSystemRegisters(ArmSystemRegisterEncoding.CoprocessorEnum.CP14, trace32Encoding, sizeInBytes, isRead: false, valueBytes);
         }
 
-        [Execute("mc")]
-        public PacketData AArch32SystemRegisterGetOld(
-            [Argument(Separator = ':', Encoding = ArgumentAttribute.ArgumentEncoding.DecimalNumber)]uint coprocessor,
+        [Execute("Mc15:")]
+        public PacketData CP15SetOld(
+            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint trace32Encoding,
+            [Argument(Separator = ':', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint sizeInBytes,
+            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexBytesString)]byte[] valueBytes)
+        {
+            return HandleAccessingArmSystemRegisters(ArmSystemRegisterEncoding.CoprocessorEnum.CP15, trace32Encoding, sizeInBytes, isRead: false, valueBytes);
+        }
+
+        [Execute("mc14:")]
+        public PacketData CP14GetOld(
             [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint trace32Encoding,
             [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint sizeInBytes)
         {
-            if(coprocessor != 14 && coprocessor != 15)
-            {
-                throw new ArgumentException($"Invalid coprocessor: {coprocessor}");
-            }
-            return HandleAccessingArmSystemRegisters((ArmSystemRegisterEncoding.CoprocessorEnum)coprocessor, trace32Encoding, sizeInBytes, isRead: true);
+            return HandleAccessingArmSystemRegisters(ArmSystemRegisterEncoding.CoprocessorEnum.CP14, trace32Encoding, sizeInBytes, isRead: true);
+        }
+
+        [Execute("mc15:")]
+        public PacketData CP15GetOld(
+            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint trace32Encoding,
+            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint sizeInBytes)
+        {
+            return HandleAccessingArmSystemRegisters(ArmSystemRegisterEncoding.CoprocessorEnum.CP15, trace32Encoding, sizeInBytes, isRead: true);
         }
 
         [Execute("Qtrace32.memory:c")]
