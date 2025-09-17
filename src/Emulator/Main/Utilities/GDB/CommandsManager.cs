@@ -175,6 +175,30 @@ namespace Antmicro.Renode.Utilities.GDB
             breakpointCommand.RemoveAllWatchpoints();
         }
 
+        public void LoadLatestSnapshot(Action<CommandsManager> onLoadAction = null)
+        {
+            var currentTimeStamp = EmulationManager.Instance.CurrentEmulation.MasterTimeSource.ElapsedVirtualTime;
+            LoadLatestSnapshot(currentTimeStamp - TimeInterval.FromTicks(1), onLoadAction);
+        }
+
+        public void LoadLatestSnapshot(TimeInterval beforeOrAtTimeStamp, Action<CommandsManager> onLoadAction = null)
+        {
+            if(Machine.GdbStubs.Count > 1)
+            {
+                throw new RecoverableException("More than one GDB connection opened. This is currently not supported.");
+            }
+            var port = Machine.GdbStubs.Values.First().Terminal.Port.Value;
+            var machineName = Machine.ToString();
+
+            EmulationManager.Instance.LoadLatestSnapshot(beforeOrAtTimeStamp);
+            if(!EmulationManager.Instance.CurrentEmulation.TryGetMachineByName(machineName, out var newMachine))
+            {
+                throw new RecoverableException("Machine was not found in the snapshot.");
+            }
+            var newCommandsManager = newMachine.GdbStubs[port].CommandsManager;
+            onLoadAction?.Invoke(newCommandsManager);
+        }
+
         public IMachine Machine { get; }
 
         public ManagedCpusDictionary ManagedCpus { get; }
