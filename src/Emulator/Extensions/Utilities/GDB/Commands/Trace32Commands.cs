@@ -79,8 +79,17 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             return HandleAccessingArmSystemRegisters((ArmSystemRegisterEncoding.CoprocessorEnum)coprocessor, trace32Encoding, sizeInBytes, isRead: true);
         }
 
-        [Execute("Mspr:")]
+        [Execute("Qtrace32.memory:spr,")]
         public PacketData AArch64SystemRegisterSet(
+            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint trace32Encoding,
+            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint sizeInBytes,
+            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexBytesString)]byte[] valueBytes)
+        {
+            return HandleAccessingArmSystemRegisters(ArmSystemRegisterEncoding.CoprocessorEnum.AArch64, trace32Encoding, sizeInBytes, isRead: false, valueBytes);
+        }
+
+        [Execute("Mspr:")]
+        public PacketData AArch64SystemRegisterSetOld(
             [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint trace32Encoding,
             [Argument(Separator = ':', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint sizeInBytes,
             [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexBytesString)]byte[] valueBytes)
@@ -88,8 +97,16 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             return HandleAccessingArmSystemRegisters(ArmSystemRegisterEncoding.CoprocessorEnum.AArch64, trace32Encoding, sizeInBytes, isRead: false, valueBytes);
         }
 
-        [Execute("mspr:")]
+        [Execute("qtrace32.memory:spr,")]
         public PacketData AArch64SystemRegisterGet(
+            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint trace32Encoding,
+            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint sizeInBytes)
+        {
+            return HandleAccessingArmSystemRegisters(ArmSystemRegisterEncoding.CoprocessorEnum.AArch64, trace32Encoding, sizeInBytes, isRead: true);
+        }
+
+        [Execute("mspr:")]
+        public PacketData AArch64SystemRegisterGetOld(
             [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint trace32Encoding,
             [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint sizeInBytes)
         {
