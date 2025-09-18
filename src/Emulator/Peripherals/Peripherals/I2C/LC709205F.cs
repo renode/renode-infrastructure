@@ -121,7 +121,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                     return step == TransactionStep.MSB ? (byte)(result >> 8) : (byte)result;
                 // Third byte is CRC of the value
                 case TransactionStep.CRC:
-                    var crc = CalculateCrc8(new byte[] {(byte)(SlaveAddress << 1), (byte)register, (byte)((SlaveAddress << 1) + 1), (byte)result, (byte)(result >> 8)});
+                    var crc = crc8Engine.Calculate(new byte[] {(byte)(SlaveAddress << 1), (byte)register, (byte)((SlaveAddress << 1) + 1), (byte)result, (byte)(result >> 8)});
                     return (byte)crc;
                 default:
                     throw new Exception("unreachable state");
@@ -151,28 +151,6 @@ namespace Antmicro.Renode.Peripherals.I2C
                 underlyingValue |= (ushort)value;
             }
             RegistersCollection.Write(realAddress, underlyingValue);
-        }
-
-        private byte CalculateCrc8(byte[] data)
-        {
-            var result = 0x00;
-            foreach(var b in data)
-            {
-                result = (byte)(result ^ b);
-                for(var i = 0; i < 8; ++i)
-                {
-                    if((result & 0x80) != 0x00)
-                    {
-                        // Polynomial x^8+x^2+x+1
-                        result = (byte)((result << 1) ^ 0x07);
-                    }
-                    else
-                    {
-                        result = (byte)(result << 1);
-                    }
-                }
-            }
-            return (byte)result;
         }
 
         private void DefineRegisters()
@@ -292,6 +270,8 @@ namespace Antmicro.Renode.Peripherals.I2C
         private uint remainingCapacity;
         private uint cellTemperature;
         private uint ambientTemperature;
+
+        private static readonly CRCEngine crc8Engine = new CRCEngine(CRCPolynomial.CRC8_CCITT, reflectInput: false, reflectOutput: false);
 
         private enum TransactionStep
         {
