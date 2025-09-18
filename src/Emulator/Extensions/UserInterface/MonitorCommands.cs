@@ -95,6 +95,12 @@ namespace Antmicro.Renode.UserInterface
 
             var parameterArray = p.Skip(command is LeftBraceToken ? 0 : 1).ToArray(); //Don't skip left brace, proper code to do that is below.
 
+            if((commandValue == SelectCommand || commandValue == ForEachCommand) && parameterArray.Any() && device is IEnumerable enumerable)
+            {
+                // Match on non-generic IEnumerable and .Cast<object> to box IEnumerable<int> for example.
+                var result = enumerable.Cast<object>().Select(o => RecursiveExecuteDeviceAction("", o, p, 1)).ToList();
+                return commandValue == SelectCommand ? result : null;
+            }
             if(foundMethods.Any())
             {
                 foreach(var foundMethod in foundMethods.OrderBy(x => x.GetParameters().Count())
@@ -1600,6 +1606,8 @@ namespace Antmicro.Renode.UserInterface
         private readonly List<string> usings = new List<string>() { "sysbus." };
 
         private const string DefaultNamespace = "Antmicro.Renode.Peripherals.";
+        private const string SelectCommand = "Select";
+        private const string ForEachCommand = "ForEach";
 
         public enum NumberModes
         {
