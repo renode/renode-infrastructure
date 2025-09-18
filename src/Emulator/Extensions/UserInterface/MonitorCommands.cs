@@ -1187,7 +1187,7 @@ namespace Antmicro.Renode.UserInterface
                 }
                 return;
             }
-            else if(enumerable != null && !(result is string))
+            else if(enumerable != null && !(result is string) && !enumerable.Cast<object>().Any(x => x == enumerable))
             {
                 var i = 0;
                 writer.Write("[\r\n");
