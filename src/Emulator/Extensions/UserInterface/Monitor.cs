@@ -6,6 +6,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -878,11 +879,18 @@ namespace Antmicro.Renode.UserInterface
                 {
                     var currentObject = GetDevice(currentCommandSplit[0]);
                     //Take whole command split without first and last element
-                    var commandsChain = currentCommandSplit.Skip(1).Take(currentCommandSplit.Length - 2);
+                    var commandsChain = currentCommandSplit.Skip(1).Take(currentCommandSplit.Length - 2).Select((word, index) => new { word, index }).ToList();
                     foreach(var command in commandsChain)
                     {
+                        //If we're accessing a list, and there are no extra words yet, show suggestions for its elements (if any)
+                        if(command.index == commandsChain.Count - 1 &&
+                            (command.word == SelectCommand || command.word == ForEachCommand) && currentObject is IEnumerable enumerable)
+                        {
+                            currentObject = enumerable.Cast<object>().FirstOrDefault();
+                            break;
+                        }
                         //It is assumed that commands chain can contain only properties or fields
-                        var newObject = FindFieldOrProperty(currentObject, command);
+                        var newObject = FindFieldOrProperty(currentObject, command.word);
                         if(newObject == null)
                         {
                             currentObject = null;
