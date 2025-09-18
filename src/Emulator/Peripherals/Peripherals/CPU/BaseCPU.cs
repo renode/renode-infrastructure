@@ -6,6 +6,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -155,6 +156,16 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             ExecutionMode = ExecutionMode.Continuous;
             enterStepModeAfterFinishingTimeInterval = true;
+        }
+
+        public IEnumerator<BaseCPU> GetEnumerator()
+        {
+            return Clustered.GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return Clustered.GetEnumerator();
         }
 
         public abstract ExecutionResult ExecuteInstructions(ulong numberOfInstructionsToExecute, out ulong numberOfExecutedInstructions);

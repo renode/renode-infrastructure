@@ -768,6 +768,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public new IEnumerator<TranslationCPU> GetEnumerator()
+        {
+            return Clustered.GetEnumerator();
+        }
+
         public abstract void SetRegister(int register, RegisterValue value);
 
         public abstract RegisterValue GetRegister(int register);

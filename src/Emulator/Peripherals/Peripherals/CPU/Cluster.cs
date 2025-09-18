@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -72,6 +73,16 @@ namespace Antmicro.Renode.Peripherals.CPU
             // unregistering the CPU from a cluster on the machine level.
             machine.SystemBus.Unregister(cpu);
             cpus.Remove(cpu);
+        }
+
+        public IEnumerator<TranslationCPU> GetEnumerator()
+        {
+            return Clustered.GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return Clustered.GetEnumerator();
         }
 
         public bool IsHalted
