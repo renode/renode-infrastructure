@@ -39,10 +39,17 @@ namespace Antmicro.Renode.Utilities
         }
 
         [Test]
+        public void GetEnumerableTypeTest()
+        {
+            Assert.AreEqual(typeof(int), typeof(List<int>).GetEnumerableType());
+            Assert.AreEqual(typeof(Dictionary<object, double>), typeof(IEnumerable<Dictionary<object, double>>).GetEnumerableType());
+        }
+
+        [Test]
         public void AreAllPublicMethodTested()
         {
             var methodsCounts = typeof(TypeExtensions).GetMethods(BindingFlags.Public | BindingFlags.Static).Count();
-            Assert.AreEqual(methodsCounts, testCases.Count);
+            Assert.AreEqual(methodsCounts, testCases.Count + 1); // GetEnumerableType is tested above
         }
 
         private static readonly List<Tuple<int, Action>> testCases = new List<Tuple<int, Action>>

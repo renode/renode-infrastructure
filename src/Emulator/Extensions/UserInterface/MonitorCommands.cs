@@ -779,6 +779,12 @@ namespace Antmicro.Renode.UserInterface
                 );
                 type = type.BaseType;
             }
+            var enumerableType = objectType.GetEnumerableType();
+            if(enumerableType != null)
+            {
+                methods.Add(selectInfo.MakeGenericMethod(new[] { enumerableType, typeof(object) }));
+                methods.Add(typeof(List<>).MakeGenericType(new[] { enumerableType }).GetMethod(nameof(List<object>.ForEach)));
+            }
             return methods.DistinctBy(x => x.ToString()); //This acutally gives us a full, easily comparable signature. Brilliant solution to avoid duplicates from overloaded methods.
         }
 
@@ -1602,6 +1608,14 @@ namespace Antmicro.Renode.UserInterface
         };
 
         private readonly SimpleCache cache = new SimpleCache();
+        private static readonly MethodInfo selectInfo = typeof(Enumerable).GetMethods(BindingFlags.Public | BindingFlags.Static)
+            .Where(m => m.Name == nameof(Enumerable.Select) && m.GetParameters().Length == 2)
+            .Where(m =>
+            {
+                var selectorType = m.GetParameters()[1].ParameterType;
+                return selectorType.IsGenericType && selectorType.GetGenericTypeDefinition() == typeof(Func<,>);
+            })
+            .Single();
 
         private readonly List<string> usings = new List<string>() { "sysbus." };
 

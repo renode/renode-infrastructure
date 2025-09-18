@@ -72,6 +72,22 @@ namespace Antmicro.Renode.Utilities
             return cache.Get(info, InnerIsExtension);
         }
 
+        public static Type GetEnumerableType(Type type)
+        {
+            var ifaces = type.GetInterfaces();
+            if(ifaces.Length == 0)
+            {
+                return null;
+            }
+            var iface = ifaces.FirstOrDefault(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IEnumerable<>));
+
+            if(iface == null)
+            {
+                return null;
+            }
+            return iface.GetGenericArguments()[0];
+        }
+
         private static bool IsTypeConvertible(Type type)
         {
             return cache.Get(type, InnerIsTypeConvertible);
@@ -245,22 +261,6 @@ namespace Antmicro.Renode.Utilities
         private static bool IsBaseCallable(this MemberInfo info)
         {
             return cache.Get(info, InnerIsBaseCallable);
-        }
-
-        private static Type GetEnumerableType(Type type)
-        {
-            var ifaces = type.GetInterfaces();
-            if(ifaces.Length == 0)
-            {
-                return null;
-            }
-            var iface = ifaces.FirstOrDefault(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IEnumerable<>));
-
-            if(iface == null)
-            {
-                return null;
-            }
-            return iface.GetGenericArguments()[0];
         }
 
         private static readonly Type[] convertibleTypes = {
