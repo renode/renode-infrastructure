@@ -205,35 +205,24 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
         internal static ArmSystemRegisterEncoding NextInGroup(this ArmSystemRegisterEncoding encoding)
         {
             var nextRegistersCrn = encoding.Crn;
-            var nextRegistersOp1 = encoding.Op1;
             var nextRegistersOp2 = (byte)encoding.Op2;
 
+            // Trace32 always increments the encoding to get the next in group.
             switch(encoding.Coprocessor)
             {
                 case ArmSystemRegisterEncoding.CoprocessorEnum.AArch64:
-                    // Based on ID_ISAR0_EL1 .. ID_ISAR5_EL1.
+                    // For AArch64, the last byte of the encoding represents op2, so that is what gets incremented.
                     nextRegistersOp2++;
                     break;
                 case ArmSystemRegisterEncoding.CoprocessorEnum.CP15:
-                    if(encoding.Width == 32)
-                    {
-                        // Based on ID_ISAR0 .. ID_ISAR5.
-                        nextRegistersOp2++;
-                    }
-                    else
-                    {
-                        // based on AMEVCNTR00 .. AMEVCNTR03 and AMEVCNTR10 .. AMEVCNTR13.
-                        nextRegistersOp1++;
-                    }
-                    break;
                 case ArmSystemRegisterEncoding.CoprocessorEnum.CP14:
-                    // Based on 32-bit Jazelle registers.
+                    // For AArch32, the last byte of the encoding represents CRn, so that is what gets incremented.
                     nextRegistersCrn++;
                     break;
                 default:
                     throw new ArgumentException($"Invalid coprocessor: {encoding.Coprocessor}");
             }
-            return new ArmSystemRegisterEncoding(encoding.Coprocessor, encoding.Crm, nextRegistersOp1, nextRegistersCrn, encoding.Op0, nextRegistersOp2, encoding.Width);
+            return new ArmSystemRegisterEncoding(encoding.Coprocessor, encoding.Crm, encoding.Op1, nextRegistersCrn, encoding.Op0, nextRegistersOp2, encoding.Width);
         }
 
         internal static ArmSystemRegisterEncoding ParseTrace32Encoding(ArmSystemRegisterEncoding.CoprocessorEnum coprocessor, uint trace32Encoding)
