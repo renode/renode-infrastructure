@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Text;
 
 using Antmicro.Migrant;
 using Antmicro.Renode.Core;
@@ -36,6 +37,11 @@ namespace Antmicro.Renode.Analyzers
 
         public override void Hide()
         {
+        }
+
+        public override void Clear()
+        {
+            server.Send(Encoding.ASCII.GetBytes("\x1b[2J\x1b[H"));
         }
 
         public void Dispose()

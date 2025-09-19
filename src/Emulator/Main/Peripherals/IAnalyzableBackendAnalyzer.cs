@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -19,6 +19,8 @@ namespace Antmicro.Renode.Peripherals
         void Show();
 
         void Hide();
+
+        void Clear();
 
         IAnalyzableBackend Backend { get; }
     }

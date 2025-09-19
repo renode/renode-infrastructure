@@ -62,6 +62,10 @@ namespace Antmicro.Renode.Analyzers
             uart.CharReceived -= WriteChar;
         }
 
+        public override void Clear()
+        {
+        }
+
         public LogLevel LogLevel { get; set; }
 
         public TimestampType TimestampFormat { get; set; }
