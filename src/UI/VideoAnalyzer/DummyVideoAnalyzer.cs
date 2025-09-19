@@ -18,5 +18,9 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video
         public override void Show()
         {
         }
+
+        public override void Clear()
+        {
+        }
     }
 }

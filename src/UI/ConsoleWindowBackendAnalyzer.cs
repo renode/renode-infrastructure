@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -94,6 +94,11 @@ namespace Antmicro.Renode.UI
             }
             p.Close();
             provider = null;
+        }
+
+        public void Clear()
+        {
+            provider.Clear();
         }
 
         public string Name { get; private set; }
