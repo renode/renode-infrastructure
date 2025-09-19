@@ -45,7 +45,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             ValidateSystemRegisterAccess(name, isWrite: false);
 
-            return TlibGetSystemRegister(name, 1u /* log_unhandled_access: true */);
+            // The CPU context is necessary for accessing GIC registers.
+            using(machine.SystemBus.SetLocalContext(this))
+            {
+                return TlibGetSystemRegister(name, 1u /* log_unhandled_access: true */);
+            }
         }
 
         public void SetSystemRegisterValue(string name, ulong value)
@@ -222,11 +226,15 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 try
                 {
-                    // ValidateSystemRegisterAccess isn't used because most of its checks aren't needed.
-                    // The register must exist at this point cause it's in the dictionary built based on tlib
-                    // and we don't really care about the invalid access type error for unreadable registers.
-                    value = TlibGetSystemRegister(systemRegister.Name, logUnhandledAccess ? 1u : 0u);
-                    return true;
+                    // The CPU context is necessary for accessing GIC registers.
+                    using(machine.SystemBus.SetLocalContext(this))
+                    {
+                        // ValidateSystemRegisterAccess isn't used because most of its checks aren't needed.
+                        // The register must exist at this point cause it's in the dictionary built based on tlib
+                        // and we don't really care about the invalid access type error for unreadable registers.
+                        value = TlibGetSystemRegister(systemRegister.Name, logUnhandledAccess ? 1u : 0u);
+                        return true;
+                    }
                 }
                 catch(Exception e)
                 {
