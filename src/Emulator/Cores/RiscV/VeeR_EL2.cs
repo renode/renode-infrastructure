@@ -26,6 +26,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                     (ushort)CustomCSR.InternalTimerCounter0, (ushort)CustomCSR.InternalTimerBound0, (ushort)CustomCSR.InternalTimerControl0,
                     (ushort)CustomCSR.InternalTimerCounter1, (ushort)CustomCSR.InternalTimerBound1, (ushort)CustomCSR.InternalTimerControl1);
             RegisterCustomCSRs();
+
+            this.WfiAsNop = true;
         }
 
         public override void Reset()
