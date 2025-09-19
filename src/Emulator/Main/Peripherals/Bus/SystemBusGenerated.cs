@@ -48,7 +48,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 }
                 if(!IsPeripheralEnabled(accessMethods.Peripheral))
                 {
-                    this.Log(LogLevel.Warning, "Tried to read a locked peripheral: {0}. Address 0x{1:X}.", accessMethods.Peripheral, address);
+                    this.Log(LogLevel.Warning, "Tried to read a locked peripheral: {0}. Address 0x{1:X}.", accessMethods.Peripheral.GetName(), address);
                     return 0;
                 }
                 var lockTaken = false;
@@ -115,7 +115,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 }
                 if(!IsPeripheralEnabled(accessMethods.Peripheral))
                 {
-                    this.Log(LogLevel.Warning, "Tried to write a locked peripheral: {0}. Address 0x{1:X}, value 0x{2:X}", accessMethods.Peripheral, address, value);
+                    this.Log(LogLevel.Warning, "Tried to write a locked peripheral: {0}. Address 0x{1:X}, value 0x{2:X}", accessMethods.Peripheral.GetName(), address, value);
                     return;
                 }
 
@@ -186,7 +186,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 }
                 if(!IsPeripheralEnabled(accessMethods.Peripheral))
                 {
-                    this.Log(LogLevel.Warning, "Tried to read a locked peripheral: {0}. Address 0x{1:X}.", accessMethods.Peripheral, address);
+                    this.Log(LogLevel.Warning, "Tried to read a locked peripheral: {0}. Address 0x{1:X}.", accessMethods.Peripheral.GetName(), address);
                     return 0;
                 }
                 var lockTaken = false;
@@ -253,7 +253,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 }
                 if(!IsPeripheralEnabled(accessMethods.Peripheral))
                 {
-                    this.Log(LogLevel.Warning, "Tried to write a locked peripheral: {0}. Address 0x{1:X}, value 0x{2:X}", accessMethods.Peripheral, address, value);
+                    this.Log(LogLevel.Warning, "Tried to write a locked peripheral: {0}. Address 0x{1:X}, value 0x{2:X}", accessMethods.Peripheral.GetName(), address, value);
                     return;
                 }
 
@@ -324,7 +324,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 }
                 if(!IsPeripheralEnabled(accessMethods.Peripheral))
                 {
-                    this.Log(LogLevel.Warning, "Tried to read a locked peripheral: {0}. Address 0x{1:X}.", accessMethods.Peripheral, address);
+                    this.Log(LogLevel.Warning, "Tried to read a locked peripheral: {0}. Address 0x{1:X}.", accessMethods.Peripheral.GetName(), address);
                     return 0;
                 }
                 var lockTaken = false;
@@ -391,7 +391,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 }
                 if(!IsPeripheralEnabled(accessMethods.Peripheral))
                 {
-                    this.Log(LogLevel.Warning, "Tried to write a locked peripheral: {0}. Address 0x{1:X}, value 0x{2:X}", accessMethods.Peripheral, address, value);
+                    this.Log(LogLevel.Warning, "Tried to write a locked peripheral: {0}. Address 0x{1:X}, value 0x{2:X}", accessMethods.Peripheral.GetName(), address, value);
                     return;
                 }
 
@@ -462,7 +462,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 }
                 if(!IsPeripheralEnabled(accessMethods.Peripheral))
                 {
-                    this.Log(LogLevel.Warning, "Tried to read a locked peripheral: {0}. Address 0x{1:X}.", accessMethods.Peripheral, address);
+                    this.Log(LogLevel.Warning, "Tried to read a locked peripheral: {0}. Address 0x{1:X}.", accessMethods.Peripheral.GetName(), address);
                     return 0;
                 }
                 var lockTaken = false;
@@ -529,7 +529,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 }
                 if(!IsPeripheralEnabled(accessMethods.Peripheral))
                 {
-                    this.Log(LogLevel.Warning, "Tried to write a locked peripheral: {0}. Address 0x{1:X}, value 0x{2:X}", accessMethods.Peripheral, address, value);
+                    this.Log(LogLevel.Warning, "Tried to write a locked peripheral: {0}. Address 0x{1:X}, value 0x{2:X}", accessMethods.Peripheral.GetName(), address, value);
                     return;
                 }
 
