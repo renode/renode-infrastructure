@@ -162,9 +162,6 @@ namespace Antmicro.Renode.Peripherals.CPU
                         var lastRegisterIndex = Enum.GetValues(RegistersEnum).Cast<uint>().Max();
                         systemRegisters = ArmCpRegInfoPointersArray
                             .Select(armCpRegInfoPointer => ARMCPRegInfo.FromIntPtr(armCpRegInfoPointer).ToSystemRegister())
-                            // Currently, GIC and Generic Timer system registers can only be accessed by software.
-                            // Let's not add them to the dictionary so that GDB won't fail on read until it's fixed.
-                            .Where(systemRegister => !IsGICOrGenericTimerSystemRegister(systemRegister))
                             .OrderBy(systemRegister => systemRegister.Name)
                             .ToDictionary(_ => ++lastRegisterIndex);
                     }
