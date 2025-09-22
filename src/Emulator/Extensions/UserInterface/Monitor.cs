@@ -421,7 +421,8 @@ namespace Antmicro.Renode.UserInterface
 
                 if(scannedFilesCache.Contains(sha))
                 {
-                    writer.WriteLine($"Code from file {filenames} has already been compiled. Ignoring...");
+                    var nameOrNames = filenames.Length == 1 ? filenames.Single() : $"s {Misc.PrettyPrintCollection(filenames)}";
+                    writer.WriteLine($"Code from file{nameOrNames} has already been compiled. Ignoring...");
                     return true;
                 }
             }
