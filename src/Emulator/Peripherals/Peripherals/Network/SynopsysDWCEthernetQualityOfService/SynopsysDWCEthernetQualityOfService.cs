@@ -136,6 +136,19 @@ namespace Antmicro.Renode.Peripherals.Network
 
         public byte UserIPVersion { get; set; } = 0x31;
 
+        public AddressWidth Address64
+        {
+            get => address64Value;
+            set
+            {
+                if(!Enum.IsDefined(typeof(AddressWidth), value))
+                {
+                    throw new RecoverableException($"Invalid value for {nameof(Address64)}: {value}");
+                }
+                address64Value = value;
+            }
+        }
+
         public event Action<EthernetFrame> FrameReady;
 
         // Configuration options for derived classes
@@ -430,6 +443,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
         private ICPU CpuContext { get; }
 
+        private AddressWidth address64Value;
         private uint timestampSecondTimer;
         private readonly LimitTimer timestampSubsecondTimer;
         private readonly long ptpClockFrequency;
@@ -443,6 +457,14 @@ namespace Antmicro.Renode.Peripherals.Network
         // This value may be increased if required, but some changes in register creation may be required
         private const int MaxDMAChannels = 3;
         private const int MinimumQueueSize = 128;
+
+        public enum AddressWidth
+        {
+            Bits32 = 0b00,
+            Bits40 = 0b01,
+            Bits48 = 0b10,
+            // Ob11 - Reserved
+        }
 
         private struct PTPInfo
         {

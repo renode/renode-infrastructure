@@ -357,7 +357,8 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithTaggedFlag("MACHWF1R.OSTEN (OSTEN)", 11)
                     .WithTaggedFlag("MACHWF1R.PTOEN (PTOEN)", 12)
                     .WithTaggedFlag("MACHWF1R.ADVTHWORD (ADVTHWORD)", 13)
-                    .WithTag("MACHWF1R.ADDR64 (ADDR64)", 14, 2)
+                    .WithEnumField<DoubleWordRegister, AddressWidth>(14, 2, FieldMode.Read, name: "MACHWF1R.ADDR64 (ADDR64)",
+                        valueProviderCallback: _ => Address64)
                     .WithTaggedFlag("MACHWF1R.DCBEN (DCBEN)", 16)
                     .WithTaggedFlag("MACHWF1R.SPHEN (SPHEN)", 17)
                     .WithTaggedFlag("MACHWF1R.TSOEN (TSOEN)", 18)
