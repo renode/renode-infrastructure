@@ -370,14 +370,20 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithTag("MACHWF1R.L3L4FNUM (L3L4FNUM)", 27, 4)
                     .WithReservedBits(31, 1)
                 },
+                // Currently the model has the same amount of TX and RX DMA channels
+                // and 1 MLT queue per each TX/RX DMA channel.
                 {(long)RegistersMacAndMmc.HardwareFeature2, new DoubleWordRegister(this, 0x4100_0000)
-                    .WithTag("MACHWF2R.RXQCNT (RXQCNT)", 0, 4)
+                    .WithValueField(0, 4, FieldMode.Read, name: "MACHWF2R.RXQCNT (RXQCNT)",
+                        valueProviderCallback: _ => (ulong)(dmaChannels.Length - 1))
                     .WithReservedBits(4, 2)
-                    .WithTag("MACHWF2R.TXQCNT (TXQCNT)", 6, 4)
+                    .WithValueField(6, 4, FieldMode.Read, name: "MACHWF2R.TXQCNT (TXQCNT)",
+                        valueProviderCallback: _ => (ulong)(dmaChannels.Length - 1))
                     .WithReservedBits(10, 2)
-                    .WithTag("MACHWF2R.RXCHCNT (RXCHCNT)", 12, 4)
+                    .WithValueField(12, 4, FieldMode.Read, name: "MACHWF2R.RXCHCNT (RXCHCNT)",
+                        valueProviderCallback: _ => (ulong)(dmaChannels.Length - 1))
                     .WithReservedBits(16, 2)
-                    .WithTag("MACHWF2R.TXCHCNT (TXCHCNT)", 18, 4)
+                    .WithValueField(18, 4, FieldMode.Read, name: "MACHWF2R.TXCHCNT (TXCHCNT)",
+                        valueProviderCallback: _ => (ulong)(dmaChannels.Length - 1))
                     .WithReservedBits(22, 2)
                     .WithTag("MACHWF2R.PPSOUTNUM (PPSOUTNUM)", 24, 3)
                     .WithReservedBits(27, 1)
