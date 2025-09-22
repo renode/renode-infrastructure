@@ -118,6 +118,8 @@ namespace Antmicro.Renode.Peripherals.Bus
         Endianess Endianess { get; }
 
         event Action<IMachine> OnSymbolsChanged;
+
+        IDisposable SetLocalContext(IPeripheral context, ulong? initiatorState = null);
     }
 
     public static class BusControllerExtensions

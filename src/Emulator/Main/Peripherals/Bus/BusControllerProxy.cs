@@ -49,6 +49,11 @@ namespace Antmicro.Renode.Peripherals.Bus
             return (byte)0;
         }
 
+        public IDisposable SetLocalContext(IPeripheral context, ulong? initiatorState = null)
+        {
+            return ParentController.SetLocalContext(context, initiatorState);
+        }
+
         public virtual byte ReadByteWithState(ulong address, IPeripheral context, IContextState stateObj)
         {
             if(ValidateOperation(ref address, BusAccessPrivileges.Read, context))

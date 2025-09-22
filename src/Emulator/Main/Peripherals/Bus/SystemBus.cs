@@ -1371,6 +1371,11 @@ namespace Antmicro.Renode.Peripherals.Bus
             return Machine.TryGetByName<IPeripheralWithTransactionState>(fullPath, out var peri) ? peri?.StateBits : null;
         }
 
+        public IDisposable SetLocalContext(IPeripheral context, ulong? initiatorState = null)
+        {
+            return threadLocalContext.Initialize(context, initiatorState);
+        }
+
         public IMachine Machine { get; }
 
         public int UnexpectedReads
@@ -2271,11 +2276,6 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
             var logLevel = silent ? LogLevel.Debug : LogLevel.Warning;
             this.Log(logLevel, warning, address, value, type);
-        }
-
-        private IDisposable SetLocalContext(IPeripheral context, ulong? initiatorState = null)
-        {
-            return threadLocalContext.Initialize(context, initiatorState);
         }
 
         private void AddContextKeys(IPeripheral peripheral)
