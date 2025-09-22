@@ -307,9 +307,11 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithTag("MAC1USTCR.TIC_1US_CNTR (TIC_1US_CNTR)", 0, 12)
                     .WithReservedBits(12, 20)
                 },
-                {(long)RegistersMacAndMmc.Version, new DoubleWordRegister(this, 0x3142)
-                    .WithTag("MACVR.SNPSVER (SNPSVER)", 0, 8)
-                    .WithTag("MACVR.USERVER (USERVER)", 8, 8)
+                {(long)RegistersMacAndMmc.Version, new DoubleWordRegister(this)
+                    .WithValueField(0, 8, FieldMode.Read, name: "MACVR.SNPSVER (SNPSVER)",
+                        valueProviderCallback: _ => IPVersion)
+                    .WithValueField(8, 8, FieldMode.Read, name: "MACVR.USERVER (USERVER)",
+                        valueProviderCallback: _ => UserIPVersion)
                     .WithReservedBits(16, 16)
                 },
                 {(long)RegistersMacAndMmc.Debug, new DoubleWordRegister(this)

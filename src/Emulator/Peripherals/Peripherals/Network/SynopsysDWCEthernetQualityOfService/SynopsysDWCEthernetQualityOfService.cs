@@ -126,6 +126,10 @@ namespace Antmicro.Renode.Peripherals.Network
 
         public MACAddress MAC1 { get; set; }
 
+        public byte IPVersion { get; set; } = 0x42;
+
+        public byte UserIPVersion { get; set; } = 0x31;
+
         public event Action<EthernetFrame> FrameReady;
 
         // Configuration options for derived classes
