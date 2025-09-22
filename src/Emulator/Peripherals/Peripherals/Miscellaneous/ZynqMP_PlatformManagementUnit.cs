@@ -1,11 +1,12 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
@@ -16,20 +17,20 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class ZynqMP_PlatformManagementUnit : IGPIOReceiver
     {
-        public ZynqMP_PlatformManagementUnit(ICPU apu0, ICPU apu1, ICPU apu2, ICPU apu3, ICPU rpu0, ICPU rpu1)
+        // apus and rpus must be passed in ascending order, for example
+        // apus: [apu0, apu1, apu2, apu3]
+        public ZynqMP_PlatformManagementUnit(List<ICPU> apus, List<ICPU> rpus)
         {
-            this.apu0 = apu0;
-            this.apu1 = apu1;
-            this.apu2 = apu2;
-            this.apu3 = apu3;
-            this.rpu0 = rpu0;
-            this.rpu1 = rpu1;
-            registeredPeripherals[apu0] = new HashSet<IPeripheral>();
-            registeredPeripherals[apu1] = new HashSet<IPeripheral>();
-            registeredPeripherals[apu2] = new HashSet<IPeripheral>();
-            registeredPeripherals[apu3] = new HashSet<IPeripheral>();
-            registeredPeripherals[rpu0] = new HashSet<IPeripheral>();
-            registeredPeripherals[rpu1] = new HashSet<IPeripheral>();
+            if(apus.Count != 4 || rpus.Count != 2)
+            {
+                throw new ConstructionException($"ZynqMP PMU expected 4 APUs and 2 RPUs, got {apus.Count} APUs and {rpus.Count} RPUs");
+            }
+            this.apus = apus;
+            this.rpus = rpus;
+            foreach(var p in apus.Concat(rpus))
+            {
+                registeredPeripherals[p] = new HashSet<IPeripheral>();
+            }
             powerManagement = new PowerManagementModule(this);
         }
 
@@ -202,6 +203,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private readonly PowerManagementModule powerManagement;
         private readonly Dictionary<ICPU, ISet<IPeripheral>> registeredPeripherals = new Dictionary<ICPU, ISet<IPeripheral>>();
+        private readonly List<ICPU> apus;
+        private readonly List<ICPU> rpus;
 
         private const long MailboxLocalResponseOffset = 0x20;
 
@@ -360,17 +363,17 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 switch(node)
                 {
                 case Node.APU0:
-                    return pmu.apu0;
+                    return pmu.apus[0];
                 case Node.APU1:
-                    return pmu.apu1;
+                    return pmu.apus[1];
                 case Node.APU2:
-                    return pmu.apu2;
+                    return pmu.apus[2];
                 case Node.APU3:
-                    return pmu.apu3;
+                    return pmu.apus[3];
                 case Node.RPU0:
-                    return pmu.rpu0;
+                    return pmu.rpus[0];
                 case Node.RPU1:
-                    return pmu.rpu1;
+                    return pmu.rpus[1];
                 default:
                     return null;
                 }
