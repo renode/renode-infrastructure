@@ -28,6 +28,30 @@ namespace Antmicro.Renode.Utilities
             result = null;
         }
 
+        public List<Wrapped<int>> WrappedInts = Enumerable.Range(1, 3).Select(Wrapped<int>.New).ToList();
+
+        [Convertible]
+        public class Wrapped<T>
+        {
+            public static Wrapped<T> New(T val) => new Wrapped<T>(val);
+
+            public Wrapped(T val)
+            {
+                this.val = val;
+                this.AsList = new List<Wrapped<T>> { this };
+            }
+
+            public string WithExtraValues(params T[] xs)
+            {
+                return string.Join(", ", xs.Prepend(val));
+            }
+
+            public bool Ok { get; set; }
+            public List<Wrapped<T>> AsList { get; }
+
+            private readonly T val;
+        }
+
         private string result;
     }
 

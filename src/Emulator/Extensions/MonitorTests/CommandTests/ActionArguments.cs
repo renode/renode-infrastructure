@@ -157,11 +157,23 @@ namespace Antmicro.Renode.MonitorTests.CommandTests
 
         [TestCase("external[\"a\", \"b\"] \"c\"; external[\"d\", \"e\"]", "2D: [a, b]=c and d and e",
             TestName = "IndexerTwoDSetGet")]
-        public void CommandResultShouldContain(string command, string expected)
+
+        [TestCase("external WrappedInts Select Ok; external WrappedInts ForEach Ok true; external WrappedInts Select Ok", "False, False, False", "True, True, True",
+            TestName = "ForEachAndSelect")]
+
+        [TestCase("external WrappedInts Select WithExtraValues 0 9", "1, 0, 9, 2, 0, 9, 3, 0, 9",
+            TestName = "SelectWithParamArray")]
+
+        [TestCase("external WrappedInts Select AsList Select AsList", "[\r\r\n[\r\r\n[", // will print a List<List<List<Wrapped<int>>>
+            TestName = "SelectChainWithProperty")]
+        public void CommandResultShouldContain(string command, params string[] expecteds)
         {
             monitor.Parse(command, commandEater);
             var contentsAfter = commandEater.GetContents();
-            StringAssert.Contains(expected, contentsAfter);
+            foreach(var expected in expecteds)
+            {
+                StringAssert.Contains(expected, contentsAfter);
+            }
         }
 
         [TestCase("emulation MethodWithOptionalParameters c=5 c=3",
