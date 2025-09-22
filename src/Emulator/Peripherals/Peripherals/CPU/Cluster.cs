@@ -8,9 +8,11 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
+using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -19,6 +21,11 @@ namespace Antmicro.Renode.Peripherals.CPU
     {
         public static void SetPC(this Cluster cluster, ulong value)
         {
+            if(Interlocked.Exchange(ref cluster.SetPcWarningPrinted, 1) == 0)
+            {
+                cluster.WarningLog("Cluster.SetPC is deprecated and will be removed in a future release of Renode.\n" +
+                    "Use '{0} ForEach PC' instead", cluster.GetName().Split('.')[1]);
+            }
             foreach(var cpu in cluster.Clustered)
             {
                 cpu.PC = value;
@@ -99,6 +106,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         public IEnumerable<ICluster<TranslationCPU>> Clusters => clusters;
 
         public IEnumerable<TranslationCPU> Clustered => cpus.Concat(clusters.SelectMany(cluster => cluster.Clustered));
+
+        public int setPcWarningPrinted;
 
         private readonly List<ICluster<TranslationCPU>> clusters = new List<ICluster<TranslationCPU>>();
         private readonly List<TranslationCPU> cpus = new List<TranslationCPU>();
