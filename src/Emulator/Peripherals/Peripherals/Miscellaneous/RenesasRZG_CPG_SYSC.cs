@@ -796,7 +796,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             );
 
             DefineRegistersForPeripheral(registerMap, Registers.ClockControlCA55, Registers.ClockMonitorCA55,
-                Registers.ResetControlCA55, Registers.ResetMonitorCA55, NrOfCa55Clocks);
+                Registers.ResetControlCA55, Registers.ResetMonitorCA55, NrOfCa55Clocks, NrOfCa55ResetLines);
 
             DefineRegistersForPeripheral(registerMap, Registers.ClockControlGIC, Registers.ClockMonitorGIC,
                 Registers.ResetControlGIC, Registers.ResetMonitorGIC, NrOfGicClocks);
@@ -832,6 +832,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private void DefineRegistersForPeripheral(Dictionary<long, DoubleWordRegister> registerMap, Registers clockControl, Registers clockMonitor,
             Registers resetControl, Registers resetMonitor, int nrOfClocks)
         {
+            DefineRegistersForPeripheral(registerMap, clockControl, clockMonitor, resetControl, resetMonitor, nrOfClocks, nrOfClocks);
+        }
+
+        private void DefineRegistersForPeripheral(Dictionary<long, DoubleWordRegister> registerMap, Registers clockControl, Registers clockMonitor,
+            Registers resetControl, Registers resetMonitor, int nrOfClocks, int nrOfResetLines)
+        {
             registerMap.Add((long)clockControl, new DoubleWordRegister(this)
                 .WithFlags(0, nrOfClocks, out var clockEnabled, name: "CLK_ON")
                 .WithReservedBits(nrOfClocks, 16 - nrOfClocks)
@@ -855,14 +861,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             // We don't really implement resets, but we still should log
             // if we write to register when write is disabled.
             registerMap.Add((long)resetControl, new DoubleWordRegister(this)
-                .WithFlags(0, nrOfClocks, out var resetApplied,
+                .WithFlags(0, nrOfResetLines, out var resetApplied,
                     valueProviderCallback: (_, __) => false,
                     name: "UNIT_RSTB")
-                .WithReservedBits(nrOfClocks, 16 - nrOfClocks)
-                .WithFlags(16, nrOfClocks, FieldMode.Set | FieldMode.Read,
+                .WithReservedBits(nrOfResetLines, 16 - nrOfResetLines)
+                .WithFlags(16, nrOfResetLines, FieldMode.Set | FieldMode.Read,
                     valueProviderCallback: (_, __) => false,
                     name: "UNIT_RSTWEN")
-                .WithReservedBits(16 + nrOfClocks, 16 - nrOfClocks)
+                .WithReservedBits(16 + nrOfResetLines, 16 - nrOfResetLines)
                 // We have to use register write callback,
                 // because multiple fields, depending on each other,
                 // can be changed in one write.
@@ -874,7 +880,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithFlags(0, nrOfClocks, FieldMode.Read,
                     valueProviderCallback: CreateResetMonitorValueProviderCallback(resetApplied),
                     name: "RST_MON")
-                .WithReservedBits(nrOfClocks, 32 - nrOfClocks)
+                .WithReservedBits(nrOfClocks, 32 - nrOfResetLines)
             );
         }
 
@@ -984,7 +990,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private readonly ICPU cpu0;
         private readonly ICPU cpu1;
 
-        private const int NrOfCa55Clocks = 13;
+        private const int NrOfCa55Clocks = 6;
         private const int NrOfCm33Clocks = 2;
         private const int NrOfGicClocks = 2;
         private const int NrOfIA55Clocks = 2;
@@ -996,6 +1002,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private const int NrOfScifClocks = 5;
         private const int NrOfRspiClocks = 3;
         private const int NrOfGpioClocks = 1;
+
+        private const int NrOfCa55ResetLines = 13;
+        private const int NrOfCm33ResetLines = 3;
 
         private const int ClockEnableBitsOffset = 0;
         private const int ClockEnableBitsSize = 16;
