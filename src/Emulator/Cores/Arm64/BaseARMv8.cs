@@ -223,11 +223,18 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             if(SystemRegistersDictionary.TryGetValue(index, out var systemRegister))
             {
-                // ValidateSystemRegisterAccess isn't used because most of its checks aren't needed.
-                // The register must exist at this point cause it's in the dictionary built based on tlib
-                // and we don't really care about the invalid access type error for unreadable registers.
-                value = TlibGetSystemRegister(systemRegister.Name, logUnhandledAccess ? 1u : 0u);
-                return true;
+                try
+                {
+                    // ValidateSystemRegisterAccess isn't used because most of its checks aren't needed.
+                    // The register must exist at this point cause it's in the dictionary built based on tlib
+                    // and we don't really care about the invalid access type error for unreadable registers.
+                    value = TlibGetSystemRegister(systemRegister.Name, logUnhandledAccess ? 1u : 0u);
+                    return true;
+                }
+                catch(Exception e)
+                {
+                    throw new InvalidRegisterAccessException($"Invalid system register access at index `${index}`", e);
+                }
             }
             value = 0;
             return false;

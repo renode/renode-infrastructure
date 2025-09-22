@@ -1499,6 +1499,7 @@
     <Compile Include="Emulator/Main/Exceptions/RegistrationException.cs" />
     <Compile Include="Emulator/Main/Exceptions/RecoverableException.cs" />
     <Compile Include="Emulator/Main/Exceptions/ConstructionException.cs" />
+    <Compile Include="Emulator/Main/Exceptions/InvalidRegisterAccessException.cs" />
     <Compile Include="Emulator/Main/Core/IGPIOReceiver.cs" />
     <Compile Include="Emulator/Main/Peripherals/Bus/IQuadWordPeripheral.cs" />
     <Compile Include="Emulator/Main/Peripherals/Bus/IDoubleWordPeripheral.cs" />

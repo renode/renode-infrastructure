@@ -13,6 +13,9 @@ using Antmicro.Migrant;
 using System.Linq;
 using System.IO;
 
+using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Peripherals.IRQControllers;
+
 namespace Antmicro.Renode.Utilities.GDB
 {
     [Transient]
@@ -235,6 +238,14 @@ namespace Antmicro.Renode.Utilities.GDB
                     }
                     catch(Exception e)
                     {
+                        var error = Error.Unknown;
+                        // Can't check for the innermost recursively
+                        // since this won't be the innermost.
+                        if(e.InnerException is InvalidRegisterAccessException)
+                        {
+                            error = Error.OperationNotPermitted;
+                        }
+
                         if(LogsEnabled)
                         {
                             // Get to the inner-most exception. The outer-most exception here is often
@@ -246,7 +257,8 @@ namespace Antmicro.Renode.Utilities.GDB
                             var commandString = result.Packet.Data.GetDataAsStringLimited();
                             commandsManager.Cpu.Log(LogLevel.Error, "GDB '{0}' command failed: {1}", commandString, e.Message);
                         }
-                        ctx.Send(new Packet(PacketData.ErrorReply(Error.Unknown)));
+
+                        ctx.Send(new Packet(PacketData.ErrorReply(error)));
                         return;
                     }
                     // If there is no data here, we will respond later with Stop Reply Response
