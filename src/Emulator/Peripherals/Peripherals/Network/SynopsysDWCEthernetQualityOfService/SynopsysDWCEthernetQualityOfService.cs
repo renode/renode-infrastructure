@@ -26,7 +26,8 @@ namespace Antmicro.Renode.Peripherals.Network
 {
     public partial class SynopsysDWCEthernetQualityOfService : NetworkWithPHY, IMACInterface, IKnownSize
     {
-        public SynopsysDWCEthernetQualityOfService(IMachine machine, long systemClockFrequency, ICPU cpuContext = null, BusWidth? dmaBusWidth = null, long? ptpClockFrequency = null) : base(machine)
+        public SynopsysDWCEthernetQualityOfService(IMachine machine, long systemClockFrequency, ICPU cpuContext = null, BusWidth? dmaBusWidth = null, long? ptpClockFrequency = null,
+            int rxQueueSize = 8192, int txQueueSize = 8192) : base(machine)
         {
             if(dmaBusWidth.HasValue)
             {
@@ -42,6 +43,11 @@ namespace Antmicro.Renode.Peripherals.Network
             {
                 throw new ConstructionException($"Invalid DMA channel count {DMAChannelOffsets.Length}. Expected value between 1 and {MaxDMAChannels}");
             }
+
+            ValidateQueueSize(rxQueueSize, nameof(rxQueueSize));
+            RxQueueSize = rxQueueSize;
+            ValidateQueueSize(txQueueSize, nameof(txQueueSize));
+            TxQueueSize = txQueueSize;
 
             IRQ = new GPIO();
             MAC = EmulationManager.Instance.CurrentEmulation.MACRepository.GenerateUniqueMAC();
@@ -139,7 +145,9 @@ namespace Antmicro.Renode.Peripherals.Network
 
         protected BusWidth DMABusWidth { get; private set; }
 
-        protected virtual int RxQueueSize => 8192;
+        protected int RxQueueSize { get; private set; }
+
+        protected int TxQueueSize { get; private set; }
 
         protected virtual bool SeparateDMAInterrupts => false;
 
@@ -391,6 +399,14 @@ namespace Antmicro.Renode.Peripherals.Network
             this.DebugLog("Effective timestamp timer frequency is {0}Hz", effectiveFrequency);
         }
 
+        private void ValidateQueueSize(int size, string paramName)
+        {
+            if(!Misc.IsPowerOfTwo((ulong)size) || size < MinimumQueueSize)
+            {
+                throw new ConstructionException($"{paramName} value has to be a power of 2 and at least {MinimumQueueSize}, got {size}");
+            }
+        }
+
         private bool MMCTxInterruptStatus =>
             (txGoodPacketCounterInterrupt.Value && txGoodPacketCounterInterruptEnable.Value) ||
             (txGoodByteCounterInterrupt.Value && txGoodByteCounterInterruptEnable.Value) ||
@@ -426,6 +442,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
         // This value may be increased if required, but some changes in register creation may be required
         private const int MaxDMAChannels = 3;
+        private const int MinimumQueueSize = 128;
 
         private struct PTPInfo
         {

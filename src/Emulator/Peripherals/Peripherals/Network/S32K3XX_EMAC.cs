@@ -12,7 +12,7 @@ namespace Antmicro.Renode.Peripherals.Network
     public class S32K3XX_EMAC : SynopsysDWCEthernetQualityOfService
     {
         public S32K3XX_EMAC(IMachine machine, long systemClockFrequency, ICPU cpuContext = null)
-            : base(machine, systemClockFrequency, cpuContext, BusWidth.Bits32)
+            : base(machine, systemClockFrequency, cpuContext, BusWidth.Bits32, rxQueueSize: DMAQueueSize, txQueueSize: DMAQueueSize)
         {
             IPVersion = 0x52;
             UserIPVersion = 0x10;
@@ -65,9 +65,9 @@ namespace Antmicro.Renode.Peripherals.Network
             (long)Registers.DMAChannel1Control - (long)Registers.DMAMode,
         };
 
-        protected override int RxQueueSize => 8192;
-
         protected override bool SeparateDMAInterrupts => true;
+
+        private const int DMAQueueSize = 8192;
 
         private enum Registers
         {

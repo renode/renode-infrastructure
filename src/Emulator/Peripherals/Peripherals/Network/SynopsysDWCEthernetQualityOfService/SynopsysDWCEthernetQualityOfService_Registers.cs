@@ -349,9 +349,11 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithReservedBits(31, 1)
                 },
                 {(long)RegistersMacAndMmc.HardwareFeature1, new DoubleWordRegister(this, 0x1104_1904)
-                    .WithTag("MACHWF1R.RXFIFOSIZE (RXFIFOSIZE)", 0, 5)
+                    .WithValueField(0, 5, FieldMode.Read, name: "MACHWF1R.RXFIFOSIZE (RXFIFOSIZE)",
+                        valueProviderCallback: _ => (byte)(Misc.Logarithm2(RxQueueSize) - 7))
                     .WithReservedBits(5, 1)
-                    .WithTag("MACHWF1R.TXFIFOSIZE (TXFIFOSIZE)", 6, 5)
+                    .WithValueField(6, 5, FieldMode.Read, name: "MACHWF1R.TXFIFOSIZE (TXFIFOSIZE)",
+                        valueProviderCallback: _ => (byte)(Misc.Logarithm2(TxQueueSize) - 7))
                     .WithTaggedFlag("MACHWF1R.OSTEN (OSTEN)", 11)
                     .WithTaggedFlag("MACHWF1R.PTOEN (PTOEN)", 12)
                     .WithTaggedFlag("MACHWF1R.ADVTHWORD (ADVTHWORD)", 13)
