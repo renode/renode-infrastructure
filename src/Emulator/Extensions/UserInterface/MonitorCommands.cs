@@ -58,7 +58,7 @@ namespace Antmicro.Renode.UserInterface
             }
             catch(Exception e)
             {
-                if(e is FormatException || e is RuntimeBinderException || e is OverflowException || e is InvalidCastException)
+                if(e is FormatException || e is RuntimeBinderException || e is OverflowException || e is InvalidCastException || e is ArgumentException)
                 {
                     throw new RecoverableException(e);
                 }
@@ -216,30 +216,19 @@ namespace Antmicro.Renode.UserInterface
 
                     if(TryPrepareParameters(index.Tokens, indexerParameters, out parameters))
                     {
-                        try
+                        if(value != null && foundIndexer.IsCurrentlySettable(CurrentBindingFlags))
                         {
-                            if(value != null && foundIndexer.IsCurrentlySettable(CurrentBindingFlags))
+                            if(!FitArgumentType(value, foundIndexer.PropertyType, out var convertedValue))
                             {
-                                if(!FitArgumentType(value, foundIndexer.PropertyType, out var convertedValue))
-                                {
-                                    throw new RecoverableException($"Could not convert {value} to {foundIndexer.PropertyType}");
-                                }
+                                throw new RecoverableException($"Could not convert {value} to {foundIndexer.PropertyType}");
+                            }
 
-                                InvokeSetIndex(device, foundIndexer, parameters.Concat(new[] { convertedValue }).ToList());
-                                return null;
-                            }
-                            else
-                            {
-                                return InvokeGetIndex(device, foundIndexer, parameters);
-                            }
+                            InvokeSetIndex(device, foundIndexer, parameters.Concat(new[] { convertedValue }).ToList());
+                            return null;
                         }
-                        catch(Exception e)
+                        else
                         {
-                            if(e is FormatException || e is RuntimeBinderException || e is KeyNotFoundException)
-                            {
-                                throw new RecoverableException(e);
-                            }
-                            throw;
+                            return InvokeGetIndex(device, foundIndexer, parameters);
                         }
                     }
                 }
@@ -516,7 +505,7 @@ namespace Antmicro.Renode.UserInterface
                 result = null;
                 return false;
             }
-            result = ConvertValue(token.GetObjectValue(), type);
+            result = ConvertValueOrThrowRecoverable(token.GetObjectValue(), type);
             return true;
         }
 
@@ -722,13 +711,10 @@ namespace Antmicro.Renode.UserInterface
                     }
                 }
             }
-            catch(Exception e)
+            catch(RecoverableException)
             {
-                if(e is FormatException || e is RuntimeBinderException || e is OverflowException || e is InvalidCastException)
-                {
-                    return false;
-                }
-                throw;
+                //The 'expected' exceptions from conversion will have been wrapped; propagate all other exceptions
+                return false;
             }
             return true;
         }
