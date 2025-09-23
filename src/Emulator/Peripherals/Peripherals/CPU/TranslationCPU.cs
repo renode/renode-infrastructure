@@ -297,7 +297,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             SetRegister(register, value);
         }
 
-        public void AddHook(ulong addr, Action<ICpuSupportingGdb, ulong> hook)
+        public void AddHook(ulong addr, CpuAddressHook hook)
         {
             lock(hooks)
             {
@@ -311,7 +311,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public void RemoveHook(ulong addr, Action<ICpuSupportingGdb, ulong> hook)
+        public void RemoveHook(ulong addr, CpuAddressHook hook)
         {
             lock(hooks)
             {
@@ -2644,7 +2644,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 this.cpu = cpu;
                 this.address = address;
-                callbacks = new HashSet<Action<ICpuSupportingGdb, ulong>>();
+                callbacks = new HashSet<CpuAddressHook>();
                 IsNew = true;
             }
 
@@ -2658,12 +2658,12 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
             }
 
-            public void AddCallback(Action<ICpuSupportingGdb, ulong> action)
+            public void AddCallback(CpuAddressHook action)
             {
                 callbacks.Add(action);
             }
 
-            public bool RemoveCallback(Action<ICpuSupportingGdb, ulong> action)
+            public bool RemoveCallback(CpuAddressHook action)
             {
                 var result = callbacks.Remove(action);
                 if(result && IsEmpty)
@@ -2708,11 +2708,11 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             public bool IsNew { get; private set; }
 
-            public HashSet<Action<ICpuSupportingGdb, ulong>> Callbacks => new HashSet<Action<ICpuSupportingGdb, ulong>>(callbacks);
+            public HashSet<CpuAddressHook> Callbacks => new HashSet<CpuAddressHook>(callbacks);
 
             private readonly ulong address;
             private readonly TranslationCPU cpu;
-            private readonly HashSet<Action<ICpuSupportingGdb, ulong>> callbacks;
+            private readonly HashSet<CpuAddressHook> callbacks;
         }
 
         [StructLayout(LayoutKind.Sequential, Pack = 1)]

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -193,8 +193,8 @@ namespace Antmicro.Renode.Debug
             public ulong Begin;
             public bool HasEnd;
             public ulong End;
-            public Action<ICpuSupportingGdb, ulong> BeginCallback;
-            public Action<ICpuSupportingGdb, ulong> EndCallback;
+            public CpuAddressHook BeginCallback;
+            public CpuAddressHook EndCallback;
         }
     }
 }
