@@ -765,7 +765,7 @@ namespace Antmicro.Renode.UserInterface
                 );
                 type = type.BaseType;
             }
-            var enumerableType = objectType.GetEnumerableType();
+            var enumerableType = objectType.GetEnumerableElementType();
             if(enumerableType != null)
             {
                 methods.Add(selectInfo.MakeGenericMethod(new[] { enumerableType, typeof(object) }));

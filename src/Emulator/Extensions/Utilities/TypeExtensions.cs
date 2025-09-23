@@ -72,7 +72,7 @@ namespace Antmicro.Renode.Utilities
             return cache.Get(info, InnerIsExtension);
         }
 
-        public static Type GetEnumerableType(Type type)
+        public static Type GetEnumerableElementType(this Type type)
         {
             if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IEnumerable<>))
             {
@@ -100,7 +100,7 @@ namespace Antmicro.Renode.Utilities
 
         private static bool InnerIsTypeConvertible(Type type)
         {
-            var underlyingType = GetEnumerableType(type);
+            var underlyingType = GetEnumerableElementType(type);
             if(underlyingType != null && underlyingType != type)
             {
                 return IsTypeConvertible(underlyingType);
