@@ -74,6 +74,11 @@ namespace Antmicro.Renode.Utilities
 
         public static Type GetEnumerableType(Type type)
         {
+            if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+            {
+                return type.GetGenericArguments()[0];
+            }
+
             var ifaces = type.GetInterfaces();
             if(ifaces.Length == 0)
             {
