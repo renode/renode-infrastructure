@@ -1243,7 +1243,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithReservedBits(18, 14)
                     .WithChangeCallback((_, __) => UpdateInterrupts())
                 },
-                {(long)RegistersDMA.DebugStatus, new DoubleWordRegister(this)
+                {(long)RegistersDMA.DebugStatus0, new DoubleWordRegister(this)
                     .WithTaggedFlag("DMADSR.AXWHSTS (AHB Master Write Channel)", 0)
                     .WithReservedBits(1, 7)
                     .For((r, i) =>
@@ -1251,11 +1251,30 @@ namespace Antmicro.Renode.Peripherals.Network
                         var offset = i * 8;
                         r.WithEnumField<DoubleWordRegister, DMARxProcessState>(8 + offset, 4, FieldMode.Read,
                             valueProviderCallback: _ => dmaChannels[i].DmaRxState, name: $"DMADSR.RPS{i} (DMA Channel {i} Receive Process State)")
-                        .WithEnumField<DoubleWordRegister, DMATxProcessState>(12 + offset, 4, FieldMode.Read,
+                         .WithEnumField<DoubleWordRegister, DMATxProcessState>(12 + offset, 4, FieldMode.Read,
                             valueProviderCallback: _ => dmaChannels[i].DmaTxState, name: $"DMADSR.TPS{i} (DMA Channel {i} Transmit Process State)");
-                    }, 0, dmaChannels.Length)
+                    }, 0, Math.Min(3, dmaChannels.Length))
                 },
             };
+
+            const int maxDMAChannelsPerDebugRegister = 4;
+            // Start from channel 3 as channels 0, 1, 2 fit in DebugStatus0
+            for(var channelId = 3; channelId < dmaChannels.Length; channelId++)
+            {
+                var bitOffset = 8 * ((channelId + 1) % maxDMAChannelsPerDebugRegister);
+                var registerOffset = (long)RegistersDMA.DebugStatus0 + 4 * ((channelId + 1) / maxDMAChannelsPerDebugRegister);
+                if(!map.TryGetValue(registerOffset, out var register))
+                {
+                    register = new DoubleWordRegister(this);
+                    map[registerOffset] = register;
+                }
+
+                register
+                    .WithEnumField<DoubleWordRegister, DMARxProcessState>(bitOffset, 4, FieldMode.Read,
+                        valueProviderCallback: _ => dmaChannels[channelId].DmaRxState, name: $"DMADSR.RPS{channelId} (DMA Channel {channelId} Receive Process State)")
+                    .WithEnumField<DoubleWordRegister, DMATxProcessState>(4 + bitOffset, 4, FieldMode.Read,
+                        valueProviderCallback: _ => dmaChannels[channelId].DmaTxState, name: $"DMADSR.TPS{channelId} (DMA Channel {channelId} Transmit Process State)");
+            }
 
             foreach(var channel in dmaChannels)
             {
@@ -1622,7 +1641,9 @@ namespace Antmicro.Renode.Peripherals.Network
             DMAMode = 0x000,
             SystemBusMode = 0x004,
             InterruptStatus = 0x008,
-            DebugStatus = 0x00C,
+            DebugStatus0 = 0x00C,
+            DebugStatus1 = 0x010,
+            DebugStatus2 = 0x014,
         }
 
         public enum RegistersDMAChannel : long
