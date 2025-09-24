@@ -75,7 +75,9 @@ namespace Antmicro.Renode.Peripherals.Network
 
             public void DefineChannelRegisters(ref Dictionary<long, DoubleWordRegister> map)
             {
-                var offset = parent.DMAChannelOffsets[channelNumber];
+                // This is an offset from the start of the DMA block, not from the start of the entire peripheral
+                // as the DMA block may be placed in a separate connection region.
+                var offset = 0x100 + 0x80 * channelNumber;
                 map = map.Concat(new Dictionary<long, DoubleWordRegister>()
                 {
                     {(long)RegistersDMAChannel.Control + offset, new DoubleWordRegister(parent)

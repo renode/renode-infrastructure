@@ -27,7 +27,7 @@ namespace Antmicro.Renode.Peripherals.Network
     public partial class SynopsysDWCEthernetQualityOfService : NetworkWithPHY, IMACInterface, IKnownSize
     {
         public SynopsysDWCEthernetQualityOfService(IMachine machine, long systemClockFrequency, ICPU cpuContext = null, BusWidth? dmaBusWidth = null, long? ptpClockFrequency = null,
-            int rxQueueSize = 8192, int txQueueSize = 8192) : base(machine)
+            int rxQueueSize = 8192, int txQueueSize = 8192, int dmaChannelCount = 1) : base(machine)
         {
             if(dmaBusWidth.HasValue)
             {
@@ -39,9 +39,9 @@ namespace Antmicro.Renode.Peripherals.Network
                 DMABusWidth = BusWidth.Bits32;
             }
 
-            if(DMAChannelOffsets.Length < 1 || DMAChannelOffsets.Length > MaxDMAChannels)
+            if(dmaChannelCount < 1 || dmaChannelCount > MaxDMAChannels)
             {
-                throw new ConstructionException($"Invalid DMA channel count {DMAChannelOffsets.Length}. Expected value between 1 and {MaxDMAChannels}");
+                throw new ConstructionException($"Invalid DMA channel count {dmaChannelCount}. Expected value between 1 and {MaxDMAChannels}");
             }
 
             ValidateQueueSize(rxQueueSize, nameof(rxQueueSize));
@@ -58,7 +58,7 @@ namespace Antmicro.Renode.Peripherals.Network
             timestampSubsecondTimer = new LimitTimer(machine.ClockSource, this.ptpClockFrequency, this, "Timestamp timer", BinarySubsecondRollover, Direction.Ascending, eventEnabled: true);
             timestampSubsecondTimer.LimitReached += () => timestampSecondTimer += 1;
 
-            dmaChannels = new DMAChannel[DMAChannelOffsets.Length];
+            dmaChannels = new DMAChannel[dmaChannelCount];
             for(var i = 0; i < dmaChannels.Length; i++)
             {
                 dmaChannels[i] = new DMAChannel(this, i, systemClockFrequency, SeparateDMAInterrupts);
@@ -152,10 +152,6 @@ namespace Antmicro.Renode.Peripherals.Network
         public event Action<EthernetFrame> FrameReady;
 
         // Configuration options for derived classes
-
-        // Offset at which each channel should start. This also determinates the amount of DMA channels
-        protected virtual long[] DMAChannelOffsets => new long[] { 0x100 };
-
         protected BusWidth DMABusWidth { get; private set; }
 
         protected int RxQueueSize { get; private set; }
@@ -454,8 +450,7 @@ namespace Antmicro.Renode.Peripherals.Network
         private const ulong DigitalSubsecondRollover = 0x3B9AC9FFUL;
         private const ulong BinarySubsecondRollover = 0x7FFFFFFFUL;
 
-        // This value may be increased if required, but some changes in register creation may be required
-        private const int MaxDMAChannels = 3;
+        private const int MaxDMAChannels = 8;
         private const int MinimumQueueSize = 128;
 
         public enum AddressWidth
