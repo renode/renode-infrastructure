@@ -96,6 +96,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             set
             {
+                if(Interlocked.Exchange(ref isHaltedWarningPrinted, 1) == 0)
+                {
+                    this.WarningLog("Cluster.IsHalted is deprecated and will be removed in a future release of Renode.\n" +
+                        "Use '{0} ForEach IsHalted' instead", this.GetName().Split('.')[1]);
+                }
+
                 foreach(var cpu in this.Clustered)
                 {
                     cpu.IsHalted = value;
@@ -107,7 +113,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public IEnumerable<TranslationCPU> Clustered => cpus.Concat(clusters.SelectMany(cluster => cluster.Clustered));
 
-        public int setPcWarningPrinted;
+        public int SetPcWarningPrinted;
+        private int isHaltedWarningPrinted;
 
         private readonly List<ICluster<TranslationCPU>> clusters = new List<ICluster<TranslationCPU>>();
         private readonly List<TranslationCPU> cpus = new List<TranslationCPU>();
