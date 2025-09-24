@@ -147,7 +147,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => Count == 0)
                     .WithReservedBits(1, 31)
                 },
-                {(long)Registers.EventPending, new DoubleWordRegister(this)
+                {(long)Registers.EventPending, new DoubleWordRegister(this, resetValue: 1 /* txEventPending */)
                     .WithFlag(0, out txEventPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "txEventPending")
                     .WithFlag(1, out rxEventPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "rxEventPending")
                     .WithReservedBits(2, 30)
@@ -164,6 +164,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         protected override void CharWritten()
         {
+            rxEventPending.Value = (Count != 0);
             UpdateInterrupts();
         }
 
@@ -187,6 +188,7 @@ namespace Antmicro.Renode.Peripherals.UART
             }
 
             txFifo.Enqueue((byte)value);
+            txEventPending.Value = txFifo.Count < txFifoCapacity;
 
             if(txFifo.Count < txFifoCapacity)
             {
@@ -197,7 +199,6 @@ namespace Antmicro.Renode.Peripherals.UART
             }
             else
             {
-                txEventPending.Value = false;
                 Machine.ClockSource.ExchangeClockEntryWith(
                     FlushTransmissionBuffer,
                     oldClock => oldClock.With(enabled: true, period: flushDelayTicks)
@@ -218,9 +219,6 @@ namespace Antmicro.Renode.Peripherals.UART
 
         protected void UpdateInterrupts()
         {
-            // rxEventPending is latched
-            rxEventPending.Value = (Count != 0);
-
             var eventPending = (rxEventEnabled.Value && rxEventPending.Value)
                 || (txEventEnabled.Value && txEventPending.Value);
             IRQ.Set(eventPending);

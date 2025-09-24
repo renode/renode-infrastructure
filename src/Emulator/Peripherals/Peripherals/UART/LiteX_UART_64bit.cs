@@ -80,7 +80,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 {(long)Registers.RxEmptyHi, new DoubleWordRegister(this)
                     .WithReservedBits(0, 32) // simulating an upper half of a 64bit register, never used bits
                 },
-                {(long)Registers.EventPending, new DoubleWordRegister(this)
+                {(long)Registers.EventPending, new DoubleWordRegister(this, resetValue: 1 /* txEventPending */)
                     .WithFlag(0, out txEventPending, FieldMode.Read | FieldMode.WriteOneToClear, valueProviderCallback: _ => false, name: "txEventPending")
                     .WithFlag(1, out rxEventPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "rxEventPending")
                     .WithReservedBits(2, 30)
