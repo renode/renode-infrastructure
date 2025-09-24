@@ -161,6 +161,9 @@ namespace Antmicro.Renode.MonitorTests.CommandTests
         [TestCase("external WrappedInts Select Ok; external WrappedInts ForEach Ok true; external WrappedInts Select Ok", "False, False, False", "True, True, True",
             TestName = "ForEachAndSelect")]
 
+        [TestCase("external Ints Select ToString \"x4\"", "0001, 0002, 0003",
+            TestName = "SelectWithListOfValueType")]
+
         [TestCase("external WrappedInts Select WithExtraValues 0 9", "1, 0, 9, 2, 0, 9, 3, 0, 9",
             TestName = "SelectWithParamArray")]
 
