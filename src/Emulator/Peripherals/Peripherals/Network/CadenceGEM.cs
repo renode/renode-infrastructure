@@ -55,17 +55,28 @@ namespace Antmicro.Renode.Peripherals.Network
                 {(long)Registers.NetworkControl, new DoubleWordRegister(this)
                     .WithTag("loopback", 0, 1)
                     .WithTag("loopback_local", 1, 1)
-                    .WithFlag(2, out receiveEnabled, name: "enable_receive")
-                    .WithFlag(3, name: "enable_transmit",
-                        writeCallback: (_, value) =>
+                    .WithFlag(2, name: "enable_receive",
+                        changeCallback: (_, value) =>
                         {
-                            if(!value)
+                            if(value)
                             {
-                                isTransmissionStarted = false;
+                                rxDescriptorsQueue = new DmaBufferDescriptorsQueue<DmaRxBufferDescriptor>(sysbus, GetCurrentContext(), rxDescriptorsQueueBase, (sb, ctx, addr) => new DmaRxBufferDescriptor(sb, ctx, addr, dmaAddressBusWith.Value, extendedRxBufferDescriptorEnabled.Value));
                             }
-                            if(txDescriptorsQueue != null && !value)
+                            else
                             {
-                                txDescriptorsQueue.GoToBaseAddress();
+                                rxDescriptorsQueue = null;
+                            }
+                        })
+                    .WithFlag(3, name: "enable_transmit",
+                        changeCallback: (_, value) =>
+                        {
+                            if(value)
+                            {
+                                txDescriptorsQueue = new DmaBufferDescriptorsQueue<DmaTxBufferDescriptor>(sysbus, GetCurrentContext(), txDescriptorsQueueBase, (sb, ctx, addr) => new DmaTxBufferDescriptor(sb, ctx, addr, dmaAddressBusWith.Value, extendedTxBufferDescriptorEnabled.Value));
+                            }
+                            else
+                            {
+                                txDescriptorsQueue = null;
                             }
                         })
                     .WithTag("man_port_en", 4, 1)
@@ -76,20 +87,12 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithFlag(9, FieldMode.Read | FieldMode.WriteOneToClear, name: "tx_start_pclk",
                         writeCallback: (_, value) =>
                         {
-                            if(value)
+                            if(value && txDescriptorsQueue != null)
                             {
-                                isTransmissionStarted = true;
                                 SendFrames();
                             }
                         })
-                    .WithFlag(10, FieldMode.Read | FieldMode.WriteOneToClear, name: "tx_halt_pclk",
-                        writeCallback: (_, value) =>
-                        {
-                            if(value)
-                            {
-                                isTransmissionStarted = false;
-                            }
-                        })
+                    .WithFlag(10, FieldMode.Read | FieldMode.WriteOneToClear, name: "tx_halt_pclk")
                     .WithTag("tx_pause_frame_req", 11, 1)
                     .WithTag("tx_pause_frame_zero", 12, 1)
                     .WithReservedBits(13, 2)
@@ -182,27 +185,32 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithValueField(2, 30, name: "dma_rx_q_ptr",
                         valueProviderCallback: _ =>
                         {
-                            return rxDescriptorsQueue.CurrentDescriptor.LowerDescriptorAddress;
+                            return rxDescriptorsQueue?.CurrentDescriptor?.LowerDescriptorAddress ?? (rxDescriptorsQueueBase >> 2);
                         },
                         writeCallback: (oldValue, value) =>
                         {
-                            if(receiveEnabled.Value)
+                            if(rxDescriptorsQueue != null)
                             {
                                 this.Log(LogLevel.Warning, "Changing value of receive buffer queue base address while reception is enabled is illegal");
                                 return;
                             }
-                            rxDescriptorsQueue = new DmaBufferDescriptorsQueue<DmaRxBufferDescriptor>(sysbus, GetCurrentContext(), (uint)value << 2, (sb, ctx, addr) => new DmaRxBufferDescriptor(sb, ctx, addr, dmaAddressBusWith.Value, extendedRxBufferDescriptorEnabled.Value));
+                            rxDescriptorsQueueBase = rxDescriptorsQueueBase.ReplaceBits(value, 30, destinationPosition: 2, sourcePosition: 0);
                         })
                 },
                 {(long)Registers.ReceiveBufferQueueBaseAddressUpper, new DoubleWordRegister(this)
                     .WithValueField(0, 32, name: "upper_rx_q_base_addr",
                         valueProviderCallback: _ =>
                         {
-                            return rxDescriptorsQueue.CurrentDescriptor.UpperDescriptorAddress;
+                            return rxDescriptorsQueue?.CurrentDescriptor?.UpperDescriptorAddress ?? (rxDescriptorsQueueBase >> 32);
                         },
                         writeCallback: (oldValue, value) =>
                         {
-                            rxDescriptorsQueue.CurrentDescriptor.UpperDescriptorAddress = (uint)value;
+                            if(rxDescriptorsQueue != null)
+                            {
+                                this.Log(LogLevel.Warning, "Changing value of receive buffer queue base address while reception is enabled is illegal");
+                                return;
+                            }
+                            rxDescriptorsQueueBase = rxDescriptorsQueueBase.ReplaceBits(value, 32, destinationPosition: 32, sourcePosition: 0);
                         })
                 },
                 {(long)Registers.ReceiveBufferDescriptorControl, new DoubleWordRegister(this)
@@ -215,27 +223,32 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithValueField(2, 30, name: "dma_tx_q_ptr",
                         valueProviderCallback: _ =>
                         {
-                            return txDescriptorsQueue.CurrentDescriptor.LowerDescriptorAddress;
+                            return txDescriptorsQueue?.CurrentDescriptor?.LowerDescriptorAddress ?? (txDescriptorsQueueBase >> 2);
                         },
                         writeCallback: (oldValue, value) =>
                         {
-                            if(isTransmissionStarted)
+                            if(txDescriptorsQueue != null)
                             {
-                                this.Log(LogLevel.Warning, "Changing value of transmit buffer queue base address while transmission is started is illegal");
+                                this.Log(LogLevel.Warning, "Changing value of transmit buffer queue base address while transmission is enabled is illegal");
                                 return;
                             }
-                            txDescriptorsQueue = new DmaBufferDescriptorsQueue<DmaTxBufferDescriptor>(sysbus, GetCurrentContext(), (uint)value << 2, (sb, ctx, addr) => new DmaTxBufferDescriptor(sb, ctx, addr, dmaAddressBusWith.Value, extendedTxBufferDescriptorEnabled.Value));
+                            txDescriptorsQueueBase = txDescriptorsQueueBase.ReplaceBits(value, 30, destinationPosition: 2, sourcePosition: 0);
                         })
                 },
                 {(long)Registers.TransmitBufferQueueBaseAddressUpper, new DoubleWordRegister(this)
                     .WithValueField(0, 32, name: "upper_tx_q_base_addr",
                         valueProviderCallback: _ =>
                         {
-                            return txDescriptorsQueue.CurrentDescriptor.UpperDescriptorAddress;
+                            return txDescriptorsQueue?.CurrentDescriptor?.UpperDescriptorAddress ?? (txDescriptorsQueueBase >> 32);
                         },
                         writeCallback: (oldValue, value) =>
                         {
-                            txDescriptorsQueue.CurrentDescriptor.UpperDescriptorAddress = (uint)value;
+                            if(txDescriptorsQueue != null)
+                            {
+                                this.Log(LogLevel.Warning, "Changing value of transmit buffer queue base address while transmission is enabled is illegal");
+                                return;
+                            }
+                            txDescriptorsQueueBase = txDescriptorsQueueBase.ReplaceBits(value, 32, destinationPosition: 32, sourcePosition: 0);
                         })
                 },
                 {(long)Registers.TransmitBufferDescriptorControl, new DoubleWordRegister(this)
@@ -441,8 +454,9 @@ namespace Antmicro.Renode.Peripherals.Network
             interruptManager.Reset();
             txDescriptorsQueue = null;
             rxDescriptorsQueue = null;
+            txDescriptorsQueueBase = 0;
+            rxDescriptorsQueueBase = 0;
             phyDataRead = 0;
-            isTransmissionStarted = false;
             nanoTimer.Reset();
             nanoTimer.Enabled = true;
         }
@@ -468,7 +482,7 @@ namespace Antmicro.Renode.Peripherals.Network
             lock(sync)
             {
                 this.Log(LogLevel.Debug, "Received packet, length {0}", frame.Bytes.Length);
-                if(!receiveEnabled.Value)
+                if(rxDescriptorsQueue == null)
                 {
                     this.Log(LogLevel.Info, "Receiver not enabled, dropping frame");
                     return;
@@ -664,7 +678,8 @@ namespace Antmicro.Renode.Peripherals.Network
         private PTPTimestamp rxPacketTimestamp;
 
         private uint phyDataRead;
-        private bool isTransmissionStarted;
+        private ulong txDescriptorsQueueBase;
+        private ulong rxDescriptorsQueueBase;
         private DmaBufferDescriptorsQueue<DmaTxBufferDescriptor> txDescriptorsQueue;
         private DmaBufferDescriptorsQueue<DmaRxBufferDescriptor> rxDescriptorsQueue;
 
@@ -674,7 +689,6 @@ namespace Antmicro.Renode.Peripherals.Network
         private readonly IEnumRegisterField<DMAAddressWidth> dmaAddressBusWith;
         private readonly IFlagRegisterField transmitComplete;
         private readonly IFlagRegisterField usedBitRead;
-        private readonly IFlagRegisterField receiveEnabled;
         private readonly IFlagRegisterField ignoreRxFCS;
         private readonly IFlagRegisterField bufferNotAvailable;
         private readonly IFlagRegisterField frameReceived;
