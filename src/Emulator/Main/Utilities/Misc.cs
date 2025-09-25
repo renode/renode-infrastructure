@@ -268,11 +268,27 @@ namespace Antmicro.Renode.Utilities
             @this.Trace($"Waiting for '{reason}' finished.");
         }
 
+        public static void SetBytesFromValue(this byte[] array, ushort value, int startIndex)
+        {
+            for(var i = 0; i < sizeof(ushort); i++)
+            {
+                array[startIndex + i] = (byte)(value >> (i * 8));
+            }
+        }
+
         public static void SetBytesFromValue(this byte[] array, uint value, int startIndex)
         {
-            foreach(var b in BitConverter.GetBytes(value))
+            for(var i = 0; i < sizeof(uint); i++)
             {
-                array[startIndex++] = b;
+                array[startIndex + i] = (byte)(value >> (i * 8));
+            }
+        }
+
+        public static void SetBytesFromValue(this byte[] array, ulong value, int startIndex)
+        {
+            for(var i = 0; i < sizeof(ulong); i++)
+            {
+                array[startIndex + i] = (byte)(value >> (i * 8));
             }
         }
 
