@@ -568,6 +568,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             externalMmuPosition = position;
         }
 
+        public void FlushTlb()
+        {
+            TlibFlushTlb(OnPossessedThread);
+        }
+
         public void RaiseException(uint exceptionId)
         {
             TlibRaiseException(exceptionId);
@@ -581,11 +586,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         public void FlushTlbPage(UInt64 address)
         {
             TlibFlushPage(address);
-        }
-
-        public void FlushTlb()
-        {
-            TlibFlushTlb();
         }
 
         public override void Reset()
@@ -2300,7 +2300,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private readonly Action<ulong> TlibFlushPage;
 
         [Import]
-        private readonly Action TlibFlushTlb;
+        private readonly Action<bool> TlibFlushTlb;
 
         [Import]
         private readonly Func<uint> TlibGetPageSize;
