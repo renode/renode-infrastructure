@@ -28,15 +28,50 @@ namespace Antmicro.Renode.Peripherals.CPU
             RegisterCustomCSRs();
 
             this.WfiAsNop = true;
+            AddHookAtInterruptBegin(UpdateSecondaryCauseRegister);
         }
 
         public override void Reset()
         {
             base.Reset();
             internalTimers.Reset();
+            mscauseValue = 0;
+            pendingSecondaryCause = 0;
+        }
+
+        public void RaiseExceptionWithSecondaryCause(uint exception, uint secondaryCause)
+        {
+            pendingSecondaryCause = secondaryCause;
+            RaiseException(exception);
+        }
+
+        /// <remarks>
+        /// Called on interrupt start to make sure that normal RISC-V exceptions triggered without
+        /// the extra info do not end up with an invalid mscause value
+        /// </remarks>
+        protected virtual void UpdateSecondaryCauseRegister(ulong exceptionType)
+        {
+            mscauseValue = pendingSecondaryCause;
+            switch(exceptionType)
+            {
+            case (ulong)ExceptionCodes.InstructionAccessFault:
+            case (ulong)ExceptionCodes.Breakpoint:
+            case (ulong)ExceptionCodes.LoadAddressMisaligned:
+            case (ulong)ExceptionCodes.LoadAccessFault:
+            case (ulong)ExceptionCodes.StoreAddressMisaligned:
+            case (ulong)ExceptionCodes.StoreAccessFault:
+                break;
+            default:
+                // No other exceptions have secondary cause information
+                mscauseValue = 0;
+                break;
+            }
+            pendingSecondaryCause = 0;
         }
 
         protected InternalTimerBlock internalTimers;
+
+        protected uint mscauseValue, pendingSecondaryCause;
 
         private void RegisterCustomCSRs()
         {
@@ -56,7 +91,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             CreateCSRStub(CustomCSR.DCCMCorrectableErrorCounterThreshold, "mdccmect");
             CreateCSRStub(CustomCSR.ClockGatingControl, "mcgc");
             CreateCSRStub(CustomCSR.FeatureDisableControl, "mfdc");
-            CreateCSRStub(CustomCSR.MachineSecondaryCause, "mscause");
+
+            RegisterCSR((ushort)CustomCSR.MachineSecondaryCause,
+                    readOperation: () => (ulong)mscauseValue,
+                    writeOperation: value => mscauseValue = (uint)(value & 0xF) // Only 4 lowest bits are writable
+            );
+
             CreateCSRStub(CustomCSR.DBUSErrorAddressUnlock, "mdeau");
             CreateCSRStub(CustomCSR.ExternalInterruptVectorTable, "meivt");
             CreateCSRStub(CustomCSR.ExternalInterruptPriorityThreshold, "meipt");

@@ -639,6 +639,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             pcWrittenFlag = true;
         }
 
+        protected bool IsInterrupt(ulong exceptionIndex)
+        {
+            return BitHelper.IsBitSet(exceptionIndex, MostSignificantBit);
+        }
+
         protected abstract byte MostSignificantBit { get; }
 
         [Import]
@@ -732,11 +737,6 @@ namespace Antmicro.Renode.Peripherals.CPU
                 PC = ResetVector;
                 pcWrittenFlag = false;
             }
-        }
-
-        private bool IsInterrupt(ulong exceptionIndex)
-        {
-            return BitHelper.IsBitSet(exceptionIndex, MostSignificantBit);
         }
 
         private void EnableArchitectureVariants()
@@ -1236,6 +1236,25 @@ namespace Antmicro.Renode.Peripherals.CPU
             Machine,
             MachineUser,
             MachineSupervisorUser,
+        }
+
+        public enum ExceptionCodes
+        {
+            InstructionAddressMisaligned = 0x0,
+            InstructionAccessFault = 0x1,
+            IllegalInstruction = 0x2,
+            Breakpoint = 0x3,
+            LoadAddressMisaligned = 0x4,
+            LoadAccessFault = 0x5,
+            StoreAddressMisaligned = 0x6,
+            StoreAccessFault = 0x7,
+            UModeEnvironmentCall = 0x8,
+            SModeEnvironmentCall = 0x9,
+            HModeEnvironmentCall = 0xA,
+            MModeEnvironmentCall = 0xB,
+            InstructionPageFault = 0xC,
+            LoadPageFault = 0xD,
+            StorePageFault = 0xF,
         }
 
         protected enum IrqType
