@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -16,12 +16,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 {
     public sealed class DmaEngine
     {
-        public DmaEngine(IBusController systemBus)
-        {
-            sysbus = systemBus;
-        }
-
-        public Response IssueCopy(Request request, CPU.ICPU context = null)
+        public static Response IssueCopy(IBusController sysbus, Request request, CPU.ICPU context = null)
         {
             var response = new Response
             {
@@ -183,6 +178,16 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
 
             return response;
+        }
+
+        public DmaEngine(IBusController systemBus)
+        {
+            sysbus = systemBus;
+        }
+
+        public Response IssueCopy(Request request, CPU.ICPU context = null)
+        {
+            return IssueCopy(sysbus, request, context);
         }
 
         private readonly IBusController sysbus;
