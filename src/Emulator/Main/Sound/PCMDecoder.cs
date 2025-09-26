@@ -104,6 +104,12 @@ namespace Antmicro.Renode.Peripherals.Sound
             }
         }
 
+        public uint SamplingRateHz => samplingRateHz;
+
+        public uint NumberOfChannels => numberOfChannels;
+
+        public uint SampleWidthBits => sampleWidthBits;
+
         private readonly uint samplingRateHz;
         private readonly uint numberOfChannels;
         private readonly uint sampleWidthBits;
