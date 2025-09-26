@@ -89,6 +89,10 @@ namespace Antmicro.Renode.Peripherals.Bus
                     register(registrationForCpuGetter(cpu));
                 }
             }
+            else if(Initiator != null)
+            {
+                register(registrationForCpuGetter(Initiator));
+            }
             else
             {
                 register((T)this);
