@@ -524,6 +524,15 @@ namespace Antmicro.Renode.Utilities
             return (byte)(((uint)reg >> offset) & ((0x1ul << size) - 1));
         }
 
+        public static ushort GetValue(ushort reg, int offset, int size)
+        {
+            if(size < 0 || size > 16)
+            {
+                throw new ArgumentException("size not in [0,16]");
+            }
+            return (ushort)(((uint)reg >> offset) & ((0x1ul << size) - 1));
+        }
+
         public static uint GetValue(uint reg, int offset, int size)
         {
             if(size < 0 || size > 32)
