@@ -27,6 +27,15 @@ namespace Antmicro.Renode.Peripherals.DMA
             var readLengthInBytes = (int)request.ReadTransferType;
             var writeLengthInBytes = (int)request.WriteTransferType;
 
+            // Signed values in C# are represented in two's complement notation.
+            // For example Int64 values are represented in 63 bits, with the sixty-fourth bit used as a sign bit.
+            // https://github.com/dotnet/docs/blob/99ce0718695bdc617ffe77d7ebfd62d893d43a53/docs/fundamentals/runtime-libraries/system-int64.md#work-with-non-decimal-64-bit-integer-values
+            // Because of that we can cast Source/DestinationIncrementStep with a negative value represented by a signed type (sbyte, short, int, long) to ulong to reinterpret the signed value as an unsigned value.
+            // After addition to another ulong (Address + SourceIncrementStep) we get the same binary representation as after adding the signed value.
+            // Therefore ReadAddress/WriteAddress calculated upon return from this function respects offset that was intended to be negative by the caller.
+            var sourceOffsetStep = request.SourceIncrementStep;
+            var destinationOffsetStep = request.DestinationIncrementStep;
+
             // some sanity checks
             if((request.Size % readLengthInBytes) != 0 || (request.Size % writeLengthInBytes) != 0)
             {
@@ -37,7 +46,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             var sourceAddress = request.Source.Address ?? 0;
             var whatIsAtSource = sysbus.WhatIsAt(sourceAddress, context);
             var isSourceContinuousMemory = (whatIsAtSource == null || whatIsAtSource.Peripheral is MappedMemory) // Not a peripheral
-                                                        && readLengthInBytes == request.SourceIncrementStep; // Consistent memory region
+                                                        && (ulong)readLengthInBytes == request.SourceIncrementStep; // Consistent memory region
             if(!request.Source.Address.HasValue)
             {
                 // request array based copy
@@ -90,8 +99,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                     transferred += readLengthInBytes;
                     if(request.IncrementReadAddress)
                     {
-                        offset += request.SourceIncrementStep;
-                        response.ReadAddress += request.SourceIncrementStep;
+                        offset += sourceOffsetStep;
+                        response.ReadAddress += sourceOffsetStep;
                     }
                 }
             }
@@ -99,7 +108,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             var destinationAddress = request.Destination.Address ?? 0;
             var whatIsAtDestination = sysbus.WhatIsAt(destinationAddress, context);
             var isDestinationContinuousMemory = (whatIsAtDestination == null || whatIsAtDestination.Peripheral is MappedMemory) // Not a peripheral
-                                                        && writeLengthInBytes == request.DestinationIncrementStep;  // Consistent memory region
+                                                        && (ulong)writeLengthInBytes == request.DestinationIncrementStep;  // Consistent memory region
             if(!request.Destination.Address.HasValue)
             {
                 // request array based copy
@@ -171,8 +180,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                     transferred += writeLengthInBytes;
                     if(request.IncrementWriteAddress)
                     {
-                        offset += request.DestinationIncrementStep;
-                        response.WriteAddress += request.DestinationIncrementStep;
+                        offset += destinationOffsetStep;
+                        response.WriteAddress += destinationOffsetStep;
                     }
                 }
             }
