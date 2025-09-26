@@ -1931,6 +1931,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/IMXRT700_OSC32KNP.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/DMA/IMXRT700_eDMA.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/DMA/IMXRT700_eDMA.Channel.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/DMA/IMXRT700_DmaMux.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/I2C/TAS2572.cs" />
     <Compile Include="Emulator/Main/Core/IIdentifiable.cs" />
     <Compile Include="Emulator/Main/Core/IdentifiableObject.cs" />
