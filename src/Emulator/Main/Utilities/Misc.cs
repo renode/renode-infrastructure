@@ -211,6 +211,11 @@ namespace Antmicro.Renode.Utilities
             return new LazyHexString<T>(collection);
         }
 
+        public static LazyString<T> ToLazyString<T>(this IEnumerable<T> collection)
+        {
+            return new LazyString<T>(collection);
+        }
+
         public static string PrettyPrintCollectionHex<T>(IEnumerable<T> collection)
         {
             return PrettyPrintCollection(collection, x => "0x{0:X}".FormatWith(x));
@@ -1908,6 +1913,21 @@ namespace Antmicro.Renode.Utilities
         public override string ToString()
         {
             return Misc.PrettyPrintCollectionHex(collection);
+        }
+
+        private readonly IEnumerable<T> collection;
+    }
+
+    public class LazyString<T>
+    {
+        public LazyString(IEnumerable<T> collection)
+        {
+            this.collection = collection;
+        }
+
+        public override string ToString()
+        {
+            return Misc.PrettyPrintCollection(collection);
         }
 
         private readonly IEnumerable<T> collection;
