@@ -2162,7 +2162,17 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 return;
             }
-            var cpuWithMappedMemory = context as ICPUWithMappedMemory;
+            if(!(context is ICPUWithMappedMemory cpuWithMappedMemory))
+            {
+                // If the context is a peripheral other than an ICPUWithMappedMemory, we can't create mappings for it.
+                // The other possibility is that the context was specified as null, then we need to create global mappings
+                // for all CPUs.
+                if(context != null)
+                {
+                    return;
+                }
+                cpuWithMappedMemory = null;
+            }
             var segments = mappedPeripheral.MappedSegments;
             var mappings = segments.Select(x => FromRegistrationPointToSegmentWrapper(x, registrationPoint, cpuWithMappedMemory)).Where(x => x != null);
             AddMappings(mappings, mappedPeripheral);
