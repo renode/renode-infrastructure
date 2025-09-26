@@ -391,7 +391,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
                 if(Count >= rxMaxBytes)
                 {
-                    this.Log(LogLevel.Info, "rxFIFO/Buffer is overflowing but we are buffering character", data, rxMaxBytes);
+                    this.Log(LogLevel.Debug, "RX FIFO is overflowing, but we are buffering characters, reached {0} bytes", Count + 1);
                 }
 
                 base.WriteChar(data);
