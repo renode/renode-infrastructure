@@ -79,7 +79,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             StartingPoint = startingPoint;
         }
 
-        protected void RegisterForEachContextInner<T>(Action<T> register, Func<ICPU, T> registrationForCpuGetter)
+        protected void RegisterForEachContextInner<T>(Action<T> register, Func<IPeripheral, T> registrationForCpuGetter)
             where T : BusRegistration
         {
             if(Cluster != null)

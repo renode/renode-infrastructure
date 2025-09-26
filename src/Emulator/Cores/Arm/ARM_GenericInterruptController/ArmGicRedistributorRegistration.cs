@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 {
     public class ArmGicRedistributorRegistration : BusParametrizedRegistration
     {
-        public ArmGicRedistributorRegistration(IARMSingleSecurityStateCPU attachedCPU, ulong address, ICPU visibleTo = null, ICluster<ICPU> visibleToCluster = null) : base(address, 0x20000, visibleTo, visibleToCluster)
+        public ArmGicRedistributorRegistration(IARMSingleSecurityStateCPU attachedCPU, ulong address, IPeripheral visibleTo = null, ICluster<ICPU> visibleToCluster = null) : base(address, 0x20000, visibleTo, visibleToCluster)
         {
             Cpu = attachedCPU;
         }

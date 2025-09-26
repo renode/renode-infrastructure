@@ -12,7 +12,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 {
     public abstract class BusParametrizedRegistration : BusRangeRegistration
     {
-        public BusParametrizedRegistration(ulong address, ulong size, ICPU cpu, ICluster<ICPU> cluster = null)
+        public BusParametrizedRegistration(ulong address, ulong size, IPeripheral cpu, ICluster<ICPU> cluster = null)
             : base(address, size, 0, cpu, cluster)
         {
         }
