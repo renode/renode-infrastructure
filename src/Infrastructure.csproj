@@ -1936,6 +1936,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/IMXRT700_SYSCON1.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Sound/IMXRT700_SAI.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Sound/IMXRT700_SAI.Transceiver.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Sound/IMXRT700_MICFIL.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/I2C/TAS2572.cs" />
     <Compile Include="Emulator/Main/Core/IIdentifiable.cs" />
     <Compile Include="Emulator/Main/Core/IdentifiableObject.cs" />
