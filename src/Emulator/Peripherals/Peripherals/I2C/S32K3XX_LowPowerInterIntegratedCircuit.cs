@@ -127,8 +127,10 @@ namespace Antmicro.Renode.Peripherals.I2C
                 }
 
                 // transmitData now contains I2C address
-                if(!TryGetByAddress((int)transmitData.Value >> 1, out activePeripheral))
+                var address = (int)transmitData.Value >> 1;
+                if(!TryGetByAddress(address, out activePeripheral))
                 {
+                    this.Log(LogLevel.Warning, "Target peripheral not found at address 0x{0:X}", address);
                     nackDetectFlag.Value = true;
                     UpdateInterrupts();
                 }
