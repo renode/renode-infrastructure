@@ -194,12 +194,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         private ZynqMP_IPI ipi;
-        private readonly ICPU apu0;
-        private readonly ICPU apu1;
-        private readonly ICPU apu2;
-        private readonly ICPU apu3;
-        private readonly ICPU rpu0;
-        private readonly ICPU rpu1;
 
         private readonly PowerManagementModule powerManagement;
         private readonly Dictionary<ICPU, ISet<IPeripheral>> registeredPeripherals = new Dictionary<ICPU, ISet<IPeripheral>>();
