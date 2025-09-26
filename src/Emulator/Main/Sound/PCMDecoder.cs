@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -45,7 +45,7 @@ namespace Antmicro.Renode.Peripherals.Sound
             }
         }
 
-        public void LoadFile(ReadFilePath path)
+        public void LoadFile(ReadFilePath path, bool littleEndianFileFormat = false)
         {
             var sampleSize = (int)(sampleWidthBits / 8);
 
@@ -61,7 +61,7 @@ namespace Antmicro.Renode.Peripherals.Sound
                             break;
                         }
 
-                        var sample = BitHelper.ToUInt32(bytes, 0, bytes.Length, false);
+                        var sample = BitHelper.ToUInt32(bytes, 0, bytes.Length, littleEndianFileFormat);
                         samples.Enqueue(sample);
                     }
                 }
