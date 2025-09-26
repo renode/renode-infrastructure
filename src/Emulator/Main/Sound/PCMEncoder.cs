@@ -114,6 +114,12 @@ namespace Antmicro.Renode.Sound
             }
         }
 
+        public uint SamplingRateHz => samplingRateHz;
+
+        public uint NumberOfChannels => numberOfChannels;
+
+        public uint SampleWidthBits => sampleWidthBits;
+
         private void TryFlushBuffer()
         {
             if(buffer.Count >= bufferingThreshold)
