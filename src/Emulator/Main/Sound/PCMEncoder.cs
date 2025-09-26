@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -45,9 +45,18 @@ namespace Antmicro.Renode.Sound
         {
             lock(buffer)
             {
+                byte nextByte;
                 for(var i = 0; i < (sampleWidthBits / 8); i++)
                 {
-                    buffer.Enqueue((byte)BitHelper.GetValue(sample, (int)(sampleWidthBits - 8 * (i + 1)), 8));
+                    if(littleEndianFileFormat)
+                    {
+                        nextByte = (byte)BitHelper.GetValue(sample, 8 * i, 8);
+                    }
+                    else
+                    {
+                        nextByte = (byte)BitHelper.GetValue(sample, (int)(sampleWidthBits - 8 * (i + 1)), 8);
+                    }
+                    buffer.Enqueue(nextByte);
                 }
                 TryFlushBuffer();
             }
@@ -75,6 +84,12 @@ namespace Antmicro.Renode.Sound
         {
             bufferingThreshold = (int)(milliseconds * (samplingRateHz / 1000) * numberOfChannels * (sampleWidthBits / 8));
             TryFlushBuffer();
+        }
+
+        public void SetOutputFile(SequencedFilePath outputFile, bool littleEndianFileFormat)
+        {
+            Output = outputFile;
+            this.littleEndianFileFormat = littleEndianFileFormat;
         }
 
         public string Output
@@ -110,6 +125,7 @@ namespace Antmicro.Renode.Sound
         private int bufferingThreshold;
         private string outputPath;
         private FileStream file;
+        private bool littleEndianFileFormat;
 
         private readonly uint samplingRateHz;
         private readonly uint numberOfChannels;
