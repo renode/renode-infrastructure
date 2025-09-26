@@ -394,6 +394,7 @@
     <Compile Include="Emulator/Cores/RiscV/CoreLocalInterruptController.cs" />
     <Compile Include="Emulator/Cores/RiscV/VeeR_EL2.cs" />
     <Compile Include="Emulator/Cores/RiscV/VeeR_EL2_PIC.cs" />
+    <Compile Include="Emulator/Cores/RiscV/ExternalPMPBase.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Emulator/Cores/RiscV/RiscV32Registers.tt">

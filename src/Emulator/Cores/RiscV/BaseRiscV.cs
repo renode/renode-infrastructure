@@ -18,6 +18,7 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CFU;
 using Antmicro.Renode.Peripherals.IRQControllers;
+using Antmicro.Renode.Peripherals.Miscellaneous;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Binding;
@@ -26,7 +27,7 @@ using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public abstract class BaseRiscV : TranslationCPU, IPeripheralContainer<ICFU, NumberRegistrationPoint<int>>, IPeripheralContainer<IIndirectCSRPeripheral, BusRangeRegistration>, ICPUWithPostOpcodeExecutionHooks, ICPUWithPreOpcodeExecutionHooks, ICPUWithPostGprAccessHooks, ICPUWithNMI
+    public abstract class BaseRiscV : TranslationCPU, IPeripheralContainer<ICFU, NumberRegistrationPoint<int>>, IPeripheralContainer<IIndirectCSRPeripheral, BusRangeRegistration>, IPeripheralRegister<ExternalPMPBase, NullRegistrationPoint>, ICPUWithPostOpcodeExecutionHooks, ICPUWithPreOpcodeExecutionHooks, ICPUWithPostGprAccessHooks, ICPUWithNMI
     {
         public void Register(ICFU cfu, NumberRegistrationPoint<int> registrationPoint)
         {
@@ -62,6 +63,11 @@ namespace Antmicro.Renode.Peripherals.CPU
                 throw new ArgumentException($"{nameof(CoreLocalInterruptController)} is already registered");
             }
             this.clic = clic;
+        }
+
+        public void SetPMPAddress(uint index, ulong start_address, ulong end_address)
+        {
+            TlibSetPmpaddr(index, start_address, end_address);
         }
 
         public void EnablePreStackAccessHook(bool value)
@@ -314,6 +320,26 @@ namespace Antmicro.Renode.Peripherals.CPU
             SetPCFromResetVector();
         }
 
+        public void Register(ExternalPMPBase externalPMP, NullRegistrationPoint registrationPoint)
+        {
+            if(this.externalPMP != null)
+            {
+                throw new RegistrationException($"{nameof(ExternalPMPBase)} is already registered");
+            }
+            machine.RegisterAsAChildOf(this, externalPMP, registrationPoint);
+            this.InfoLog("Enabling External PMP");
+            this.externalPMP = externalPMP;
+            externalPMP.RegisterCPU(this);
+            TlibEnableExternalPmp(true);
+        }
+
+        public void Unregister(ExternalPMPBase peripheral)
+        {
+            this.externalPMP = null;
+            TlibEnableExternalPmp(false);
+            machine.UnregisterAsAChildOf(this, peripheral);
+        }
+
         public uint VectorElementMaxWidth
         {
             set
@@ -455,6 +481,10 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public uint MinimalPMPNapotInBytes { get; private set; }
+
+        public uint PMPNumberOfAddrBits { get; private set; }
+
         public IEnumerable<InstructionSet> ArchitectureSets => architectureDecoder.InstructionSets;
 
         public abstract RegisterValue VLEN { get; }
@@ -521,8 +551,9 @@ namespace Antmicro.Renode.Peripherals.CPU
                 Dispose();
                 throw new ConstructionException(string.Format("Unsupported interrupt mode: 0x{0:X}", interruptMode));
             }
-
+            PMPNumberOfAddrBits = pmpNumberOfAddrBits;
             TlibSetPmpaddrBits(pmpNumberOfAddrBits);
+            MinimalPMPNapotInBytes = minimalPmpNapotInBytes;
             TlibSetNapotGrain(minimalPmpNapotInBytes);
 
             RegisterCSR((ushort)StandardCSR.Miselect, () => miselectValue, s => miselectValue = (uint)s, "miselect");
@@ -1007,6 +1038,91 @@ namespace Antmicro.Renode.Peripherals.CPU
             clic.AcknowledgeInterrupt();
         }
 
+        [Export]
+        private void ExternalPMPConfigCSRWrite(uint registerIndex, ulong value)
+        {
+            if(externalPMP == null)
+            {
+                this.ErrorLog("Attempted to write ExternalPMP config register {0} but no external pmp is attached to the core, write ignored", registerIndex);
+                return;
+            }
+            externalPMP.ConfigCSRWrite(registerIndex, value);
+        }
+
+        [Export]
+        private ulong ExternalPMPConfigCSRRead(uint registerIndex)
+        {
+            if(externalPMP == null)
+            {
+                this.ErrorLog("Attempted to read ExternalPMP config register {0} but no external PMP is attached to the core, returning 0", registerIndex);
+                return 0;
+            }
+            return externalPMP.ConfigCSRRead(registerIndex);
+        }
+
+        [Export]
+        private void ExternalPMPAddressCSRWrite(uint registerIndex, ulong value)
+        {
+            if(externalPMP == null)
+            {
+                this.ErrorLog("Attempted to write ExternalPMP address register {0} but no external PMP is attached to the core, write ignored", registerIndex);
+                return;
+            }
+            externalPMP.AddressCSRWrite(registerIndex, value);
+        }
+
+        [Export]
+        private ulong ExternalPMPAddressCSRRead(uint registerIndex)
+        {
+            if(externalPMP == null)
+            {
+                this.ErrorLog("Attempted to read ExternalPMP address register {0} but no external PMP is attached to the core, returning 0", registerIndex);
+                return 0;
+            }
+            return externalPMP.AddressCSRRead(registerIndex);
+        }
+
+        [Export]
+        private int ExternalPMPGetAccess(ulong address, ulong size, int access_type)
+        {
+            if(externalPMP == null)
+            {
+                this.ErrorLog("Attempted to get permissions for address 0x{0:X} from external PMP but no external PMP is attached to the core, returning 0", address);
+                return 0;
+            }
+            return externalPMP.GetAccess(address, size, (AccessType)access_type);
+        }
+
+        [Export]
+        private int ExternalPMPGetOverlappingRegion(ulong address, ulong size, int startingIndex)
+        {
+            if(externalPMP == null)
+            {
+                this.ErrorLog("Attempted to get overlapping region for address 0x{0:X} from external PMP but no external PMP is attached to the core, returning -1", address);
+                return -1;
+            }
+            if(externalPMP.TryGetOverlappingRegion(address, size, (uint)startingIndex, out var overlappingIndex))
+            {
+                return (int)overlappingIndex;
+            }
+            else
+            {
+                return -1;
+            }
+        }
+
+        [Export]
+        private int ExternalPMPIsAnyRegionLocked()
+        {
+            if(externalPMP == null)
+            {
+                this.ErrorLog("Attempted to get if any region is locked from external PMP but no external PMP is attached to the core, returning false");
+                // Exported methods can't return bools
+                return 0;
+            }
+            return externalPMP.IsAnyRegionLocked() ? 1 : 0;
+        }
+
         private List<GDBFeatureDescriptor> gdbFeatures = new List<GDBFeatureDescriptor>();
 
         private ulong? nmiVectorAddress;
@@ -1015,6 +1131,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         private uint siselectValue;
 
         private CoreLocalInterruptController clic;
+
+        private ExternalPMPBase externalPMP;
 
         private bool pcWrittenFlag;
         private ulong resetVector = DefaultResetVector;
@@ -1077,6 +1195,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private readonly Action<uint> TlibSetPmpaddrBits;
+
+        [Import]
+        private readonly Action<bool> TlibEnableExternalPmp;
+
+        [Import]
+        private readonly Action<uint, ulong, ulong> TlibSetPmpaddr;
 
         [Import]
         private readonly Func<ulong, ulong, ulong, ulong> TlibInstallCustomInstruction;
