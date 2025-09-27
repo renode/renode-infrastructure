@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 
 using Antmicro.Renode.Utilities.Collections;
 
@@ -444,6 +445,12 @@ namespace Antmicro.Renode.Utilities.Packets
         // Separate function to prevent unintentional context capture when using a lambda, which completely destroys caching.
         private static int CalculateLengthCacheGenerator(Type t)
         {
+            t = t.IsEnum ? t.GetEnumUnderlyingType() : t;
+            if(t.IsPrimitive)
+            {
+                return Marshal.SizeOf(t);
+            }
+
             var fieldsAndProperties = GetFieldsAndProperties(t);
 
             var maxOffset = 0;
