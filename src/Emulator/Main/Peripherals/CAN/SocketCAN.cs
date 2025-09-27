@@ -127,7 +127,7 @@ namespace Antmicro.Renode.Core.CAN
         public int Length;
 
         // data
-        [PacketField, Offset(quadWords: 1), Width(MaxDataLength)]
+        [PacketField, Offset(quadWords: 1), Width(bytes: MaxDataLength)]
         public byte[] Data;
 #pragma warning restore 649
 
@@ -193,7 +193,7 @@ namespace Antmicro.Renode.Core.CAN
         public bool FlexibleDataRateFrame;
 
         // data
-        [PacketField, Offset(quadWords: 1), Width(MaxDataLength)]
+        [PacketField, Offset(quadWords: 1), Width(bytes: MaxDataLength)]
         public byte[] Data;
 #pragma warning restore 649
 
@@ -243,7 +243,7 @@ namespace Antmicro.Renode.Core.CAN
         public uint AcceptanceField;
 
         // data
-        [PacketField, Offset(doubleWords: 3), Width(MaxDataLength)]
+        [PacketField, Offset(doubleWords: 3), Width(bytes: MaxDataLength)]
         public byte[] Data;
 #pragma warning restore 649
 

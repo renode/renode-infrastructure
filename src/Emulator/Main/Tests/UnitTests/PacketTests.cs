@@ -385,7 +385,7 @@ namespace Antmicro.Renode.UnitTests
         private struct TestStructArray
         {
 #pragma warning disable 649
-            [PacketField, Width(4)]
+            [PacketField, Width(bytes: 4)]
             public byte[] Array;
 #pragma warning restore 649
         }
@@ -403,7 +403,7 @@ namespace Antmicro.Renode.UnitTests
         private struct TestStructArrayWithOffset
         {
 #pragma warning disable 649
-            [PacketField, Offset(bits: 1), Width(4)]
+            [PacketField, Offset(bits: 1), Width(bytes: 4)]
             public byte[] Array;
 #pragma warning restore 649
         }
@@ -434,7 +434,7 @@ namespace Antmicro.Renode.UnitTests
         private struct TestStructWithBytes
         {
 #pragma warning disable 649
-            [PacketField, Width(2)]
+            [PacketField, Width(bytes: 2)]
             public byte[] Field;
 #pragma warning restore 649
         }

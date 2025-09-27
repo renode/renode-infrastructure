@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
     // the USBIP.Header
     public struct AttachDeviceCommandDescriptor
     {
-        [PacketField, Width(32)]
+        [PacketField, Width(bytes: 32)]
         public byte[] BusId;
     }
 }

@@ -410,7 +410,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             [PacketField, Offset(doubleWords: 1, bits: 18), Width(11)] // ID (standard/extended)
             public uint StandardId;
             // bits 29:31 of 2nd double word are reserved
-            [PacketField, Offset(doubleWords: 2), Width(8)] // Data bytes
+            [PacketField, Offset(doubleWords: 2), Width(bytes: 8)] // Data bytes
             public byte[] Data;
             // double words from 4th to 23th are reserved
             // There is a table of ID filters with 128 double words elements starting at 24th
