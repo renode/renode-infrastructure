@@ -239,7 +239,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
                 {
                 case GCMOrCCMPhase.Initialization:
                     algorithmState.InitializeInitializationPhase(
-                        keys.Select(ks => (uint)ks.Value).Skip(keySizeToAesSkip[keySize.Value]).Reverse().SelectMany(e => BitConverter.GetBytes(e)).Reverse().ToArray(),
+                        AesKey,
                         initialVectors.Select(ks => (uint)ks.Value).Reverse().SelectMany(e => BitConverter.GetBytes(e)).Reverse().ToArray()
                     );
                     // According to the docs:
@@ -289,6 +289,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
             s.ExecuteWorkaround();
             return true;
         }
+
+        private byte[] AesKey => keys
+            .Select(ks => (uint)ks.Value)
+            .Skip(keySizeToAesSkip[keySize.Value])
+            .Reverse()
+            .SelectMany(e => BitConverter.GetBytes(e))
+            .Reverse()
+            .ToArray();
 
         private IFlagRegisterField outputFifoIrqMask;
         private IFlagRegisterField inputFifoIrqMask;
