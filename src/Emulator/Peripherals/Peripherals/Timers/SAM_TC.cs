@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -615,7 +615,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                     var value = timer.Value;
                     var limit = timer.Limit;
 
-                    if(direction == Direction.Ascending ? value > valueC : value < valueC)
+                    var pastCaptureValue = direction == Direction.Ascending ? value >= valueC : value <= valueC;
+                    if(pastCaptureValue)
                     {
                         cTimer.Enabled = false;
                         return;
