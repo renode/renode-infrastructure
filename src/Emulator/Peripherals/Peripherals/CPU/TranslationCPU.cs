@@ -54,7 +54,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     /// <see cref="TranslationCPU"/> implements <see cref="ICluster{T}"/> interface
     /// to seamlessly handle either cluster or CPU as a parameter to different methods.
     /// </summary>
-    public abstract partial class TranslationCPU : BaseCPU, ICluster<TranslationCPU>, IGPIOReceiver, ICpuSupportingGdb, ICPUWithExternalMmu, ICPUWithMMU, INativeUnwindable, ICPUWithMetrics, ICPUWithMappedMemory, ICPUWithRegisters, ICPUWithMemoryAccessHooks, IControllableCPU
+    public abstract partial class TranslationCPU : BaseCPU, ICluster<TranslationCPU>, IGPIOReceiver, ICpuSupportingGdb, ICPUWithExternalMmu, ICPUWithMMU, INativeUnwindable, ICPUWithMetrics, ICPUWithMappedMemory, ICPUWithRegisters, ICPUWithMemoryAccessHooks, IControllableCPU, IHasPreservableState
     {
         public void AddHookAtInterruptBegin(Action<ulong> hook)
         {
@@ -149,9 +149,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             if(!value)
             {
+                logFunctionNamesCurrentState = null;
                 SetInternalHookAtBlockBegin(null);
                 return;
             }
+            logFunctionNamesCurrentState = new LogFunctionNamesState(spaceSeparatedPrefixes, removeDuplicates, useFunctionSymbolsOnly);
 
             var prefixesAsArray = spaceSeparatedPrefixes.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
             // using string builder here is due to performance reasons: test shows that string.Format is much slower
@@ -368,6 +370,25 @@ namespace Antmicro.Renode.Peripherals.CPU
                     addressesToInvalidate.Clear();
                 }
             }
+        }
+
+        public void LoadPreservedState(object state)
+        {
+            if(!(state is TranslationCPUState cpuState))
+            {
+                throw new RecoverableException("Unexpected state received while loading preserved state");
+            }
+            isInterruptLoggingEnabled = cpuState.IsInterruptLoggingEnabled;
+            if(cpuState.LogFunctionNamesState.HasValue)
+            {
+                var logFunctionNamesState = cpuState.LogFunctionNamesState.Value;
+                LogFunctionNames(true, logFunctionNamesState.SpaceSeparatedPrefixes, logFunctionNamesState.RemoveDuplicates, logFunctionNamesState.UseFunctionSymbolsOnly);
+            }
+        }
+
+        public object ExtractPreservedState()
+        {
+            return new TranslationCPUState(logFunctionNamesCurrentState, isInterruptLoggingEnabled);
         }
 
         public override void Dispose()
@@ -828,6 +849,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         public abstract RegisterValue GetRegister(int register);
 
         public abstract IEnumerable<CPURegister> GetRegisters();
+
+        public string PreservableName => $"TranslationCPU:{this.GetName()}";
 
         public LLVMDisassembler Disassembler => disassembler;
 
@@ -2121,6 +2144,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private bool logTranslatedBlocks;
         private bool isInterruptLoggingEnabled;
+        private LogFunctionNamesState? logFunctionNamesCurrentState;
         private Action<ulong, uint> blockFinishedHook;
 
         [Transient]
@@ -2684,6 +2708,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             public bool IsNew { get; private set; }
 
+            public HashSet<Action<ICpuSupportingGdb, ulong>> Callbacks => new HashSet<Action<ICpuSupportingGdb, ulong>>(callbacks);
+
             private readonly ulong address;
             private readonly TranslationCPU cpu;
             private readonly HashSet<Action<ICpuSupportingGdb, ulong>> callbacks;
@@ -2695,6 +2721,35 @@ namespace Antmicro.Renode.Peripherals.CPU
             public ulong Start;
             public ulong Size;
             public IntPtr HostPointer;
+        }
+
+        private struct TranslationCPUState
+        {
+            public TranslationCPUState(LogFunctionNamesState? logFunctionNamesState, bool isInterruptLoggingEnabled)
+            {
+                LogFunctionNamesState = logFunctionNamesState;
+                IsInterruptLoggingEnabled = isInterruptLoggingEnabled;
+            }
+
+            public LogFunctionNamesState? LogFunctionNamesState { get; private set; }
+
+            public bool IsInterruptLoggingEnabled { get; private set; }
+        }
+
+        private struct LogFunctionNamesState
+        {
+            public LogFunctionNamesState(string spaceSeparatedPrefixes, bool removeDuplicates, bool useFunctionSymbolsOnly)
+            {
+                this.SpaceSeparatedPrefixes = spaceSeparatedPrefixes;
+                this.RemoveDuplicates = removeDuplicates;
+                this.UseFunctionSymbolsOnly = useFunctionSymbolsOnly;
+            }
+
+            public string SpaceSeparatedPrefixes { get; private set; }
+
+            public bool RemoveDuplicates { get; private set; }
+
+            public bool UseFunctionSymbolsOnly { get; private set; }
         }
 
         private delegate void TranslationBlockFetchCallback(ulong pc);
