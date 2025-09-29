@@ -78,6 +78,10 @@ namespace Antmicro.Renode.Utilities.GDB
 
         public bool GdbClientConnected => !commandsManager.CanAttachCPU;
 
+        public SocketServerProvider Terminal => terminal;
+
+        public CommandsManager CommandsManager => commandsManager;
+
         private GdbStub(IMachine machine, IEnumerable<ICpuSupportingGdb> cpus)
         {
             this.cpus = cpus;
