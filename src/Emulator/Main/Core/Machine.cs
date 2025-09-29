@@ -35,7 +35,7 @@ using Monitor = System.Threading.Monitor;
 
 namespace Antmicro.Renode.Core
 {
-    public class Machine : IMachine, IDisposable
+    public class Machine : IMachine, IDisposable, IHasPreservableState
     {
         public Machine(bool createLocalTimeSource = false)
         {
@@ -1149,6 +1149,59 @@ namespace Antmicro.Renode.Core
             return name;
         }
 
+        public object ExtractPreservedState()
+        {
+            var state = new MachinePreservedState();
+            state.GdbStubsLoggingState = new Dictionary<int, bool>();
+            state.GdbStubsConnections = new List<Tuple<IList<string>, SocketServerProvider>>();
+            state.Breakpoints = new Dictionary<int, ISet<Tuple<ulong, BreakpointType>>>();
+            state.Watchpoints = new Dictionary<int, IDictionary<WatchpointDescriptor, int>>();
+            foreach(var stub in GdbStubs.Values)
+            {
+                state.GdbStubsLoggingState[stub.Port] = stub.LogsEnabled;
+                state.GdbStubsConnections.Add(Tuple.Create<IList<string>, SocketServerProvider>(stub.AttachedCPUNames.ToList(), stub.Terminal));
+                state.Breakpoints[stub.Port] = stub.CommandsManager.Breakpoints;
+                state.Watchpoints[stub.Port] = stub.CommandsManager.Watchpoints;
+            }
+            return state;
+        }
+
+        public void LoadPreservedState(object state)
+        {
+            if(!(state is MachinePreservedState preservedState))
+            {
+                throw new RecoverableException("Unexpected state received while loading preserved state");
+            }
+
+            foreach(var stubConnection in preservedState.GdbStubsConnections)
+            {
+                StartGdbServer(stubConnection.Item2, stubConnection.Item1);
+            }
+
+            foreach(var stubLoggingState in preservedState.GdbStubsLoggingState)
+            {
+                EnableGdbLogging(stubLoggingState.Key, stubLoggingState.Value);
+            }
+
+            foreach(var stubBreakpoints in preservedState.Breakpoints)
+            {
+                foreach(var breakpoint in stubBreakpoints.Value)
+                {
+                    GdbStubs[stubBreakpoints.Key].CommandsManager.AddBreakpoint(breakpoint.Item1, breakpoint.Item2);
+                }
+            }
+
+            foreach(var stubWatchpoints in preservedState.Watchpoints)
+            {
+                foreach(var watchpoint in stubWatchpoints.Value)
+                {
+                    GdbStubs[stubWatchpoints.Key].CommandsManager.AddWatchpoint(watchpoint.Key, watchpoint.Value);
+                }
+            }
+        }
+
+        public string PreservableName => $"Machine:{this.ToString()}";
+
         public DateTime RealTimeClockStart
         {
             get
@@ -2086,6 +2139,14 @@ namespace Antmicro.Renode.Core
             {
                 return GetByName(name);
             }
+        }
+
+        private struct MachinePreservedState
+        {
+            public IList<Tuple<IList<string>, SocketServerProvider>> GdbStubsConnections;
+            public IDictionary<int, bool> GdbStubsLoggingState;
+            public IDictionary<int, IDictionary<WatchpointDescriptor, int>> Watchpoints;
+            public IDictionary<int, ISet<Tuple<ulong, BreakpointType>>> Breakpoints;
         }
 
         private enum State
