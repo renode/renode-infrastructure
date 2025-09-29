@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -48,6 +48,11 @@ namespace Antmicro.Renode.Peripherals.UART
                 var idleLineIn = (8 * 1000000) / BaudRate;
                 idleLineDetectedCancellationTokenSrc = new CancellationTokenSource();
                 machine.ScheduleAction(TimeInterval.FromMicroseconds(idleLineIn), _ => ReportIdleLineDetected(idleLineDetectedCancellationTokenSrc.Token), name: $"{nameof(STM32_UART)} Idle line detected");
+            }
+
+            if(dmaReceptionRequest.Value)
+            {
+                DMARequest.Blink();
             }
 
             Update();
@@ -99,7 +104,10 @@ namespace Antmicro.Renode.Peripherals.UART
                                         Parity.Odd) :
                                     Parity.None;
 
+        [DefaultInterrupt]
         public GPIO IRQ { get; } = new GPIO();
+
+        public GPIO DMARequest { get; } = new GPIO();
 
         [field: Transient]
         public event Action<byte> CharReceived;
@@ -193,6 +201,21 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTaggedFlag("LINEN", 14)
                 .WithReservedBits(15, 17)
             ;
+
+            Register.Control3.Define(this, name: "USART_CR3")
+                .WithTaggedFlag("EIE", 0)
+                .WithTaggedFlag("IREN", 1)
+                .WithTaggedFlag("IRLP", 2)
+                .WithTaggedFlag("HDSEL", 3)
+                .WithTaggedFlag("NACK", 4)
+                .WithTaggedFlag("SCEN", 5)
+                .WithFlag(6, out dmaReceptionRequest, name: "DMAR")
+                .WithTaggedFlag("DMAT", 7)
+                .WithTaggedFlag("RTSE", 8)
+                .WithTaggedFlag("CTSE", 9)
+                .WithTaggedFlag("CTSIE", 10)
+                .WithReservedBits(11, 21)
+            ;
         }
 
         private void ReportIdleLineDetected(CancellationToken ct)
@@ -228,6 +251,7 @@ namespace Antmicro.Renode.Peripherals.UART
         private IFlagRegisterField parityControlEnabled;
         private IFlagRegisterField usartEnabled;
         private IEnumRegisterField<StopBitsValues> stopBits;
+        private IFlagRegisterField dmaReceptionRequest;
 
         private IEnumRegisterField<OversamplingMode> oversamplingMode;
         private IFlagRegisterField transmitDataRegisterEmptyInterruptEnabled;
