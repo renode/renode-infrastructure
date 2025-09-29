@@ -43,6 +43,21 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
 
         public GPIO IRQ { get; } = new GPIO();
 
+        private static IEnumerable<uint> BytesToUIntAndSwapEndianness(byte[] bytes)
+        {
+            if(bytes.Length % 4 != 0)
+            {
+                // This should never happen, since AES blocks are 128 bits, but let's be sure
+                throw new InvalidOperationException($"{nameof(RSA_GCM_State)} cipher block is not a multiple of 4!");
+            }
+
+            for(var i = 0; i < bytes.Length; i += 4)
+            {
+                // Swap endianness here - and since output is "uint" - take 4 bytes
+                yield return BitHelper.ToUInt32(bytes, i, 4, false);
+            }
+        }
+
         private void DefineRegisters()
         {
             Registers.Control.Define(this)
@@ -298,6 +313,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
             .Reverse()
             .ToArray();
 
+        private bool IsEncryption => algorithmDirection.Value == false;
+
         private IFlagRegisterField outputFifoIrqMask;
         private IFlagRegisterField inputFifoIrqMask;
         private IFlagRegisterField outputFifoIrqRaw;
@@ -427,7 +444,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
                 byte[] output = new byte[BlockSizeInBytes];
                 var length = bytes.Length;
 
-                if(IsEncryption)
+                if(parent.IsEncryption)
                 {
                     payload.AddRange(bytes);
                 }
@@ -439,7 +456,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
                     return;
                 }
 
-                if(!IsEncryption)
+                if(!parent.IsEncryption)
                 {
                     payload.AddRange(output);
                 }
@@ -494,21 +511,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
                 parent.outputFIFO.EnqueueRange(BytesToUIntAndSwapEndianness(gcmTag.GetMac()));
             }
 
-            private IEnumerable<uint> BytesToUIntAndSwapEndianness(byte[] bytes)
-            {
-                if(bytes.Length % 4 != 0)
-                {
-                    // This should never happen, since AES blocks are 128 bits, but let's be sure
-                    throw new InvalidOperationException($"{nameof(RSA_GCM_State)} cipher block is not a multiple of 4!");
-                }
-
-                for(int i = 0; i < bytes.Length; i += 4)
-                {
-                    // Swap endianness here - and since output is "uint" - take 4 bytes
-                    yield return BitHelper.ToUInt32(bytes, i, 4, false);
-                }
-            }
-
             private bool CheckIfInitialized()
             {
                 if(isInitialized == false)
@@ -518,8 +520,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
                 }
                 return true;
             }
-
-            private bool IsEncryption => parent.algorithmDirection.Value == false;
 
             private bool isInitialized;
             private int payloadCounter;
