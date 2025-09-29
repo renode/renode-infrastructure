@@ -19,15 +19,25 @@ using AntShell.Terminal;
 namespace Antmicro.Renode.Analyzers
 {
     [Transient]
-    public class SocketUartAnalyzer : BasicPeripheralBackendAnalyzer<UARTBackend>, IExternal, IDisposable
+    public class SocketUartAnalyzer : BasicPeripheralBackendAnalyzer<UARTBackend>, IExternal, IDisposable, IDisconnectableState
     {
-        public override void AttachTo(UARTBackend backend)
+        public SocketUartAnalyzer()
         {
-            var ioProvider = new IOProvider();
+            ioProvider = new IOProvider();
             ioSource = new SimpleActiveIOSource();
             ioProvider.Backend = ioSource;
+            ioSource.ByteWritten += WriteToClient;
+        }
+
+        public override void AttachTo(UARTBackend backend)
+        {
             base.AttachTo(backend);
             (Backend as UARTBackend).BindAnalyzer(ioProvider);
+            if(server != null)
+            {
+                this.Log(LogLevel.Info, "Reopened socket UART terminal on port {0}", Port);
+                return;
+            }
             StartServer();
         }
 
@@ -49,6 +59,11 @@ namespace Antmicro.Renode.Analyzers
             server?.Stop();
         }
 
+        public void DisconnectState()
+        {
+            (Backend as UARTBackend).UnbindAnalyzer(ioProvider);
+        }
+
         public int? Port => server?.Port;
 
         public IUART UART => (Backend as UARTBackend)?.UART;
@@ -57,7 +72,7 @@ namespace Antmicro.Renode.Analyzers
         {
             server = new SocketServerProvider(true, false, serverName: "UartSocketTerminalServer");
             server.DataReceived += WriteToUart;
-            ioSource.ByteWritten += WriteToClient;
+            server.ConnectionAccepted += _ => Clear();
 
             server.Start(0);
             this.Log(LogLevel.Info, "Opened socket UART terminal on port {0}", Port);
@@ -73,8 +88,10 @@ namespace Antmicro.Renode.Analyzers
             ioSource.InvokeByteRead(c);
         }
 
-        private SimpleActiveIOSource ioSource;
         private SocketServerProvider server;
+
+        private readonly SimpleActiveIOSource ioSource;
+        private readonly IOProvider ioProvider;
 
         private class SimpleActiveIOSource : IActiveIOSource
         {
