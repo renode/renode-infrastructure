@@ -72,6 +72,8 @@ namespace Antmicro.Renode.Utilities.GDB
             remove => terminal.ConnectionAccepted -= value;
         }
 
+        public IEnumerable<string> AttachedCPUNames => cpus.Select(cpu => commandsManager.Machine.GetLocalName(cpu));
+
         public int Port => Terminal.Port.Value;
 
         public bool LogsEnabled { get; set; }
