@@ -41,7 +41,7 @@ namespace Antmicro.Renode.Peripherals.Bus
     /// </summary>
     [Icon("sysbus")]
     [ControllerMask(typeof(IPeripheral))]
-    public sealed partial class SystemBus : IBusController, IDisposable
+    public sealed partial class SystemBus : IBusController, IDisposable, IHasPreservableState
     {
         internal SystemBus(IMachine machine)
         {
@@ -684,6 +684,29 @@ namespace Antmicro.Renode.Peripherals.Bus
             EnablePeripheralAccessWrappers(busPeripheral, typeof(ReadLoggingWrapper<>), typeof(WriteLoggingWrapper<>), enable, "Logging", silent);
         }
 
+        public bool IsLoggingPeripheralAccessEnabled(IBusPeripheral busPeripheral)
+        {
+            return ArePeripheralAccessWrappersEnabled(busPeripheral, typeof(ReadLoggingWrapper<>), typeof(WriteLoggingWrapper<>));
+        }
+
+        public bool ArePeripheralAccessWrappersEnabled(IBusPeripheral busPeripheral, Type readWrapper, Type writeWrapper)
+        {
+            var enabled = false;
+            foreach(var peripherals in AllPeripherals)
+            {
+                peripherals.VisitAccessMethods(busPeripheral, pam =>
+                {
+                    enabled |= pam.HasWrappersOfType(readWrapper, writeWrapper);
+                    return pam;
+                });
+                if(enabled)
+                {
+                    return true;
+                }
+            }
+            return enabled;
+        }
+
         public void EnableAllPeripheralAccessWrappers(Type readWrapper, Type writeWrapper, bool enable = true, string name = null, bool silent = false)
         {
             foreach(var p in AllPeripherals.SelectMany(x => x.Peripherals))
@@ -1280,6 +1303,36 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
             delayedInvalidation = value;
         }
+
+        public object ExtractPreservedState()
+        {
+            return AllPeripherals.SelectMany(x => x.Peripherals)
+                    .Select(x => (IBusPeripheral)x.Peripheral)
+                    .Where(x => IsLoggingPeripheralAccessEnabled(x))
+                    .Select(x => x.GetName()).ToList();
+        }
+
+        public void LoadPreservedState(object state)
+        {
+            if(!(state is List<string> peripheralsWithEnabledLoggingNames))
+            {
+                throw new RecoverableException("Unexpected state received while loading preserved state");
+            }
+
+            var busPeripherals = AllPeripherals.SelectMany(x => x.Peripherals)
+                                    .Select(x => x.Peripheral)
+                                    .Cast<IBusPeripheral>()
+                                    .Distinct()
+                                    .ToDictionary(x => x.GetName(), x => x);
+
+            LogAllPeripheralsAccess(false, true);
+            foreach(var peripheralName in peripheralsWithEnabledLoggingNames)
+            {
+                LogPeripheralAccess(busPeripherals[peripheralName], true);
+            }
+        }
+
+        public string PreservableName => this.GetName();
 
         public UnhandledAccessBehaviour UnhandledAccessBehaviour { get; set; }
 
