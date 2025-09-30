@@ -220,6 +220,11 @@ reg_t get_register_value(Registers reg_number)
 
 void kvm_set_register_value(int reg_number, reg_t value)
 {
+    if (cpu->is_executing) {
+        kvm_logf(LOG_LEVEL_ERROR, "Cannot set register values when simulation is running");
+        return;
+    }
+
     uint64_t *ptr = NULL;
 
     if (is_special_register(reg_number)) {
@@ -258,6 +263,11 @@ void set_register_value(Registers reg_number, reg_t value)
 #define SECTOR_DESCRIPTOR_SETTER(name)                                                                              \
     void kvm_set_##name##_descriptor(uint64_t base, uint32_t limit, uint16_t selector, uint32_t flags)              \
     {                                                                                                               \
+        if (cpu->is_executing) {                                                                                    \
+            kvm_logf(LOG_LEVEL_ERROR, "Cannot set register values when simulation is running");                     \
+            return;                                                                                                 \
+        }                                                                                                           \
+                                                                                                                    \
         struct kvm_sregs *sregs = get_sregs();                                                                      \
                                                                                                                     \
         sregs->name.base = base;                                                                                    \
