@@ -297,41 +297,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             SetRegister(register, value);
         }
 
-        public void AddHook(ulong addr, CpuAddressHook hook)
-        {
-            lock(hooks)
-            {
-                if(!hooks.ContainsKey(addr))
-                {
-                    hooks[addr] = new HookDescriptor(this, addr);
-                }
+        public void AddHook(ulong addr, CpuAddressHook hook) => hooks.AddHook(addr, hook);
 
-                hooks[addr].AddCallback(hook);
-                this.DebugLog("Added hook @ 0x{0:X}", addr);
-            }
-        }
-
-        public void RemoveHook(ulong addr, CpuAddressHook hook)
-        {
-            lock(hooks)
-            {
-                HookDescriptor descriptor;
-                if(!hooks.TryGetValue(addr, out descriptor) || !descriptor.RemoveCallback(hook))
-                {
-                    this.Log(LogLevel.Warning, "Tried to remove not existing hook from address 0x{0:x}", addr);
-                    return;
-                }
-                if(descriptor.IsEmpty)
-                {
-                    hooks.Remove(addr);
-                }
-                if(!hooks.Any(x => !x.Value.IsActive))
-                {
-                    isAnyInactiveHook = false;
-                }
-                UpdateBlockBeginHookPresent();
-            }
-        }
+        public void RemoveHook(ulong addr, CpuAddressHook hook) => hooks.RemoveHook(addr, hook);
 
         public void OrderTranslationBlocksInvalidation(IntPtr start, IntPtr end, bool delayInvalidation = false)
         {
@@ -684,19 +652,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             });
         }
 
-        public void RemoveAllHooks()
-        {
-            lock(hooks)
-            {
-                foreach(var hook in hooks)
-                {
-                    TlibRemoveBreakpoint(hook.Key);
-                }
-                hooks.Clear();
-                isAnyInactiveHook = false;
-                UpdateBlockBeginHookPresent();
-            }
-        }
+        public void RemoveAllHooks() => hooks.RemoveAllHooks();
 
         public void RequestReturn()
         {
@@ -716,16 +672,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             ReportProgress(numberOfExecutedInstructions);
         }
 
-        public void ActivateNewHooks()
-        {
-            lock(hooks)
-            {
-                foreach(var newHook in hooks.Where(x => x.Value.IsNew))
-                {
-                    newHook.Value.Activate();
-                }
-            }
-        }
+        public void ActivateNewHooks() => hooks.ActivateNewHooks();
 
         public string DisassembleBlock(ulong addr = ulong.MaxValue, uint blockSize = 40, uint flags = 0)
         {
@@ -816,21 +763,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public void RemoveHooksAt(ulong addr)
-        {
-            lock(hooks)
-            {
-                if(hooks.Remove(addr))
-                {
-                    TlibRemoveBreakpoint(addr);
-                }
-                if(!hooks.Any(x => !x.Value.IsActive))
-                {
-                    isAnyInactiveHook = false;
-                }
-                UpdateBlockBeginHookPresent();
-            }
-        }
+        public void RemoveHooksAt(ulong addr) => hooks.RemoveHooksAt(addr);
 
         public new IEnumerator<TranslationCPU> GetEnumerator()
         {
@@ -1094,7 +1027,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             atomicId = -1;
             pauseGuard = new CpuThreadPauseGuard(this);
             decodedIrqs = new Dictionary<Interrupt, HashSet<int>>();
-            hooks = new Dictionary<ulong, HookDescriptor>();
+            hooks = new HookDescriptor(this);
             currentMappings = new List<SegmentMapping>();
             this.useMachineAtomicState = useMachineAtomicState;
             InitializeRegisters();
@@ -1418,7 +1351,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             if(result == ExecutionResult.StoppedAtBreakpoint)
             {
                 this.Trace();
-                ExecuteHooks(PC);
+                hooks.Execute(PC);
                 // it is necessary to deactivate hooks installed on this PC before
                 // calling `tlib_execute` again to avoid a loop;
                 // we need to do this because creating a breakpoint has caused special
@@ -1500,21 +1433,10 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private void UpdateBlockBeginHookPresent()
         {
-            TlibSetBlockBeginHookPresent((blockBeginInternalHook != null || blockBeginUserHook != null || IsSingleStepMode || isAnyInactiveHook) ? 1u : 0u);
+            TlibSetBlockBeginHookPresent((blockBeginInternalHook != null || blockBeginUserHook != null || IsSingleStepMode || hooks.IsAnyInactive) ? 1u : 0u);
         }
 
-        private void ReactivateHooks()
-        {
-            lock(hooks)
-            {
-                foreach(var inactive in hooks.Where(x => !x.Value.IsActive))
-                {
-                    inactive.Value.Activate();
-                }
-                isAnyInactiveHook = false;
-                UpdateBlockBeginHookPresent();
-            }
-        }
+        private void ReactivateHooks() => hooks.Reactivate();
 
         [Export]
         private uint IsInDebugMode()
@@ -1584,21 +1506,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             return MultiprocessingId;
         }
 
-        private void ExecuteHooks(ulong address)
-        {
-            lock(hooks)
-            {
-                HookDescriptor hookDescriptor;
-                if(!hooks.TryGetValue(address, out hookDescriptor))
-                {
-                    return;
-                }
-
-                this.DebugLog("Executing hooks registered at address 0x{0:X8}", address);
-                hookDescriptor.ExecuteCallbacks();
-            }
-        }
-
         private void TlibSetIrqWrapped(int number, bool state)
         {
             var decodedInterrupt = DecodeInterrupt(number);
@@ -1623,20 +1530,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        private void DeactivateHooks(ulong address)
-        {
-            lock(hooks)
-            {
-                HookDescriptor hookDescriptor;
-                if(!hooks.TryGetValue(address, out hookDescriptor))
-                {
-                    return;
-                }
-                hookDescriptor.Deactivate();
-                isAnyInactiveHook = true;
-                UpdateBlockBeginHookPresent();
-            }
-        }
+        private void DeactivateHooks(ulong address) => hooks.DeactivateHooks(address);
 
         [Export]
         private IntPtr Allocate(IntPtr size)
@@ -1746,10 +1640,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             this.DebugLog("Initialized store table of size {0} bits{1}!", StoreTableBits, deserializationSuffix);
 
             HandleRamSetup();
-            foreach(var hook in hooks)
-            {
-                TlibAddBreakpoint(hook.Key);
-            }
+            ActivateNewHooks();
             CyclesPerInstruction = 1;
         }
 
@@ -2160,8 +2051,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private bool disposed;
 
         private string logFile;
-        private bool isAnyInactiveHook;
-        private readonly Dictionary<ulong, HookDescriptor> hooks;
+        private readonly HookDescriptorBase hooks;
 
         private readonly AtomicState localAtomicState;
         private readonly bool useMachineAtomicState;
@@ -2552,6 +2442,19 @@ namespace Antmicro.Renode.Peripherals.CPU
             TargetExternal3 = 1 << 9,
         }
 
+        private class HookDescriptor : HookDescriptorBase
+        {
+            public HookDescriptor(ICpuSupportingGdb cpu) : base(cpu)
+            {
+            }
+
+            protected override void HookStateChangedCallback() => (cpu as TranslationCPU).UpdateBlockBeginHookPresent();
+
+            protected override void AddBreakpoint(ulong address) => (cpu as TranslationCPU).TlibAddBreakpoint(address);
+
+            protected override void RemoveBreakpoint(ulong address) => (cpu as TranslationCPU).TlibRemoveBreakpoint(address);
+        }
+
         private class SimpleMemoryManager
         {
             public SimpleMemoryManager(TranslationCPU parent)
@@ -2636,83 +2539,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             private readonly ConcurrentDictionary<IntPtr, long> ourPointers;
             private readonly TranslationCPU parent;
-        }
-
-        private class HookDescriptor
-        {
-            public HookDescriptor(TranslationCPU cpu, ulong address)
-            {
-                this.cpu = cpu;
-                this.address = address;
-                callbacks = new HashSet<CpuAddressHook>();
-                IsNew = true;
-            }
-
-            public void ExecuteCallbacks()
-            {
-                // As hooks can be removed inside the callback, .ToList()
-                // is required to avoid _Collection was modified_ exception.
-                foreach(var callback in callbacks.ToList())
-                {
-                    callback(cpu, address);
-                }
-            }
-
-            public void AddCallback(CpuAddressHook action)
-            {
-                callbacks.Add(action);
-            }
-
-            public bool RemoveCallback(CpuAddressHook action)
-            {
-                var result = callbacks.Remove(action);
-                if(result && IsEmpty)
-                {
-                    Deactivate();
-                }
-                return result;
-            }
-
-            /// <summary>
-            /// Activates the hook by installing it in tlib.
-            /// </summary>
-            public void Activate()
-            {
-                if(IsActive)
-                {
-                    return;
-                }
-
-                cpu.TlibAddBreakpoint(address);
-                IsActive = true;
-                IsNew = false;
-            }
-
-            /// <summary>
-            /// Deactivates the hook by removing it from tlib.
-            /// </summary>
-            public void Deactivate()
-            {
-                if(!IsActive)
-                {
-                    return;
-                }
-
-                cpu.TlibRemoveBreakpoint(address);
-                IsActive = false;
-            }
-
-            public bool IsEmpty { get { return !callbacks.Any(); } }
-
-            public bool IsActive { get; private set; }
-
-            public bool IsNew { get; private set; }
-
-            public HashSet<CpuAddressHook> Callbacks => new HashSet<CpuAddressHook>(callbacks);
-
-            private readonly ulong address;
-            private readonly TranslationCPU cpu;
-            private readonly HashSet<CpuAddressHook> callbacks;
         }
 
         [StructLayout(LayoutKind.Sequential, Pack = 1)]

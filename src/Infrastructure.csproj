@@ -875,6 +875,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/CPUCore.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/ExternalCPU.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/Synchronizer.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/CPU/HookDescriptor.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/Disassembler/IDisassembler.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/Registers/IRegisters.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/Registers/RegistersGroup.cs" />
