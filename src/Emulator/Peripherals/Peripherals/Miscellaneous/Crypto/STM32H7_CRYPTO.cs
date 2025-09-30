@@ -246,40 +246,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
                 algorithmState = new RSA_GCM_State(this);
                 currentMode = algorithmMode;
             }
-
-            try
-            {
-                this.Log(LogLevel.Debug, "Switching to GCM phase {0}", phaseGCMOrCCM.Value);
-                switch(phaseGCMOrCCM.Value)
-                {
-                case GCMOrCCMPhase.Initialization:
-                    algorithmState.InitializeInitializationPhase(
-                        AesKey,
-                        initialVectors.Select(ks => (uint)ks.Value).Reverse().SelectMany(e => BitConverter.GetBytes(e)).Reverse().ToArray()
-                    );
-                    // According to the docs:
-                    // "This bit is automatically cleared by hardware when the key preparation process ends (ALGOMODE = 0111) or after GCM/GMAC or CCM Initialization phase."
-                    enabled.Value = false;
-                    return;
-                case GCMOrCCMPhase.Header:
-                    algorithmState.InitializeHeaderPhase();
-                    return;
-                case GCMOrCCMPhase.Payload:
-                    algorithmState.InitializePayloadPhase();
-                    return;
-                case GCMOrCCMPhase.Final:
-                    algorithmState.InitializeFinalPhase();
-                    return;
-                default:
-                    throw new InvalidOperationException($"Invalid GCM phase: {phaseGCMOrCCM.Value}");
-                }
-            }
-            catch(Exception e)
-            {
-                this.Log(LogLevel.Error, "Cryptography backend failed with exception: {0}", e);
-                enabled.Value = false;
-                algorithmState = null;
-            }
+            algorithmState.InitializePhase();
         }
 
         private bool DetectGCMWorkaround(AlgorithmMode newMode)
@@ -328,7 +295,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
         private IEnumRegisterField<KeySize> keySize;
         private IEnumRegisterField<GCMOrCCMPhase> phaseGCMOrCCM;
 
-        private FourPhaseState algorithmState;
+        private AlgorithmState algorithmState;
         private AlgorithmMode currentMode;
 
         private readonly Dictionary<KeySize, int> keySizeToAesSkip = new Dictionary<KeySize, int>()
@@ -348,11 +315,49 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
 
         private const int MaximumFifoDepth = 8;
 
-        private class RSA_GCM_State : FourPhaseState
+        private class RSA_GCM_State : AlgorithmState
         {
             public RSA_GCM_State(STM32H7_CRYPTO parent)
             {
                 this.parent = parent;
+            }
+
+            public override void InitializePhase()
+            {
+                try
+                {
+                    var phase = parent.phaseGCMOrCCM.Value;
+                    parent.DebugLog("Switching to GCM phase {0}", phase);
+                    switch(phase)
+                    {
+                    case GCMOrCCMPhase.Initialization:
+                        InitializeInitializationPhase(
+                            parent.AesKey,
+                            parent.initialVectors.Select(ks => (uint)ks.Value).Reverse().SelectMany(e => BitConverter.GetBytes(e)).Reverse().ToArray()
+                        );
+                        // According to the docs:
+                        // "This bit is automatically cleared by hardware when the key preparation process ends (ALGOMODE = 0111)
+                        // or after GCM/GMAC or CCM Initialization phase."
+                        parent.enabled.Value = false;
+                        return;
+                    case GCMOrCCMPhase.Header:
+                        InitializeHeaderPhase();
+                        return;
+                    case GCMOrCCMPhase.Payload:
+                    case GCMOrCCMPhase.Final:
+                        // These phases are intentionally left blank.
+                        // Data for both phases will be fed through input FIFO.
+                        return;
+                    default:
+                        throw new InvalidOperationException($"Invalid GCM phase: {phase}");
+                    }
+                }
+                catch(Exception e)
+                {
+                    parent.ErrorLog("Cryptography backend failed with exception: {0}", e);
+                    parent.enabled.Value = false;
+                    parent.algorithmState = null;
+                }
             }
 
             public override void FeedThePhase(uint value)
@@ -378,7 +383,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
                 }
             }
 
-            public override void InitializeInitializationPhase(byte[] key, byte[] iv)
+            public void InitializeInitializationPhase(byte[] key, byte[] iv)
             {
                 parent.Log(LogLevel.Debug, "Initializing {0} with key: {1}, iv: {2}", nameof(RSA_GCM_State), Misc.PrettyPrintCollectionHex(key), Misc.PrettyPrintCollectionHex(iv));
 
@@ -394,7 +399,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
                 isInitialized = true;
             }
 
-            public override void InitializeHeaderPhase()
+            public void InitializeHeaderPhase()
             {
                 if(!CheckIfInitialized())
                 {
@@ -412,18 +417,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
                 // It's a symmetric cipher, it's stuck in encryption mode
                 // for BouncyCastle decryption will try to compare MAC and throw errors, this is not what we want here
                 gcm.Init(true, finalParameters);
-            }
-
-            public override void InitializePayloadPhase()
-            {
-                // Intentionally blank - the payload will be fed through input FIFO
-            }
-
-            public override void InitializeFinalPhase()
-            {
-                // The model is expecting to get the block describing the length of the header and payload
-                // And only afterwards will it return the computed MAC
-                // So this method is intentionally blank - will be fed through input FIFO
             }
 
             public void ExecuteWorkaround()
@@ -535,15 +528,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
             private const int MacSizeInBytes = BlockSizeInBytes;
         }
 
-        private abstract class FourPhaseState
+        private abstract class AlgorithmState
         {
-            public abstract void InitializeInitializationPhase(byte[] key, byte[] iv);
-
-            public abstract void InitializeHeaderPhase();
-
-            public abstract void InitializePayloadPhase();
-
-            public abstract void InitializeFinalPhase();
+            public abstract void InitializePhase();
 
             // Feed data from input FIFO
             public abstract void FeedThePhase(uint value);
