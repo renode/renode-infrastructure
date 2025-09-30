@@ -54,7 +54,16 @@ namespace Antmicro.Renode.Peripherals.Network
             {
                 {(long)Registers.NetworkControl, new DoubleWordRegister(this)
                     .WithTag("loopback", 0, 1)
-                    .WithTag("loopback_local", 1, 1)
+                    .WithFlag(1, FieldMode.Read | FieldMode.Write , name: "loopback_local",
+                        writeCallback: (_, value) =>
+                        {
+                            if(value)
+                            {
+                                this.Log(LogLevel.Warning, "isLoopback = true");
+                                isLoopback = true;
+                            }
+
+                        })
                     .WithFlag(2, out receiveEnabled, name: "enable_receive")
                     .WithFlag(3, name: "enable_transmit",
                         writeCallback: (_, value) =>
@@ -589,7 +598,14 @@ namespace Antmicro.Renode.Peripherals.Network
             }
 
             this.Log(LogLevel.Noisy, "Sending packet, length {0}", frame.Bytes.Length);
-            FrameReady?.Invoke(frame);
+            if(isLoopback)
+            {
+                ReceiveFrame(frame);
+            }
+            else
+            {
+                FrameReady?.Invoke(frame);
+            }
 
             // the time obtained here is not single-instruction-precise (unless maximum block size is set to 1 and block chaining is disabled),
             // because timers are not updated instruction-by-instruction, but in batches when `TranslationCPU.ExecuteInstructions` finishes
@@ -665,6 +681,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
         private uint phyDataRead;
         private bool isTransmissionStarted;
+        private bool isLoopback;
         private DmaBufferDescriptorsQueue<DmaTxBufferDescriptor> txDescriptorsQueue;
         private DmaBufferDescriptorsQueue<DmaRxBufferDescriptor> rxDescriptorsQueue;
 
