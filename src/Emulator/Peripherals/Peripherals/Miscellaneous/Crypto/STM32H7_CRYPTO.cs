@@ -20,7 +20,6 @@ using Org.BouncyCastle.Crypto.Parameters;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
 {
-    // NOTE: DMA interface is not implemented, supports only AES-GCM mode
     public class STM32H7_CRYPTO : BasicDoubleWordPeripheral, IKnownSize
     {
         public STM32H7_CRYPTO(IMachine machine) : base(machine)
@@ -42,7 +41,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
 
         public long Size => 0x400;
 
+        [DefaultInterrupt]
         public GPIO IRQ { get; } = new GPIO();
+
+        public GPIO OutDMA { get; } = new GPIO();
 
         private static IEnumerable<uint> BytesToUIntAndSwapEndianness(byte[] bytes)
         {
@@ -160,6 +162,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
                     name: "Data output"
                 );
 
+            Registers.DMAControl.Define(this)
+                .WithTaggedFlag("DIEN", 0)
+                .WithFlag(1, out dmaOutputEnable, name: "DOEN")
+                .WithReservedBits(2, 30)
+                .WithWriteCallback((_, __) => UpdateInterrupt());
+
             Registers.InterruptMaskSetClear.Define(this)
                 .WithFlag(0, out inputFifoIrqMask, name: "Input FIFO service interrupt mask (INIM)")
                 .WithFlag(1, out outputFifoIrqMask, name: "Output FIFO service interrupt mask (OUTIM)")
@@ -223,6 +231,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
                           || (inputFifoIrqRaw.Value && inputFifoIrqMask.Value);
             this.Log(LogLevel.Noisy, "IRQ set to {0}", status);
             IRQ.Set(status);
+
+            // We are triggering DMA transfer for every block written to outpu FIFO
+            OutDMA.Set(dmaOutputEnable.Value && outputFIFO.Count % AesBlockSizeInWords == 0);
         }
 
         private void EnableOrDisable()
@@ -312,6 +323,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
         private IFlagRegisterField outputFifoIrqRaw;
         private IFlagRegisterField inputFifoIrqRaw;
 
+        private IFlagRegisterField dmaOutputEnable;
+
         private IFlagRegisterField algorithmDirection;
         private IFlagRegisterField enabled;
         private IValueRegisterField algorithmModeLow;
@@ -340,6 +353,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
 
         private const int MaximumFifoDepth = 8;
         private const int AesBlockSizeInBytes = 128 / 8;
+        private const int AesBlockSizeInWords = AesBlockSizeInBytes / 4;
 
         private class AesEcbState : AlgorithmState
         {
@@ -648,7 +662,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
             Status = 0x4,
             DataInput = 0x8,
             DataOutput = 0xC,
-            // NOTE: DMA interface is not supported
             DMAControl = 0x10,
             InterruptMaskSetClear = 0x14,
             RawInterruptStatus = 0x18,
