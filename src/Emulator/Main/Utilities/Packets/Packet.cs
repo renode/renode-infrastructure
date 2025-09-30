@@ -484,10 +484,10 @@ namespace Antmicro.Renode.Utilities.Packets
         // Separate function for the same reasons as CalculateLengthCacheGenerator
         private static FieldPropertyInfoWrapper[] GetFieldsAndPropertiesCacheGenerator(Type t)
         {
-            return t.GetFields()
+            return t.GetFields(DefaultBindingFlags)
                 .Where(x => Attribute.IsDefined(x, typeof(PacketFieldAttribute)))
                 .Select(x => new FieldPropertyInfoWrapper(x))
-                .Union(t.GetProperties()
+                .Union(t.GetProperties(DefaultBindingFlags)
                     .Where(x => Attribute.IsDefined(x, typeof(PacketFieldAttribute)))
                     .Select(x => new FieldPropertyInfoWrapper(x))
                 ).OrderBy(x => x.Order).ToArray();
@@ -530,6 +530,7 @@ namespace Antmicro.Renode.Utilities.Packets
         }
 
         private static readonly SimpleCache cache = new SimpleCache();
+        private static readonly BindingFlags DefaultBindingFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
 
         private class FieldPropertyInfoWrapper
         {
