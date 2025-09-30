@@ -12,6 +12,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Utilities.Crypto;
 
 using Org.BouncyCastle.Crypto.Engines;
 using Org.BouncyCastle.Crypto.Modes;
@@ -236,17 +237,36 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
 
             var algorithmMode = (AlgorithmMode)((algorithmModeHigh.Value << 3) | algorithmModeLow.Value);
             // Switch algorithm, but only if not executing workaround
-            if((algorithmMode != currentMode || algorithmState == null) && !DetectGCMWorkaround(algorithmMode))
+            if(currentMode == AlgorithmMode.AES_GCM && DetectGCMWorkaround(algorithmMode))
             {
-                if(algorithmMode != AlgorithmMode.AES_GCM)
-                {
-                    this.Log(LogLevel.Error, "This model implements only: {0} mode but tried to configure it to {1}. Ignoring the operation", nameof(AlgorithmMode.AES_GCM), algorithmMode);
-                    return;
-                }
-                algorithmState = new RSA_GCM_State(this);
-                currentMode = algorithmMode;
+                algorithmState.InitializePhase();
+                return;
             }
-            algorithmState.InitializePhase();
+
+            switch(algorithmMode)
+            {
+            case AlgorithmMode.AES_ECB:
+                if(algorithmMode != currentMode || algorithmState == null)
+                {
+                    algorithmState = new AesEcbState(this);
+                    algorithmState.InitializePhase();
+                }
+                break;
+            case AlgorithmMode.AES_GCM:
+                if(algorithmMode != currentMode || algorithmState == null)
+                {
+                    algorithmState = new RSA_GCM_State(this);
+                }
+                algorithmState.InitializePhase();
+                break;
+            default:
+                this.ErrorLog(
+                    "This model doesn't support {0} mode, but was configured to use it. Ignoring the operation",
+                    algorithmMode
+                );
+                return;
+            }
+            currentMode = algorithmMode;
         }
 
         private bool DetectGCMWorkaround(AlgorithmMode newMode)
@@ -314,6 +334,48 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
         private readonly object executeLock = new object();
 
         private const int MaximumFifoDepth = 8;
+        private const int AesBlockSizeInBytes = 128 / 8;
+
+        private class AesEcbState : AlgorithmState
+        {
+            public AesEcbState(STM32H7_CRYPTO parent)
+            {
+                this.parent = parent;
+            }
+
+            public override void InitializePhase()
+            {
+                aesProvider = AesProvider.GetEcbProvider(parent.AesKey);
+            }
+
+            public override void FeedThePhase(uint value)
+            {
+                var bytes = BitConverter.GetBytes(value).Reverse().ToArray();
+                foreach(var b in bytes)
+                {
+                    buffer[bufferIdx++] = b;
+                    if(bufferIdx == AesBlockSizeInBytes)
+                    {
+                        var block = Block.WithCopiedBytes(buffer);
+                        bufferIdx = 0;
+                        if(parent.IsEncryption)
+                        {
+                            aesProvider.EncryptBlockInSitu(block);
+                        }
+                        else
+                        {
+                            aesProvider.DecryptBlockInSitu(block);
+                        }
+                        parent.outputFIFO.EnqueueRange(STM32H7_CRYPTO.BytesToUIntAndSwapEndianness(block.Buffer));
+                    }
+                }
+            }
+
+            private AesProvider aesProvider;
+
+            private int bufferIdx = 0;
+            private readonly byte[] buffer = new byte[AesBlockSizeInBytes];
+        }
 
         private class RSA_GCM_State : AlgorithmState
         {
@@ -434,7 +496,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
 
             private void ProcessPayload(byte[] bytes)
             {
-                byte[] output = new byte[BlockSizeInBytes];
+                byte[] output = new byte[AesBlockSizeInBytes];
                 var length = bytes.Length;
 
                 if(parent.IsEncryption)
@@ -442,7 +504,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
                     payload.AddRange(bytes);
                 }
                 gcm.ProcessBytes(bytes, 0, length, output, 0);
-                if((++payloadCounter % (BlockSizeInBytes / sizeof(uint))) != 0)
+                if((++payloadCounter % (AesBlockSizeInBytes / sizeof(uint))) != 0)
                 {
                     // Block size is 128 bits in AES-GCM, so we need to first process 4 uints worth of data
                     // before returning any data from the FIFO
@@ -496,7 +558,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
                 // This is discarded by the model, but the crypto backend needs the space to performs calculations
                 var output = new byte[payload.Count];
                 // This will contain both the MAC and the last cipherblock
-                var mac = new byte[BlockSizeInBytes + MacSizeInBytes];
+                var mac = new byte[AesBlockSizeInBytes + MacSizeInBytes];
 
                 // Payload is either ciphertext or plaintext, depending on the selected mode
                 gcmTag.ProcessBytes(payload.ToArray(), 0, (int)payloadLen, output, 0);
@@ -524,8 +586,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
             private KeyParameter keyParameters;
             private AeadParameters finalParameters;
 
-            private const int BlockSizeInBytes = 128 / 8;
-            private const int MacSizeInBytes = BlockSizeInBytes;
+            private const int MacSizeInBytes = AesBlockSizeInBytes;
         }
 
         private abstract class AlgorithmState
