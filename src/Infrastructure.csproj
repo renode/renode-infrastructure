@@ -334,6 +334,12 @@
     </None>
   </ItemGroup>
   <ItemGroup>
+    <None Include="Emulator/Cores/KVM/X86/X86_64KVMRegisters.tt" Condition="$(CurrentPlatform) == 'Linux' And $(Architecture) == 'i386'">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>X86_64KVMRegisters.cs</LastGenOutput>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
     <Compile Include="Emulator/Cores/Xtensa/Xtensa.cs" />
     <Compile Include="Emulator/Cores/Xtensa/XtensaRegisters.cs">
       <DependentUpon>XtensaRegisters.tt</DependentUpon>
