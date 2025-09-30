@@ -35,10 +35,32 @@ namespace Antmicro.Renode.Utilities.Packets
             return result;
         }
 
+        public static T DecodeSubclass<T>(IList<byte> data, Func<IList<byte>, Type> typeSelector, int dataOffset = 0)
+        {
+            if(!TryDecodeSubclass<T>(data, typeSelector, out var result, dataOffset))
+            {
+                var t = result.GetType();
+                throw new ArgumentException($"Could not decode the packet of type {t} due to insufficient data. Required {Packet.CalculateLength(t)} bytes, but received {(data.Count - dataOffset)}");
+            }
+            return result;
+        }
+
         public static bool TryDecode<T>(IList<byte> data, out T result, int dataOffset = 0)
         {
             var success = TryDecode(typeof(T), data, out var tryResult, dataOffset);
             result = (T)tryResult;
+            return success;
+        }
+
+        public static bool TryDecodeSubclass<T>(IList<byte> data, Func<IList<byte>, Type> typeSelector, out T result, int dataOffset = 0)
+        {
+            var type = typeSelector(data);
+            if(type == null || !(typeof(T).IsAssignableFrom(type)))
+            {
+                throw new ArgumentException($"Could not decode packet: subtype selector did not return a subtype of {typeof(T)}");
+            }
+            var success = TryDecode(type, data, out var resultObject, dataOffset);
+            result = (T)resultObject;
             return success;
         }
 
