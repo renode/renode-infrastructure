@@ -245,6 +245,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
 
             switch(algorithmMode)
             {
+            case AlgorithmMode.AES_key_prepare_EBC_CBC:
+                // After preparing keys HW should be disabled.
+                // In our case configuration is instantaneous so we disable the peripheral right away.
+                enabled.Value = false;
+                break;
             case AlgorithmMode.AES_ECB:
                 if(algorithmMode != currentMode || algorithmState == null)
                 {
