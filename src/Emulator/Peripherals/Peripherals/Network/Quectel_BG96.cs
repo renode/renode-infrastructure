@@ -1,9 +1,11 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System.Diagnostics.CodeAnalysis;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
@@ -185,9 +187,10 @@ namespace Antmicro.Renode.Peripherals.Network
             return Ok;
         }
 
+        [SuppressMessage("Usage", "IDE0060:Remove unused parameter", Justification = "Used out-of-tree")]
         // QICLOSE - Close a Socket Service
         [AtCommand("AT+QICLOSE", CommandType.Write)]
-        protected /* override */ Response Qiclose(int connectionId)
+        protected /* override */ Response Qiclose(int connectionId, int timeout = 10)
         {
             return base.Qiclose(connectionId);
         }
