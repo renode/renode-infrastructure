@@ -26,7 +26,7 @@ using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public abstract class BaseRiscV : TranslationCPU, IPeripheralContainer<ICFU, NumberRegistrationPoint<int>>, IPeripheralContainer<IIndirectCSRPeripheral, BusRangeRegistration>, ICPUWithPostOpcodeExecutionHooks, ICPUWithPostGprAccessHooks, ICPUWithNMI
+    public abstract class BaseRiscV : TranslationCPU, IPeripheralContainer<ICFU, NumberRegistrationPoint<int>>, IPeripheralContainer<IIndirectCSRPeripheral, BusRangeRegistration>, ICPUWithPostOpcodeExecutionHooks, ICPUWithPreOpcodeExecutionHooks, ICPUWithPostGprAccessHooks, ICPUWithNMI
     {
         public void Register(ICFU cfu, NumberRegistrationPoint<int> registrationPoint)
         {
@@ -83,6 +83,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         public void EnablePostOpcodeExecutionHooks(uint value)
         {
             TlibEnablePostOpcodeExecutionHooks(value != 0 ? 1u : 0u);
+        }
+
+        public void EnablePreOpcodeExecutionHooks(uint value)
+        {
+            TlibEnablePreOpcodeExecutionHooks(value != 0 ? 1u : 0u);
         }
 
         public ulong Vector(uint registerNumber, uint elementIndex, ulong? value = null)
@@ -165,6 +170,22 @@ namespace Antmicro.Renode.Peripherals.CPU
                                                 " One of them miss at least one element");
             }
             postOpcodeExecutionHooks.Add(action);
+        }
+
+        public void AddPreOpcodeExecutionHook(UInt64 mask, UInt64 value, Action<ulong, ulong> action)
+        {
+            var index = TlibInstallPreOpcodeExecutionHook(mask, value);
+            if(index == UInt32.MaxValue)
+            {
+                throw new RecoverableException("Unable to register opcode hook. Maximum number of hooks already installed");
+            }
+            // Assert that the list index will match the one returned from the core
+            if(index != preOpcodeExecutionHooks.Count)
+            {
+                throw new ApplicationException("Mismatch in the pre-execution opcode hooks on the C# and C side." +
+                                                " One of them miss at least one element");
+            }
+            preOpcodeExecutionHooks.Add(action);
         }
 
         public void RegisterCustomCSR(string name, ushort number, PrivilegeLevel mode)
@@ -463,6 +484,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             customOpcodes = new List<Tuple<string, ulong, ulong>>();
             postOpcodeExecutionHooks = new List<Action<ulong, ulong>>();
+            preOpcodeExecutionHooks = new List<Action<ulong, ulong>>();
             postGprAccessHooks = new Action<bool>[NumberOfGeneralPurposeRegisters];
 
             architectureDecoder = new ArchitectureDecoder(machine, this, cpuType, privilegeLevels);
@@ -901,14 +923,28 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         private void HandlePostOpcodeExecutionHook(UInt32 id, UInt64 pc, UInt64 opcode)
         {
-            this.NoisyLog($"Got opcode hook no {id} from PC {pc}");
+            this.NoisyLog($"Got post-opcode hook for opcode `0x{opcode:X}` with id {id} from PC {pc}");
             if(id < (uint)postOpcodeExecutionHooks.Count)
             {
                 postOpcodeExecutionHooks[(int)id].Invoke(pc, opcode);
             }
             else
             {
-                this.Log(LogLevel.Error, "Received opcode hook with non-existing id = {0}", id);
+                this.ErrorLog("Received post-opcode hook for opcode `0x{0:X}` with non-existing id = {1}", opcode, id);
+            }
+        }
+
+        [Export]
+        private void HandlePreOpcodeExecutionHook(UInt32 id, UInt64 pc, UInt64 opcode)
+        {
+            this.NoisyLog($"Got pre-opcode hook for opcode `0x{opcode:X}` with id {id} from PC {pc}");
+            if(id < (uint)preOpcodeExecutionHooks.Count)
+            {
+                preOpcodeExecutionHooks[(int)id].Invoke(pc, opcode);
+            }
+            else
+            {
+                this.ErrorLog("Received pre-opcode hook for opcode `0x{0:X}` with non-existing id = {1}", opcode, id);
             }
         }
 
@@ -982,6 +1018,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Constructor]
         private readonly List<Action<ulong, ulong>> postOpcodeExecutionHooks;
+
+        [Constructor]
+        private readonly List<Action<ulong, ulong>> preOpcodeExecutionHooks;
 
         [Transient]
         private readonly Action<bool>[] postGprAccessHooks;
@@ -1074,6 +1113,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private readonly Func<ulong, ulong, uint> TlibInstallPostOpcodeExecutionHook;
+
+        [Import]
+        private readonly Action<uint> TlibEnablePreOpcodeExecutionHooks;
+
+        [Import]
+        private readonly Func<ulong, ulong, uint> TlibInstallPreOpcodeExecutionHook;
 
         [Import]
         private readonly Action<uint> TlibEnablePostGprAccessHooks;

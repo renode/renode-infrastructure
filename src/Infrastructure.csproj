@@ -1589,6 +1589,7 @@
     <Compile Include="Emulator/Main/Peripherals/CPU/ICPUWithMappedMemory.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/ICPUWithRegisters.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/ICPUWithPostOpcodeExecutionHooks.cs" />
+    <Compile Include="Emulator/Main/Peripherals/CPU/ICPUWithPreOpcodeExecutionHooks.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/ICPUWithMemoryAccessHooks.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/ICPUWithPostGprAccessHooks.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/IHaltable.cs" />
