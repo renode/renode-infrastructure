@@ -4,6 +4,8 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
+
 using Antmicro.Renode.Logging.Profiling;
 using Antmicro.Renode.Utilities;
 
@@ -23,6 +25,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         None = 0,
         MemoryAccess = 1,
         RiscVVectorConfiguration = 2,
+        RiscVAtomicInstruction = 3,
     }
 
     public abstract class AdditionalData
@@ -110,6 +113,95 @@ namespace Antmicro.Renode.Peripherals.CPU
         public ulong OperationValue { get; }
 
         public MemoryOperation OperationType { get; }
+    }
+
+    public enum RiscVAtomicInstruction
+    {
+        ADD = 0x00,
+        SWAP = 0x01,
+        LR = 0x02,
+        SC = 0x03,
+        XOR = 0x04,
+        CAS = 0x05,
+        AND = 0x0C,
+        OR = 0x08,
+        MIN = 0x10,
+        MAX = 0x14,
+        MINU = 0x18,
+        MAXU = 0x1C,
+    }
+
+    public enum RiscVAtomicInstructionWidth
+    {
+        Word = 0x2,
+        DoubleWord = 0x3,
+        QuadWord = 0x4,
+    }
+
+    public class RiscVAtomicInstructionData : AdditionalData
+    {
+        public RiscVAtomicInstructionData(bool isAfterExecution, ulong pc, int funct5, ulong rd, ulong rs1, ulong rs2, RiscVAtomicInstructionWidth width, ulong memoryValue) : base(pc, AdditionalDataType.RiscVAtomicInstruction)
+        {
+            IsAfterExecution = isAfterExecution;
+            if(!Enum.IsDefined(typeof(RiscVAtomicInstruction), funct5))
+            {
+                throw new ArgumentOutOfRangeException(nameof(funct5), $"0x{funct5:X} is not a recognized AMO instruction");
+            }
+            Instruction = (RiscVAtomicInstruction)funct5;
+            Rd = rd;
+            Rs1 = rs1;
+            Rs2 = rs2;
+            Width = width;
+            MemoryValue = memoryValue;
+        }
+
+        public override string GetStringRepresentation()
+        {
+            var prePostText = IsAfterExecution ? "after" : "before";
+            return $"AMO operands {prePostText} - RD: 0x{Rd:X}, RS1: 0x{Rs1:X} (memory value: 0x{MemoryValue:X}), RS2: 0x{Rs2:X}";
+        }
+
+        public override byte[] GetBinaryRepresentation()
+        {
+            var register_width = 0;
+            switch(Width)
+            {
+            case RiscVAtomicInstructionWidth.Word:
+                register_width = sizeof(uint);
+                break;
+            case RiscVAtomicInstructionWidth.DoubleWord:
+                register_width = sizeof(ulong);
+                break;
+            case RiscVAtomicInstructionWidth.QuadWord:
+                throw new NotImplementedException("Support for 128-bit AMO execution tracing not yet implemented");
+            }
+
+            var output = new BitStream();
+
+            output.AppendBytesFromValue((byte)(IsAfterExecution ? 1 : 0), sizeof(byte), true);
+            output.AppendBytesFromValue((byte)Width, sizeof(byte), true);
+            output.AppendBytesFromValue((byte)Instruction, sizeof(byte), true);
+            output.AppendBytesFromValue(Rd, register_width, true);
+            output.AppendBytesFromValue(Rs1, register_width, true);
+            output.AppendBytesFromValue(Rs2, register_width, true);
+            output.AppendBytesFromValue(MemoryValue, register_width, true);
+
+            return output.AsByteArray();
+        }
+
+        public RiscVAtomicInstruction Instruction { get; }
+
+        public bool IsAfterExecution { get; }
+
+        public ulong Rd { get; }
+
+        public ulong Rs1 { get; }
+
+        public ulong Rs2 { get; }
+
+        public RiscVAtomicInstructionWidth Width { get; }
+
+        public ulong MemoryValue { get; }
     }
 
     public class RiscVVectorConfigurationData : AdditionalData

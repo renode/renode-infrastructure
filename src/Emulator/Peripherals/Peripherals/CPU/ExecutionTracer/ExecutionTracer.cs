@@ -16,6 +16,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Logging.Profiling;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -87,17 +88,37 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             if(!(AttachedCPU is ICPUWithPostOpcodeExecutionHooks) || !(AttachedCPU.Architecture.StartsWith("riscv")))
             {
-                throw new RecoverableException("This feature is not available on this platform");
+                throw new RecoverableException($"{nameof(TrackVectorConfiguration)} is not available on this platform");
             }
             var cpuWithPostOpcodeExecutionHooks = AttachedCPU as ICPUWithPostOpcodeExecutionHooks;
             cpuWithPostOpcodeExecutionHooks.EnablePostOpcodeExecutionHooks(1u);
             // 0x7057 it the fixed part of the vcfg opcodes
-            cpuWithPostOpcodeExecutionHooks.AddPostOpcodeExecutionHook(0x7057, 0x7057, (pc) =>
+            cpuWithPostOpcodeExecutionHooks.AddPostOpcodeExecutionHook(0x7057, 0x7057, (pc, _) =>
             {
                 var vl = AttachedCPU.GetRegister(RiscVVlRegisterIndex);
                 var vtype = AttachedCPU.GetRegister(RiscVVtypeRegisterIndex);
                 currentAdditionalData.Enqueue(new RiscVVectorConfigurationData(pc, vl.RawValue, vtype.RawValue));
             });
+        }
+
+        public void TrackRiscvAtomics()
+        {
+            const ulong amo = 0x2F; // The 'Zaamo' atomics all have the 'opcode' field as this.
+            const ulong opcode_mask = 0b1111111; // 7 bits
+
+            if(!(AttachedCPU is ICPUWithPreOpcodeExecutionHooks cpuWithPreOpcodeExecutionHooks) || !(AttachedCPU.Architecture.StartsWith("riscv")))
+            {
+                throw new RecoverableException($"{nameof(TrackRiscvAtomics)} pre-operands are not available on this platform");
+            }
+            cpuWithPreOpcodeExecutionHooks.EnablePreOpcodeExecutionHooks(1u);
+            cpuWithPreOpcodeExecutionHooks.AddPreOpcodeExecutionHook(opcode_mask, amo, (pc, opcode) => EnqueueRiscvAtomicOperands(pc, opcode, false));
+
+            if(!(AttachedCPU is ICPUWithPostOpcodeExecutionHooks cpuWithPostOpcodeExecutionHooks) || !(AttachedCPU.Architecture.StartsWith("riscv")))
+            {
+                throw new RecoverableException($"{nameof(TrackRiscvAtomics)} post-operands are not available on this platform");
+            }
+            cpuWithPostOpcodeExecutionHooks.EnablePostOpcodeExecutionHooks(1u);
+            cpuWithPostOpcodeExecutionHooks.AddPostOpcodeExecutionHook(opcode_mask, amo, (pc, opcode) => EnqueueRiscvAtomicOperands(pc, opcode, true));
         }
 
         public void Dispose()
@@ -171,6 +192,54 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        private void EnqueueRiscvAtomicOperands(ulong pc, ulong opcode, bool isAfterExecution)
+        {
+            var rd = BitHelper.GetValue(opcode, 7, 5);
+            var funct3 = BitHelper.GetValue(opcode, 12, 3);
+            var rs1 = BitHelper.GetValue(opcode, 15, 5);
+            var rs2 = BitHelper.GetValue(opcode, 20, 5);
+            var funct5 = (int)BitHelper.GetValue(opcode, 27, 5);
+            var rdValue = AttachedCPU.GetRegister((int)rd);
+            ulong rs1Value = AttachedCPU.GetRegister((int)rs1);
+            var rs2Value = AttachedCPU.GetRegister((int)rs2);
+
+            var width = (RiscVAtomicInstructionWidth)funct3;
+            if(!Enum.IsDefined(typeof(RiscVAtomicInstructionWidth), width))
+            {
+                throw new ArgumentOutOfRangeException(nameof(funct3), $"0x{funct3:X} is not a recognized AMO instruction width");
+            }
+
+            var address = rs1Value;
+            if(isAfterExecution)
+            {
+                // Use the same memory address for checking how the value has been changed.
+                // We can't simply use the current rs1 value, since it may have been overwritten,
+                // e.g., `amoadd a5, t3 (a5)` which overwrites rs1 since a5 is passed as both rd and rs1.
+                address = lastRiscvPreAtomicExecutionRs1Value;
+                lastRiscvPreAtomicExecutionRs1Value = -1u;
+            }
+            else
+            {
+                lastRiscvPreAtomicExecutionRs1Value = rs1Value;
+            }
+
+            // We don't care if translation fails here (the address is unchanged in this case)
+            AttachedCPU.TryTranslateAddress(address, MpuAccess.Read, out address);
+            ulong? memoryValue = null;
+            switch(width)
+            {
+            case RiscVAtomicInstructionWidth.Word:
+                memoryValue = AttachedCPU.GetMachine().SystemBus.ReadDoubleWord(address, AttachedCPU);
+                break;
+            case RiscVAtomicInstructionWidth.DoubleWord:
+                memoryValue = AttachedCPU.GetMachine().SystemBus.ReadQuadWord(address, AttachedCPU);
+                break;
+            case RiscVAtomicInstructionWidth.QuadWord:
+                throw new NotImplementedException("Support for 128-bit AMO execution tracing not yet implemented");
+            }
+            currentAdditionalData.Enqueue(new RiscVAtomicInstructionData(isAfterExecution, pc, funct5, rdValue, rs1Value, rs2Value, width, memoryValue ?? throw new InvalidOperationException($"{nameof(memoryValue)} must be set")));
+        }
+
         private void WriterThreadBody()
         {
             while(true)
@@ -242,6 +311,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private BlockingCollection<Block> blocks;
         private Queue<AdditionalData> currentAdditionalData;
+        private RegisterValue lastRiscvPreAtomicExecutionRs1Value = -1u;
         private bool wasStarted;
         private bool wasStopped;
         private readonly bool isSynchronous;
