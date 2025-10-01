@@ -1092,6 +1092,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 // NullRegistrationPoint peripherals are not mapped on the bus and
                 // are not directly accessible from the emulated software.
                 Machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
+                AddContextKeys(peripheral);
             }
         }
 
@@ -1960,6 +1961,8 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
 
             peripheralRegistered = true;
+            // Now enable this peripheral to use itself as a context
+            AddContextKeys(peripheral);
         }
 
         /// <summary>
@@ -2508,7 +2511,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 globalAllAccess = globalValue[StateMask.AllAccess] = defaultFactory();
             }
 
-            // Adding the context key might happen on peripheral registration, or on first use.
+            // Adding the context key happens on peripheral registration.
             public void AddContextKey(IPeripheral key)
             {
                 if(key == null)
