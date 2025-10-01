@@ -1534,6 +1534,7 @@
     <Compile Include="Emulator/Main/Peripherals/IRQControllers/IIRQController.cs" />
     <Compile Include="Emulator/Main/Utilities/AdHocCompiler.cs" />
     <Compile Include="Emulator/Main/Core/EmulationManager.cs" />
+    <Compile Include="Emulator/Main/Core/PreservableManager.cs" />
     <Compile Include="Emulator/Main/Core/PeripheralTreeEntry.cs" />
     <Compile Include="Emulator/Main/Logging/ILoggerBackend.cs" />
     <Compile Include="Emulator/Main/Logging/Logger.cs" />
@@ -1956,6 +1957,9 @@
     <Compile Include="Emulator/Main/Peripherals/Bus/Wrappers/PeripheralAccessProfiler.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/STM32_DMAMUX.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/DMA/STM32DMA.cs" />
+    <Compile Include="Emulator/Main/Core/IPreservable.cs" />
+    <Compile Include="Emulator/Main/Core/IHasPreservableState.cs" />
+    <Compile Include="Emulator/Main/Core/IDisconnectableState.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Emulator/Main/Peripherals/Bus/SystemBusGenerated.tt">
