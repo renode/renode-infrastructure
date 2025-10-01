@@ -141,7 +141,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             status_ens_bit.Value = IsUsed;
         }
 
-        partial void Status_Hwreq_ValueProvider(bool _)
+        partial void Status_Hwreq_ValueProvider(bool a)
         {
             status_hwreq_bit.Value = cmu.OscHfxoRequested && cmu.OscHfxoEnabled;
         }
