@@ -151,7 +151,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public void AddPostOpcodeExecutionHook(UInt64 mask, UInt64 value, Action<ulong> action)
+        public void AddPostOpcodeExecutionHook(UInt64 mask, UInt64 value, Action<ulong, ulong> action)
         {
             var index = TlibInstallPostOpcodeExecutionHook(mask, value);
             if(index == UInt32.MaxValue)
@@ -462,7 +462,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             ChildCollection = new Dictionary<int, ICFU>();
 
             customOpcodes = new List<Tuple<string, ulong, ulong>>();
-            postOpcodeExecutionHooks = new List<Action<ulong>>();
+            postOpcodeExecutionHooks = new List<Action<ulong, ulong>>();
             postGprAccessHooks = new Action<bool>[NumberOfGeneralPurposeRegisters];
 
             architectureDecoder = new ArchitectureDecoder(machine, this, cpuType, privilegeLevels);
@@ -899,12 +899,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        private void HandlePostOpcodeExecutionHook(UInt32 id, UInt64 pc)
+        private void HandlePostOpcodeExecutionHook(UInt32 id, UInt64 pc, UInt64 opcode)
         {
             this.NoisyLog($"Got opcode hook no {id} from PC {pc}");
             if(id < (uint)postOpcodeExecutionHooks.Count)
             {
-                postOpcodeExecutionHooks[(int)id].Invoke(pc);
+                postOpcodeExecutionHooks[(int)id].Invoke(pc, opcode);
             }
             else
             {
@@ -981,7 +981,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private readonly Dictionary<BusRangeRegistration, IIndirectCSRPeripheral> indirectCsrPeripherals;
 
         [Constructor]
-        private readonly List<Action<ulong>> postOpcodeExecutionHooks;
+        private readonly List<Action<ulong, ulong>> postOpcodeExecutionHooks;
 
         [Transient]
         private readonly Action<bool>[] postGprAccessHooks;
