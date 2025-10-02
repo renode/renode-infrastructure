@@ -183,6 +183,10 @@ namespace Antmicro.Renode.Utilities.GDB
 
         public ICpuSupportingGdb Cpu => selectedCpu;
 
+        public HashSet<Tuple<ulong, BreakpointType>> Breakpoints => GetOrCreateCommand<BreakpointCommand>().Breakpoints;
+
+        public Dictionary<WatchpointDescriptor, int> Watchpoints => GetOrCreateCommand<BreakpointCommand>().Watchpoints;
+
         private static GDBFeatureDescriptor UnifyFeature(List<GDBFeatureDescriptor> featureVariations)
         {
             if(featureVariations.Count == 1)
