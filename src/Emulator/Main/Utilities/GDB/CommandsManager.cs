@@ -247,6 +247,11 @@ namespace Antmicro.Renode.Utilities.GDB
             return true;
         }
 
+        private T GetOrCreateCommand<T>() where T : Command
+        {
+            return GetOrCreateCommand(typeof(T)) as T;
+        }
+
         private Command GetOrCreateCommand(Type t)
         {
             var result = activeCommands.SingleOrDefault(x => x.GetType() == t);
