@@ -130,6 +130,10 @@ namespace Antmicro.Renode.Utilities.Packets
                     {
                         throw new ArgumentException("Bit offset for array is not supported.");
                     }
+                    if(!elementType.IsPrimitive || elementType == typeof(bool))
+                    {
+                        throw new ArgumentException($"Decoding {elementType}[] is not currently supported (only non-bool primitives)");
+                    }
 
                     var width = field.Width;
                     if(offset + width > data.Count)
@@ -305,6 +309,10 @@ namespace Antmicro.Renode.Utilities.Packets
                     if(bitOffset != 0)
                     {
                         throw new ArgumentException("Bit offset for array is not supported.");
+                    }
+                    if(!elementType.IsPrimitive || elementType == typeof(bool))
+                    {
+                        throw new ArgumentException($"Encoding {elementType}[] is not currently supported (only non-bool primitives)");
                     }
 
                     var width = field.Width;
