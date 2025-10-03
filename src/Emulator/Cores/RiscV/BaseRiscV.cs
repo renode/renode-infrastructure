@@ -570,12 +570,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             return registers;
         }
 
-        [Export]
-        protected virtual void HandlePreStackAccessHook(ulong address, uint width, uint isWrite)
-        {
-            PreStackAccess?.Invoke(address, width, isWrite > 0);
-        }
-
         protected bool TrySetCustomCSR(int register, RegisterValue value)
         {
             if(!nonstandardCSR.ContainsKey((ulong)register))
@@ -639,6 +633,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             pcWrittenFlag = true;
         }
 
+        protected virtual void PreStackAccessHook(ulong address, uint width, bool isWrite)
+        {
+            PreStackAccess?.Invoke(address, width, isWrite);
+        }
+
         protected bool IsInterrupt(ulong exceptionIndex)
         {
             return BitHelper.IsBitSet(exceptionIndex, MostSignificantBit);
@@ -691,6 +690,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             return irq == (int)IrqType.UserExternalInterrupt
                 || irq == (int)IrqType.UserSoftwareInterrupt
                 || irq == (int)IrqType.UserTimerInterrupt;
+        }
+
+        [Export]
+        private void HandlePreStackAccessHook(ulong address, uint width, uint isWrite)
+        {
+            PreStackAccessHook(address, width, isWrite > 0);
         }
 
         private RegisterValue HandleMTVEC_STVECWrite(RegisterValue value, string registerName)
