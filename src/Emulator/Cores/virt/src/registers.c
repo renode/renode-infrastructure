@@ -169,6 +169,10 @@ uint64_t *get_sreg_pointer(struct kvm_sregs *sregs, int reg)
     }
 }
 
+static bool is_executing_thread() {
+    return gettid() == cpu->tid;
+}
+
 static bool is_special_register(int reg_number) {
     return reg_number >= CS;
 }
@@ -187,6 +191,10 @@ reg_t kvm_get_register_value(int reg_number)
 {
     uint64_t* ptr = NULL;
 
+    if (cpu->is_executing && !is_executing_thread()) {
+        kvm_logf(LOG_LEVEL_WARNING, "Register values are undefined when machine is running");
+    }
+    
     if (is_special_register(reg_number)) {
         struct kvm_sregs *sregs = get_sregs();
         ptr = get_sreg_pointer(sregs, reg_number);
