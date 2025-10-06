@@ -228,6 +228,17 @@ namespace Antmicro.Renode.Utilities
                 : $"[{(string.Join(", ", collection.Select(x => formatter == null ? x.ToString() : formatter(x))))}]";
         }
 
+        public static string ToDebugString(this object obj)
+        {
+            var t = obj.GetType();
+            return Misc.PrettyPrintCollection(t.GetProperties().Select(p => (MemberInfo)p).Concat(t.GetFields().Select(f => (MemberInfo)f)).Select(f =>
+                {
+                    var value = f is FieldInfo fi ? fi.GetValue(obj) : (f as PropertyInfo).GetValue(obj);
+                    var valueStr = ((value?.GetType()?.IsEnum ?? false) || value is bool || value as int? <= 9 || value as ulong? <= 9) ? value.ToString() : $"0x{value:x}";
+                    return $"{f.Name} = {valueStr}";
+                }));
+        }
+
         public static void FlipFlag<TEnum>(ref TEnum value, TEnum flag, bool state)
         {
             if(!typeof(TEnum).IsEnum)
