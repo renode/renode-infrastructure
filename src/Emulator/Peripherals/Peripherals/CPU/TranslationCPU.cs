@@ -32,6 +32,7 @@ using Antmicro.Renode.Utilities.Binding;
 using ELFSharp.ELF;
 
 using Range = Antmicro.Renode.Core.Range;
+using Machine = Antmicro.Renode.Core.Machine;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -484,7 +485,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             if(AssertMmuEnabled() && AssertMmuWindowAddressInRange(endAddress, inclusiveRange: true))
             {
-                bool useInclusiveEndRange= false;
+                bool useInclusiveEndRange = false;
                 // Overflow on 64bits currently not possible due to type constraints
                 if(this.bitness == CpuBitness.Bits32)
                 {
@@ -1054,7 +1055,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             hooks = new Dictionary<ulong, HookDescriptor>();
             currentMappings = new List<SegmentMapping>();
             InitializeRegisters();
-            Init();
+            Init(afterDeserialization: false);
             InitDisas();
             Clustered = new TranslationCPU[] { this };
         }
@@ -1635,7 +1636,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             RebuildMemoryMappings();
         }
 
-        private void Init()
+        private void Init(bool afterDeserialization = false)
         {
             memoryManager = new SimpleMemoryManager(this);
             isPaused = true;
@@ -1689,10 +1690,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             if(machine != null)
             {
                 atomicId = TlibAtomicMemoryStateInit(machine.AtomicMemoryStatePointer, atomicId);
-                if(atomicId == -1)
+                if (atomicId == -1)
                 {
                     throw new ConstructionException("Failed to initialize atomic state, see the log for details");
                 }
+
+                TlibStoreTableInit(machine.StoreTablePointer, (byte)Machine.StoreTableBits, afterDeserialization ? 1 : 0);
             }
             HandleRamSetup();
             foreach(var hook in hooks)
@@ -1929,7 +1932,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         [LatePostDeserialization]
         private void RestoreState()
         {
-            Init();
+            Init(afterDeserialization: true);
             // TODO: state of the reset events
             FreeState();
             if(memoryAccessHook != null)
@@ -2232,6 +2235,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private readonly Func<IntPtr, int, int> TlibAtomicMemoryStateInit;
+
+        [Import]
+        private readonly Func<IntPtr, byte, int, int> TlibStoreTableInit;
 
         [Import]
         private readonly Action<uint> TlibSetSyncPcEveryInstructionDisabled;

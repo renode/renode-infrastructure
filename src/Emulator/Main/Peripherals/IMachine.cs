@@ -145,6 +145,8 @@ namespace Antmicro.Renode.Core
 
         IntPtr AtomicMemoryStatePointer { get; }
 
+        IntPtr StoreTablePointer { get; }
+
         IClockSource ClockSource { get; }
 
         bool HasRecorder { get; }
