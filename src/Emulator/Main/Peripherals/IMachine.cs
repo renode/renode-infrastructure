@@ -71,8 +71,6 @@ namespace Antmicro.Renode.Core
 
         void HandleTimeProgress(TimeInterval diff);
 
-        void InitAtomicMemoryState();
-
         bool IsRegistered(IPeripheral peripheral);
 
         IManagedThread ObtainManagedThread(Action action, uint frequency, string name = "managed thread", IEmulationElement owner = null, Func<bool> stopCondition = null);
@@ -146,6 +144,8 @@ namespace Antmicro.Renode.Core
         IntPtr AtomicMemoryStatePointer { get; }
 
         IntPtr StoreTablePointer { get; }
+
+        int StoreTableBits { get; }
 
         IClockSource ClockSource { get; }
 

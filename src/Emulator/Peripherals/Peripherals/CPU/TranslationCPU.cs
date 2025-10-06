@@ -32,7 +32,6 @@ using Antmicro.Renode.Utilities.Binding;
 using ELFSharp.ELF;
 
 using Range = Antmicro.Renode.Core.Range;
-using Machine = Antmicro.Renode.Core.Machine;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -1695,7 +1694,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     throw new ConstructionException("Failed to initialize atomic state, see the log for details");
                 }
 
-                TlibStoreTableInit(machine.StoreTablePointer, (byte)Machine.StoreTableBits, afterDeserialization ? 1 : 0);
+                TlibStoreTableInit(machine.StoreTablePointer, (byte)machine.StoreTableBits, afterDeserialization ? 1 : 0);
             }
             HandleRamSetup();
             foreach(var hook in hooks)

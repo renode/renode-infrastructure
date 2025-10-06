@@ -1477,6 +1477,7 @@
     <Compile Include="Emulator/Main/Peripherals/Bus/BusRangeRegistration.cs" />
     <Compile Include="Emulator/Main/Peripherals/Bus/BusParametrizedRegistration.cs" />
     <Compile Include="Emulator/Main/Core/Machine.cs" />
+    <Compile Include="Emulator/Main/Core/AtomicState.cs" />
     <Compile Include="Emulator/Main/Peripherals/Bus/IBusPeripheral.cs" />
     <Compile Include="Emulator/Main/Peripherals/PCI/IPCIPeripheral.cs" />
     <Compile Include="Emulator/Main/Peripherals/PCI/IPCIePeripheral.cs" />
