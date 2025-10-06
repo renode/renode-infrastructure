@@ -479,9 +479,10 @@ namespace Antmicro.Renode.Peripherals.CPU
             InterruptMode interruptMode = InterruptMode.Auto,
             uint minimalPmpNapotInBytes = 8,
             uint pmpNumberOfAddrBits = 32,
-            PrivilegeLevels privilegeLevels = PrivilegeLevels.MachineSupervisorUser
+            PrivilegeLevels privilegeLevels = PrivilegeLevels.MachineSupervisorUser,
+            bool useMachineAtomicState = true
         )
-            : base(hartId, cpuType, machine, endianness, bitness)
+            : base(hartId, cpuType, machine, endianness, bitness, useMachineAtomicState)
         {
             HartId = hartId;
             this.timeProvider = timeProvider;

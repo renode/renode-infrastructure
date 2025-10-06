@@ -8,7 +8,6 @@
 using System;
 using System.Linq;
 using System.Numerics;
-using System.Reflection;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -76,7 +75,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             DoneIRQ = new GPIO();
             FatalAlert = new GPIO();
             RecoverableAlert = new GPIO();
-            core = InitOtbnCore(instructionsMemory, dataMemory);
+            core = new OpenTitan_BigNumberAcceleratorCore(this, instructionsMemory, dataMemory, machine);
 
             DefineRegisters();
             Reset();
@@ -384,31 +383,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
 
             this.Log(LogLevel.Debug, "Execution finished");
-        }
-
-        private IOpenTitan_BigNumberAcceleratorCore InitOtbnCore(OpenTitan_ScrambledMemory iMem, OpenTitan_ScrambledMemory dMem)
-        {
-            // As the binary with needed type is included during the runtime we must use reflection
-            Type coreType = null;
-            foreach(Assembly asm in AppDomain.CurrentDomain.GetAssemblies())
-            {
-                if(asm.FullName.StartsWith("Infrastructure"))
-                {
-                    coreType = asm.GetType("Antmicro.Renode.Peripherals.CPU.OpenTitan_BigNumberAcceleratorCore", false);
-                    if(coreType != null)
-                    {
-                        break;
-                    }
-                }
-            }
-
-            if(coreType == null)
-            {
-                throw new ConstructionException($"Couldn't find the OpenTitan_BigNumberAcceleratorCore class. Check your Renode installation");
-            }
-
-            var constructor = coreType.GetConstructor(new Type[] { typeof(OpenTitan_BigNumberAccelerator), typeof(OpenTitan_ScrambledMemory), typeof(OpenTitan_ScrambledMemory) });
-            return (IOpenTitan_BigNumberAcceleratorCore)constructor.Invoke(new object[] { this, iMem, dMem });
         }
 
         private IFlagRegisterField badDataAddressError;

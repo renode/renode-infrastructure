@@ -374,6 +374,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             base.Dispose();
             profiler?.Dispose();
+            localAtomicState?.Dispose();
         }
 
         public void SetHookAtBlockEnd(Action<ulong, uint> hook)
@@ -1045,14 +1046,21 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
         }
 
-        protected TranslationCPU(uint id, string cpuType, IMachine machine, Endianess endianness, CpuBitness bitness = CpuBitness.Bits32)
+        protected TranslationCPU(uint id, string cpuType, IMachine machine, Endianess endianness, CpuBitness bitness = CpuBitness.Bits32, bool useMachineAtomicState = true)
             : base(id, cpuType, machine, endianness, bitness)
         {
+            if(!useMachineAtomicState)
+            {
+                // Create unique instance of atomic state for cpu that should not use the shared state.
+                localAtomicState = new AtomicState(this, 61); // 64 - 3 = 61, 2^3 = 8 bytes, the minimal size.
+            }
+
             atomicId = -1;
             pauseGuard = new CpuThreadPauseGuard(this);
             decodedIrqs = new Dictionary<Interrupt, HashSet<int>>();
             hooks = new Dictionary<ulong, HookDescriptor>();
             currentMappings = new List<SegmentMapping>();
+            this.useMachineAtomicState = useMachineAtomicState;
             InitializeRegisters();
             Init(afterDeserialization: false);
             InitDisas();
@@ -1686,16 +1694,18 @@ namespace Antmicro.Renode.Peripherals.CPU
                 var externalMmuStatePtr = TlibExportExternalMmuState();
                 Marshal.Copy(externalMmuState, 0, externalMmuStatePtr, externalMmuState.Length);
             }
-            if(machine != null)
-            {
-                atomicId = TlibAtomicMemoryStateInit(machine.AtomicMemoryStatePointer, atomicId);
-                if (atomicId == -1)
-                {
-                    throw new ConstructionException("Failed to initialize atomic state, see the log for details");
-                }
 
-                TlibStoreTableInit(machine.StoreTablePointer, (byte)machine.StoreTableBits, afterDeserialization ? 1 : 0);
+            atomicId = TlibAtomicMemoryStateInit(AtomicMemoryStatePointer, atomicId);
+            if(atomicId == -1)
+            {
+                throw new ConstructionException("Failed to initialize atomic state, see the log for details");
             }
+
+            var deserializationSuffix = afterDeserialization ? " after deserialization" : "";
+            this.DebugLog("Initializing store table of size {0} bits{1}...", StoreTableBits, deserializationSuffix);
+            TlibStoreTableInit(StoreTablePointer, (byte)StoreTableBits, afterDeserialization ? 1 : 0);
+            this.DebugLog("Initialized store table of size {0} bits{1}!", StoreTableBits, deserializationSuffix);
+
             HandleRamSetup();
             foreach(var hook in hooks)
             {
@@ -2039,6 +2049,21 @@ namespace Antmicro.Renode.Peripherals.CPU
             this.Log(LogLevel.Info, "End of the interrupt: {0}", GetExceptionDescription(exceptionIndex));
         }
 
+        private IntPtr AtomicMemoryStatePointer =>
+            useMachineAtomicState
+                ? machine.AtomicMemoryStatePointer
+                : localAtomicState.AtomicMemoryStatePointer;
+
+        private IntPtr StoreTablePointer =>
+            useMachineAtomicState
+                ? machine.StoreTablePointer
+                : localAtomicState.StoreTablePointer;
+
+        private int StoreTableBits =>
+            useMachineAtomicState
+                ? machine.StoreTableBits
+                : localAtomicState.StoreTableBits;
+
         private ExternalMmuPosition externalMmuPosition;
 
         /// <summary>
@@ -2095,6 +2120,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         private string logFile;
         private bool isAnyInactiveHook;
         private readonly Dictionary<ulong, HookDescriptor> hooks;
+
+        private readonly AtomicState localAtomicState;
+        private readonly bool useMachineAtomicState;
 
         private readonly Dictionary<Interrupt, HashSet<int>> decodedIrqs;
 
