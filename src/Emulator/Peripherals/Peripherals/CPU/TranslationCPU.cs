@@ -1052,7 +1052,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             if(!useMachineAtomicState)
             {
                 // Create unique instance of atomic state for cpu that should not use the shared state.
-                localAtomicState = new AtomicState(this, 61); // 64 - 3 = 61, 2^3 = 8 bytes, the minimal size.
+                localAtomicState = new AtomicState(this, AtomicState.MinimalStoreTableBits);
             }
 
             atomicId = -1;

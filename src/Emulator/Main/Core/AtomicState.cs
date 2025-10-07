@@ -106,15 +106,34 @@ namespace Antmicro.Renode.Core
             get => storeTableBits;
             private set
             {
-                if(value > IntPtr.Size * 8 || value <= 0)
+                if(value > MinimalStoreTableBits || value <= 0)
                 {
                     throw new RecoverableException(
-                        $"store table bits must be between 0 and the host pointer size ({IntPtr.Size * 8})");
+                        $"store table bits must be between 0 and the maximum size ({MinimalStoreTableBits})");
                 }
 
                 storeTableBits = value;
             }
         }
+
+        /*
+         * "Minimal", in the sense that the table takes up minimal space.
+         * It's the maximum value for the store table bits, since that parameter
+         * describes how many prefix bits in an address are used to uniquely
+         * address the store table.
+         *
+         * The size of a single table entry is 8 bytes, therefore we
+         * subtract 3 bits from the pointer size (we only support 64-bit hosts)
+         * to leave 2^3 bytes of space available.
+         *
+         * Note that at this table size, all guest addresses get mapped to the
+         * same entry. In practice, this makes it similar to a global memory lock.
+         * The number of spurious reservation invalidations will increase greatly,
+         * due to every store in the guest program triggering an invalidation of
+         * the store table entry. This does not affect correctness, but will
+         * affect performance. For single-core scenarios, it makes no difference.
+         */
+        public const int MinimalStoreTableBits = 61;
 
         public const int DefaultStoreTableBits = 41; // 64 - 41 = 23, 2^23 = 8388608 bytes = 8 MiB
 
