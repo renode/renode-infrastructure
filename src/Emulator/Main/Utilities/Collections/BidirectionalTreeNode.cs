@@ -14,11 +14,6 @@ namespace Antmicro.Renode.Utilities.Collections
             // parent will be null - like for the root node
         }
 
-        private BidirectionalTreeNode(T value, BidirectionalTreeNode<T> parent) : base(value)
-        {
-            Parent = parent;
-        }
-
         public override BidirectionalTreeNode<T> AddChild(T value)
         {
             var node = new BidirectionalTreeNode<T>(value, this);
@@ -27,6 +22,10 @@ namespace Antmicro.Renode.Utilities.Collections
         }
 
         public BidirectionalTreeNode<T> Parent { get; private set; }
+
+        private BidirectionalTreeNode(T value, BidirectionalTreeNode<T> parent) : base(value)
+        {
+            Parent = parent;
+        }
     }
 }
-

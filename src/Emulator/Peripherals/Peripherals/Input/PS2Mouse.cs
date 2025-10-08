@@ -5,10 +5,9 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Core;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Input
@@ -105,7 +104,7 @@ namespace Antmicro.Renode.Peripherals.Input
 
         public void Release(MouseButton button = MouseButton.Left)
         {
-            buttonState &= (byte) ~button;
+            buttonState &= (byte)~button;
             SendButtonState();
         }
 
@@ -134,7 +133,7 @@ namespace Antmicro.Renode.Peripherals.Input
             lock(data)
             {
                 SendAck();
-                data.Enqueue((byte) Command.SelfTestPassed);
+                data.Enqueue((byte)Command.SelfTestPassed);
                 data.Enqueue(0x00);
             }
         }

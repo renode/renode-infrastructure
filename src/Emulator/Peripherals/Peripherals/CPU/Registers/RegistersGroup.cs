@@ -47,4 +47,3 @@ namespace Antmicro.Renode.Peripherals.CPU.Registers
         private readonly Action<int, ulong> setter;
     }
 }
-

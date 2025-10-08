@@ -6,10 +6,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
+using Antmicro.Migrant;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Peripherals.UART;
-using Antmicro.Migrant;
 
 namespace Antmicro.Renode.Peripherals.SPI
 {
@@ -18,9 +19,6 @@ namespace Antmicro.Renode.Peripherals.SPI
         public UARTToSpiConverter(IMachine machine) : base(machine)
         {
         }
-
-        [field: Transient]
-        public event Action<byte> CharReceived;
 
         public override void Reset()
         {
@@ -63,6 +61,8 @@ namespace Antmicro.Renode.Peripherals.SPI
                 return 0;
             }
         }
+
+        [field: Transient]
+        public event Action<byte> CharReceived;
     }
 }
-

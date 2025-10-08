@@ -7,9 +7,10 @@
 
 using System;
 using System.Linq;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Logging;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Time;
 
@@ -47,7 +48,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         public long Size => 0x1000;
+
         public GPIO IRQ { get; }
+
         public GPIO FatalFault { get; }
 
         private void DefineRegisters()
@@ -275,16 +278,16 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 switch(combo.Actions)
                 {
-                    case ComboAction.None:
-                        this.Log(LogLevel.Warning, "No action set on combo, ignoring");
-                        break;
-                    case ComboAction.ResetRequest:
-                        // Resets all except POR modules as stated in https://github.com/lowRISC/opentitan/issues/12288
-                        durationTimer.ExecOnElapsed(ResetRequest, combo.TriggerDurationInCycles);
-                        break;
-                    default:
-                        this.Log(LogLevel.Error, "The {0} action is not implemented. Currently only the reset request is supported");
-                        break;
+                case ComboAction.None:
+                    this.Log(LogLevel.Warning, "No action set on combo, ignoring");
+                    break;
+                case ComboAction.ResetRequest:
+                    // Resets all except POR modules as stated in https://github.com/lowRISC/opentitan/issues/12288
+                    durationTimer.ExecOnElapsed(ResetRequest, combo.TriggerDurationInCycles);
+                    break;
+                default:
+                    this.Log(LogLevel.Error, "The {0} action is not implemented. Currently only the reset request is supported");
+                    break;
                 }
                 return;
             }
@@ -330,12 +333,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             this.DebugLog("IRQ set to {0}", interrupt);
         }
 
-        private const uint NumberOfCombos = 4;
-        private const int DurationTimerFrequency = 200000;
-        private readonly OpenTitan_ResetManager resetManager;
-        private readonly ComboDefinition[] combosDefinition;
-        private readonly DurationTimer durationTimer;
-
         private IFlagRegisterField interruptState;
         private IFlagRegisterField interruptEnable;
         private IFlagRegisterField key0Invert;
@@ -344,6 +341,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private IFlagRegisterField acPresentInvert;
         private IFlagRegisterField pwrButtonInvert;
         private bool powerButton;
+        private readonly OpenTitan_ResetManager resetManager;
+        private readonly ComboDefinition[] combosDefinition;
+        private readonly DurationTimer durationTimer;
+
+        private const uint NumberOfCombos = 4;
+        private const int DurationTimerFrequency = 200000;
 
         public enum Registers
         {
@@ -384,6 +387,46 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             KeyInterruptStatus = 0x88,
         }
 
+        private class DurationTimer : LimitTimer
+        {
+            public DurationTimer(IClockSource clockSource, long frequency, IPeripheral owner, string name)
+                : base(clockSource, frequency, owner, name, limit: uint.MaxValue, direction: Direction.Ascending,
+                       workMode: WorkMode.OneShot, enabled: false, eventEnabled: true, autoUpdate: true)
+            {
+                // Intentionally left blank
+            }
+
+            public void Cancel()
+            {
+                this.ClearSubscriptions();
+                this.Enabled = false;
+            }
+
+            public void ExecOnElapsed(Action action, uint limitInCycles)
+            {
+                // In case we have something already set up - clean up
+                Cancel();
+                this.Limit = limitInCycles;
+                this.LimitReached += action;
+                this.Value = 0;
+                this.Enabled = true;
+            }
+        }
+
+        private struct ComboDefinition
+        {
+            public ComboDefinition(InputsState inputs, ComboAction action, uint triggerDuration)
+            {
+                this.Inputs = inputs;
+                this.Actions = action;
+                this.TriggerDurationInCycles = triggerDuration;
+            }
+
+            public InputsState Inputs;
+            public ComboAction Actions;
+            public uint TriggerDurationInCycles;
+        }
+
         [Flags]
         private enum InputsState
         {
@@ -403,46 +446,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Interrupt = 0x2,
             EmbeddedControllerReset = 0x4,
             ResetRequest = 0x8,
-        }
-
-        private struct ComboDefinition
-        {
-            public ComboDefinition(InputsState inputs, ComboAction action, uint triggerDuration)
-            {
-                this.Inputs = inputs;
-                this.Actions = action;
-                this.TriggerDurationInCycles = triggerDuration;
-            }
-
-            public InputsState Inputs;
-            public ComboAction Actions;
-            public uint TriggerDurationInCycles;
-        }
-
-        private class DurationTimer: LimitTimer
-        {
-            public DurationTimer(IClockSource clockSource, long frequency, IPeripheral owner, string name)
-                : base(clockSource, frequency, owner, name, limit: uint.MaxValue, direction: Direction.Ascending,
-                       workMode: WorkMode.OneShot, enabled:false, eventEnabled: true, autoUpdate: true)
-            {
-               // Intentionally left blank
-            }
-
-            public void Cancel()
-            {
-                this.ClearSubscriptions();
-                this.Enabled = false;
-            }
-
-            public void ExecOnElapsed(Action action, uint limitInCycles)
-            {
-                // In case we have something already set up - clean up
-                Cancel();
-                this.Limit = limitInCycles;
-                this.LimitReached += action;
-                this.Value = 0;
-                this.Enabled = true;
-            }
         }
     } // End class OpenTitan_SysrstCtrl
 }

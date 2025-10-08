@@ -4,8 +4,8 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.Bus;
@@ -32,7 +32,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 new LimitTimer(machine.ClockSource, frequency, this, "2", autoUpdate: true, eventEnabled: true)
             };
 
-            for (var i = 0; i < NumberOfInternalTimers; i++)
+            for(var i = 0; i < NumberOfInternalTimers; i++)
             {
                 var j = i;
                 timer[i].LimitReached += delegate
@@ -42,7 +42,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     {
                         if(backgroundLoadValueIsValid[j])
                         {
-                            backgroundLoadValueIsValid[j]= false;
+                            backgroundLoadValueIsValid[j] = false;
                             timer[j].Limit = backgroundLoadValue[j];
                             // TODO: doesn't it reduce the tick count by one (I mean shouldn't we put the new value AFTER this tick is finished?)
                         }
@@ -54,27 +54,21 @@ namespace Antmicro.Renode.Peripherals.Timers
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {
                 // the rest of registers is generated using `GenerateRegistersForTimer` method calls located below
-
                 {(long)Registers.Timer64ValueHigh, new DoubleWordRegister(this)
                     .WithValueField(0, 32, FieldMode.Read, name: "TIM64VALUEU", valueProviderCallback: _ => (uint)(timer[Timer.Timer64].Value >> 32))
                 },
-
                 {(long)Registers.Timer64ValueLow, new DoubleWordRegister(this)
                     .WithValueField(0, 32, FieldMode.Read, name: "TIM64VALUEL", valueProviderCallback: _ => (uint)timer[Timer.Timer64].Value)
                 },
-
                 {(long)Registers.Timer64LoadValueHigh, new DoubleWordRegister(this)
                     .WithValueField(0, 32, out var timer64LoadValueHigh, name: "TIM64LOADVALU")
                 },
-
                 {(long)Registers.Timer64LoadValueLow, new DoubleWordRegister(this)
                     .WithValueField(0, 32, name: "TIM64LOADVALL", writeCallback: (_, valueLow) => timer[Timer.Timer64].Limit = (timer64LoadValueHigh.Value << 32) | valueLow)
                 },
-
                 {(long)Registers.Timer64BackgroundLoadValueHigh, new DoubleWordRegister(this)
                         .WithValueField(0, 32, out var timer64BackgroundLoadValueHigh, name: "TIM64BGLOADVAU")
                 },
-
                 {(long)Registers.Timer64BackgroundLoadValueLow, new DoubleWordRegister(this)
                         .WithValueField(0, 32, name: "TIM64BGLOADVAL", writeCallback: (_, val) =>
                         {
@@ -85,7 +79,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                             }
                         })
                 },
-
                 {(long)Registers.TimerMode, new DoubleWordRegister(this)
                     .WithEnumField<DoubleWordRegister, TimerMode>(0, 1, out timerMode, name: "TIM64MODE", writeCallback: (_, val) => InternalSoftReset(val))}
             };
@@ -121,6 +114,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         public long Size => 0x1000;
 
         public GPIO Timer1IRQ { get; private set; }
+
         public GPIO Timer2IRQ { get; private set; }
 
         private void InternalSoftReset(TimerMode mode)
@@ -187,7 +181,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithFlag(0, FieldMode.Read, name: $"{name}MIS", valueProviderCallback: _ => CalculateTimerMaskedInterruptValue(timerId))
             );
         }
-
 
         private readonly DoubleWordRegisterCollection registers;
 

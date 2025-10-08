@@ -19,4 +19,3 @@ namespace Antmicro.Renode.Peripherals.Input
         Extra  = 0x10
     }
 }
-

@@ -25,8 +25,8 @@ namespace Antmicro.Renode.Utilities.Collections
     {
         public MultiValueDictionary()
         {
-            multiple = new Dictionary<TKey,List<TValue>>();
-            single = new Dictionary<TKey,TValue>();
+            multiple = new Dictionary<TKey, List<TValue>>();
+            single = new Dictionary<TKey, TValue>();
         }
 
         public IEnumerator<TValue> GetEnumerator()
@@ -45,7 +45,7 @@ namespace Antmicro.Renode.Utilities.Collections
             if(single.TryGetValue(key, out existingSingle))
             {
                 single.Remove(key);
-                multiple.Add(key, new List<TValue>{ existingSingle, value });
+                multiple.Add(key, new List<TValue> { existingSingle, value });
                 return;
             }
 
@@ -182,4 +182,3 @@ namespace Antmicro.Renode.Utilities.Collections
         private readonly Dictionary<TKey, List<TValue>> multiple;
     }
 }
-

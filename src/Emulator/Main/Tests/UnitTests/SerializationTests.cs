@@ -7,17 +7,18 @@
 //
 
 using System;
-using System.Linq;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals;
-using Antmicro.Renode.Peripherals.CPU;
-using NUnit.Framework;
-using System.IO;
 using System.Collections.Generic;
-using Antmicro.Renode.UnitTests.Mocks;
-using Antmicro.Migrant;
 using System.Collections.ObjectModel;
+using System.IO;
+using System.Linq;
+
+using Antmicro.Migrant;
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Peripherals.Memory;
+using Antmicro.Renode.UnitTests.Mocks;
+
+using NUnit.Framework;
 
 namespace Antmicro.Renode.UnitTests
 {
@@ -173,7 +174,6 @@ namespace Antmicro.Renode.UnitTests
 
         private MemoryStream stream;
         private Serializer serializer;
-
     }
 
     public class GPIOMock : IGPIOReceiver, INumberedGPIOOutput
@@ -188,11 +188,10 @@ namespace Antmicro.Renode.UnitTests
             Connections = new ReadOnlyDictionary<int, IGPIO>(innerConnections);
         }
 
-        public void Reset()
+        public override string ToString()
         {
+            return string.Format("[GPIOMock: Id={0}]", Id);
         }
-
-        public int Id { get; set; }
 
         public void GPIOSet(int number, bool value)
         {
@@ -202,11 +201,6 @@ namespace Antmicro.Renode.UnitTests
         public bool HasSignaled(int number)
         {
             return activeIns.Contains(number);
-        }
-
-        public override string ToString()
-        {
-            return string.Format("[GPIOMock: Id={0}]", Id);
         }
 
         public void OnGPIO(int number, bool value)
@@ -225,9 +219,14 @@ namespace Antmicro.Renode.UnitTests
             }
         }
 
-        private HashSet<int> activeIns;
+        public void Reset()
+        {
+        }
 
         public IReadOnlyDictionary<int, IGPIO> Connections { get; private set; }
+
+        public int Id { get; set; }
+
+        private HashSet<int> activeIns;
     }
 }
-

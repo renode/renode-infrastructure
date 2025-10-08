@@ -4,8 +4,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -64,7 +62,8 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             Registers.Data.Define(this)
                 .WithValueField(0, 8, writeCallback: (_, value) => this.TransmitCharacter((byte)value),
-                    valueProviderCallback: _ => {
+                    valueProviderCallback: _ =>
+                    {
                         if(!TryGetCharacter(out var character))
                         {
                             this.Log(LogLevel.Warning, "Trying to read from an empty Rx FIFO.");
@@ -88,7 +87,7 @@ namespace Antmicro.Renode.Peripherals.UART
             Registers.FrameConfig.Define(this)
                 .WithTag("frameDataLength", 0, 8)
                 .WithEnumField<DoubleWordRegister, InnerParity>(8, 2, name: "parity",
-                    writeCallback: (_, val) => 
+                    writeCallback: (_, val) =>
                     {
                         switch(val)
                         {
@@ -107,7 +106,7 @@ namespace Antmicro.Renode.Peripherals.UART
                         }
                     })
                 .WithEnumField<DoubleWordRegister, InnerStopBits>(16, 1, name: "stopBits",
-                    writeCallback: (_, val) => 
+                    writeCallback: (_, val) =>
                     {
                         switch(val)
                         {

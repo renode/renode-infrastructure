@@ -6,6 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -29,7 +30,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             DefineRegisters();
         }
 
-        override public void Reset()
+        public override void Reset()
         {
             base.Reset();
             registers.Reset();
@@ -226,12 +227,13 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
+        private bool interruptEnabled;
+        private bool readyToReset;
+
         private DoubleWordRegisterCollection registers;
         private IFlagRegisterField eventTimeoutEnabled;
         private IFlagRegisterField[] requestRegisterStatus;
-        private bool[] requestRegisterEnabled;
-        private bool interruptEnabled;
-        private bool readyToReset;
+        private readonly bool[] requestRegisterEnabled;
 
         private readonly IMachine machine;
 

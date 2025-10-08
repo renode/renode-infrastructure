@@ -6,16 +6,6 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System;
-using System.IO;
-using System.Collections.Generic;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Peripherals.CPU;
-using Antmicro.Renode.Peripherals.Bus;
-
 namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 {
     public partial class EFR32xG2_LFRCO_2
@@ -32,17 +22,17 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Status_Rdy_ValueProvider(bool a)
         {
-            status_rdy_bit.Value = _Used;
+            status_rdy_bit.Value = IsUsed;
         }
 
         partial void Status_Ens_ValueProvider(bool a)
         {
-            status_ens_bit.Value = _Used;
+            status_ens_bit.Value = IsUsed;
         }
 
         partial void Lock_Lockkey_Write(ulong a, ulong b)
         {
-            if (b == 0xF93)
+            if(b == 0xF93)
             {
                 status_lock_bit.Value = STATUS_LOCK.UNLOCKED;
             }
@@ -52,14 +42,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             }
         }
 
-        private bool _Used
+        private bool IsUsed
         {
             get { return oscillatorForce || (oscillatorOnDemand && cmu.OscLfrcoRequested); }
         }
 
-        private bool isEnabled
+        private bool IsEnabled
         {
-            get { return _Used; }
+            get { return IsUsed; }
         }
 
         private bool oscillatorOnDemand = false;

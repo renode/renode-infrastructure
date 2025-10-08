@@ -21,16 +21,16 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             switch((Registers)offset)
             {
             case Registers.VendorIDLow:
-                LastReadValue = (byte)(vendorID & 0xFF);
+                LastReadValue = (byte)(VendorID & 0xFF);
                 break;
             case Registers.VendorIDHigh:
-                LastReadValue = (byte)((vendorID & 0xFF00) >> 8);
+                LastReadValue = (byte)((VendorID & 0xFF00) >> 8);
                 break;
             case Registers.ProductIDLow:
-                LastReadValue = (byte)(productID & 0xFF);
+                LastReadValue = (byte)(ProductID & 0xFF);
                 break;
             case Registers.ProductIDHigh:
-                LastReadValue = (byte)((productID & 0xFF00) >> 8);
+                LastReadValue = (byte)((ProductID & 0xFF00) >> 8);
                 break;
             case Registers.Scratch:
                 LastReadValue = scratchRegister;
@@ -69,6 +69,9 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
 
         private byte scratchRegister;
 
+        private const uint VendorID = 0x04cc;
+        private const uint ProductID = 0x1504;
+
         private enum Registers : uint
         {
             VendorIDLow = 0x0,
@@ -77,9 +80,5 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             ProductIDHigh = 0x3,
             Scratch = 0x16
         }
-
-        private const uint vendorID = 0x04cc;
-        private const uint productID = 0x1504;
     }
 }
-

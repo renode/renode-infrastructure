@@ -7,14 +7,21 @@
 //
 using System;
 using System.Collections.Generic;
-using Antmicro.Renode.UserInterface.Tokenizer;
-using AntShell.Commands;
 using System.Linq;
+
+using Antmicro.Renode.UserInterface.Tokenizer;
+
+using AntShell.Commands;
 
 namespace Antmicro.Renode.UserInterface.Commands
 {
     public class UsingCommand : Command
     {
+        public UsingCommand(Monitor monitor, Func<List<string>> getUsings) : base(monitor, "using", "expose a prefix to avoid typing full object names.")
+        {
+            GetUsings = getUsings;
+        }
+
         public override void PrintHelp(ICommandInteraction writer)
         {
             base.PrintHelp(writer);
@@ -26,14 +33,14 @@ namespace Antmicro.Renode.UserInterface.Commands
             }
             foreach(var use in GetUsings())
             {
-                writer.WriteLine ("\t"+ use.Substring(0, use.Length-1)); //to remove the trailing dot
+                writer.WriteLine("\t" + use.Substring(0, use.Length - 1)); //to remove the trailing dot
             }
             writer.WriteLine();
             writer.WriteLine(String.Format("To clear all current usings execute \"{0} -\".", Name));
         }
 
         [Runnable]
-        public void Run(ICommandInteraction writer, LiteralToken use)
+        public void Run(ICommandInteraction _, LiteralToken use)
         {
             if(use.Value == "-")
             {
@@ -49,12 +56,6 @@ namespace Antmicro.Renode.UserInterface.Commands
             }
         }
 
-        private Func<List<string>> GetUsings;
-
-        public UsingCommand(Monitor monitor, Func<List<string>> getUsings) : base(monitor, "using", "expose a prefix to avoid typing full object names.")
-        {
-            GetUsings = getUsings;
-        }
+        private readonly Func<List<string>> GetUsings;
     }
 }
-

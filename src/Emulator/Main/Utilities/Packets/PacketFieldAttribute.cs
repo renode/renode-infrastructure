@@ -11,7 +11,7 @@ namespace Antmicro.Renode.Utilities.Packets
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false, AllowMultiple = false)]
     public sealed class PacketFieldAttribute : Attribute
     {
-        public PacketFieldAttribute([System.Runtime.CompilerServices.CallerLineNumber]int order = 0)
+        public PacketFieldAttribute([System.Runtime.CompilerServices.CallerLineNumber] int order = 0)
         {
             this.order = order;
         }

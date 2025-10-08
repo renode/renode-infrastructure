@@ -5,9 +5,9 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
-using System.Collections.Generic;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -23,7 +23,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             VectorRegisterRegex = new Regex(@"^v(\d+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
             FloatRegisterRegex = new Regex(@"^f(\d+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
             IntegerRegisterRegex = new Regex(@"^x(\d+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        } 
+        }
 
         /// <summary> Generate list of inputs and output registers from operands. </summary>
         /// <param name="mnemonic"> assembly instruction mnemonic </param>
@@ -49,7 +49,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             else if((mnemonic == "jal" || mnemonic == "jalr") && operands.Length == 1)
             {
                 // pseudo-instructions
-                inputOps = operands; 
+                inputOps = operands;
                 outputOps = new string[] { "x1" };
             }
             else
@@ -153,7 +153,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             // Only vector instructions access vector registers
             return inputs.Any(IsVectorRegister) || outputs.Any(IsVectorRegister);
         }
-        
+
         /// <summary> Get selected element width (SEW) from vector selected element width register (vsew). </summary>
         /// <param name="vsew"> vsew register value </param>
         /// <returns> selected element width </returns>
@@ -161,20 +161,20 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             switch(vsew)
             {
-                case 0b000:
-                    return 8;
-                case 0b001:
-                    return 16;
-                case 0b010:
-                    return 32;
-                case 0b011:
-                    return 64;
-                default:
-                    // Reserved
-                    return 0;
+            case 0b000:
+                return 8;
+            case 0b001:
+                return 16;
+            case 0b010:
+                return 32;
+            case 0b011:
+                return 64;
+            default:
+                // Reserved
+                return 0;
             }
         }
-        
+
         /// <summary> Get vector length multiplier (LMUL) from vector length multiplier register (vlmul). </summary>
         /// <param name="vlmul"> vlmul register value </param>
         /// <returns> vector length multiplier </returns>
@@ -182,23 +182,23 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             switch(vlmul)
             {
-                case 0b000:
-                    return 1;
-                case 0b001:
-                    return 2;
-                case 0b010:
-                    return 4;
-                case 0b011:
-                    return 8;
-                case 0b111:
-                    return 1/2;
-                case 0b110:
-                    return 1/4;
-                case 0b101:
-                    return 1/8;
-                default:
-                    // Reserved
-                    return 0;
+            case 0b000:
+                return 1;
+            case 0b001:
+                return 2;
+            case 0b010:
+                return 4;
+            case 0b011:
+                return 8;
+            case 0b111:
+                return 1 / 2;
+            case 0b110:
+                return 1 / 4;
+            case 0b101:
+                return 1 / 8;
+            default:
+                // Reserved
+                return 0;
             }
         }
 
@@ -248,7 +248,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {"v0.t", "v0"},
         };
 
-        private static readonly string[] BogusRegisters = 
+        private static readonly string[] BogusRegisters =
         {
             "x0",
             "e8",
@@ -267,7 +267,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             "mu",
         };
 
-        private static readonly string[] NopInstructions = 
+        private static readonly string[] NopInstructions =
         {
             "nop",
             "c.nop",
@@ -277,7 +277,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             "wfi",
         };
 
-        private static readonly string[] BranchInstructions = 
+        private static readonly string[] BranchInstructions =
         {
             "beq",
             "bne",
@@ -305,7 +305,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             "ebreak",
         };
 
-        private static readonly string[] FlushInstructions = 
+        private static readonly string[] FlushInstructions =
         {
             "csrr",
             "csrw",
@@ -322,7 +322,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             "sfence.vma",
         };
 
-        private static readonly string[] VectorControlInstructions = 
+        private static readonly string[] VectorControlInstructions =
         {
             "vsetivli",
             "vsetvli",
@@ -330,7 +330,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         };
 
         // Incomplete list of control/status registers.
-        private static readonly string[] CSRInstructions = 
+        private static readonly string[] CSRInstructions =
         {
             "cycle",
             "cycleh",

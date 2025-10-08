@@ -5,11 +5,10 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using Antmicro.Renode.Backends.Display;
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.Video
 {
@@ -22,12 +21,9 @@ namespace Antmicro.Renode.Peripherals.Video
             sync = new object();
         }
 
-        public long Size
+        public override void Reset()
         {
-            get
-            {
-                return 0x40000;
-            }
+            // TODO!
         }
 
         public void WriteDoubleWord(long address, uint value)
@@ -39,33 +35,35 @@ namespace Antmicro.Renode.Peripherals.Video
                 this.DebugLog("Setting resolution to {0}x{1}", w, h);
                 Reconfigure(w, h);
             }
-    	    if(address == 0x1c0c) // DC_WIN_COLOR_DEPTH
-    	    {
-    	    	this.Log(LogLevel.Warning, "Depth ID={0}", value);
-        		lock (sync) {
-        			switch (value) 
+            if(address == 0x1c0c) // DC_WIN_COLOR_DEPTH
+            {
+                this.Log(LogLevel.Warning, "Depth ID={0}", value);
+                lock(sync)
+                {
+                    switch(value)
                     {
                     case 3:
                         Reconfigure(format: PixelFormat.RGB565);
-    					break;
+                        break;
                     case 12:
                         Reconfigure(format: PixelFormat.BGRX8888);
-    					break;
+                        break;
                     case 13:
                         Reconfigure(format: PixelFormat.RGBX8888);
-    					break;
+                        break;
                     default:
                         this.Log(LogLevel.Warning, "Depth ID={0} is not supported (might be YUV)!", value);
                         Reconfigure(format: PixelFormat.RGB565);
-    					break;
-        			}
-        		}
-    	    }
+                        break;
+                    }
+                }
+            }
             if(address == 0x2000) // DC_WINBUF_START_ADDR
             {
                 this.DebugLog("Setting buffer addr to 0x{0:X}", value);
-                lock (sync) {
-                        bufferAddress = value;
+                lock(sync)
+                {
+                    bufferAddress = value;
                 }
             }
         }
@@ -75,9 +73,12 @@ namespace Antmicro.Renode.Peripherals.Video
             return 0x00;
         }
 
-        public override void Reset()
+        public long Size
         {
-            // TODO!
+            get
+            {
+                return 0x40000;
+            }
         }
 
         protected override void Repaint()
@@ -86,15 +87,15 @@ namespace Antmicro.Renode.Peripherals.Video
             {
                 return;
             }
-            lock (sync) 
+            lock(sync)
             {
                 sysbus.ReadBytes(bufferAddress, buffer.Length, buffer, 0);
             }
         }
 
-        private object sync;
         private uint bufferAddress = 0xFFFFFFFF;
+
+        private readonly object sync;
         private readonly IBusController sysbus;
     }
 }
-

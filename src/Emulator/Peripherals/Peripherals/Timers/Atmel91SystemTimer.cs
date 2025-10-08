@@ -7,6 +7,7 @@
 //
 
 using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
@@ -34,47 +35,17 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             RealTimeTimer = new AT91_InterruptibleTimer(machine, 32768, this, nameof(RealTimeTimer), (ulong)BitHelper.Bit(20), Direction.Ascending);
             RealTimeTimer.Divider = 0x00008000;
-            RealTimeTimer.OnUpdate += () => {
-                lock (localLock)
+            RealTimeTimer.OnUpdate += () =>
+            {
+                lock(localLock)
                 {
-                    if (RealtimeTimerIncrementInterruptMask)
+                    if(RealtimeTimerIncrementInterruptMask)
                     {
                         RealTimeTimerIncrement = true;
                     }
                 }
             };
         }
-
-        private void PeriodIntervalTimerAlarmHandler()
-        {
-            lock (localLock)
-            {
-            //this.Log(LogLevel.Noisy, "Period Interval Timer Alarm");
-
-            if (PeriodIntervalTimerStatusInterruptMask)
-            {
-                PeriodIntervalTimerStatus = true;
-                if (!IRQ.IsSet)
-                {
-                    this.Log(LogLevel.Noisy, "Setting IRQ due to PeriodIntervalTimerAlarm");
-                }
-                //IRQ.Set(false);
-                IRQ.Set(true);
-            }
-            }
-        }
-
-        private void WatchdogTimerAlarmHandler()
-        {
-            lock (localLock)
-            {
-            this.Log(LogLevel.Noisy, "Watchdog Timer Alarm");
-
-            WatchdogOverflow = true;
-            }
-        }
-
-        public GPIO IRQ { get; private set; }
 
         #region IPeripheral implementation
 
@@ -89,91 +60,113 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public uint ReadDoubleWord(long offset)
         {
-            lock (localLock)
+            lock(localLock)
             {
-            switch ((Register)offset)
-            {
-            case Register.StatusRegister:
-                var val = statusRegister;
-                statusRegister = 0;
-                IRQ.Unset();
-                return val;
+                switch((Register)offset)
+                {
+                case Register.StatusRegister:
+                    var val = statusRegister;
+                    statusRegister = 0;
+                    IRQ.Unset();
+                    return val;
 
-            case Register.PeriodIntervalModeRegister:
-                return (uint)PeriodIntervalTimer.Limit;
+                case Register.PeriodIntervalModeRegister:
+                    return (uint)PeriodIntervalTimer.Limit;
 
-            case Register.CurrentRealtimeRegister:
-                return (uint)RealTimeTimer.Value;
+                case Register.CurrentRealtimeRegister:
+                    return (uint)RealTimeTimer.Value;
 
-            case Register.WatchdogModeRegister:
-                return (uint)WatchdogTimer.Limit;
+                case Register.WatchdogModeRegister:
+                    return (uint)WatchdogTimer.Limit;
 
-            default:
-                this.LogUnhandledRead(offset);
-                return 0u;
-            }
+                default:
+                    this.LogUnhandledRead(offset);
+                    return 0u;
+                }
             }
         }
 
         public void WriteDoubleWord(long offset, uint value)
         {
-            lock (localLock)
+            lock(localLock)
             {
-            switch ((Register)offset)
-            {
-            case Register.ControlRegister:
-                if (value == 0x1)
+                switch((Register)offset)
                 {
-                    WatchdogTimer.ResetValue();
+                case Register.ControlRegister:
+                    if(value == 0x1)
+                    {
+                        WatchdogTimer.ResetValue();
+                    }
+                    break;
+
+                case Register.PeriodIntervalModeRegister:
+                    PeriodIntervalTimer.Limit = value;
+                    PeriodIntervalTimer.Enabled = true;
+                    break;
+
+                case Register.InterruptDisableRegister:
+                    this.Log(LogLevel.Noisy, "Disabling interrupt 0x{0:X}", value);
+                    interruptMaskRegister &= ~value;
+                    break;
+
+                case Register.InterruptEnableRegister:
+                    this.Log(LogLevel.Noisy, "Enabling interrupt 0x{0:X}", value);
+                    interruptMaskRegister |= value;
+                    break;
+
+                case Register.RealTimeModeRegister:
+                    RealTimeTimer.Divider = (int)value;
+                    break;
+
+                default:
+                    this.LogUnhandledWrite(offset, value);
+                    return;
                 }
-                break;
-
-            case Register.PeriodIntervalModeRegister:
-                PeriodIntervalTimer.Limit = value;
-                PeriodIntervalTimer.Enabled = true;
-                break;
-
-            case Register.InterruptDisableRegister:
-                this.Log(LogLevel.Noisy, "Disabling interrupt 0x{0:X}", value);
-                interruptMaskRegister &= ~value;
-                break;
-               
-            case Register.InterruptEnableRegister:
-                this.Log(LogLevel.Noisy, "Enabling interrupt 0x{0:X}", value);
-                interruptMaskRegister |= value;
-                break;
-
-            case Register.RealTimeModeRegister:
-                RealTimeTimer.Divider = (int)value;
-                break;
-
-            default:
-                this.LogUnhandledWrite(offset, value);
-                return;
-            }
             }
         }
+
+        public GPIO IRQ { get; private set; }
 
         #endregion
 
         #region IKnownSize implementation
 
-        public long Size {
-            get {
+        public long Size
+        {
+            get
+            {
                 return 256;
             }
         }
 
-        #endregion
+        private void PeriodIntervalTimerAlarmHandler()
+        {
+            lock(localLock)
+            {
+                //this.Log(LogLevel.Noisy, "Period Interval Timer Alarm");
 
-        private LimitTimer PeriodIntervalTimer; // PIT
-        private LimitTimer WatchdogTimer;       // WDT
-        private AT91_InterruptibleTimer RealTimeTimer;       // RTT
-        
-        private uint interruptMaskRegister;             // TODO: uses only 4 bits
-        private uint statusRegister;                    // TODO: uses only 4 bits
+                if(PeriodIntervalTimerStatusInterruptMask)
+                {
+                    PeriodIntervalTimerStatus = true;
+                    if(!IRQ.IsSet)
+                    {
+                        this.Log(LogLevel.Noisy, "Setting IRQ due to PeriodIntervalTimerAlarm");
+                    }
+                    //IRQ.Set(false);
+                    IRQ.Set(true);
+                }
+            }
+        }
 
-        private object localLock = new object();
+        private void WatchdogTimerAlarmHandler()
+        {
+            lock(localLock)
+            {
+                this.Log(LogLevel.Noisy, "Watchdog Timer Alarm");
+
+                WatchdogOverflow = true;
+            }
+        }
 
         #region Bits
 
@@ -182,16 +175,19 @@ namespace Antmicro.Renode.Peripherals.Timers
             get { return BitHelper.IsBitSet(statusRegister, 0); }
             set { BitHelper.SetBit(ref statusRegister, 0, value); }
         }
+
         private bool WatchdogOverflow
         {
             get { return BitHelper.IsBitSet(statusRegister, 1); }
             set { BitHelper.SetBit(ref statusRegister, 1, value); }
         }
+
         private bool RealTimeTimerIncrement
         {
             get { return BitHelper.IsBitSet(statusRegister, 2); }
             set { BitHelper.SetBit(ref statusRegister, 2, value); }
         }
+
         private bool AlarmStatus
         {
             get { return BitHelper.IsBitSet(statusRegister, 3); }
@@ -202,55 +198,53 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             get { return BitHelper.IsBitSet(interruptMaskRegister, 0); }
         }
+
         private bool WatchdogOverflowInterruptMask
         {
             get { return BitHelper.IsBitSet(interruptMaskRegister, 1); }
         }
+
         private bool RealtimeTimerIncrementInterruptMask
         {
             get { return BitHelper.IsBitSet(interruptMaskRegister, 2); }
         }
+
         private bool AlarmStatusInterruptMask
         {
             get { return BitHelper.IsBitSet(interruptMaskRegister, 3); }
         }
 
+        private uint interruptMaskRegister;             // TODO: uses only 4 bits
+        private uint statusRegister;                    // TODO: uses only 4 bits
+
         #endregion
 
-        private enum Register:uint
-        {
-            ControlRegister             = 0x0000,   // CR
-            PeriodIntervalModeRegister  = 0x0004,   // PIMR
-            WatchdogModeRegister        = 0x0008,   // WDMR - TODO: there is RSTEN bit mentioned in documentation, but not mapped to WDMR register
-            RealTimeModeRegister        = 0x000C,   // RTMR
-            StatusRegister              = 0x0010,   // SR
-            InterruptEnableRegister     = 0x0014,   // IER
-            InterruptDisableRegister    = 0x0018,   // IDR
-            RealTimeAlarmRegister       = 0x0020,   // RTAR
-            CurrentRealtimeRegister     = 0x0024,   // CRTR
-        }
+        private readonly LimitTimer PeriodIntervalTimer; // PIT
+        private readonly LimitTimer WatchdogTimer;       // WDT
+        private readonly AT91_InterruptibleTimer RealTimeTimer;       // RTT
+
+        private readonly object localLock = new object();
 
         private class AT91_InterruptibleTimer
         {
-            private LimitTimer timer;
-            private ulong? prevValue;
-            private object lockobj = new object();
-
-            public event Action OnUpdate;
-
             public AT91_InterruptibleTimer(IMachine machine, long frequency, IPeripheral owner, string localName, ulong limit = ulong.MaxValue, Direction direction = Direction.Descending, bool enabled = false)
             {
                 timer = new LimitTimer(machine.ClockSource, frequency, owner, localName, limit, direction, enabled);
-                timer.LimitReached += () => { if (OnUpdate != null) OnUpdate(); };
+                timer.LimitReached += () => { if(OnUpdate != null) OnUpdate(); };
+            }
+
+            public void Enable()
+            {
+                timer.Enabled = true;
             }
 
             public ulong Value
             {
                 get
                 {
-                    lock (lockobj)
+                    lock(lockobj)
                     {
-                        if (!prevValue.HasValue)
+                        if(!prevValue.HasValue)
                         {
                             prevValue = timer.Value;
                             return prevValue.Value;
@@ -263,9 +257,10 @@ namespace Antmicro.Renode.Peripherals.Timers
                         }
                     }
                 }
+
                 set
                 {
-                    lock (lockobj)
+                    lock(lockobj)
                     {
                         prevValue = null;
                         timer.Value = value;
@@ -279,11 +274,26 @@ namespace Antmicro.Renode.Peripherals.Timers
                 set { timer.Divider = value; }
             }
 
-            public void Enable()
-            {
-                timer.Enabled = true;
-            }
+            public event Action OnUpdate;
+
+            private ulong? prevValue;
+            private readonly LimitTimer timer;
+            private readonly object lockobj = new object();
+        }
+
+        #endregion
+
+        private enum Register : uint
+        {
+            ControlRegister             = 0x0000,   // CR
+            PeriodIntervalModeRegister  = 0x0004,   // PIMR
+            WatchdogModeRegister        = 0x0008,   // WDMR - TODO: there is RSTEN bit mentioned in documentation, but not mapped to WDMR register
+            RealTimeModeRegister        = 0x000C,   // RTMR
+            StatusRegister              = 0x0010,   // SR
+            InterruptEnableRegister     = 0x0014,   // IER
+            InterruptDisableRegister    = 0x0018,   // IDR
+            RealTimeAlarmRegister       = 0x0020,   // RTAR
+            CurrentRealtimeRegister     = 0x0024,   // CRTR
         }
     }
 }
-

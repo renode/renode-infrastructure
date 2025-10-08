@@ -6,14 +6,15 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
+
+using Antmicro.Migrant;
+using Antmicro.Migrant.Hooks;
+using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals;
-using Antmicro.Renode.Core.Structure;
-using Antmicro.Migrant;
-using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Core
@@ -25,6 +26,100 @@ namespace Antmicro.Renode.Core
             externals = new Dictionary<string, IExternal>();
             registeredIHasOwnLifeObjects = new List<SerializableWeakReference<IHasOwnLife>>();
             paused = true;
+        }
+
+        public void Start()
+        {
+            lock(externals)
+            {
+                if(!paused)
+                {
+                    return;
+                }
+                paused = false;
+                var ownLifeExternals = externals.Select(x => x.Value as IHasOwnLife).Where(x => x != null);
+                if(alreadyStarted)
+                {
+                    foreach(var external in ownLifeExternals)
+                    {
+                        external.Resume();
+                    }
+                    foreach(var iHasOwnLife in registeredIHasOwnLifeObjects)
+                    {
+                        var target = iHasOwnLife.Target;
+                        if(target != null)
+                        {
+                            target.Resume();
+                        }
+                    }
+                    return;
+                }
+
+                foreach(var external in ownLifeExternals)
+                {
+                    external.Start();
+                }
+
+                foreach(var iHasOwnLife in registeredIHasOwnLifeObjects)
+                {
+                    var target = iHasOwnLife.Target;
+                    if(target != null)
+                    {
+                        target.Start();
+                    }
+                }
+
+                alreadyStarted = true;
+            }
+        }
+
+        public void Pause()
+        {
+            lock(externals)
+            {
+                if(paused)
+                {
+                    return;
+                }
+                paused = true;
+                var ownLifeExternals = externals.Select(x => x.Value as IHasOwnLife).Where(x => x != null);
+                foreach(var external in ownLifeExternals)
+                {
+                    external.Pause();
+                }
+                foreach(var iHasOwnLife in registeredIHasOwnLifeObjects)
+                {
+                    var target = iHasOwnLife.Target;
+                    if(target != null)
+                    {
+                        target.Pause();
+                    }
+                }
+            }
+        }
+
+        public void RegisterIHasOwnLife(IHasOwnLife own)
+        {
+            lock(externals)
+            {
+                registeredIHasOwnLifeObjects.Add(new SerializableWeakReference<IHasOwnLife>(own));
+                if(!paused)
+                {
+                    own.Start();
+                }
+            }
+        }
+
+        public void UnregisterIHasOwnLife(IHasOwnLife own)
+        {
+            lock(externals)
+            {
+                registeredIHasOwnLifeObjects.RemoveAll(x => x.Target == own);
+                if(alreadyStarted)
+                {
+                    own.Pause();
+                }
+            }
         }
 
         public void AddExternal(IExternal external, string name)
@@ -119,76 +214,6 @@ namespace Antmicro.Renode.Core
             }
         }
 
-        public void Start()
-        {
-            lock(externals)
-            {
-                if(!paused)
-                {
-                    return;
-                }
-                paused = false;
-                var ownLifeExternals = externals.Select(x => x.Value as IHasOwnLife).Where(x => x != null);
-                if(alreadyStarted)
-                {
-                    foreach(var external in ownLifeExternals)
-                    {
-                        external.Resume();
-                    }
-                    foreach(var iHasOwnLife in registeredIHasOwnLifeObjects)
-                    {
-                        var target = iHasOwnLife.Target;
-                        if(target != null)
-                        {
-                            target.Resume();
-                        }
-                    }
-                    return;
-                }
-
-                foreach(var external in ownLifeExternals)
-                {
-                    external.Start();
-                }
-
-                foreach(var iHasOwnLife in registeredIHasOwnLifeObjects)
-                {
-                    var target = iHasOwnLife.Target;
-                    if(target != null)
-                    {
-                        target.Start();
-                    }
-                }
-
-                alreadyStarted = true;
-            }
-        }
-
-        public void Pause()
-        {
-            lock(externals)
-            {
-                if(paused)
-                {
-                    return;
-                }
-                paused = true;
-                var ownLifeExternals = externals.Select(x => x.Value as IHasOwnLife).Where(x => x != null);
-                foreach(var external in ownLifeExternals)
-                {
-                    external.Pause();
-                }
-                foreach(var iHasOwnLife in registeredIHasOwnLifeObjects)
-                {
-                    var target = iHasOwnLife.Target;
-                    if(target != null)
-                    {
-                        target.Pause();
-                    }
-                }
-            }
-        }
-
         IExternal IHasChildren<IExternal>.TryGetByName(string name, out bool success)
         {
             lock(externals)
@@ -200,6 +225,49 @@ namespace Antmicro.Renode.Core
                 }
                 success = false;
                 return null;
+            }
+        }
+
+        [field: Transient]
+        public event Action<ExternalsChangedEventArgs> ExternalsChanged;
+
+        [PreSerialization]
+        private void SerializeExternals()
+        {
+            externalsKeys = new List<string>();
+            externalsValues = new List<IExternal>();
+
+            foreach(var item in externals)
+            {
+                if(item.Value.GetType().GetCustomAttributes(typeof(TransientAttribute), true).Any())
+                {
+                    Logger.Log(LogLevel.Info, "Skipping serialization of the '{0}' external as it's marked as transient", item.Key);
+                    continue;
+                }
+
+                externalsKeys.Add(item.Key);
+                externalsValues.Add(item.Value);
+            }
+        }
+
+        [PostDeserialization]
+        private void RestoreExternals()
+        {
+            for(var i = 0; i < externalsKeys.Count; i++)
+            {
+                externals.Add(externalsKeys[i], externalsValues[i]);
+            }
+
+            externalsKeys = null;
+            externalsValues = null;
+        }
+
+        private void OnExternalsChanged(IExternal external, bool added)
+        {
+            var ec = ExternalsChanged;
+            if(ec != null)
+            {
+                ec(new ExternalsChangedEventArgs(external, added ? ExternalsChangedEventArgs.ChangeType.Added : ExternalsChangedEventArgs.ChangeType.Removed));
             }
         }
 
@@ -250,82 +318,15 @@ namespace Antmicro.Renode.Core
             return false;
         }
 
-        [field: Transient]
-        public event Action<ExternalsChangedEventArgs> ExternalsChanged;
+        // those fields are used to serialize externals (and skip the transient ones)
+        private List<string> externalsKeys;
+        private List<IExternal> externalsValues;
 
         private bool alreadyStarted;
         private bool paused;
 
         [Constructor]
         private readonly Dictionary<string, IExternal> externals;
-
-        // those fields are used to serialize externals (and skip the transient ones)
-        private List<string> externalsKeys;
-        private List<IExternal> externalsValues;
-
-        [PreSerialization]
-        private void SerializeExternals()
-        {
-            externalsKeys = new List<string>();
-            externalsValues = new List<IExternal>();
-
-            foreach(var item in externals)
-            {
-                if(item.Value.GetType().GetCustomAttributes(typeof(TransientAttribute), true).Any())
-                {
-                    Logger.Log(LogLevel.Info, "Skipping serialization of the '{0}' external as it's marked as transient", item.Key);
-                    continue;
-                }
-                
-                externalsKeys.Add(item.Key);
-                externalsValues.Add(item.Value);
-            }
-        }
-
-        [PostDeserialization]
-        private void RestoreExternals()
-        {
-            for(var i = 0; i < externalsKeys.Count; i++)
-            {
-                externals.Add(externalsKeys[i], externalsValues[i]);
-            }
-
-            externalsKeys = null;
-            externalsValues = null;
-        }
-
-        public void RegisterIHasOwnLife(IHasOwnLife own)
-        {
-            lock(externals)
-            {
-                registeredIHasOwnLifeObjects.Add(new SerializableWeakReference<IHasOwnLife>(own));
-                if(!paused)
-                {
-                    own.Start();
-                }
-            }
-        }
-
-        public void UnregisterIHasOwnLife(IHasOwnLife own)
-        {
-            lock(externals)
-            {
-                registeredIHasOwnLifeObjects.RemoveAll(x => x.Target == own);
-                if(alreadyStarted)
-                {
-                    own.Pause();
-                }
-            }
-        }
-
-        private void OnExternalsChanged(IExternal external, bool added)
-        {
-            var ec = ExternalsChanged;
-            if(ec != null)
-            {
-                ec(new ExternalsChangedEventArgs(external, added ? ExternalsChangedEventArgs.ChangeType.Added : ExternalsChangedEventArgs.ChangeType.Removed)); 
-            }
-        }
 
         private readonly List<SerializableWeakReference<IHasOwnLife>> registeredIHasOwnLifeObjects;
 
@@ -338,6 +339,7 @@ namespace Antmicro.Renode.Core
             }
 
             public IExternal External { get; private set; }
+
             public ChangeType Change { get; private set; }
 
             public enum ChangeType
@@ -348,4 +350,3 @@ namespace Antmicro.Renode.Core
         }
     }
 }
-

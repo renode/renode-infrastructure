@@ -4,17 +4,10 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Core;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using Antmicro.Renode.Core.CAN;
-using Antmicro.Renode.Peripherals.UART;
-using Antmicro.Renode.Exceptions;
-using System.Linq;
-using Antmicro.Renode.Core.Structure.Registers;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -35,7 +28,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public uint ReadDoubleWord(long offset)
         {
-           return RegistersCollection.Read(offset);
+            return RegistersCollection.Read(offset);
         }
 
         public void WriteDoubleWord(long offset, uint val)

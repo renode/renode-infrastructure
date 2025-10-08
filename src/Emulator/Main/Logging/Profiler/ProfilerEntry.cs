@@ -5,8 +5,8 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
 using System.Runtime.InteropServices;
+
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
 
@@ -25,7 +25,9 @@ namespace Antmicro.Renode.Logging.Profiling
 
         // RealTime and VirtualTime are expressed in other units (ticks, miliseconds).
         private long RealTime { get; }
+
         private double VirtualTime { get; }
+
         private ProfilerEntryType Type { get; }
     }
 
@@ -40,6 +42,7 @@ namespace Antmicro.Renode.Logging.Profiling
         }
 
         private int CpuSlot { get; }
+
         private ulong ExecutedInstructions { get; }
     }
 
@@ -66,6 +69,7 @@ namespace Antmicro.Renode.Logging.Profiling
         }
 
         private byte Operation { get; }
+
         private ulong Address { get; }
     }
 
@@ -77,7 +81,7 @@ namespace Antmicro.Renode.Logging.Profiling
         {
             Index = index;
         }
-        
+
         private ulong Index { get; }
     }
 
@@ -89,7 +93,7 @@ namespace Antmicro.Renode.Logging.Profiling
         Exception
     }
 
-    public enum MemoryOperation: byte
+    public enum MemoryOperation : byte
     {
         MemoryIORead,
         MemoryIOWrite,

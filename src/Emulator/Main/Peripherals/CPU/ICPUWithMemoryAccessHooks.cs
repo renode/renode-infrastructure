@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Logging.Profiling;
 
 namespace Antmicro.Renode.Peripherals.CPU
@@ -16,4 +17,3 @@ namespace Antmicro.Renode.Peripherals.CPU
         void SetHookAtMemoryAccess(Action<ulong, MemoryOperation, ulong, ulong, ulong> hook);
     }
 }
-

@@ -127,7 +127,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private void WriteToCiphertext(long offset, uint value, int width)
         {
             DebugHelper.Assert(width > 0 && width <= 4);
-            this.Log(LogLevel.Debug, "Writing {0}-byte{1} to ciphertext at offset 0x{2:X}: 0x{3:X}", width, width == 1 ? string.Empty : "s",  offset, value);
+            this.Log(LogLevel.Debug, "Writing {0}-byte{1} to ciphertext at offset 0x{2:X}: 0x{3:X}", width, width == 1 ? string.Empty : "s", offset, value);
 
             // here we set parameters for the write command  
             // that will be executed by the commands engine
@@ -179,7 +179,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             {
                 var j = idx;
                 register.
-                    WithValueFields(0, 8, 4, 
+                    WithValueFields(0, 8, 4,
                         valueProviderCallback: (i, _) => lutMemory[j * 0x4 + i],
                         writeCallback: (i, _, value) => lutMemory[j * 0x4 + i] = (byte)value);
             });
@@ -194,7 +194,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithWriteCallback((_, __) => UpdateInterrupts());
 
             Registers.IPTXFIFOControlRegister.Define(this)
-                .WithFlag(0, name: "CLRIPTXF - Clear all valid data entries in IP TX FIFO", 
+                .WithFlag(0, name: "CLRIPTXF - Clear all valid data entries in IP TX FIFO",
                     valueProviderCallback: _ => false, // this is not explicitly stated in the documentation
                     writeCallback: (_, val) => { if(val) txQueue.Reset(); })
                 .WithTaggedFlag("TXDMAEN - IP TX FIFO reading by DMA enabled", 1)
@@ -243,7 +243,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             {
                 var j = idx;
                 register
-                    .WithValueField(0, 32, FieldMode.Read, name: "RXDATA", valueProviderCallback: _ => 
+                    .WithValueField(0, 32, FieldMode.Read, name: "RXDATA", valueProviderCallback: _ =>
                     {
                         totalReadCounter += 4;
                         return rxQueue.Read(4 * j);
@@ -258,7 +258,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                     {
                         // since the position is based on the registed id
                         // there is no possiblity of running out of the buffer
-                        txQueue.Fill(position: 4 * j, data: new []
+                        txQueue.Fill(position: 4 * j, data: new[]
                         {
                             (byte)(val >> 24),
                             (byte)(val >> 16),
@@ -419,13 +419,13 @@ namespace Antmicro.Renode.Peripherals.SPI
                 this.parent = parent;
                 descriptors = new List<IPCommandDescriptor>();
             }
-            
+
             public void Reset()
             {
                 currentCommand = 0;
                 descriptors.Clear();
             }
-            
+
             public void LoadCommands(uint index, uint number)
             {
                 if(currentCommand != descriptors.Count)
@@ -434,7 +434,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                     descriptors.Clear();
                     currentCommand = 0;
                 }
-                
+
                 for(var i = 0u; i < number; i++)
                 {
                     foreach(var cmd in DecodeCommands(index + i))
@@ -458,7 +458,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                     return;
                 }
 
-                InProgress = true; 
+                InProgress = true;
                 while(currentCommand < descriptors.Count)
                 {
                     if(!HandleCommand(descriptors[currentCommand++], device))
@@ -473,14 +473,14 @@ namespace Antmicro.Renode.Peripherals.SPI
                 }
                 InProgress = false;
             }
-            
+
             public bool InProgress { get; private set; }
 
             private IEnumerable<IPCommandDescriptor> DecodeCommands(uint sequenceIndex)
             {
                 var result = new List<IPCommandDescriptor>();
                 var startingIndex = sequenceIndex * 0x10;
-                
+
                 parent.Log(LogLevel.Debug, "Decoding command at starting index: {0}", startingIndex);
 
                 for(var i = 0; i < SequenceLength; i++)
@@ -527,57 +527,56 @@ namespace Antmicro.Renode.Peripherals.SPI
 
                 switch(cmd.Command)
                 {
-                    case IPCommand.TransmitCommand_SDR:
-                        device.Transmit(cmd.Operand);
-                        break;
+                case IPCommand.TransmitCommand_SDR:
+                    device.Transmit(cmd.Operand);
+                    break;
 
-                    case IPCommand.ReceiveReadData_SDR:
-                        {   
-                            var dataCount = (parent.dataSize.Value == 0)
+                case IPCommand.ReceiveReadData_SDR:
+                {
+                    var dataCount = (parent.dataSize.Value == 0)
                                 ? cmd.Operand
                                 : parent.dataSize.Value;
 
-                            var data = ReadFromDevice(device, (int)dataCount);
-                            var count = parent.rxQueue.Enqueue(data);
-                            if(count != data.Length)
-                            {
-                                parent.Log(LogLevel.Warning, "There is no more space left in the RX queue. {0} bytes were dropped", data.Length - count);
-                            }
-                        }
-                        break;
+                    var data = ReadFromDevice(device, (int)dataCount);
+                    var count = parent.rxQueue.Enqueue(data);
+                    if(count != data.Length)
+                    {
+                        parent.Log(LogLevel.Warning, "There is no more space left in the RX queue. {0} bytes were dropped", data.Length - count);
+                    }
+                }
+                break;
 
-                    case IPCommand.Stop:
-                        {
-                            device.FinishTransmission();
-                            parent.ipCommandDone.Value = true;
-                            parent.UpdateInterrupts();
-                        }
-                        break;
+                case IPCommand.Stop:
+                {
+                    device.FinishTransmission();
+                    parent.ipCommandDone.Value = true;
+                    parent.UpdateInterrupts();
+                }
+                break;
 
+                case IPCommand.TransmitProgrammingData_SDR:
+                {
+                    parent.isInTransmit = true;
+                    // note: parent operation breaks execution of the command
+                    // waiting for the data to be written to FIFO
+                    result = false;
+                }
+                break;
 
-                    case IPCommand.TransmitProgrammingData_SDR:
-                        {
-                            parent.isInTransmit = true;
-                            // note: parent operation breaks execution of the command
-                            // waiting for the data to be written to FIFO
-                            result = false;
-                        }
-                        break;
+                case IPCommand.TransmitRowAddress_SDR:
+                {
+                    var a0 = (byte)(parent.serialFlashAddress.Value);
+                    var a1 = (byte)(parent.serialFlashAddress.Value >> 8);
+                    var a2 = (byte)(parent.serialFlashAddress.Value >> 16);
+                    device.Transmit(a2);
+                    device.Transmit(a1);
+                    device.Transmit(a0);
+                }
+                break;
 
-                    case IPCommand.TransmitRowAddress_SDR:
-                        {
-                            var a0 = (byte)(parent.serialFlashAddress.Value);
-                            var a1 = (byte)(parent.serialFlashAddress.Value >> 8);
-                            var a2 = (byte)(parent.serialFlashAddress.Value >> 16);
-                            device.Transmit(a2);
-                            device.Transmit(a1);
-                            device.Transmit(a0);
-                        }
-                        break;
-
-                    default:
-                        parent.Log(LogLevel.Info, "Unsupported IP command: {0}", cmd);
-                        break;
+                default:
+                    parent.Log(LogLevel.Info, "Unsupported IP command: {0}", cmd);
+                    break;
                 }
 
                 return result;
@@ -586,7 +585,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             private int currentCommand;
 
             private readonly IMXRT_FlexSPI parent;
-            private readonly List<IPCommandDescriptor> descriptors; 
+            private readonly List<IPCommandDescriptor> descriptors;
         }
 
         private class RandomAccessQueue
@@ -675,6 +674,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
 
             public int FillLevel { get; private set; }
+
             public int EmptyLevel => internalBuffer.Length - FillLevel;
 
             private readonly byte[] internalBuffer;

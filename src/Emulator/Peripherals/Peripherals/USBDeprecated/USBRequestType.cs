@@ -5,15 +5,12 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-
 namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
     public enum USBRequestType
-        {
-            Standard = 0,
-            Class = 1,
-            Vendor = 2
-        }
+    {
+        Standard = 0,
+        Class = 1,
+        Vendor = 2
+    }
 }
-

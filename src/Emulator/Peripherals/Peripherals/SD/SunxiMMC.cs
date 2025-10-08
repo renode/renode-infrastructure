@@ -5,12 +5,13 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-﻿using System;
-using Antmicro.Renode.Peripherals.Bus;
+using System;
+using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.DMA;
-using System.Collections.Generic;
 
 namespace Antmicro.Renode.Peripherals.SD
 {
@@ -154,7 +155,7 @@ namespace Antmicro.Renode.Peripherals.SD
             });
         }
 
-        private void DmaTransfer(byte[] data,  int bytes, DataDirection direction)
+        private void DmaTransfer(byte[] data, int bytes, DataDirection direction)
         {
             Place source, destination;
             uint currentDescriptorAddress = descriptorListBaseAddress;
@@ -162,7 +163,6 @@ namespace Antmicro.Renode.Peripherals.SD
 
             while(bytesTransferred < bytes)
             {
-                
                 int bytesLeft = bytes - bytesTransferred;
                 var currentDescriptor = new SunxiDMADescriptor(currentDescriptorAddress, dmaEngine);
                 int bytesToTransfer = currentDescriptor.BufferSize > bytesLeft ? bytesLeft : (int) currentDescriptor.BufferSize;
@@ -225,7 +225,7 @@ namespace Antmicro.Renode.Peripherals.SD
                     }
                 }
                 else
-                {   
+                {
                     if(receiveResponse.Value || sendInitSequence.Value)
                     {
                         var cmd = (Commands)commandIndex.Value;
@@ -248,6 +248,64 @@ namespace Antmicro.Renode.Peripherals.SD
         private uint[] responseRegisters;
 
         private readonly DmaEngine dmaEngine;
+
+        private class SunxiDMADescriptor
+        {
+            public SunxiDMADescriptor(ulong address, DmaEngine dmaEngine)
+            {
+                Address = address;
+
+                byte[] descriptorData = new byte[16];
+                Request getDescriptorData = new Request(Address, new Place(descriptorData, 0), 16,
+                    TransferType.DoubleWord, TransferType.DoubleWord);
+
+                dmaEngine.IssueCopy(getDescriptorData);
+                Status = BitConverter.ToUInt32(descriptorData, 0);
+                BufferSize = BitConverter.ToUInt32(descriptorData, 4);
+                BufferAddress = BitConverter.ToUInt32(descriptorData, 8);
+                NextDescriptor = BitConverter.ToUInt32(descriptorData, 12);
+
+                if(BufferSize == 0) // the driver assumes 0-sized blocks to be 64kB, which is inconsistent with the Allwinner user manual.
+                {
+                    BufferSize = 0x10000;
+                }
+            }
+
+            public void Release()
+            {
+                Status &= ~(1 << 31);
+            }
+
+            public uint BufferAddress
+            {
+                get;
+                private set;
+            }
+
+            public uint BufferSize
+            {
+                get;
+                private set;
+            }
+
+            public uint NextDescriptor
+            {
+                get;
+                private set;
+            }
+
+            public ulong Address
+            {
+                get;
+                private set;
+            }
+
+            public uint Status
+            {
+                get;
+                private set;
+            }
+        }
 
         private enum Registers
         {
@@ -297,7 +355,7 @@ namespace Antmicro.Renode.Peripherals.SD
             FifoOverflow = (1 << 11),
             CommandBusy = (1 << 12),
             IllegalWrite = (1 << 12),
-            DataStartError = (1 << 13), 
+            DataStartError = (1 << 13),
             AutoCommandDone = (1 << 14),
             DataEndBitError = (1 << 15),
             SdioInterrupt = (1 << 16),
@@ -309,60 +367,6 @@ namespace Antmicro.Renode.Peripherals.SD
         {
             WriteToSD,
             ReadFromSD
-        }
-
-        private class SunxiDMADescriptor
-        {
-            public SunxiDMADescriptor(ulong address, DmaEngine dmaEngine)
-            {
-                Address = address;
-
-                byte[] descriptorData = new byte[16];
-                Request getDescriptorData = new Request(Address, new Place(descriptorData, 0), 16,
-                    TransferType.DoubleWord, TransferType.DoubleWord);
-
-                dmaEngine.IssueCopy(getDescriptorData);
-                Status = BitConverter.ToUInt32(descriptorData, 0);
-                BufferSize = BitConverter.ToUInt32(descriptorData, 4);
-                BufferAddress = BitConverter.ToUInt32(descriptorData, 8);
-                NextDescriptor = BitConverter.ToUInt32(descriptorData, 12);
-
-                if(BufferSize == 0) // the driver assumes 0-sized blocks to be 64kB, which is inconsistent with the Allwinner user manual.
-                {
-                    BufferSize = 0x10000;
-                }
-            }
-
-            public void Release()
-            {
-                Status &= ~(1 << 31);
-            }
-
-            public uint BufferAddress
-            {
-                get;
-                private set;
-            }
-            public uint BufferSize
-            {
-                get;
-                private set;
-            }
-            public uint NextDescriptor
-            {
-                get;
-                private set;
-            }
-            public ulong Address
-            {
-                get;
-                private set;
-            }
-            public uint Status
-            {
-                get;
-                private set;
-            }
         }
     }
 }

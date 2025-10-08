@@ -5,8 +5,9 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -45,6 +46,12 @@ namespace Antmicro.Renode.Peripherals.Sensors
             DefineGyroAccelUserBank3Registers();
         }
 
+        public virtual void Register(II2CPeripheral peripheral, NumberRegistrationPoint<int> registrationPoint) => i2cContainer.Register(peripheral, registrationPoint);
+
+        public virtual void Unregister(II2CPeripheral peripheral) => i2cContainer.Unregister(peripheral);
+
+        public IEnumerable<NumberRegistrationPoint<int>> GetRegistrationPoints(II2CPeripheral peripheral) => i2cContainer.GetRegistrationPoints(peripheral);
+
         public void Write(byte[] data)
         {
             var offset = 0;
@@ -52,39 +59,39 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             switch(state)
             {
-                case State.Idle:
-                    selectedRegister = data[offset++];
-                    this.DebugLog("Selected bank #{0} register 0x{1:X} ({2})", userBankSelected, selectedRegister, SelectedRegisterName);
+            case State.Idle:
+                selectedRegister = data[offset++];
+                this.DebugLog("Selected bank #{0} register 0x{1:X} ({2})", userBankSelected, selectedRegister, SelectedRegisterName);
 
-                    state = State.ReceivedFirstByte;
+                state = State.ReceivedFirstByte;
 
-                    if(data.Length == offset)
-                    {
-                        break;
-                    }
-                    goto case State.ReceivedFirstByte;
-
-                case State.ReceivedFirstByte:
-                case State.WritingWaitingForValue:
-                    var startingRegister = selectedRegister;
-
-                    foreach(var b in data.Skip(offset))
-                    {
-                        RegistersCollection.Write(selectedRegister++, b);
-                    }
-
-                    this.DebugLog("Write at bank #{0} from 0x{1:X} to 0x{2:X}: data {3}", userBankSelected, startingRegister, selectedRegister, SelectedRegisterName, data.Skip(offset).ToLazyHexString());
-                    state = State.WritingWaitingForValue;
+                if(data.Length == offset)
+                {
                     break;
+                }
+                goto case State.ReceivedFirstByte;
 
-                case State.Reading:
-                    // Reads are able to use address set during write transfer, the opposite isn't true
-                    this.WarningLog("Trying to write without specifying address, ignoring write");
-                    break;
+            case State.ReceivedFirstByte:
+            case State.WritingWaitingForValue:
+                var startingRegister = selectedRegister;
 
-                default:
-                    this.ErrorLog("Attempted write in an unexpected state: {0}", state);
-                    break;
+                foreach(var b in data.Skip(offset))
+                {
+                    RegistersCollection.Write(selectedRegister++, b);
+                }
+
+                this.DebugLog("Write at bank #{0} from 0x{1:X} to 0x{2:X}: data {3}", userBankSelected, startingRegister, selectedRegister, SelectedRegisterName, data.Skip(offset).ToLazyHexString());
+                state = State.WritingWaitingForValue;
+                break;
+
+            case State.Reading:
+                // Reads are able to use address set during write transfer, the opposite isn't true
+                this.WarningLog("Trying to write without specifying address, ignoring write");
+                break;
+
+            default:
+                this.ErrorLog("Attempted write in an unexpected state: {0}", state);
+                break;
             }
         }
 
@@ -115,35 +122,35 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             switch(state)
             {
-                case State.Idle:
-                    selectedRegister = BitHelper.GetValue(data, 0, 7);
-                    var isRead = BitHelper.IsBitSet(data, 7);
+            case State.Idle:
+                selectedRegister = BitHelper.GetValue(data, 0, 7);
+                var isRead = BitHelper.IsBitSet(data, 7);
 
-                    if(isRead)
-                    {
-                        this.NoisyLog("Preparing for read at bank #{0} from 0x{1:X} ({2})", userBankSelected, selectedRegister, SelectedRegisterName);
-                        state = State.Reading;
-                        break;
-                    }
-
-                    this.NoisyLog("Preparing for write at bank #{0} to 0x{1:X} ({2})", userBankSelected, selectedRegister, SelectedRegisterName);
-                    state = State.Writing;
+                if(isRead)
+                {
+                    this.NoisyLog("Preparing for read at bank #{0} from 0x{1:X} ({2})", userBankSelected, selectedRegister, SelectedRegisterName);
+                    state = State.Reading;
                     break;
+                }
 
-                case State.Reading:
-                    result = RegistersCollection.Read(selectedRegister);
-                    this.NoisyLog("Read at bank #{0} from 0x{1:X} ({2}), returned 0x{3:X}", userBankSelected, selectedRegister, SelectedRegisterName, result);
-                    selectedRegister++;
-                    break;
+                this.NoisyLog("Preparing for write at bank #{0} to 0x{1:X} ({2})", userBankSelected, selectedRegister, SelectedRegisterName);
+                state = State.Writing;
+                break;
 
-                case State.Writing:
-                    this.DebugLog("Write at bank #{0} to 0x{1:X} ({2}): value 0x{3:X}", userBankSelected, selectedRegister, SelectedRegisterName, data);
-                    RegistersCollection.Write(selectedRegister++, data);
-                    break;
+            case State.Reading:
+                result = RegistersCollection.Read(selectedRegister);
+                this.NoisyLog("Read at bank #{0} from 0x{1:X} ({2}), returned 0x{3:X}", userBankSelected, selectedRegister, SelectedRegisterName, result);
+                selectedRegister++;
+                break;
 
-                default:
-                    this.ErrorLog("Attempted transmission in an unexpected state: {0}", state);
-                    break;
+            case State.Writing:
+                this.DebugLog("Write at bank #{0} to 0x{1:X} ({2}): value 0x{3:X}", userBankSelected, selectedRegister, SelectedRegisterName, data);
+                RegistersCollection.Write(selectedRegister++, data);
+                break;
+
+            default:
+                this.ErrorLog("Attempted transmission in an unexpected state: {0}", state);
+                break;
             }
 
             this.NoisyLog("Received byte 0x{0:X}, returning 0x{1:X}", data, result);
@@ -208,12 +215,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         public GPIO IRQ { get; }
 
-        public virtual void Register(II2CPeripheral peripheral, NumberRegistrationPoint<int> registrationPoint) => i2cContainer.Register(peripheral, registrationPoint);
-
-        public virtual void Unregister(II2CPeripheral peripheral) => i2cContainer.Unregister(peripheral);
-
-        public IEnumerable<NumberRegistrationPoint<int>> GetRegistrationPoints(II2CPeripheral peripheral) => i2cContainer.GetRegistrationPoints(peripheral);
-
         IEnumerable<IRegistered<II2CPeripheral, NumberRegistrationPoint<int>>> IPeripheralContainer<II2CPeripheral, NumberRegistrationPoint<int>>.Children =>
             i2cContainer.Children;
 
@@ -246,16 +247,16 @@ namespace Antmicro.Renode.Peripherals.Sensors
         {
             switch(bank)
             {
-                case 0:
-                    return ((GyroAccelUserBank0Registers)register).ToString();
-                case 1:
-                    return ((GyroAccelUserBank1Registers)register).ToString();
-                case 2:
-                    return ((GyroAccelUserBank2Registers)register).ToString();
-                case 3:
-                    return ((GyroAccelUserBank3Registers)register).ToString();
-                default:
-                    throw new Exception("Unreachable");
+            case 0:
+                return ((GyroAccelUserBank0Registers)register).ToString();
+            case 1:
+                return ((GyroAccelUserBank1Registers)register).ToString();
+            case 2:
+                return ((GyroAccelUserBank2Registers)register).ToString();
+            case 3:
+                return ((GyroAccelUserBank3Registers)register).ToString();
+            default:
+                throw new Exception("Unreachable");
             }
         }
 
@@ -279,13 +280,13 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private string SelectedRegisterName => RegisterIndexToString(selectedRegister, userBankSelected);
 
-        private readonly IMachine machine;
-        private readonly SimpleContainerHelper<II2CPeripheral> i2cContainer;
-
         private bool chipSelected;
         private byte selectedRegister;
         private ulong userBankSelected;
         private State state;
+
+        private readonly IMachine machine;
+        private readonly SimpleContainerHelper<II2CPeripheral> i2cContainer;
 
         private readonly IReadOnlyDictionary<ulong, ByteRegisterCollection> userBankRegisters;
         private readonly ByteRegisterCollection gyroAccelUserBank0Registers;

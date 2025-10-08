@@ -6,21 +6,20 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.MTD
 {
-    public class DummySPIFlash: ISPIFlash
+    public class DummySPIFlash : ISPIFlash
     {
-        #region IPeripheral implementation
+        public DummySPIFlash()
+        {
+        }
 
         public void Reset()
         {
         }
-
-        #endregion
-
-        #region ISPIFlash implementation
 
         public void WriteEnable()
         {
@@ -44,15 +43,8 @@ namespace Antmicro.Renode.Peripherals.MTD
 
         public uint ReadID()
         {
-            this.Log(LogLevel.Warning,"Reading ID");
+            this.Log(LogLevel.Warning, "Reading ID");
             return 0xffffffff;
-        }
-
-        #endregion
-
-        public DummySPIFlash()
-        {
         }
     }
 }
-

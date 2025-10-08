@@ -8,15 +8,13 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.Timers;
-using Antmicro.Renode.Peripherals.Memory;
 using Antmicro.Renode.Time;
+
 using Org.BouncyCastle.Crypto.Engines;
 using Org.BouncyCastle.Crypto.Macs;
 using Org.BouncyCastle.Crypto.Parameters;
@@ -32,7 +30,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
             fifo = new Queue<uint>();
             cbcMacCipher = new CbcBlockCipherMac(new AesEngine(), 128);
-            
+
             IRQ = new GPIO();
             registersCollection = BuildRegistersCollection();
         }
@@ -81,13 +79,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         }
 
         [ConnectionRegionAttribute("rngfifo_s")]
-        public void WriteDoubleWordFifoSecure(long offset, uint value)
+        public void WriteDoubleWordFifoSecure(long _, uint __)
         {
             // Writing not supported
         }
 
         [ConnectionRegionAttribute("rngfifo_ns")]
-        public void WriteDoubleWordFifoNonSecure(long offset, uint value)
+        public void WriteDoubleWordFifoNonSecure(long _, uint __)
         {
             // Writing not supported
         }
@@ -117,10 +115,88 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             }
         }
 
-        public uint ReadFifo(long offset)
+        public uint ReadFifo(long _)
         {
             return FifoDequeue();
         }
+
+        public GPIO IRQ { get; }
+
+        private static readonly PseudorandomNumberGenerator random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
+
+        private void FillQueue()
+        {
+            while(fifo.Count < FifoDepth)
+            {
+                FifoEnqueue((uint)random.Next());
+            }
+        }
+
+        private uint FifoDequeue()
+        {
+            if(fifo.Count == 0)
+            {
+                this.Log(LogLevel.Warning, "FifoDequeue(): queue is empty!");
+                return 0;
+            }
+
+            uint ret = fifo.Dequeue();
+            FillQueue();
+            return ret;
+        }
+
+        private void FifoEnqueue(uint value)
+        {
+            if(fifo.Count == FifoDepth)
+            {
+                // Ignore
+                return;
+            }
+
+            fifo.Enqueue(value);
+
+            if(fifo.Count == FifoDepth)
+            {
+                fifoFullInterrupt.Value = true;
+                UpdateInterrupts();
+            }
+        }
+
+        private void SetKeyDoubleWord(uint index, uint value)
+        {
+            if(index > 3)
+            {
+                this.Log(LogLevel.Error, "SetKeyDoubleWord(): index invalid");
+                return;
+            }
+
+            key[index * 4] = (byte)(value & 0xFF);
+            key[(index * 4) + 1] = (byte)((value >> 8) & 0xFF);
+            key[(index * 4) + 2] = (byte)((value >> 16) & 0xFF);
+            key[(index * 4) + 3] = (byte)((value >> 24) & 0xFF);
+        }
+
+        private uint GetKeyDoubleWord(uint index)
+        {
+            if(index > 3)
+            {
+                this.Log(LogLevel.Error, "GetKeyDoubleWord(): index invalid");
+                return 0;
+            }
+
+            return ((uint)key[index * 4] | (uint)(key[(index * 4) + 1] << 8) | (uint)(key[(index * 4) + 2] << 16) | (uint)(key[(index * 4) + 3] << 24));
+        }
+
+        private void UpdateInterrupts()
+        {
+            machine.ClockSource.ExecuteInLock(delegate
+            {
+                var irq = (fifoFullInterruptEnable.Value && fifoFullInterrupt.Value);
+                IRQ.Set(irq);
+            });
+        }
+
+        private TimeInterval GetTime() => machine.LocalTimeSource.ElapsedVirtualTime;
 
         private DoubleWordRegisterCollection BuildRegistersCollection()
         {
@@ -186,146 +262,16 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             return new DoubleWordRegisterCollection(this, registerDictionary);
         }
 
-        public GPIO IRQ { get; }
-        private readonly Machine machine;
-        private static PseudorandomNumberGenerator random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
-        private readonly DoubleWordRegisterCollection registersCollection;
-        private const uint FifoDepth = 64;
-        private RngState state;
-        private bool enabled = false;
-        private bool softwareReset = false;
-        private Queue<uint> fifo;
-        private byte[] key = new byte[16];
-        private byte[] cbcMacBlock = new byte[16];
-        private uint cbcMacBlockIndex;
-        private uint cbcMacBlockNumber;
-        private uint conditioningTestDataCurrentSize;
-        private bool conditioningTestOngoing = false;
-        private CbcBlockCipherMac cbcMacCipher;
-#region register fields
-        private IFlagRegisterField fifoFullInterruptEnable;
-        private IFlagRegisterField fifoFullInterrupt;
-        private IFlagRegisterField testEnable;
-#endregion
-
-#region methods
-        private TimeInterval GetTime() => machine.LocalTimeSource.ElapsedVirtualTime;
-        
-        private void UpdateInterrupts()
+        private RngState State
         {
-            machine.ClockSource.ExecuteInLock(delegate {
-                var irq = (fifoFullInterruptEnable.Value && fifoFullInterrupt.Value);
-                IRQ.Set(irq);                        
-            });
-        }
-
-        private uint GetKeyDoubleWord(uint index)
-        {
-            if (index > 3)
-            {
-                this.Log(LogLevel.Error, "GetKeyDoubleWord(): index invalid");
-                return 0;
-            }
-
-            return ((uint)key[index * 4] | (uint)(key[(index * 4) + 1] << 8) | (uint)(key[(index * 4) + 2] << 16) | (uint)(key[(index * 4) + 3] << 24));
-        }
-
-        private void SetKeyDoubleWord(uint index, uint value)
-        {
-            if (index > 3)
-            {
-                this.Log(LogLevel.Error, "SetKeyDoubleWord(): index invalid");
-                return;
-            }
-
-            key[index * 4] = (byte)(value & 0xFF);
-            key[(index * 4) + 1] = (byte)((value >> 8) & 0xFF);
-            key[(index * 4) + 2] = (byte)((value >> 16) & 0xFF);
-            key[(index * 4) + 3] = (byte)((value >> 24) & 0xFF);
-        }
-
-        private void FifoEnqueue(uint value)
-        {
-            if (fifo.Count == FifoDepth)
-            {
-                // Ignore
-                return;
-            }
-            
-            fifo.Enqueue(value);
-
-            if (fifo.Count == FifoDepth)
-            {
-                fifoFullInterrupt.Value = true;
-                UpdateInterrupts();
-            }
-        }
-
-        private uint FifoDequeue()
-        {
-            if (fifo.Count == 0)
-            {
-                this.Log(LogLevel.Warning, "FifoDequeue(): queue is empty!");
-                return 0;
-            }
-
-            uint ret = fifo.Dequeue();
-            FillQueue();
-            return ret;
-        }
-
-        private void FillQueue()
-        {
-            while(fifo.Count < FifoDepth)
-            {
-                FifoEnqueue((uint)random.Next());
-            }
-        }
-
-        private bool Enable
-        {
-            get
-            {
-                return enabled;
-            }
             set
             {
-                if (!enabled && value)
-                {
-                    enabled = true;
-                    if (fifo.Count > 0)
-                    {
-                        this.Log(LogLevel.Warning, "Fifo not empty upon enable!");
-                    }
-                    State = RngState.Running;
-                    FillQueue();
-                    State = RngState.FifoFullOff;
-                }
-
-                if (!value)
-                {
-                    enabled = false;
-                    State = RngState.Reset;
-                }
+                state = value;
             }
-        }
 
-        private bool SoftwareReset
-        {
             get
             {
-                return softwareReset;
-            }
-            set
-            {
-                if (!softwareReset)
-                {
-                    softwareReset = true;
-                    State = RngState.Reset;
-                    enabled = false;
-                    conditioningTestOngoing = false;
-                    fifo.Clear();
-                }
+                return state;
             }
         }
 
@@ -337,15 +283,52 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             }
         }
 
-        private RngState State
+        private bool SoftwareReset
         {
-            set
-            {
-                state = value;
-            }
             get
             {
-                return state;
+                return softwareReset;
+            }
+
+            set
+            {
+                if(!softwareReset)
+                {
+                    softwareReset = true;
+                    State = RngState.Reset;
+                    enabled = false;
+                    conditioningTestOngoing = false;
+                    fifo.Clear();
+                }
+            }
+        }
+
+        private bool Enable
+        {
+            get
+            {
+                return enabled;
+            }
+
+            set
+            {
+                if(!enabled && value)
+                {
+                    enabled = true;
+                    if(fifo.Count > 0)
+                    {
+                        this.Log(LogLevel.Warning, "Fifo not empty upon enable!");
+                    }
+                    State = RngState.Running;
+                    FillQueue();
+                    State = RngState.FifoFullOff;
+                }
+
+                if(!value)
+                {
+                    enabled = false;
+                    State = RngState.Reset;
+                }
             }
         }
 
@@ -355,9 +338,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             {
                 return cbcMacBlockNumber;
             }
+
             set
             {
-                if (value != 0)
+                if(value != 0)
                 {
                     cbcMacBlockNumber = value;
                 }
@@ -368,12 +352,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         {
             set
             {
-                if (!testEnable.Value)
+                if(!testEnable.Value)
                 {
                     return;
                 }
 
-                if (!conditioningTestOngoing)
+                if(!conditioningTestOngoing)
                 {
                     conditioningTestOngoing = true;
                     conditioningTestDataCurrentSize = 0;
@@ -385,7 +369,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     this.Log(LogLevel.Noisy, "Creating CBCMAC object, key=[{0}]", BitConverter.ToString(key));
                 }
 
-                if (conditioningTestDataCurrentSize <= CbcMacBlockNumber*16 - 4)
+                if(conditioningTestDataCurrentSize <= CbcMacBlockNumber * 16 - 4)
                 {
                     conditioningTestDataCurrentSize += 4;
                     cbcMacBlock[cbcMacBlockIndex + 3] = (byte)((value >> 24) & 0xFF);
@@ -394,7 +378,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     cbcMacBlock[cbcMacBlockIndex] = (byte)(value & 0xFF);
                     cbcMacBlockIndex += 4;
 
-                    if (cbcMacBlockIndex == 16)
+                    if(cbcMacBlockIndex == 16)
                     {
                         this.Log(LogLevel.Noisy, "Adding block=[{0}]", BitConverter.ToString(cbcMacBlock));
                         cbcMacCipher.BlockUpdate(cbcMacBlock, 0, 16);
@@ -402,7 +386,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     }
                 }
 
-                if (conditioningTestDataCurrentSize == CbcMacBlockNumber*16)
+                if(conditioningTestDataCurrentSize == CbcMacBlockNumber * 16)
                 {
                     conditioningTestOngoing = false;
                     byte[] output = new byte[16];
@@ -416,19 +400,35 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                 }
             }
         }
-#endregion
 
-#region enums
+        private bool conditioningTestOngoing = false;
+        private uint conditioningTestDataCurrentSize;
+        private uint cbcMacBlockNumber;
+        private uint cbcMacBlockIndex;
+        private bool softwareReset = false;
+        private bool enabled = false;
+        private RngState state;
+        private IFlagRegisterField fifoFullInterruptEnable;
+        private IFlagRegisterField fifoFullInterrupt;
+        private IFlagRegisterField testEnable;
+        private readonly CbcBlockCipherMac cbcMacCipher;
+        private readonly byte[] cbcMacBlock = new byte[16];
+        private readonly byte[] key = new byte[16];
+        private readonly Queue<uint> fifo;
+        private readonly Machine machine;
+        private readonly DoubleWordRegisterCollection registersCollection;
+        private const uint FifoDepth = 64;
+
         private enum RngState
         {
-                Reset       = 0,
-                Startup     = 1,
-                FifoFullOn  = 2,
-                FifoFullOff = 3,
-                Running     = 4,
-                Error       = 5,
-                Unused_6    = 6,
-                Unused      = 7,
+            Reset       = 0,
+            Startup     = 1,
+            FifoFullOn  = 2,
+            FifoFullOff = 3,
+            Running     = 4,
+            Error       = 5,
+            Unused_6    = 6,
+            Unused      = 7,
         }
 
         private enum Registers
@@ -454,7 +454,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             AIS31Configuration1                     = 0x04C,
             AIS31Configuration2                     = 0x050,
             AIS31Status                             = 0x054,
-       }
-#endregion
+        }
     }
 }

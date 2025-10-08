@@ -7,14 +7,15 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.Helpers;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Helpers;
 using Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.SPI
 {
@@ -58,37 +59,37 @@ namespace Antmicro.Renode.Peripherals.SPI
         // There is no information in the Linux driver about handling offset for a DMA access
         // The comment above applies to all Write*ToDMA and Read*FromDMA methods
         [ConnectionRegion("dma")]
-        public void WriteByteUsingDMA(long offset, byte value)
+        public void WriteByteUsingDMA(long _, byte value)
         {
             WriteUsingDMA(new byte[] { value });
         }
 
         [ConnectionRegion("dma")]
-        public void WriteWordUsingDMA(long offset, ushort value)
+        public void WriteWordUsingDMA(long _, ushort value)
         {
             WriteUsingDMA(BitHelper.GetBytesFromValue(value, 2));
         }
 
         [ConnectionRegion("dma")]
-        public void WriteDoubleWordUsingDMA(long offset, uint value)
+        public void WriteDoubleWordUsingDMA(long _, uint value)
         {
             WriteUsingDMA(BitHelper.GetBytesFromValue(value, 4));
         }
 
         [ConnectionRegion("dma")]
-        public byte ReadByteUsingDMA(long offset)
+        public byte ReadByteUsingDMA(long _)
         {
             return ReadUsingDMA(1).First();
         }
 
         [ConnectionRegion("dma")]
-        public ushort ReadWordUsingDMA(long offset)
+        public ushort ReadWordUsingDMA(long _)
         {
             return BitHelper.ToUInt16(ReadUsingDMA(2).ToArray(), 0, false);
         }
 
         [ConnectionRegion("dma")]
-        public uint ReadDoubleWordUsingDMA(long offset)
+        public uint ReadDoubleWordUsingDMA(long _)
         {
             return BitHelper.ToUInt32(ReadUsingDMA(4).ToArray(), 0, 4, false);
         }
@@ -421,7 +422,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private IFlagRegisterField interruptsEnabled;
         private IEnumRegisterField<ControllerMode> controllerMode;
 
-        // Command registers have different fields at same offset depending on the command type 
+        // Command registers have different fields at same offset depending on the command type
         // The commandPayload array contains all command registers values
         // It's passed to the Command class constructor and decoded
         private readonly uint[] commandPayload = new uint[6];

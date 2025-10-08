@@ -24,16 +24,15 @@ namespace Antmicro.Renode.Peripherals.Wireless.IEEE802_15_4
         {
             switch(mode)
             {
-                case AddressingMode.None:
-                    return 0;
-                case AddressingMode.ShortAddress:
-                    return 2;
-                case AddressingMode.ExtendedAddress:
-                    return 8;
-                default:
-                    throw new ArgumentException();
+            case AddressingMode.None:
+                return 0;
+            case AddressingMode.ShortAddress:
+                return 2;
+            case AddressingMode.ExtendedAddress:
+                return 8;
+            default:
+                throw new ArgumentException();
             }
         }
     }
 }
-

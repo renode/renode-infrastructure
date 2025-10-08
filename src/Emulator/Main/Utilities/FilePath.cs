@@ -8,8 +8,9 @@
 using System;
 using System.IO;
 using System.Linq;
-using Antmicro.Renode.Logging;
+
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -91,7 +92,7 @@ namespace Antmicro.Renode.Utilities
 
     public class ReadFilePath : FilePath
     {
-        public ReadFilePath(string path) : base(path, FileAccess.Read) {}
+        public ReadFilePath(string path) : base(path, FileAccess.Read) { }
 
         public static implicit operator ReadFilePath(string path)
         {
@@ -127,7 +128,7 @@ namespace Antmicro.Renode.Utilities
 
     public class AppendFilePath : FilePath
     {
-        public AppendFilePath(string path) : base(path, FileAccess.Write) {}
+        public AppendFilePath(string path) : base(path, FileAccess.Write) { }
 
         public static implicit operator AppendFilePath(string path)
         {
@@ -137,7 +138,7 @@ namespace Antmicro.Renode.Utilities
 
     public class WriteFilePath : FilePath
     {
-        public WriteFilePath(string path) : base(path, FileAccess.Write) {}
+        public WriteFilePath(string path) : base(path, FileAccess.Write) { }
 
         public override void Validate()
         {
@@ -161,7 +162,7 @@ namespace Antmicro.Renode.Utilities
 
     public class SequencedFilePath : WriteFilePath
     {
-        public SequencedFilePath(string path) : base(path) {}
+        public SequencedFilePath(string path) : base(path) { }
 
         public override void Validate()
         {

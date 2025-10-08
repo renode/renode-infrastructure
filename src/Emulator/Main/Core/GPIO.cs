@@ -8,6 +8,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Utilities;
 
@@ -20,7 +21,22 @@ namespace Antmicro.Renode.Core
         {
             sync = new object();
             targets = new List<GPIOEndpoint>();
-            stateChangedHook = delegate {};
+            stateChangedHook = delegate { };
+        }
+
+        public void AddStateChangedHook(Action<bool> hook)
+        {
+            stateChangedHook += hook;
+        }
+
+        public void RemoveStateChangedHook(Action<bool> hook)
+        {
+            stateChangedHook -= hook;
+        }
+
+        public void RemoveAllStateChangedHooks()
+        {
+            stateChangedHook = delegate { };
         }
 
         public void Set(bool value)
@@ -120,21 +136,6 @@ namespace Antmicro.Renode.Core
             }
         }
 
-        public void AddStateChangedHook(Action<bool> hook)
-        {
-            stateChangedHook += hook;
-        }
-
-        public void RemoveStateChangedHook(Action<bool> hook)
-        {
-            stateChangedHook -= hook;
-        }
-
-        public void RemoveAllStateChangedHooks()
-        {
-            stateChangedHook = delegate {};
-        }
-
         private static void Validate(IGPIOReceiver to, int toNumber)
         {
             var destPeriInNum = to.GetPeripheralInputCount();
@@ -143,7 +144,7 @@ namespace Antmicro.Renode.Core
                 throw new ConstructionException(string.Format(
                     "Cannot connect {0}th input of {1}; it has only {2} GPIO inputs.",
                     toNumber, to, destPeriInNum));
-            }           
+            }
         }
 
         private bool state;
@@ -152,4 +153,3 @@ namespace Antmicro.Renode.Core
         private readonly IList<GPIOEndpoint> targets;
     }
 }
-

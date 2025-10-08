@@ -7,14 +7,15 @@
 //
 using System;
 using System.Collections.Generic;
-using Antmicro.Renode.Utilities;
 using System.Linq;
+
 using Antmicro.Migrant;
 using Antmicro.Migrant.Hooks;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Utilities.Collections;
-using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.UserInterface;
+using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Utilities.Collections;
 
 namespace Antmicro.Renode.Peripherals
 {
@@ -37,7 +38,7 @@ namespace Antmicro.Renode.Peripherals
 
         public IEnumerable<string> GetAvailableAnalyzersFor(IAnalyzableBackend backend)
         {
-            if (!analyzers.ContainsKey(backend.GetType()))
+            if(!analyzers.ContainsKey(backend.GetType()))
             {
                 return new string[0];
             }
@@ -119,7 +120,7 @@ namespace Antmicro.Renode.Peripherals
 
         public bool TryCreateAnalyzerForBackend<T>(T backend, string analyzerTypeName, out IAnalyzableBackendAnalyzer analyzer) where T : IAnalyzableBackend
         {
-            if (!analyzers.ContainsKey(backend.GetType()))
+            if(!analyzers.ContainsKey(backend.GetType()))
             {
                 analyzer = null;
                 return false;
@@ -177,7 +178,7 @@ namespace Antmicro.Renode.Peripherals
         {
             dynamic danalyzer = Activator.CreateInstance(analyzerType);
             danalyzer.AttachTo((dynamic)backend);
-            return (IAnalyzableBackendAnalyzer) danalyzer;
+            return (IAnalyzableBackendAnalyzer)danalyzer;
         }
 
         private bool TryCreateAndAttach(Type analyzerType, object backend, Func<IAnalyzableBackendAnalyzer, bool> condition, out IAnalyzableBackendAnalyzer analyzer)
@@ -251,7 +252,7 @@ namespace Antmicro.Renode.Peripherals
                 {
                     preferredAnalyzer.Add(Type.GetType(pas.Key), Type.GetType(pas.Value));
                 }
-                catch (Exception)
+                catch(Exception)
                 {
                     Logger.LogAs(this, LogLevel.Warning, "Could not restore preferred analyzer for {0}: {1}. Error while loading types", pas.Key, pas.Value);
                 }
@@ -272,7 +273,6 @@ namespace Antmicro.Renode.Peripherals
             TypeManager.Instance.AutoLoadedType += HandleAutoLoadTypeFound;
         }
 
-        private SerializableWeakKeyDictionary<IAnalyzable, IAnalyzableBackend> map;
         [Transient]
         private Dictionary<Type, List<Tuple<Type, bool>>> analyzers;
         [Transient]
@@ -284,6 +284,7 @@ namespace Antmicro.Renode.Peripherals
 
         [Transient]
         private List<IAnalyzableBackendAnalyzer> activeAnalyzers;
+
+        private readonly SerializableWeakKeyDictionary<IAnalyzable, IAnalyzableBackend> map;
     }
 }
-

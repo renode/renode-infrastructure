@@ -5,12 +5,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Peripherals;
-using Antmicro.Renode.Logging;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.I2C;
-using Antmicro.Renode.Peripherals.Sensor;
 
 namespace Antmicro.Renode.Peripherals.Sensors
 {
@@ -54,8 +53,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
             {
                 return;
             }
-            WriteI2CPeripherial(selectedI2CSlave, new byte[] { (byte)slaveTransactionRegisterAddress0.Value } );
-            ReadI2CPeripherial(selectedI2CSlave, (int)slaveTransferLength0.Value );
+            WriteI2CPeripherial(selectedI2CSlave, new byte[] { (byte)slaveTransactionRegisterAddress0.Value });
+            ReadI2CPeripherial(selectedI2CSlave, (int)slaveTransferLength0.Value);
         }
 
         private void DefineGyroAccelUserBank3Registers()
@@ -125,7 +124,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                         {
                             return;
                         }
-                        WriteI2CPeripherial(selectedI2CSlave, new byte[] { (byte)slaveTransactionRegisterAddress0.Value, (byte)val } );
+                        WriteI2CPeripherial(selectedI2CSlave, new byte[] { (byte)slaveTransactionRegisterAddress0.Value, (byte)val });
                     })
             ;
 

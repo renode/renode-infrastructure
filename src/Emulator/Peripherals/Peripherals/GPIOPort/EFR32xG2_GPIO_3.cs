@@ -7,15 +7,12 @@
 //
 
 using System.Collections.Generic;
-using System.IO;
-using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Time;
-using Antmicro.Renode.Peripherals.GPIOPort;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
 {
@@ -25,9 +22,47 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         {
             OddIRQ = new GPIO();
             EvenIRQ = new GPIO();
-            
+
             registersCollection = BuildRegistersCollection();
             InnerReset();
+        }
+
+        public override void OnGPIO(int number, bool value)
+        {
+            bool internalSignal = ((number & 0x1000) > 0);
+
+            // Override the GPIO number if this is an internal signal.
+            if(internalSignal)
+            {
+                SignalSource signalSource = (SignalSource)(number & 0xFF);
+                SignalType signalType = (SignalType)((number & 0xF00) >> 8);
+
+                number = GetPinNumberFromInternalSignal(signalSource, signalType);
+
+                if(number < 0)
+                {
+                    this.Log(LogLevel.Warning, "Pin number not found for internal signal (source={0} signal={1})", signalSource, signalType);
+                    return;
+                }
+            }
+
+            if(number < 0 || number >= State.Length)
+            {
+                this.Log(LogLevel.Error, string.Format("Gpio #{0} called, but only {1} lines are available", number, State.Length));
+                return;
+            }
+
+            lock(internalLock)
+            {
+                if(IsOutput(pinMode[number].Value))
+                {
+                    this.Log(LogLevel.Warning, "Writing to an output GPIO pin #{0}", number);
+                    return;
+                }
+
+                base.OnGPIO(number, value);
+                UpdateInterrupts();
+            }
         }
 
         public override void Reset()
@@ -36,6 +71,29 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             {
                 base.Reset();
                 InnerReset();
+            }
+        }
+
+        public void WriteDoubleWord(long offset, uint value)
+        {
+            // TODO: A subset of registers is lockable: if the lock is on (see LockStatus register), these registers should not be accessible.
+            WriteRegister(offset, value);
+        }
+
+        public void InnerReset()
+        {
+            registersCollection.Reset();
+            configurationLocked = false;
+            EvenIRQ.Unset();
+            OddIRQ.Unset();
+            for(var i = 0; i < NumberOfExternalInterrupts; i++)
+            {
+                interruptTrigger[i] = (uint)InterruptTrigger.None;
+                previousState[i] = false;
+            }
+            for(var i = 0; i < NumberOfPins * NumberOfPorts; i++)
+            {
+                targetExternalPins[i] = 0;
             }
         }
 
@@ -52,6 +110,95 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             return result;
         }
 
+        public long Size => 0x4000;
+
+        public GPIO OddIRQ { get; }
+
+        public GPIO EvenIRQ { get; }
+
+        private bool IsOutput(PinMode mode)
+        {
+            return mode >= PinMode.PushPull;
+        }
+
+        private int GetPinNumber(Port port, uint pinSelect)
+        {
+            return (int)(((uint)port) * NumberOfPins + pinSelect);
+        }
+
+        private void UpdateRouting()
+        {
+            for(uint i = 0; i < NumberOfPins * NumberOfPorts; i++)
+            {
+                targetExternalPins[i] = 0;
+            }
+
+            for(uint i = 0; i < NumberOfExternalInterrupts; i++)
+            {
+                Port port = externalInterruptPortSelect[i].Value;
+                uint pin = (uint)externalInterruptPinSelect[i].Value;
+
+                uint pinGroup = i / 4;
+                uint pinNumber = ((uint)port * NumberOfPins) + (pinGroup * 4) + pin;
+
+                targetExternalPins[pinNumber] = i;
+            }
+
+            UpdateInterrupts();
+        }
+
+        private void UpdateInterrupts()
+        {
+            machine.ClockSource.ExecuteInLock(delegate
+            {
+                for(var i = 0; i < NumberOfPorts * NumberOfPins; ++i)
+                {
+                    var externalInterruptIndex = targetExternalPins[i];
+
+                    if(!externalInterruptEnable[externalInterruptIndex].Value)
+                    {
+                        continue;
+                    }
+
+                    var isEdge = (State[i] != previousState[externalInterruptIndex]);
+                    previousState[externalInterruptIndex] = State[i];
+
+                    if(isEdge
+                       && ((State[i] && ((interruptTrigger[externalInterruptIndex] & (uint)InterruptTrigger.RisingEdge) > 0))
+                           || (!State[i] && ((interruptTrigger[externalInterruptIndex] & (uint)InterruptTrigger.FallingEdge) > 0))))
+                    {
+                        externalInterrupt[externalInterruptIndex].Value = true;
+                    }
+                }
+
+                // Set even and/or odd interrupt as needed
+                var even = false;
+                var odd = false;
+                for(var i = 0; i < NumberOfExternalInterrupts; i += 2)
+                {
+                    even |= externalInterrupt[i].Value;
+                }
+                for(var i = 1; i < NumberOfExternalInterrupts; i += 2)
+                {
+                    odd |= externalInterrupt[i].Value;
+                }
+                OddIRQ.Set(odd);
+                EvenIRQ.Set(even);
+            });
+        }
+
+        private bool TrySyncTime()
+        {
+            if(machine.SystemBus.TryGetCurrentCPU(out var cpu))
+            {
+                cpu.SyncTime();
+                return true;
+            }
+            return false;
+        }
+
+        private TimeInterval GetTime() => machine.LocalTimeSource.ElapsedVirtualTime;
+
         private uint ReadRegister(long offset, bool internal_read = false)
         {
             var result = 0U;
@@ -60,15 +207,16 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             lock(internalLock)
             {
                 // Set, Clear, Toggle registers should only be used for write operations. But just in case we convert here as well.
-                if (offset >= SetRegisterOffset && offset < ClearRegisterOffset) 
+                if(offset >= SetRegisterOffset && offset < ClearRegisterOffset)
                 {
                     // Set register
                     internal_offset = offset - SetRegisterOffset;
                     if(!internal_read)
-                    {  
+                    {
                         this.Log(LogLevel.Noisy, "SET Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}", (Registers)internal_offset, offset, internal_offset);
                     }
-                } else if (offset >= ClearRegisterOffset && offset < ToggleRegisterOffset) 
+                }
+                else if(offset >= ClearRegisterOffset && offset < ToggleRegisterOffset)
                 {
                     // Clear register
                     internal_offset = offset - ClearRegisterOffset;
@@ -76,7 +224,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     {
                         this.Log(LogLevel.Noisy, "CLEAR Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}", (Registers)internal_offset, offset, internal_offset);
                     }
-                } else if (offset >= ToggleRegisterOffset)
+                }
+                else if(offset >= ToggleRegisterOffset)
                 {
                     // Toggle register
                     internal_offset = offset - ToggleRegisterOffset;
@@ -105,34 +254,30 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             }
         }
 
-        public void WriteDoubleWord(long offset, uint value)
+        private void WriteRegister(long offset, uint value)
         {
-            // TODO: A subset of registers is lockable: if the lock is on (see LockStatus register), these registers should not be accessible.
-            WriteRegister(offset, value);
-        }
-
-        private void WriteRegister(long offset, uint value, bool internal_write = false)
-        {
-            lock(internalLock) 
+            lock(internalLock)
             {
                 long internal_offset = offset;
                 uint internal_value = value;
 
-                if (offset >= SetRegisterOffset && offset < ClearRegisterOffset) 
+                if(offset >= SetRegisterOffset && offset < ClearRegisterOffset)
                 {
                     // Set register
                     internal_offset = offset - SetRegisterOffset;
                     uint old_value = ReadRegister(internal_offset, true);
                     internal_value = old_value | value;
                     this.Log(LogLevel.Noisy, "SET Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}, SET_value=0x{3:X}, old_value=0x{4:X}, new_value=0x{5:X}", (Registers)internal_offset, offset, internal_offset, value, old_value, internal_value);
-                } else if (offset >= ClearRegisterOffset && offset < ToggleRegisterOffset) 
+                }
+                else if(offset >= ClearRegisterOffset && offset < ToggleRegisterOffset)
                 {
                     // Clear register
                     internal_offset = offset - ClearRegisterOffset;
                     uint old_value = ReadRegister(internal_offset, true);
                     internal_value = old_value & ~value;
                     this.Log(LogLevel.Noisy, "CLEAR Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}, CLEAR_value=0x{3:X}, old_value=0x{4:X}, new_value=0x{5:X}", (Registers)internal_offset, offset, internal_offset, value, old_value, internal_value);
-                } else if (offset >= ToggleRegisterOffset)
+                }
+                else if(offset >= ToggleRegisterOffset)
                 {
                     // Toggle register
                     internal_offset = offset - ToggleRegisterOffset;
@@ -232,8 +377,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithChangeCallback((_, __) => UpdateRouting())
                 },
                 {(long)Registers.ExternalInterruptRisingEdgeTrigger, new DoubleWordRegister(this)
-                    .WithFlags(0, 16, 
-                               writeCallback: (i, _, value) => 
+                    .WithFlags(0, 16,
+                               writeCallback: (i, _, value) =>
                                {
                                    if (value)
                                    {
@@ -243,14 +388,14 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                                    {
                                        interruptTrigger[i] ^= (uint)InterruptTrigger.RisingEdge;
                                    }
-                               }, 
-                               valueProviderCallback: (i, _) => ((interruptTrigger[i] & (uint)InterruptTrigger.RisingEdge) > 0), 
+                               },
+                               valueProviderCallback: (i, _) => ((interruptTrigger[i] & (uint)InterruptTrigger.RisingEdge) > 0),
                                name: "EXTIRISE")
                     .WithReservedBits(16, 16)
                 },
                 {(long)Registers.ExternalInterruptFallingEdgeTrigger, new DoubleWordRegister(this)
-                    .WithFlags(0, 16, 
-                               writeCallback: (i, _, value) => 
+                    .WithFlags(0, 16,
+                               writeCallback: (i, _, value) =>
                                {
                                    if (value)
                                    {
@@ -260,8 +405,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                                    {
                                        interruptTrigger[i] ^= (uint)InterruptTrigger.FallingEdge;
                                    }
-                               }, 
-                               valueProviderCallback: (i, _) => ((interruptTrigger[i] & (uint)InterruptTrigger.FallingEdge) > 0), 
+                               },
+                               valueProviderCallback: (i, _) => ((interruptTrigger[i] & (uint)InterruptTrigger.FallingEdge) > 0),
                                name: "EXTIFALL")
                     .WithReservedBits(16, 16)
                 },
@@ -447,16 +592,16 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                      .WithEnumField<DoubleWordRegister, PinMode>(28, 4, out pinMode[pinOffset + 15], name: "MODE15")
                     );
             regs.Add((long)Registers.PortADataOut + regOffset, new DoubleWordRegister(this)
-                     .WithFlags(0, 16, 
-                                writeCallback: (i, _, value) => 
+                     .WithFlags(0, 16,
+                                writeCallback: (i, _, value) =>
                                 {
                                     var pin = pinOffset + i;
-                                    if (IsOutput(pinMode[pin].Value))
+                                    if(IsOutput(pinMode[pin].Value))
                                     {
                                         Connections[pin].Set(value);
                                     }
                                 },
-                                valueProviderCallback: (i, _) => 
+                                valueProviderCallback: (i, _) =>
                                 {
                                     var pin = pinOffset + i;
                                     return Connections[pin].IsSet;
@@ -476,9 +621,45 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     );
         }
 
-        public long Size => 0x4000;
-        public GPIO OddIRQ { get; }
-        public GPIO EvenIRQ { get; }
+        private IValueRegisterField EUSART0_RxRoutePin;
+        private IValueRegisterField EUSART1_TxRoutePin;
+        private IEnumRegisterField<Port> EUSART1_TxRoutePort;
+        private IValueRegisterField EUSART1_RxRoutePin;
+        private IEnumRegisterField<Port> EUSART1_RxRoutePort;
+        private IFlagRegisterField EUSART1_RouteEnable_CsPin;
+        private IFlagRegisterField EUSART1_RouteEnable_RtsPin;
+        private IFlagRegisterField EUSART1_RouteEnable_RxPin;
+        private IFlagRegisterField EUSART1_RouteEnable_SclkPin;
+        // EUSART1
+        private IFlagRegisterField EUSART1_RouteEnable_TxPin;
+        private IValueRegisterField EUSART0_TxRoutePin;
+        private IEnumRegisterField<Port> EUSART0_TxRoutePort;
+        private IEnumRegisterField<Port> EUSART0_RxRoutePort;
+        private IFlagRegisterField EUSART0_RouteEnable_CsPin;
+        private IFlagRegisterField EUSART0_RouteEnable_SclkPin;
+        private IFlagRegisterField EUSART0_RouteEnable_RxPin;
+        private bool configurationLocked;
+        // USART0
+        private IFlagRegisterField USART0_RouteEnable_TxPin;
+        private IFlagRegisterField USART0_RouteEnable_SclkPin;
+        private IFlagRegisterField EUSART0_RouteEnable_RtsPin;
+        private IFlagRegisterField USART0_RouteEnable_RtsPin;
+        private IFlagRegisterField USART0_RouteEnable_CsPin;
+        private IFlagRegisterField USART0_RouteEnable_RxPin;
+        private IValueRegisterField USART0_RxRoutePin;
+        private IEnumRegisterField<Port> USART0_TxRoutePort;
+        private IValueRegisterField USART0_TxRoutePin;
+        // EUSART0
+        private IFlagRegisterField EUSART0_RouteEnable_TxPin;
+        private IEnumRegisterField<Port> USART0_RxRoutePort;
+        private readonly bool[] previousState = new bool[NumberOfExternalInterrupts];
+        private readonly uint[] interruptTrigger = new uint[NumberOfExternalInterrupts];
+        private readonly IFlagRegisterField[] externalInterruptEnable = new IFlagRegisterField[NumberOfExternalInterrupts];
+        private readonly IFlagRegisterField[] externalInterrupt = new IFlagRegisterField[NumberOfExternalInterrupts];
+        private readonly IEnumRegisterField<PinMode>[] pinMode = new IEnumRegisterField<PinMode>[NumberOfPins * NumberOfPorts];
+        private readonly IValueRegisterField[] externalInterruptPinSelect = new IValueRegisterField[NumberOfExternalInterrupts];
+        private readonly IEnumRegisterField<Port>[] externalInterruptPortSelect = new IEnumRegisterField<Port>[NumberOfExternalInterrupts];
+        private readonly uint[] targetExternalPins = new uint[NumberOfPins * NumberOfPorts];
         private readonly DoubleWordRegisterCollection registersCollection;
         private readonly object internalLock = new object();
         private const uint SetRegisterOffset = 0x1000;
@@ -489,103 +670,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         private const int NumberOfExternalInterrupts = 16;
         private const int UnlockCode = 0xA534;
         private const int PortOffset = 0x30;
-#region register fields
-        private readonly IEnumRegisterField<Port>[] externalInterruptPortSelect = new IEnumRegisterField<Port>[NumberOfExternalInterrupts];
-        private readonly IValueRegisterField[] externalInterruptPinSelect = new IValueRegisterField[NumberOfExternalInterrupts];
-        private readonly IEnumRegisterField<PinMode>[] pinMode = new IEnumRegisterField<PinMode>[NumberOfPins * NumberOfPorts];
-        private readonly IFlagRegisterField[] externalInterrupt = new IFlagRegisterField[NumberOfExternalInterrupts];
-        private readonly IFlagRegisterField[] externalInterruptEnable = new IFlagRegisterField[NumberOfExternalInterrupts];
-        private readonly uint[] interruptTrigger = new uint[NumberOfExternalInterrupts];
-        private readonly bool[] previousState = new bool[NumberOfExternalInterrupts];
-        private readonly uint[] targetExternalPins = new uint[NumberOfPins * NumberOfPorts];
-        private bool configurationLocked;
-        // USART0
-        private IFlagRegisterField USART0_RouteEnable_TxPin;
-        private IFlagRegisterField USART0_RouteEnable_SclkPin;
-        private IFlagRegisterField USART0_RouteEnable_RxPin;
-        private IFlagRegisterField USART0_RouteEnable_RtsPin;
-        private IFlagRegisterField USART0_RouteEnable_CsPin;
-        private IEnumRegisterField<Port> USART0_RxRoutePort;
-        private IValueRegisterField USART0_RxRoutePin;
-        private IEnumRegisterField<Port> USART0_TxRoutePort;
-        private IValueRegisterField USART0_TxRoutePin;
-        // EUSART0
-        private IFlagRegisterField EUSART0_RouteEnable_TxPin;
-        private IFlagRegisterField EUSART0_RouteEnable_SclkPin;
-        private IFlagRegisterField EUSART0_RouteEnable_RxPin;
-        private IFlagRegisterField EUSART0_RouteEnable_RtsPin;
-        private IFlagRegisterField EUSART0_RouteEnable_CsPin;
-        private IEnumRegisterField<Port> EUSART0_RxRoutePort;
-        private IValueRegisterField EUSART0_RxRoutePin;
-        private IEnumRegisterField<Port> EUSART0_TxRoutePort;
-        private IValueRegisterField EUSART0_TxRoutePin;
-        // EUSART1
-        private IFlagRegisterField EUSART1_RouteEnable_TxPin;
-        private IFlagRegisterField EUSART1_RouteEnable_SclkPin;
-        private IFlagRegisterField EUSART1_RouteEnable_RxPin;
-        private IFlagRegisterField EUSART1_RouteEnable_RtsPin;
-        private IFlagRegisterField EUSART1_RouteEnable_CsPin;
-        private IEnumRegisterField<Port> EUSART1_RxRoutePort;
-        private IValueRegisterField EUSART1_RxRoutePin;
-        private IEnumRegisterField<Port> EUSART1_TxRoutePort;
-        private IValueRegisterField EUSART1_TxRoutePin;
-#endregion
-
-#region methods
-        public void InnerReset()
-        {
-            registersCollection.Reset();
-            configurationLocked = false;
-            EvenIRQ.Unset();
-            OddIRQ.Unset();
-            for(var i = 0; i < NumberOfExternalInterrupts; i++)
-            {
-                interruptTrigger[i] = (uint)InterruptTrigger.None;
-                previousState[i] = false;
-            }
-            for(var i = 0; i < NumberOfPins * NumberOfPorts; i++)
-            {
-                targetExternalPins[i] = 0;
-            }
-        }
-        
-        public override void OnGPIO(int number, bool value)
-        {
-            bool internalSignal = ((number & 0x1000) > 0);
-
-            // Override the GPIO number if this is an internal signal.
-            if (internalSignal)
-            {
-                SignalSource signalSource = (SignalSource)(number & 0xFF);
-                SignalType signalType = (SignalType)((number & 0xF00) >> 8);
-                
-                number = GetPinNumberFromInternalSignal(signalSource, signalType);
-
-                if (number < 0)
-                {
-                    this.Log(LogLevel.Warning, "Pin number not found for internal signal (source={0} signal={1})", signalSource, signalType);
-                    return;
-                }
-            }
-
-            if(number < 0 || number >= State.Length)
-            {
-                this.Log(LogLevel.Error, string.Format("Gpio #{0} called, but only {1} lines are available", number, State.Length));
-                return;
-            }
-            
-            lock(internalLock)
-            {
-                if(IsOutput(pinMode[number].Value))
-                {
-                    this.Log(LogLevel.Warning, "Writing to an output GPIO pin #{0}", number);
-                    return;
-                }
-
-                base.OnGPIO(number, value);
-                UpdateInterrupts();
-            }
-        } 
 
         int GetPinNumberFromInternalSignal(SignalSource signalSource, SignalType signalType)
         {
@@ -593,152 +677,68 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
             switch(signalSource)
             {
-                case SignalSource.USART0:
+            case SignalSource.USART0:
+            {
+                switch(signalType)
                 {
-                    switch(signalType)
-                    {
-                        case SignalType.USART0_RX:
-                        {
-                            if (USART0_RouteEnable_RxPin.Value)
-                            {
-                                pinNumber = GetPinNumber(USART0_RxRoutePort.Value, (uint)USART0_RxRoutePin.Value);
-                            }
-                            break;
-                        }
-                        default:
-                            this.Log(LogLevel.Error, string.Format("GPIO Signal type {0} for USART0 not supported", signalType));
-                            return pinNumber;
-                    }
-                    break;
-                }
-                case SignalSource.EUSART0:
+                case SignalType.USART0_RX:
                 {
-                    switch(signalType)
+                    if(USART0_RouteEnable_RxPin.Value)
                     {
-                        case SignalType.EUSART0_RX:
-                        {
-                            if (EUSART0_RouteEnable_RxPin.Value)
-                            {
-                                pinNumber = GetPinNumber(EUSART0_RxRoutePort.Value, (uint)EUSART0_RxRoutePin.Value);
-                            }
-                            break;
-                        }
-                        default:
-                            this.Log(LogLevel.Error, string.Format("GPIO Signal type {0} for EUSART0 not supported", signalType));
-                            return pinNumber;
-                    }
-                    break;
-                }
-                case SignalSource.EUSART1:
-                {
-                    switch(signalType)
-                    {
-                        case SignalType.EUSART1_RX:
-                        {
-                            if (EUSART1_RouteEnable_RxPin.Value)
-                            {
-                                pinNumber = GetPinNumber(EUSART1_RxRoutePort.Value, (uint)EUSART1_RxRoutePin.Value);
-                            }
-                            break;
-                        }
-                        default:
-                            this.Log(LogLevel.Error, string.Format("GPIO Signal type {0} for EUSART1 not supported", signalType));
-                            return pinNumber;
+                        pinNumber = GetPinNumber(USART0_RxRoutePort.Value, (uint)USART0_RxRoutePin.Value);
                     }
                     break;
                 }
                 default:
-                    this.Log(LogLevel.Error, string.Format("GPIO Signal source {0} not supported", signalSource));
+                    this.Log(LogLevel.Error, string.Format("GPIO Signal type {0} for USART0 not supported", signalType));
                     return pinNumber;
+                }
+                break;
+            }
+            case SignalSource.EUSART0:
+            {
+                switch(signalType)
+                {
+                case SignalType.EUSART0_RX:
+                {
+                    if(EUSART0_RouteEnable_RxPin.Value)
+                    {
+                        pinNumber = GetPinNumber(EUSART0_RxRoutePort.Value, (uint)EUSART0_RxRoutePin.Value);
+                    }
+                    break;
+                }
+                default:
+                    this.Log(LogLevel.Error, string.Format("GPIO Signal type {0} for EUSART0 not supported", signalType));
+                    return pinNumber;
+                }
+                break;
+            }
+            case SignalSource.EUSART1:
+            {
+                switch(signalType)
+                {
+                case SignalType.EUSART1_RX:
+                {
+                    if(EUSART1_RouteEnable_RxPin.Value)
+                    {
+                        pinNumber = GetPinNumber(EUSART1_RxRoutePort.Value, (uint)EUSART1_RxRoutePin.Value);
+                    }
+                    break;
+                }
+                default:
+                    this.Log(LogLevel.Error, string.Format("GPIO Signal type {0} for EUSART1 not supported", signalType));
+                    return pinNumber;
+                }
+                break;
+            }
+            default:
+                this.Log(LogLevel.Error, string.Format("GPIO Signal source {0} not supported", signalSource));
+                return pinNumber;
             }
 
             return pinNumber;
         }
 
-        private void UpdateInterrupts()
-        {
-            machine.ClockSource.ExecuteInLock(delegate {
-                for(var i = 0; i < NumberOfPorts*NumberOfPins; ++i)
-                {
-                    var externalInterruptIndex = targetExternalPins[i];
-                    
-                    if (!externalInterruptEnable[externalInterruptIndex].Value)
-                    {
-                        continue;
-                    }
-                    
-                    var isEdge = (State[i] != previousState[externalInterruptIndex]);
-                    previousState[externalInterruptIndex] = State[i];
-                    
-                    if(isEdge
-                       && ((State[i] && ((interruptTrigger[externalInterruptIndex] & (uint)InterruptTrigger.RisingEdge) > 0))
-                           || (!State[i] && ((interruptTrigger[externalInterruptIndex] & (uint)InterruptTrigger.FallingEdge) > 0))))
-                    {
-                        externalInterrupt[externalInterruptIndex].Value = true;
-                    }
-                }
-
-                // Set even and/or odd interrupt as needed
-                var even = false;
-                var odd = false;
-                for(var i = 0; i < NumberOfExternalInterrupts; i += 2)
-                {
-                    even |= externalInterrupt[i].Value;
-                }
-                for(var i = 1; i < NumberOfExternalInterrupts; i += 2)
-                {
-                    odd |= externalInterrupt[i].Value;
-                }
-                OddIRQ.Set(odd);    
-                EvenIRQ.Set(even);
-            });
-        }
-
-        private void UpdateRouting()
-        {
-            for(uint i=0; i<NumberOfPins * NumberOfPorts; i++)
-            {
-                targetExternalPins[i] = 0;
-            }
-
-            for(uint i=0; i<NumberOfExternalInterrupts; i++)
-            {
-                Port port = externalInterruptPortSelect[i].Value; 
-                uint pin = (uint)externalInterruptPinSelect[i].Value;
-
-                uint pinGroup = i / 4;
-                uint pinNumber = ((uint)port * NumberOfPins) + (pinGroup * 4) + pin;
-
-                targetExternalPins[pinNumber] = i;
-            }
-
-            UpdateInterrupts();
-        }
-
-        private int GetPinNumber(Port port, uint pinSelect)
-        {
-            return (int)(((uint)port)*NumberOfPins + pinSelect);
-        }
-
-        private bool IsOutput(PinMode mode)
-        {
-            return mode >= PinMode.PushPull;
-        }
-
-        private bool TrySyncTime()
-        {
-            if(machine.SystemBus.TryGetCurrentCPU(out var cpu))
-            {
-                cpu.SyncTime();
-                return true;
-            }
-            return false;
-        }
-
-        private TimeInterval GetTime() => machine.LocalTimeSource.ElapsedVirtualTime;
-#endregion
-
-#region enums
         private enum Port
         {
             PortA = 0,
@@ -1700,8 +1700,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             RootAccessTypeDescriptor11_Tgl          = 0x376C,
             RootAccessTypeDescriptor12_Tgl          = 0x3770,
             RootAccessTypeDescriptor13_Tgl          = 0x3774,
-            RootAccessTypeDescriptor14_Tgl          = 0x3778,            
+            RootAccessTypeDescriptor14_Tgl          = 0x3778,
         }
-#endregion        
     }
 }

@@ -6,7 +6,6 @@
 //
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.Timers
@@ -89,6 +88,8 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
             return interruptTimestamps[number];
         }
+
+        public GPIO FFEKickOff { get; private set; }
 
         public long Size => 0x200;
 
@@ -188,8 +189,6 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
             timerSoftware30Bit.Value = value;
         }
-
-        public GPIO FFEKickOff { get; private set; }
 
         private bool enabled;
         private IFlagRegisterField sleepMode;

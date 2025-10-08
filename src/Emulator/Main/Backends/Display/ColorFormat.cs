@@ -98,7 +98,7 @@ namespace Antmicro.Renode.Backends.Display
             var formatAsCharArray = format.ToString().ToCharArray();
             var firstNumberPosition = formatAsCharArray.Length / 2;
 
-            while (offset < firstNumberPosition)
+            while(offset < firstNumberPosition)
             {
                 ColorType colorType;
                 if(!Enum.TryParse(formatAsCharArray[offset].ToString(), out colorType))
@@ -113,7 +113,6 @@ namespace Antmicro.Renode.Backends.Display
             return bits;
         }
 
-        private static int[] depths;
+        private static readonly int[] depths;
     }
 }
-

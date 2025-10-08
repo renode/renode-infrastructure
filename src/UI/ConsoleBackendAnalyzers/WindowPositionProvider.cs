@@ -8,8 +8,10 @@
 #if PLATFORM_WINDOWS
 using System.Windows;
 #endif
-using Xwt;
 using Antmicro.Renode.Utilities;
+
+using Xwt;
+
 using Point = Xwt.Point;
 
 namespace Antmicro.Renode.UI
@@ -35,6 +37,22 @@ namespace Antmicro.Renode.UI
             }
         }
 
+        private WindowPositionProvider()
+        {
+#if PLATFORM_WINDOWS
+            nextPosition = new Point(SystemParameters.BorderWidth, SystemParameters.WindowCaptionHeight + SystemParameters.ResizeFrameHorizontalBorderHeight);
+#else
+            nextPosition = new Point(0, 0);
+#endif
+            nextPosition.X += ConfigurationManager.Instance.Get("termsharp", "window-initial-offset-x", 0);
+            nextPosition.Y += ConfigurationManager.Instance.Get("termsharp", "window-initial-offset-y", 0);
+
+            var x = ConfigurationManager.Instance.Get("termsharp", "window-next-offset-x", 30, i => i >= 0);
+            var y = ConfigurationManager.Instance.Get("termsharp", "window-next-offset-y", 50, i => i >= 0);
+            offset = new Point(x, y);
+            innerLock = new object();
+        }
+
         private Point SnapToViewport(Point position)
         {
             if(!ConfigurationManager.Instance.Get("termsharp", "window-allow-outside-viewport", false))
@@ -53,25 +71,9 @@ namespace Antmicro.Renode.UI
             return position;
         }
 
-        private WindowPositionProvider()
-        {
-#if PLATFORM_WINDOWS
-            nextPosition = new Point(SystemParameters.BorderWidth, SystemParameters.WindowCaptionHeight + SystemParameters.ResizeFrameHorizontalBorderHeight);
-#else
-            nextPosition = new Point(0, 0);
-#endif
-            nextPosition.X += ConfigurationManager.Instance.Get("termsharp", "window-initial-offset-x", 0);
-            nextPosition.Y += ConfigurationManager.Instance.Get("termsharp", "window-initial-offset-y", 0);
-
-            var x = ConfigurationManager.Instance.Get("termsharp", "window-next-offset-x", 30, i => i >= 0);
-            var y = ConfigurationManager.Instance.Get("termsharp", "window-next-offset-y", 50, i => i >= 0);
-            offset = new Point(x, y);
-            innerLock = new object();
-        }
+        private Point nextPosition;
 
         private readonly object innerLock;
-
-        private Point nextPosition;
         private readonly Point offset;
     }
 }

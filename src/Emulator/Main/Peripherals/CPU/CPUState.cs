@@ -14,4 +14,3 @@ namespace Antmicro.Renode.Peripherals.CPU
         Running,
     }
 }
-

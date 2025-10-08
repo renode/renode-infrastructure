@@ -1,4 +1,3 @@
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -18,51 +17,9 @@ namespace Antmicro.Renode.Utilities
             Length = (uint)segments.Count * 8;
         }
 
-        public void Clear()
+        public override string ToString()
         {
-            Length = 0;
-            segments.Clear();
-        }
-
-        public BitStream Append(byte[] bytes)
-        {
-            foreach(var b in bytes)
-            {
-                Append(b);
-            }
-
-            return this;
-        }
-
-        public BitStream Append(byte b)
-        {
-            EnsureIsAligned();
-            segments.Add(b);
-            Length += 8;
-            return this;
-        }
-
-        public BitStream Append(short s)
-        {
-            EnsureIsAligned();
-            segments.Add((byte)s);
-            segments.Add((byte)(s >> 8));
-            Length += 16;
-            return this;
-        }
-
-        public BitStream Append(ushort s)
-        {
-            return Append((short)s);
-        }
-
-        private void EnsureIsAligned()
-        {
-            var offset = (int)(Length % BitsPerSegment);
-            if(offset != 0)
-            {
-                throw new ArgumentException("Appending in an unaligned state is not supported yet.");
-            }
+            return Misc.PrettyPrintCollectionHex(segments);
         }
 
         public BitStream AppendBit(bool state)
@@ -178,12 +135,54 @@ namespace Antmicro.Renode.Utilities
                 | (ulong)AsUInt32(offset + 32, length - 32) << 32;
         }
 
-        public override string ToString()
+        public void Clear()
         {
-            return Misc.PrettyPrintCollectionHex(segments);
+            Length = 0;
+            segments.Clear();
+        }
+
+        public BitStream Append(byte[] bytes)
+        {
+            foreach(var b in bytes)
+            {
+                Append(b);
+            }
+
+            return this;
+        }
+
+        public BitStream Append(byte b)
+        {
+            EnsureIsAligned();
+            segments.Add(b);
+            Length += 8;
+            return this;
+        }
+
+        public BitStream Append(short s)
+        {
+            EnsureIsAligned();
+            segments.Add((byte)s);
+            segments.Add((byte)(s >> 8));
+            Length += 16;
+            return this;
+        }
+
+        public BitStream Append(ushort s)
+        {
+            return Append((short)s);
         }
 
         public uint Length { get; private set; }
+
+        private void EnsureIsAligned()
+        {
+            var offset = (int)(Length % BitsPerSegment);
+            if(offset != 0)
+            {
+                throw new ArgumentException("Appending in an unaligned state is not supported yet.");
+            }
+        }
 
         private readonly List<byte> segments;
 

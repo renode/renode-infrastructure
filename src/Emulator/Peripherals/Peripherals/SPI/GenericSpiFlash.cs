@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
@@ -80,22 +81,22 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             switch(currentOperation.State)
             {
-                case DecodedOperation.OperationState.RecognizeOperation:
-                case DecodedOperation.OperationState.AccumulateCommandAddressBytes:
-                case DecodedOperation.OperationState.AccumulateNoDataCommandAddressBytes:
-                    this.Log(LogLevel.Warning, "Transmission finished in the unexpected state: {0}", currentOperation.State);
-                    break;
+            case DecodedOperation.OperationState.RecognizeOperation:
+            case DecodedOperation.OperationState.AccumulateCommandAddressBytes:
+            case DecodedOperation.OperationState.AccumulateNoDataCommandAddressBytes:
+                this.Log(LogLevel.Warning, "Transmission finished in the unexpected state: {0}", currentOperation.State);
+                break;
             }
             // If an operation has at least 1 data byte or more than 0 address bytes,
             // we can clear the write enable flag only when we are finishing a transmission.
             switch(currentOperation.Operation)
             {
-                case DecodedOperation.OperationType.Program:
-                case DecodedOperation.OperationType.Erase:
-                case DecodedOperation.OperationType.WriteRegister:
-                    //although the docs are not clear, it seems that all register writes should clear the flag
-                    enable.Value = false;
-                    break;
+            case DecodedOperation.OperationType.Program:
+            case DecodedOperation.OperationType.Erase:
+            case DecodedOperation.OperationType.WriteRegister:
+                //although the docs are not clear, it seems that all register writes should clear the flag
+                enable.Value = false;
+                break;
             }
             currentOperation.State = DecodedOperation.OperationState.RecognizeOperation;
             currentOperation = default(DecodedOperation);
@@ -120,20 +121,20 @@ namespace Antmicro.Renode.Peripherals.SPI
             this.Log(LogLevel.Noisy, "Transmitting data 0x{0:X}, current state: {1}", data, currentOperation.State);
             switch(currentOperation.State)
             {
-                case DecodedOperation.OperationState.RecognizeOperation:
-                    // When the command is decoded, depending on the operation we will either start accumulating address bytes
-                    // or immediately handle the command bytes
-                    RecognizeOperation(data);
-                    break;
-                case DecodedOperation.OperationState.AccumulateCommandAddressBytes:
-                    AccumulateAddressBytes(data, DecodedOperation.OperationState.HandleCommand);
-                    break;
-                case DecodedOperation.OperationState.AccumulateNoDataCommandAddressBytes:
-                    AccumulateAddressBytes(data, DecodedOperation.OperationState.HandleNoDataCommand);
-                    break;
-                case DecodedOperation.OperationState.HandleCommand:
-                    // Process the remaining command bytes
-                    return HandleCommand(data);
+            case DecodedOperation.OperationState.RecognizeOperation:
+                // When the command is decoded, depending on the operation we will either start accumulating address bytes
+                // or immediately handle the command bytes
+                RecognizeOperation(data);
+                break;
+            case DecodedOperation.OperationState.AccumulateCommandAddressBytes:
+                AccumulateAddressBytes(data, DecodedOperation.OperationState.HandleCommand);
+                break;
+            case DecodedOperation.OperationState.AccumulateNoDataCommandAddressBytes:
+                AccumulateAddressBytes(data, DecodedOperation.OperationState.HandleNoDataCommand);
+                break;
+            case DecodedOperation.OperationState.HandleCommand:
+                // Process the remaining command bytes
+                return HandleCommand(data);
             }
 
             // Warning: commands without data require immediate handling after the address was accumulated
@@ -210,11 +211,11 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             switch(command)
             {
-                case Commands.FastRead:
-                case Commands.ReadSerialFlashDiscoveryParameter:
-                    return 1;
-                default:
-                    return 0;
+            case Commands.FastRead:
+            case Commands.ReadSerialFlashDiscoveryParameter:
+                return 1;
+            default:
+                return 0;
             }
         }
 
@@ -254,182 +255,182 @@ namespace Antmicro.Renode.Peripherals.SPI
             currentOperation.DummyBytesRemaining = GetDummyBytes((Commands)firstByte);
             switch(firstByte)
             {
-                case (byte)Commands.ReadID:
-                case (byte)Commands.MultipleIoReadID:
-                    currentOperation.Operation = DecodedOperation.OperationType.ReadID;
-                    break;
-                case (byte)Commands.ReadSerialFlashDiscoveryParameter:
-                    currentOperation.Operation = DecodedOperation.OperationType.ReadSerialFlashDiscoveryParameter;
-                    currentOperation.State = DecodedOperation.OperationState.AccumulateCommandAddressBytes;
-                    currentOperation.AddressLength = 3;
-                    break;
-                case (byte)Commands.FastRead:
-                    // fast read - 3 bytes of address + a dummy byte
-                    currentOperation.Operation = DecodedOperation.OperationType.ReadFast;
-                    currentOperation.AddressLength = 3;
-                    currentOperation.State = DecodedOperation.OperationState.AccumulateCommandAddressBytes;
-                    break;
-                case (byte)Commands.Read:
-                case (byte)Commands.DualOutputFastRead:
-                case (byte)Commands.DualInputOutputFastRead:
-                case (byte)Commands.QuadOutputFastRead:
-                case (byte)Commands.QuadInputOutputFastRead:
-                case (byte)Commands.DtrFastRead:
-                case (byte)Commands.DtrDualOutputFastRead:
-                case (byte)Commands.DtrDualInputOutputFastRead:
-                case (byte)Commands.DtrQuadOutputFastRead:
-                case (byte)Commands.DtrQuadInputOutputFastRead:
-                case (byte)Commands.QuadInputOutputWordRead:
-                    currentOperation.Operation = DecodedOperation.OperationType.Read;
-                    currentOperation.AddressLength = NumberOfAddressBytes;
-                    currentOperation.State = DecodedOperation.OperationState.AccumulateCommandAddressBytes;
-                    break;
-                case (byte)Commands.Read4byte:
-                case (byte)Commands.FastRead4byte:
-                case (byte)Commands.DualOutputFastRead4byte:
-                case (byte)Commands.DualInputOutputFastRead4byte:
-                case (byte)Commands.QuadOutputFastRead4byte:
-                case (byte)Commands.QuadInputOutputFastRead4byte:
-                case (byte)Commands.DtrFastRead4byte:
-                case (byte)Commands.DtrDualInputOutputFastRead4byte:
-                case (byte)Commands.DtrQuadInputOutputFastRead4byte:
-                    currentOperation.Operation = DecodedOperation.OperationType.Read;
-                    currentOperation.AddressLength = 4;
-                    currentOperation.State = DecodedOperation.OperationState.AccumulateCommandAddressBytes;
-                    break;
-                case (byte)Commands.PageProgram:
-                case (byte)Commands.DualInputFastProgram:
-                case (byte)Commands.ExtendedDualInputFastProgram:
-                case (byte)Commands.QuadInputFastProgram:
-                case (byte)Commands.ExtendedQuadInputFastProgram:
-                    currentOperation.Operation = DecodedOperation.OperationType.Program;
-                    currentOperation.AddressLength = NumberOfAddressBytes;
-                    currentOperation.State = DecodedOperation.OperationState.AccumulateCommandAddressBytes;
-                    break;
-                case (byte)Commands.PageProgram4byte:
-                case (byte)Commands.QuadInputFastProgram4byte:
-                    currentOperation.Operation = DecodedOperation.OperationType.Program;
-                    currentOperation.AddressLength = 4;
-                    currentOperation.State = DecodedOperation.OperationState.AccumulateCommandAddressBytes;
-                    break;
-                case (byte)Commands.WriteEnable:
-                    this.Log(LogLevel.Noisy, "Setting write enable latch");
-                    enable.Value = true;
-                    return; //return to prevent further logging
-                case (byte)Commands.WriteDisable:
-                    this.Log(LogLevel.Noisy, "Unsetting write enable latch");
-                    enable.Value = false;
-                    return; //return to prevent further logging
-                case (byte)Commands.SubsectorErase4kb:
-                    currentOperation.Operation = DecodedOperation.OperationType.Erase;
-                    currentOperation.EraseSize = DecodedOperation.OperationEraseSize.Subsector4K;
-                    currentOperation.AddressLength = NumberOfAddressBytes;
-                    currentOperation.State = DecodedOperation.OperationState.AccumulateNoDataCommandAddressBytes;
-                    break;
-                case (byte)Commands.SubsectorErase32kb:
-                    currentOperation.Operation = DecodedOperation.OperationType.Erase;
-                    currentOperation.EraseSize = DecodedOperation.OperationEraseSize.Subsector32K;
-                    currentOperation.AddressLength = NumberOfAddressBytes;
-                    currentOperation.State = DecodedOperation.OperationState.AccumulateNoDataCommandAddressBytes;
-                    break;
-                case (byte)Commands.SectorErase:
-                    currentOperation.Operation = DecodedOperation.OperationType.Erase;
-                    currentOperation.EraseSize = DecodedOperation.OperationEraseSize.Sector;
-                    currentOperation.AddressLength = NumberOfAddressBytes;
-                    currentOperation.State = DecodedOperation.OperationState.AccumulateNoDataCommandAddressBytes;
-                    break;
-                case (byte)Commands.DieErase:
-                    currentOperation.Operation = DecodedOperation.OperationType.Erase;
-                    currentOperation.EraseSize = DecodedOperation.OperationEraseSize.Die;
-                    currentOperation.AddressLength = NumberOfAddressBytes;
-                    currentOperation.State = DecodedOperation.OperationState.AccumulateNoDataCommandAddressBytes;
-                    break;
-                case (byte)Commands.BulkErase:
-                case (byte)Commands.ChipErase:
-                    this.Log(LogLevel.Noisy, "Performing bulk/chip erase");
-                    EraseChip();
-                    break;
-                case (byte)Commands.SubsectorErase4byte4kb:
-                    currentOperation.Operation = DecodedOperation.OperationType.Erase;
-                    currentOperation.EraseSize = DecodedOperation.OperationEraseSize.Subsector4K;
-                    currentOperation.AddressLength = 4;
-                    currentOperation.State = DecodedOperation.OperationState.AccumulateNoDataCommandAddressBytes;
-                    break;
-                case (byte)Commands.SectorErase4byte:
-                    currentOperation.Operation = DecodedOperation.OperationType.Erase;
-                    currentOperation.EraseSize = DecodedOperation.OperationEraseSize.Sector;
-                    currentOperation.AddressLength = 4;
-                    currentOperation.State = DecodedOperation.OperationState.AccumulateNoDataCommandAddressBytes;
-                    break;
-                case (byte)Commands.Enter4byteAddressMode:
-                    this.Log(LogLevel.Noisy, "Entering 4-byte address mode");
-                    addressingMode.Value = AddressingMode.FourByte;
-                    break;
-                case (byte)Commands.Exit4byteAddressMode:
-                    this.Log(LogLevel.Noisy, "Exiting 4-byte address mode");
-                    addressingMode.Value = AddressingMode.ThreeByte;
-                    break;
-                case (byte)Commands.ReadStatusRegister:
-                    currentOperation.Operation = DecodedOperation.OperationType.ReadRegister;
-                    currentOperation.Register = (uint)Register.Status;
-                    break;
-                case (byte)Commands.ReadExtendedAddressRegister:
-                    currentOperation.Operation = DecodedOperation.OperationType.ReadRegister;
-                    currentOperation.Register = (uint)Register.ExtendedAddress;
-                    break;
-                case (byte)Commands.WriteExtendedAddressRegister:
-                    currentOperation.Operation = DecodedOperation.OperationType.WriteRegister;
-                    currentOperation.Register = (uint)Register.ExtendedAddress;
-                    break;
-                case (byte)Commands.ReadConfigurationRegister:
-                    currentOperation.Operation = DecodedOperation.OperationType.ReadRegister;
-                    currentOperation.Register = (uint)Register.Configuration;
-                    break;
-                case (byte)Commands.WriteStatusRegister:
-                    currentOperation.Operation = DecodedOperation.OperationType.WriteRegister;
-                    currentOperation.Register = (uint)Register.Status;
-                    break;
-                case (byte)Commands.ReadFlagStatusRegister:
-                    currentOperation.Operation = DecodedOperation.OperationType.ReadRegister;
-                    currentOperation.Register = (uint)Register.FlagStatus;
-                    break;
-                case (byte)Commands.ReadVolatileConfigurationRegister:
-                    currentOperation.Operation = DecodedOperation.OperationType.ReadRegister;
-                    currentOperation.Register = (uint)Register.VolatileConfiguration;
-                    break;
-                case (byte)Commands.WriteVolatileConfigurationRegister:
-                    currentOperation.Operation = DecodedOperation.OperationType.WriteRegister;
-                    currentOperation.Register = (uint)Register.VolatileConfiguration;
-                    break;
-                case (byte)Commands.ReadNonVolatileConfigurationRegister:
-                    currentOperation.Operation = DecodedOperation.OperationType.ReadRegister;
-                    currentOperation.Register = (uint)Register.NonVolatileConfiguration;
-                    break;
-                case (byte)Commands.WriteNonVolatileConfigurationRegister:
-                    currentOperation.Operation = DecodedOperation.OperationType.WriteRegister;
-                    currentOperation.Register = (uint)Register.NonVolatileConfiguration;
-                    break;
-                case (byte)Commands.ReadEnhancedVolatileConfigurationRegister:
-                    currentOperation.Operation = DecodedOperation.OperationType.ReadRegister;
-                    currentOperation.Register = (uint)Register.EnhancedVolatileConfiguration;
-                    break;
-                case (byte)Commands.WriteEnhancedVolatileConfigurationRegister:
-                    currentOperation.Operation = DecodedOperation.OperationType.WriteRegister;
-                    currentOperation.Register = (uint)Register.EnhancedVolatileConfiguration;
-                    break;
-                case (byte)Commands.ResetEnable:
-                    // This command should allow ResetMemory to be executed
-                case (byte)Commands.ResetMemory:
-                    // This command should reset volatile bits in configuration registers
-                case (byte)Commands.EnterDeepPowerDown:
-                    // This command should enter deep power-down mode
-                case (byte)Commands.ReleaseFromDeepPowerdown:
-                    // This command should leave deep power-down mode, but some chips use a different mechanism
-                    this.Log(LogLevel.Warning, "Unhandled parameterless command {0}", (Commands)firstByte);
-                    return;
-                default:
-                    this.Log(LogLevel.Error, "Command decoding failed on byte: 0x{0:X} ({1}).", firstByte, (Commands)firstByte);
-                    return;
+            case (byte)Commands.ReadID:
+            case (byte)Commands.MultipleIoReadID:
+                currentOperation.Operation = DecodedOperation.OperationType.ReadID;
+                break;
+            case (byte)Commands.ReadSerialFlashDiscoveryParameter:
+                currentOperation.Operation = DecodedOperation.OperationType.ReadSerialFlashDiscoveryParameter;
+                currentOperation.State = DecodedOperation.OperationState.AccumulateCommandAddressBytes;
+                currentOperation.AddressLength = 3;
+                break;
+            case (byte)Commands.FastRead:
+                // fast read - 3 bytes of address + a dummy byte
+                currentOperation.Operation = DecodedOperation.OperationType.ReadFast;
+                currentOperation.AddressLength = 3;
+                currentOperation.State = DecodedOperation.OperationState.AccumulateCommandAddressBytes;
+                break;
+            case (byte)Commands.Read:
+            case (byte)Commands.DualOutputFastRead:
+            case (byte)Commands.DualInputOutputFastRead:
+            case (byte)Commands.QuadOutputFastRead:
+            case (byte)Commands.QuadInputOutputFastRead:
+            case (byte)Commands.DtrFastRead:
+            case (byte)Commands.DtrDualOutputFastRead:
+            case (byte)Commands.DtrDualInputOutputFastRead:
+            case (byte)Commands.DtrQuadOutputFastRead:
+            case (byte)Commands.DtrQuadInputOutputFastRead:
+            case (byte)Commands.QuadInputOutputWordRead:
+                currentOperation.Operation = DecodedOperation.OperationType.Read;
+                currentOperation.AddressLength = NumberOfAddressBytes;
+                currentOperation.State = DecodedOperation.OperationState.AccumulateCommandAddressBytes;
+                break;
+            case (byte)Commands.Read4byte:
+            case (byte)Commands.FastRead4byte:
+            case (byte)Commands.DualOutputFastRead4byte:
+            case (byte)Commands.DualInputOutputFastRead4byte:
+            case (byte)Commands.QuadOutputFastRead4byte:
+            case (byte)Commands.QuadInputOutputFastRead4byte:
+            case (byte)Commands.DtrFastRead4byte:
+            case (byte)Commands.DtrDualInputOutputFastRead4byte:
+            case (byte)Commands.DtrQuadInputOutputFastRead4byte:
+                currentOperation.Operation = DecodedOperation.OperationType.Read;
+                currentOperation.AddressLength = 4;
+                currentOperation.State = DecodedOperation.OperationState.AccumulateCommandAddressBytes;
+                break;
+            case (byte)Commands.PageProgram:
+            case (byte)Commands.DualInputFastProgram:
+            case (byte)Commands.ExtendedDualInputFastProgram:
+            case (byte)Commands.QuadInputFastProgram:
+            case (byte)Commands.ExtendedQuadInputFastProgram:
+                currentOperation.Operation = DecodedOperation.OperationType.Program;
+                currentOperation.AddressLength = NumberOfAddressBytes;
+                currentOperation.State = DecodedOperation.OperationState.AccumulateCommandAddressBytes;
+                break;
+            case (byte)Commands.PageProgram4byte:
+            case (byte)Commands.QuadInputFastProgram4byte:
+                currentOperation.Operation = DecodedOperation.OperationType.Program;
+                currentOperation.AddressLength = 4;
+                currentOperation.State = DecodedOperation.OperationState.AccumulateCommandAddressBytes;
+                break;
+            case (byte)Commands.WriteEnable:
+                this.Log(LogLevel.Noisy, "Setting write enable latch");
+                enable.Value = true;
+                return; //return to prevent further logging
+            case (byte)Commands.WriteDisable:
+                this.Log(LogLevel.Noisy, "Unsetting write enable latch");
+                enable.Value = false;
+                return; //return to prevent further logging
+            case (byte)Commands.SubsectorErase4kb:
+                currentOperation.Operation = DecodedOperation.OperationType.Erase;
+                currentOperation.EraseSize = DecodedOperation.OperationEraseSize.Subsector4K;
+                currentOperation.AddressLength = NumberOfAddressBytes;
+                currentOperation.State = DecodedOperation.OperationState.AccumulateNoDataCommandAddressBytes;
+                break;
+            case (byte)Commands.SubsectorErase32kb:
+                currentOperation.Operation = DecodedOperation.OperationType.Erase;
+                currentOperation.EraseSize = DecodedOperation.OperationEraseSize.Subsector32K;
+                currentOperation.AddressLength = NumberOfAddressBytes;
+                currentOperation.State = DecodedOperation.OperationState.AccumulateNoDataCommandAddressBytes;
+                break;
+            case (byte)Commands.SectorErase:
+                currentOperation.Operation = DecodedOperation.OperationType.Erase;
+                currentOperation.EraseSize = DecodedOperation.OperationEraseSize.Sector;
+                currentOperation.AddressLength = NumberOfAddressBytes;
+                currentOperation.State = DecodedOperation.OperationState.AccumulateNoDataCommandAddressBytes;
+                break;
+            case (byte)Commands.DieErase:
+                currentOperation.Operation = DecodedOperation.OperationType.Erase;
+                currentOperation.EraseSize = DecodedOperation.OperationEraseSize.Die;
+                currentOperation.AddressLength = NumberOfAddressBytes;
+                currentOperation.State = DecodedOperation.OperationState.AccumulateNoDataCommandAddressBytes;
+                break;
+            case (byte)Commands.BulkErase:
+            case (byte)Commands.ChipErase:
+                this.Log(LogLevel.Noisy, "Performing bulk/chip erase");
+                EraseChip();
+                break;
+            case (byte)Commands.SubsectorErase4byte4kb:
+                currentOperation.Operation = DecodedOperation.OperationType.Erase;
+                currentOperation.EraseSize = DecodedOperation.OperationEraseSize.Subsector4K;
+                currentOperation.AddressLength = 4;
+                currentOperation.State = DecodedOperation.OperationState.AccumulateNoDataCommandAddressBytes;
+                break;
+            case (byte)Commands.SectorErase4byte:
+                currentOperation.Operation = DecodedOperation.OperationType.Erase;
+                currentOperation.EraseSize = DecodedOperation.OperationEraseSize.Sector;
+                currentOperation.AddressLength = 4;
+                currentOperation.State = DecodedOperation.OperationState.AccumulateNoDataCommandAddressBytes;
+                break;
+            case (byte)Commands.Enter4byteAddressMode:
+                this.Log(LogLevel.Noisy, "Entering 4-byte address mode");
+                addressingMode.Value = AddressingMode.FourByte;
+                break;
+            case (byte)Commands.Exit4byteAddressMode:
+                this.Log(LogLevel.Noisy, "Exiting 4-byte address mode");
+                addressingMode.Value = AddressingMode.ThreeByte;
+                break;
+            case (byte)Commands.ReadStatusRegister:
+                currentOperation.Operation = DecodedOperation.OperationType.ReadRegister;
+                currentOperation.Register = (uint)Register.Status;
+                break;
+            case (byte)Commands.ReadExtendedAddressRegister:
+                currentOperation.Operation = DecodedOperation.OperationType.ReadRegister;
+                currentOperation.Register = (uint)Register.ExtendedAddress;
+                break;
+            case (byte)Commands.WriteExtendedAddressRegister:
+                currentOperation.Operation = DecodedOperation.OperationType.WriteRegister;
+                currentOperation.Register = (uint)Register.ExtendedAddress;
+                break;
+            case (byte)Commands.ReadConfigurationRegister:
+                currentOperation.Operation = DecodedOperation.OperationType.ReadRegister;
+                currentOperation.Register = (uint)Register.Configuration;
+                break;
+            case (byte)Commands.WriteStatusRegister:
+                currentOperation.Operation = DecodedOperation.OperationType.WriteRegister;
+                currentOperation.Register = (uint)Register.Status;
+                break;
+            case (byte)Commands.ReadFlagStatusRegister:
+                currentOperation.Operation = DecodedOperation.OperationType.ReadRegister;
+                currentOperation.Register = (uint)Register.FlagStatus;
+                break;
+            case (byte)Commands.ReadVolatileConfigurationRegister:
+                currentOperation.Operation = DecodedOperation.OperationType.ReadRegister;
+                currentOperation.Register = (uint)Register.VolatileConfiguration;
+                break;
+            case (byte)Commands.WriteVolatileConfigurationRegister:
+                currentOperation.Operation = DecodedOperation.OperationType.WriteRegister;
+                currentOperation.Register = (uint)Register.VolatileConfiguration;
+                break;
+            case (byte)Commands.ReadNonVolatileConfigurationRegister:
+                currentOperation.Operation = DecodedOperation.OperationType.ReadRegister;
+                currentOperation.Register = (uint)Register.NonVolatileConfiguration;
+                break;
+            case (byte)Commands.WriteNonVolatileConfigurationRegister:
+                currentOperation.Operation = DecodedOperation.OperationType.WriteRegister;
+                currentOperation.Register = (uint)Register.NonVolatileConfiguration;
+                break;
+            case (byte)Commands.ReadEnhancedVolatileConfigurationRegister:
+                currentOperation.Operation = DecodedOperation.OperationType.ReadRegister;
+                currentOperation.Register = (uint)Register.EnhancedVolatileConfiguration;
+                break;
+            case (byte)Commands.WriteEnhancedVolatileConfigurationRegister:
+                currentOperation.Operation = DecodedOperation.OperationType.WriteRegister;
+                currentOperation.Register = (uint)Register.EnhancedVolatileConfiguration;
+                break;
+            case (byte)Commands.ResetEnable:
+            // This command should allow ResetMemory to be executed
+            case (byte)Commands.ResetMemory:
+            // This command should reset volatile bits in configuration registers
+            case (byte)Commands.EnterDeepPowerDown:
+            // This command should enter deep power-down mode
+            case (byte)Commands.ReleaseFromDeepPowerdown:
+                // This command should leave deep power-down mode, but some chips use a different mechanism
+                this.Log(LogLevel.Warning, "Unhandled parameterless command {0}", (Commands)firstByte);
+                return;
+            default:
+                this.Log(LogLevel.Error, "Command decoding failed on byte: 0x{0:X} ({1}).", firstByte, (Commands)firstByte);
+                return;
             }
             this.Log(LogLevel.Noisy, "Decoded operation: {0}, write enabled {1}", currentOperation, enable.Value);
         }
@@ -447,44 +448,44 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             switch(currentOperation.Operation)
             {
-                case DecodedOperation.OperationType.ReadFast:
-                case DecodedOperation.OperationType.Read:
-                    result = ReadFromMemory();
-                    break;
-                case DecodedOperation.OperationType.ReadID:
-                    if(currentOperation.CommandBytesHandled < deviceData.Length)
-                    {
-                        result = deviceData[currentOperation.CommandBytesHandled];
-                    }
-                    else
-                    {
-                        this.Log(LogLevel.Error, "Trying to read beyond the length of the device ID table.");
-                        result = 0;
-                    }
-                    break;
-                case DecodedOperation.OperationType.ReadSerialFlashDiscoveryParameter:
-                    result = GetSFDPByte();
-                    break;
-                case DecodedOperation.OperationType.Program:
-                    if(enable.Value)
-                    {
-                        WriteToMemory(data);
-                        result = data;
-                    }
-                    else
-                    {
-                        this.Log(LogLevel.Error, "Memory write operations are disabled.");
-                    }
-                    break;
-                case DecodedOperation.OperationType.ReadRegister:
-                    result = ReadRegister((Register)currentOperation.Register);
-                    break;
-                case DecodedOperation.OperationType.WriteRegister:
-                    WriteRegister((Register)currentOperation.Register, data);
-                    break;
-                default:
-                    this.Log(LogLevel.Warning, "Unhandled operation encountered while processing command bytes: {0}", currentOperation.Operation);
-                    break;
+            case DecodedOperation.OperationType.ReadFast:
+            case DecodedOperation.OperationType.Read:
+                result = ReadFromMemory();
+                break;
+            case DecodedOperation.OperationType.ReadID:
+                if(currentOperation.CommandBytesHandled < deviceData.Length)
+                {
+                    result = deviceData[currentOperation.CommandBytesHandled];
+                }
+                else
+                {
+                    this.Log(LogLevel.Error, "Trying to read beyond the length of the device ID table.");
+                    result = 0;
+                }
+                break;
+            case DecodedOperation.OperationType.ReadSerialFlashDiscoveryParameter:
+                result = GetSFDPByte();
+                break;
+            case DecodedOperation.OperationType.Program:
+                if(enable.Value)
+                {
+                    WriteToMemory(data);
+                    result = data;
+                }
+                else
+                {
+                    this.Log(LogLevel.Error, "Memory write operations are disabled.");
+                }
+                break;
+            case DecodedOperation.OperationType.ReadRegister:
+                result = ReadRegister((Register)currentOperation.Register);
+                break;
+            case DecodedOperation.OperationType.WriteRegister:
+                WriteRegister((Register)currentOperation.Register, data);
+                break;
+            default:
+                this.Log(LogLevel.Warning, "Unhandled operation encountered while processing command bytes: {0}", currentOperation.Operation);
+                break;
             }
             currentOperation.CommandBytesHandled++;
             this.Log(LogLevel.Noisy, "Handled command: {0}, returning 0x{1:X}", currentOperation, result);
@@ -513,39 +514,39 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
             switch(register)
             {
-                case Register.VolatileConfiguration:
-                    volatileConfigurationRegister.Write(0, data);
+            case Register.VolatileConfiguration:
+                volatileConfigurationRegister.Write(0, data);
+                break;
+            case Register.ExtendedAddress:
+                extendedAddressRegister.Write(0, data);
+                break;
+            case Register.NonVolatileConfiguration:
+            case Register.Configuration:
+                if((currentOperation.CommandBytesHandled) >= 2)
+                {
+                    this.Log(LogLevel.Error, "Trying to write to register {0} with more than expected 2 bytes.", register);
                     break;
-                case Register.ExtendedAddress:
-                    extendedAddressRegister.Write(0, data);
-                    break;
-                case Register.NonVolatileConfiguration:
-                case Register.Configuration:
-                    if((currentOperation.CommandBytesHandled) >= 2)
-                    {
-                        this.Log(LogLevel.Error, "Trying to write to register {0} with more than expected 2 bytes.", register);
-                        break;
-                    }
-                    BitHelper.UpdateWithShifted(ref temporaryConfiguration, data, currentOperation.CommandBytesHandled * 8, 8);
-                    if(currentOperation.CommandBytesHandled == 1)
-                    {
-                        var targetReg = register == Register.Configuration ? configurationRegister : nonVolatileConfigurationRegister;
-                        targetReg.Write(0, (ushort)temporaryConfiguration);
-                    }
-                    break;
-                //listing all cases as other registers are not writable at all
-                case Register.EnhancedVolatileConfiguration:
-                    enhancedVolatileConfigurationRegister.Write(0, data);
-                    break;
-                case Register.Status:
-                    statusRegister.Write(0, data);
-                    // Switch to the Configuration register and write from its start
-                    currentOperation.Register = (uint)Register.Configuration;
-                    currentOperation.CommandBytesHandled--;
-                    break;
-                default:
-                    this.Log(LogLevel.Warning, "Trying to write 0x{0} to unsupported register \"{1}\"", data, register);
-                    break;
+                }
+                BitHelper.UpdateWithShifted(ref temporaryConfiguration, data, currentOperation.CommandBytesHandled * 8, 8);
+                if(currentOperation.CommandBytesHandled == 1)
+                {
+                    var targetReg = register == Register.Configuration ? configurationRegister : nonVolatileConfigurationRegister;
+                    targetReg.Write(0, (ushort)temporaryConfiguration);
+                }
+                break;
+            //listing all cases as other registers are not writable at all
+            case Register.EnhancedVolatileConfiguration:
+                enhancedVolatileConfigurationRegister.Write(0, data);
+                break;
+            case Register.Status:
+                statusRegister.Write(0, data);
+                // Switch to the Configuration register and write from its start
+                currentOperation.Register = (uint)Register.Configuration;
+                currentOperation.CommandBytesHandled--;
+                break;
+            default:
+                this.Log(LogLevel.Warning, "Trying to write 0x{0} to unsupported register \"{1}\"", data, register);
+                break;
             }
         }
 
@@ -553,35 +554,35 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             switch(register)
             {
-                case Register.Status:
-                    // The documentation states that at least 1 byte will be read
-                    // If more than 1 byte is read, the same byte is returned
-                    return statusRegister.Read();
-                case Register.FlagStatus:
-                    // The documentation states that at least 1 byte will be read
-                    // If more than 1 byte is read, the same byte is returned
-                    return flagStatusRegister.Read();
-                case Register.VolatileConfiguration:
-                    // The documentation states that at least 1 byte will be read
-                    // If more than 1 byte is read, the same byte is returned
-                    return volatileConfigurationRegister.Read();
-                case Register.NonVolatileConfiguration:
-                case Register.Configuration:
-                    // The documentation states that at least 2 bytes will be read
-                    // After all 16 bits of the register have been read, 0 is returned
-                    if((currentOperation.CommandBytesHandled) < 2)
-                    {
-                        var sourceReg = register == Register.Configuration ? configurationRegister : nonVolatileConfigurationRegister;
-                        return (byte)BitHelper.GetValue(sourceReg.Read(), currentOperation.CommandBytesHandled * 8, 8);
-                    }
-                    return 0;
-                case Register.EnhancedVolatileConfiguration:
-                    return enhancedVolatileConfigurationRegister.Read();
-                case Register.ExtendedAddress:
-                    return extendedAddressRegister.Read();
-                default:
-                    this.Log(LogLevel.Warning, "Trying to read from unsupported register \"{0}\"", register);
-                    return 0;
+            case Register.Status:
+                // The documentation states that at least 1 byte will be read
+                // If more than 1 byte is read, the same byte is returned
+                return statusRegister.Read();
+            case Register.FlagStatus:
+                // The documentation states that at least 1 byte will be read
+                // If more than 1 byte is read, the same byte is returned
+                return flagStatusRegister.Read();
+            case Register.VolatileConfiguration:
+                // The documentation states that at least 1 byte will be read
+                // If more than 1 byte is read, the same byte is returned
+                return volatileConfigurationRegister.Read();
+            case Register.NonVolatileConfiguration:
+            case Register.Configuration:
+                // The documentation states that at least 2 bytes will be read
+                // After all 16 bits of the register have been read, 0 is returned
+                if((currentOperation.CommandBytesHandled) < 2)
+                {
+                    var sourceReg = register == Register.Configuration ? configurationRegister : nonVolatileConfigurationRegister;
+                    return (byte)BitHelper.GetValue(sourceReg.Read(), currentOperation.CommandBytesHandled * 8, 8);
+                }
+                return 0;
+            case Register.EnhancedVolatileConfiguration:
+                return enhancedVolatileConfigurationRegister.Read();
+            case Register.ExtendedAddress:
+                return extendedAddressRegister.Read();
+            default:
+                this.Log(LogLevel.Warning, "Trying to read from unsupported register \"{0}\"", register);
+                return 0;
             }
         }
 
@@ -591,41 +592,41 @@ namespace Antmicro.Renode.Peripherals.SPI
             // but at the moment we have implemented just these ones
             switch(currentOperation.Operation)
             {
-                case DecodedOperation.OperationType.Erase:
-                    if(enable.Value)
+            case DecodedOperation.OperationType.Erase:
+                if(enable.Value)
+                {
+                    if(currentOperation.ExecutionAddress >= underlyingMemory.Size)
                     {
-                        if(currentOperation.ExecutionAddress >= underlyingMemory.Size)
-                        {
-                            this.Log(LogLevel.Error, "Cannot erase memory because current address 0x{0:X} exceeds configured memory size.", currentOperation.ExecutionAddress);
-                            return;
-                        }
-                        switch(currentOperation.EraseSize)
-                        {
-                            case DecodedOperation.OperationEraseSize.Subsector4K:
-                                EraseSegment(4.KB());
-                                break;
-                            case DecodedOperation.OperationEraseSize.Subsector32K:
-                                EraseSegment(32.KB());
-                                break;
-                            case DecodedOperation.OperationEraseSize.Sector:
-                                EraseSegment(sectorSize);
-                                break;
-                            case DecodedOperation.OperationEraseSize.Die:
-                                EraseDie();
-                                break;
-                            default:
-                                this.Log(LogLevel.Warning, "Unsupported erase type: {0}", currentOperation.EraseSize);
-                                break;
-                        }
+                        this.Log(LogLevel.Error, "Cannot erase memory because current address 0x{0:X} exceeds configured memory size.", currentOperation.ExecutionAddress);
+                        return;
                     }
-                    else
+                    switch(currentOperation.EraseSize)
                     {
-                        this.Log(LogLevel.Error, "Erase operations are disabled.");
+                    case DecodedOperation.OperationEraseSize.Subsector4K:
+                        EraseSegment(4.KB());
+                        break;
+                    case DecodedOperation.OperationEraseSize.Subsector32K:
+                        EraseSegment(32.KB());
+                        break;
+                    case DecodedOperation.OperationEraseSize.Sector:
+                        EraseSegment(sectorSize);
+                        break;
+                    case DecodedOperation.OperationEraseSize.Die:
+                        EraseDie();
+                        break;
+                    default:
+                        this.Log(LogLevel.Warning, "Unsupported erase type: {0}", currentOperation.EraseSize);
+                        break;
                     }
-                    break;
-                default:
-                    this.Log(LogLevel.Warning, "Encountered unexpected command: {0}", currentOperation);
-                    break;
+                }
+                else
+                {
+                    this.Log(LogLevel.Error, "Erase operations are disabled.");
+                }
+                break;
+            default:
+                this.Log(LogLevel.Warning, "Encountered unexpected command: {0}", currentOperation);
+                break;
             }
         }
 
@@ -674,8 +675,8 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private byte ReadFromMemory()
         {
-            var memoryAddress = currentOperation.ExecutionAddress + currentOperation.CommandBytesHandled;
-            memoryAddress |= extendedAddressRegister.Read() << 24;
+            var memoryAddress = (long)currentOperation.ExecutionAddress + currentOperation.CommandBytesHandled;
+            memoryAddress |= (uint)extendedAddressRegister.Read() << 24;
             if(memoryAddress > underlyingMemory.Size)
             {
                 this.Log(LogLevel.Error, "Cannot read from address 0x{0:X} because it is bigger than configured memory size.", currentOperation.ExecutionAddress);

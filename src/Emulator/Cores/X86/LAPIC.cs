@@ -4,17 +4,18 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Peripherals.CPU;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Time;
-using Antmicro.Renode.Logging;
-using System;
+using Antmicro.Renode.Utilities;
 
 //TODO: Priorities are handled not as in the docs, higher vector wins.
 namespace Antmicro.Renode.Peripherals.IRQControllers
@@ -42,6 +43,32 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             DefineRegisters();
             Reset();
             this.machine = machine;
+        }
+
+        public void EndOfInterrupt()
+        {
+            lock(sync)
+            {
+                if(activeIrqs.Count() == 0)
+                {
+                    this.DebugLog("Trying to end and interrupt, but no interrupt was acknowledged.");
+                }
+                else
+                {
+                    var activeIRQ = activeIrqs.Pop();
+                    interrupts[activeIRQ] &= ~IRQState.Active;
+                    if((interrupts[activeIRQ] & IRQState.Running) > 0)
+                    {
+                        this.NoisyLog("Completed IRQ {0} active -> pending.", activeIRQ);
+                        interrupts[activeIRQ] |= IRQState.Pending;
+                    }
+                    else
+                    {
+                        this.NoisyLog("Completed IRQ {0} active -> inactive.", activeIRQ);
+                    }
+                }
+                FindPendingInterrupt();
+            }
         }
 
         public void OnGPIO(int number, bool value)
@@ -111,7 +138,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             localTimer.Reset();
             registers.Reset();
-            interrupts = new IRQState[availableVectors];
+            interrupts = new IRQState[AvailableVectors];
             activeIrqs.Clear();
         }
 
@@ -134,6 +161,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 return 0;
             }
         }
+
+        public uint InternalTimerVector { get => (uint)localTimerVector.Value; }
 
         public long Size
         {
@@ -308,34 +337,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             registers = new DoubleWordRegisterCollection(this, addresses);
         }
 
-        public void EndOfInterrupt()
-        {
-            lock(sync)
-            {
-                if(activeIrqs.Count() == 0)
-                {
-                    this.DebugLog("Trying to end and interrupt, but no interrupt was acknowledged.");
-                }
-                else
-                {
-                    var activeIRQ = activeIrqs.Pop();
-                    interrupts[activeIRQ] &= ~IRQState.Active;
-                    if((interrupts[activeIRQ] & IRQState.Running) > 0)
-                    {
-                        this.NoisyLog("Completed IRQ {0} active -> pending.", activeIRQ);
-                        interrupts[activeIRQ] |= IRQState.Pending;
-                    }
-                    else
-                    {
-                        this.NoisyLog("Completed IRQ {0} active -> inactive.", activeIRQ);
-                    }
-                }
-                FindPendingInterrupt();
-            }
-        }
-
-        public uint InternalTimerVector { get => (uint)localTimerVector.Value; }
-
         private int FindPendingInterrupt()
         {
             var result = -1;
@@ -364,43 +365,23 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             } // not enabling otherwise, as we don't reenable timer just because we started LAPIC
         }
 
-        private LimitTimer localTimer;
-
         private DoubleWordRegisterCollection registers;
         private IFlagRegisterField localTimerMasked;
         private IValueRegisterField localTimerVector;
         private IValueRegisterField destination;
         private IFlagRegisterField lapicEnabled;
 
+        private IRQState[] interrupts = new IRQState[AvailableVectors];
+        private readonly Stack<int> activeIrqs = new Stack<int>();
+
+        private readonly LimitTimer localTimer;
+
         private readonly object sync = new object();
         private readonly IMachine machine;
 
-        private IRQState[] interrupts = new IRQState[availableVectors];
-        private Stack<int> activeIrqs = new Stack<int>();
-
-        private const int availableVectors = 256;
+        private const int AvailableVectors = 256;
         private const uint Version = 0x10; //1x means local apic, x is model specific
         private const uint MaxLVTEntry = 3; //lowest possible? for pentium
-
-        [Flags]
-        private enum IRQState
-        {
-            Running = 1,
-            Pending = 2,
-            Active = 4,
-            TriggerModeIndicator = 8, //currently unused
-        }
-
-        private enum LocalVectorTableDeliveryMode
-        {
-            Fixed = 0,
-            SMI = 2,
-            NMI = 4,
-            INIT = 5,
-            SIPI = 6,
-            ExtINT = 7
-            //other values are reserved
-        }
 
         public enum Registers
         {
@@ -430,6 +411,26 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             LocalVectorTableTimerInitialCount = 0x380,
             LocalVectorTableTimerCurrentCount = 0x390,
             LocalVectorTableTimerDivideConfig = 0x3e0
+        }
+
+        [Flags]
+        private enum IRQState
+        {
+            Running = 1,
+            Pending = 2,
+            Active = 4,
+            TriggerModeIndicator = 8, //currently unused
+        }
+
+        private enum LocalVectorTableDeliveryMode
+        {
+            Fixed = 0,
+            SMI = 2,
+            NMI = 4,
+            INIT = 5,
+            SIPI = 6,
+            ExtINT = 7
+            //other values are reserved
         }
     }
 }

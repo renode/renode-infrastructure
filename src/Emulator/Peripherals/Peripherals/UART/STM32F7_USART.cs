@@ -6,12 +6,11 @@
 //
 using System;
 using System.Threading;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Logging;
+
 using Antmicro.Renode.Core;
-using System.Collections.Generic;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Migrant;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.UART
@@ -49,7 +48,7 @@ namespace Antmicro.Renode.Peripherals.UART
         }
 
         public override uint BaudRate => BaudRateMultiplier * frequency / (uint)baudRateDivisor.Value;
-        
+
         public override Bits StopBits
         {
             get
@@ -82,6 +81,14 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
+        public GPIO IRQ { get; }
+
+        public GPIO ReceiveDmaRequest { get; }
+
+        public long Size => 0x400;
+
+        public DoubleWordRegisterCollection RegistersCollection { get; }
+
         public BufferState BufferState
         {
             get
@@ -103,13 +110,6 @@ namespace Antmicro.Renode.Peripherals.UART
         }
 
         public event Action<BufferState> BufferStateChanged;
-
-        public GPIO IRQ { get; }
-        public GPIO ReceiveDmaRequest { get; }
-
-        public long Size => 0x400;
-
-        public DoubleWordRegisterCollection RegistersCollection { get; }
 
         protected override void CharWritten()
         {
@@ -267,7 +267,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithReservedBits(8, 24);
 
             Registers.TransmitData.Define(RegistersCollection)
-                .WithValueField(0, 8, 
+                .WithValueField(0, 8,
                     // reading this register will intentionally return the last written value
                     writeCallback: (_, val) => HandleTransmitData((uint)val), name: "TDR")
                 .WithReservedBits(8, 24);
@@ -411,6 +411,8 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
+        private uint BaudRateMultiplier => lowPowerMode ? 256u : over8.Value ? 2u : 1u;
+
         private CancellationTokenSource receiverTimeoutCancellationTokenSrc;
 
         private IFlagRegisterField parityControlEnabled;
@@ -435,8 +437,6 @@ namespace Antmicro.Renode.Peripherals.UART
         private readonly uint frequency;
         private readonly bool lowPowerMode;
 
-        private uint BaudRateMultiplier => lowPowerMode ? 256u : over8.Value ? 2u : 1u;
-
         private enum Registers
         {
             ControlRegister1   = 0x0,
@@ -452,4 +452,3 @@ namespace Antmicro.Renode.Peripherals.UART
         }
     }
 }
-

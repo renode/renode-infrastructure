@@ -6,14 +6,14 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals
 {
     [AllowedTranslations(AllowedTranslation.DoubleWordToWord)]
-    public class EfmSystemDevice: IBytePeripheral, IWordPeripheral
+    public class EfmSystemDevice : IBytePeripheral, IWordPeripheral
     {
         public EfmSystemDevice(byte family, ushort partNo, ushort flash, ushort ram, byte rev)
         {
@@ -23,7 +23,7 @@ namespace Antmicro.Renode.Peripherals
             productRevision = rev;
             partNumber = partNo;
         }
-     
+
         public void Reset()
         {
             // nothing happens
@@ -34,7 +34,7 @@ namespace Antmicro.Renode.Peripherals
             switch((EFMOffset)offset)
             {
             case EFMOffset.FamilyNameAdr:
-                return familyName; 
+                return familyName;
             case EFMOffset.ProductRevisionAdr:
                 return productRevision;
             default:
@@ -63,19 +63,19 @@ namespace Antmicro.Renode.Peripherals
                 return 0;
             }
         }
-     
+
         public void WriteWord(long offset, ushort value)
         {
             throw new NotImplementedException();
         }
 
-        private byte familyName;
-        private ushort flashSize;
-        private ushort ramSize;
-        private byte productRevision;
-        private ushort partNumber;
+        private readonly byte familyName;
+        private readonly ushort flashSize;
+        private readonly ushort ramSize;
+        private readonly byte productRevision;
+        private readonly ushort partNumber;
 
-        private enum EFMOffset:long
+        private enum EFMOffset : long
         {
             FamilyNameAdr      = 0xe,
             FlashSizeAdr       = 0x8,

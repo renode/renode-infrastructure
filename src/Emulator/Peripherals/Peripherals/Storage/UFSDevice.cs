@@ -5,17 +5,18 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Collections.Generic;
+
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Storage;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Utilities.Packets;
 using Antmicro.Renode.Storage.SCSI;
 using Antmicro.Renode.Storage.SCSI.Commands;
+using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Utilities.Packets;
 
 namespace Antmicro.Renode.Peripherals.Storage
 {
@@ -94,6 +95,62 @@ namespace Antmicro.Renode.Peripherals.Storage
             InitConfiguration();
         }
 
+        public void HandleSCSICommand(byte lun, byte[] cdb, byte[] dataOutTransfer, out byte[] dataInTransfer, out byte[] senseData)
+        {
+            senseData = new byte[0];
+            dataInTransfer = null;
+            var wellKnownLUN = IsWellKnownLU(lun);
+            var opcode = (SCSICommand)cdb[0];
+            switch(opcode)
+            {
+            case SCSICommand.Inquiry:
+            {
+                HandleSCSIInquiry(lun, cdb, out dataInTransfer, out senseData);
+                break;
+            }
+            case SCSICommand.Read10:
+            {
+                if(wellKnownLUN)
+                {
+                    this.Log(LogLevel.Warning, "Ignoring Read (10) SCSI command to Well Known LUN");
+                    break;
+                }
+                HandleSCSIRead10(lun, cdb, out dataInTransfer, out senseData);
+                break;
+            }
+            case SCSICommand.Write10:
+            {
+                if(wellKnownLUN)
+                {
+                    this.Log(LogLevel.Warning, "Ignoring Write (10) SCSI command to Well Known LUN");
+                    break;
+                }
+                HandleSCSIWrite10(lun, cdb, dataOutTransfer, out senseData);
+                break;
+            }
+            case SCSICommand.TestUnitReady:
+            {
+                this.Log(LogLevel.Debug, "Unit {0} is ready.", lun);
+                break;
+            }
+            case SCSICommand.ReadCapacity16:
+            {
+                HandleSCSIReadCapacity16(lun, cdb, out dataInTransfer, out senseData);
+                break;
+            }
+            case SCSICommand.ReportLUNs:
+            {
+                HandleSCSIReportLUNs(cdb, out dataInTransfer, out senseData);
+                break;
+            }
+            default:
+            {
+                this.Log(LogLevel.Warning, "Unhandled SCSI command: {0}", Enum.GetName(typeof(SCSICommand), opcode));
+                break;
+            }
+            }
+        }
+
         public void LoadFromFile(uint logicalUnitNumber, string file, bool persistent = false)
         {
             if(logicalUnitNumber >= LogicalUnits)
@@ -129,28 +186,60 @@ namespace Antmicro.Renode.Peripherals.Storage
             var transactionCode = (UPIUTransactionCodeInitiatorToTarget)basicUPIUHeader.TransactionCode;
             switch(transactionCode)
             {
-                case UPIUTransactionCodeInitiatorToTarget.NopOut:
-                {
-                    return HandleNopOutRequest(requestData);
-                }
-                case UPIUTransactionCodeInitiatorToTarget.Command:
-                {
-                    return HandleCommandRequest(requestData, dataOutTransfer, out dataInTransfer);
-                }
-                case UPIUTransactionCodeInitiatorToTarget.TaskManagementRequest:
-                {
-                    return HandleTaskManagementRequest(requestData);
-                }
-                case UPIUTransactionCodeInitiatorToTarget.QueryRequest:
-                {
-                    return HandleQueryRequest(requestData);
-                }
-                default:
-                    // Data Out UPIUs are handled as a part of whole request (dataOutTransfer)
-                    this.Log(LogLevel.Warning, "Unhandled UFS UPIU with transaction code {0}", transactionCode);
-                    return new byte[0];
+            case UPIUTransactionCodeInitiatorToTarget.NopOut:
+            {
+                return HandleNopOutRequest(requestData);
+            }
+            case UPIUTransactionCodeInitiatorToTarget.Command:
+            {
+                return HandleCommandRequest(requestData, dataOutTransfer, out dataInTransfer);
+            }
+            case UPIUTransactionCodeInitiatorToTarget.TaskManagementRequest:
+            {
+                return HandleTaskManagementRequest(requestData);
+            }
+            case UPIUTransactionCodeInitiatorToTarget.QueryRequest:
+            {
+                return HandleQueryRequest(requestData);
+            }
+            default:
+                // Data Out UPIUs are handled as a part of whole request (dataOutTransfer)
+                this.Log(LogLevel.Warning, "Unhandled UFS UPIU with transaction code {0}", transactionCode);
+                return new byte[0];
             }
         }
+
+        public ulong LogicalBlockSize { get; }
+
+        public byte MaxOutBufferSize { get; }
+
+        public byte MaxInBufferSize { get; }
+
+        public string ProductRevisionLevel { get; }
+
+        public string OemID { get; }
+
+        public string SerialNumber { get; }
+
+        public ulong LogicalBlockCount { get; }
+
+        public string ProductName { get; }
+
+        public byte IndexProductRevisionLevel { get; }
+
+        public byte IndexOemID { get; }
+
+        public byte IndexSerialNumber { get; }
+
+        public byte IndexProductName { get; }
+
+        public byte IndexManufacturerName { get; }
+
+        public int LogicalUnits { get; }
+
+        public string ManufacturerName { get; }
+
+        public byte LogicalBlockSizeExponentBase2 => (byte)BitHelper.GetMostSignificantSetBitIndex(LogicalBlockSize);
 
         private byte[] HandleNopOutRequest(byte[] requestData)
         {
@@ -221,62 +310,6 @@ namespace Antmicro.Renode.Peripherals.Storage
             return responseBytes;
         }
 
-        public void HandleSCSICommand(byte lun, byte[] cdb, byte[] dataOutTransfer, out byte[] dataInTransfer, out byte[] senseData)
-        {
-            senseData = new byte[0];
-            dataInTransfer = null;
-            var wellKnownLUN = IsWellKnownLU(lun);
-            var opcode = (SCSICommand)cdb[0];
-            switch(opcode)
-            {
-                case SCSICommand.Inquiry:
-                {
-                    HandleSCSIInquiry(lun, cdb, out dataInTransfer, out senseData);
-                    break;
-                }
-                case SCSICommand.Read10:
-                {
-                    if(wellKnownLUN)
-                    {
-                        this.Log(LogLevel.Warning, "Ignoring Read (10) SCSI command to Well Known LUN");
-                        break;
-                    }
-                    HandleSCSIRead10(lun, cdb, out dataInTransfer, out senseData);
-                    break;
-                }
-                case SCSICommand.Write10:
-                {
-                    if(wellKnownLUN)
-                    {
-                        this.Log(LogLevel.Warning, "Ignoring Write (10) SCSI command to Well Known LUN");
-                        break;
-                    }
-                    HandleSCSIWrite10(lun, cdb, dataOutTransfer, out senseData);
-                    break;
-                }
-                case SCSICommand.TestUnitReady:
-                {
-                    this.Log(LogLevel.Debug, "Unit {0} is ready.", lun);
-                    break;
-                }
-                case SCSICommand.ReadCapacity16:
-                {
-                    HandleSCSIReadCapacity16(lun, cdb, out dataInTransfer, out senseData);
-                    break;
-                }
-                case SCSICommand.ReportLUNs:
-                {
-                    HandleSCSIReportLUNs(lun, cdb, out dataInTransfer, out senseData);
-                    break;
-                }
-                default:
-                {
-                    this.Log(LogLevel.Warning, "Unhandled SCSI command: {0}", Enum.GetName(typeof(SCSICommand), opcode));
-                    break;
-                }
-            }
-        }
-
         private void HandleSCSIInquiry(byte lun, byte[] cdb, out byte[] dataInTransfer, out byte[] senseData)
         {
             // Error handling for SCSI subsystem is omitted, so sense data is not used yet
@@ -295,42 +328,42 @@ namespace Antmicro.Renode.Peripherals.Storage
 
                 switch(scsi.PageCode)
                 {
-                    case VitalProductDataPageCode.SupportedVPDPages:
+                case VitalProductDataPageCode.SupportedVPDPages:
+                {
+                    vpdPage.PageLength = (ushort)SupportedVPDPages.Length;
+                    var vpdPageHeader = Packet.Encode(vpdPage);
+                    dataInTransfer = new byte[vpdPageHeader.Length + vpdPage.PageLength];
+                    Array.Copy(vpdPageHeader, dataInTransfer, vpdPageHeader.Length);
+                    Array.Copy(SupportedVPDPages, 0, dataInTransfer, vpdPageHeader.Length, SupportedVPDPages.Length);
+                    break;
+                }
+                case VitalProductDataPageCode.ModePagePolicy:
+                {
+                    var modePagePolicyDescriptor = new ModePagePolicyDescriptor
                     {
-                        vpdPage.PageLength = (ushort)SupportedVPDPages.Length;
-                        var vpdPageHeader = Packet.Encode(vpdPage);
-                        dataInTransfer = new byte[vpdPageHeader.Length + vpdPage.PageLength];
-                        Array.Copy(vpdPageHeader, dataInTransfer, vpdPageHeader.Length);
-                        Array.Copy(SupportedVPDPages, 0, dataInTransfer, vpdPageHeader.Length, SupportedVPDPages.Length);
-                        break;
-                    }
-                    case VitalProductDataPageCode.ModePagePolicy:
-                    {
-                        var modePagePolicyDescriptor = new ModePagePolicyDescriptor
-                        {
-                            // Combination of the following PolicyPageCode and PolicySubpageCode means that descriptor
-                            // applies to all mode pages and subpages not described by other mode page policy descriptors.
-                            // Because ModePagePolicy is always set to Shared for UFS device, it allows to simplify returned structure.
-                            PolicyPageCode = 0x3f,
-                            PolicySubpageCode = 0xff,
-                            ModePagePolicy = ModePagePolicy.Shared,
-                            MultipleLogicalUnitsShare = false
-                        };
+                        // Combination of the following PolicyPageCode and PolicySubpageCode means that descriptor
+                        // applies to all mode pages and subpages not described by other mode page policy descriptors.
+                        // Because ModePagePolicy is always set to Shared for UFS device, it allows to simplify returned structure.
+                        PolicyPageCode = 0x3f,
+                        PolicySubpageCode = 0xff,
+                        ModePagePolicy = ModePagePolicy.Shared,
+                        MultipleLogicalUnitsShare = false
+                    };
 
-                        var descriptor = Packet.Encode(modePagePolicyDescriptor);
-                        vpdPage.PageLength = (ushort)descriptor.Length;
-                        var vpdPageHeader = Packet.Encode(vpdPage);
-                        dataInTransfer = new byte[vpdPageHeader.Length + vpdPage.PageLength];
-                        Array.Copy(vpdPageHeader, dataInTransfer, vpdPageHeader.Length);
-                        Array.Copy(descriptor, 0, dataInTransfer, vpdPageHeader.Length, descriptor.Length);
-                        break;
-                    }
-                    default:
-                    {
-                        // Support for other VPD pages is optional in UFS device
-                        this.Log(LogLevel.Warning, "Inquiry: vital product data was requested for page {0} but not supported", scsi.PageCode);
-                        break;
-                    }
+                    var descriptor = Packet.Encode(modePagePolicyDescriptor);
+                    vpdPage.PageLength = (ushort)descriptor.Length;
+                    var vpdPageHeader = Packet.Encode(vpdPage);
+                    dataInTransfer = new byte[vpdPageHeader.Length + vpdPage.PageLength];
+                    Array.Copy(vpdPageHeader, dataInTransfer, vpdPageHeader.Length);
+                    Array.Copy(descriptor, 0, dataInTransfer, vpdPageHeader.Length, descriptor.Length);
+                    break;
+                }
+                default:
+                {
+                    // Support for other VPD pages is optional in UFS device
+                    this.Log(LogLevel.Warning, "Inquiry: vital product data was requested for page {0} but not supported", scsi.PageCode);
+                    break;
+                }
                 }
             }
             else if(!scsi.EnableVitalProductData && scsi.PageCode == 0)
@@ -427,7 +460,7 @@ namespace Antmicro.Renode.Peripherals.Storage
             dataInTransfer = readCapacity16ResponseBytes;
         }
 
-        private void HandleSCSIReportLUNs(byte lun, byte[] cdb, out byte[] dataInTransfer, out byte[] senseData)
+        private void HandleSCSIReportLUNs(byte[] cdb, out byte[] dataInTransfer, out byte[] senseData)
         {
             // Error handling for SCSI subsystem is omitted, so sense data is not used yet
             senseData = new byte[0];
@@ -438,18 +471,18 @@ namespace Antmicro.Renode.Peripherals.Storage
             var lunListLength = 0;
             switch(selectReport)
             {
-                case SelectReport.LogicalUnits:
-                    lunListLength = 8 * LogicalUnits;
-                    break;
-                case SelectReport.WellKnownLogicalUnits:
-                    lunListLength = 8 * WellKnownLUNsNumber;
-                    break;
-                case SelectReport.AllLogicalUnits:
-                    lunListLength = 8 * LogicalUnits + 8 * WellKnownLUNsNumber;
-                    break;
-                default:
-                    this.Log(LogLevel.Warning, "Reserved SELECT REPORT field.");
-                    break;
+            case SelectReport.LogicalUnits:
+                lunListLength = 8 * LogicalUnits;
+                break;
+            case SelectReport.WellKnownLogicalUnits:
+                lunListLength = 8 * WellKnownLUNsNumber;
+                break;
+            case SelectReport.AllLogicalUnits:
+                lunListLength = 8 * LogicalUnits + 8 * WellKnownLUNsNumber;
+                break;
+            default:
+                this.Log(LogLevel.Warning, "Reserved SELECT REPORT field.");
+                break;
             }
 
             // The first 4 bytes contain LUN list length itself and the next 4 bytes are reserved fields.
@@ -497,7 +530,7 @@ namespace Antmicro.Renode.Peripherals.Storage
         {
             // UFS Task Management Functions include Abort Task, Abort Task Set, Clear Task Set,
             // Logical Unit Reset, Query Task, Query Task Set and have meaning if there are
-            // ongoing tasks in the task queue list. UFS is emulated in a synchronous way 
+            // ongoing tasks in the task queue list. UFS is emulated in a synchronous way
             // and all tasks finish immediately, so task management should never be needed.
             var response = new TaskManagementResponseUPIU
             {
@@ -520,7 +553,7 @@ namespace Antmicro.Renode.Peripherals.Storage
             var dataInSegmentOffset = command.HeaderSegmentsCRC ? BasicUPIULength + 4 : BasicUPIULength;
             var dataSegmentIn = requestData.Skip(dataInSegmentOffset).Take(command.DataSegmentLength).ToArray();
 
-            var response = HandleQuery(command, dataSegmentIn, out var dataSegmentOut);
+            var response = HandleQuery(command, out var dataSegmentOut);
             var responseLength = 32 + (response.HeaderSegmentsCRC ? 4 : 0) + (response.DataSegmentLength > 0 ? dataSegmentOut.Length : 0) + (response.DataSegmentsCRC ? 4 : 0);
             var responseData = new byte[responseLength];
 
@@ -528,7 +561,7 @@ namespace Antmicro.Renode.Peripherals.Storage
             Array.Copy(responseHeader, responseData, responseHeader.Length);
             if(response.HeaderSegmentsCRC)
             {
-                var e2eCRCHeader = GetE2ECRC(responseHeader);
+                var e2eCRCHeader = GetE2ECRC();
                 var crcBytes = e2eCRCHeader.AsRawBytes();
                 Array.Copy(crcBytes, 0, responseData, 32, crcBytes.Length);
             }
@@ -538,7 +571,7 @@ namespace Antmicro.Renode.Peripherals.Storage
                 Array.Copy(dataSegmentOut, 0, responseData, dataSegmentOffset, dataSegmentOut.Length);
                 if(response.DataSegmentsCRC)
                 {
-                    var e2eCRCData = GetE2ECRC(dataSegmentOut);
+                    var e2eCRCData = GetE2ECRC();
                     var crcBytes = e2eCRCData.AsRawBytes();
                     Array.Copy(crcBytes, 0, responseData, dataSegmentOffset + response.DataSegmentLength, crcBytes.Length);
                 }
@@ -546,7 +579,7 @@ namespace Antmicro.Renode.Peripherals.Storage
             return responseData;
         }
 
-        private QueryResponseUPIU HandleQuery(QueryRequestUPIU request, byte[] dataSegmentIn, out byte[] dataSegmentOut)
+        private QueryResponseUPIU HandleQuery(QueryRequestUPIU request, out byte[] dataSegmentOut)
         {
             dataSegmentOut = new byte[0];
             var transactionSpecificFieldsResponse = new byte[16];
@@ -554,44 +587,44 @@ namespace Antmicro.Renode.Peripherals.Storage
             var opcode = (QueryFunctionOpcode)transactionSpecificFieldsRequest[0];
             switch(opcode)
             {
-                case QueryFunctionOpcode.Nop:
-                {
-                    transactionSpecificFieldsResponse = HandleQueryFunctionNop(transactionSpecificFieldsRequest);
-                    break;
-                }
-                case QueryFunctionOpcode.ReadDescriptor:
-                {
-                    transactionSpecificFieldsResponse = HandleQueryFunctionReadDescriptor(transactionSpecificFieldsRequest, out dataSegmentOut);
-                    break;
-                }
-                case QueryFunctionOpcode.WriteDescriptor:
-                {
-                    transactionSpecificFieldsResponse = HandleQueryFunctionWriteDescriptor(transactionSpecificFieldsRequest, dataSegmentIn);
-                    break;
-                }
-                case QueryFunctionOpcode.ReadAttribute:
-                {
-                    transactionSpecificFieldsResponse = HandleQueryFunctionReadAttribute(transactionSpecificFieldsRequest);
-                    break;
-                }
-                case QueryFunctionOpcode.WriteAttribute:
-                {
-                    transactionSpecificFieldsResponse = HandleQueryFunctionWriteAttribute(transactionSpecificFieldsRequest);
-                    break;
-                }
-                case QueryFunctionOpcode.ReadFlag:
-                case QueryFunctionOpcode.SetFlag:
-                case QueryFunctionOpcode.ClearFlag:
-                case QueryFunctionOpcode.ToggleFlag:
-                {
-                    transactionSpecificFieldsResponse = HandleQueryFunctionFlagOperation(transactionSpecificFieldsRequest, opcode);
-                    break;
-                }
-                default:
-                {
-                    this.Log(LogLevel.Warning, "Invalid query function opcode");
-                    break;
-                }
+            case QueryFunctionOpcode.Nop:
+            {
+                transactionSpecificFieldsResponse = HandleQueryFunctionNop();
+                break;
+            }
+            case QueryFunctionOpcode.ReadDescriptor:
+            {
+                transactionSpecificFieldsResponse = HandleQueryFunctionReadDescriptor(transactionSpecificFieldsRequest, out dataSegmentOut);
+                break;
+            }
+            case QueryFunctionOpcode.WriteDescriptor:
+            {
+                transactionSpecificFieldsResponse = HandleQueryFunctionWriteDescriptor();
+                break;
+            }
+            case QueryFunctionOpcode.ReadAttribute:
+            {
+                transactionSpecificFieldsResponse = HandleQueryFunctionReadAttribute(transactionSpecificFieldsRequest);
+                break;
+            }
+            case QueryFunctionOpcode.WriteAttribute:
+            {
+                transactionSpecificFieldsResponse = HandleQueryFunctionWriteAttribute(transactionSpecificFieldsRequest);
+                break;
+            }
+            case QueryFunctionOpcode.ReadFlag:
+            case QueryFunctionOpcode.SetFlag:
+            case QueryFunctionOpcode.ClearFlag:
+            case QueryFunctionOpcode.ToggleFlag:
+            {
+                transactionSpecificFieldsResponse = HandleQueryFunctionFlagOperation(transactionSpecificFieldsRequest, opcode);
+                break;
+            }
+            default:
+            {
+                this.Log(LogLevel.Warning, "Invalid query function opcode");
+                break;
+            }
             }
 
             // first four byte fields match the request
@@ -615,7 +648,7 @@ namespace Antmicro.Renode.Peripherals.Storage
             return response;
         }
 
-        private byte[] HandleQueryFunctionNop(byte[] request)
+        private byte[] HandleQueryFunctionNop()
         {
             var response = new byte[16];
             return response;
@@ -630,69 +663,69 @@ namespace Antmicro.Renode.Peripherals.Storage
             var data = new byte[0];
             switch(descrIdn)
             {
-                case DescriptorTypeIdentification.Device:
+            case DescriptorTypeIdentification.Device:
+            {
+                data = Packet.Encode(deviceDescriptor);
+                break;
+            }
+            case DescriptorTypeIdentification.Configuration:
+            {
+                if(index < configurationDescriptors.Length)
                 {
-                    data = Packet.Encode(deviceDescriptor);
-                    break;
+                    data = Packet.Encode(configurationDescriptors[index]);
                 }
-                case DescriptorTypeIdentification.Configuration:
+                else
                 {
-                    if(index < configurationDescriptors.Length)
-                    {
-                        data = Packet.Encode(configurationDescriptors[index]);
-                    }
-                    else
-                    {
-                        this.Log(LogLevel.Warning, "Requested configuration descriptor for invalid index.");
-                    }
-                    break;
+                    this.Log(LogLevel.Warning, "Requested configuration descriptor for invalid index.");
                 }
-                case DescriptorTypeIdentification.Unit:
+                break;
+            }
+            case DescriptorTypeIdentification.Unit:
+            {
+                if(unitDescriptors.Keys.Contains(index))
                 {
-                    if(unitDescriptors.Keys.Contains(index))
-                    {
-                        data = Packet.Encode(unitDescriptors[index]);
-                    }
-                    else
-                    {
-                        this.Log(LogLevel.Warning, "Requested unit descriptor for invalid index.");
-                    }
-                    break;
+                    data = Packet.Encode(unitDescriptors[index]);
                 }
-                case DescriptorTypeIdentification.Interconnect:
+                else
                 {
-                    data = Packet.Encode(interconnectDescriptor);
-                    break;
+                    this.Log(LogLevel.Warning, "Requested unit descriptor for invalid index.");
                 }
-                case DescriptorTypeIdentification.String:
+                break;
+            }
+            case DescriptorTypeIdentification.Interconnect:
+            {
+                data = Packet.Encode(interconnectDescriptor);
+                break;
+            }
+            case DescriptorTypeIdentification.String:
+            {
+                if(index <= MaxNumberOfStringDescriptors - 1)
                 {
-                    if(index <= MaxNumberOfStringDescriptors-1)
-                    {
-                        data = GetStringDescriptor(index);
-                    }
-                    else
-                    {
-                        this.Log(LogLevel.Warning, "Requested string descriptor for invalid index.");
-                    }
-                    break;
+                    data = GetStringDescriptor(index);
                 }
-                case DescriptorTypeIdentification.Geometry:
+                else
                 {
-                    data = Packet.Encode(geometryDescriptor);
-                    break;
+                    this.Log(LogLevel.Warning, "Requested string descriptor for invalid index.");
                 }
-                case DescriptorTypeIdentification.Power:
-                {
-                    data = Packet.Encode(powerParametersDescriptor);
-                    break;
-                }
-                case DescriptorTypeIdentification.DeviceHealth:
-                {
-                    data = Packet.Encode(deviceHealthDescriptor);
-                    break;
-                }
-                default:
-                    break;
+                break;
+            }
+            case DescriptorTypeIdentification.Geometry:
+            {
+                data = Packet.Encode(geometryDescriptor);
+                break;
+            }
+            case DescriptorTypeIdentification.Power:
+            {
+                data = Packet.Encode(powerParametersDescriptor);
+                break;
+            }
+            case DescriptorTypeIdentification.DeviceHealth:
+            {
+                data = Packet.Encode(deviceHealthDescriptor);
+                break;
+            }
+            default:
+                break;
             }
 
             dataSegmentOut = data.Take(Math.Min((ushort)data.Length, length)).ToArray();
@@ -705,7 +738,7 @@ namespace Antmicro.Renode.Peripherals.Storage
             return response;
         }
 
-        private byte[] HandleQueryFunctionWriteDescriptor(byte[] request, byte[] dataSegmentIn)
+        private byte[] HandleQueryFunctionWriteDescriptor()
         {
             var response = new byte[16];
             // Current implementation doesn't allow to dynamically modify descriptors.
@@ -723,13 +756,13 @@ namespace Antmicro.Renode.Peripherals.Storage
             var index = request[2];
             var selector = request[3];
 
-            if (attrIdn == UFSDeviceAttribute.DynCapNeeded || attrIdn == UFSDeviceAttribute.ContextConf)
+            if(attrIdn == UFSDeviceAttribute.DynCapNeeded || attrIdn == UFSDeviceAttribute.ContextConf)
             {
                 this.Log(LogLevel.Warning, "Trying to read an array attribute {0} for logical unit {1} and selector {2}. Assuming the same value for all logical units.", Enum.GetName(typeof(UFSDeviceAttribute), attrIdn), index, selector);
             }
 
             ulong attrValue;
-            if (!attributes.TryGetValue(attrIdn, out attrValue))
+            if(!attributes.TryGetValue(attrIdn, out attrValue))
             {
                 this.Log(LogLevel.Warning, "Cannot read attribute: {0}", attrIdn);
             }
@@ -774,34 +807,34 @@ namespace Antmicro.Renode.Peripherals.Storage
             {
                 switch(op)
                 {
-                    case QueryFunctionOpcode.ReadFlag:
+                case QueryFunctionOpcode.ReadFlag:
+                {
+                    flagValue = flags[flagIdn];
+                    break;
+                }
+                case QueryFunctionOpcode.SetFlag:
+                {
+                    flagValue = true;
+                    flags[flagIdn] = flagValue;
+                    if(flagIdn == UFSDeviceFlag.DeviceInit)
                     {
-                        flagValue = flags[flagIdn];
-                        break;
+                        flags[flagIdn] = false;
+                        this.Log(LogLevel.Debug, "Initialization complete. Setting fDeviceInit flag to false.");
                     }
-                    case QueryFunctionOpcode.SetFlag:
-                    {
-                        flagValue = true;
-                        flags[flagIdn] = flagValue;
-                        if(flagIdn == UFSDeviceFlag.DeviceInit)
-                        {
-                            flags[flagIdn] = false;
-                            this.Log(LogLevel.Debug, "Initialization complete. Setting fDeviceInit flag to false.");
-                        }
-                        break;
-                    }
-                    case QueryFunctionOpcode.ClearFlag:
-                    {
-                        flagValue = false;
-                        flags[flagIdn] = flagValue;
-                        break;
-                    }
-                    case QueryFunctionOpcode.ToggleFlag:
-                    {
-                        flags[flagIdn] = !flags[flagIdn];
-                        flagValue = flags[flagIdn];
-                        break;
-                    }
+                    break;
+                }
+                case QueryFunctionOpcode.ClearFlag:
+                {
+                    flagValue = false;
+                    flags[flagIdn] = flagValue;
+                    break;
+                }
+                case QueryFunctionOpcode.ToggleFlag:
+                {
+                    flags[flagIdn] = !flags[flagIdn];
+                    flagValue = flags[flagIdn];
+                    break;
+                }
                 }
             }
             else
@@ -835,7 +868,7 @@ namespace Antmicro.Renode.Peripherals.Storage
             return true;
         }
 
-        private uint GetE2ECRC(byte[] data)
+        private uint GetE2ECRC()
         {
             this.Log(LogLevel.Warning, "End-to-end CRC is not supported in this version of the standard");
             return 0;
@@ -1095,17 +1128,17 @@ namespace Antmicro.Renode.Peripherals.Storage
             byte bSupportedSecRTypes = 0b00000011, // Supported Secure Removal Types
             ushort wSupportedMemoryTypes = 0xff, // Supported Memory Types - all
             uint dSystemCodeMaxNAllocU = 0x08, // Max Number of Allocation Units for the System Code memory type
-            ushort wSystemCodeCapAdjFac = 256*8,
+            ushort wSystemCodeCapAdjFac = 256 * 8,
             uint dNonPersistMaxNAllocU = 0x08,
-            ushort wNonPersistCapAdjFac = 256*8,
+            ushort wNonPersistCapAdjFac = 256 * 8,
             uint dEnhanced1MaxNAllocU = 0x08,
-            ushort wEnhanced1CapAdjFac = 256*8,
+            ushort wEnhanced1CapAdjFac = 256 * 8,
             uint dEnhanced2MaxNAllocU = 0x08,
-            ushort wEnhanced2CapAdjFac = 256*8,
+            ushort wEnhanced2CapAdjFac = 256 * 8,
             uint dEnhanced3MaxNAllocU = 0x08,
-            ushort wEnhanced3CapAdjFac = 256*8,
+            ushort wEnhanced3CapAdjFac = 256 * 8,
             uint dEnhanced4MaxNAllocU = 0x08,
-            ushort wEnhanced4CapAdjFac = 256*8,
+            ushort wEnhanced4CapAdjFac = 256 * 8,
             uint dOptimalLogicalBlockSize = 0x00,
             uint dWriteBoosterBufferMaxNAllocUnits = 0,
             byte bDeviceMaxWriteBoosterLUs = 1, // In JESD220F, the valid value of this field is 1.
@@ -1161,7 +1194,7 @@ namespace Antmicro.Renode.Peripherals.Storage
             byte bPreEOLInfo = 0x00, // Not defined
             byte bDeviceLifeTimeEstA = 0x00, // Information not available
             byte bDeviceLifeTimeEstB = 0x00, // Information not available
-            byte [] vendorPropInfo = null, // Reserved for Vendor Proprietary Health Report
+            byte[] vendorPropInfo = null, // Reserved for Vendor Proprietary Health Report
             uint dRefreshTotalCount = 1, // Total Refresh Count
             uint dRefreshProgress = 100000 // Refresh Progress (100%)
         )
@@ -1289,23 +1322,6 @@ namespace Antmicro.Renode.Peripherals.Storage
             VitalProductDataPageCode.ModePagePolicy
         };
 
-        public int LogicalUnits { get; }
-        public byte IndexManufacturerName { get; }
-        public byte IndexProductName { get; }
-        public byte IndexSerialNumber { get; }
-        public byte IndexOemID { get; }
-        public byte IndexProductRevisionLevel { get; }
-        public string ManufacturerName { get; }
-        public string ProductName { get; }
-        public string SerialNumber { get; }
-        public string OemID { get; }
-        public string ProductRevisionLevel { get; }
-        public byte MaxInBufferSize { get; }
-        public byte MaxOutBufferSize { get; }
-        public ulong LogicalBlockSize { get; }
-        public ulong LogicalBlockCount { get; }
-        public byte LogicalBlockSizeExponentBase2 => (byte)BitHelper.GetMostSignificantSetBitIndex(LogicalBlockSize);
-
         private DeviceDescriptor deviceDescriptor;
         private ConfigurationDescriptorHeader[] configurationDescriptors;
         private RPMBUnitDescriptor rpmbUnitDescriptor;
@@ -1317,7 +1333,7 @@ namespace Antmicro.Renode.Peripherals.Storage
         private Dictionary<UFSDeviceFlag, bool> flags;
         private Dictionary<UFSDeviceAttribute, ulong> attributes;
         private Dictionary<byte, UnitDescriptor> unitDescriptors;
-        private Stream[] dataBackends;
+        private readonly Stream[] dataBackends;
 
         private const int WellKnownLUNsNumber = 4;
         private const int MaxLogicalUnits = 32;

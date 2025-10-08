@@ -7,22 +7,17 @@
 //
 using System;
 using System.Collections.Generic;
+
+using Antmicro.Migrant;
+using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Logging;
-using Antmicro.Migrant;
-using Antmicro.Migrant.Hooks;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
     public abstract class UARTBase : NullRegistrationPointPeripheralContainer<IUART>, IUART
     {
-        protected UARTBase(IMachine machine) : base(machine)
-        {
-            queue = new Queue<byte>();
-            innerLock = new object();
-        }
-
         public virtual void WriteChar(byte value)
         {
             lock(innerLock)
@@ -57,11 +52,20 @@ namespace Antmicro.Renode.Peripherals.UART
             uart.CharReceived -= this.WriteChar;
         }
 
+        public abstract Bits StopBits { get; }
+
+        public abstract Parity ParityBit { get; }
+
+        public abstract uint BaudRate { get; }
+
         [field: Transient]
         public event Action<byte> CharReceived;
 
-        protected abstract void CharWritten();
-        protected abstract void QueueEmptied();
+        protected UARTBase(IMachine machine) : base(machine)
+        {
+            queue = new Queue<byte>();
+            innerLock = new object();
+        }
 
         protected bool TryGetCharacter(out byte character, bool peek = false)
         {
@@ -102,6 +106,12 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
+        protected abstract void CharWritten();
+
+        protected abstract void QueueEmptied();
+
+        protected virtual bool IsReceiveEnabled => true;
+
         protected int Count
         {
             get
@@ -114,15 +124,6 @@ namespace Antmicro.Renode.Peripherals.UART
         }
 
         protected readonly object innerLock;
-        private readonly Queue<byte> queue;
-
-        public abstract Bits StopBits { get; }
-
-        public abstract Parity ParityBit { get; }
-
-        public abstract uint BaudRate { get; }
-
-        protected virtual bool IsReceiveEnabled => true;
 
         [PostDeserialization]
         private void ConnectEvents()
@@ -133,6 +134,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 RegisteredPeripheral.CharReceived += this.WriteChar;
             }
         }
+
+        private readonly Queue<byte> queue;
     }
 }
-

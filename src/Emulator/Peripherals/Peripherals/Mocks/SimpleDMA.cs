@@ -6,6 +6,7 @@
 //
 
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.Bus;
@@ -21,13 +22,11 @@ namespace Antmicro.Renode.Peripherals
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {
                 {(long)Registers.Data, new DoubleWordRegister(this).WithValueField(0, 32, out data)},
-
                 {(long)Registers.WriteTo, new DoubleWordRegister(this).WithValueField(0, 32, FieldMode.Write,
                     writeCallback: (_, address) => {
                         sysbus.WriteDoubleWord(address, (uint)data.Value);
                     })
                 },
-
                 {(long)Registers.ReadFrom, new DoubleWordRegister(this).WithValueField(0, 32, FieldMode.Write,
                     writeCallback: (_, address) => {
                         data.Value = sysbus.ReadDoubleWord(address);
@@ -55,7 +54,7 @@ namespace Antmicro.Renode.Peripherals
 
         public long Size => 0x100;
 
-        private IValueRegisterField data;
+        private readonly IValueRegisterField data;
 
         private readonly DoubleWordRegisterCollection registers;
         private readonly IBusController sysbus;

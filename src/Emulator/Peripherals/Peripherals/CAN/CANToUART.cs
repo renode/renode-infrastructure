@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.CAN;
 using Antmicro.Renode.Logging;
@@ -47,11 +48,13 @@ namespace Antmicro.Renode.Peripherals.CAN
             fs(new CANMessageFrame(txToCANId, new byte[] { value }));
         }
 
-        public event Action<CANMessageFrame> FrameSent;
-
         public override Bits StopBits => Bits.One;
+
         public override Parity ParityBit => Parity.None;
+
         public override uint BaudRate => 115200;
+
+        public event Action<CANMessageFrame> FrameSent;
 
         protected override void CharWritten()
         {

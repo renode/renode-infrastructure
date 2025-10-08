@@ -34,7 +34,7 @@ namespace Antmicro.Renode.Utilities.Collections
         {
             if(generator == null)
             {
-               throw new ArgumentNullException(nameof(generator));
+                throw new ArgumentNullException(nameof(generator));
             }
             var obj = new CacheObject<T1, T2, Func<T1, T2, R>>(generator, parameterT1, parameterT2);
             if(simpleCache.TryGetValue(obj, out var result))
@@ -60,6 +60,8 @@ namespace Antmicro.Renode.Utilities.Collections
         public ulong CacheHits { get; private set; }
 
         public int CacheSize { get { return simpleCache.Count; } }
+
+        private readonly Dictionary<object, object> simpleCache = new Dictionary<object, object>();
 
         private struct CacheObject<T1, T2, R>
         {
@@ -121,7 +123,5 @@ namespace Antmicro.Renode.Utilities.Collections
             private readonly T2 parameterT2;
             private readonly R generator;
         }
-
-        private readonly Dictionary<object, object> simpleCache = new Dictionary<object, object>();
     }
 }

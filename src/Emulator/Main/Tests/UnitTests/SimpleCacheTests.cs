@@ -5,8 +5,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using NUnit.Framework;
+
 using Antmicro.Renode.Utilities.Collections;
+
+using NUnit.Framework;
+
 namespace Antmicro.Renode.Utilities
 {
     [TestFixture]
@@ -90,8 +93,8 @@ namespace Antmicro.Renode.Utilities
             var cacheHits = 0UL;
             var cacheHitsAfter = 0UL;
 
-            Assert.DoesNotThrow(() => 
-            { 
+            Assert.DoesNotThrow(() =>
+            {
                 result = cache.Get(val, NullParameterGenerator);
                 cacheMisses = cache.CacheMisses;
                 cacheHits = cache.CacheHits;
@@ -238,7 +241,7 @@ namespace Antmicro.Renode.Utilities
             cache.Get(obj2, Generator2);
             Assert.AreEqual(4, cache.CacheSize);
             cache.ClearCache();
-            Assert.AreEqual(0, cache.CacheSize); 
+            Assert.AreEqual(0, cache.CacheSize);
         }
 
         [TearDown]
@@ -277,8 +280,9 @@ namespace Antmicro.Renode.Utilities
             return obj.GetHashCode().ToString() + obj_1 + " this is another test";
         }
 
-        private SimpleCache cache = new SimpleCache();
         private object obj1;
         private object obj2;
+
+        private readonly SimpleCache cache = new SimpleCache();
     }
 }

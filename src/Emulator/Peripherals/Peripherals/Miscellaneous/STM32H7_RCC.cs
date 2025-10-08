@@ -5,19 +5,17 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System;
 using System.Collections.Generic;
-using Antmicro.Renode.Core;
+
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.Timers;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public sealed class STM32H7_RCC : IDoubleWordPeripheral, IKnownSize
     {
-        public STM32H7_RCC(IMachine machine)
+        public STM32H7_RCC()
         {
             //  Based on https://stm32-rs.github.io/stm32-rs/STM32H743.html#RCC
             var registersMap = new Dictionary<long, DoubleWordRegister>

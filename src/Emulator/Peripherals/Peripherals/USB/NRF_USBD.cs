@@ -6,16 +6,12 @@
 //
 
 using System;
-using System.Linq;
-using System.Collections.Generic;
 
-using Antmicro.Migrant;
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Core.USB;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Core.USB;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.USB;
 using Antmicro.Renode.Peripherals.Miscellaneous;
 using Antmicro.Renode.Utilities;
 
@@ -37,16 +33,8 @@ namespace Antmicro.Renode.Peripherals.USB
             InitiateUSBCore();
             DefineRegisters();
         }
-        
-        public void Reset()
-        {
-            interruptManager.Reset();
-            registers.Reset();
-        }
 
-        public USBDeviceCore USBCore { get; }
-
-        public uint ReadDoubleWord(long offset) 
+        public uint ReadDoubleWord(long offset)
         {
             return registers.Read(offset);
         }
@@ -56,8 +44,17 @@ namespace Antmicro.Renode.Peripherals.USB
             registers.Write(offset, value);
         }
 
+        public void Reset()
+        {
+            interruptManager.Reset();
+            registers.Reset();
+        }
+
+        public USBDeviceCore USBCore { get; }
+
         [IrqProvider]
         public GPIO IRQ { get; }
+
         public long Size => 0x1000;
 
         public event Action<uint> EventTriggered;
@@ -73,17 +70,17 @@ namespace Antmicro.Renode.Peripherals.USB
 
             switch(packet.Request)
             {
-                case (byte)StandardRequest.SetAddress:
-                    USBCore.Address = (byte)setupPacket.Value;
-                    setupPacketResultCallback(Array.Empty<byte>());
-                    break;
-                case (byte)StandardRequest.SetConfiguration:
-                    setupPacketResultCallback(Array.Empty<byte>());
-                    break;
+            case (byte)StandardRequest.SetAddress:
+                USBCore.Address = (byte)setupPacket.Value;
+                setupPacketResultCallback(Array.Empty<byte>());
+                break;
+            case (byte)StandardRequest.SetConfiguration:
+                setupPacketResultCallback(Array.Empty<byte>());
+                break;
             }
         }
 
-        private void GetData(ushort epNumber) 
+        private void GetData(ushort epNumber)
         {
             this.Log(LogLevel.Noisy, "Reading data from EP number: {0}", epNumber);
             // Every pointer to endpoint data and endpoint count is n * 0x14 away from endpoint's 0, where n is number of endpoint. 
@@ -113,7 +110,7 @@ namespace Antmicro.Renode.Peripherals.USB
             SetEvent(Events.EpData);
 
             // Special event for control endpoint
-            if(epNumber == 0) 
+            if(epNumber == 0)
             {
                 SetEvent(Events.Ep0DataDone);
             }
@@ -157,7 +154,7 @@ namespace Antmicro.Renode.Peripherals.USB
             DefineTask(Registers.TasksStartEpIn5, GetData, 5, "TASKS_STARTEPIN5");
             DefineTask(Registers.TasksStartEpIn6, GetData, 6, "TASKS_STARTEPIN6");
             DefineTask(Registers.TasksStartEpIn7, GetData, 7, "TASKS_STARTEPIN7");
-            DefineTask(Registers.TasksEp0Status, (_) => {}, 0, "TASKS_EP0STATUS");
+            DefineTask(Registers.TasksEp0Status, (_) => { }, 0, "TASKS_EP0STATUS");
             DefineEvent(Registers.EventsUsbReset, Events.UsbReset, "EVENTS_USBRESET");
             DefineEvent(Registers.EventsEp0Setup, Events.Ep0Setup, "EVENTS_EP0SETUP");
             DefineEvent(Registers.EventsStarted, Events.Started, "EVENTS_STARTED");
@@ -172,7 +169,7 @@ namespace Antmicro.Renode.Peripherals.USB
             DefineEvent(Registers.EventsEp0DataDone, Events.Ep0DataDone, "EVENTS_EP0DATADONE");
             DefineEvent(Registers.EventsEpData, Events.EpData, "EVENTS_EPDATA");
 
-            registers.AddRegister((long)Registers.InterruptEnable, 
+            registers.AddRegister((long)Registers.InterruptEnable,
                 interruptManager.GetInterruptEnableSetRegister<DoubleWordRegister>());
 
             Registers.EventCause.Define(this)
@@ -184,14 +181,14 @@ namespace Antmicro.Renode.Peripherals.USB
                 .WithReservedBits(12, 20);
 
             Registers.EndpointStatus.Define(this)
-                .WithFlag(0, writeCallback: (_, val) => {epInStatus[0] = val;}, valueProviderCallback: _ => epInStatus[0], name: "EPIN1")
-                .WithFlag(1, writeCallback: (_, val) => {epInStatus[1] = val;}, valueProviderCallback: _ => epInStatus[1], name: "EPIN1")
-                .WithFlag(2, writeCallback: (_, val) => {epInStatus[2] = val;}, valueProviderCallback: _ => epInStatus[2], name: "EPIN2")
-                .WithFlag(3, writeCallback: (_, val) => {epInStatus[3] = val;}, valueProviderCallback: _ => epInStatus[3], name: "EPIN3")
-                .WithFlag(4, writeCallback: (_, val) => {epInStatus[4] = val;}, valueProviderCallback: _ => epInStatus[4], name: "EPIN4")
-                .WithFlag(5, writeCallback: (_, val) => {epInStatus[5] = val;}, valueProviderCallback: _ => epInStatus[5], name: "EPIN5")
-                .WithFlag(6, writeCallback: (_, val) => {epInStatus[6] = val;}, valueProviderCallback: _ => epInStatus[6], name: "EPIN6")
-                .WithFlag(7, writeCallback: (_, val) => {epInStatus[7] = val;}, valueProviderCallback: _ => epInStatus[7], name: "EPIN7")
+                .WithFlag(0, writeCallback: (_, val) => { epInStatus[0] = val; }, valueProviderCallback: _ => epInStatus[0], name: "EPIN1")
+                .WithFlag(1, writeCallback: (_, val) => { epInStatus[1] = val; }, valueProviderCallback: _ => epInStatus[1], name: "EPIN1")
+                .WithFlag(2, writeCallback: (_, val) => { epInStatus[2] = val; }, valueProviderCallback: _ => epInStatus[2], name: "EPIN2")
+                .WithFlag(3, writeCallback: (_, val) => { epInStatus[3] = val; }, valueProviderCallback: _ => epInStatus[3], name: "EPIN3")
+                .WithFlag(4, writeCallback: (_, val) => { epInStatus[4] = val; }, valueProviderCallback: _ => epInStatus[4], name: "EPIN4")
+                .WithFlag(5, writeCallback: (_, val) => { epInStatus[5] = val; }, valueProviderCallback: _ => epInStatus[5], name: "EPIN5")
+                .WithFlag(6, writeCallback: (_, val) => { epInStatus[6] = val; }, valueProviderCallback: _ => epInStatus[6], name: "EPIN6")
+                .WithFlag(7, writeCallback: (_, val) => { epInStatus[7] = val; }, valueProviderCallback: _ => epInStatus[7], name: "EPIN7")
                 .WithReservedBits(8, 8)
                 .WithTaggedFlag("EPOUT0", 16)
                 .WithTaggedFlag("EPOUT1", 17)
@@ -206,13 +203,13 @@ namespace Antmicro.Renode.Peripherals.USB
 
             Registers.EndpointDataStatus.Define(this)
                 .WithReservedBits(0, 1) // Ep0 has no data status
-                .WithFlag(1, writeCallback: (_, val) => {epInDataStatus[1] = val;}, valueProviderCallback: _ => epInDataStatus[1], name: "EPIN1")
-                .WithFlag(2, writeCallback: (_, val) => {epInDataStatus[2] = val;}, valueProviderCallback: _ => epInDataStatus[2], name: "EPIN2")
-                .WithFlag(3, writeCallback: (_, val) => {epInDataStatus[3] = val;}, valueProviderCallback: _ => epInDataStatus[3], name: "EPIN3")
-                .WithFlag(4, writeCallback: (_, val) => {epInDataStatus[4] = val;}, valueProviderCallback: _ => epInDataStatus[4], name: "EPIN4")
-                .WithFlag(5, writeCallback: (_, val) => {epInDataStatus[5] = val;}, valueProviderCallback: _ => epInDataStatus[5], name: "EPIN5")
-                .WithFlag(6, writeCallback: (_, val) => {epInDataStatus[6] = val;}, valueProviderCallback: _ => epInDataStatus[6], name: "EPIN6")
-                .WithFlag(7, writeCallback: (_, val) => {epInDataStatus[7] = val;}, valueProviderCallback: _ => epInDataStatus[7], name: "EPIN7")
+                .WithFlag(1, writeCallback: (_, val) => { epInDataStatus[1] = val; }, valueProviderCallback: _ => epInDataStatus[1], name: "EPIN1")
+                .WithFlag(2, writeCallback: (_, val) => { epInDataStatus[2] = val; }, valueProviderCallback: _ => epInDataStatus[2], name: "EPIN2")
+                .WithFlag(3, writeCallback: (_, val) => { epInDataStatus[3] = val; }, valueProviderCallback: _ => epInDataStatus[3], name: "EPIN3")
+                .WithFlag(4, writeCallback: (_, val) => { epInDataStatus[4] = val; }, valueProviderCallback: _ => epInDataStatus[4], name: "EPIN4")
+                .WithFlag(5, writeCallback: (_, val) => { epInDataStatus[5] = val; }, valueProviderCallback: _ => epInDataStatus[5], name: "EPIN5")
+                .WithFlag(6, writeCallback: (_, val) => { epInDataStatus[6] = val; }, valueProviderCallback: _ => epInDataStatus[6], name: "EPIN6")
+                .WithFlag(7, writeCallback: (_, val) => { epInDataStatus[7] = val; }, valueProviderCallback: _ => epInDataStatus[7], name: "EPIN7")
                 .WithReservedBits(8, 9)
                 .WithTaggedFlag("EPOUT1", 17)
                 .WithTaggedFlag("EPOUT2", 18)
@@ -304,7 +301,6 @@ namespace Antmicro.Renode.Peripherals.USB
             Registers.IsoInConfig.Define(this) // This is last thing happening in nRF5340, after this the enumeration should start
                 .WithTaggedFlag("RESPONSE", 0)
                 .WithReservedBits(1, 31);
-                
 
             Registers.Endpoint0In.Define(this)
                 .WithValueField(0, 32, name: "EPIN0", valueField: out endpoint0In);
@@ -355,23 +351,23 @@ namespace Antmicro.Renode.Peripherals.USB
                 .WithReservedBits(8, 24);
         }
 
-        private void HandleToggle() 
+        private void HandleToggle()
         {
-            if(dataToggleValue.Value == 0) 
+            if(dataToggleValue.Value == 0)
             {
                 this.Log(LogLevel.Noisy, "Selecting EP #{0}, {1}", dataToggleEndpoint.Value, dataToggleInputOutput.Value ? "in" : "out");
                 return;
             }
-            this.Log(LogLevel.Noisy, "Accessing EP #{0}, {1}; DATA{2}", dataToggleEndpoint.Value, dataToggleInputOutput.Value==false ? "out" : "in", dataToggleValue.Value == 1 ? "0" : "1");
+            this.Log(LogLevel.Noisy, "Accessing EP #{0}, {1}; DATA{2}", dataToggleEndpoint.Value, dataToggleInputOutput.Value == false ? "out" : "in", dataToggleValue.Value == 1 ? "0" : "1");
         }
 
-        private void HandleStalling() 
+        private void HandleStalling()
         {
             // This is useful for debugging, as software may stall endpoint
             // on wrong/unsupported tokens
-            this.Log(LogLevel.Noisy, "{0} EP #{1}, {2}", epstallStall.Value == true ? "Stalling" : "Unstalling", epstallEndpoint.Value, epstallIO.Value==false ? "out" : "in");
+            this.Log(LogLevel.Noisy, "{0} EP #{1}, {2}", epstallStall.Value == true ? "Stalling" : "Unstalling", epstallEndpoint.Value, epstallIO.Value == false ? "out" : "in");
         }
-        
+
         private void InitiateUSBCore()
         {
             // Define all possible endpoints as available right away
@@ -479,15 +475,6 @@ namespace Antmicro.Renode.Peripherals.USB
 
         DoubleWordRegisterCollection IProvidesRegisterCollection<DoubleWordRegisterCollection>.RegistersCollection => registers;
 
-        private USBEndpoint deviceToHostEndpoint;
-        private Action<byte[]> setupPacketResultCallback;
-        private readonly IMachine machine;
-        private readonly bool[] epInDataStatus;
-        private readonly bool[] epInStatus;
-
-        private readonly InterruptManager<Events> interruptManager;
-        private readonly IFlagRegisterField[] events;
-
         private SetupPacket setupPacket;
 
         private IValueRegisterField endpoint0In;
@@ -506,6 +493,15 @@ namespace Antmicro.Renode.Peripherals.USB
         private IFlagRegisterField ep0InEnabled;
         private IFlagRegisterField ep0OutEnabled;
 
+        private USBEndpoint deviceToHostEndpoint;
+        private Action<byte[]> setupPacketResultCallback;
+        private readonly IMachine machine;
+        private readonly bool[] epInDataStatus;
+        private readonly bool[] epInStatus;
+
+        private readonly InterruptManager<Events> interruptManager;
+        private readonly IFlagRegisterField[] events;
+
         private readonly short maximumPacketSize;
         private readonly DoubleWordRegisterCollection registers;
 
@@ -513,31 +509,31 @@ namespace Antmicro.Renode.Peripherals.USB
 
         private enum Events
         {
-           UsbReset = 0, 
-           Started = 1,
-           EndEpIn0 = 2,
-           EndEpIn1 = 3,
-           EndEpIn2 = 4,
-           EndEpIn3 = 5,
-           EndEpIn4 = 6,
-           EndEpIn5 = 7,
-           EndEpIn6 = 8,
-           EndEpIn7 = 9,
-           Ep0DataDone = 10,
-           EndIsoIn = 11,
-           EndEpOut0 = 12,
-           EndEpOut1 = 13,
-           EndEpOut2 = 14,
-           EndEpOut3 = 15,
-           EndEpOut4 = 16,
-           EndEpOut5 = 17,
-           EndEpOut6 = 18,
-           EndEpOut7 = 19,
-           EndIsoOut = 20,
-           StartOfFrame = 21,
-           UsbEvent = 22,
-           Ep0Setup = 23,
-           EpData = 24
+            UsbReset = 0,
+            Started = 1,
+            EndEpIn0 = 2,
+            EndEpIn1 = 3,
+            EndEpIn2 = 4,
+            EndEpIn3 = 5,
+            EndEpIn4 = 6,
+            EndEpIn5 = 7,
+            EndEpIn6 = 8,
+            EndEpIn7 = 9,
+            Ep0DataDone = 10,
+            EndIsoIn = 11,
+            EndEpOut0 = 12,
+            EndEpOut1 = 13,
+            EndEpOut2 = 14,
+            EndEpOut3 = 15,
+            EndEpOut4 = 16,
+            EndEpOut5 = 17,
+            EndEpOut6 = 18,
+            EndEpOut7 = 19,
+            EndIsoOut = 20,
+            StartOfFrame = 21,
+            UsbEvent = 22,
+            Ep0Setup = 23,
+            EpData = 24
         }
 
         private enum Registers : long
@@ -565,7 +561,7 @@ namespace Antmicro.Renode.Peripherals.USB
             TasksEp0Stall = 0x054,
             TasksDPDMDrive = 0x058,
             TasksDPDMNODrive = 0x05C,
-            EventsUsbReset = 0x100, 
+            EventsUsbReset = 0x100,
             EventsStarted = 0x104,
             EventsEndEpIn0 = 0x108,
             EventsEndEpIn1 = 0x10C,

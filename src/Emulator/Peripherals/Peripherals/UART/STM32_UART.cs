@@ -5,14 +5,14 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Generic;
 using System.Threading;
+
+using Antmicro.Migrant;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using System.Collections.Generic;
-using Antmicro.Migrant;
-using Antmicro.Migrant.Hooks;
-using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.UART
@@ -214,26 +214,26 @@ namespace Antmicro.Renode.Peripherals.UART
             );
         }
 
-        private readonly uint frequency;
-
         private CancellationTokenSource idleLineDetectedCancellationTokenSrc;
+        private IFlagRegisterField transmissionComplete;
+        private IFlagRegisterField readFifoNotEmpty;
+        private IFlagRegisterField idleLineDetected;
+        private IFlagRegisterField transmitterEnabled;
+        private IFlagRegisterField receiverEnabled;
+        private IFlagRegisterField receiverNotEmptyInterruptEnabled;
+        private IValueRegisterField dividerMantissa;
+        private IFlagRegisterField idleLineDetectedInterruptEnabled;
+        private IFlagRegisterField transmissionCompleteInterruptEnabled;
+        private IEnumRegisterField<ParitySelection> paritySelection;
+        private IFlagRegisterField parityControlEnabled;
+        private IFlagRegisterField usartEnabled;
+        private IEnumRegisterField<StopBitsValues> stopBits;
 
         private IEnumRegisterField<OversamplingMode> oversamplingMode;
-        private IEnumRegisterField<StopBitsValues> stopBits;
-        private IFlagRegisterField usartEnabled;
-        private IFlagRegisterField parityControlEnabled;
-        private IEnumRegisterField<ParitySelection> paritySelection;
-        private IFlagRegisterField transmissionCompleteInterruptEnabled;
         private IFlagRegisterField transmitDataRegisterEmptyInterruptEnabled;
-        private IFlagRegisterField idleLineDetectedInterruptEnabled;
-        private IFlagRegisterField receiverNotEmptyInterruptEnabled;
-        private IFlagRegisterField receiverEnabled;
-        private IFlagRegisterField transmitterEnabled;
-        private IFlagRegisterField idleLineDetected;
-        private IFlagRegisterField readFifoNotEmpty;
-        private IFlagRegisterField transmissionComplete;
-        private IValueRegisterField dividerMantissa;
         private IValueRegisterField dividerFraction;
+
+        private readonly uint frequency;
 
         private readonly Queue<byte> receiveFifo = new Queue<byte>();
 

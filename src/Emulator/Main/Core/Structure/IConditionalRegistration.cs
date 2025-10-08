@@ -12,7 +12,7 @@ namespace Antmicro.Renode.Core.Structure
     public interface IConditionalRegistration : IBusRegistration
     {
         string Condition { get; }
+
         IConditionalRegistration WithInitiatorAndStateMask(IPeripheral initiator, StateMask mask);
     }
 }
-

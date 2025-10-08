@@ -6,9 +6,11 @@
 //
 
 using System.IO;
-using BigGustave;
+
 using Antmicro.Renode.Backends.Display;
 using Antmicro.Renode.Exceptions;
+
+using BigGustave;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -43,8 +45,11 @@ namespace Antmicro.Renode.Utilities
         }
 
         public byte[] Bytes { get; }
+
         public int Width { get; }
+
         public int Height { get; }
+
         public const PixelFormat PixelFormat = Antmicro.Renode.Backends.Display.PixelFormat.RGBA8888;
     }
 }

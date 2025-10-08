@@ -6,9 +6,8 @@
 //
 using System;
 using System.Collections.Generic;
-using System.Linq;
+
 using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Utilities.Packets;
 
 namespace Antmicro.Renode.Peripherals.SENT
 {
@@ -24,7 +23,7 @@ namespace Antmicro.Renode.Peripherals.SENT
             }
             return CRCTable[value << 4];
         }
-        
+
         public FastMessage(params byte[] nibbles)
         {
             if(nibbles.Length < 1 || nibbles.Length > MaxFastMessageLength)

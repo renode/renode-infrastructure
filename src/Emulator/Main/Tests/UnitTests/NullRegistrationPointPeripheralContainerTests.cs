@@ -5,19 +5,21 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-﻿using NUnit.Framework;
-using Antmicro.Renode.Peripherals;
-using Antmicro.Renode.Core.Structure;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals.Bus;
 using System.Linq;
+
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Peripherals;
+using Antmicro.Renode.Peripherals.Bus;
+
+using NUnit.Framework;
 
 namespace Antmicro.Renode.UnitTests
 {
     [TestFixture]
     public class NullRegistrationPointPeripheralContainerTests
-    {   
+    {
         [Test]
         public void ShouldRegisterPeripheral()
         {
@@ -29,7 +31,7 @@ namespace Antmicro.Renode.UnitTests
         public void ShouldThrowWhenSecondPeripheral()
         {
             container.Register(peripheral2, NullRegistrationPoint.Instance);
-            Assert.Throws<RegistrationException>(() => 
+            Assert.Throws<RegistrationException>(() =>
                 container.Register(peripheral, NullRegistrationPoint.Instance));
         }
 
@@ -45,14 +47,14 @@ namespace Antmicro.Renode.UnitTests
         public void ShouldThrowWhenUnregisteringNotRegisteredPeripheral()
         {
             container.Register(peripheral2, NullRegistrationPoint.Instance);
-            Assert.Throws<RegistrationException>(() => 
+            Assert.Throws<RegistrationException>(() =>
                 container.Unregister(peripheral));
         }
 
         [Test]
         public void ShouldThrowWhenUnregisteringFromEmptyContainers()
         {
-            Assert.Throws<RegistrationException>(() => 
+            Assert.Throws<RegistrationException>(() =>
                 container.Unregister(peripheral));
         }
 
@@ -101,7 +103,6 @@ namespace Antmicro.Renode.UnitTests
             Assert.IsTrue(machine.IsRegistered(peripheral2));
         }
 
-
         [SetUp]
         public void SetUp()
         {
@@ -120,13 +121,16 @@ namespace Antmicro.Renode.UnitTests
         private NullRegistrationPointPeripheralContainerMock container;
         private NullRegistrationPoint registrationPoint;
 
-        private class NullRegistrationPointPeripheralContainerMock : 
+        private class NullRegistrationPointPeripheralContainerMock :
             NullRegistrationPointPeripheralContainer<PeripheralMock>,
         IDoubleWordPeripheral
         {
-            public NullRegistrationPointPeripheralContainerMock(IMachine machine) : base(machine) {}
-            public override void Reset(){}
-            public void WriteDoubleWord(long offset, uint value){}
+            public NullRegistrationPointPeripheralContainerMock(IMachine machine) : base(machine) { }
+
+            public override void Reset() { }
+
+            public void WriteDoubleWord(long offset, uint value) { }
+
             public uint ReadDoubleWord(long offset)
             {
                 return 1337;
@@ -135,7 +139,7 @@ namespace Antmicro.Renode.UnitTests
 
         private class PeripheralMock : IPeripheral
         {
-            public void Reset(){}
+            public void Reset() { }
         }
     }
 }

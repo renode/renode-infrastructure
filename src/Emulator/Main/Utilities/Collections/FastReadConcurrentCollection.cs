@@ -49,4 +49,3 @@ namespace Antmicro.Renode.Utilities.Collections
         private readonly object locker = new object();
     }
 }
-

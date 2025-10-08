@@ -5,12 +5,13 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Generic;
+using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.I2C;
-using System.Linq;
 using Antmicro.Renode.Utilities;
-using System.Collections.Generic;
 
 namespace Antmicro.Renode.Peripherals.Input
 {
@@ -220,4 +221,3 @@ namespace Antmicro.Renode.Peripherals.Input
         }
     }
 }
-

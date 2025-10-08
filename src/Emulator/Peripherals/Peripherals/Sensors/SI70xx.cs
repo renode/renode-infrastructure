@@ -7,6 +7,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.I2C;
@@ -71,6 +72,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             {
                 return (humidity * 125) / 65536 - 6;
             }
+
             set
             {
                 if(MinHumidity > value || value > MaxHumidity)
@@ -87,6 +89,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             {
                 return (temperature * 175.72m) / 65536 - 46.85m;
             }
+
             set
             {
                 if(MinTemperature > value || value > MaxTemperature)

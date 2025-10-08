@@ -12,10 +12,10 @@ namespace Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands
     {
         public CommandPayload(uint[] payload)
         {
-            const int RequiredLength = 6;
-            if(payload.Length != RequiredLength)
+            const int requiredLength = 6;
+            if(payload.Length != requiredLength)
             {
-                throw new ArgumentOutOfRangeException($"The payload must be {RequiredLength} elements length.");
+                throw new ArgumentOutOfRangeException($"The payload must be {requiredLength} elements length.");
             }
             this.payload = payload;
         }

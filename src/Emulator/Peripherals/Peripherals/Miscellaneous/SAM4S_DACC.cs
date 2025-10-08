@@ -6,6 +6,7 @@
 //
 
 using System;
+
 using Antmicro.Migrant;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;

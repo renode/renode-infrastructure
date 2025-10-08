@@ -8,7 +8,9 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Peripherals.I2C;
 using Antmicro.Renode.Peripherals.Sensors;
+
 using NUnit.Framework;
+
 using I2C = Antmicro.Renode.Peripherals.I2C.OpenTitan_I2C;
 
 namespace Antmicro.Renode.PeripheralsTests

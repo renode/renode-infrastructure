@@ -11,6 +11,7 @@ namespace Antmicro.Renode.Peripherals.Sensor
     {
         // ADC value should be treated as RESD VoltageSample value
         void SetADCValue(int channel, uint value);
+
         uint GetADCValue(int channel);
 
         int ADCChannelCount { get; }

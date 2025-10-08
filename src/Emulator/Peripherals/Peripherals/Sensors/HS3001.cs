@@ -7,9 +7,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.I2C;
 using Antmicro.Renode.Peripherals.Sensor;
@@ -211,7 +211,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         }
 
         private decimal GetSampleFromRESDStream<T>(ref RESDStream<T> stream, Func<T, decimal> transformer, decimal defaultValue)
-            where T: RESDSample, new()
+            where T : RESDSample, new()
         {
             if(stream == null)
             {
@@ -315,12 +315,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     valueProviderCallback: _ => sensorIdLow);
         }
 
-        private readonly IMachine machine;
-        private readonly List<byte> registerWriteBuffer;
-
-        private readonly ushort sensorIdHigh;
-        private readonly ushort sensorIdLow;
-
         private Registers? currentRegister;
         private RESDStream<TemperatureSample> resdTemperatureStream;
         private RESDStream<HumiditySample> resdHumidityStream;
@@ -333,6 +327,12 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private decimal temperature;
         private decimal humidity;
+
+        private readonly IMachine machine;
+        private readonly List<byte> registerWriteBuffer;
+
+        private readonly ushort sensorIdHigh;
+        private readonly ushort sensorIdLow;
 
         private const byte MeasurementBits = 14;
         private const ushort MaxMeasurementValue = (1 << MeasurementBits) - 1;
@@ -363,7 +363,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             Stale = 0x1,
         }
 
-        private enum MeasurementResolution: byte
+        private enum MeasurementResolution : byte
         {
             Bits8 = 0b00,
             Bits10 = 0b01,

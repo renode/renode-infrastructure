@@ -20,4 +20,3 @@ namespace Antmicro.Renode.UserInterface
         public string ResourceName { get; private set; }
     }
 }
-

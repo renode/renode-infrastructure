@@ -9,7 +9,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using Antmicro.Renode.Core;
+
 using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Core
@@ -87,7 +87,7 @@ namespace Antmicro.Renode.Core
 
         public bool IsAdjacentTo(Range range)
         {
-            return (StartAddress != 0x0 && StartAddress == range.EndAddress + 1) 
+            return (StartAddress != 0x0 && StartAddress == range.EndAddress + 1)
                     || (EndAddress != ulong.MaxValue && EndAddress == range.StartAddress - 1);
         }
 
@@ -197,22 +197,22 @@ namespace Antmicro.Renode.Core
             }
         }
 
-        public static bool operator==(Range range, Range other)
+        public static bool operator ==(Range range, Range other)
         {
             return range.StartAddress == other.StartAddress && range.EndAddress == other.EndAddress;
         }
 
-        public static bool operator!=(Range range, Range other)
+        public static bool operator !=(Range range, Range other)
         {
             return !(range == other);
         }
 
-        public static Range operator+(Range range, long addend)
+        public static Range operator +(Range range, long addend)
         {
             return range.ShiftBy(addend);
         }
 
-        public static Range operator-(Range range, long minuend)
+        public static Range operator -(Range range, long minuend)
         {
             return range.ShiftBy(-minuend);
         }
@@ -229,7 +229,9 @@ namespace Antmicro.Renode.Core
     public interface IReadOnlyMinimalRangesCollection : IEnumerable<Range>
     {
         bool ContainsOverlappingRange(Range range);
+
         bool ContainsWholeRange(Range range);
+
         bool ContainsPoint(ulong point);
     }
 
@@ -401,4 +403,3 @@ namespace Antmicro.Renode.Core
         }
     }
 }
-

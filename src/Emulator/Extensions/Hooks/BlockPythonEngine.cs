@@ -6,13 +6,14 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
+using Antmicro.Migrant;
+using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.CPU;
-using Antmicro.Renode.Exceptions;
+
 using Microsoft.Scripting.Hosting;
-using Antmicro.Migrant.Hooks;
-using Antmicro.Migrant;
 
 namespace Antmicro.Renode.Hooks
 {
@@ -46,6 +47,10 @@ namespace Antmicro.Renode.Hooks
             };
         }
 
+        public Action<ICpuSupportingGdb, ulong> Hook { get; private set; }
+
+        public Action<ulong, uint> HookWithSize { get; private set; }
+
         [PostDeserialization]
         private void InnerInit()
         {
@@ -55,10 +60,6 @@ namespace Antmicro.Renode.Hooks
             var source = Engine.CreateScriptSourceFromString(Script);
             code = Compile(source);
         }
-
-        public Action<ICpuSupportingGdb, ulong> Hook { get; private set; }
-
-        public Action<ulong, uint> HookWithSize { get; private set; }
 
         [Transient]
         private CompiledCode code;

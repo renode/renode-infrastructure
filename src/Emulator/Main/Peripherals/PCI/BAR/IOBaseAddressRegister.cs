@@ -4,8 +4,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Core.Structure.Registers;
-
 namespace Antmicro.Renode.Peripherals.PCI.BAR
 {
     public class IOBaseAddressRegister : BaseAddressRegister
@@ -21,13 +19,15 @@ namespace Antmicro.Renode.Peripherals.PCI.BAR
             {
                 return (barType == BarType.IO) ? baseAddress | 1u : baseAddress;
             }
+
             set
             {
                 BaseAddress = value;
             }
         }
 
-        protected override uint addressMask => ~0x3u;
+        protected override uint AddressMask => ~0x3u;
+
         protected BarType barType;
     }
 

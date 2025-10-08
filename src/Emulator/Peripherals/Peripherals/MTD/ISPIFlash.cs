@@ -5,16 +5,18 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-
 namespace Antmicro.Renode.Peripherals.MTD
 {
     public interface ISPIFlash : IPeripheral
     {
         void WriteEnable();
+
         void WriteDisable();
+
         void WriteStatusRegister(uint registerNumber, uint value);
+
         uint ReadStatusRegister(uint registerNumber);
+
         uint ReadID();
     }
 
@@ -33,4 +35,3 @@ namespace Antmicro.Renode.Peripherals.MTD
         PageProgram = 0x02
     }
 }
-

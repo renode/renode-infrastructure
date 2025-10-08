@@ -5,12 +5,15 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using NUnit.Framework;
-using Antmicro.Renode.Utilities;
 using System.IO;
-using Antmicro.Renode.Peripherals.Bus;
-using Machine = Antmicro.Renode.Core.Machine;
+
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Utilities;
+
+using NUnit.Framework;
+
+using Machine = Antmicro.Renode.Core.Machine;
 
 namespace Antmicro.Renode.UnitTests
 {

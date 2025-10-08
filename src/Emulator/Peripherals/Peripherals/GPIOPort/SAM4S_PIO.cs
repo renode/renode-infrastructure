@@ -4,14 +4,12 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Peripherals;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
 {
@@ -25,7 +23,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             irqManager = new GPIOInterruptManager(IRQ, State);
             enabled = new IFlagRegisterField[NumberOfPins];
             useAdditionalIrqMode = new IFlagRegisterField[NumberOfPins];
-            selectEdgeLevel= new IFlagRegisterField[NumberOfPins];
+            selectEdgeLevel = new IFlagRegisterField[NumberOfPins];
             selectFallRiseLowHigh = new IFlagRegisterField[NumberOfPins];
             outputData = new IFlagRegisterField[NumberOfPins];
             outputDataWriteEnabled = new IFlagRegisterField[NumberOfPins];
@@ -86,6 +84,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         public DoubleWordRegisterCollection RegistersCollection { get; }
 
         public GPIO IRQ { get; }
+
         public long Size => 0x168;
 
         private void ResetDirection()

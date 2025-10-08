@@ -5,11 +5,11 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using NUnit.Framework;
 using Antmicro.Renode.UserInterface;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.UserInterface.Commands;
+using Antmicro.Renode.Utilities;
+
+using NUnit.Framework;
 
 namespace Antmicro.Renode.MonitorTests
 {
@@ -49,9 +49,8 @@ namespace Antmicro.Renode.MonitorTests
 
     public class TestCommand : AutoLoadCommand
     {
-        public TestCommand(Monitor monitor):base(monitor, "featuresTests.TestCommand", "is just a test command.")
+        public TestCommand(Monitor monitor) : base(monitor, "featuresTests.TestCommand", "is just a test command.")
         {
         }
     }
 }
-

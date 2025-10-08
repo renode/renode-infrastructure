@@ -26,6 +26,7 @@ namespace Antmicro.Renode.Utilities.Packets
         }
 
         public uint OffsetInBytes { get; }
+
         public uint OffsetInBits { get; }
     }
 }

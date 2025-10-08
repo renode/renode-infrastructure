@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Sensor;
 
@@ -34,6 +35,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             {
                 return temperature;
             }
+
             set
             {
                 temperature = value;
@@ -47,6 +49,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             {
                 return humidity;
             }
+
             set
             {
                 humidity = value;
@@ -55,6 +58,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         }
 
         public int TemperatureUpdateCounter { get; set; }
+
         public int HumidityUpdateCounter { get; set; }
 
         private decimal temperature;

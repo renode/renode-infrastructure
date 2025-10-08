@@ -194,4 +194,3 @@ namespace Antmicro.Renode.Utilities
         private readonly object sync;
     }
 }
-

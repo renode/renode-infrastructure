@@ -5,11 +5,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using System.Linq;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Peripherals.Bus;
-
 namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
     public class PortStatusAndControlRegister
@@ -18,7 +13,88 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
         {
         }
 
-        public PortStatusAndControlRegisterChanges setValue(uint value)
+        public PortStatusAndControlRegisterChanges Attach()
+        {
+            uint oldPortValue = portValue;
+            portValue |= CurrentConnectStatus | PortEnabledDisabled | PortEnabledDisabledChange | ConnectStatusChange;
+            attached = true;
+            return CheckChanges(oldPortValue, portValue);
+        }
+
+        public void ResetRise()
+        {
+            reset = true;
+        }
+
+        public bool GetReset()
+        {
+            return reset;
+        }
+
+        public PortStatusAndControlRegisterChanges Enable()
+        {
+            uint oldPortValue = portValue;
+            portValue |= PortEnabledDisabled;
+            return CheckChanges(oldPortValue, portValue);
+        }
+
+        public void ResetFall()
+        {
+            portValue &= ~(PortReset); //clear reset bit
+            //portValue &= ~(PortPower); //clear power bit
+            if(attached)
+            {
+                portValue |= (CurrentConnectStatus); //set connected bit
+                portValue &= ~(ConnectStatusChange); //clear connect change bit
+                portValue |= (PortEnabledDisabled); //set enable bit
+                portValue &= ~(PortEnabledDisabledChange);
+                if(device != null)
+                    device.Reset();
+            }
+            reset = false;
+        }
+
+        public uint GetValue()
+        {
+            if(attached && device != null)
+                if(device.GetSpeed() == USBDeviceSpeed.High)
+                    portValue |= HighSpeed;
+            return portValue;
+        }
+
+        public PortStatusAndControlRegisterChanges Detach()
+        {
+            uint oldPortValue = portValue;
+            portValue |= ConnectStatusChange;
+            portValue &= (~CurrentConnectStatus) & (~PortEnabledDisabled);
+            attached = false;
+            return CheckChanges(oldPortValue, portValue);
+        }
+
+        public PortStatusAndControlRegisterChanges Attach(IUSBPeripheral portDevice)
+        {
+            uint oldPortValue = portValue;
+            portValue |= CurrentConnectStatus | PortEnabledDisabled | PortEnabledDisabledChange | ConnectStatusChange;
+            device = portDevice;
+            attached = true;
+            return CheckChanges(oldPortValue, portValue);
+        }
+
+        public PortStatusAndControlRegisterChanges PowerUp()
+        {
+            uint oldPortValue = portValue;
+            //  portValue |= PortEnabledDisabled | CurrentConnectStatus | PortPower; //TODO: Port Power bit should be dependent on PPC
+            //portValue |= PortEnabledDisabled | PortPower;
+            //powered = true;
+            if(attached)
+            {
+                portValue |= (CurrentConnectStatus); //set connected bit
+                portValue |= (ConnectStatusChange); //clear connect change bit
+            }
+            return CheckChanges(oldPortValue, portValue);
+        }
+
+        public PortStatusAndControlRegisterChanges SetValue(uint value)
         {
             PortStatusAndControlRegisterChanges retVal = new PortStatusAndControlRegisterChanges(); //idicates if interrupt should be rised after this fcn
             retVal.ConnectChange = false;
@@ -37,16 +113,16 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             }
             if((value & PortPower) != 0 && (powered == false))
             {
-                retVal = this.powerUp();
+                retVal = this.PowerUp();
             }
             if((value & PortReset) != 0)
             {
-                this.resetRise();
+                this.ResetRise();
                 // this.resetFall();
             }
             if(((value & PortReset) == 0) && reset == true)
             {
-                resetFall();
+                ResetFall();
                 //retVal.ConnectChange = true;
             }
             if((value & PortEnabledDisabled) != 0)
@@ -63,7 +139,18 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             return retVal;
         }
 
-        private PortStatusAndControlRegisterChanges checkChanges(uint oldPortVal, uint newPortVal)
+        public const uint CurrentConnectStatus = 1 << 0;
+        public const uint ConnectStatusChange = 1 << 1;
+        public const uint PortEnabledDisabled = 1 << 2;
+        public const uint PortEnabledDisabledChange = 1 << 3;
+        public const uint PortReset = 1 << 8;
+        public const uint PortPower = 1 << 12;
+        public const uint HighSpeed = 1 << 27;
+        //FIXME: correct
+        public const uint WriteMask = 0x007FE1CC;
+        protected IUSBPeripheral device;
+
+        private PortStatusAndControlRegisterChanges CheckChanges(uint oldPortVal, uint newPortVal)
         {
             var change = new PortStatusAndControlRegisterChanges();
             change.ConnectChange = false;
@@ -81,102 +168,10 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             return change;
         }
 
-        public PortStatusAndControlRegisterChanges Attach()
-        {
-            uint oldPortValue = portValue;
-            portValue |= CurrentConnectStatus | PortEnabledDisabled | PortEnabledDisabledChange | ConnectStatusChange;
-            attached = true;
-            return checkChanges(oldPortValue, portValue);
-        }
-
-        public PortStatusAndControlRegisterChanges Attach(IUSBPeripheral portDevice)
-        {
-            uint oldPortValue = portValue;
-            portValue |= CurrentConnectStatus | PortEnabledDisabled | PortEnabledDisabledChange | ConnectStatusChange;
-            device = portDevice;
-            attached = true;
-            return checkChanges(oldPortValue, portValue);
-        }
-
-        public PortStatusAndControlRegisterChanges Detach()
-        {
-            uint oldPortValue = portValue;
-            portValue |= ConnectStatusChange;
-            portValue &= (~CurrentConnectStatus) & (~PortEnabledDisabled);
-            attached = false;
-            return checkChanges(oldPortValue, portValue);
-        }
-
-        public uint getValue()
-        {
-            if(attached && device != null)
-                if(device.GetSpeed() == USBDeviceSpeed.High)
-                    portValue |= HighSpeed;
-            return portValue;
-        }
-
-        public PortStatusAndControlRegisterChanges powerUp()
-        {
-            uint oldPortValue = portValue;
-            //  portValue |= PortEnabledDisabled | CurrentConnectStatus | PortPower; //TODO: Port Power bit should be dependent on PPC
-            //portValue |= PortEnabledDisabled | PortPower;
-            //powered = true;
-            if(attached)
-            {
-                portValue |= (CurrentConnectStatus); //set connected bit
-                portValue |= (ConnectStatusChange); //clear connect change bit
-            }
-            return checkChanges(oldPortValue, portValue);
-        }
-
-        public PortStatusAndControlRegisterChanges Enable()
-        {
-            uint oldPortValue = portValue;
-            portValue |= PortEnabledDisabled;
-            return checkChanges(oldPortValue, portValue);
-        }
-
-        public bool getReset()
-        {
-            return reset;
-        }
-
-        public void resetRise()
-        {
-            reset = true;
-        }
-
-        public void resetFall()
-        {
-            portValue &= ~(PortReset); //clear reset bit
-            //portValue &= ~(PortPower); //clear power bit
-            if(attached)
-            {
-                portValue |= (CurrentConnectStatus); //set connected bit
-                portValue &= ~(ConnectStatusChange); //clear connect change bit
-                portValue |= (PortEnabledDisabled); //set enable bit
-                portValue &= ~(PortEnabledDisabledChange);
-                if(device != null)
-                    device.Reset();
-            }
-            reset = false;
-
-        }
-
-        private bool reset = false;
-        private bool powered = false;
         private uint portValue;
         private bool attached = false;
-        public const uint CurrentConnectStatus = 1 << 0;
-        public const uint ConnectStatusChange = 1 << 1;
-        public const uint PortEnabledDisabled = 1 << 2;
-        public const uint PortEnabledDisabledChange = 1 << 3;
-        public const uint PortReset = 1 << 8;
-        public const uint PortPower = 1 << 12;
-        public const uint HighSpeed = 1 << 27;
-        protected IUSBPeripheral device;
-        //FIXME: correct
-        public const uint WriteMask = 0x007FE1CC;
+
+        private bool reset = false;
+        private readonly bool powered = false;
     }
 }
-

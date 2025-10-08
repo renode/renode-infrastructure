@@ -4,14 +4,15 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
+using System.IO;
+using System.Linq;
+using System.Security.Cryptography;
+
 using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
-using System;
-using System.IO;
-using System.Security.Cryptography;
-using System.Linq;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
 {
@@ -33,23 +34,23 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
             var keyByteCount = 0;
             switch(iterationCount)
             {
-                case (uint)IterationCount.AES128:
-                    keyByteCount = KeyLengthByteCountAES128;
-                    break;
-                case (uint)IterationCount.AES192:
-                case (uint)IterationCount.AES256:
-                    keyByteCount = KeyLengthByteCountAES256;
-                    break;
-                default:
-                    Logger.Log(LogLevel.Error, "Encountered unsupported number of iterations, falling back to default key size for AES128.");
-                    keyByteCount = KeyLengthByteCountAES128;
-                    break;
+            case (uint)IterationCount.AES128:
+                keyByteCount = KeyLengthByteCountAES128;
+                break;
+            case (uint)IterationCount.AES192:
+            case (uint)IterationCount.AES256:
+                keyByteCount = KeyLengthByteCountAES256;
+                break;
+            default:
+                Logger.Log(LogLevel.Error, "Encountered unsupported number of iterations, falling back to default key size for AES128.");
+                keyByteCount = KeyLengthByteCountAES128;
+                break;
             }
 
             manager.TryReadBytes((long)AESRegisters.Key, keyByteCount, out var keyBytes);
             manager.TryReadBytes((long)AESRegisters.InitVector, InitializationVectorByteCount, out var ivBytes);
             manager.TryReadBytes((long)AESRegisters.InputData, (SegmentSize * (int)segmentCount), out var inputBytes);
-            
+
             manager.TryReadDoubleWord((long)AESRegisters.Config, out var config);
             var operation = BitHelper.IsBitSet(config, 0)
                     ? Operation.Decryption
@@ -76,12 +77,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
             var inputBytes = bus.ReadBytes(inputDataAddr, SegmentSize);
             switch(mode)
             {
-                case Mode.CTR:
-                    bus.WriteBytes(GetResultBytesCTR(keyBytes, ivBytes, inputBytes, operation), resultDataAddr);
-                    break;
-                default:
-                    bus.WriteBytes(GetResultBytesCBC(keyBytes, ivBytes, inputBytes, operation), resultDataAddr);
-                    break;
+            case Mode.CTR:
+                bus.WriteBytes(GetResultBytesCTR(keyBytes, ivBytes, inputBytes, operation), resultDataAddr);
+                break;
+            default:
+                bus.WriteBytes(GetResultBytesCBC(keyBytes, ivBytes, inputBytes, operation), resultDataAddr);
+                break;
             }
         }
 
@@ -138,7 +139,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
         }
 
         private byte[] Encrypt(byte[] key, byte[] iv, byte[] input)
-        {                
+        {
             using(var ms = new MemoryStream())
             using(var aes = Aes.Create())
             {
@@ -176,7 +177,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
         private const int KeyLengthByteCountAES128 = 16;
         private const int InitializationVectorByteCount = 16;
         private const int SegmentSize = 16;
-        
+
         private enum IterationCount
         {
             AES128 = 10,

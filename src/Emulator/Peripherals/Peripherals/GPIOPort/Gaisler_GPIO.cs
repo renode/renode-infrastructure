@@ -4,13 +4,15 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
+using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using System;
-using System.Collections.Generic;
+
 using static Antmicro.Renode.Peripherals.Bus.GaislerAPBPlugAndPlayRecord;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
@@ -36,7 +38,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             this.inputOnlyPins = new HashSet<int>();
             try
             {
-                foreach(var pin in inputOnlyPins.Split(new [] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+                foreach(var pin in inputOnlyPins.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
                 {
                     this.inputOnlyPins.Add(int.Parse(pin));
                 }
@@ -83,10 +85,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             }
         }
 
-        public long Size => 0x100;
-
-        public DoubleWordRegisterCollection RegistersCollection { get; }
-
         public uint ReadDoubleWord(long offset)
         {
             return RegistersCollection.Read(offset);
@@ -104,6 +102,10 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         public uint GetInterruptNumber() => 0;
 
         public SpaceType GetSpaceType() => SpaceType.APBIOSpace;
+
+        public long Size => 0x100;
+
+        public DoubleWordRegisterCollection RegistersCollection { get; }
 
         private void DefineRegisters()
         {
@@ -182,19 +184,19 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             Connections[pin].Set(outputValue[pin].Value);
         }
 
-        private const uint VendorID = 0x01; // Gaisler Research
-        private const uint DeviceID = 0x01a; // GRGPIO
-        private const int FirstInterruptPinIndex = 1;
-        private readonly int numberOfInterrupts;
-        private readonly int numberOfActualConnections;
-        private readonly IGPIO[] interrupts;
-        private readonly HashSet<int> inputOnlyPins;
-
         private IFlagRegisterField[] isOutput;
         private IFlagRegisterField[] outputValue;
         private IFlagRegisterField[] interruptMask;
         private IFlagRegisterField[] interruptPolarity;
         private IFlagRegisterField[] interruptEdge;
+        private readonly int numberOfInterrupts;
+        private readonly int numberOfActualConnections;
+        private readonly IGPIO[] interrupts;
+        private readonly HashSet<int> inputOnlyPins;
+
+        private const uint VendorID = 0x01; // Gaisler Research
+        private const uint DeviceID = 0x01a; // GRGPIO
+        private const int FirstInterruptPinIndex = 1;
 
         private enum Registers : uint
         {

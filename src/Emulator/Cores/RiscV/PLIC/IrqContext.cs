@@ -5,9 +5,9 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System.Linq;
 using System.Collections.Generic;
-using Antmicro.Renode.Peripherals.CPU;
+using System.Linq;
+
 using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.IRQControllers.PLIC
@@ -67,11 +67,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers.PLIC
                 return;
             }
 
-            if(irq.State) 
+            if(irq.State)
             {
                 MarkSourceAsPending(irq);
             }
-            else 
+            else
             {
                 RemovePendingStatusFromSource(irq);
             }
@@ -140,7 +140,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers.PLIC
 
         private void RemovePendingStatusFromSource(IrqSource s)
         {
-            if(pendingSources.Remove(s)) 
+            if(pendingSources.Remove(s))
             {
                 irqController.Log(LogLevel.Noisy, "Setting pending status to False for source #{0}", s.Id);
             }

@@ -9,10 +9,11 @@
 // #define DEBUG_PACKETS
 
 using System;
+
+using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Collections;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Core.Structure.Registers;
 
 namespace Antmicro.Renode.Peripherals.I2C
 {
@@ -47,7 +48,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             var result = RegistersCollection.Read(address);
             this.NoisyLog("Reading register {0} (0x{1:X}) from device: 0x{2:X}", cache.Get(address, x => Enum.GetName(typeof(T), x)), address, result);
 
-            return new byte [] { result };
+            return new byte[] { result };
         }
 
         public void FinishTransmission()
@@ -71,7 +72,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             // is deferred to the moment when
             // it will be overwritten in WriteByte;
             // this way ReadByte method can access it
-            addressBitsLeft = addressLength; 
+            addressBitsLeft = addressLength;
             state = State.CollectingAddress;
         }
 
@@ -79,41 +80,41 @@ namespace Antmicro.Renode.Peripherals.I2C
         {
             switch(state)
             {
-                case State.CollectingAddress:
+            case State.CollectingAddress:
+            {
+                if(addressBitsLeft == addressLength)
                 {
-                    if(addressBitsLeft == addressLength)
-                    {
-                        // if this is the first write after
-                        // resetting state, clear the address
-                        // to make sure there are no stale bits
-                        // (address can be shorter than 8-bits)
-                        address = 0;
-                    }
-
-                    // address length is configurable to any number of bits,
-                    // so we need to handle all possible cases - including
-                    // values non-divisable by 8
-                    var position = Math.Max(0, addressBitsLeft - 8);
-                    var width = Math.Min(8, addressBitsLeft);
-
-                    address = BitHelper.SetBitsFrom(address, b, position, width);
-                    addressBitsLeft -= width;
-
-                    if(addressBitsLeft == 0)
-                    {
-                        this.Log(LogLevel.Noisy, "Setting register address to {0} (0x{1:X})", cache.Get(address, x => Enum.GetName(typeof(T), x)), address);
-                        state = State.Processing;
-                    }
-                    break;
+                    // if this is the first write after
+                    // resetting state, clear the address
+                    // to make sure there are no stale bits
+                    // (address can be shorter than 8-bits)
+                    address = 0;
                 }
 
-                case State.Processing:
-                    this.Log(LogLevel.Noisy, "Writing value 0x{0:X} to register {1} (0x{2:X})", b, cache.Get(address, x => Enum.GetName(typeof(T), x)), address);
-                    RegistersCollection.Write(address, b);
-                    break;
+                // address length is configurable to any number of bits,
+                // so we need to handle all possible cases - including
+                // values non-divisable by 8
+                var position = Math.Max(0, addressBitsLeft - 8);
+                var width = Math.Min(8, addressBitsLeft);
 
-                default:
-                    throw new ArgumentException($"Unexpected state: {state}");
+                address = BitHelper.SetBitsFrom(address, b, position, width);
+                addressBitsLeft -= width;
+
+                if(addressBitsLeft == 0)
+                {
+                    this.Log(LogLevel.Noisy, "Setting register address to {0} (0x{1:X})", cache.Get(address, x => Enum.GetName(typeof(T), x)), address);
+                    state = State.Processing;
+                }
+                break;
+            }
+
+            case State.Processing:
+                this.Log(LogLevel.Noisy, "Writing value 0x{0:X} to register {1} (0x{2:X})", b, cache.Get(address, x => Enum.GetName(typeof(T), x)), address);
+                RegistersCollection.Write(address, b);
+                break;
+
+            default:
+                throw new ArgumentException($"Unexpected state: {state}");
             }
         }
 

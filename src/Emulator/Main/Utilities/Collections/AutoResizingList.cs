@@ -6,8 +6,8 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Collections.Generic;
 using System.Collections;
+using System.Collections.Generic;
 
 namespace Antmicro.Renode.Utilities.Collections
 {
@@ -18,58 +18,29 @@ namespace Antmicro.Renode.Utilities.Collections
             this.initialCapacity = initialCapacity;
             Clear();
         }
-        
-        public int Count { get; private set; }
-        
-        public bool IsReadOnly
-        {
-            get
-            {
-                return false;
-            }
-        }
-        
-        public T this[int index]
-        {
-            get
-            {
-                ResizeTo(index + 1);
-                return data[index];
-            }
-            set
-            {
-                ResizeTo(index + 1);
-                data[index] = value;
-            }
-        }
-        
+
         public void Add(T item)
         {
             ResizeTo(Count + 1);
             data[Count - 1] = item;
         }
-        
+
         public void Clear()
         {
             data = new T[initialCapacity];
             Count = 0;
         }
-        
+
         public bool Contains(T item)
         {
             return IndexOf(item) != -1;
         }
-        
+
         public void CopyTo(T[] array, int index)
         {
             Array.Copy(data, array, Count);
         }
-        
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return GetEnumerator();
-        }
-        
+
         public IEnumerator<T> GetEnumerator()
         {
             var count = Count;
@@ -78,7 +49,7 @@ namespace Antmicro.Renode.Utilities.Collections
                 yield return data[i];
             }
         }
-        
+
         public int IndexOf(T item)
         {
             var index = Array.IndexOf(data, item);
@@ -88,7 +59,7 @@ namespace Antmicro.Renode.Utilities.Collections
             }
             return index;
         }
-        
+
         public void Insert(int index, T item)
         {
             if(index >= Count)
@@ -103,7 +74,7 @@ namespace Antmicro.Renode.Utilities.Collections
             }
             data[index] = item;
         }
-        
+
         public bool Remove(T item)
         {
             var index = IndexOf(item);
@@ -114,7 +85,7 @@ namespace Antmicro.Renode.Utilities.Collections
             RemoveAt(index);
             return true;
         }
-        
+
         public void RemoveAt(int index)
         {
             ResizeTo(Count - 1);
@@ -124,7 +95,37 @@ namespace Antmicro.Renode.Utilities.Collections
                 data[i] = data[i + 1];
             }
         }
-        
+
+        public int Count { get; private set; }
+
+        public bool IsReadOnly
+        {
+            get
+            {
+                return false;
+            }
+        }
+
+        public T this[int index]
+        {
+            get
+            {
+                ResizeTo(index + 1);
+                return data[index];
+            }
+
+            set
+            {
+                ResizeTo(index + 1);
+                data[index] = value;
+            }
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
+
         private void ResizeTo(int neededSize)
         {
             if(neededSize < 0)
@@ -140,9 +141,8 @@ namespace Antmicro.Renode.Utilities.Collections
             data.CopyTo(newData, 0);
             data = newData;
         }
-        
+
         private T[] data;
         private readonly int initialCapacity;
     }
 }
-

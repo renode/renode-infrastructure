@@ -5,11 +5,12 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Core.Structure.Registers;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -57,7 +58,9 @@ namespace Antmicro.Renode.Peripherals.UART
         public override uint BaudRate => 115200;
 
         public GPIO RxIRQ { get; } = new GPIO();
+
         public GPIO TxIRQ { get; } = new GPIO();
+
         public GPIO TxEndIRQ { get; } = new GPIO();
 
         protected override void CharWritten()

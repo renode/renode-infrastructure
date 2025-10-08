@@ -7,6 +7,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
@@ -116,7 +117,7 @@ namespace Antmicro.Renode.Testing
                     }
                 }
 
-                WaitHandle.WaitAny(new [] { timeoutEvent.WaitHandle, newWriteEvent });
+                WaitHandle.WaitAny(new[] { timeoutEvent.WaitHandle, newWriteEvent });
             }
             while(!timeoutEvent.IsTriggered);
 

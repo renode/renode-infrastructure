@@ -7,7 +7,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core.Structure.Registers;
+
 using static Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIO;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel
@@ -30,45 +32,61 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel
             return shifter.Identifier * 4 + 1;
         }
 
-        public event Action ConfigurationChanged;
-        public event Action ControlChanged;
-
         public override IEnumerable<Interrupt> Interrupts => new[] { Status };
+
         public override string Name => $"Timer{Identifier}";
 
         public Interrupt Status { get; }
+
         public uint TriggerSelect => (uint)triggerSelect.Value;
+
         public TimerTriggerPolarity TriggerPolarity => triggerPolarity.Value;
+
         public TimerTriggerSource TriggerSource => triggerSource.Value;
+
         public TimerTriggerOneTimeOperation OneTimeOperation => oneTimeOperation.Value;
+
         public TimerMode Mode => mode.Value;
+
         public TimerOutput Output => output.Value;
+
         public TimerDecrement Decrement => decrement.Value;
+
         public TimerReset ResetMode => resetMode.Value;
+
         public TimerDisable Disable => disable.Value;
+
         public TimerEnable Enable => enable.Value;
+
         public TimerStopBit StopBit => stopBit.Value;
+
         public TimerStartBit StartBit => startBit.Value;
+
         public uint Compare
         {
             get => (uint)compare.Value;
             set => compare.Value = value;
         }
+
         public uint Divider
         {
             get
             {
                 switch(Decrement)
                 {
-                    case TimerDecrement.OnFLEXIOClockDividedBy16:
-                        return 16;
-                    case TimerDecrement.OnFLEXIOClockDividedBy256:
-                        return 256;
-                    default:
-                        return 1;
+                case TimerDecrement.OnFLEXIOClockDividedBy16:
+                    return 16;
+                case TimerDecrement.OnFLEXIOClockDividedBy256:
+                    return 256;
+                default:
+                    return 1;
                 }
             }
         }
+
+        public event Action ConfigurationChanged;
+
+        public event Action ControlChanged;
 
         private static Timer BuildTimer(IResourceBlockOwner owner, int index, Interrupt status)
         {

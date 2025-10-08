@@ -17,6 +17,7 @@ namespace Antmicro.Renode.Peripherals.SENT
     public interface ISENTPeripheral : IPeripheral
     {
         bool TransmissionEnabled { get; set; }
+
         event Action<SENTEdge> SENTEdgeChanged;
     }
 }

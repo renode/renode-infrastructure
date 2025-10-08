@@ -5,17 +5,20 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Microsoft.Scripting;
-using Microsoft.Scripting.Hosting;
-using IronPython.Hosting;
-using IronPython.Modules;
-using Antmicro.Migrant.Hooks;
-using Antmicro.Renode.Exceptions;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using IronPython.Runtime;
-using System;
+
 using Antmicro.Migrant;
+using Antmicro.Migrant.Hooks;
+using Antmicro.Renode.Exceptions;
+
+using IronPython.Hosting;
+using IronPython.Modules;
+using IronPython.Runtime;
+
+using Microsoft.Scripting;
+using Microsoft.Scripting.Hosting;
 
 namespace Antmicro.Renode.Core
 {
@@ -24,43 +27,66 @@ namespace Antmicro.Renode.Core
         #region Python Engine
 
         private static readonly ScriptEngine _Engine = Python.CreateEngine();
-        protected ScriptEngine Engine { get { return PythonEngine._Engine; } }
 
         #endregion
 
-        [Transient]
-        protected ScriptScope Scope;
+        #region Helper methods
 
-        private readonly string[] Imports =
+        protected static string Aggregate(string[] array)
         {
-            "import clr",
-            "clr.AddReference('Infrastructure')",
-            "clr.AddReference('Renode')",
-        #if NET
-            "clr.AddReference('System.Console')", // It was moved to separate assembly on .NET Core.
-        #else
-            "clr.AddReference('IronPython.StdLib')", // It is referenced by default on NET Core, but not on mono.
-        #endif
-            "import Antmicro.Renode",
-            "import System",
-            "import time",
-            "import sys",
-            "import Antmicro.Renode.Logging.Logger",
-            "clr.ImportExtensions(Antmicro.Renode.Logging.Logger)",
-            "clr.ImportExtensions(Antmicro.Renode.Peripherals.IPeripheralExtensions)",
-            "import Antmicro.Renode.Peripherals.CPU.ICPUWithRegistersExtensions",
-            "clr.ImportExtensions(Antmicro.Renode.Peripherals.CPU.ICPUWithRegistersExtensions)",
-            "import Antmicro.Renode.Core.Extensions.FileLoaderExtensions",
-            "clr.ImportExtensions(Antmicro.Renode.Core.Extensions.FileLoaderExtensions)",
-            "import Antmicro.Renode.Logging.LogLevel as LogLevel",
-            "clr.ImportExtensions(Antmicro.Renode.Peripherals.Bus.BusControllerExtensions)",
-        };
+            return array.Aggregate((prev, curr) => string.Format("{0}{1}{2}", prev, Environment.NewLine, curr));
+        }
+
+        protected PythonEngine()
+        {
+            InnerInit();
+        }
+
+        protected virtual void Init()
+        {
+            InnerInit();
+        }
+
+        protected CompiledCode Compile(ScriptSource source)
+        {
+            return Compile(source, error => throw new RecoverableException(error));
+        }
+
+        protected CompiledCode Compile(ScriptSource source, Action<string> errorCallback)
+        {
+            return source.Compile(new ErrorHandler(errorCallback));
+        }
+
+        protected void Execute(CompiledCode code)
+        {
+            Execute(code, error => throw new RecoverableException($"Python runtime error: {error}"));
+        }
+
+        protected void Execute(CompiledCode code, Action<string> errorCallback)
+        {
+            try
+            {
+                // code can be null when compiled SourceScript had syntax errors
+                code?.Execute(Scope);
+            }
+            catch(Exception e)
+            {
+                if(e is UnboundNameException || e is MissingMemberException || e is ArithmeticException)
+                {
+                    errorCallback?.Invoke(e.Message);
+                }
+                else
+                {
+                    throw;
+                }
+            }
+        }
 
         protected virtual string[] ReservedVariables
         {
             get
             {
-                return new []
+                return new[]
                 {
                     "__doc__",
                     "__builtins__",
@@ -80,10 +106,12 @@ namespace Antmicro.Renode.Core
             }
         }
 
-        protected PythonEngine()
-        {
-            InnerInit();
-        }
+        protected ScriptEngine Engine { get { return PythonEngine._Engine; } }
+
+        #endregion
+
+        [Transient]
+        protected ScriptScope Scope;
 
         private void InnerInit()
         {
@@ -100,11 +128,6 @@ namespace Antmicro.Renode.Core
 
             var imports = Engine.CreateScriptSourceFromString(Aggregate(Imports));
             imports.Execute(Scope);
-        }
-
-        protected virtual void Init()
-        {
-            InnerInit();
         }
 
         #region Serialization
@@ -148,49 +171,32 @@ namespace Antmicro.Renode.Core
 
         private Dictionary<string, object> variables;
 
-        #endregion
-
-        #region Helper methods
-
-        protected static string Aggregate(string[] array)
+        private readonly string[] Imports =
         {
-            return array.Aggregate((prev, curr) => string.Format("{0}{1}{2}", prev, Environment.NewLine, curr));
-        }
+            "import clr",
+            "clr.AddReference('Infrastructure')",
+            "clr.AddReference('Renode')",
+        #if NET
+            "clr.AddReference('System.Console')", // It was moved to separate assembly on .NET Core.
+        #else
+            "clr.AddReference('IronPython.StdLib')", // It is referenced by default on NET Core, but not on mono.
+        #endif
+            "import Antmicro.Renode",
+            "import System",
+            "import time",
+            "import sys",
+            "import Antmicro.Renode.Logging.Logger",
+            "clr.ImportExtensions(Antmicro.Renode.Logging.Logger)",
+            "clr.ImportExtensions(Antmicro.Renode.Peripherals.IPeripheralExtensions)",
+            "import Antmicro.Renode.Peripherals.CPU.ICPUWithRegistersExtensions",
+            "clr.ImportExtensions(Antmicro.Renode.Peripherals.CPU.ICPUWithRegistersExtensions)",
+            "import Antmicro.Renode.Core.Extensions.FileLoaderExtensions",
+            "clr.ImportExtensions(Antmicro.Renode.Core.Extensions.FileLoaderExtensions)",
+            "import Antmicro.Renode.Logging.LogLevel as LogLevel",
+            "clr.ImportExtensions(Antmicro.Renode.Peripherals.Bus.BusControllerExtensions)",
+        };
 
-        protected CompiledCode Compile(ScriptSource source)
-        {
-            return Compile(source, error => throw new RecoverableException(error));
-        }
-
-        protected CompiledCode Compile(ScriptSource source, Action<string> errorCallback)
-        {
-            return source.Compile(new ErrorHandler(errorCallback));
-        }
-
-        protected void Execute(CompiledCode code)
-        {
-            Execute(code, error => throw new RecoverableException($"Python runtime error: {error}"));
-        }
-
-        protected void Execute(CompiledCode code, Action<string> errorCallback)
-        {
-            try
-            {
-                // code can be null when compiled SourceScript had syntax errors
-                code?.Execute(Scope);
-            }
-            catch(Exception e)
-            {
-                if(e is UnboundNameException || e is MissingMemberException || e is ArithmeticException)
-                {
-                    errorCallback?.Invoke(e.Message);
-                }
-                else
-                {
-                    throw;
-                }
-            }
-        }
+        private const string MonitorTypeName = "Antmicro.Renode.UserInterface.Monitor";
 
         #endregion
 
@@ -208,8 +214,5 @@ namespace Antmicro.Renode.Core
 
             private readonly Action<string> errorCallback;
         }
-
-        private const string MonitorTypeName = "Antmicro.Renode.UserInterface.Monitor";
     }
 }
-

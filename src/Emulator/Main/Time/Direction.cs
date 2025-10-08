@@ -6,7 +6,6 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-
 namespace Antmicro.Renode.Time
 {
     public enum Direction
@@ -15,4 +14,3 @@ namespace Antmicro.Renode.Time
         Descending
     }
 }
-

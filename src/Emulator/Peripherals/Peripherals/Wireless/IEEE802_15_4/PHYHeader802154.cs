@@ -4,7 +4,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Wireless.IEEE802_15_4
@@ -33,8 +32,11 @@ namespace Antmicro.Renode.Peripherals.Wireless.IEEE802_15_4
 
         // 802.15.4g Packet [PHRA, PHRB]
         public uint Length { get; }
+
         public bool DataWhitening { get; }
+
         public bool FCS2Byte { get; }
+
         public bool ModeSwitch { get; }
 
         // PHY Header Type

@@ -377,6 +377,7 @@
     <Compile Include="Emulator/Cores/RiscV/RiscVCpuHooksExtensions.cs" />
     <Compile Include="Emulator/Cores/RiscV/RiscVInstructionPythonEngine.cs" />
     <Compile Include="Emulator/Cores/RiscV/RiscVCsrPythonEngine.cs" />
+    <Compile Include="Emulator/Cores/RiscV/RiscVStackAccessPythonEngine.cs" />
     <Compile Include="Emulator/Cores/RiscV/CV32E40P.cs" />
     <Compile Include="Emulator/Cores/RiscV/PULP_InterruptController.cs" />
     <Compile Include="Emulator/Cores/RiscV/PULP_EventController.cs" />
@@ -650,7 +651,6 @@
     <Compile Include="Emulator/Peripherals/Peripherals/IRQControllers/STM32_EXTICore.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/IRQControllers/STM32H7_EXTI.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/IRQControllers/STM32WBA_EXTI.cs" />
-    <Compile Include="Emulator/Peripherals/Peripherals/DMA/STM32DMA.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/DMA/UDMA.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/DMA/MPFS_PDMA.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/DMA/NPCX_MDMA.cs" />
@@ -1367,6 +1367,10 @@
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SAM4S_EEFC.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/I2C/SAM4S_TWI.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Memory/GenericI2cEeprom.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/MemoryControllers/ARM_SMMUv3/ARM_SMMUv3.BusController.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/MemoryControllers/ARM_SMMUv3/ARM_SMMUv3.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/MemoryControllers/ARM_SMMUv3/ARM_SMMUv3.Structures.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/MemoryControllers/ARM_SMMUv3/ARM_SMMUv3.WrappingQueue.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Emulator/Main/Utilities/Packets/Packet.cs" />
@@ -1928,10 +1932,20 @@
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/IMXRT700_ClockControl/IMXRT700_ClockControl4.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/IMXRT700_MessagingUnit.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/IMXRT700_OSC32KNP.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/DMA/IMXRT700_eDMA.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/DMA/IMXRT700_eDMA.Channel.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/DMA/IMXRT700_DmaMux.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/IMXRT700_SYSCON0.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/IMXRT700_SYSCON1.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Sound/IMXRT700_SAI.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Sound/IMXRT700_SAI.Transceiver.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Sound/IMXRT700_MICFIL.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/I2C/TAS2572.cs" />
     <Compile Include="Emulator/Main/Core/IIdentifiable.cs" />
     <Compile Include="Emulator/Main/Core/IdentifiableObject.cs" />
     <Compile Include="Emulator/Main/Peripherals/Bus/Wrappers/PeripheralAccessProfiler.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/STM32_DMAMUX.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/DMA/STM32DMA.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Emulator/Main/Peripherals/Bus/SystemBusGenerated.tt">

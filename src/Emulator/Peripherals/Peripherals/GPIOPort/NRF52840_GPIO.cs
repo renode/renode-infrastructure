@@ -6,10 +6,11 @@
 
 using System;
 using System.Linq;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
 {
@@ -60,11 +61,13 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         }
 
         public DoubleWordRegisterCollection RegistersCollection { get; }
+
         public Pin[] Pins { get; }
 
         public long Size => 0x300;
 
         public event Action<Pin, bool> PinChanged;
+
         public event Action Detect;
 
         private void DefineRegisters()
@@ -153,14 +156,14 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                             Pins[idx].PullMode = val;
                             switch(val)
                             {
-                                case PullMode.PullUp:
-                                    Pins[idx].DefaultValue = true;
-                                    break;
-                                case PullMode.PullDown:
-                                    Pins[idx].DefaultValue = false;
-                                    break;
-                                default:
-                                    break;
+                            case PullMode.PullUp:
+                                Pins[idx].DefaultValue = true;
+                                break;
+                            case PullMode.PullDown:
+                                Pins[idx].DefaultValue = false;
+                                break;
+                            default:
+                                break;
                             }
                         },
                         valueProviderCallback: _ => Pins[idx].PullMode)
@@ -313,6 +316,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             }
 
             public NRF52840_GPIO Parent { get; }
+
             public int Id { get; }
 
             // returns the pin value depending on the currently set direction

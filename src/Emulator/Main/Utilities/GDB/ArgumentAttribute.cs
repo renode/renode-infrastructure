@@ -12,6 +12,7 @@ namespace Antmicro.Renode.Utilities.GDB
     public class ArgumentAttribute : Attribute
     {
         public char Separator { get; set; }
+
         public ArgumentEncoding Encoding { get; set; }
 
         public enum ArgumentEncoding
@@ -26,4 +27,3 @@ namespace Antmicro.Renode.Utilities.GDB
         }
     }
 }
-

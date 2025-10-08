@@ -5,12 +5,12 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
 
 namespace Antmicro.Renode.Peripherals.DMA
 {
@@ -32,19 +32,11 @@ namespace Antmicro.Renode.Peripherals.DMA
             Reset();
         }
 
-        public long Size
-        {
-            get
-            {
-                return 0x2000;
-            }
-        }
-
         public uint ReadDoubleWord(long offset)
         {
-            if(offset >= 0x1000 && offset < 0x1000 + 32*ChannelNo)
+            if(offset >= 0x1000 && offset < 0x1000 + 32 * ChannelNo)
             {
-                return channels[(offset - 0x1000)/32].Read(offset % 32);
+                return channels[(offset - 0x1000) / 32].Read(offset % 32);
             }
             switch((Register)offset)
             {
@@ -61,9 +53,9 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         public void WriteDoubleWord(long offset, uint value)
         {
-            if(offset >= 0x1000 && offset < 0x1000 + 32*ChannelNo)
+            if(offset >= 0x1000 && offset < 0x1000 + 32 * ChannelNo)
             {
-                channels[(offset - 0x1000)/32].Write(offset % 32, value);
+                channels[(offset - 0x1000) / 32].Write(offset % 32, value);
                 return;
             }
             switch((Register)offset)
@@ -99,14 +91,24 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
         }
 
-        private enum Register
+        public IReadOnlyDictionary<int, IGPIO> Connections { get; private set; }
+
+        public long Size
         {
-            Command = 0x0,
-            Status = 0x4,
-            Counter = 0x10,
-            IrqMaskSet = 0x20,
-            IrqMaskClear = 0x24
+            get
+            {
+                return 0x2000;
+            }
         }
+
+        private bool enabled;
+        private uint counterRegister;
+        private uint irqMask;
+        private ushort activeChannelInterrupts;
+        private readonly Channel[] channels;
+        private readonly DmaEngine dmaEngine;
+
+        private const int ChannelNo = 16;
 
         private sealed class Channel
         {
@@ -116,18 +118,6 @@ namespace Antmicro.Renode.Peripherals.DMA
                 channelNumber = number;
                 IRQ = new GPIO();
             }
-
-            public void Reset()
-            {
-                apbStartingAddress = 0;
-                ahbStartingAddress =0;
-                interruptEnabled = false;
-                apbIsSource = false;
-                apbTransferType = TransferType.Byte;
-                ahbTransferType= TransferType.Byte;
-            }
-
-            public GPIO IRQ { get; private set; }
 
             public uint Read(long offset)
             {
@@ -189,6 +179,18 @@ namespace Antmicro.Renode.Peripherals.DMA
                 }
             }
 
+            public void Reset()
+            {
+                apbStartingAddress = 0;
+                ahbStartingAddress = 0;
+                interruptEnabled = false;
+                apbIsSource = false;
+                apbTransferType = TransferType.Byte;
+                ahbTransferType = TransferType.Byte;
+            }
+
+            public GPIO IRQ { get; private set; }
+
             private TransferType GetTransferType(uint value)
             {
                 var busWidth = value >> 28;
@@ -237,6 +239,15 @@ namespace Antmicro.Renode.Peripherals.DMA
                 }
             }
 
+            private uint apbStartingAddress;
+            private uint ahbStartingAddress;
+            private bool interruptEnabled;
+            private bool apbIsSource;
+            private TransferType apbTransferType;
+            private TransferType ahbTransferType;
+            private readonly TegraDma parent;
+            private readonly int channelNumber;
+
             private enum ChannelRegister
             {
                 Control = 0x0,
@@ -246,27 +257,15 @@ namespace Antmicro.Renode.Peripherals.DMA
                 ApbStartingAddress = 0x18,
                 ApbAddressSequencer = 0x1c,
             }
-
-            private uint apbStartingAddress;
-            private uint ahbStartingAddress;
-            private readonly TegraDma parent;
-            private bool interruptEnabled;
-            private readonly int channelNumber;
-            private bool apbIsSource;
-            private TransferType apbTransferType;
-            private TransferType ahbTransferType;
         }
 
-        private bool enabled;
-        private uint counterRegister;
-        private uint irqMask;
-        private readonly Channel[] channels;
-        private readonly DmaEngine dmaEngine;
-        private ushort activeChannelInterrupts;
-
-        public IReadOnlyDictionary<int, IGPIO> Connections { get; private set; }
-
-        private const int ChannelNo = 16;
+        private enum Register
+        {
+            Command = 0x0,
+            Status = 0x4,
+            Counter = 0x10,
+            IrqMaskSet = 0x20,
+            IrqMaskClear = 0x24
+        }
     }
 }
-

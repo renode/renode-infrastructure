@@ -38,7 +38,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             var result = RegistersCollection.Read((long)Registers.Control);
             this.NoisyLog("Reading control register from device: 0x{0:X}", result);
 
-            return new byte [] { result };
+            return new byte[] { result };
         }
 
         public void FinishTransmission()

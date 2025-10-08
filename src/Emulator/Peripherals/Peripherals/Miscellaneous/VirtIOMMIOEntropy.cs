@@ -46,7 +46,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             return virtq.TryWriteToBuffers(buff);
         }
 
-        protected override uint DeviceID { get; } = (uint) DeviceType.EntropySource;
+        protected override uint DeviceID { get; } = (uint)DeviceType.EntropySource;
 
         private readonly PseudorandomNumberGenerator entropySource;
     }

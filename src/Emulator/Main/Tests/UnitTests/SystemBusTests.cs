@@ -7,20 +7,22 @@
 //
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU;
-using Antmicro.Renode.Utilities;
-using NUnit.Framework;
-using Moq;
-using System.Linq;
-using System.Collections.Generic;
 using Antmicro.Renode.Peripherals.Memory;
-using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.Mocks;
 using Antmicro.Renode.UnitTests.Mocks;
+using Antmicro.Renode.Utilities;
+
+using Moq;
+
+using NUnit.Framework;
 
 namespace Antmicro.Renode.UnitTests
 {
@@ -72,18 +74,18 @@ namespace Antmicro.Renode.UnitTests
         [Test, Ignore("Ignored")]
         public void ShouldFindAfterManyRegistrationsAndRemoves()
         {
-            const int NumberOfPeripherals = 100;
-            var MaximumPeripheralSize = 16.KB();
+            const int numberOfPeripherals = 100;
+            var maximumPeripheralSize = 16.KB();
 
-            var regPoints = new ulong[NumberOfPeripherals];
+            var regPoints = new ulong[numberOfPeripherals];
             var unregisteredPoints = new HashSet<ulong>();
             var random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
             var lastPoint = 4u;
-            for(var i = 0; i < NumberOfPeripherals; i++)
+            for(var i = 0; i < numberOfPeripherals; i++)
             {
                 // gap
-                lastPoint += (uint)random.Next(MaximumPeripheralSize);
-                var size = (uint)random.Next(1, MaximumPeripheralSize + 1);
+                lastPoint += (uint)random.Next(maximumPeripheralSize);
+                var size = (uint)random.Next(1, maximumPeripheralSize + 1);
                 regPoints[i] = lastPoint;
                 var mock = new Mock<IDoubleWordPeripheral>();
                 mock.Setup(x => x.ReadDoubleWord(0)).Returns((uint)regPoints[i]);
@@ -93,7 +95,7 @@ namespace Antmicro.Renode.UnitTests
             }
 
             // now remove random devices
-            for(var i = 0; i < NumberOfPeripherals; i++)
+            for(var i = 0; i < numberOfPeripherals; i++)
             {
                 if(random.Next(100) < 10)
                 {
@@ -101,9 +103,9 @@ namespace Antmicro.Renode.UnitTests
                     unregisteredPoints.Add(regPoints[i]);
                 }
             }
-			
+
             // finally some assertions
-            for(var i = 0; i < NumberOfPeripherals; i++)
+            for(var i = 0; i < numberOfPeripherals; i++)
             {
                 var value = sysbus.ReadDoubleWord(regPoints[i]);
                 if(unregisteredPoints.Contains(regPoints[i]))
@@ -274,13 +276,13 @@ namespace Antmicro.Renode.UnitTests
                 sysbus.Register(peripheral, new BusMultiRegistration(address + 8, 8, "region"));
                 address += 16;
             }
-            
+
             var testValue = 0xdeadc0de12345678;
             for(var i = 0; i < testData.Length; i += 1)
             {
                 var implementedWidth = testData[i].Item1;
-                testAllTranslatedAccesses((ulong)i * 16, testValue, implementedWidth);
-                testAllTranslatedAccesses((ulong)i * 16 + 8, testValue, implementedWidth);
+                TestAllTranslatedAccesses((ulong)i * 16, testValue, implementedWidth);
+                TestAllTranslatedAccesses((ulong)i * 16 + 8, testValue, implementedWidth);
             }
         }
 
@@ -416,7 +418,7 @@ namespace Antmicro.Renode.UnitTests
             }
         }
 
-        private void testAllTranslatedAccesses(ulong address, ulong testValue, int implementedWidth)
+        private void TestAllTranslatedAccesses(ulong address, ulong testValue, int implementedWidth)
         {
             var widths = new int [] { 8, 16, 32, 64 };
             var types = new dynamic []
@@ -473,6 +475,43 @@ namespace Antmicro.Renode.UnitTests
 
         private class MultiRegistrationPeripheral : IBusPeripheral, IDoubleWordPeripheral
         {
+            public uint ReadDoubleWord(long _)
+            {
+                DoubleWordRead = true;
+                return 0;
+            }
+
+            public void WriteDoubleWord(long _, uint __)
+            {
+                DoubleWordWritten = true;
+            }
+
+            [ConnectionRegion("region1")]
+            public byte ReadByte1(long _)
+            {
+                ByteRead1 = true;
+                return 0;
+            }
+
+            [ConnectionRegion("region2")]
+            public byte ReadByte2(long _)
+            {
+                ByteRead2 = true;
+                return 0;
+            }
+
+            [ConnectionRegion("region1")]
+            public void WriteByte1(long _, byte __)
+            {
+                ByteWritten1 = true;
+            }
+
+            [ConnectionRegion("region2")]
+            public void WriteByte2(long _, byte __)
+            {
+                ByteWritten2 = true;
+            }
+
             public void Reset()
             {
                 throw new NotImplementedException();
@@ -489,7 +528,10 @@ namespace Antmicro.Renode.UnitTests
             public bool DoubleWordRead { get; private set; }
 
             public bool DoubleWordWritten { get; private set; }
+        }
 
+        private class ParametrizedRegistrationPeripheral : IBusPeripheral, IDoubleWordPeripheral
+        {
             public uint ReadDoubleWord(long offset)
             {
                 DoubleWordRead = true;
@@ -501,35 +543,6 @@ namespace Antmicro.Renode.UnitTests
                 DoubleWordWritten = true;
             }
 
-            [ConnectionRegion("region1")]
-            public byte ReadByte1(long offset)
-            {
-                ByteRead1 = true;
-                return 0;
-            }
-
-            [ConnectionRegion("region2")]
-            public byte ReadByte2(long offset)
-            {
-                ByteRead2 = true;
-                return 0;
-            }
-
-            [ConnectionRegion("region1")]
-            public void WriteByte1(long offset, byte value)
-            {
-                ByteWritten1 = true;
-            }
-
-            [ConnectionRegion("region2")]
-            public void WriteByte2(long offset, byte value)
-            {
-                ByteWritten2 = true;
-            }
-        }
-
-        private class ParametrizedRegistrationPeripheral : IBusPeripheral, IDoubleWordPeripheral
-        {
             public void Reset()
             {
                 throw new NotImplementedException();
@@ -542,17 +555,6 @@ namespace Antmicro.Renode.UnitTests
             public bool DoubleWordRead { get; private set; }
 
             public bool DoubleWordWritten { get; private set; }
-
-            public uint ReadDoubleWord(long offset)
-            {
-                DoubleWordRead = true;
-                return 0;
-            }
-
-            public void WriteDoubleWord(long offset, uint value)
-            {
-                DoubleWordWritten = true;
-            }
 
             public class Registration : BusParametrizedRegistration
             {

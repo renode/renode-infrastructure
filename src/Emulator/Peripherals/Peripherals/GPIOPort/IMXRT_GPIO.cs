@@ -5,11 +5,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
 {
@@ -181,7 +181,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         {
             var flag = false;
             for(var i = 0; i < NumberOfPins; ++i)
-            {   
+            {
                 flag |= interruptEnabled[i] && interruptRequest[i];
             }
             IRQ.Set(flag);
@@ -215,21 +215,21 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             {
                 switch(interruptConfig[i])
                 {
-                    case InterruptConfig.Low:
-                        interruptRequest[i] |= !currentState;
-                        break;
-                    case InterruptConfig.High:
-                        interruptRequest[i] |= currentState;
-                        break;
-                    case InterruptConfig.Rising:
-                        interruptRequest[i] |= stateChanged && currentState; 
-                        break;
-                    case InterruptConfig.Falling:
-                        interruptRequest[i] |= stateChanged && !currentState; 
-                        break;
-                    default:
-                        this.Log(LogLevel.Error, "Invalid state (interruptConfig[{0}]: 0x{1:X}).", i, interruptConfig[i]);
-                        break;
+                case InterruptConfig.Low:
+                    interruptRequest[i] |= !currentState;
+                    break;
+                case InterruptConfig.High:
+                    interruptRequest[i] |= currentState;
+                    break;
+                case InterruptConfig.Rising:
+                    interruptRequest[i] |= stateChanged && currentState;
+                    break;
+                case InterruptConfig.Falling:
+                    interruptRequest[i] |= stateChanged && !currentState;
+                    break;
+                default:
+                    this.Log(LogLevel.Error, "Invalid state (interruptConfig[{0}]: 0x{1:X}).", i, interruptConfig[i]);
+                    break;
                 }
             }
         }

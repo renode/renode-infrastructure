@@ -4,12 +4,12 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using NUnit.Framework;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals.Memory;
 using Antmicro.Renode.Peripherals.MemoryControllers;
 using Antmicro.Renode.Peripherals.Miscellaneous;
+
+using NUnit.Framework;
 
 namespace Antmicro.Renode.PeripheralsTests
 {
@@ -139,12 +139,12 @@ namespace Antmicro.Renode.PeripheralsTests
             if(errorExpected)
             {
                 Assert.AreNotEqual(0x0, ReadError(), message);
-                Assert.AreEqual(0x3 , ReadStatus(), message);
+                Assert.AreEqual(0x3, ReadStatus(), message);
             }
             else
             {
                 Assert.AreEqual(0x0, ReadError(), message);
-                Assert.AreNotEqual(0x3 , ReadStatus(), message);
+                Assert.AreNotEqual(0x3, ReadStatus(), message);
             }
         }
 

@@ -7,6 +7,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Core.USB
@@ -56,12 +57,11 @@ namespace Antmicro.Renode.Core.USB
 
         public static USBString Empty { get; }
 
-        private static List<USBString> strings;
+        public override int DescriptorLength => 2 + Encoding.Unicode.GetByteCount(Value);
 
         public byte Index { get; }
-        public string Value { get; }
 
-        public override int DescriptorLength => 2 + Encoding.Unicode.GetByteCount(Value);
+        public string Value { get; }
 
         protected USBString(string value, byte id) : base((byte)DescriptorType.String)
         {
@@ -77,6 +77,8 @@ namespace Antmicro.Renode.Core.USB
                 buffer.Append(b);
             }
         }
+
+        private static readonly List<USBString> strings;
 
         public enum LanguageCode : short
         {

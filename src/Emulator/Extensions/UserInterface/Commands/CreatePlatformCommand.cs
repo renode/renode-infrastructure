@@ -5,22 +5,29 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using AntShell.Commands;
-using Antmicro.Renode.UserInterface.Tokenizer;
-using Antmicro.Renode.Core;
 using System;
 using System.Linq;
+
+using Antmicro.Renode.Core;
+using Antmicro.Renode.UserInterface.Tokenizer;
+
+using AntShell.Commands;
 
 namespace Antmicro.Renode.UserInterface.Commands
 {
     public class CreatePlatformCommand : Command, ISuggestionProvider
     {
+        public CreatePlatformCommand(Monitor monitor, Action<Machine> changeCurrentMachine) : base(monitor, "createPlatform", "creates a platform.", "c")
+        {
+            this.changeCurrentMachine = changeCurrentMachine;
+        }
+
         public override void PrintHelp(ICommandInteraction writer)
         {
             base.PrintHelp(writer);
             writer.WriteLine("\nOptions:");
             writer.WriteLine("===========================");
-            foreach(var item in PlatformsProvider.GetAvailablePlatforms().OrderBy(x=>x.Name))
+            foreach(var item in PlatformsProvider.GetAvailablePlatforms().OrderBy(x => x.Name))
             {
                 writer.WriteLine(item.Name);
             }
@@ -50,7 +57,7 @@ namespace Antmicro.Renode.UserInterface.Commands
         private void Execute(ICommandInteraction writer, string type, string name)
         {
             var platform = PlatformsProvider.GetPlatformByName(type);
-            if (platform == null)
+            if(platform == null)
             {
                 writer.WriteError("Invalid platform type: " + type);
                 return;
@@ -62,12 +69,6 @@ namespace Antmicro.Renode.UserInterface.Commands
             monitor.TryExecuteScript(platform.ScriptPath, writer);
         }
 
-        public CreatePlatformCommand(Monitor monitor, Action<Machine> changeCurrentMachine) : base(monitor, "createPlatform", "creates a platform.", "c")
-        {
-            this.changeCurrentMachine = changeCurrentMachine;
-        }
-
         private readonly Action<Machine> changeCurrentMachine;
     }
 }
-

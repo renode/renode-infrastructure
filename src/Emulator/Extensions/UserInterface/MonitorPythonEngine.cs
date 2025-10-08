@@ -10,26 +10,24 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using Antmicro.Migrant;
+
 using Antmicro.Migrant.Hooks;
-using AntShell.Commands;
-using IronPython.Runtime;
-using IronPython.Runtime.Operations;
-using Microsoft.Scripting.Hosting;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.UserInterface.Tokenizer;
 using Antmicro.Renode.Utilities;
 
+using AntShell.Commands;
+
+using IronPython.Runtime;
+using IronPython.Runtime.Operations;
+
+using Microsoft.Scripting.Hosting;
+
 namespace Antmicro.Renode.UserInterface
 {
     public class MonitorPythonEngine : PythonEngine, IDisposable
     {
-        private readonly string[] Imports =
-        {
-            "clr.AddReference('Infrastructure')",
-        };
-
         public MonitorPythonEngine(Monitor monitor)
         {
             this.monitor = monitor;
@@ -57,12 +55,6 @@ namespace Antmicro.Renode.UserInterface
                 streamToEventConverter.IgnoreWrites = true;
                 streamToEventConverterForError.IgnoreWrites = true;
             }
-        }
-
-        [PreSerialization]
-        protected void BeforeSerialization()
-        {
-            throw new NotSupportedException("MonitorPythonEngine should not be serialized!");
         }
 
         public bool ExecuteBuiltinCommand(Token[] command, ICommandInteraction writer)
@@ -136,6 +128,17 @@ namespace Antmicro.Renode.UserInterface
             }
         }
 
+        public string[] GetPythonCommands(string prefix = "mc_", bool trimPrefix = true)
+        {
+            return Scope.GetVariableNames().Where(x => x.StartsWith(prefix ?? string.Empty, StringComparison.Ordinal)).Select(x => x.Substring(trimPrefix ? prefix.Length : 0)).ToArray();
+        }
+
+        [PreSerialization]
+        protected void BeforeSerialization()
+        {
+            throw new NotSupportedException("MonitorPythonEngine should not be serialized!");
+        }
+
         private object GetTokenValue(Token token)
         {
             var value = token.GetObjectValue();
@@ -163,11 +166,6 @@ namespace Antmicro.Renode.UserInterface
             }
         }
 
-        public string[] GetPythonCommands(string prefix = "mc_", bool trimPrefix = true)
-        {
-            return Scope.GetVariableNames().Where(x => x.StartsWith(prefix ?? string.Empty, StringComparison.Ordinal)).Select(x => x.Substring(trimPrefix ? prefix.Length : 0)).ToArray();
-        }
-
         private void ConfigureOutput(ICommandInteraction writer)
         {
             streamToEventConverter = new StreamToEventConverter();
@@ -187,6 +185,11 @@ namespace Antmicro.Renode.UserInterface
 
         private StreamToEventConverter streamToEventConverter;
         private StreamToEventConverter streamToEventConverterForError;
+        private readonly string[] Imports =
+        {
+            "clr.AddReference('Infrastructure')",
+        };
+
         private readonly Monitor monitor;
         private const string MonitorPyPath = "scripts/monitor.py";
     }

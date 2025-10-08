@@ -6,14 +6,15 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Linq;
+
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.UART;
 using Antmicro.Renode.Utilities;
-using System.Linq;
+
 using AntShell.Terminal;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.UI
 {
@@ -119,7 +120,8 @@ namespace Antmicro.Renode.UI
             Quitted?.Invoke();
         }
 
-        private readonly bool isMonitorWindow;
         private IConsoleBackendAnalyzerProvider provider;
+
+        private readonly bool isMonitorWindow;
     }
 }

@@ -131,7 +131,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
-        public static BusAccess.<#= outName #>WriteMethod Build<#= outName #>WriteUsing(BusAccess.<#= inName #>ReadMethod read, BusAccess.<#= inName #>WriteMethod write)
+        public static BusAccess.<#= outName #>WriteMethod Build<#= outName #>WriteUsing(BusAccess.<#= inName #>ReadMethod _, BusAccess.<#= inName #>WriteMethod write)
         {
             return (address, value) =>
             {
@@ -201,7 +201,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
-        public static BusAccess.<#= outName #>WriteMethod Build<#= outName #>WriteBigEndianUsing(BusAccess.<#= inName #>ReadMethod read, BusAccess.<#= inName #>WriteMethod write)
+        public static BusAccess.<#= outName #>WriteMethod Build<#= outName #>WriteBigEndianUsing(BusAccess.<#= inName #>ReadMethod _, BusAccess.<#= inName #>WriteMethod write)
         {
             return (address, value) =>
             {

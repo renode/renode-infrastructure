@@ -5,8 +5,10 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
-using NUnit.Framework;
+
 using Antmicro.Renode.Core;
+
+using NUnit.Framework;
 
 namespace Antmicro.Renode.UnitTests
 {

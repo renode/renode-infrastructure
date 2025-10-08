@@ -6,9 +6,9 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Reflection;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
+
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Bus.Wrappers
@@ -21,20 +21,20 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
             var interestingEnums = new List<Type>();
 
             var enumsWithAttribute = types.Where(t => t.GetCustomAttributes(false).Any(x => x is RegistersDescriptionAttribute));
-            if (enumsWithAttribute != null)
+            if(enumsWithAttribute != null)
             {
                 interestingEnums.AddRange(enumsWithAttribute);
             }
             interestingEnums.AddRange(types.Where(t => t.BaseType == typeof(Enum) && t.Name.IndexOf("register", StringComparison.CurrentCultureIgnoreCase) != -1));
 
-            foreach (var type in interestingEnums)
+            foreach(var type in interestingEnums)
             {
-                foreach (var value in type.GetEnumValues())
+                foreach(var value in type.GetEnumValues())
                 {
                     var l = Convert.ToInt64(value);
                     var s = Enum.GetName(type, value);
 
-                    if (!map.ContainsKey(l))
+                    if(!map.ContainsKey(l))
                     {
                         map.Add(l, s);
                     }
@@ -72,4 +72,3 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
         public class RegistersDescriptionAttribute : Attribute { }
     }
 }
-

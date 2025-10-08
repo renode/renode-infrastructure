@@ -21,12 +21,12 @@ namespace Antmicro.Renode.Utilities
         {
             switch(rank)
             {
-                case Rank.Tens:
-                    return (value / 10) % 10;
-                case Rank.Units:
-                    return value % 10;
-                default:
-                    throw new ArgumentException($"Unsupported rank: {rank}");
+            case Rank.Tens:
+                return (value / 10) % 10;
+            case Rank.Units:
+                return value % 10;
+            default:
+                throw new ArgumentException($"Unsupported rank: {rank}");
             }
         }
 
@@ -40,12 +40,12 @@ namespace Antmicro.Renode.Utilities
 
             switch(rank)
             {
-                case Rank.Tens:
-                    return current + 10 * (value - current.ReadRank(Rank.Tens));
-                case Rank.Units:
-                    return current + (value - current.ReadRank(Rank.Units));
-                default:
-                    throw new ArgumentException($"Unsupported rank: {rank}");
+            case Rank.Tens:
+                return current + 10 * (value - current.ReadRank(Rank.Tens));
+            case Rank.Units:
+                return current + (value - current.ReadRank(Rank.Units));
+            default:
+                throw new ArgumentException($"Unsupported rank: {rank}");
             }
         }
     }

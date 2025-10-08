@@ -5,14 +5,12 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.CPU;
-using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Logging.Profiling
 {
@@ -109,7 +107,7 @@ namespace Antmicro.Renode.Logging.Profiling
 
         private bool headerWritten;
 
-        private readonly static object locker = new object();
+        private static readonly object locker = new object();
         private readonly FileStream output;
         private readonly IMachine machine;
     }

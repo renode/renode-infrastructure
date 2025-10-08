@@ -8,9 +8,9 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Threading;
-using Antmicro.Renode.Core;
-using Antmicro.Migrant.Hooks;
+
 using Antmicro.Migrant;
+using Antmicro.Migrant.Hooks;
 
 namespace Antmicro.Renode.Core
 {
@@ -22,12 +22,6 @@ namespace Antmicro.Renode.Core
             StartingOffset = startingOffset;
             MakeSegment();
         }
-
-        public IntPtr Pointer { get { return pointer; } }
-
-        public ulong StartingOffset { get; private set; }
-
-        public ulong Size { get; private set; }
 
         public void Touch()
         {
@@ -49,6 +43,12 @@ namespace Antmicro.Renode.Core
                 Marshal.FreeHGlobal(oldPointer);
             }
         }
+
+        public IntPtr Pointer { get { return pointer; } }
+
+        public ulong StartingOffset { get; private set; }
+
+        public ulong Size { get; private set; }
 
         [PreSerialization]
         private void PrepareBuffer()
@@ -88,4 +88,3 @@ namespace Antmicro.Renode.Core
         private byte[] buffer;
     }
 }
-

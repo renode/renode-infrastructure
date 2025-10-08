@@ -6,6 +6,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.EventRecording
@@ -69,6 +70,7 @@ namespace Antmicro.Renode.EventRecording
         }
 
         public T1 Value1 { get; private set; }
+
         public T2 Value2 { get; private set; }
 
         public string Name
@@ -90,4 +92,3 @@ namespace Antmicro.Renode.EventRecording
         private RecordEntryBase @base;
     }
 }
-

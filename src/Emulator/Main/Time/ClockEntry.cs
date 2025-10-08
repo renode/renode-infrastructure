@@ -6,8 +6,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals;
+
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Time
@@ -43,7 +42,7 @@ namespace Antmicro.Renode.Time
                 direction ?? Direction,
                 workMode ?? WorkMode,
                 step ?? Step);
-            
+
             result.Value = value ?? Value;
             result.ValueResiduum = frequency != null ? Fraction.Zero : ValueResiduum;
             return result;
@@ -51,16 +50,25 @@ namespace Antmicro.Renode.Time
 
         public ulong Value;
         public Fraction ValueResiduum;
-        
+
         public ulong Period { get; }
+
         public Action Handler { get; }
+
         public bool Enabled { get; }
+
         public Direction Direction { get; }
+
         public WorkMode WorkMode { get; }
+
         public IEmulationElement Owner { get; }
+
         public string LocalName { get; }
-        public long Step { get; } 
+
+        public long Step { get; }
+
         public long Frequency { get; }
+
         // Ratio - i.e. how many emulator ticks are needed for this clock entry tick
         public Fraction Ratio { get; }
 
@@ -71,4 +79,3 @@ namespace Antmicro.Renode.Time
         }
     }
 }
-

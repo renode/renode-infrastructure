@@ -5,15 +5,13 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Collections.Generic;
-using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Time;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Timers;
+using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.RESD;
 
@@ -43,7 +41,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             {
                 resdStream[adcChannel] = this.CreateRESDStream<VoltageSample>(filePath, resdChannel, sampleOffsetType, sampleOffsetTime);
             }
-            catch (RESDException)
+            catch(RESDException)
             {
                 for(var channelId = 0; channelId < NumberOfChannels; channelId++)
                 {
@@ -66,6 +64,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         }
 
         public GPIO IRQ { get; } = new GPIO();
+
         public long Size => 0x24;
 
         private uint ParseResult(uint voltage)
@@ -110,7 +109,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             // Documentation chapter 21.2.3.1
             // The total conversion time of an AD conversion depends on various settings.
             // Conversion time is especially important for the continuous mode
-            samplingTimer.Limit = (ulong) Math.Pow(2, conversionNumber.Value) * (sampleTime.Value == 0 ? 2 : sampleTime.Value * 8) + (samplingTimer.Mode == WorkMode.Periodic ? converionInterval.Value : 0);
+            samplingTimer.Limit = (ulong)Math.Pow(2, conversionNumber.Value) * (sampleTime.Value == 0 ? 2 : sampleTime.Value * 8) + (samplingTimer.Mode == WorkMode.Periodic ? converionInterval.Value : 0);
             samplingTimer.Enabled = true;
         }
 
@@ -127,7 +126,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             }
             else
             {
-                result.Value = HandleConversion((uint) selectPositive.Value) - (singleEnded.Value ? 0 : HandleConversion((uint) selectNegative));
+                result.Value = HandleConversion((uint)selectPositive.Value) - (singleEnded.Value ? 0 : HandleConversion((uint)selectNegative));
             }
             interruptPending.Value = true;
             UpdateInterrupts();
@@ -143,7 +142,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         {
             GeneralPurposeRegisters.Control.Define(this)
                 .WithFlag(0, out enabled, name: "GP_ADC_EN", writeCallback: (_, val) => { if(!val) Reset(); })
-                .WithFlag(1, valueProviderCallback: _ => samplingTimer.Enabled , name: "GP_ADC_START", changeCallback: (_, val) =>
+                .WithFlag(1, valueProviderCallback: _ => samplingTimer.Enabled, name: "GP_ADC_START", changeCallback: (_, val) =>
                         {
                             if(val)
                             {
@@ -173,7 +172,7 @@ namespace Antmicro.Renode.Peripherals.Analog
                 .WithReservedBits(3, 3)
                 .WithValueField(6, 3, out conversionNumber, name: "GP_ADC_CONV_NRS")
                 .WithValueField(9, 4, out sampleTime, name: "GP_ADC_SMPL_TIME")
-                .WithTag("GP_ADC_STORE_DEL", 13 ,3)
+                .WithTag("GP_ADC_STORE_DEL", 13, 3)
                 .WithReservedBits(16, 16);
 
             GeneralPurposeRegisters.Control3.Define(this, resetValue: 0x00000040)
@@ -217,6 +216,8 @@ namespace Antmicro.Renode.Peripherals.Analog
                 .WithReservedBits(16, 16);
         }
 
+        private ulong selectNegative;
+
         private IFlagRegisterField enabled;
         private IFlagRegisterField dmaEnabled;
         private IFlagRegisterField interruptPending;
@@ -229,13 +230,12 @@ namespace Antmicro.Renode.Peripherals.Analog
         private IValueRegisterField converionInterval;
         private IValueRegisterField selectPositive;
         private IValueRegisterField result;
+        private readonly RESDStream<VoltageSample>[] resdStream;
+
+        private readonly LimitTimer samplingTimer;
 
         private const int NumberOfChannels = 14;
         private const uint DefaultChannelVoltage = 100;
-
-        private readonly LimitTimer samplingTimer;
-        private readonly RESDStream<VoltageSample>[] resdStream;
-        private ulong selectNegative;
 
         private enum GeneralPurposeRegisters : long
         {

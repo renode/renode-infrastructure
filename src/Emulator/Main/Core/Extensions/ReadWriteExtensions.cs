@@ -6,8 +6,8 @@
 * appropriate *.tt file.
 *
 */
-using System;
 using System.Text;
+
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.Bus;
@@ -49,7 +49,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
-        public static BusAccess.WordWriteMethod BuildWordWriteUsing(BusAccess.ByteReadMethod read, BusAccess.ByteWriteMethod write)
+        public static BusAccess.WordWriteMethod BuildWordWriteUsing(BusAccess.ByteReadMethod _, BusAccess.ByteWriteMethod write)
         {
             return (address, value) =>
             {
@@ -93,7 +93,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
-        public static BusAccess.WordWriteMethod BuildWordWriteBigEndianUsing(BusAccess.ByteReadMethod read, BusAccess.ByteWriteMethod write)
+        public static BusAccess.WordWriteMethod BuildWordWriteBigEndianUsing(BusAccess.ByteReadMethod _, BusAccess.ByteWriteMethod write)
         {
             return (address, value) =>
             {
@@ -143,7 +143,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
-        public static BusAccess.DoubleWordWriteMethod BuildDoubleWordWriteUsing(BusAccess.ByteReadMethod read, BusAccess.ByteWriteMethod write)
+        public static BusAccess.DoubleWordWriteMethod BuildDoubleWordWriteUsing(BusAccess.ByteReadMethod _, BusAccess.ByteWriteMethod write)
         {
             return (address, value) =>
             {
@@ -195,7 +195,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
-        public static BusAccess.DoubleWordWriteMethod BuildDoubleWordWriteBigEndianUsing(BusAccess.ByteReadMethod read, BusAccess.ByteWriteMethod write)
+        public static BusAccess.DoubleWordWriteMethod BuildDoubleWordWriteBigEndianUsing(BusAccess.ByteReadMethod _, BusAccess.ByteWriteMethod write)
         {
             return (address, value) =>
             {
@@ -259,7 +259,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
-        public static BusAccess.QuadWordWriteMethod BuildQuadWordWriteUsing(BusAccess.ByteReadMethod read, BusAccess.ByteWriteMethod write)
+        public static BusAccess.QuadWordWriteMethod BuildQuadWordWriteUsing(BusAccess.ByteReadMethod _, BusAccess.ByteWriteMethod write)
         {
             return (address, value) =>
             {
@@ -327,7 +327,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
-        public static BusAccess.QuadWordWriteMethod BuildQuadWordWriteBigEndianUsing(BusAccess.ByteReadMethod read, BusAccess.ByteWriteMethod write)
+        public static BusAccess.QuadWordWriteMethod BuildQuadWordWriteBigEndianUsing(BusAccess.ByteReadMethod _, BusAccess.ByteWriteMethod write)
         {
             return (address, value) =>
             {
@@ -440,6 +440,7 @@ namespace Antmicro.Renode.Core.Extensions
                 }
             };
         }
+
         public static uint ReadDoubleWordUsingWord(this IWordPeripheral peripheral, long address)
         {
             unchecked
@@ -472,7 +473,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
-        public static BusAccess.DoubleWordWriteMethod BuildDoubleWordWriteUsing(BusAccess.WordReadMethod read, BusAccess.WordWriteMethod write)
+        public static BusAccess.DoubleWordWriteMethod BuildDoubleWordWriteUsing(BusAccess.WordReadMethod _, BusAccess.WordWriteMethod write)
         {
             return (address, value) =>
             {
@@ -516,7 +517,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
-        public static BusAccess.DoubleWordWriteMethod BuildDoubleWordWriteBigEndianUsing(BusAccess.WordReadMethod read, BusAccess.WordWriteMethod write)
+        public static BusAccess.DoubleWordWriteMethod BuildDoubleWordWriteBigEndianUsing(BusAccess.WordReadMethod _, BusAccess.WordWriteMethod write)
         {
             return (address, value) =>
             {
@@ -566,7 +567,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
-        public static BusAccess.QuadWordWriteMethod BuildQuadWordWriteUsing(BusAccess.WordReadMethod read, BusAccess.WordWriteMethod write)
+        public static BusAccess.QuadWordWriteMethod BuildQuadWordWriteUsing(BusAccess.WordReadMethod _, BusAccess.WordWriteMethod write)
         {
             return (address, value) =>
             {
@@ -618,7 +619,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
-        public static BusAccess.QuadWordWriteMethod BuildQuadWordWriteBigEndianUsing(BusAccess.WordReadMethod read, BusAccess.WordWriteMethod write)
+        public static BusAccess.QuadWordWriteMethod BuildQuadWordWriteBigEndianUsing(BusAccess.WordReadMethod _, BusAccess.WordWriteMethod write)
         {
             return (address, value) =>
             {
@@ -727,6 +728,7 @@ namespace Antmicro.Renode.Core.Extensions
                 }
             };
         }
+
         public static ushort ReadWordUsingDoubleWord(this IDoubleWordPeripheral peripheral, long address)
         {
             unchecked
@@ -824,6 +826,7 @@ namespace Antmicro.Renode.Core.Extensions
                 }
             };
         }
+
         public static ulong ReadQuadWordUsingDoubleWord(this IDoubleWordPeripheral peripheral, long address)
         {
             unchecked
@@ -856,7 +859,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
-        public static BusAccess.QuadWordWriteMethod BuildQuadWordWriteUsing(BusAccess.DoubleWordReadMethod read, BusAccess.DoubleWordWriteMethod write)
+        public static BusAccess.QuadWordWriteMethod BuildQuadWordWriteUsing(BusAccess.DoubleWordReadMethod _, BusAccess.DoubleWordWriteMethod write)
         {
             return (address, value) =>
             {
@@ -900,7 +903,7 @@ namespace Antmicro.Renode.Core.Extensions
             }
         }
 
-        public static BusAccess.QuadWordWriteMethod BuildQuadWordWriteBigEndianUsing(BusAccess.DoubleWordReadMethod read, BusAccess.DoubleWordWriteMethod write)
+        public static BusAccess.QuadWordWriteMethod BuildQuadWordWriteBigEndianUsing(BusAccess.DoubleWordReadMethod _, BusAccess.DoubleWordWriteMethod write)
         {
             return (address, value) =>
             {
@@ -1007,6 +1010,7 @@ namespace Antmicro.Renode.Core.Extensions
                 }
             };
         }
+
         public static ushort ReadWordUsingQuadWord(this IQuadWordPeripheral peripheral, long address)
         {
             unchecked
@@ -1104,6 +1108,7 @@ namespace Antmicro.Renode.Core.Extensions
                 }
             };
         }
+
         public static uint ReadDoubleWordUsingQuadWord(this IQuadWordPeripheral peripheral, long address)
         {
             unchecked
@@ -1212,7 +1217,6 @@ namespace Antmicro.Renode.Core.Extensions
             peripheral.WriteWord(address, Misc.SwapBytesUShort(value));
         }
 
-
         public static uint ReadDoubleWordBigEndian(this IDoubleWordPeripheral peripheral, long address)
         {
             return Misc.SwapBytesUInt(peripheral.ReadDoubleWord(address));
@@ -1223,7 +1227,6 @@ namespace Antmicro.Renode.Core.Extensions
             peripheral.WriteDoubleWord(address, Misc.SwapBytesUInt(value));
         }
 
-
         public static ulong ReadQuadWordBigEndian(this IQuadWordPeripheral peripheral, long address)
         {
             return Misc.SwapBytesULong(peripheral.ReadQuadWord(address));
@@ -1233,7 +1236,6 @@ namespace Antmicro.Renode.Core.Extensions
         {
             peripheral.WriteQuadWord(address, Misc.SwapBytesULong(value));
         }
-
 
         public static byte ReadByteNotTranslated(this IBusPeripheral peripheral, long address)
         {

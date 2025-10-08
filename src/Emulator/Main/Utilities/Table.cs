@@ -6,8 +6,8 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -16,11 +16,6 @@ namespace Antmicro.Renode.Utilities
         public Table()
         {
             content = new List<string[]>();
-        }
-
-        private Table(List<string[]> content)
-        {
-            this.content = content;
         }
 
         public Table AddRow(params string[] elements)
@@ -53,7 +48,11 @@ namespace Antmicro.Renode.Utilities
             return result;
         }
 
+        private Table(List<string[]> content)
+        {
+            this.content = content;
+        }
+
         private readonly List<string[]> content;
     }
 }
-

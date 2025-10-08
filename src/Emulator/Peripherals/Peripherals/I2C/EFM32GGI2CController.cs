@@ -6,19 +6,18 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.I2C
 {
     public class EFM32GGI2CController : SimpleContainer<II2CPeripheral>, IDoubleWordPeripheral
     {
-
         public EFM32GGI2CController(IMachine machine) : base(machine)
         {
             IRQ = new GPIO();
@@ -164,6 +163,8 @@ namespace Antmicro.Renode.Peripherals.I2C
             txpacket.Clear();
             rxpacket.Clear();
         }
+
+        public GPIO IRQ { get; private set; }
 
         private void HandleCtrl(uint value)
         {
@@ -554,8 +555,6 @@ namespace Antmicro.Renode.Peripherals.I2C
             i2cn_status &= ~((uint)status);
         }
 
-        public GPIO IRQ { get; private set; }
-
         private bool CheckInterrupt(Interrupts interrupt)
         {
             bool result = false;
@@ -615,6 +614,8 @@ namespace Antmicro.Renode.Peripherals.I2C
             UpdateInterrupt();
         }
 
+        private List<byte> rxpacket = new List<byte>();
+
         private uint i2cn_ctrl;
         private uint i2cn_cmd;
         private uint i2cn_state;
@@ -639,8 +640,7 @@ namespace Antmicro.Renode.Peripherals.I2C
         private byte registerAddress;
         private int currentAddress;
 
-        private List<byte> txpacket = new List<byte>();
-        private List<byte> rxpacket = new List<byte>();
+        private readonly List<byte> txpacket = new List<byte>();
 
         // Source: pages 434-445 in EFM32GG Reference Manual
         private enum Registers
@@ -680,7 +680,6 @@ namespace Antmicro.Renode.Peripherals.I2C
             CLTO_0 = 0x16,  // Clock Low Timeout, bit 0
             CLTO_1 = 0x17,  // Clock Low Timeout, bit 1
             CLTO_2 = 0x18   // Clock Low Timeout, bit 2
-
         }
 
         // Values in the Command register (Only bits 0-7 used, 8-31 reserved)
@@ -772,4 +771,3 @@ namespace Antmicro.Renode.Peripherals.I2C
         }
     }
 }
-

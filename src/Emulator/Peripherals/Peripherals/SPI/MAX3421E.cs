@@ -6,17 +6,17 @@
 //
 
 using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Core.USB;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus.Wrappers;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Packets;
-using System.Threading;
-using Antmicro.Renode.Peripherals.Bus.Wrappers;
 
 namespace Antmicro.Renode.Peripherals.SPI
 {
@@ -178,7 +178,6 @@ namespace Antmicro.Renode.Peripherals.SPI
                             return 0;
                         }
                         return sendQueue.Dequeue();
-
                     },
                     writeCallback: (_, val) =>
                     {
@@ -200,7 +199,6 @@ namespace Antmicro.Renode.Peripherals.SPI
                         return 0;
                     }
                     return setupQueue.Dequeue();
-
                 },
                 writeCallback: (_, val) =>
                 {
@@ -369,16 +367,16 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             switch(dir)
             {
-                case CommandDirection.Write:
-                    state = State.Writing;
-                    break;
+            case CommandDirection.Write:
+                state = State.Writing;
+                break;
 
-                case CommandDirection.Read:
-                    state = State.Reading;
-                    break;
+            case CommandDirection.Read:
+                state = State.Reading;
+                break;
 
-                default:
-                    throw new ArgumentException("Unsupported command direction");
+            default:
+                throw new ArgumentException("Unsupported command direction");
             }
         }
 

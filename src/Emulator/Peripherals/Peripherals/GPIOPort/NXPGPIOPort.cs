@@ -5,8 +5,9 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -289,22 +290,22 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         {
             switch(type)
             {
-                case InterruptConfiguration.InterruptWhenLow:
-                    return GPIOInterruptManager.InterruptTrigger.ActiveLow;
-                case InterruptConfiguration.InterruptFallingEdge:
-                    return GPIOInterruptManager.InterruptTrigger.FallingEdge;
-                case InterruptConfiguration.InterruptRisingEdge:
-                    return GPIOInterruptManager.InterruptTrigger.RisingEdge;
-                case InterruptConfiguration.InterruptEitherEdge:
-                    return GPIOInterruptManager.InterruptTrigger.BothEdges;
-                case InterruptConfiguration.InterruptWhenHigh:
-                    return GPIOInterruptManager.InterruptTrigger.ActiveHigh;
-                case InterruptConfiguration.Disabled:
-                    // we have to return something, so we return ActiveLow - but it should not be relevant
-                    return GPIOInterruptManager.InterruptTrigger.ActiveLow;
-                default:
-                    this.Log(LogLevel.Error, "Unsupported interrupt configuration: {0}", type);
-                    return GPIOInterruptManager.InterruptTrigger.ActiveLow;
+            case InterruptConfiguration.InterruptWhenLow:
+                return GPIOInterruptManager.InterruptTrigger.ActiveLow;
+            case InterruptConfiguration.InterruptFallingEdge:
+                return GPIOInterruptManager.InterruptTrigger.FallingEdge;
+            case InterruptConfiguration.InterruptRisingEdge:
+                return GPIOInterruptManager.InterruptTrigger.RisingEdge;
+            case InterruptConfiguration.InterruptEitherEdge:
+                return GPIOInterruptManager.InterruptTrigger.BothEdges;
+            case InterruptConfiguration.InterruptWhenHigh:
+                return GPIOInterruptManager.InterruptTrigger.ActiveHigh;
+            case InterruptConfiguration.Disabled:
+                // we have to return something, so we return ActiveLow - but it should not be relevant
+                return GPIOInterruptManager.InterruptTrigger.ActiveLow;
+            default:
+                this.Log(LogLevel.Error, "Unsupported interrupt configuration: {0}", type);
+                return GPIOInterruptManager.InterruptTrigger.ActiveLow;
             }
         }
 

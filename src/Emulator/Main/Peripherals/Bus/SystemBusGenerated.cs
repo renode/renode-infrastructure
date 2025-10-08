@@ -8,11 +8,11 @@
 */
 
 using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus.Wrappers;
-using Antmicro.Renode.Peripherals.CPU;
 
 using Range = Antmicro.Renode.Core.Range;
 
@@ -586,7 +586,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             var type = typeof(T);
             if(type == typeof(byte))
             {
-                foreach(var peripherals in allPeripherals)
+                foreach(var peripherals in AllPeripherals)
                 {
                     peripherals.VisitAccessMethods(peripheral, pam =>
                     {
@@ -605,7 +605,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
             if(type == typeof(ushort))
             {
-                foreach(var peripherals in allPeripherals)
+                foreach(var peripherals in AllPeripherals)
                 {
                     peripherals.VisitAccessMethods(peripheral, pam =>
                     {
@@ -624,7 +624,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
             if(type == typeof(uint))
             {
-                foreach(var peripherals in allPeripherals)
+                foreach(var peripherals in AllPeripherals)
                 {
                     peripherals.VisitAccessMethods(peripheral, pam =>
                     {
@@ -643,7 +643,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
             if(type == typeof(ulong))
             {
-                foreach(var peripherals in allPeripherals)
+                foreach(var peripherals in AllPeripherals)
                 {
                     peripherals.VisitAccessMethods(peripheral, pam =>
                     {
@@ -676,7 +676,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             var type = typeof(T);
             if(type == typeof(byte))
             {
-                foreach(var peripherals in allPeripherals)
+                foreach(var peripherals in AllPeripherals)
                 {
                     peripherals.VisitAccessMethods(peripheral, pam =>
                     {
@@ -695,7 +695,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
             if(type == typeof(ushort))
             {
-                foreach(var peripherals in allPeripherals)
+                foreach(var peripherals in AllPeripherals)
                 {
                     peripherals.VisitAccessMethods(peripheral, pam =>
                     {
@@ -714,7 +714,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
             if(type == typeof(uint))
             {
-                foreach(var peripherals in allPeripherals)
+                foreach(var peripherals in AllPeripherals)
                 {
                     peripherals.VisitAccessMethods(peripheral, pam =>
                     {
@@ -733,7 +733,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
             if(type == typeof(ulong))
             {
-                foreach(var peripherals in allPeripherals)
+                foreach(var peripherals in AllPeripherals)
                 {
                     peripherals.VisitAccessMethods(peripheral, pam =>
                     {

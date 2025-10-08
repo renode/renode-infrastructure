@@ -6,8 +6,8 @@
 //
 
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Peripherals.I2C;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Mocks
 {

@@ -6,6 +6,7 @@
 //
 
 using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -34,12 +35,12 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             {
                 switch(version)
                 {
-                    case Version.Default:
-                        return 0x10;
-                    case Version.RA8:
-                        return 0x20;
-                    default:
-                        throw new Exception("unreachable");
+                case Version.Default:
+                    return 0x10;
+                case Version.RA8:
+                    return 0x20;
+                default:
+                    throw new Exception("unreachable");
                 }
             }
         }
@@ -48,14 +49,14 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         {
             switch(version)
             {
-                case Version.Default:
-                    DefineRegistersDefault();
-                    break;
-                case Version.RA8:
-                    DefineRegistersRA8();
-                    break;
-                default:
-                    throw new Exception("unreachable");
+            case Version.Default:
+                DefineRegistersDefault();
+                break;
+            case Version.RA8:
+                DefineRegistersRA8();
+                break;
+            default:
+                throw new Exception("unreachable");
             }
         }
 

@@ -4,17 +4,17 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Endianess = ELFSharp.ELF.Endianess;
+using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals.IRQControllers;
-using System.Collections.Generic;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
     [GPIO(NumberOfInputs = 1)]
     public partial class X86_64 : BaseX86
     {
-        public X86_64(string cpuType, IMachine machine, LAPIC lapic): base(cpuType, machine, lapic, CpuBitness.Bits64)
+        public X86_64(string cpuType, IMachine machine, LAPIC lapic) : base(cpuType, machine, lapic, CpuBitness.Bits64)
         {
         }
 
@@ -74,4 +74,3 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
     }
 }
-

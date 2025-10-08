@@ -7,12 +7,14 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using Antmicro.Renode.Utilities.Collections;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Logging;
+#pragma warning disable IDE0005
+using Antmicro.Renode.Utilities;
+#pragma warning restore IDE0005
+using Antmicro.Renode.Utilities.Collections;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
@@ -30,7 +32,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             packetFifos = new PacketFifoBase[NumberOfQueues];
 
-            for(var i = 0; i < NumberOfRegularQueues; i ++)
+            for(var i = 0; i < NumberOfRegularQueues; i++)
             {
                 packetFifos[i] = new PacketFifo(this, queueNames[i], fifoSizes[i]);
             }
@@ -59,7 +61,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     .WithFlag(i + 0x2, out popMux[i / 8], writeCallback: WarnUnsupportedMux, name: queueNames[i / 8] + "_pop_mux")
                     .WithFlag(i + 0x3, out pushIntMux[i / 8], writeCallback: WarnUnsupportedMux, name: queueNames[i / 8] + "_push_int_mux")
                     .WithFlag(i + 0x4, out popIntMux[i / 8], writeCallback: WarnUnsupportedMux, name: queueNames[i / 8] + "_pop_int_mux")
-                    .WithTaggedFlag(queueNames[i/8] + "_ffe_sel", i + 0x5);
+                    .WithTaggedFlag(queueNames[i / 8] + "_ffe_sel", i + 0x5);
             }
             loopHelper.WithReservedBits(30, 2);
 
@@ -67,12 +69,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             for(var i = 0; i < 31; i += 8)
             {
                 loopHelper
-                    .WithValueField(i + 0x0, 2, valueProviderCallback: _ => 0x0, name: queueNames[i / 8] + "_sram_sleep" ) //will never sleep
+                    .WithValueField(i + 0x0, 2, valueProviderCallback: _ => 0x0, name: queueNames[i / 8] + "_sram_sleep") //will never sleep
                     .WithFlag(i + 0x2, out packetFifos[i / 8].Overflow, FieldMode.WriteOneToClear | FieldMode.Read, writeCallback: UpdateIRQWrapper, name: queueNames[i / 8] + "_push_int_over")
-                    .WithFlag(i + 0x3, out packetFifos[i / 8].PushThreshold, FieldMode.Read, name:  queueNames[i / 8] + "_push_int_thresh")
+                    .WithFlag(i + 0x3, out packetFifos[i / 8].PushThreshold, FieldMode.Read, name: queueNames[i / 8] + "_push_int_thresh")
                     .WithFlag(i + 0x4, out packetFifos[i / 8].PushOnSleep, FieldMode.WriteOneToClear | FieldMode.Read, writeCallback: UpdateIRQWrapper, name: queueNames[i / 8] + "_push_int_sleep")
                     .WithFlag(i + 0x5, out packetFifos[i / 8].Underflow, FieldMode.WriteOneToClear | FieldMode.Read, writeCallback: UpdateIRQWrapper, name: queueNames[i / 8] + "_pop_int_under")
-                    .WithFlag(i + 0x6, out packetFifos[i / 8].PopThreshold, FieldMode.Read, name:  queueNames[i / 8] + "_pop_int_thresh")
+                    .WithFlag(i + 0x6, out packetFifos[i / 8].PopThreshold, FieldMode.Read, name: queueNames[i / 8] + "_pop_int_thresh")
                     .WithFlag(i + 0x7, out packetFifos[i / 8].PopOnSleep, FieldMode.WriteOneToClear | FieldMode.Read, writeCallback: UpdateIRQWrapper, name: queueNames[i / 8] + "_pop_int_sleep");
             }
 
@@ -101,8 +103,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithTaggedFlag(queueNames[3] + "_pop_sleep_type", 0x1)
                 .WithFlag(0x2, flagField: out packetFifos[3].PopUnderMask, writeCallback: UpdateIRQWrapper, name: queueNames[3] + "_pop_int_en_under")
                 .WithFlag(0x3, flagField: out packetFifos[3].PopThresholdMask, writeCallback: UpdateIRQWrapper, name: queueNames[3] + "_pop_int_en_thresh")
-                .WithFlag(0x5, writeCallback: ((PacketFifoSwitchable) packetFifos[3]).EnableFifoMode, valueProviderCallback: _ => ((PacketFifoSwitchable) packetFifos[3]).pf8kFifoMode, name: queueNames[3] + "_fifo_pkt_mode")
-                .WithFlag(0x6, writeCallback: ((PacketFifoSwitchable) packetFifos[3]).EnableRingMode, valueProviderCallback: _ => ((PacketFifoSwitchable) packetFifos[3]).pf8kRingBuffMode, name: queueNames[3] + "_fifo_ring_buff_mode")
+                .WithFlag(0x5, writeCallback: ((PacketFifoSwitchable)packetFifos[3]).EnableFifoMode, valueProviderCallback: _ => ((PacketFifoSwitchable)packetFifos[3]).Pf8kFifoMode, name: queueNames[3] + "_fifo_pkt_mode")
+                .WithFlag(0x6, writeCallback: ((PacketFifoSwitchable)packetFifos[3]).EnableRingMode, valueProviderCallback: _ => ((PacketFifoSwitchable)packetFifos[3]).Pf8kRingBuffMode, name: queueNames[3] + "_fifo_ring_buff_mode")
                 .WithValueField(0x10, 13, out packetFifos[3].PopThresholdLevel, name: queueNames[3] + "_pop_thresh")
                 .WithReservedBits(29, 3);
 
@@ -129,7 +131,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(18, 14);
         }
 
-
         private void WarnUnsupportedMux(bool _, bool value)
         {
             if(value)
@@ -151,61 +152,28 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     || queue.PushThresholdMask.Value && queue.PushThreshold.Value
                     || queue.PopUnderMask.Value && queue.Underflow.Value
                     || queue.PopThresholdMask.Value && queue.PopThreshold.Value)
-                    {
-                        IRQ.Set(true);
-                        return;
-                    }
+                {
+                    IRQ.Set(true);
+                    return;
+                }
             }
             IRQ.Unset();
         }
 
-        private PacketFifoBase[] packetFifos;
+        private readonly Dictionary<long, string> queueNames;
+
+        private readonly IFlagRegisterField[] enable = new IFlagRegisterField[4];
+        private readonly IFlagRegisterField[] pushMux = new IFlagRegisterField[4];
+        private readonly IFlagRegisterField[] popMux = new IFlagRegisterField[4];
+        private readonly IFlagRegisterField[] pushIntMux = new IFlagRegisterField[4];
+        private readonly IFlagRegisterField[] popIntMux = new IFlagRegisterField[4];
+
+        private readonly PacketFifoBase[] packetFifos;
 
         private readonly int[] fifoSizes = {256, 128, 128, 4096};
 
-        private Dictionary<long, string> queueNames;
-
-        private IFlagRegisterField[] enable = new IFlagRegisterField[4];
-        private IFlagRegisterField[] pushMux = new IFlagRegisterField[4];
-        private IFlagRegisterField[] popMux = new IFlagRegisterField[4];
-        private IFlagRegisterField[] pushIntMux = new IFlagRegisterField[4];
-        private IFlagRegisterField[] popIntMux = new IFlagRegisterField[4];
-
         private const int NumberOfQueues = 4;
         private const int NumberOfRegularQueues = 3;
-
-        private abstract class PacketFifoBase
-        {
-            public PacketFifoBase(EOSS3_PacketFIFO parent, string name, int size)
-            {
-                this.parent = parent;
-                this.name = name;
-                this.size = size;
-            }
-
-            public abstract void EnqueueCallback(uint _, uint value);
-            public abstract uint DequeueCallback(uint _);
-
-            public abstract int Count { get; protected set;}
-
-            public IFlagRegisterField PushOverMask; //mask on 0, enable on 1
-            public IFlagRegisterField PushThresholdMask;
-            public IValueRegisterField PushThresholdLevel;
-            public IFlagRegisterField PopUnderMask;
-            public IFlagRegisterField PopThresholdMask;
-            public IValueRegisterField PopThresholdLevel;
-
-            public IFlagRegisterField Overflow;
-            public IFlagRegisterField Underflow;
-            public IFlagRegisterField PushThreshold;
-            public IFlagRegisterField PushOnSleep;
-            public IFlagRegisterField PopThreshold;
-            public IFlagRegisterField PopOnSleep; //no collision, as it is not simulated
-
-            protected String name;
-            protected int size;
-            protected EOSS3_PacketFIFO parent;
-        }
 
         private class PacketFifo : PacketFifoBase
         {
@@ -262,11 +230,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             public override int Count
             {
-                get {return fifo.Count;}
-                protected set {}
+                get { return fifo.Count; }
+                protected set { }
             }
 
-            private Queue<UInt32> fifo;
+            private readonly Queue<UInt32> fifo;
         }
 
         private class PacketFifoSwitchable : PacketFifoBase
@@ -279,10 +247,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             public void EnableFifoMode(bool _, bool value)
             {
-                pf8kFifoMode = value;
-                if(value && !pf8kRingBuffMode)
+                Pf8kFifoMode = value;
+                if(value && !Pf8kRingBuffMode)
                 {
-                    pf3QueueMode = new Queue<UInt16> (pf3BufferMode);
+                    pf3QueueMode = new Queue<UInt16>(pf3BufferMode);
 
                     parent.Log(LogLevel.Noisy, "Switched {0} to FIFO mode", name);
                 }
@@ -290,11 +258,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             public void EnableRingMode(bool _, bool value)
             {
-                pf8kRingBuffMode = value;
-                if(value && !pf8kFifoMode)
+                Pf8kRingBuffMode = value;
+                if(value && !Pf8kFifoMode)
                 {
                     var size = Math.Max(pf3QueueMode.Count, 4096);
-                    pf3BufferMode = new CircularBuffer<UInt16> (size);
+                    pf3BufferMode = new CircularBuffer<UInt16>(size);
 
                     foreach(var element in pf3QueueMode)
                     {
@@ -309,7 +277,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 PopThreshold.Value = false;
 
-                if(pf8kRingBuffMode && !pf8kFifoMode)
+                if(Pf8kRingBuffMode && !Pf8kFifoMode)
                 {
                     pf3BufferMode.Enqueue((ushort)value);
                     if(pf3BufferMode.Count >= (int)PushThresholdLevel.Value)
@@ -322,7 +290,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         parent.Log(LogLevel.Warning, "Cannot push {0}: maximum size exceeded.", name);
                     }
                 }
-                else if(!pf8kRingBuffMode && pf8kFifoMode)
+                else if(!Pf8kRingBuffMode && Pf8kFifoMode)
                 {
                     pf3QueueMode.Enqueue((ushort)value);
                     if(pf3QueueMode.Count >= (int)PushThresholdLevel.Value)
@@ -351,7 +319,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 PushThreshold.Value = false;
 
-                if(pf8kRingBuffMode && !pf8kFifoMode)
+                if(Pf8kRingBuffMode && !Pf8kFifoMode)
                 {
                     if(pf3BufferMode.Count == 0)
                     {
@@ -372,7 +340,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     parent.UpdateIRQ();
                     return pf3BufferMode.TryDequeue(out var ret) ? ret : 0u;
                 }
-                else if(!pf8kRingBuffMode && pf8kFifoMode)
+                else if(!Pf8kRingBuffMode && Pf8kFifoMode)
                 {
                     if(pf3QueueMode.Count == 0)
                     {
@@ -405,23 +373,58 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 get
                 {
-                    if(pf8kFifoMode)
+                    if(Pf8kFifoMode)
                     {
                         return pf3QueueMode.Count;
                     }
-                    if(pf8kRingBuffMode)
+                    if(Pf8kRingBuffMode)
                     {
                         return pf3BufferMode.Count;
                     }
                     return 0;
                 }
-                protected set {}
+
+                protected set { }
             }
 
-            public bool pf8kFifoMode;
-            public bool pf8kRingBuffMode;
+            public bool Pf8kFifoMode;
+            public bool Pf8kRingBuffMode;
             private Queue<UInt16> pf3QueueMode;
             private CircularBuffer<UInt16> pf3BufferMode;
+        }
+
+        private abstract class PacketFifoBase
+        {
+            public PacketFifoBase(EOSS3_PacketFIFO parent, string name, int size)
+            {
+                this.parent = parent;
+                this.name = name;
+                this.size = size;
+            }
+
+            public abstract void EnqueueCallback(uint _, uint value);
+
+            public abstract uint DequeueCallback(uint _);
+
+            public abstract int Count { get; protected set; }
+
+            public IFlagRegisterField PushOverMask; //mask on 0, enable on 1
+            public IFlagRegisterField PushThresholdMask;
+            public IValueRegisterField PushThresholdLevel;
+            public IFlagRegisterField PopUnderMask;
+            public IFlagRegisterField PopThresholdMask;
+            public IValueRegisterField PopThresholdLevel;
+
+            public IFlagRegisterField Overflow;
+            public IFlagRegisterField Underflow;
+            public IFlagRegisterField PushThreshold;
+            public IFlagRegisterField PushOnSleep;
+            public IFlagRegisterField PopThreshold;
+            public IFlagRegisterField PopOnSleep; //no collision, as it is not simulated
+
+            protected String name;
+            protected int size;
+            protected EOSS3_PacketFIFO parent;
         }
 
         private enum EPushMux

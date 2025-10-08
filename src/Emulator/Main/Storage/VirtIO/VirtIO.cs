@@ -7,15 +7,15 @@
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Storage.VirtIO
 {
     public abstract class VirtIO : BasicDoubleWordPeripheral, IKnownSize
     {
-        public VirtIO(IMachine machine) : base(machine) {}
+        public VirtIO(IMachine machine) : base(machine) { }
 
         public void InterruptUsedBuffer()
         {
@@ -38,19 +38,22 @@ namespace Antmicro.Renode.Storage.VirtIO
 
         public abstract bool ProcessChain(Virtqueue vqueue);
 
+        public Virtqueue[] Virtqueues { set; get; }
+
+        public uint QueueSel { set; get; }
+
+        public long Size => 0x150;
+
+        public GPIO IRQ { get; } = new GPIO();
+
+        public IBusController SystemBus => sysbus;
+
         protected void UpdateInterrupts()
         {
             var newVal = hasUsedBuffer.Value || configHasChanged.Value;
             this.Log(LogLevel.Debug, "Updating IRQ to {0}", newVal);
             IRQ.Set(newVal);
         }
-
-        public Virtqueue[] Virtqueues { set; get; }
-        public uint QueueSel { set; get; }
-        public long Size => 0x150;
-        public GPIO IRQ { get; } = new GPIO();
-
-        public IBusController SystemBus => sysbus;
 
         protected bool IsFeatureEnabled(byte feature)
         {
@@ -71,7 +74,8 @@ namespace Antmicro.Renode.Storage.VirtIO
         protected IFlagRegisterField hasUsedBuffer;
         protected IFlagRegisterField configHasChanged;
 
-        protected enum DeviceType {
+        protected enum DeviceType
+        {
             Reserved = 0,
             NetworkCard = 1,
             BlockDevice = 2,

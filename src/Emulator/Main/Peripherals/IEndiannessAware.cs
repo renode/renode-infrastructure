@@ -6,6 +6,7 @@
 //
 
 using Antmicro.Renode.Peripherals.Bus;
+
 using ELFSharp.ELF;
 
 namespace Antmicro.Renode.Peripherals

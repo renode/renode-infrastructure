@@ -6,12 +6,13 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
-using Antmicro.Renode.Peripherals.SPI;
-using System.Collections.Generic;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Network;
+using Antmicro.Renode.Peripherals.SPI;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Network
@@ -28,14 +29,10 @@ namespace Antmicro.Renode.Peripherals.Network
             IRQ = new GPIO();
         }
 
-        public GPIO IRQ { get; private set; }
-
         public void Reset()
         {
             interruptsEnabled = true;
         }
-
-        public MACAddress MAC { get; set; }
 
         public void ReceiveFrame(EthernetFrame frame)
         {
@@ -69,7 +66,7 @@ namespace Antmicro.Renode.Peripherals.Network
             }
         RESULT:
             var result = response[counter];
-            counter = (counter + 1)%currentLength;
+            counter = (counter + 1) % currentLength;
             if(counter == 0)
             {
                 Finished();
@@ -90,6 +87,10 @@ namespace Antmicro.Renode.Peripherals.Network
             IRQ.Set(true);
             IRQ.Set(false);
         }
+
+        public GPIO IRQ { get; private set; }
+
+        public MACAddress MAC { get; set; }
 
         public event Action<EthernetFrame> FrameReady;
 
@@ -186,7 +187,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 this.DebugLog("Interrupts enabled.");
                 break;
             }
-            response[2] = (byte)responseShort; 
+            response[2] = (byte)responseShort;
             response[3] = (byte)(responseShort >> 8);
         }
 
@@ -278,4 +279,3 @@ namespace Antmicro.Renode.Peripherals.Network
         }
     }
 }
-

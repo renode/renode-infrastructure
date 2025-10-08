@@ -6,25 +6,22 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Storage;
-using Antmicro.Renode.Utilities;
-using System.IO;
-using Antmicro.Renode.Core;
 
 namespace Antmicro.Renode.Peripherals.SD
 {
     public sealed class SDHCI : IBytePeripheral, IWordPeripheral, IDoubleWordPeripheral, IDisposable
-    {        
+    {
         public SDHCI(/*string fileName, int size, BusWidth bits = BusWidth.Bits32, bool nonPersistent = false*/)
         {
         }
-        
+
         public byte ReadByte(long offset)
         {
-                this.LogUnhandledRead(offset);
-                return 0;
+            this.LogUnhandledRead(offset);
+            return 0;
         }
 
         public ushort ReadWord(long offset)
@@ -35,13 +32,14 @@ namespace Antmicro.Renode.Peripherals.SD
 
         public uint ReadDoubleWord(long offset)
         {
-            switch (offset) {
-                case 0x24: // SDHC_PRNSTS
-                        this.Log(LogLevel.Warning, "Read from 0x24 - SDHC_PRNSTS");
-                        return 0xFFFFFFFF;
-                default:
-                        this.LogUnhandledRead(offset);
-                        break;
+            switch(offset)
+            {
+            case 0x24: // SDHC_PRNSTS
+                this.Log(LogLevel.Warning, "Read from 0x24 - SDHC_PRNSTS");
+                return 0xFFFFFFFF;
+            default:
+                this.LogUnhandledRead(offset);
+                break;
             }
             return 0;
         }
@@ -64,11 +62,9 @@ namespace Antmicro.Renode.Peripherals.SD
         public void Reset()
         {
         }
-        
+
         public void Dispose()
         {
         }
-        
     }
 }
-

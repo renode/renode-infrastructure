@@ -5,15 +5,19 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using AntShell.Terminal;
+
 using Antmicro.Renode.Utilities;
+
+using AntShell.Terminal;
 
 namespace Antmicro.Renode.UI
 {
     public interface IConsoleBackendAnalyzerProvider : IAutoLoadType
     {
         bool TryOpen(string consoleName, out IIOSource io, bool isMonitorWindow = false);
+
         void Close();
+
         event Action OnClose;
     }
 
@@ -25,6 +29,5 @@ namespace Antmicro.Renode.UI
         }
 
         public string Name { get; private set; }
-
     }
 }

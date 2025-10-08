@@ -14,7 +14,7 @@ using Antmicro.Renode.Peripherals.Sensor;
 
 namespace Antmicro.Renode.Peripherals.Sensors
 {
-    public class PULP_uDMA_Camera: NullRegistrationPointPeripheralContainer<ICPIPeripheral>, IDoubleWordPeripheral, IKnownSize, IProvidesRegisterCollection<DoubleWordRegisterCollection>
+    public class PULP_uDMA_Camera : NullRegistrationPointPeripheralContainer<ICPIPeripheral>, IDoubleWordPeripheral, IKnownSize, IProvidesRegisterCollection<DoubleWordRegisterCollection>
     {
         public PULP_uDMA_Camera(IMachine machine) : base(machine)
         {
@@ -83,7 +83,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 {
                     // write-one-to-clear means that this bit is automatically
                     // cleared after writing
-                    
+
                     if(!val)
                     {
                         return;

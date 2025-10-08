@@ -5,11 +5,8 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System;
-using System.Collections.Generic;
-using Antmicro.Renode.Peripherals;
-using Antmicro.Renode.Peripherals.SPI;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Peripherals.SPI;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Extensions.Mocks
@@ -49,7 +46,7 @@ namespace Antmicro.Renode.Extensions.Mocks
         public byte[] ReadBytes(int count)
         {
             var returnedData = new byte[count];
-            for(var index = 0; index < count ; index++)
+            for(var index = 0; index < count; index++)
             {
                 // This will block the monitor until finished.
                 returnedData[index] = device.Transmit(0);

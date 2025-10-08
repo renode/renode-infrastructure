@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Utilities;
@@ -19,7 +20,7 @@ namespace Antmicro.Renode.Storage.VirtIO
         public Virtqueue(VirtIO parent, uint maxSize)
         {
             this.parent = parent;
-            this.maxSize = maxSize;
+            this.MaxSize = maxSize;
         }
 
         public void Reset()
@@ -172,17 +173,26 @@ namespace Antmicro.Renode.Storage.VirtIO
         public ulong AvailableAddress { get; set; }
         /// Guest physical address of the used ring.
         public ulong UsedAddress { get; set; }
+
         public int DescriptorIndex { get; set; }
+
         public ulong AvailableIndex { get; set; }
+
         public ulong AvailableIndexFromDriver { get; set; }
+
         public ulong UsedIndex { get; set; }
+
         public ulong UsedIndexForDriver { get; set; }
+
         public bool IsReady { get; set; }
+
         public bool IsReset { get; set; }
+
         public DescriptorMetadata Descriptor { get; set; }
+
         public int BytesWritten { get; set; }
 
-        public readonly uint maxSize;
+        public readonly uint MaxSize;
 
         public const uint AvailableRingEntrySize = 0x2;
         public const uint UsedRingEntrySize = 0x8;
@@ -226,6 +236,19 @@ namespace Antmicro.Renode.Storage.VirtIO
         private readonly VirtIO parent;
         private const int DescriptorSizeOffset = 0x12;
 
+        [LeastSignificantByteFirst]
+        public struct DescriptorMetadata
+        {
+            [PacketField, Width(64)]
+            public ulong BufferAddress;
+            [PacketField, Offset(doubleWords: 2), Width(32)]
+            public int Length;
+            [PacketField, Offset(doubleWords: 3), Width(16)]
+            public ushort Flags;
+            [PacketField, Offset(doubleWords: 3, bits: 16), Width(16)]
+            public ushort Next;
+        }
+
         // Used and Available have the same structure. The main difference is type of elements used in ring arrays.
         // In Available it's only a 16bit number. In Used it's a structure described in UsedRing enum.
         public enum UsedAndAvailable
@@ -242,7 +265,7 @@ namespace Antmicro.Renode.Storage.VirtIO
         }
 
         [Flags]
-        public enum DescriptorFlags: ushort
+        public enum DescriptorFlags : ushort
         {
             Next = 1 << 0,
             Write = 1 << 1,
@@ -250,22 +273,9 @@ namespace Antmicro.Renode.Storage.VirtIO
         }
 
         [Flags]
-        public enum UsedAndAvailableFlags: ushort
+        public enum UsedAndAvailableFlags : ushort
         {
             NoNotify = 1 << 0,
-        }
-
-        [LeastSignificantByteFirst]
-        public struct DescriptorMetadata
-        {
-            [PacketField, Width(64)]
-            public ulong BufferAddress;
-            [PacketField, Offset(doubleWords: 2), Width(32)]
-            public int Length;
-            [PacketField, Offset(doubleWords: 3), Width(16)]
-            public ushort Flags;
-            [PacketField, Offset(doubleWords: 3, bits: 16), Width(16)]
-            public ushort Next;
         }
     }
 }

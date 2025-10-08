@@ -6,7 +6,9 @@
 //
 
 using System;
+#pragma warning disable IDE0005
 using System.Reflection;
+#pragma warning restore IDE0005
 using System.Runtime.InteropServices;
 
 namespace Antmicro.Renode.Core
@@ -35,20 +37,20 @@ namespace Antmicro.Renode.Core
             get
             {
 #if NET
-                return OperatingSystem.IsLinux() ? "Linux" 
-                    : OperatingSystem.IsWindows() ? "Windows" 
-                    : OperatingSystem.IsMacOS() ? "MacOS" 
+                return OperatingSystem.IsLinux() ? "Linux"
+                    : OperatingSystem.IsWindows() ? "Windows"
+                    : OperatingSystem.IsMacOS() ? "MacOS"
                     : "Unknown Platform";
 #else
-    #if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS
                 return "Windows";
-    #elif PLATFORM_LINUX
+#elif PLATFORM_LINUX
                 return "Linux";
-    #elif PLATFORM_OSX
+#elif PLATFORM_OSX
                 return "MacOS";
-    #else
+#else
                 return "Unknown Platform";
-    #endif
+#endif
 #endif
             }
         }
@@ -62,7 +64,6 @@ namespace Antmicro.Renode.Core
 #else
                 return "X64";
 #endif
-
 
             }
         }

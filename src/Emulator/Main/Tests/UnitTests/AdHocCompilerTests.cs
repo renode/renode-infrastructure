@@ -5,9 +5,10 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Linq;
-using System;
-using NUnit.Framework;
+
 using Antmicro.Renode.Core;
+
+using NUnit.Framework;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -46,6 +47,6 @@ namespace Antmicro.Renode.Utilities
 
         private AdHocCompiler adhoc;
         private TypeManager manager;
-        private string file; 
+        private string file;
     }
 }

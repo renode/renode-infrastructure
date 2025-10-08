@@ -6,7 +6,6 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Core;
 
 using Range = Antmicro.Renode.Core.Range;
 
@@ -21,14 +20,6 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
             this.newMethod = newMethod;
         }
 
-        public Action<long, T> OriginalMethod
-        {
-            get
-            {
-                return originalMethod;
-            }
-        }
-
         public virtual void Write(long offset, T value)
         {
             if(Subrange != null && !Subrange.Value.Contains(checked((ulong)offset)))
@@ -40,8 +31,15 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
             originalMethod(offset, modifiedValue);
         }
 
+        public Action<long, T> OriginalMethod
+        {
+            get
+            {
+                return originalMethod;
+            }
+        }
+
         private readonly Action<long, T> originalMethod;
         private readonly Func<T, long, T> newMethod;
     }
 }
-

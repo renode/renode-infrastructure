@@ -17,12 +17,6 @@ namespace Antmicro.Renode.UnitTests.Mocks
         {
         }
 
-        public string Placeholder { get; set; }
-
-        public TwoStateEnum EnumValue { get; set; }
-
-        public ICPU OtherCpu { get; set; }
-
         public override void Load(PrimitiveReader reader)
         {
             var present = reader.ReadBoolean();
@@ -41,6 +35,11 @@ namespace Antmicro.Renode.UnitTests.Mocks
                 writer.Write(Placeholder);
             }
         }
+
+        public string Placeholder { get; set; }
+
+        public TwoStateEnum EnumValue { get; set; }
+
+        public ICPU OtherCpu { get; set; }
     }
 }
-

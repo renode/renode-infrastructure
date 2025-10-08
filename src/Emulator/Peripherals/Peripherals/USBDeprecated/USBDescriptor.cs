@@ -5,37 +5,15 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
     public abstract class USBDescriptor
     {
-
         public USBDescriptor()
         {
-
         }
-
-        private byte length;
-
-        public byte Length
-        {
-            get
-            {
-                return length;
-            }
-            set
-            {
-                length = value;
-                array = new byte[value];
-            }
-        }
-
-        public DescriptorType Type{ get; set; }
-
-        byte[] array;
 
         public virtual byte[] ToArray()
         {
@@ -43,6 +21,26 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             array[0x1] = (byte)Type;
             return array;
         }
+
+        public byte Length
+        {
+            get
+            {
+                return length;
+            }
+
+            set
+            {
+                length = value;
+                array = new byte[value];
+            }
+        }
+
+        public DescriptorType Type { get; set; }
+
+        private byte length;
+
+        byte[] array;
     }
 
     public class StandardUSBDescriptor : USBDescriptor
@@ -52,30 +50,6 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             Type = DescriptorType.Device;
             Length = 0x12;
         }
-
-        public ushort USB{ get; set; }
-
-        public byte DeviceClass{ get; set; }
-
-        public byte DeviceSubClass{ get; set; }
-
-        public byte DeviceProtocol{ get; set; }
-
-        public byte MaxPacketSize{ get; set; }
-
-        public ushort VendorId{ get; set; }
-
-        public ushort ProductId{ get; set; }
-
-        public ushort Device{ get; set; }
-
-        public byte ManufacturerIndex{ get; set; }
-
-        public byte ProductIndex{ get; set; }
-
-        public byte SerialNumberIndex{ get; set; }
-
-        public byte NumberOfConfigurations{ get; set; }
 
         public override byte[] ToArray()
         {
@@ -98,27 +72,39 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             arr[0x11] = NumberOfConfigurations;
             return arr;
         }
+
+        public ushort USB { get; set; }
+
+        public byte DeviceClass { get; set; }
+
+        public byte DeviceSubClass { get; set; }
+
+        public byte DeviceProtocol { get; set; }
+
+        public byte MaxPacketSize { get; set; }
+
+        public ushort VendorId { get; set; }
+
+        public ushort ProductId { get; set; }
+
+        public ushort Device { get; set; }
+
+        public byte ManufacturerIndex { get; set; }
+
+        public byte ProductIndex { get; set; }
+
+        public byte SerialNumberIndex { get; set; }
+
+        public byte NumberOfConfigurations { get; set; }
     }
 
-    public class DeviceQualifierUSBDescriptor:USBDescriptor
+    public class DeviceQualifierUSBDescriptor : USBDescriptor
     {
         public DeviceQualifierUSBDescriptor()
         {
             Type = DescriptorType.DeviceQualifier;
             Length = 0xA;
         }
-
-        public ushort USB{ get; set; }
-
-        public byte DeviceClass{ get; set; }
-
-        public byte DeviceSubClass{ get; set; }
-
-        public byte DeviceProtocol{ get; set; }
-
-        public byte MaxPacketSize{ get; set; }
-
-        public byte NumberOfConfigurations{ get; set; }
         //+1 byte reserved
 
         public override byte[] ToArray()
@@ -135,9 +121,21 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             //Reserved
             return arr;
         }
+
+        public ushort USB { get; set; }
+
+        public byte DeviceClass { get; set; }
+
+        public byte DeviceSubClass { get; set; }
+
+        public byte DeviceProtocol { get; set; }
+
+        public byte MaxPacketSize { get; set; }
+
+        public byte NumberOfConfigurations { get; set; }
     }
 
-    public class ConfigurationUSBDescriptor:USBDescriptor
+    public class ConfigurationUSBDescriptor : USBDescriptor
     {
         public ConfigurationUSBDescriptor()
         {
@@ -145,43 +143,13 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             Length = 0x9;
         }
 
-        public ushort TotalLength{ get; set; }
-
-        public byte NumberOfInterfaces{ get; set; }
-
-        public byte ConfigurationValue{ get; set; }
-
-        public byte ConfigurationIndex{ get; set; }
-
-        public bool SelfPowered { get; set; }
-
-        public bool RemoteWakeup{ get; set; }
-
-        public byte Attributes
-        {
-            get
-            {
-                return (byte)((1 << 7) | ((SelfPowered ? 1 : 0) << 6) | ((RemoteWakeup ? 1 : 0) << 5));
-            }
-            set
-            {
-
-                SelfPowered = ((value >> 6) & 1) != 0;
-                RemoteWakeup = ((value >> 5) & 1) != 0;
-            }
-        }
-
-        public byte MaxPower{ get; set; }
-
-        public InterfaceUSBDescriptor[] InterfaceDescriptor;
-
         public override byte[] ToArray()
         {
             TotalLength = Length;
-            for(int i=0; i<NumberOfInterfaces; i++)
+            for(int i = 0; i < NumberOfInterfaces; i++)
             {
                 TotalLength += InterfaceDescriptor[i].Length;
-                for(int j=0; j<InterfaceDescriptor[i].NumberOfEndpoints; j++)
+                for(int j = 0; j < InterfaceDescriptor[i].NumberOfEndpoints; j++)
                 {
                     TotalLength += InterfaceDescriptor[i].EndpointDescriptor[j].Length;
                 }
@@ -199,11 +167,11 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             arr[0x7] = Attributes;
             arr[0x8] = MaxPower;
 
-            for(int i=0; i<NumberOfInterfaces; i++)
+            for(int i = 0; i < NumberOfInterfaces; i++)
             {
                 InterfaceDescriptor[i].ToArray().CopyTo(arr, offset);
                 offset += InterfaceDescriptor[i].Length;
-                for(int j=0; j<InterfaceDescriptor[i].NumberOfEndpoints; j++)
+                for(int j = 0; j < InterfaceDescriptor[i].NumberOfEndpoints; j++)
                 {
                     InterfaceDescriptor[i].EndpointDescriptor[j].ToArray().CopyTo(arr, offset);
                     offset += InterfaceDescriptor[i].EndpointDescriptor[j].Length;
@@ -211,31 +179,45 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             }
             return arr;
         }
+
+        public ushort TotalLength { get; set; }
+
+        public byte NumberOfInterfaces { get; set; }
+
+        public byte ConfigurationValue { get; set; }
+
+        public byte ConfigurationIndex { get; set; }
+
+        public bool SelfPowered { get; set; }
+
+        public bool RemoteWakeup { get; set; }
+
+        public byte Attributes
+        {
+            get
+            {
+                return (byte)((1 << 7) | ((SelfPowered ? 1 : 0) << 6) | ((RemoteWakeup ? 1 : 0) << 5));
+            }
+
+            set
+            {
+                SelfPowered = ((value >> 6) & 1) != 0;
+                RemoteWakeup = ((value >> 5) & 1) != 0;
+            }
+        }
+
+        public byte MaxPower { get; set; }
+
+        public InterfaceUSBDescriptor[] InterfaceDescriptor;
     }
 
-    public class InterfaceUSBDescriptor:USBDescriptor
+    public class InterfaceUSBDescriptor : USBDescriptor
     {
         public InterfaceUSBDescriptor()
         {
             Type = DescriptorType.Interface;
             Length = 0x9;
         }
-
-        public byte InterfaceNumber{ get; set; }
-
-        public byte AlternateSetting{ get; set; }
-
-        public byte NumberOfEndpoints{ get; set; }
-
-        public byte InterfaceClass{ get; set; }
-
-        public byte InterfaceSubClass{ get; set; }
-
-        public byte InterfaceProtocol{ get; set; }
-
-        public byte InterfaceIndex{ get; set; }
-
-        public EndpointUSBDescriptor[] EndpointDescriptor;
 
         public override byte[] ToArray()
         {
@@ -249,57 +231,31 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             arr[0x8] = InterfaceIndex;
             return arr;
         }
+
+        public byte InterfaceNumber { get; set; }
+
+        public byte AlternateSetting { get; set; }
+
+        public byte NumberOfEndpoints { get; set; }
+
+        public byte InterfaceClass { get; set; }
+
+        public byte InterfaceSubClass { get; set; }
+
+        public byte InterfaceProtocol { get; set; }
+
+        public byte InterfaceIndex { get; set; }
+
+        public EndpointUSBDescriptor[] EndpointDescriptor;
     }
 
-    public class EndpointUSBDescriptor:USBDescriptor
+    public class EndpointUSBDescriptor : USBDescriptor
     {
         public EndpointUSBDescriptor()
         {
             Type = DescriptorType.Endpoint;
             Length = 7;
         }
-
-        public byte EndpointNumber{ get; set; }
-
-        public bool InEnpoint{ get; set; }
-
-        public byte EndpointAddress
-        {
-            get
-            {
-                return (byte)(((InEnpoint ? 1 : 0) << 7) | (EndpointNumber & 7));
-                //6..4 reserved
-            }
-            set
-            {
-                EndpointNumber = (byte)(value & 7);
-                InEnpoint = ((value >> 7) & 1) != 0;
-            }
-        }
-
-        public TransferTypeEnum TransferType{ get; set; }
-
-        public SynchronizationTypeEnum SynchronizationType{ get; set; }
-
-        public UsageTypeEnum UsageType{ get; set; }
-
-        public byte Attributes
-        {
-            get
-            {
-                return (byte)((((byte)UsageType & 3) << 4) | ((byte)SynchronizationType & 3) << 2 | ((byte)TransferType & 3));
-            }
-            set
-            {
-                TransferType = (TransferTypeEnum)(value & 3);
-                SynchronizationType = (SynchronizationTypeEnum)((value >> 2) & 3);
-                UsageType = (UsageTypeEnum)((value >> 4) & 3);
-            }
-        }
-
-        public ushort MaxPacketSize{ get; set; }
-
-        public byte Interval{ get; set; }
 
         public override byte[] ToArray()
         {
@@ -312,6 +268,51 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
 
             return arr;
         }
+
+        public byte EndpointNumber { get; set; }
+
+        public bool InEnpoint { get; set; }
+
+        public byte EndpointAddress
+        {
+            get
+            {
+                return (byte)(((InEnpoint ? 1 : 0) << 7) | (EndpointNumber & 7));
+                //6..4 reserved
+            }
+
+            set
+            {
+                EndpointNumber = (byte)(value & 7);
+                InEnpoint = ((value >> 7) & 1) != 0;
+            }
+        }
+
+        public TransferTypeEnum TransferType { get; set; }
+
+        public SynchronizationTypeEnum SynchronizationType { get; set; }
+
+        public UsageTypeEnum UsageType { get; set; }
+
+        public byte Attributes
+        {
+            get
+            {
+                return (byte)((((byte)UsageType & 3) << 4) | ((byte)SynchronizationType & 3) << 2 | ((byte)TransferType & 3));
+            }
+
+            set
+            {
+                TransferType = (TransferTypeEnum)(value & 3);
+                SynchronizationType = (SynchronizationTypeEnum)((value >> 2) & 3);
+                UsageType = (UsageTypeEnum)((value >> 4) & 3);
+            }
+        }
+
+        public ushort MaxPacketSize { get; set; }
+
+        public byte Interval { get; set; }
+
         public enum TransferTypeEnum : byte
         {
             Control = 0x00,
@@ -352,10 +353,6 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             Type = DescriptorType.String;
         }
 
-        public string StringValue { get; set; }
-
-        public ushort[] LangId{ get; set; }
-
         public override byte[] ToArray()
         {
             var arr = base.ToArray();
@@ -384,6 +381,9 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
 
             return arr;
         }
+
+        public string StringValue { get; set; }
+
+        public ushort[] LangId { get; set; }
     }
 }
-

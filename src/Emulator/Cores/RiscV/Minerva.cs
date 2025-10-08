@@ -5,10 +5,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using Antmicro.Renode.Core;
-using ELFSharp.ELF;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Timers;
+using Antmicro.Renode.Utilities;
+
+using ELFSharp.ELF;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {

@@ -6,29 +6,35 @@
 //
 
 using System;
-using System.Numerics;
 using System.Linq;
+using System.Numerics;
 using System.Reflection;
-using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Peripherals.Memory;
 using Antmicro.Renode.Peripherals.CPU;
-using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public interface IOpenTitan_BigNumberAcceleratorCore
     {
         ExecutionResult ExecuteInstructions(int instructionCount, out ulong executedInstructions);
+
         void Reset();
+
         RegisterValue GetRegister(int id);
+
         BigInteger GetWideRegister(int number, bool special);
+
         string FixedRandomPattern { get; set; }
+
         string KeyShare0 { get; set; }
+
         string KeyShare1 { get; set; }
+
         CoreError LastError { get; }
     }
 
@@ -130,7 +136,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         public long Size => 0x10000;
 
         public GPIO DoneIRQ { get; }
+
         public GPIO FatalAlert { get; }
+
         public GPIO RecoverableAlert { get; }
 
         public bool IsIdle => (status.Value == Status.Idle);
@@ -261,7 +269,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(8, 24);
 
             Registers.InstructionCount.Define(this)
-                .WithValueField(0,32, FieldMode.Read, valueProviderCallback: (_) => (uint)executedInstructionsTotal, name: "insn_cnt");
+                .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: (_) => (uint)executedInstructionsTotal, name: "insn_cnt");
 
             Registers.A32bitCRCchecksumofdatawrittentomemory.Define(this)
                 .WithTag("checksum", 0, 32);
@@ -295,18 +303,18 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             switch(command)
             {
-                case Command.Execute:
-                    status.Value = Status.BusyExecute;
-                    break;
-                case Command.WipeDMem:
-                    status.Value = Status.BusySecureWipeDMem;
-                    break;
-                case Command.WipeIMem:
-                    status.Value = Status.BusySecureWipeIMem;
-                    break;
-                default:
-                    this.Log(LogLevel.Error, "Unrecognized command : 0x{0:X}", command);
-                    return;
+            case Command.Execute:
+                status.Value = Status.BusyExecute;
+                break;
+            case Command.WipeDMem:
+                status.Value = Status.BusySecureWipeDMem;
+                break;
+            case Command.WipeIMem:
+                status.Value = Status.BusySecureWipeIMem;
+                break;
+            default:
+                this.Log(LogLevel.Error, "Unrecognized command : 0x{0:X}", command);
+                return;
             }
         }
 
@@ -314,18 +322,18 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             switch(command)
             {
-                case Command.Execute:
-                    Execute();
-                    break;
-                case Command.WipeDMem:
-                    dataMemory.ZeroAll();
-                    break;
-                case Command.WipeIMem:
-                    instructionsMemory.ZeroAll();
-                    break;
-                default:
-                    this.Log(LogLevel.Error, "Unrecognized command : 0x{0:X}", command);
-                    return;
+            case Command.Execute:
+                Execute();
+                break;
+            case Command.WipeDMem:
+                dataMemory.ZeroAll();
+                break;
+            case Command.WipeIMem:
+                instructionsMemory.ZeroAll();
+                break;
+            default:
+                this.Log(LogLevel.Error, "Unrecognized command : 0x{0:X}", command);
+                return;
             }
 
             doneInterruptState.Value = true;
@@ -349,25 +357,25 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 {
                     switch((CoreError)core.LastError)
                     {
-                        case CoreError.BadDataAddress:
-                            badDataAddressError.Value = true;
-                            break;
+                    case CoreError.BadDataAddress:
+                        badDataAddressError.Value = true;
+                        break;
 
-                        case CoreError.BadInstructionAddress:
-                            badInstructionAddressError.Value = true;
-                            break;
+                    case CoreError.BadInstructionAddress:
+                        badInstructionAddressError.Value = true;
+                        break;
 
-                        case CoreError.CallStack:
-                            callStackError.Value = true;
-                            break;
+                    case CoreError.CallStack:
+                        callStackError.Value = true;
+                        break;
 
-                        case CoreError.IllegalInstruction:
-                            illegalInstructionError.Value = true;
-                            break;
+                    case CoreError.IllegalInstruction:
+                        illegalInstructionError.Value = true;
+                        break;
 
-                        case CoreError.Loop:
-                            loopError.Value = true;
-                            break;
+                    case CoreError.Loop:
+                        loopError.Value = true;
+                        break;
                     }
                     break;
                 }
@@ -400,7 +408,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
 
             var constructor = coreType.GetConstructor(new Type[] { typeof(OpenTitan_BigNumberAccelerator), typeof(OpenTitan_ScrambledMemory), typeof(OpenTitan_ScrambledMemory) });
-            return (IOpenTitan_BigNumberAcceleratorCore)constructor.Invoke(new object [] { this, iMem, dMem });
+            return (IOpenTitan_BigNumberAcceleratorCore)constructor.Invoke(new object[] { this, iMem, dMem });
         }
 
         private IFlagRegisterField badDataAddressError;
@@ -414,7 +422,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private IEnumRegisterField<Status> status;
 
         private ulong executedInstructionsTotal;
-        private IOpenTitan_BigNumberAcceleratorCore core;
+        private readonly IOpenTitan_BigNumberAcceleratorCore core;
 
         private readonly OpenTitan_ScrambledMemory dataMemory;
         private readonly OpenTitan_ScrambledMemory instructionsMemory;

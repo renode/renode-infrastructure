@@ -5,13 +5,14 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Core.Structure;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using System;
+
 using Antmicro.Migrant;
-using Antmicro.Renode.Peripherals;
+using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.UserInterface;
 
 namespace Antmicro.Renode.Core
@@ -68,7 +69,6 @@ namespace Antmicro.Renode.Core
             {
                 cc();
             }
-
         }
 
         public IEnumerable<string> GetNames()
@@ -115,9 +115,8 @@ namespace Antmicro.Renode.Core
         [field: Transient]
         public event Action ContentChanged;
 
-        private readonly Dictionary<string, IHostMachineElement> hostEmulationElements;
-
         public const string HostMachineName = "host";
+
+        private readonly Dictionary<string, IHostMachineElement> hostEmulationElements;
     }
 }
-

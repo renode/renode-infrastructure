@@ -342,7 +342,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             WriteDoubleWordToBus(IoPortBaseAddress + address, (uint)value);
         }
 
-// 649:  Field '...' is never assigned to, and will always have its default value null
+        // 649:  Field '...' is never assigned to, and will always have its default value null
 #pragma warning disable 649
 
         [Import]
@@ -409,6 +409,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             It has to survive emulation reset, so the file names remain unique.
         */
         private static int CpuCounter = 0;
+
         private void InitBinding()
         {
             var libraryResource = $"Antmicro.Renode.kvm-{Architecture}.so";
@@ -446,6 +447,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 SlotNumber = slotNumber;
             }
+
             public int SlotNumber { get; set; }
         }
     }

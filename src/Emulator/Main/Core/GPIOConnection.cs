@@ -5,12 +5,16 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-
 namespace Antmicro.Renode.Core
 {
     public sealed class GPIOConnection
     {
+        public GPIOConnection(int sourceNumber, GPIOEndpoint endpoint)
+        {
+            this.SourceNumber = sourceNumber;
+            this.GPIOEndpoint = endpoint;
+        }
+
         public int SourceNumber
         {
             get;
@@ -22,11 +26,5 @@ namespace Antmicro.Renode.Core
             get;
             private set;
         }
-        public GPIOConnection(int sourceNumber, GPIOEndpoint endpoint)
-        {
-            this.SourceNumber = sourceNumber;
-            this.GPIOEndpoint = endpoint;
-        }
     }
 }
-

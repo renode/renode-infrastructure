@@ -30,45 +30,45 @@ namespace Antmicro.Renode.Utilities.RESD
                 MetadataValue value;
                 switch(valueType)
                 {
-                    case MetadataValueType.Int8:
-                        value = new MetadataValue(reader.ReadSByte());
-                        break;
-                    case MetadataValueType.UInt8:
-                        value = new MetadataValue(reader.ReadByte());
-                        break;
-                    case MetadataValueType.Int16:
-                        value = new MetadataValue(reader.ReadInt16());
-                        break;
-                    case MetadataValueType.UInt16:
-                        value = new MetadataValue(reader.ReadUInt16());
-                        break;
-                    case MetadataValueType.Int32:
-                        value = new MetadataValue(reader.ReadInt32());
-                        break;
-                    case MetadataValueType.UInt32:
-                        value = new MetadataValue(reader.ReadUInt32());
-                        break;
-                    case MetadataValueType.Int64:
-                        value = new MetadataValue(reader.ReadInt64());
-                        break;
-                    case MetadataValueType.UInt64:
-                        value = new MetadataValue(reader.ReadUInt64());
-                        break;
-                    case MetadataValueType.Float:
-                        value = new MetadataValue(reader.ReadSingle());
-                        break;
-                    case MetadataValueType.Double:
-                        value = new MetadataValue(reader.ReadDouble());
-                        break;
-                    case MetadataValueType.String:
-                        value = new MetadataValue(reader.ReadCString());
-                        break;
-                    case MetadataValueType.Blob:
-                        var blobLength = reader.ReadUInt32();
-                        value = new MetadataValue(reader.ReadBytes((int)blobLength));
-                        break;
-                    default:
-                        throw new RESDException($"Invalid metadata type ({valueType}), offset: {reader.BaseStream.Position - 1}");
+                case MetadataValueType.Int8:
+                    value = new MetadataValue(reader.ReadSByte());
+                    break;
+                case MetadataValueType.UInt8:
+                    value = new MetadataValue(reader.ReadByte());
+                    break;
+                case MetadataValueType.Int16:
+                    value = new MetadataValue(reader.ReadInt16());
+                    break;
+                case MetadataValueType.UInt16:
+                    value = new MetadataValue(reader.ReadUInt16());
+                    break;
+                case MetadataValueType.Int32:
+                    value = new MetadataValue(reader.ReadInt32());
+                    break;
+                case MetadataValueType.UInt32:
+                    value = new MetadataValue(reader.ReadUInt32());
+                    break;
+                case MetadataValueType.Int64:
+                    value = new MetadataValue(reader.ReadInt64());
+                    break;
+                case MetadataValueType.UInt64:
+                    value = new MetadataValue(reader.ReadUInt64());
+                    break;
+                case MetadataValueType.Float:
+                    value = new MetadataValue(reader.ReadSingle());
+                    break;
+                case MetadataValueType.Double:
+                    value = new MetadataValue(reader.ReadDouble());
+                    break;
+                case MetadataValueType.String:
+                    value = new MetadataValue(reader.ReadCString());
+                    break;
+                case MetadataValueType.Blob:
+                    var blobLength = reader.ReadUInt32();
+                    value = new MetadataValue(reader.ReadBytes((int)blobLength));
+                    break;
+                default:
+                    throw new RESDException($"Invalid metadata type ({valueType}), offset: {reader.BaseStream.Position - 1}");
                 }
 
                 metadata.Add(keyName, value);

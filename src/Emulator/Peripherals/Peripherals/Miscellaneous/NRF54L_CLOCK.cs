@@ -104,22 +104,22 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     }, name: "TASKS_PLLSTART")
                 .WithReservedBits(1, 31);
 
-             Registers.StopPLL.Define(this)
-                .WithFlag(0, FieldMode.Write,
-                    writeCallback: (_, val) =>
-                    {
-                        if(!val)
-                        {
-                            return;
-                        }
-                        pllStarted = false;
-                        pllEventGenerated.Value = false;
-                        UpdateInterrupts();
-                    }, name: "TASKS_PLLSTOP")
-                .WithReservedBits(1, 31);
+            Registers.StopPLL.Define(this)
+               .WithFlag(0, FieldMode.Write,
+                   writeCallback: (_, val) =>
+                   {
+                       if(!val)
+                       {
+                           return;
+                       }
+                       pllStarted = false;
+                       pllEventGenerated.Value = false;
+                       UpdateInterrupts();
+                   }, name: "TASKS_PLLSTOP")
+               .WithReservedBits(1, 31);
 
             Registers.StartLFCLK.Define(this)
-                .WithFlag(0, FieldMode.Write, 
+                .WithFlag(0, FieldMode.Write,
                     writeCallback: (_, val) =>
                     {
                         if(!val)
@@ -161,7 +161,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(1, 31);
 
             Registers.StartHFXOTune.Define(this)
-                .WithFlag(0, FieldMode.Write, 
+                .WithFlag(0, FieldMode.Write,
                     writeCallback: (_, val) =>
                     {
                         if(!val)
@@ -388,11 +388,17 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         private bool HfxoEvent => hfxoEventGenerated.Value && hfxoEventEnabled.Value;
+
         private bool PllEvent => pllEventGenerated.Value && pllEventEnabled.Value;
+
         private bool LfclkEvent => lfclkEventGenerated.Value && lfclkEventEnabled.Value;
+
         private bool LfrcCalibrationEvent => lfrcCalibrationEventGenerated.Value && lfrcCalibrationEventEnabled.Value;
+
         private bool HfxoTuneEvent => hfxoTuneEventGenerated.Value && hfxoTuneEventEnabled.Value;
+
         private bool HfxoTuneErrorEvent => hfxoTuneErrorEventGenerated.Value && hfxoTuneErrorEventEnabled.Value;
+
         private bool HfxoTuneFailedEvent => hfxoTuneFailedEventGenerated.Value && hfxoTuneFailedEventEnabled.Value;
 
         private bool hfxoStarted;

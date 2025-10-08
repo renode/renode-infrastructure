@@ -1,16 +1,10 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Core.Structure;
-using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Network;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Peripherals.Network
@@ -18,8 +12,10 @@ namespace Antmicro.Renode.Peripherals.Network
     public class S32K3XX_EMAC : SynopsysDWCEthernetQualityOfService
     {
         public S32K3XX_EMAC(IMachine machine, long systemClockFrequency, ICPU cpuContext = null)
-            : base(machine, systemClockFrequency, cpuContext, BusWidth.Bits32)
+            : base(machine, systemClockFrequency, cpuContext, BusWidth.Bits32, rxQueueSize: DMAQueueSize, txQueueSize: DMAQueueSize, dmaChannelCount: 2)
         {
+            IPVersion = 0x52;
+            UserIPVersion = 0x10;
             Reset();
         }
 
@@ -55,18 +51,17 @@ namespace Antmicro.Renode.Peripherals.Network
         public override long Size => 0x1200;
 
         public GPIO Channel0TX => dmaChannels[0].TxIRQ;
+
         public GPIO Channel0RX => dmaChannels[0].RxIRQ;
+
         public GPIO Channel1TX => dmaChannels[1].TxIRQ;
+
         public GPIO Channel1RX => dmaChannels[1].RxIRQ;
 
         // Base model configuration:
-        protected override long[] DMAChannelOffsets => new long[]
-        {
-            (long)Registers.DMAChannel0Control - (long)Registers.DMAMode,
-            (long)Registers.DMAChannel1Control - (long)Registers.DMAMode,
-        };
-        protected override int RxQueueSize => 8192;
         protected override bool SeparateDMAInterrupts => true;
+
+        private const int DMAQueueSize = 8192;
 
         private enum Registers
         {

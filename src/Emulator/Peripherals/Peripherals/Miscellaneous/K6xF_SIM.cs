@@ -4,11 +4,10 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
@@ -18,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         public K6xF_SIM(uint? uniqueIdHigh = null, uint? uniqueIdMidHigh = null, uint? uniqueIdMidLow = null, uint? uniqueIdLow = null)
         {
             var rng = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
-            
+
             this.uniqueIdHigh = uniqueIdHigh.HasValue ? uniqueIdHigh.Value : (uint)rng.Next();
             this.uniqueIdMidHigh = uniqueIdMidHigh.HasValue ? uniqueIdMidHigh.Value : (uint)rng.Next();
             this.uniqueIdMidLow = uniqueIdMidLow.HasValue ? uniqueIdMidLow.Value : (uint)rng.Next();

@@ -5,10 +5,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Time;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -41,6 +42,18 @@ namespace Antmicro.Renode.Peripherals.Timers
             };
         }
 
+        public override void Reset()
+        {
+            base.Reset();
+            IRQ.Unset();
+
+            clockDividerFlags = ClockDivider.None;
+        }
+
+        public long Size => 0x4000;
+
+        public GPIO IRQ { get; }
+
         private void UpdateInterrupts()
         {
             var interrupt = false;
@@ -51,17 +64,6 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             IRQ.Set(interrupt);
         }
-
-        public override void Reset()
-        {
-            base.Reset();
-            IRQ.Unset();
-
-            clockDividerFlags = ClockDivider.None;
-        }
-
-        public long Size => 0x4000;
-        public GPIO IRQ { get; }
 
         private void SetClockDivider(bool state, ClockDivider divideBy)
         {
@@ -86,20 +88,20 @@ namespace Antmicro.Renode.Peripherals.Timers
             long clockFrequency;
             switch(clockSource.Value)
             {
-                case ClockSource.SXOSC:
-                    clockFrequency = this.externalSlowCrystalOscillatorFrequency;
-                    break;
-                case ClockSource.SIRC:
-                    clockFrequency = 32000; // 32kHz
-                    break;
-                case ClockSource.FIRC:
-                    clockFrequency = 48000000; // 48MHz
-                    break;
-                case ClockSource.FXOSC:
-                    clockFrequency = this.externalFastCrystalOscillatorFrequency;
-                    break;
-                default:
-                    throw new Exception("unreachable code");
+            case ClockSource.SXOSC:
+                clockFrequency = this.externalSlowCrystalOscillatorFrequency;
+                break;
+            case ClockSource.SIRC:
+                clockFrequency = 32000; // 32kHz
+                break;
+            case ClockSource.FIRC:
+                clockFrequency = 48000000; // 48MHz
+                break;
+            case ClockSource.FXOSC:
+                clockFrequency = this.externalFastCrystalOscillatorFrequency;
+                break;
+            default:
+                throw new Exception("unreachable code");
             }
 
             if(clockDividerFlags.HasFlag(ClockDivider.DivideBy32))
@@ -185,10 +187,6 @@ namespace Antmicro.Renode.Peripherals.Timers
             ;
         }
 
-        private readonly InternalClock internalClock;
-        private readonly long externalSlowCrystalOscillatorFrequency;
-        private readonly long externalFastCrystalOscillatorFrequency;
-
         private ClockDivider clockDividerFlags;
 
         private IEnumRegisterField<ClockSource> clockSource;
@@ -200,6 +198,10 @@ namespace Antmicro.Renode.Peripherals.Timers
         private IFlagRegisterField rtcInterruptPending;
         private IFlagRegisterField apiInterruptPending;
         private IFlagRegisterField rolloverInterruptPending;
+
+        private readonly InternalClock internalClock;
+        private readonly long externalSlowCrystalOscillatorFrequency;
+        private readonly long externalFastCrystalOscillatorFrequency;
 
         private class InternalClock
         {
@@ -213,23 +215,6 @@ namespace Antmicro.Renode.Peripherals.Timers
 
                 rtcInterruptClock = new LimitTimer(clockSource, frequency, parent, "rtc_int_clk", limit: uint.MaxValue, direction: Direction.Ascending, eventEnabled: false);
                 rtcInterruptClock.LimitReached += OnRTCInterrupt;
-            }
-
-            private void HandleOverflow()
-            {
-                if(APIInterruptEnabled)
-                {
-                    apiInterruptClock.Value = 0;
-                    apiInterruptClock.Enabled = true;
-                }
-
-                if(RTCInterruptEnabled)
-                {
-                    rtcInterruptClock.Value = 0;
-                    rtcInterruptClock.Enabled = true;
-                }
-
-                OnOverflowInterrupt?.Invoke();
             }
 
             public ulong Value => mainClock.Value;
@@ -310,8 +295,27 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
 
             public event Action OnOverflowInterrupt;
+
             public event Action OnRTCInterrupt;
+
             public event Action OnAPIInterrupt;
+
+            private void HandleOverflow()
+            {
+                if(APIInterruptEnabled)
+                {
+                    apiInterruptClock.Value = 0;
+                    apiInterruptClock.Enabled = true;
+                }
+
+                if(RTCInterruptEnabled)
+                {
+                    rtcInterruptClock.Value = 0;
+                    rtcInterruptClock.Enabled = true;
+                }
+
+                OnOverflowInterrupt?.Invoke();
+            }
 
             private readonly LimitTimer mainClock;
             private readonly LimitTimer apiInterruptClock;

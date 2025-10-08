@@ -5,15 +5,14 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Core.Structure;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
 using System.Collections.Generic;
 using System.Linq;
+
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.I2C
 {
@@ -110,9 +109,9 @@ namespace Antmicro.Renode.Peripherals.I2C
             eventInterruptEnable = control2.DefineFlagField(9, changeCallback: InterruptEnableChange);
             errorInterruptEnable = control2.DefineFlagField(8);
 
-            dataRegister = data.DefineValueField(0, 8, valueProviderCallback: (prevVal) => DataRead((uint)prevVal), writeCallback: (prevVal, val) => DataWrite((uint)prevVal, (uint)val));
+            dataRegister = data.DefineValueField(0, 8, valueProviderCallback: _ => DataRead(), writeCallback: (_, val) => DataWrite((uint)val));
 
-            acknowledgeFailed = status1.DefineFlagField(10, FieldMode.ReadToClear | FieldMode.WriteZeroToClear, changeCallback: (_,__) => Update());
+            acknowledgeFailed = status1.DefineFlagField(10, FieldMode.ReadToClear | FieldMode.WriteZeroToClear, changeCallback: (_, __) => Update());
             dataRegisterEmpty = status1.DefineFlagField(7, FieldMode.Read);
             dataRegisterNotEmpty = status1.DefineFlagField(6, FieldMode.Read, valueProviderCallback: _ => dataToReceive?.Any() ?? false);
             byteTransferFinished = status1.DefineFlagField(2, FieldMode.Read);
@@ -120,7 +119,8 @@ namespace Antmicro.Renode.Peripherals.I2C
             startBit = status1.DefineFlagField(0, FieldMode.Read);
 
             transmitterReceiver = status2.DefineFlagField(2, FieldMode.Read);
-            masterSlave = status2.DefineFlagField(0, FieldMode.Read, readCallback: (_,__) => {
+            masterSlave = status2.DefineFlagField(0, FieldMode.Read, readCallback: (_, __) =>
+            {
                 addressSentOrMatched.Value = false;
                 Update();
             });
@@ -153,7 +153,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             ErrorInterrupt.Set(errorInterruptEnable.Value && acknowledgeFailed.Value);
         }
 
-        private uint DataRead(uint oldValue)
+        private uint DataRead()
         {
             var result = 0u;
             if(dataToReceive != null && dataToReceive.Any())
@@ -171,7 +171,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             return result;
         }
 
-        private void DataWrite(uint oldValue, uint newValue)
+        private void DataWrite(uint newValue)
         {
             //moved from WriteByte
             byteTransferFinished.Value = false;

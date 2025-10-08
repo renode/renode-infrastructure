@@ -6,6 +6,7 @@
 //
 using System;
 using System.Threading;
+
 using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
@@ -904,6 +905,7 @@ namespace Antmicro.Renode.Time
             }
 
             public bool IsDone { get; private set; }
+
             public bool IsUnblockedRecently { get; private set; }
         }
     }

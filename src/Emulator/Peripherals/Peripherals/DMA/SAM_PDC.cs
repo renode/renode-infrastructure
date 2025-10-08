@@ -7,10 +7,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
 
@@ -19,36 +19,42 @@ namespace Antmicro.Renode.Peripherals.DMA
     public interface ISamPdcPeripheral : IProvidesRegisterCollection<DoubleWordRegisterCollection>, IBusPeripheral
     {
         TransferType DmaReadAccessWidth { get; }
+
         TransferType DmaWriteAccessWidth { get; }
     }
 
     public interface ISamPdcBytePeripheral : ISamPdcPeripheral
     {
         byte? DmaByteRead();
+
         void DmaByteWrite(byte data);
     }
 
     public interface ISamPdcBlockBytePeripheral : ISamPdcPeripheral
     {
         byte[] DmaBlockByteRead(int count);
+
         void DmaBlockByteWrite(byte[] data);
     }
 
     public interface ISamPdcWordPeripheral : ISamPdcPeripheral
     {
         ushort? DmaWordRead();
+
         void DmaWordWrite(ushort data);
     }
 
     public interface ISamPdcDoubleWordPeripheral : ISamPdcPeripheral
     {
         uint? DmaDoubleWordRead();
+
         void DmaDoubleWordWrite(uint data);
     }
 
     public interface ISamPdcQuadWordPeripheral : ISamPdcPeripheral
     {
         ulong? DmaQuadWordRead();
+
         void DmaQuadWordWrite(ulong data);
     }
 

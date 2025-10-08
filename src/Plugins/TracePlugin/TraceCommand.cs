@@ -6,24 +6,35 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.UserInterface.Commands;
-using Antmicro.Renode.UserInterface;
-using AntShell.Commands;
-using Antmicro.Renode.UserInterface.Tokenizer;
-using Antmicro.Renode.Peripherals.CPU;
-using Antmicro.Renode.Debug;
-using Antmicro.Renode.Core;
 using System.Collections.Generic;
-using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Utilities;
 using System.Linq;
+
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Debug;
+using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Plugins.TracePlugin.Handlers;
+using Antmicro.Renode.UserInterface;
+using Antmicro.Renode.UserInterface.Commands;
+using Antmicro.Renode.UserInterface.Tokenizer;
+using Antmicro.Renode.Utilities;
+
+using AntShell.Commands;
+
 using Dynamitey;
 
 namespace Antmicro.Renode.Plugins.TracePlugin
 {
     public class TraceCommand : Command
     {
+        public TraceCommand(Monitor monitor) : base(monitor, "trace", "Hooks up watches for some interesting methods.")
+        {
+            handlers = new Dictionary<string, Type>
+            {
+                { "printk", typeof(PrintfHandler) },
+                { "printf", typeof(PrintfHandler) }
+            };
+        }
 
         public override void PrintHelp(ICommandInteraction writer)
         {
@@ -69,19 +80,19 @@ namespace Antmicro.Renode.Plugins.TracePlugin
         }
 
         [Runnable]
-        public void Run(ICommandInteraction writer, [Values(TraceEnableCommand)] LiteralToken enable, LiteralToken cpuToken, StringToken functionName, BooleanToken traceReturn)
+        public void Run(ICommandInteraction writer, [Values(TraceEnableCommand)] LiteralToken _, LiteralToken cpuToken, StringToken functionName, BooleanToken traceReturn)
         {
             Execute(writer, cpuToken, functionName.Value, traceReturn.Value, null);
         }
 
         [Runnable]
-        public void Run(ICommandInteraction writer, [Values(TraceEnableCommand)] LiteralToken enable, LiteralToken cpuToken, StringToken functionName, BooleanToken traceReturn, DecimalIntegerToken numberOfParameters)
+        public void Run(ICommandInteraction writer, [Values(TraceEnableCommand)] LiteralToken _, LiteralToken cpuToken, StringToken functionName, BooleanToken traceReturn, DecimalIntegerToken numberOfParameters)
         {
             Execute(writer, cpuToken, functionName.Value, traceReturn.Value, (int)numberOfParameters.Value);
         }
 
         [Runnable]
-        public void Run(ICommandInteraction writer, [Values(TraceEnableCommand)] LiteralToken enable, LiteralToken cpuToken, StringToken functionName, BooleanToken traceReturn, params LiteralToken[] types)
+        public void Run(ICommandInteraction _, [Values(TraceEnableCommand)] LiteralToken __, LiteralToken cpuToken, StringToken functionName, BooleanToken traceReturn, params LiteralToken[] types)
         {
             var cpu = (Arm)monitor.ConvertValueOrThrowRecoverable(cpuToken.Value, typeof(Arm));
             var cpuTracer = EnsureTracer(cpu);
@@ -94,7 +105,7 @@ namespace Antmicro.Renode.Plugins.TracePlugin
                 {
                     throw new RecoverableException("{0} is not a proper parameter type.".FormatWith(parameter.Value));
                 }
-                paramList.Add(new FunctionCallParameter{ Type = paramType });
+                paramList.Add(new FunctionCallParameter { Type = paramType });
             }
             handler.CallParameters = paramList.Take(paramList.Count - (traceReturn.Value ? 1 : 0));
             handler.ReturnParameter = traceReturn.Value ? paramList.Last() : (FunctionCallParameter?)null;
@@ -106,7 +117,6 @@ namespace Antmicro.Renode.Plugins.TracePlugin
             {
                 cpuTracer.TraceFunction(functionName.Value, handler.CallParameters, handler.CallHandler);
             }
-            
         }
 
         public void RegisterFunctionName(string function, Type callbackType)
@@ -116,16 +126,6 @@ namespace Antmicro.Renode.Plugins.TracePlugin
                 throw new RecoverableException("Function \"{0}\" already registered.".FormatWith(function));
             }
             handlers[function] = callbackType;
-        }
-
-        public TraceCommand(Monitor monitor) : base(monitor, "trace", "Hooks up watches for some interesting methods.")
-        {
-           
-            handlers = new Dictionary<string, Type> 
-            {
-                { "printk", typeof(PrintfHandler) },
-                { "printf", typeof(PrintfHandler) }
-            };
         }
 
         private string FindTracerName(Arm cpu)
@@ -138,9 +138,8 @@ namespace Antmicro.Renode.Plugins.TracePlugin
             return "{0}.{1}-{2}".FormatWith(EmulationManager.Instance.CurrentEmulation[cpu.Bus.Machine], cpuName, TracerName);
         }
 
-        private void Execute(ICommandInteraction writer, LiteralToken cpuToken, String functionName, bool traceReturn, int? numberOfParameters)
+        private void Execute(ICommandInteraction _, LiteralToken cpuToken, String functionName, bool traceReturn, int? numberOfParameters)
         {
-
             var cpu = (Arm)monitor.ConvertValueOrThrowRecoverable(cpuToken.Value, typeof(Arm));
 
             var cpuTracer = EnsureTracer(cpu);
@@ -153,12 +152,12 @@ namespace Antmicro.Renode.Plugins.TracePlugin
                     var paramList = new List<FunctionCallParameter>();
                     for(var i = 0; i < numberOfParameters; ++i)
                     {
-                        paramList.Add(new FunctionCallParameter{ Type = FunctionCallParameterType.UInt32 });
+                        paramList.Add(new FunctionCallParameter { Type = FunctionCallParameterType.UInt32 });
                     }
                     FunctionCallParameter? returnParameter = null;
                     if(traceReturn)
                     {
-                        returnParameter = new FunctionCallParameter{ Type = FunctionCallParameterType.UInt32 };
+                        returnParameter = new FunctionCallParameter { Type = FunctionCallParameterType.UInt32 };
                     }
                     var defHandler = new DefaultFunctionHandler(cpu);
                     defHandler.CallParameters = paramList;
@@ -168,7 +167,7 @@ namespace Antmicro.Renode.Plugins.TracePlugin
                 else
                 {
                     throw new RecoverableException("Handler for {0} not register. You must provide numberOfParameters to use default handler.".FormatWith(functionName));
-                }  
+                }
             }
             else
             {

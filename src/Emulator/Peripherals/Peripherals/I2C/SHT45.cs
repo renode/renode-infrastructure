@@ -6,12 +6,10 @@
 //
 using System;
 using System.Linq;
-using System.Collections.Generic;
-using Antmicro.Renode.Peripherals.Bus;
+
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Peripherals.Sensor;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.I2C
 {
@@ -33,7 +31,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             this.Log(LogLevel.Noisy, "Write {0}", data.Select(x => x.ToString("X")).Aggregate((x, y) => x + " " + y));
             if(data.Length == 0)
             {
-               return;
+                return;
             }
             if(data.Length > 1)
             {
@@ -43,26 +41,26 @@ namespace Antmicro.Renode.Peripherals.I2C
             Registers register = (Registers)data[0];
             switch(register)
             {
-                case Registers.MeasureHighPrecision:
-                case Registers.MeasureMediumPrecision:
-                case Registers.MeasureLowPrecision:
-                case Registers.MeasureWithHeater200mw1s:
-                case Registers.MeasureWithHeater200mw01s:
-                case Registers.MeasureWithHeater110mw1s:
-                case Registers.MeasureWithHeater110mw01s:
-                case Registers.MeasureWithHeater20mw1s:
-                case Registers.MeasureWithHeater20mw01s:
-                    EncodeMeasurementMessage();
-                    break;
-                case Registers.ReadSerialNumber:
-                    EncodeSerialNumberMessage();
-                    break;
-                case Registers.SoftReset:
-                    Reset();
-                    break;
-                default:
-                    this.Log(LogLevel.Warning, "Invalid register {0}", register);
-                    break;
+            case Registers.MeasureHighPrecision:
+            case Registers.MeasureMediumPrecision:
+            case Registers.MeasureLowPrecision:
+            case Registers.MeasureWithHeater200mw1s:
+            case Registers.MeasureWithHeater200mw01s:
+            case Registers.MeasureWithHeater110mw1s:
+            case Registers.MeasureWithHeater110mw01s:
+            case Registers.MeasureWithHeater20mw1s:
+            case Registers.MeasureWithHeater20mw01s:
+                EncodeMeasurementMessage();
+                break;
+            case Registers.ReadSerialNumber:
+                EncodeSerialNumberMessage();
+                break;
+            case Registers.SoftReset:
+                Reset();
+                break;
+            default:
+                this.Log(LogLevel.Warning, "Invalid register {0}", register);
+                break;
             }
         }
 
@@ -84,7 +82,9 @@ namespace Antmicro.Renode.Peripherals.I2C
         }
 
         public uint SerialNumber { get; set; }
+
         public decimal Temperature { get; set; }
+
         public double Humidity { get; set; }
 
         private void EncodeSerialNumberMessage()
@@ -118,21 +118,21 @@ namespace Antmicro.Renode.Peripherals.I2C
             byte stLo = (byte)(stU16);
             byte stHi = (byte)((stU16 >> 8));
 
-            return new byte[2] {stHi, stLo};
+            return new byte[2] { stHi, stLo };
         }
 
         private byte[] EncodeHumidity(double humidity)
         {
-            double Srh = (humidity + 6) * 65535.0 / 125.0;
-            UInt16 SrhU16 = Convert.ToUInt16(Math.Round(Srh));
-            byte SrhLo = (byte)(SrhU16);
-            byte SrhHi = (byte)((SrhU16 >> 8));
+            double srh = (humidity + 6) * 65535.0 / 125.0;
+            UInt16 srhU16 = Convert.ToUInt16(Math.Round(srh));
+            byte srhLo = (byte)(srhU16);
+            byte srhHi = (byte)((srhU16 >> 8));
 
-            return new byte[2] {SrhHi, SrhLo};
+            return new byte[2] { srhHi, srhLo };
         }
 
         private byte[] message;
-        readonly private CRCEngine crc;
+        private readonly CRCEngine crc;
 
         private enum Registers
         {
@@ -150,4 +150,3 @@ namespace Antmicro.Renode.Peripherals.I2C
         }
     }
 }
-

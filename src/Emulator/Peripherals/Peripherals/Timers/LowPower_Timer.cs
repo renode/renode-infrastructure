@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -44,7 +45,6 @@ namespace Antmicro.Renode.Peripherals.UART
                                 }
                             })
                 },
-
                 {(long)Registers.Compare, new DoubleWordRegister(this)
                     .WithValueField(0, 32, valueProviderCallback: _ => (uint)this.Limit,
                             writeCallback: (_, val) =>
@@ -53,7 +53,6 @@ namespace Antmicro.Renode.Peripherals.UART
                                 this.Value = 0;
                             })
                 },
-
                 {(long)Registers.Counter, new DoubleWordRegister(this)
                     .WithValueField(0, 32, valueProviderCallback: _ => (uint)this.Value,
                             writeCallback: (_, val) =>

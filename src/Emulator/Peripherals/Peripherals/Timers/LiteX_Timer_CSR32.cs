@@ -6,9 +6,9 @@
 //
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -129,16 +129,15 @@ namespace Antmicro.Renode.Peripherals.Timers
                     }
                 });
 
-
-             // UPTIME_CYCLES0 contains most significant 32 bits
-             // UPTIME_CYCLES1 contains least significant 32 bits
-             Registers.UptimeCycles0.DefineMany(this, 2, (reg, idx) =>
-             {
-                 reg.WithValueField(0, 32, FieldMode.Read, name: $"UPTIME_CYCLES{idx}", valueProviderCallback: _ =>
-                 {
-                     return (uint)BitHelper.GetValue(uptimeLatchedValue, 32 - idx * 32, 32);
-                 }); 
-             });
+            // UPTIME_CYCLES0 contains most significant 32 bits
+            // UPTIME_CYCLES1 contains least significant 32 bits
+            Registers.UptimeCycles0.DefineMany(this, 2, (reg, idx) =>
+            {
+                reg.WithValueField(0, 32, FieldMode.Read, name: $"UPTIME_CYCLES{idx}", valueProviderCallback: _ =>
+                {
+                    return (uint)BitHelper.GetValue(uptimeLatchedValue, 32 - idx * 32, 32);
+                });
+            });
         }
 
         private void UpdateInterrupts()

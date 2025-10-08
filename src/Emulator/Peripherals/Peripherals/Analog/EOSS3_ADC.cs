@@ -8,6 +8,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
@@ -107,20 +108,20 @@ namespace Antmicro.Renode.Peripherals.Analog
                 {
                     switch(state)
                     {
-                        case State.Idle:
-                            return true;
+                    case State.Idle:
+                        return true;
 
-                        case State.ConversionStarted:
-                            channels[selectedChannel1.Value ? 1 : 0].PrepareSample();
-                            state = State.SampleReady;
-                            return false;
+                    case State.ConversionStarted:
+                        channels[selectedChannel1.Value ? 1 : 0].PrepareSample();
+                        state = State.SampleReady;
+                        return false;
 
-                        case State.SampleReady:
-                            state = State.Idle;
-                            return true;
+                    case State.SampleReady:
+                        state = State.Idle;
+                        return true;
 
-                        default:
-                            throw new ArgumentException($"Unexpected state: {state}");
+                    default:
+                        throw new ArgumentException($"Unexpected state: {state}");
                     }
                 })
                 .WithReservedBits(1, 31)
@@ -140,7 +141,7 @@ namespace Antmicro.Renode.Peripherals.Analog
                 ? State.ConversionStarted
                 : State.Idle;
         }
-       
+
         private State state;
         private IFlagRegisterField selectedChannel1;
 

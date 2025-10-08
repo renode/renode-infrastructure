@@ -5,8 +5,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-
 namespace Antmicro.Renode.UserInterface.Tokenizer
 {
     public class EqualityToken : Token
@@ -15,8 +13,6 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
         {
             Value = value;
         }
-
-        public string Value { get; private set; }
 
         public override object GetObjectValue()
         {
@@ -27,6 +23,7 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
         {
             return string.Format("[EqualToken: Value={0}]", Value);
         }
+
+        public string Value { get; private set; }
     }
 }
-

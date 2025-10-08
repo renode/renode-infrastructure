@@ -5,16 +5,12 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
-using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Logging.Profiling;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Peripherals.Memory;
-using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.MTD
 {
@@ -206,17 +202,17 @@ namespace Antmicro.Renode.Peripherals.MTD
         {
             switch((Registers)offset)
             {
-                case Registers.ProtectionAddressProgramBank1:
-                case Registers.ProtectionAddressProgramBank2:
-                case Registers.BootAddressProgram:
-                case Registers.OptionStatusProgram:
-                case Registers.SecureAddressProgramBank1:
-                case Registers.SecureAddressProgramBank2:
-                case Registers.WriteSectorProtectionProgramBank1:
-                case Registers.WriteSectorProtectionProgramBank2:
-                    return true;
-                default:
-                    return false;
+            case Registers.ProtectionAddressProgramBank1:
+            case Registers.ProtectionAddressProgramBank2:
+            case Registers.BootAddressProgram:
+            case Registers.OptionStatusProgram:
+            case Registers.SecureAddressProgramBank1:
+            case Registers.SecureAddressProgramBank2:
+            case Registers.WriteSectorProtectionProgramBank1:
+            case Registers.WriteSectorProtectionProgramBank2:
+                return true;
+            default:
+                return false;
             }
         }
 

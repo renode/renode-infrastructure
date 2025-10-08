@@ -6,16 +6,12 @@
 //
 using System;
 using System.Linq;
-using System.Collections.Generic;
-using Antmicro.Renode.Logging;
+
+using Antmicro.Renode.Core.USB;
+using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Extensions.Utilities.USBIP;
 using Antmicro.Renode.Peripherals.Input;
 using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Core.USB;
-using Antmicro.Renode.Core.USB.HID;
-using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Core.Structure;
-using Antmicro.Renode.Extensions.Utilities.USBIP;
 
 namespace Antmicro.Renode.Peripherals.USB
 {
@@ -97,6 +93,8 @@ namespace Antmicro.Renode.Peripherals.USB
             SendButtonState();
         }
 
+        public USBDeviceCore USBCore { get; }
+
         private void SendButtonState()
         {
             using(var p = endpoint.PreparePacket())
@@ -107,8 +105,6 @@ namespace Antmicro.Renode.Peripherals.USB
                 p.Add(0);
             }
         }
-
-        public USBDeviceCore USBCore { get; }
 
         private MouseButton buttonState;
 
@@ -125,4 +121,3 @@ namespace Antmicro.Renode.Peripherals.USB
         };
     }
 }
-

@@ -6,6 +6,7 @@
 //
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals.Timers;
+
 using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.CPU
@@ -19,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private void RegisterCustomCSRs()
         {
-            RegisterCSR((ushort)CSRs.CpuControl, () => 0ul, _ => {});
+            RegisterCSR((ushort)CSRs.CpuControl, () => 0ul, _ => { });
         }
 
         private enum CSRs : ushort

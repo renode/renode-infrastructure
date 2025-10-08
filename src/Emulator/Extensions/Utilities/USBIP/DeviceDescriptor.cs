@@ -11,9 +11,9 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
 {
     public struct DeviceDescriptor
     {
-        [PacketField, Width(256)]
+        [PacketField, Width(bytes: 256)]
         public byte[] Path;
-        [PacketField, Width(32)]
+        [PacketField, Width(bytes: 32)]
         public byte[] BusId;
         [PacketField]
         public uint BusNumber;

@@ -6,15 +6,16 @@
 //
 using System;
 using System.Collections.Generic;
+
+using Antmicro.Migrant;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Core.Structure;
-using Antmicro.Migrant;
-using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Peripherals.I2C;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -24,7 +25,7 @@ namespace Antmicro.Renode.Peripherals.UART
     {
         public NXP_FLEXCOMM(IMachine machine, uint uartFifoSize = 256, bool uartPresent = true, bool i2cPresent = true, bool spiPresent = true)
         {
-            if (!uartPresent && !i2cPresent && !spiPresent)
+            if(!uartPresent && !i2cPresent && !spiPresent)
             {
                 throw new ConstructionException("At least one communication mode (UART, SPI, or I2C) must be present!");
             }
@@ -59,15 +60,15 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public uint ReadDoubleWord(long offset)
         {
-            if (IsFlexcommRegister(offset))
+            if(IsFlexcommRegister(offset))
             {
                 return RegistersCollection.Read(offset);
             }
-            else if (currentPeripheralMode == PeripheralMode.UART)
+            else if(currentPeripheralMode == PeripheralMode.UART)
             {
                 return uartInstance.ReadDoubleWord(offset);
             }
-            else if (currentPeripheralMode == PeripheralMode.I2C)
+            else if(currentPeripheralMode == PeripheralMode.I2C)
             {
                 return i2cInstance.ReadDoubleWord(GetI2CRegistersOffset(offset));
             }
@@ -80,15 +81,15 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public void WriteDoubleWord(long offset, uint value)
         {
-            if (IsFlexcommRegister(offset))
+            if(IsFlexcommRegister(offset))
             {
                 RegistersCollection.Write(offset, value);
             }
-            else if (currentPeripheralMode == PeripheralMode.UART)
+            else if(currentPeripheralMode == PeripheralMode.UART)
             {
                 uartInstance.WriteDoubleWord(offset, value);
             }
-            else if (currentPeripheralMode == PeripheralMode.I2C)
+            else if(currentPeripheralMode == PeripheralMode.I2C)
             {
                 i2cInstance.WriteDoubleWord(GetI2CRegistersOffset(offset), value);
             }
@@ -136,18 +137,18 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public void UpdateTxGPIO(PeripheralMode source, bool state)
         {
-            switch (source)
+            switch(source)
             {
-                case PeripheralMode.UART:
-                    {
-                        uartTxInterruptSet.Value = state;
-                        break;
-                    }
-                default:
-                    {
-                        this.Log(LogLevel.Warning, $"Unsupported FLEXCOMM mode: {currentPeripheralMode} - ignoring IRQ.");
-                        return;
-                    }
+            case PeripheralMode.UART:
+            {
+                uartTxInterruptSet.Value = state;
+                break;
+            }
+            default:
+            {
+                this.Log(LogLevel.Warning, $"Unsupported FLEXCOMM mode: {currentPeripheralMode} - ignoring IRQ.");
+                return;
+            }
             }
 
             IRQ.Set(state);
@@ -155,18 +156,18 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public void UpdateRxGPIO(PeripheralMode source, bool state)
         {
-            switch (source)
+            switch(source)
             {
-                case PeripheralMode.UART:
-                    {
-                        uartRxInterruptSet.Value = state;
-                        break;
-                    }
-                default:
-                    {
-                        this.Log(LogLevel.Error, $"Unsupported FLEXCOMM mode: {currentPeripheralMode} - ignoring IRQ.");
-                        return;
-                    }
+            case PeripheralMode.UART:
+            {
+                uartRxInterruptSet.Value = state;
+                break;
+            }
+            default:
+            {
+                this.Log(LogLevel.Error, $"Unsupported FLEXCOMM mode: {currentPeripheralMode} - ignoring IRQ.");
+                return;
+            }
             }
 
             IRQ.Set(uartTxInterruptSet.Value || uartRxInterruptSet.Value);
@@ -174,18 +175,18 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public void UpdateI2CMasterGPIO(PeripheralMode source, bool state)
         {
-            switch (source)
+            switch(source)
             {
-                case PeripheralMode.I2C:
-                    {
-                        i2cMasterInterruptSet.Value = state;
-                        break;
-                    }
-                default:
-                    {
-                        this.Log(LogLevel.Error, $"Unsupported FLEXCOMM mode: {currentPeripheralMode} - ignoring IRQ.");
-                        return;
-                    }
+            case PeripheralMode.I2C:
+            {
+                i2cMasterInterruptSet.Value = state;
+                break;
+            }
+            default:
+            {
+                this.Log(LogLevel.Error, $"Unsupported FLEXCOMM mode: {currentPeripheralMode} - ignoring IRQ.");
+                return;
+            }
             }
 
             IRQ.Set(state);
@@ -196,7 +197,9 @@ namespace Antmicro.Renode.Peripherals.UART
         public long Size => 0x1000;
 
         public uint BaudRate => uartInstance.BaudRate;
+
         public Bits StopBits => uartInstance.StopBits;
+
         public Parity ParityBit => uartInstance.ParityBit;
 
         public DoubleWordRegisterCollection RegistersCollection { get; }
@@ -205,6 +208,7 @@ namespace Antmicro.Renode.Peripherals.UART
         public event Action<byte> CharReceived;
 
         IEnumerable<IRegistered<IUART, NullRegistrationPoint>> IPeripheralContainer<IUART, NullRegistrationPoint>.Children => uartContainer.Children;
+
         IEnumerable<IRegistered<II2CPeripheral, NumberRegistrationPoint<int>>> IPeripheralContainer<II2CPeripheral, NumberRegistrationPoint<int>>.Children => i2cInstance.Children;
 
         private static bool IsFlexcommRegister(long offset)
@@ -219,7 +223,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private void EnsureChildPeripheralRegistered(IPeripheral peripheral, string name)
         {
-            if (!machine.IsRegistered(peripheral))
+            if(!machine.IsRegistered(peripheral))
             {
                 machine.RegisterAsAChildOf(this, peripheral, NullRegistrationPoint.Instance);
                 machine.SetLocalName(i2cInstance, name);
@@ -228,32 +232,32 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private bool IsCommunicationModeSupported(PeripheralMode mode)
         {
-            switch (mode)
+            switch(mode)
             {
-                case PeripheralMode.UART:
-                    return uartPresent;
-                case PeripheralMode.I2C:
-                    return i2cPresent;
-                case PeripheralMode.SPI:
-                    return spiPresent;
-                case PeripheralMode.UARTI2C:
-                    return uartPresent && i2cPresent;
-                case PeripheralMode.None:
-                    return true;
-                default:
-                    return false;
+            case PeripheralMode.UART:
+                return uartPresent;
+            case PeripheralMode.I2C:
+                return i2cPresent;
+            case PeripheralMode.SPI:
+                return spiPresent;
+            case PeripheralMode.UARTI2C:
+                return uartPresent && i2cPresent;
+            case PeripheralMode.None:
+                return true;
+            default:
+                return false;
             }
         }
 
         private void TryChangePeripheralMode(PeripheralMode newMode)
         {
-            if (peripheralModeLock.Value)
+            if(peripheralModeLock.Value)
             {
                 this.Log(LogLevel.Warning, "Cannot change mode: peripheral is locked.");
                 return;
             }
 
-            if (!IsCommunicationModeSupported(newMode))
+            if(!IsCommunicationModeSupported(newMode))
             {
                 this.Log(LogLevel.Warning, $"Cannot switch to {newMode}: mode not available.");
                 return;
@@ -265,15 +269,15 @@ namespace Antmicro.Renode.Peripherals.UART
         private void DefineRegisters()
         {
             var peripheralSelectAndIdResetValue = 0x103000u;
-            if (uartPresent)
+            if(uartPresent)
             {
                 BitHelper.SetBit(ref peripheralSelectAndIdResetValue, 4, true);
             }
-            if (spiPresent)
+            if(spiPresent)
             {
                 BitHelper.SetBit(ref peripheralSelectAndIdResetValue, 5, true);
             }
-            if (i2cPresent)
+            if(i2cPresent)
             {
                 BitHelper.SetBit(ref peripheralSelectAndIdResetValue, 6, true);
             }
@@ -301,6 +305,12 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithTag("ID", 12, 20);
         }
 
+        private PeripheralMode currentPeripheralMode;
+        private IFlagRegisterField uartTxInterruptSet;
+        private IFlagRegisterField uartRxInterruptSet;
+        private IFlagRegisterField i2cMasterInterruptSet;
+        private IFlagRegisterField peripheralModeLock;
+
         private readonly bool uartPresent;
         private readonly bool i2cPresent;
         private readonly bool spiPresent;
@@ -311,12 +321,6 @@ namespace Antmicro.Renode.Peripherals.UART
         private readonly NullRegistrationPointContainerHelper<IUART> uartContainer;
 
         private readonly S32K3XX_LowPowerInterIntegratedCircuit i2cInstance;
-
-        private PeripheralMode currentPeripheralMode;
-        private IFlagRegisterField uartTxInterruptSet;
-        private IFlagRegisterField uartRxInterruptSet;
-        private IFlagRegisterField i2cMasterInterruptSet;
-        private IFlagRegisterField peripheralModeLock;
 
         private const long I2CRegistersOffset = 0x800;
 

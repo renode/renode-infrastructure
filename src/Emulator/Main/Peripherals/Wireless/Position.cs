@@ -4,8 +4,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-
 namespace Antmicro.Renode.Peripherals.Wireless
 {
     public struct Position
@@ -18,7 +16,9 @@ namespace Antmicro.Renode.Peripherals.Wireless
         }
 
         public decimal X { get; private set; }
+
         public decimal Y { get; private set; }
+
         public decimal Z { get; private set; }
     }
 }

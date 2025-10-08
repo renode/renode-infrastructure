@@ -29,6 +29,6 @@ namespace Antmicro.Renode.Peripherals.Analog
                 hasChannelSequence: true,
                 hasPowerRegister: false
             )
-        {}
+        { }
     }
 }

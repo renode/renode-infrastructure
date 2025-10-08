@@ -6,8 +6,9 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Core;
+#pragma warning disable IDE0005
 using System.Linq;
+#pragma warning restore IDE0005
 
 using Range = Antmicro.Renode.Core.Range;
 
@@ -39,10 +40,8 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
                 resultValues[i] = input[i].Contains('x')
                     ? Convert.ToUInt64(input[i].Split('x')[1], 16)
                     : resultValues[i] = ulong.Parse(input[i]);
-
             }
             return resultValues;
         }
     }
 }
-

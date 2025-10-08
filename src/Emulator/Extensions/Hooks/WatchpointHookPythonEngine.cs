@@ -4,15 +4,13 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using Antmicro.Renode.Core;
-using Antmicro.Migrant.Hooks;
-using Microsoft.Scripting.Hosting;
 using Antmicro.Migrant;
+using Antmicro.Migrant.Hooks;
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.CPU;
-using Antmicro.Renode.Exceptions;
+
+using Microsoft.Scripting.Hosting;
 
 namespace Antmicro.Renode.Hooks
 {
@@ -55,4 +53,3 @@ namespace Antmicro.Renode.Hooks
         private readonly IBusController sysbus;
     }
 }
-

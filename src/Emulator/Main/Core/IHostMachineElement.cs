@@ -11,4 +11,3 @@ namespace Antmicro.Renode.Core
     {
     }
 }
-

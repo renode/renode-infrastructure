@@ -4,13 +4,8 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.Sensor;
-using Antmicro.Renode.Peripherals.I2C;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Logging;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.Sensors
 {
@@ -73,20 +68,20 @@ namespace Antmicro.Renode.Peripherals.Sensors
             var range = 0;
             switch(val)
             {
-                case 0:
-                    range = 250;
-                    break;
-                case 1:
-                    range = 500;
-                    break;
-                // yes, both cases 0b10 and 0b11 encodes scale of 2000 dps
-                case 2:
-                case 3:
-                    range = 2000;
-                    break;
-                default:
-                    this.Log(LogLevel.Warning, "Tried to set an unsupported sensitivity value: {0}", val);
-                    return;
+            case 0:
+                range = 250;
+                break;
+            case 1:
+                range = 500;
+                break;
+            // yes, both cases 0b10 and 0b11 encodes scale of 2000 dps
+            case 2:
+            case 3:
+                range = 2000;
+                break;
+            default:
+                this.Log(LogLevel.Warning, "Tried to set an unsupported sensitivity value: {0}", val);
+                return;
             }
 
             sensitivity = CalculateScale(-range, range, OutputWidth);

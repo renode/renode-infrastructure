@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -8,6 +8,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Utilities;
 
@@ -19,12 +20,12 @@ namespace Antmicro.Renode.Sound
         {
             if(concatenatedChannels)
             {
-               throw new ConstructionException("Concatenated channels are currently not supported");
+                throw new ConstructionException("Concatenated channels are currently not supported");
             }
 
             if(sampleWidthBits != 8u && sampleWidthBits != 16u && sampleWidthBits != 24u && sampleWidthBits != 32u)
             {
-               throw new ConstructionException($"Not supported sample width: {0}. Only 8/16/24/32 values are currently supported.");
+                throw new ConstructionException($"Not supported sample width: {0}. Only 8/16/24/32 values are currently supported.");
             }
 
             this.samplingRateHz = samplingRateHz;
@@ -44,9 +45,18 @@ namespace Antmicro.Renode.Sound
         {
             lock(buffer)
             {
+                byte nextByte;
                 for(var i = 0; i < (sampleWidthBits / 8); i++)
                 {
-                    buffer.Enqueue((byte)BitHelper.GetValue(sample, (int)(sampleWidthBits - 8 * (i + 1)), 8));
+                    if(littleEndianFileFormat)
+                    {
+                        nextByte = (byte)BitHelper.GetValue(sample, 8 * i, 8);
+                    }
+                    else
+                    {
+                        nextByte = (byte)BitHelper.GetValue(sample, (int)(sampleWidthBits - 8 * (i + 1)), 8);
+                    }
+                    buffer.Enqueue(nextByte);
                 }
                 TryFlushBuffer();
             }
@@ -76,6 +86,12 @@ namespace Antmicro.Renode.Sound
             TryFlushBuffer();
         }
 
+        public void SetOutputFile(SequencedFilePath outputFile, bool littleEndianFileFormat)
+        {
+            Output = outputFile;
+            this.littleEndianFileFormat = littleEndianFileFormat;
+        }
+
         public string Output
         {
             get => outputPath;
@@ -98,6 +114,12 @@ namespace Antmicro.Renode.Sound
             }
         }
 
+        public uint SamplingRateHz => samplingRateHz;
+
+        public uint NumberOfChannels => numberOfChannels;
+
+        public uint SampleWidthBits => sampleWidthBits;
+
         private void TryFlushBuffer()
         {
             if(buffer.Count >= bufferingThreshold)
@@ -109,6 +131,7 @@ namespace Antmicro.Renode.Sound
         private int bufferingThreshold;
         private string outputPath;
         private FileStream file;
+        private bool littleEndianFileFormat;
 
         private readonly uint samplingRateHz;
         private readonly uint numberOfChannels;

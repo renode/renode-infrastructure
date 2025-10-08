@@ -6,11 +6,12 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using NUnit.Framework;
-using Antmicro.Renode.Core.Structure.Registers;
 using System.Collections.Generic;
+
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Utilities;
+
+using NUnit.Framework;
 
 namespace Antmicro.Renode.UnitTests
 {
@@ -549,9 +550,9 @@ namespace Antmicro.Renode.UnitTests
         private IFlagRegisterField flagWTSField;
 
         // Bits that store written value
-        private ulong writeMask = 0b0000_1111_1101_1000__0111_1111_1111_1111;
+        private readonly ulong writeMask = 0b0000_1111_1101_1000__0111_1111_1111_1111;
         // Bits that provide stored value
-        private ulong readMask =  0b0000_1111_1110_0111__1111_1111_1111_1111;
+        private readonly ulong readMask =  0b0000_1111_1110_0111__1111_1111_1111_1111;
         private const ulong RegisterResetValue = 0x3780u;
 
         private enum TwoBitEnum

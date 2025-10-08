@@ -13,7 +13,9 @@ namespace Antmicro.Renode.Core
     public interface ISimpleManagedThread : IDisposable
     {
         void Start();
+
         void StartDelayed(TimeInterval delay);
+
         void Stop();
     }
 }

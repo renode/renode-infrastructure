@@ -5,10 +5,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Core.Structure.Registers;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -73,17 +74,13 @@ namespace Antmicro.Renode.Peripherals.UART
             registers.Write(offset, value);
         }
 
-        public long Size => 0x100;
-
-        private uint DeviceId => 0xA5BD;
-        private uint RevisionNumber => 0x0200;
-        private uint UsbPid => 0x6141;
-
         public override Bits StopBits => Bits.One;
 
         public override Parity ParityBit => Parity.None;
 
         public override uint BaudRate => 115200;
+
+        public long Size => 0x100;
 
         protected override void CharWritten()
         {
@@ -94,6 +91,12 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             // intentionally left blank
         }
+
+        private uint DeviceId => 0xA5BD;
+
+        private uint RevisionNumber => 0x0200;
+
+        private uint UsbPid => 0x6141;
 
         private readonly DoubleWordRegisterCollection registers;
 

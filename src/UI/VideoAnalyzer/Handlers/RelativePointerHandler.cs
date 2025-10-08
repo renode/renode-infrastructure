@@ -21,4 +21,3 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Handlers
         }
     }
 }
-

@@ -7,8 +7,9 @@
 //
 using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using System.Linq;
+using System.Runtime.CompilerServices;
+
 using Antmicro.Renode.Debugging;
 
 namespace Antmicro.Renode.Utilities
@@ -447,7 +448,6 @@ namespace Antmicro.Renode.Utilities
                 reg >>= 1;
                 pos++;
             }
-
         }
 
         public static ulong GetLeastSignificantOne(ulong val)
@@ -522,6 +522,15 @@ namespace Antmicro.Renode.Utilities
                 throw new ArgumentException("size not in [0,8]");
             }
             return (byte)(((uint)reg >> offset) & ((0x1ul << size) - 1));
+        }
+
+        public static ushort GetValue(ushort reg, int offset, int size)
+        {
+            if(size < 0 || size > 16)
+            {
+                throw new ArgumentException("size not in [0,16]");
+            }
+            return (ushort)(((uint)reg >> offset) & ((0x1ul << size) - 1));
         }
 
         public static uint GetValue(uint reg, int offset, int size)
@@ -647,9 +656,9 @@ namespace Antmicro.Renode.Utilities
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint CalculateMask(int width, int position)
         {
-            const int MaxWidth = 32;
-            AssertMaskParameters(width, position, MaxWidth);
-            if(width == MaxWidth && position == 0)
+            const int maxWidth = 32;
+            AssertMaskParameters(width, position, maxWidth);
+            if(width == maxWidth && position == 0)
             {
                 return uint.MaxValue;
             }
@@ -659,9 +668,9 @@ namespace Antmicro.Renode.Utilities
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ulong CalculateQuadWordMask(int width, int position)
         {
-            const int MaxWidth = 64;
-            AssertMaskParameters(width, position, MaxWidth);
-            if(width == MaxWidth && position == 0)
+            const int maxWidth = 64;
+            AssertMaskParameters(width, position, maxWidth);
+            if(width == maxWidth && position == 0)
             {
                 return ulong.MaxValue;
             }
@@ -857,6 +866,8 @@ namespace Antmicro.Renode.Utilities
                 }
             }
 
+            private static readonly FragmentComparer comparer = new FragmentComparer();
+
             private void InnerDefine(Fragment f)
             {
                 if(sizeLimit.HasValue && f.Offset + f.Length > sizeLimit.Value)
@@ -887,19 +898,6 @@ namespace Antmicro.Renode.Utilities
             private readonly List<Fragment> fragments;
             private readonly int? sizeLimit;
 
-            private static FragmentComparer comparer = new FragmentComparer();
-
-            private struct Fragment
-            {
-                public int Offset;
-                public int Length;
-                public ulong RawValue;
-                public Func<ulong> ValueProvider;
-                public string Name;
-
-                public ulong EffectiveValue => ValueProvider != null ? ValueProvider() & ((1u << Length) - 1) : RawValue;
-            }
-
             private class FragmentComparer : IComparer<Fragment>
             {
                 public int Compare(Fragment x, Fragment y)
@@ -915,6 +913,17 @@ namespace Antmicro.Renode.Utilities
                     return 0;
                 }
             }
+
+            private struct Fragment
+            {
+                public int Offset;
+                public int Length;
+                public ulong RawValue;
+                public Func<ulong> ValueProvider;
+                public string Name;
+
+                public ulong EffectiveValue => ValueProvider != null ? ValueProvider() & ((1u << Length) - 1) : RawValue;
+            }
         }
 
         // TODO: optimize it - add padding automatically, limit number of copying
@@ -924,10 +933,6 @@ namespace Antmicro.Renode.Utilities
             {
                 return new BitConcatenator(size);
             }
-
-            private BitStream bs = new BitStream();
-
-            public BitStream Bits => bs;
 
             public BitConcatenator StackAbove(uint value, int length, int position = 0)
             {
@@ -940,10 +945,14 @@ namespace Antmicro.Renode.Utilities
                 return this;
             }
 
+            public BitStream Bits => bs;
+
             private BitConcatenator(int? size)
             {
                 maxHeight = size;
             }
+
+            private readonly BitStream bs = new BitStream();
 
             private readonly int? maxHeight;
         }

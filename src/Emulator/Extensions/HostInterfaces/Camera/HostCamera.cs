@@ -7,14 +7,14 @@
 
 using System;
 using System.IO;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Backends.Display;
-using Antmicro.Renode.Exceptions;
-using BitMiracle.LibJpeg.Classic;
 
-using Antmicro.Migrant;
 using Antmicro.Migrant.Hooks;
+using Antmicro.Renode.Backends.Display;
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Utilities;
+
+using BitMiracle.LibJpeg.Classic;
 
 namespace Antmicro.Renode.HostInterfaces.Camera
 {
@@ -58,7 +58,7 @@ namespace Antmicro.Renode.HostInterfaces.Camera
             if(grab)
             {
                 GrabFrame();
-            }   
+            }
 
             if(lastFrame == null)
             {
@@ -66,7 +66,7 @@ namespace Antmicro.Renode.HostInterfaces.Camera
             }
 
             var decompressed = DecompressJpgToRaw(lastFrame);
-            var converter = PixelManipulationTools.GetConverter(PixelFormat.RGB888, ELFSharp.ELF.Endianess.BigEndian, RawImageData.PixelFormat, ELFSharp.ELF.Endianess.BigEndian); 
+            var converter = PixelManipulationTools.GetConverter(PixelFormat.RGB888, ELFSharp.ELF.Endianess.BigEndian, RawImageData.PixelFormat, ELFSharp.ELF.Endianess.BigEndian);
             var result = new byte[decompressed.Width * decompressed.Height * RawImageData.PixelFormat.GetColorDepth()];
             converter.Convert(decompressed.Data, ref result);
 
@@ -124,53 +124,6 @@ namespace Antmicro.Renode.HostInterfaces.Camera
         // this is to manually scale the image down;
         // can be used to reduce the size of the returned JPEG image
         public int ForcedScaleDownFactor { get; set; } = 1;
-
-        [PostDeserialization]
-        private void InitCamera()
-        {
-            if(!VideoCapturer.Start(device, this))
-            {
-                throw new RecoverableException("Couldn't initialize host camera - see logs for details.");
-            }
-        }
-
-        // the algorithm flow is based on:
-        // https://bitmiracle.github.io/libjpeg.net/help/articles/KB/decompression-details.html
-        private DecompressionResult DecompressJpgToRaw(byte[] image)
-        {
-            var cinfo = new jpeg_decompress_struct(new jpeg_error_mgr());
-
-            using(var memoryStream = new MemoryStream(image))
-            {
-                cinfo.jpeg_stdio_src(memoryStream);
-                cinfo.jpeg_read_header(true);
-
-                cinfo.Out_color_space = J_COLOR_SPACE.JCS_RGB;
-
-                cinfo.jpeg_start_decompress();
-
-                // there are 3 components: R, G, B
-                var rowStride = 3 * cinfo.Output_width;
-                var result = new byte[rowStride * cinfo.Output_height];
-                var resultOffset = 0;
-
-                var buffer = new byte[1][];
-                buffer[0] = new byte[rowStride];
-
-                while(cinfo.Output_scanline < cinfo.Output_height)
-                {
-                    var ct = cinfo.jpeg_read_scanlines(buffer, 1);
-                    if(ct > 0)
-                    {
-                        Array.Copy(buffer[0], 0, result, resultOffset, buffer[0].Length);
-                        resultOffset += buffer[0].Length;
-                    }
-                }
-
-                cinfo.jpeg_finish_decompress();
-                return new DecompressionResult(result, cinfo.Output_width, cinfo.Output_height);
-            }
-        }
 
         // the algorithm flow is based on:
         // https://bitmiracle.github.io/libjpeg.net/help/articles/KB/compression-details.html
@@ -251,6 +204,53 @@ namespace Antmicro.Renode.HostInterfaces.Camera
             return result;
         }
 
+        [PostDeserialization]
+        private void InitCamera()
+        {
+            if(!VideoCapturer.Start(device, this))
+            {
+                throw new RecoverableException("Couldn't initialize host camera - see logs for details.");
+            }
+        }
+
+        // the algorithm flow is based on:
+        // https://bitmiracle.github.io/libjpeg.net/help/articles/KB/decompression-details.html
+        private DecompressionResult DecompressJpgToRaw(byte[] image)
+        {
+            var cinfo = new jpeg_decompress_struct(new jpeg_error_mgr());
+
+            using(var memoryStream = new MemoryStream(image))
+            {
+                cinfo.jpeg_stdio_src(memoryStream);
+                cinfo.jpeg_read_header(true);
+
+                cinfo.Out_color_space = J_COLOR_SPACE.JCS_RGB;
+
+                cinfo.jpeg_start_decompress();
+
+                // there are 3 components: R, G, B
+                var rowStride = 3 * cinfo.Output_width;
+                var result = new byte[rowStride * cinfo.Output_height];
+                var resultOffset = 0;
+
+                var buffer = new byte[1][];
+                buffer[0] = new byte[rowStride];
+
+                while(cinfo.Output_scanline < cinfo.Output_height)
+                {
+                    var ct = cinfo.jpeg_read_scanlines(buffer, 1);
+                    if(ct > 0)
+                    {
+                        Array.Copy(buffer[0], 0, result, resultOffset, buffer[0].Length);
+                        resultOffset += buffer[0].Length;
+                    }
+                }
+
+                cinfo.jpeg_finish_decompress();
+                return new DecompressionResult(result, cinfo.Output_width, cinfo.Output_height);
+            }
+        }
+
         private byte[] lastFrame;
         private Tuple<int, int> cropToSize;
 
@@ -268,6 +268,6 @@ namespace Antmicro.Renode.HostInterfaces.Camera
             public byte[] Data;
             public int Width;
             public int Height;
-        }   
+        }
     }
 }

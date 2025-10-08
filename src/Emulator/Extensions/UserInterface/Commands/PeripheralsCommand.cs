@@ -7,22 +7,28 @@
 //
 using System;
 using System.Collections.Generic;
-using Antmicro.Renode.UserInterface.Tokenizer;
 using System.IO;
 using System.Linq;
 using System.Text;
+
+using Antmicro.Renode.Config;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals;
+using Antmicro.Renode.UserInterface.Tokenizer;
+using Antmicro.Renode.Utilities;
+
 using AntShell.Commands;
-using Antmicro.Renode.Config;
 
 namespace Antmicro.Renode.UserInterface.Commands
 {
     public class PeripheralsCommand : Command
     {
+        public PeripheralsCommand(Monitor monitor, Func<IMachine> getCurrentMachine) : base(monitor, "peripherals", "prints or exports list of registered and named peripherals.", "peri")
+        {
+            GetCurrentMachine = getCurrentMachine;
+        }
 
         public override void PrintHelp(ICommandInteraction writer)
         {
@@ -48,14 +54,9 @@ namespace Antmicro.Renode.UserInterface.Commands
         }
 
         [Runnable]
-        public void Run(ICommandInteraction writer, [Values("export")] LiteralToken @default, PathToken path)
+        public void Run(ICommandInteraction writer, [Values("export")] LiteralToken _, PathToken path)
         {
             RunExport(writer, path.Value);
-        }
-
-        public PeripheralsCommand(Monitor monitor, Func<IMachine> getCurrentMachine) : base(monitor, "peripherals", "prints or exports list of registered and named peripherals.", "peri")
-        {
-            GetCurrentMachine = getCurrentMachine;
         }
 
         private void RunExport(ICommandInteraction writer, WriteFilePath path)
@@ -104,13 +105,16 @@ namespace Antmicro.Renode.UserInterface.Commands
             return sysbusNode;
         }
 
-        private Func<IMachine> GetCurrentMachine;
+        private readonly Func<IMachine> GetCurrentMachine;
 
         private class PeripheralJson
         {
             public String Name { get; set; }
+
             public String Alias { get; set; }
+
             public List<Object> Bindings { get; set; } = new List<Object>();
+
             public List<PeripheralJson> Children { get; set; } = new List<PeripheralJson>();
         }
 
@@ -201,32 +205,6 @@ namespace Antmicro.Renode.UserInterface.Commands
                 }
             }
 
-            private PeripheralJson SerializeJson()
-            {
-                PeripheralJson node = new PeripheralJson();
-                node.Name = PeripheralEntry.Type.Name;
-                node.Alias = PeripheralEntry.Name;
-
-                foreach(var point in RegistrationPoints)
-                {
-                    if(point is IJsonSerializable serializable)
-                    {
-                        node.Bindings.Add(serializable.SerializeJson());
-                    }
-                }
-
-                foreach(var child in Children)
-                {
-                    node.Children.Add(child.SerializeJson());
-                }
-
-                return node;
-            }
-
-            private PeripheralTreeEntry PeripheralEntry;
-            private IEnumerable<IRegistrationPoint> RegistrationPoints;
-            private HashSet<PeripheralNode> Children;
-
             private static String GetIndentString(TreeViewBlock[] rawSignPattern)
             {
                 var indentBuilder = new StringBuilder(DefaultPadding);
@@ -278,6 +256,32 @@ namespace Antmicro.Renode.UserInterface.Commands
                     pattern[pattern.Length - 1] = TreeViewBlock.Empty;
                 }
             }
+
+            private PeripheralJson SerializeJson()
+            {
+                PeripheralJson node = new PeripheralJson();
+                node.Name = PeripheralEntry.Type.Name;
+                node.Alias = PeripheralEntry.Name;
+
+                foreach(var point in RegistrationPoints)
+                {
+                    if(point is IJsonSerializable serializable)
+                    {
+                        node.Bindings.Add(serializable.SerializeJson());
+                    }
+                }
+
+                foreach(var child in Children)
+                {
+                    node.Children.Add(child.SerializeJson());
+                }
+
+                return node;
+            }
+
+            private readonly PeripheralTreeEntry PeripheralEntry;
+            private readonly IEnumerable<IRegistrationPoint> RegistrationPoints;
+            private readonly HashSet<PeripheralNode> Children;
 
             private const String DefaultPadding = "  ";
 

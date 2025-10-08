@@ -7,249 +7,29 @@
 //
 using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Input;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Core;
 
 namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
     public class USBKeyboard : IUSBPeripheral, IKeyboard
     {
-
-        public event Action <uint> SendInterrupt ;
-        public event Action <uint> SendPacket
-        {
-            add {}
-            remove {}
-        }
-
-        protected Object thisLock = new Object();
-        private const byte NumberOfEndpoints = 2;
-        byte[] controlPacket;
-        Queue <byte> queue;
-
         public USBKeyboard()
         {
             queue = new Queue<byte>();
             endpointDescriptor = new EndpointUSBDescriptor[3];
-            for(int i=0; i<NumberOfEndpoints; i++)
+            for(int i = 0; i < NumberOfEndpoints; i++)
             {
                 endpointDescriptor[i] = new EndpointUSBDescriptor();
             }
-            fillEndpointsDescriptors(endpointDescriptor);
+            FillEndpointsDescriptors(endpointDescriptor);
             interfaceDescriptor[0].EndpointDescriptor = endpointDescriptor;
             configurationDescriptor.InterfaceDescriptor = interfaceDescriptor;
         }
 
-        public USBDeviceSpeed GetSpeed()
-        {
-            return USBDeviceSpeed.Low;
-        }
-
-        private InterfaceUSBDescriptor[] interfaceDescriptor = new[]{new InterfaceUSBDescriptor
-        {
-            AlternateSetting = 0,
-            InterfaceNumber = 0x00,
-            NumberOfEndpoints = 1,
-            InterfaceClass = 0x03,
-            InterfaceProtocol = 0x02,
-            InterfaceSubClass = 0x01,
-            InterfaceIndex = 0x07
-        }
-        };
-        private EndpointUSBDescriptor[] endpointDescriptor;
-
-        public void WriteDataBulk(USBPacket packet)
-        {
-
-        }
-
-        private void fillEndpointsDescriptors(EndpointUSBDescriptor[] endpointDesc)
-        {
-            endpointDesc[0].EndpointNumber = 1;
-            endpointDesc[0].InEnpoint = true;
-            endpointDesc[0].TransferType = EndpointUSBDescriptor.TransferTypeEnum.Interrupt;
-            endpointDesc[0].MaxPacketSize = 0x0004;
-            endpointDesc[0].SynchronizationType = EndpointUSBDescriptor.SynchronizationTypeEnum.NoSynchronization;
-            endpointDesc[0].UsageType = EndpointUSBDescriptor.UsageTypeEnum.Data;
-            endpointDesc[0].Interval = 0x0a;
-
-        }
-
-        public void WriteDataControl(USBPacket packet)
-        {
-        }
-
-        public void Reset()
-        {
-        }
-
-        public uint GetAddress()
-        {
-            return DeviceAddress;
-        }
-
-        public     byte GetTransferStatus()
-        {
-            return 0;
-        }
-
-        int pkey;
-        int modifiers = 0;
-
-        public void Press(KeyScanCode scanCode)
-        {
-            lock(thisLock)
-            {
-                pkey = (int)scanCode & 0x7f;
-                if(((int)scanCode) >= 0xe0 && ((int)scanCode) <= 0xe7)
-                {
-                    modifiers |= 1 << (((int)scanCode) & 0x7);
-                    pkey = 0;
-                }
-                queue.Enqueue((byte)pkey);
-            }
-            Refresh();
-        }
-
-        public void Release(KeyScanCode scanCode)
-        {
-            lock(thisLock)
-            {
-                pkey = (int)0;
-                if(((int)scanCode) >= 0xe0 && ((int)scanCode) <= 0xe7)
-                {
-                    modifiers &= ~(1 << (((int)scanCode) & 0x7));
-                }
-                for(int i = 0; i < 6; i++)
-                    queue.Enqueue((byte)pkey);
-            }
-            Refresh();
-        }
-
-        private void Refresh()
-        {
-            var sendInterrupt = SendInterrupt;
-            if(DeviceAddress != 0 && sendInterrupt != null)
-            {
-                sendInterrupt(DeviceAddress);
-            }
-        }
-
-        public byte[] WriteInterrupt(USBPacket packet)
-        {
-            lock(thisLock)
-            {
-                if(queue.Count == 0)
-                    return null;
-
-                byte [] data = new byte[8];
-                data[0] = (byte)modifiers;
-                data[1] = 0;
-                /*
-            data [2] = (byte)pkey;
-            data [3] = 0;
-            data [4] = 0;
-            data [5] = 0;
-            data [6] = 0;
-            data [7] = 0;*/
-                for(int i=2; i<8; i++)
-                {
-                    if(queue.Count != 0)
-                        data[i] = queue.Dequeue();
-                    else
-                        data[i] = 0;
-                }
-                return data;
-            }
-        }
-
-        public byte[] GetDataBulk(USBPacket packet)
-        {
-            return null;
-        }
-
-        public byte[] GetDataControl(USBPacket packet)
-        {
-            return controlPacket;
-        }
-
-        private DeviceQualifierUSBDescriptor deviceQualifierDescriptor = new DeviceQualifierUSBDescriptor();
-        private ConfigurationUSBDescriptor otherConfigurationDescriptor = new ConfigurationUSBDescriptor();
-        private StringUSBDescriptor stringDescriptor = null;
-
-        public byte[] GetDescriptor(USBPacket packet, USBSetupPacket setupPacket)
-        {
-            DescriptorType type;
-            type = (DescriptorType)((setupPacket.value & 0xff00) >> 8);
-            uint index = (uint)(setupPacket.value & 0xff);
-            switch(type)
-            {
-            case DescriptorType.Device:
-                controlPacket = new byte[deviceDescriptor.ToArray().Length];
-                deviceDescriptor.ToArray().CopyTo(controlPacket, 0);
-                return deviceDescriptor.ToArray();
-            case DescriptorType.Configuration:
-                controlPacket = new byte[configurationDescriptor.ToArray().Length];
-                configurationDescriptor.ToArray().CopyTo(controlPacket, 0);
-                controlPacket = keyboardConfigDescriptor;
-                return configurationDescriptor.ToArray();
-            case DescriptorType.DeviceQualifier:
-                controlPacket = new byte[deviceQualifierDescriptor.ToArray().Length];
-                deviceQualifierDescriptor.ToArray().CopyTo(controlPacket, 0);
-                return deviceQualifierDescriptor.ToArray();
-            case DescriptorType.InterfacePower:
-                throw new NotImplementedException("Interface Power Descriptor is not yet implemented. Please contact AntMicro for further support.");
-            case DescriptorType.OtherSpeedConfiguration:
-                controlPacket = new byte[otherConfigurationDescriptor.ToArray().Length];
-                otherConfigurationDescriptor.ToArray().CopyTo(controlPacket, 0);
-                return otherConfigurationDescriptor.ToArray();
-            case DescriptorType.String:
-                if(index == 0)
-                {
-                    stringDescriptor = new StringUSBDescriptor(1);
-                    stringDescriptor.LangId[0] = EnglishLangId;
-                }
-                else
-                {
-                    stringDescriptor = new StringUSBDescriptor(stringValues[setupPacket.index][index]);
-                }
-                controlPacket = new byte[stringDescriptor.ToArray().Length];
-                stringDescriptor.ToArray().CopyTo(controlPacket, 0);
-                return stringDescriptor.ToArray();
-            case (DescriptorType)0x22:
-                controlPacket = keyboardHIDReportDescritpor;
-                break;
-            default:
-                this.Log(LogLevel.Warning, "Unsupported keyboard request!!!");
-                return null;
-            }
-            return null;
-        }
-
-        private Dictionary<ushort, string[]> stringValues = new Dictionary<ushort, string[]>()
-        {
-            {EnglishLangId, new string[]{
-                    "",
-                    "1",
-                    "HID Keyboard",
-                    "AntMicro",
-                    "HID Keyboard",
-                    "HID Keyboard",
-                    "HID Keyboard",
-                    "Configuration",
-                }}
-        };
-
-        public byte[] ProcessClassGet(USBPacket packet, USBSetupPacket setupPacket)
-        {
-            return controlPacket;
-        }
-
         public void ProcessClassSet(USBPacket packet, USBSetupPacket setupPacket)
         {
-
         }
 
         public void SetDataToggle(byte endpointNumber)
@@ -282,33 +62,16 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             throw new NotImplementedException();
         }
 
+        public byte[] ProcessClassGet(USBPacket packet, USBSetupPacket setupPacket)
+        {
+            return controlPacket;
+        }
 
-         #region IUSBDevice
+        #region IUSBDevice
         public byte[] GetInterface(USBPacket packet, USBSetupPacket setupPacket)
         {
             throw new NotImplementedException();
         }
-
-        public byte[] GetStatus(USBPacket packet, USBSetupPacket setupPacket)
-        {
-            var arr = new byte[2];
-            MessageRecipient recipient = (MessageRecipient)(setupPacket.requestType & 0x3);
-            switch(recipient)
-            {
-            case MessageRecipient.Device:
-                arr[0] = (byte)(((configurationDescriptor.RemoteWakeup ? 1 : 0) << 1) | (configurationDescriptor.SelfPowered ? 1 : 0));
-                break;
-            case MessageRecipient.Endpoint:
-                //TODO: endpoint halt status
-                goto default;
-            default:
-                arr[0] = 0;
-                break;
-            }
-            return arr;
-        }
-
-        uint DeviceAddress = 0;
 
         public void SetAddress(uint address)
         {
@@ -343,22 +106,216 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
         {
             throw new NotImplementedException();
         }
+
+        public byte[] GetStatus(USBPacket packet, USBSetupPacket setupPacket)
+        {
+            var arr = new byte[2];
+            MessageRecipient recipient = (MessageRecipient)(setupPacket.RequestType & 0x3);
+            switch(recipient)
+            {
+            case MessageRecipient.Device:
+                arr[0] = (byte)(((configurationDescriptor.RemoteWakeup ? 1 : 0) << 1) | (configurationDescriptor.SelfPowered ? 1 : 0));
+                break;
+            case MessageRecipient.Endpoint:
+                //TODO: endpoint halt status
+                goto default;
+            default:
+                arr[0] = 0;
+                break;
+            }
+            return arr;
+        }
+
+        #region IUSBDevice implementation
+        public byte[] ProcessVendorGet(USBPacket packet, USBSetupPacket setupPacket)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void ProcessVendorSet(USBPacket packet, USBSetupPacket setupPacket)
+        {
+            throw new NotImplementedException();
+        }
+
+        public uint GetAddress()
+        {
+            return DeviceAddress;
+        }
+
+        public byte[] GetDataControl(USBPacket packet)
+        {
+            return controlPacket;
+        }
+
+        public byte[] GetDataBulk(USBPacket packet)
+        {
+            return null;
+        }
+
+        public byte[] WriteInterrupt(USBPacket packet)
+        {
+            lock(thisLock)
+            {
+                if(queue.Count == 0)
+                    return null;
+
+                byte [] data = new byte[8];
+                data[0] = (byte)modifiers;
+                data[1] = 0;
+                /*
+            data [2] = (byte)pkey;
+            data [3] = 0;
+            data [4] = 0;
+            data [5] = 0;
+            data [6] = 0;
+            data [7] = 0;*/
+                for(int i = 2; i < 8; i++)
+                {
+                    if(queue.Count != 0)
+                        data[i] = queue.Dequeue();
+                    else
+                        data[i] = 0;
+                }
+                return data;
+            }
+        }
+
+        public void Release(KeyScanCode scanCode)
+        {
+            lock(thisLock)
+            {
+                pkey = (int)0;
+                if(((int)scanCode) >= 0xe0 && ((int)scanCode) <= 0xe7)
+                {
+                    modifiers &= ~(1 << (((int)scanCode) & 0x7));
+                }
+                for(int i = 0; i < 6; i++)
+                    queue.Enqueue((byte)pkey);
+            }
+            Refresh();
+        }
+
+        public void Press(KeyScanCode scanCode)
+        {
+            lock(thisLock)
+            {
+                pkey = (int)scanCode & 0x7f;
+                if(((int)scanCode) >= 0xe0 && ((int)scanCode) <= 0xe7)
+                {
+                    modifiers |= 1 << (((int)scanCode) & 0x7);
+                    pkey = 0;
+                }
+                queue.Enqueue((byte)pkey);
+            }
+            Refresh();
+        }
+
+        public byte GetTransferStatus()
+        {
+            return 0;
+        }
+
+        public byte[] GetDescriptor(USBPacket packet, USBSetupPacket setupPacket)
+        {
+            DescriptorType type;
+            type = (DescriptorType)((setupPacket.Value & 0xff00) >> 8);
+            uint index = (uint)(setupPacket.Value & 0xff);
+            switch(type)
+            {
+            case DescriptorType.Device:
+                controlPacket = new byte[deviceDescriptor.ToArray().Length];
+                deviceDescriptor.ToArray().CopyTo(controlPacket, 0);
+                return deviceDescriptor.ToArray();
+            case DescriptorType.Configuration:
+                controlPacket = new byte[configurationDescriptor.ToArray().Length];
+                configurationDescriptor.ToArray().CopyTo(controlPacket, 0);
+                controlPacket = keyboardConfigDescriptor;
+                return configurationDescriptor.ToArray();
+            case DescriptorType.DeviceQualifier:
+                controlPacket = new byte[deviceQualifierDescriptor.ToArray().Length];
+                deviceQualifierDescriptor.ToArray().CopyTo(controlPacket, 0);
+                return deviceQualifierDescriptor.ToArray();
+            case DescriptorType.InterfacePower:
+                throw new NotImplementedException("Interface Power Descriptor is not yet implemented. Please contact AntMicro for further support.");
+            case DescriptorType.OtherSpeedConfiguration:
+                controlPacket = new byte[otherConfigurationDescriptor.ToArray().Length];
+                otherConfigurationDescriptor.ToArray().CopyTo(controlPacket, 0);
+                return otherConfigurationDescriptor.ToArray();
+            case DescriptorType.String:
+                if(index == 0)
+                {
+                    stringDescriptor = new StringUSBDescriptor(1);
+                    stringDescriptor.LangId[0] = EnglishLangId;
+                }
+                else
+                {
+                    stringDescriptor = new StringUSBDescriptor(stringValues[setupPacket.Index][index]);
+                }
+                controlPacket = new byte[stringDescriptor.ToArray().Length];
+                stringDescriptor.ToArray().CopyTo(controlPacket, 0);
+                return stringDescriptor.ToArray();
+            case (DescriptorType)0x22:
+                controlPacket = keyboardHIDReportDescritpor;
+                break;
+            default:
+                this.Log(LogLevel.Warning, "Unsupported keyboard request!!!");
+                return null;
+            }
+            return null;
+        }
+
+        public void Reset()
+        {
+        }
+
+        public void WriteDataControl(USBPacket packet)
+        {
+        }
+
+        public void WriteDataBulk(USBPacket packet)
+        {
+        }
+
+        public USBDeviceSpeed GetSpeed()
+        {
+            return USBDeviceSpeed.Low;
+        }
+
+        public event Action <uint> SendInterrupt ;
+
+        public event Action <uint> SendPacket
+        {
+            add {}
+            remove {}
+        }
+
+        protected Object thisLock = new Object();
+
+        private void Refresh()
+        {
+            var sendInterrupt = SendInterrupt;
+            if(DeviceAddress != 0 && sendInterrupt != null)
+            {
+                sendInterrupt(DeviceAddress);
+            }
+        }
+
+        private void FillEndpointsDescriptors(EndpointUSBDescriptor[] endpointDesc)
+        {
+            endpointDesc[0].EndpointNumber = 1;
+            endpointDesc[0].InEnpoint = true;
+            endpointDesc[0].TransferType = EndpointUSBDescriptor.TransferTypeEnum.Interrupt;
+            endpointDesc[0].MaxPacketSize = 0x0004;
+            endpointDesc[0].SynchronizationType = EndpointUSBDescriptor.SynchronizationTypeEnum.NoSynchronization;
+            endpointDesc[0].UsageType = EndpointUSBDescriptor.UsageTypeEnum.Data;
+            endpointDesc[0].Interval = 0x0a;
+        }
+
+        private StringUSBDescriptor stringDescriptor = null;
+
         #endregion
 
-        #region descriptors
-        private ConfigurationUSBDescriptor configurationDescriptor = new ConfigurationUSBDescriptor()
-        {
-            ConfigurationIndex = 0,
-            SelfPowered = true,
-            NumberOfInterfaces = 1,
-            RemoteWakeup = true,
-            MaxPower = 50, //500mA
-            ConfigurationValue = 1
-        };
-
- #endregion
-
-        private StandardUSBDescriptor deviceDescriptor = new StandardUSBDescriptor
+        private readonly StandardUSBDescriptor deviceDescriptor = new StandardUSBDescriptor
         {
             DeviceClass=0x00,
             DeviceSubClass = 0x00,
@@ -373,7 +330,59 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             SerialNumberIndex = 1,
             NumberOfConfigurations = 1
         };
-        byte[] keyboardHIDReportDescritpor = {
+        #endregion
+
+        #region descriptors
+        private readonly ConfigurationUSBDescriptor configurationDescriptor = new ConfigurationUSBDescriptor()
+        {
+            ConfigurationIndex = 0,
+            SelfPowered = true,
+            NumberOfInterfaces = 1,
+            RemoteWakeup = true,
+            MaxPower = 50, //500mA
+            ConfigurationValue = 1
+        };
+
+        private readonly EndpointUSBDescriptor[] endpointDescriptor;
+
+        private readonly DeviceQualifierUSBDescriptor deviceQualifierDescriptor = new DeviceQualifierUSBDescriptor();
+        private readonly ConfigurationUSBDescriptor otherConfigurationDescriptor = new ConfigurationUSBDescriptor();
+
+        private readonly InterfaceUSBDescriptor[] interfaceDescriptor = new[]{new InterfaceUSBDescriptor
+        {
+            AlternateSetting = 0,
+            InterfaceNumber = 0x00,
+            NumberOfEndpoints = 1,
+            InterfaceClass = 0x03,
+            InterfaceProtocol = 0x02,
+            InterfaceSubClass = 0x01,
+            InterfaceIndex = 0x07
+        }
+        };
+
+        private readonly Dictionary<ushort, string[]> stringValues = new Dictionary<ushort, string[]>()
+        {
+            {EnglishLangId, new string[]{
+                    "",
+                    "1",
+                    "HID Keyboard",
+                    "AntMicro",
+                    "HID Keyboard",
+                    "HID Keyboard",
+                    "HID Keyboard",
+                    "Configuration",
+                }}
+        };
+
+        private const byte NumberOfEndpoints = 2;
+        byte[] controlPacket;
+        readonly Queue <byte> queue;
+
+        int pkey;
+        int modifiers = 0;
+
+        uint DeviceAddress = 0;
+        readonly byte[] keyboardHIDReportDescritpor = {
             0x05, 0x01,
             0x09, 0x06,
             0xa1, 0x01,
@@ -407,7 +416,8 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             0x81, 0x00,
             0xc0
         };
-        byte[] keyboardConfigDescriptor = {
+
+        readonly byte[] keyboardConfigDescriptor = {
             0x09,
             0x02,
             0x22, 0x00,
@@ -439,25 +449,9 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             0x08, 0x00,
             0x0a,
         };
+
         private const ushort EnglishLangId = 0x09;
 
-
-        #region IUSBDevice implementation
-        public byte[] ProcessVendorGet(USBPacket packet, USBSetupPacket setupPacket)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void ProcessVendorSet(USBPacket packet, USBSetupPacket setupPacket)
-        {
-            throw new NotImplementedException();
-        }
-
-
-
-
-
-    #endregion
+        #endregion
     }
 }
-

@@ -5,7 +5,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 
@@ -23,4 +22,3 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
         }
     }
 }
-

@@ -6,6 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -57,7 +58,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             {
                 if(slot.IsEnabled)
                 {
-                    var channelNumber = (int)slot.channelSelect.Value;
+                    var channelNumber = (int)slot.ChannelSelect.Value;
                     if(TryGetDataFromChannel(channelNumber, out var data))
                     {
                         PushToFifo(data, (uint)slot.Number);
@@ -70,38 +71,49 @@ namespace Antmicro.Renode.Peripherals.Analog
         {
             switch((Registers)offset)
             {
-                case Registers.Configuration:
-                case Registers.Slot0Configuration:
-                case Registers.Slot1Configuration:
-                case Registers.Slot2Configuration:
-                case Registers.Slot3Configuration:
-                case Registers.Slot4Configuration:
-                case Registers.Slot5Configuration:
-                case Registers.Slot6Configuration:
-                case Registers.Slot7Configuration:
-                    // Only the configuration changes which stop ADC are allowed if it's enabled.
-                    var writeStopsTheModule = (Registers)offset == Registers.Configuration && (value & 1) == 0;
-                    if(!moduleEnabled.Value || writeStopsTheModule)
-                    {
-                        break;
-                    }
-                    this.Log(LogLevel.Warning, "{0}: Ignoring the write with value: 0x{1:X}; the module has to be disabled first.", (Registers)offset, value);
-                    return;
+            case Registers.Configuration:
+            case Registers.Slot0Configuration:
+            case Registers.Slot1Configuration:
+            case Registers.Slot2Configuration:
+            case Registers.Slot3Configuration:
+            case Registers.Slot4Configuration:
+            case Registers.Slot5Configuration:
+            case Registers.Slot6Configuration:
+            case Registers.Slot7Configuration:
+                // Only the configuration changes which stop ADC are allowed if it's enabled.
+                var writeStopsTheModule = (Registers)offset == Registers.Configuration && (value & 1) == 0;
+                if(!moduleEnabled.Value || writeStopsTheModule)
+                {
+                    break;
+                }
+                this.Log(LogLevel.Warning, "{0}: Ignoring the write with value: 0x{1:X}; the module has to be disabled first.", (Registers)offset, value);
+                return;
             }
             base.WriteDoubleWord(offset, value);
         }
 
         public uint Channel0Data { get; set; }
+
         public uint Channel1Data { get; set; }
+
         public uint Channel2Data { get; set; }
+
         public uint Channel3Data { get; set; }
+
         public uint Channel4Data { get; set; }
+
         public uint Channel5Data { get; set; }
+
         public uint Channel6Data { get; set; }
+
         public uint Channel7Data { get; set; }
+
         public uint Channel8Data { get; set; }
+
         public uint Channel9Data { get; set; }
+
         public uint Channel10Data { get; set; }
+
         public uint Channel11Data { get; set; }
 
         public GPIO IRQ { get; }
@@ -147,16 +159,16 @@ namespace Antmicro.Renode.Peripherals.Analog
             Registers.Slot0Configuration.Define32Many(this, SlotsCount, (register, index) =>
                 {
                     register
-                        .WithFlag(0, out slots[index].enableFlag, name: $"SLEN{index}")
+                        .WithFlag(0, out slots[index].EnableFlag, name: $"SLEN{index}")
                         .WithTaggedFlag($"WCEN{index}", 1)
                         .WithReservedBits(2, 6)
-                        .WithEnumField(8, 4, out slots[index].channelSelect, name: $"CHSEL{index}", writeCallback: (oldValue, newValue) =>
+                        .WithEnumField(8, 4, out slots[index].ChannelSelect, name: $"CHSEL{index}", writeCallback: (oldValue, newValue) =>
                         {
                             if((int)newValue >= ChannelsCount)
                             {
                                 this.Log(LogLevel.Error, "Slot{0}: Invalid channel select: {1}; the previous value will be kept: {2}",
                                         index, newValue, oldValue);
-                                slots[index].channelSelect.Value = oldValue;
+                                slots[index].ChannelSelect.Value = oldValue;
                             }
                         })
                         .WithReservedBits(12, 4)
@@ -400,6 +412,21 @@ namespace Antmicro.Renode.Peripherals.Analog
         private const int SlotsCount = 8;
         private const int SoftwareTriggerMagicValue = 0x37;
 
+        private class Slot
+        {
+            public Slot(int number)
+            {
+                Number = number;
+            }
+
+            public bool IsEnabled => EnableFlag.Value;
+
+            public int Number { get; }
+
+            public IEnumRegisterField<Channels> ChannelSelect;
+            public IFlagRegisterField EnableFlag;
+        }
+
         private struct FifoEntry
         {
             public FifoEntry(uint data, uint slotNumber)
@@ -410,20 +437,6 @@ namespace Antmicro.Renode.Peripherals.Analog
 
             public uint Data;
             public uint SlotNumber;
-        }
-
-        private class Slot
-        {
-            public Slot(int number)
-            {
-                Number = number;
-            }
-
-            public bool IsEnabled => enableFlag.Value;
-            public int Number { get; }
-
-            public IEnumRegisterField<Channels> channelSelect;
-            public IFlagRegisterField enableFlag;
         }
 
         private enum Channels

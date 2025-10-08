@@ -5,18 +5,16 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Peripherals.CPU;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class IMXRT700_MessagingUnit : IBusPeripheral
     {
-        public IMXRT700_MessagingUnit(IMachine machine)
+        public IMXRT700_MessagingUnit()
         {
             aInstanceData = new InstanceData("aInstance");
             bInstanceData = new InstanceData("bInstance");
@@ -49,6 +47,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             this.DebugLog("Writing value to aInstance region");
             aRegionRegisters.Write(offset, value);
         }
+
         [ConnectionRegion("bInstance")]
         public uint ReadDoubleWordFromBInstance(long offset)
         {
@@ -64,6 +63,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         public GPIO AInstanceIRQ { get; }
+
         public GPIO BInstanceIRQ { get; }
 
         private DoubleWordRegisterCollection DefineRegionRegisters(InstanceData mySide, InstanceData otherSide)
@@ -110,10 +110,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(0, 5); ;
             Registers.FlagControl.Define(collection)
                 .WithReservedBits(FLAGS_COUNT, 29)
-                .WithFlags(0, FLAGS_COUNT, out mySide.flags, name: "Fn");
+                .WithFlags(0, FLAGS_COUNT, out mySide.Flags, name: "Fn");
             Registers.FlagStatus.Define(collection)
                 .WithReservedBits(FLAGS_COUNT, 29)
-                .WithFlags(0, FLAGS_COUNT, FieldMode.Read, valueProviderCallback: (idx, _) => otherSide.flags[idx].Value, name: "Fn");
+                .WithFlags(0, FLAGS_COUNT, FieldMode.Read, valueProviderCallback: (idx, _) => otherSide.Flags[idx].Value, name: "Fn");
             Registers.GeneralPurposeInterruptEnable.Define(collection)
                 .WithReservedBits(4, 28)
                 .WithTaggedFlag("GIE3", 3)
@@ -134,41 +134,41 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithTaggedFlag("GIP0", 0);
             Registers.TransmitControl.Define(collection)
                 .WithReservedBits(TXRX_WORDS_COUNT, 28)
-                .WithFlags(0, TXRX_WORDS_COUNT, out mySide.transmitInterruptEnable, name: "TIEn")
+                .WithFlags(0, TXRX_WORDS_COUNT, out mySide.TransmitInterruptEnable, name: "TIEn")
                 .WithChangeCallback((_, __) => UpdateInterrupts());
             Registers.TransmitStatus.Define(collection, 0xF)
                 .WithReservedBits(TXRX_WORDS_COUNT, 28)
-                .WithFlags(0, TXRX_WORDS_COUNT, out mySide.transmitEmptyStatus, FieldMode.Read, name: "TEn");
+                .WithFlags(0, TXRX_WORDS_COUNT, out mySide.TransmitEmptyStatus, FieldMode.Read, name: "TEn");
             Registers.ReceiveControl.Define(collection)
                 .WithReservedBits(TXRX_WORDS_COUNT, 28)
-                .WithFlags(0, TXRX_WORDS_COUNT, out mySide.receiveInterruptEnable, name: "RIEn")
+                .WithFlags(0, TXRX_WORDS_COUNT, out mySide.ReceiveInterruptEnable, name: "RIEn")
                 .WithChangeCallback((_, __) => UpdateInterrupts());
             Registers.ReceiveStatus.Define(collection)
                 .WithReservedBits(TXRX_WORDS_COUNT, 28)
-                .WithFlags(0, TXRX_WORDS_COUNT, out mySide.receiveFullStatus, FieldMode.Read, name: "REn");
+                .WithFlags(0, TXRX_WORDS_COUNT, out mySide.ReceiveFullStatus, FieldMode.Read, name: "REn");
             Registers.Transmit0.DefineMany(collection, 4, (register, index) =>
             {
                 register
-                    .WithValueField(0, 32, out mySide.transmitWords[index], FieldMode.Write, name: "TR_DATA")
+                    .WithValueField(0, 32, out mySide.TransmitWords[index], FieldMode.Write, name: "TR_DATA")
                     .WithWriteCallback((_, __) =>
                     {
-                        mySide.transmitEmptyStatus[index].Value = false;
-                        otherSide.receiveFullStatus[index].Value = true;
+                        mySide.TransmitEmptyStatus[index].Value = false;
+                        otherSide.ReceiveFullStatus[index].Value = true;
                         UpdateInterrupts();
                     });
             });
             Registers.Receive0.DefineMany(collection, 4, (register, index) =>
             {
                 register
-                    .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => otherSide.transmitWords[index].Value, name: "RR_DATA")
+                    .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => otherSide.TransmitWords[index].Value, name: "RR_DATA")
                     .WithReadCallback((_, __) =>
                     {
-                        if (otherSide.transmitEmptyStatus[index].Value)
+                        if(otherSide.TransmitEmptyStatus[index].Value)
                         {
                             this.WarningLog("Reading the word from {0}, but there is no transmit in progress", otherSide.InstanceName);
                         }
-                        mySide.receiveFullStatus[index].Value = false;
-                        otherSide.transmitEmptyStatus[index].Value = true;
+                        mySide.ReceiveFullStatus[index].Value = false;
+                        otherSide.TransmitEmptyStatus[index].Value = true;
                         UpdateInterrupts();
                     });
             });
@@ -198,7 +198,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             public InstanceData(string instanceName)
             {
                 InstanceName = instanceName;
-                transmitWords = new IValueRegisterField[TXRX_WORDS_COUNT];
+                TransmitWords = new IValueRegisterField[TXRX_WORDS_COUNT];
             }
 
             public string InstanceName { get; }
@@ -210,7 +210,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     var receiveFull = false;
                     for(int i = 0; i < TXRX_WORDS_COUNT; i++)
                     {
-                        receiveFull |= receiveInterruptEnable[i].Value && receiveFullStatus[i].Value;
+                        receiveFull |= ReceiveInterruptEnable[i].Value && ReceiveFullStatus[i].Value;
                     }
                     return receiveFull;
                 }
@@ -223,19 +223,19 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     var transmitEmpty = false;
                     for(int i = 0; i < TXRX_WORDS_COUNT; i++)
                     {
-                        transmitEmpty |= transmitInterruptEnable[i].Value && transmitEmptyStatus[i].Value;
+                        transmitEmpty |= TransmitInterruptEnable[i].Value && TransmitEmptyStatus[i].Value;
                     }
                     return transmitEmpty;
                 }
             }
 
-            public IFlagRegisterField[] transmitInterruptEnable;
-            public IFlagRegisterField[] receiveInterruptEnable;
+            public IFlagRegisterField[] TransmitInterruptEnable;
+            public IFlagRegisterField[] ReceiveInterruptEnable;
 
-            public IFlagRegisterField[] flags;
-            public IValueRegisterField[] transmitWords;
-            public IFlagRegisterField[] transmitEmptyStatus;
-            public IFlagRegisterField[] receiveFullStatus;
+            public IFlagRegisterField[] Flags;
+            public IValueRegisterField[] TransmitWords;
+            public IFlagRegisterField[] TransmitEmptyStatus;
+            public IFlagRegisterField[] ReceiveFullStatus;
         }
 
         private enum Registers
