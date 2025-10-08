@@ -310,13 +310,14 @@ namespace Antmicro.Renode.Peripherals.MTD
                 return;
             }
 
-            var offset = physicalAddress - registered.RegistrationPoint.Range.StartAddress;
             // Program memory must be selected
             if (!programMemorySelect.Value)
             {
                 this.Log(LogLevel.Warning, "Program attempted without PRG bit set");
                 return;
             }
+            
+            var offset = physicalAddress - registered.RegistrationPoint.Range.StartAddress;
 
             if (fastProgramBuffer == null)
             {
