@@ -29,7 +29,7 @@ using AntShell.Commands;
 
 namespace Antmicro.Renode.UserInterface
 {
-    public partial class Monitor : ICommandHandler
+    public partial class Monitor : ICommandHandler, IHasPreservableState
     {
         public Monitor()
         {
@@ -72,6 +72,7 @@ namespace Antmicro.Renode.UserInterface
                 emulationManager.CurrentEmulation.MachineAdded += RegisterResetCommand;
                 monitorPath.Reset();
             };
+            EmulationManager.PreservableManager.RegisterPreservable(this, livesThroughEmulationChange: true);
 
             SetVariable(CurrentDirectoryVariable, new PathToken("@" + startingCurrentDirectory), variables);
             CurrentNumberFormat = ConfigurationManager.Instance.Get<NumberModes>(ConfigurationSection, "number-format", NumberModes.Hexadecimal);
@@ -493,6 +494,31 @@ namespace Antmicro.Renode.UserInterface
             return SuggestCommands(cmd).ToArray();
         }
 
+        public object ExtractPreservedState()
+        {
+            return Machine?.ToString();
+        }
+
+        public void LoadPreservedState(object state)
+        {
+            if(state == null)
+            {
+                return;
+            }
+
+            if(!(state is string machineName))
+            {
+                throw new RecoverableException("Unexpected state received while loading preserved state");
+            }
+
+            if(!emulationManager.CurrentEmulation.TryGetMachineByName(machineName, out var newMachine))
+            {
+                throw new RecoverableException("Machine was not found in the snapshot");
+            }
+
+            Machine = newMachine;
+        }
+
         public IEnumerable<Command> RegisteredCommands
         {
             get
@@ -525,6 +551,8 @@ namespace Antmicro.Renode.UserInterface
                 CurrentMachine = value;
             }
         }
+
+        public string PreservableName => "Monitor";
 
         public event Action<string> MachineChanged;
 
