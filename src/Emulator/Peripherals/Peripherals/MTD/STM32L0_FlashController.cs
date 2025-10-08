@@ -6,7 +6,6 @@
 //
 using System;
 using System.Linq;
-
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -48,7 +47,7 @@ namespace Antmicro.Renode.Peripherals.MTD
             var reg = (Registers)offset;
             // The PECR lock is the only one that covers a whole register and not a single bit.
             // Handle it here for simplicity.
-            if(reg == Registers.ProgramEraseControl && programEraseControlLock.IsLocked)
+            if (reg == Registers.ProgramEraseControl && programEraseControlLock.IsLocked)
             {
                 this.Log(LogLevel.Warning, "Attempt to write {0:x8} to {1} while it is locked", value, reg);
                 return;
@@ -86,7 +85,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                 .WithFlag(0, name: "LATENCY")
                 .WithFlag(1, out prefetchEnabled, name: "PRFTEN", changeCallback: (oldValue, value) =>
                     {
-                        if(value && disableBuffer.Value)
+                        if (value && disableBuffer.Value)
                         {
                             this.Log(LogLevel.Warning, "Attempt to set PRFTEN while DISAB_BUF is set, ignoring");
                             prefetchEnabled.Value = oldValue;
@@ -96,19 +95,19 @@ namespace Antmicro.Renode.Peripherals.MTD
                 .WithTaggedFlag("SLEEP_PD", 3)
                 .WithFlag(4, out runPowerDown, name: "RUN_PD", changeCallback: (oldValue, value) =>
                     {
-                        if(powerDownLock.IsLocked)
+                        if (powerDownLock.IsLocked)
                         {
                             this.Log(LogLevel.Warning, "Attempt to write RUN_PD while it is locked, ignoring");
                             runPowerDown.Value = oldValue;
                         }
-                        else if(!value)
+                        else if (!value)
                         {
                             powerDownLock.Lock(); // Resetting the RUN_PD flag re-locks the bit
                         }
                     })
                 .WithFlag(5, out disableBuffer, name: "DISAB_BUF", changeCallback: (_, value) =>
                     {
-                        if(value)
+                        if (value)
                         {
                             prereadEnabled.Value = false;
                             prefetchEnabled.Value = false;
@@ -116,7 +115,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                     })
                 .WithFlag(6, out prereadEnabled, name: "PRE_READ", changeCallback: (oldValue, value) =>
                     {
-                        if(value && disableBuffer.Value)
+                        if (value && disableBuffer.Value)
                         {
                             this.Log(LogLevel.Warning, "Attempt to set PRE_READ while DISAB_BUF is set, ignoring");
                             prereadEnabled.Value = oldValue;
@@ -128,7 +127,7 @@ namespace Antmicro.Renode.Peripherals.MTD
             programEraseControl = Registers.ProgramEraseControl.Define(this, 0x7)
                 .WithFlag(0, name: "PE_LOCK", valueProviderCallback: _ => programEraseControlLock.IsLocked, changeCallback: (_, value) =>
                     {
-                        if(value)
+                        if (value)
                         {
                             programEraseControlLock.Lock();
                         }
@@ -137,7 +136,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                     })
                 .WithFlag(1, name: "PRG_LOCK", valueProviderCallback: _ => programEraseLock.IsLocked, changeCallback: (_, value) =>
                     {
-                        if(value)
+                        if (value)
                         {
                             programEraseLock.Lock();
                         }
@@ -148,7 +147,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                     })
                 .WithFlag(2, name: "OPT_LOCK", valueProviderCallback: _ => optionByteLock.IsLocked, changeCallback: (_, value) =>
                     {
-                        if(value)
+                        if (value)
                         {
                             optionByteLock.Lock();
                         }
@@ -162,7 +161,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                 .WithReservedBits(5, 3)
                 .WithTaggedFlag("FIX", 8)
                 .WithFlag(9, name: "ERASE", changeCallback: (_, value) => { SetEraseMode(value); })
-                .WithTaggedFlag("FPRG", 10)
+                .WithFlag(10, name: "FPRG", changeCallback: (_, value) => { SetProgramMode(value); })
                 .WithReservedBits(11, 4)
                 .WithTaggedFlag("PARALLELBANK", 15)
                 .WithTaggedFlag("EOPIE", 16)
@@ -198,14 +197,14 @@ namespace Antmicro.Renode.Peripherals.MTD
                     });
 
             Registers.Status.Define(this, 0xC)
-                .WithFlag(0, mode: FieldMode.Read, valueProviderCallback: _ => false, name: "BSY")
-                .WithFlag(1, mode: FieldMode.Read | FieldMode.WriteOneToClear, valueProviderCallback: _ => false, name: "EOP")
+                .WithFlag(0, out busy, FieldMode.Read, name: "BSY")
+                .WithFlag(1, out endOfOperation, FieldMode.Read | FieldMode.WriteOneToClear, name: "EOP")
                 .WithFlag(2, mode: FieldMode.Read, valueProviderCallback: _ => true, name: "ENDHV")
                 .WithFlag(3, mode: FieldMode.Read, valueProviderCallback: _ => true, name: "READY")
                 .WithReservedBits(4, 4)
                 .WithFlag(8, mode: FieldMode.WriteOneToClear, name: "WRPERR")
                 .WithFlag(9, mode: FieldMode.WriteOneToClear, name: "PGAERR")
-                .WithFlag(10, mode: FieldMode.WriteOneToClear, name: "SIZERR")
+                .WithFlag(10, out programmingSizeError, FieldMode.WriteOneToClear, name: "SIZERR")
                 .WithFlag(11, mode: FieldMode.WriteOneToClear, name: "OPTVERR")
                 .WithReservedBits(12, 1)
                 .WithFlag(13, mode: FieldMode.WriteOneToClear, name: "RDERR")
@@ -253,23 +252,23 @@ namespace Antmicro.Renode.Peripherals.MTD
         private void EraseMemoryAccessHook(ulong pc, MemoryOperation operation, ulong virtualAddress, ulong physicalAddress, ulong value)
         {
             // Only write accesses can be used to erase
-            if(operation != MemoryOperation.MemoryWrite && operation != MemoryOperation.MemoryIOWrite)
+            if (operation != MemoryOperation.MemoryWrite && operation != MemoryOperation.MemoryIOWrite)
             {
                 return;
             }
 
             // Only accesses to our underlying flash or EEPROM peripheral can be used to erase
             var registered = machine.SystemBus.WhatIsAt(physicalAddress);
-            if(registered == null)
+            if (registered == null)
             {
                 return;
             }
 
             var offset = physicalAddress - registered.RegistrationPoint.Range.StartAddress;
-            if(registered.Peripheral == underlyingFlash)
+            if (registered.Peripheral == underlyingFlash)
             {
                 // Program memory must be selected
-                if(!programMemorySelect.Value)
+                if (!programMemorySelect.Value)
                 {
                     this.Log(LogLevel.Warning, "Erase attempted without program memory being selected");
                     return;
@@ -280,10 +279,10 @@ namespace Antmicro.Renode.Peripherals.MTD
                 underlyingFlash.WriteBytes((long)flashPageStart, FlashPageErasePattern);
                 this.Log(LogLevel.Debug, "Erased flash page {0} (at 0x{1:x8})", flashPageStart / FlashPageSize, flashPageStart);
             }
-            else if(registered.Peripheral == underlyingEeprom)
+            else if (registered.Peripheral == underlyingEeprom)
             {
                 // Program memory must not be selected
-                if(programMemorySelect.Value)
+                if (programMemorySelect.Value)
                 {
                     this.Log(LogLevel.Warning, "EEPROM word erase attempted with program memory selected");
                     return;
@@ -296,16 +295,73 @@ namespace Antmicro.Renode.Peripherals.MTD
             }
         }
 
+
+        private void ProgramMemoryAccessHook(ulong pc, MemoryOperation operation, ulong virtualAddress, ulong physicalAddress, ulong value)
+        {
+            if (operation != MemoryOperation.MemoryWrite && operation != MemoryOperation.MemoryIOWrite)
+            {
+                return;
+            }
+
+            // Only accesses to our underlying flash can be used to programm
+            var registered = machine.SystemBus.WhatIsAt(physicalAddress);
+            if (registered == null || registered.Peripheral != underlyingFlash)
+            {
+                return;
+            }
+
+            var offset = physicalAddress - registered.RegistrationPoint.Range.StartAddress;
+            // Program memory must be selected
+            if (!programMemorySelect.Value)
+            {
+                this.Log(LogLevel.Warning, "Program attempted without PRG bit set");
+                return;
+            }
+
+            if (fastProgramBuffer == null)
+            {
+                fastProgramBuffer = new ulong[RowSizeInWords];
+                // round down to the nearest RowSizeInBytes (64-byte) boundary.
+                fastProgramBase = (long)offset & ~((long)RowSizeInBytes - 1);
+                bufferIndex = 0;
+            }
+
+            fastProgramBuffer[bufferIndex] = value;
+            bufferIndex++;
+
+            // Once all 16 words are received, commit to flash
+            if (bufferIndex == RowSizeInWords)
+            {
+                busy.Value = true;
+
+                for (int i = 0; i < RowSizeInWords; i++)
+                {
+                    var addr = fastProgramBase + (i * 4);
+
+                    // Write word to flash
+                    underlyingFlash.WriteBytes(addr, BitConverter.GetBytes(fastProgramBuffer[i]));
+                    this.Log(LogLevel.Debug, "Fast programmed flash word {0} (at 0x{1:x8}) with 0x{2:x8}", i, addr, fastProgramBuffer[i]);
+                }
+
+                busy.Value = false;
+                endOfOperation.Value = true;
+
+                // Reset buffer for next row
+                fastProgramBuffer = null;
+                bufferIndex = 0;
+            }
+        }
+
         private void SetEraseMode(bool enabled)
         {
-            if(!machine.SystemBus.TryGetCurrentCPU(out var icpu))
+            if (!machine.SystemBus.TryGetCurrentCPU(out var icpu))
             {
                 this.Log(LogLevel.Error, "Failed to get CPU");
                 return;
             }
 
             var cpu = icpu as ICPUWithMemoryAccessHooks;
-            if(cpu == null)
+            if (cpu == null)
             {
                 this.Log(LogLevel.Error, "CPU does not support memory access hooks, cannot trigger memory erase");
                 return;
@@ -315,15 +371,39 @@ namespace Antmicro.Renode.Peripherals.MTD
             cpu.SetHookAtMemoryAccess(enabled ? hook : null);
         }
 
+        private void SetProgramMode(bool enabled)
+        {
+            this.Log(LogLevel.Debug, "Setting fast program mode (FPRG) to {0}", enabled);
+            if (!machine.SystemBus.TryGetCurrentCPU(out var icpu))
+            {
+                this.Log(LogLevel.Error, "Failed to get CPU");
+                return;
+            }
+
+            var cpu = icpu as ICPUWithMemoryAccessHooks;
+            if (cpu == null)
+            {
+                this.Log(LogLevel.Error, "CPU does not support memory access hooks, cannot trigger memory program");
+                return;
+            }
+
+            Action<ulong, MemoryOperation, ulong, ulong, ulong> hook = ProgramMemoryAccessHook;
+            cpu.SetHookAtMemoryAccess(enabled ? hook : null);
+        }
+
+
+        private readonly MappedMemory underlyingFlash;
+        private readonly MappedMemory underlyingEeprom;
+
         private DoubleWordRegister programEraseControl;
         private IFlagRegisterField prefetchEnabled;
         private IFlagRegisterField runPowerDown;
         private IFlagRegisterField prereadEnabled;
         private IFlagRegisterField disableBuffer;
         private IFlagRegisterField programMemorySelect;
-
-        private readonly MappedMemory underlyingFlash;
-        private readonly MappedMemory underlyingEeprom;
+        private IFlagRegisterField programmingSizeError;
+        private IFlagRegisterField busy;
+        private IFlagRegisterField endOfOperation;
         private readonly LockRegister powerDownLock;
         private readonly LockRegister programEraseControlLock;
         private readonly LockRegister programEraseLock;
@@ -331,14 +411,20 @@ namespace Antmicro.Renode.Peripherals.MTD
 
         private readonly DoubleWordRegisterCollection signatureRegisters;
 
+        // Fast program (FPRG) state
+        private ulong[] fastProgramBuffer;
+        private long fastProgramBase;
+        private int bufferIndex;
         private const int EepromWordSize = 4;
         private const int FlashPageSize = 128;
+        private const int RowSizeInBytes = 64;
+        private const int RowSizeInWords = RowSizeInBytes / 4;
         private const uint EepromWordErasePattern = 0;
         private static readonly byte[] FlashPageErasePattern = (byte[])Enumerable.Repeat((byte)0x00, FlashPageSize).ToArray();
-        private static readonly uint[] PowerDownKeys = {0x04152637, 0xFAFBFCFD};
-        private static readonly uint[] ProgramEraseControlKeys = {0x89ABCDEF, 0x02030405};
-        private static readonly uint[] ProgramEraseKeys = {0x8C9DAEBF, 0x13141516};
-        private static readonly uint[] OptionByteKeys = {0xFBEAD9C8, 0x24252627};
+        private static readonly uint[] PowerDownKeys = { 0x04152637, 0xFAFBFCFD };
+        private static readonly uint[] ProgramEraseControlKeys = { 0x89ABCDEF, 0x02030405 };
+        private static readonly uint[] ProgramEraseKeys = { 0x8C9DAEBF, 0x13141516 };
+        private static readonly uint[] OptionByteKeys = { 0xFBEAD9C8, 0x24252627 };
 
         private enum Registers : long
         {
