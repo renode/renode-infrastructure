@@ -12,7 +12,7 @@ namespace Antmicro.Renode.Core.ACPI
     [LeastSignificantByteFirst]
     public struct SystemDescriptionTableHeader
     {
-        [PacketField, Width(4)]
+        [PacketField, Width(bytes: 4)]
         public byte[] Signature;
         [PacketField]
         public uint TableLength;
@@ -20,9 +20,9 @@ namespace Antmicro.Renode.Core.ACPI
         public byte Revision;
         [PacketField]
         public byte Checksum;
-        [PacketField, Width(6)]
+        [PacketField, Width(bytes: 6)]
         public byte[] OEMID;
-        [PacketField, Width(8)]
+        [PacketField, Width(bytes: 8)]
         public byte[] OEMTableID;
         [PacketField]
         public uint OEMRevision;

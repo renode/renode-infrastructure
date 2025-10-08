@@ -8,8 +8,10 @@
 
 using Antmicro.Renode.Core.Extensions;
 using Antmicro.Renode.Peripherals.Bus;
-using NUnit.Framework;
+
 using Moq;
+
+using NUnit.Framework;
 
 namespace Antmicro.Renode.UnitTests
 {
@@ -169,7 +171,6 @@ namespace Antmicro.Renode.UnitTests
             Assert.AreEqual(0x8765, qwordPeripheral.ReadWordUsingQuadWordBigEndian(6));
         }
 
-
         [Test]
         public void ShouldReadDoubleWordUsingByte()
         {
@@ -274,4 +275,3 @@ namespace Antmicro.Renode.UnitTests
         private IQuadWordPeripheral qwordPeripheral;
     }
 }
-

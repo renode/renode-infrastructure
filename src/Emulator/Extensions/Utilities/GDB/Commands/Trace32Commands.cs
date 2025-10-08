@@ -7,9 +7,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.CPU;
+
 using ELFSharp.ELF;
 
 namespace Antmicro.Renode.Utilities.GDB.Commands
@@ -20,44 +22,44 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
 
         [Execute("Mc14:")]
         public PacketData CP14SetOld(
-            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint trace32Encoding,
-            [Argument(Separator = ':', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint sizeInBytes,
-            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexBytesString)]byte[] valueBytes)
+            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)] uint trace32Encoding,
+            [Argument(Separator = ':', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)] uint sizeInBytes,
+            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexBytesString)] byte[] valueBytes)
         {
             return HandleAccessingArmSystemRegisters(ArmSystemRegisterEncoding.CoprocessorEnum.CP14, trace32Encoding, sizeInBytes, isRead: false, valueBytes);
         }
 
         [Execute("Mc15:")]
         public PacketData CP15SetOld(
-            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint trace32Encoding,
-            [Argument(Separator = ':', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint sizeInBytes,
-            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexBytesString)]byte[] valueBytes)
+            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)] uint trace32Encoding,
+            [Argument(Separator = ':', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)] uint sizeInBytes,
+            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexBytesString)] byte[] valueBytes)
         {
             return HandleAccessingArmSystemRegisters(ArmSystemRegisterEncoding.CoprocessorEnum.CP15, trace32Encoding, sizeInBytes, isRead: false, valueBytes);
         }
 
         [Execute("mc14:")]
         public PacketData CP14GetOld(
-            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint trace32Encoding,
-            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint sizeInBytes)
+            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)] uint trace32Encoding,
+            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)] uint sizeInBytes)
         {
             return HandleAccessingArmSystemRegisters(ArmSystemRegisterEncoding.CoprocessorEnum.CP14, trace32Encoding, sizeInBytes, isRead: true);
         }
 
         [Execute("mc15:")]
         public PacketData CP15GetOld(
-            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint trace32Encoding,
-            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint sizeInBytes)
+            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)] uint trace32Encoding,
+            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)] uint sizeInBytes)
         {
             return HandleAccessingArmSystemRegisters(ArmSystemRegisterEncoding.CoprocessorEnum.CP15, trace32Encoding, sizeInBytes, isRead: true);
         }
 
         [Execute("Qtrace32.memory:c")]
         public PacketData AArch32SystemRegisterSet(
-            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.DecimalNumber)]uint coprocessor,
-            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint trace32Encoding,
-            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint sizeInBytes,
-            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexBytesString)]byte[] valueBytes)
+            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.DecimalNumber)] uint coprocessor,
+            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)] uint trace32Encoding,
+            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)] uint sizeInBytes,
+            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexBytesString)] byte[] valueBytes)
         {
             if(coprocessor != 14 && coprocessor != 15)
             {
@@ -68,9 +70,9 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
 
         [Execute("qtrace32.memory:c")]
         public PacketData AArch32SystemRegisterGet(
-            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.DecimalNumber)]uint coprocessor,
-            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint trace32Encoding,
-            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint sizeInBytes)
+            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.DecimalNumber)] uint coprocessor,
+            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)] uint trace32Encoding,
+            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)] uint sizeInBytes)
         {
             if(coprocessor != 14 && coprocessor != 15)
             {
@@ -81,34 +83,34 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
 
         [Execute("Qtrace32.memory:spr,")]
         public PacketData AArch64SystemRegisterSet(
-            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint trace32Encoding,
-            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint sizeInBytes,
-            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexBytesString)]byte[] valueBytes)
+            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)] uint trace32Encoding,
+            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)] uint sizeInBytes,
+            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexBytesString)] byte[] valueBytes)
         {
             return HandleAccessingArmSystemRegisters(ArmSystemRegisterEncoding.CoprocessorEnum.AArch64, trace32Encoding, sizeInBytes, isRead: false, valueBytes);
         }
 
         [Execute("Mspr:")]
         public PacketData AArch64SystemRegisterSetOld(
-            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint trace32Encoding,
-            [Argument(Separator = ':', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint sizeInBytes,
-            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexBytesString)]byte[] valueBytes)
+            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)] uint trace32Encoding,
+            [Argument(Separator = ':', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)] uint sizeInBytes,
+            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexBytesString)] byte[] valueBytes)
         {
             return HandleAccessingArmSystemRegisters(ArmSystemRegisterEncoding.CoprocessorEnum.AArch64, trace32Encoding, sizeInBytes, isRead: false, valueBytes);
         }
 
         [Execute("qtrace32.memory:spr,")]
         public PacketData AArch64SystemRegisterGet(
-            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint trace32Encoding,
-            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint sizeInBytes)
+            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)] uint trace32Encoding,
+            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)] uint sizeInBytes)
         {
             return HandleAccessingArmSystemRegisters(ArmSystemRegisterEncoding.CoprocessorEnum.AArch64, trace32Encoding, sizeInBytes, isRead: true);
         }
 
         [Execute("mspr:")]
         public PacketData AArch64SystemRegisterGetOld(
-            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint trace32Encoding,
-            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint sizeInBytes)
+            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)] uint trace32Encoding,
+            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)] uint sizeInBytes)
         {
             return HandleAccessingArmSystemRegisters(ArmSystemRegisterEncoding.CoprocessorEnum.AArch64, trace32Encoding, sizeInBytes, isRead: true);
         }
@@ -197,7 +199,6 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
                 return HandleWritingArmSystemRegisters(cpu, encoding, sizeInBytes, valueBytes);
             }
         }
-
     }
 
     internal static class ArmSystemRegisterEncodingExtensions
@@ -210,17 +211,17 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             // Trace32 always increments the encoding to get the next in group.
             switch(encoding.Coprocessor)
             {
-                case ArmSystemRegisterEncoding.CoprocessorEnum.AArch64:
-                    // For AArch64, the last byte of the encoding represents op2, so that is what gets incremented.
-                    nextRegistersOp2++;
-                    break;
-                case ArmSystemRegisterEncoding.CoprocessorEnum.CP15:
-                case ArmSystemRegisterEncoding.CoprocessorEnum.CP14:
-                    // For AArch32, the last byte of the encoding represents CRn, so that is what gets incremented.
-                    nextRegistersCrn++;
-                    break;
-                default:
-                    throw new ArgumentException($"Invalid coprocessor: {encoding.Coprocessor}");
+            case ArmSystemRegisterEncoding.CoprocessorEnum.AArch64:
+                // For AArch64, the last byte of the encoding represents op2, so that is what gets incremented.
+                nextRegistersOp2++;
+                break;
+            case ArmSystemRegisterEncoding.CoprocessorEnum.CP15:
+            case ArmSystemRegisterEncoding.CoprocessorEnum.CP14:
+                // For AArch32, the last byte of the encoding represents CRn, so that is what gets incremented.
+                nextRegistersCrn++;
+                break;
+            default:
+                throw new ArgumentException($"Invalid coprocessor: {encoding.Coprocessor}");
             }
             return new ArmSystemRegisterEncoding(encoding.Coprocessor, encoding.Crm, encoding.Op1, nextRegistersCrn, encoding.Op0, nextRegistersOp2, encoding.Width);
         }

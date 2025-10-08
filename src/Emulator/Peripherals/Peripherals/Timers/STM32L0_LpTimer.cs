@@ -4,13 +4,14 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-﻿using System;
+using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Time;
-using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -59,7 +60,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithFlag(24, out interruptEnableRegisterUpdateOkStatus, FieldMode.Read, name: "Interrupt enable register update OK (DIEROK)")
                     .WithReservedBits(25, 7)
                   },
-
                   {(long)Registers.InterruptClear, new DoubleWordRegister(this)
                     .WithFlag(0, FieldMode.WriteOneToClear,
                         writeCallback: (_, val) =>
@@ -119,7 +119,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                          name: "Repetition register update OK clear flag (REPOKCF)")
                     .WithReservedBits(9, 15)
                     .WithFlag(24, FieldMode.WriteOneToClear,
-                        writeCallback: (_, val) => 
+                        writeCallback: (_, val) =>
                         {
                             if(!val)
                             {
@@ -175,7 +175,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithTaggedFlag("Encoder mode enable (ENC)", 24)
                     .WithReservedBits(25, 7)
                 },
-
                 {(long)Registers.Control, new DoubleWordRegister(this)
                     .WithFlag(0, out enabled, name: "LPTIM enable (ENABLE)")
                     .WithFlag(1, out var singleStart, name: "LPTIM start in Single mode (SNGSTRT)")
@@ -243,13 +242,11 @@ namespace Antmicro.Renode.Peripherals.Timers
                         name: "Autoreload register  (ARR)")
                     .WithReservedBits(16, 16)
                 },
-
                 {(long)Registers.Counter, new DoubleWordRegister(this)
                     .WithValueField(0, 16, FieldMode.Read, name: "Counter value (CNT)",
                             valueProviderCallback: _ => (uint)this.Value)
                     .WithReservedBits(16, 16)
                 },
-
                 {(long)Registers.Repetition, new DoubleWordRegister(this)
                     .WithTag("Repetition register value (REP)", 0, 8)
                     .WithReservedBits(8, 24)
@@ -368,4 +365,3 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
     }
 }
-

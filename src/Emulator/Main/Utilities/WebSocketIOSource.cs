@@ -46,9 +46,9 @@ namespace Antmicro.Renode.Utilities
         }
 
         public bool IsAnythingAttached { get { return server.IsAnythingReceiving; } }
+
         public event System.Action<int> ByteRead;
 
         private readonly WebSocketSingleConnectionServer server;
     }
 }
-

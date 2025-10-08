@@ -123,11 +123,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(16, 16);
         }
 
-        private IMachine machine;
-
         private IEnumRegisterField<XTAL32MState> xtal32mState;
         private IFlagRegisterField xtal32mEnable;
         private IFlagRegisterField xtal32mReady;
+
+        private readonly IMachine machine;
 
         private enum Registers
         {

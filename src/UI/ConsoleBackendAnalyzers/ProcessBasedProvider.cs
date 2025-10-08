@@ -9,9 +9,11 @@ using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Threading;
-using AntShell.Terminal;
+
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
+
+using AntShell.Terminal;
 
 namespace Antmicro.Renode.UI
 {
@@ -67,8 +69,6 @@ namespace Antmicro.Renode.UI
 
         public event Action OnClose;
 
-        protected abstract Process CreateProcess(string consoleName, string command);
-
         protected void LogError(string source, string arguments, int exitCode)
         {
             Logger.LogAs(this, LogLevel.Error, "There was an error while starting {0} with arguments: {1}. It exited with code: {2}. In order to use different terminal, change preferences in configuration file.", source, arguments, exitCode);
@@ -78,6 +78,8 @@ namespace Antmicro.Renode.UI
         {
             OnClose?.Invoke();
         }
+
+        protected abstract Process CreateProcess(string consoleName, string command);
 
         private bool RunProcess(Process p)
         {

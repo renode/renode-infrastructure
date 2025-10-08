@@ -6,15 +6,14 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Runtime.InteropServices;
-using System.Linq;
-using ELFSharp;
 using System.Collections.Generic;
-using ELFSharp.ELF;
-using ELFSharp.ELF.Sections;
-using System.IO;
-using System.Text;
+#pragma warning disable IDE0005
 using System.ComponentModel;
+#pragma warning restore IDE0005
+using System.Linq;
+using System.Runtime.InteropServices;
+
+using ELFSharp.ELF.Sections;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -36,7 +35,7 @@ namespace Antmicro.Renode.Utilities
         public static IntPtr LoadLibrary(string path)
         {
             IntPtr address;
-            if (!TryLoadLibrary(path, out address))
+            if(!TryLoadLibrary(path, out address))
             {
                 HandleError("opening");
             }
@@ -85,7 +84,7 @@ namespace Antmicro.Renode.Utilities
             }
 #else
             var result = dlclose(address);
-            if (result != 0)
+            if(result != 0)
             {
                 HandleError("unloading");
             }
@@ -145,7 +144,7 @@ namespace Antmicro.Renode.Utilities
 #else
             var address = dlsym(libraryAddress, name);
 #endif
-            if (address == IntPtr.Zero)
+            if(address == IntPtr.Zero)
             {
                 HandleError("getting symbol from");
             }
@@ -218,4 +217,3 @@ namespace Antmicro.Renode.Utilities
 #endif
     }
 }
-

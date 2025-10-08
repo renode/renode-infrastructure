@@ -8,12 +8,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.IRQControllers
 {
@@ -117,16 +117,16 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             var trigger = externalInterruptTrigger[externalIrqNumber].Value;
             switch(trigger)
             {
-                case InterruptTrigger.RisingEdge:
-                    return !previousState && state;
-                case InterruptTrigger.FallingEdge:
-                    return previousState && !state;
-                case InterruptTrigger.BothEdges:
-                    return previousState != state;
-                case InterruptTrigger.ActiveLow:
-                    return !state;
-                default:
-                    throw new ArgumentOutOfRangeException($"Unknown value of interrupt trigger {trigger}");
+            case InterruptTrigger.RisingEdge:
+                return !previousState && state;
+            case InterruptTrigger.FallingEdge:
+                return previousState && !state;
+            case InterruptTrigger.BothEdges:
+                return previousState != state;
+            case InterruptTrigger.ActiveLow:
+                return !state;
+            default:
+                throw new ArgumentOutOfRangeException($"Unknown value of interrupt trigger {trigger}");
             }
         }
 
@@ -298,21 +298,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             });
         }
 
-        private readonly IEnumRegisterField<InterruptTrigger>[] externalInterruptTrigger;
-        private readonly IValueRegisterField[] interruptEventLink;
-        private readonly IFlagRegisterField[] interruptPending;
-
-        private readonly EventToInterruptLinkType eventLinkType;
-        private readonly ISet<int>[] interruptsForEvent;
-        private readonly bool[] latestEventState;
-        private readonly IGPIOReceiver nvic;
-
-        private const int NoEventIndex = 0;
-        private const uint DefaultNumberOfExternalInterrupts = 16;
-        private const uint DefaultHighestEventNumber = 0x1DA;
-        private const uint DefaultNumberOfDMACEvents = 8;
-        private const uint DefaultNumberOfNVICOutputs = 96;
-
         private readonly int[,] eventLinkRA2 =
             {
                 //  GROUP0          GROUP1          GROUP2          GROUP3          GROUP4          GROUP5          GROUP6          GROUP7          
@@ -477,6 +462,21 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     0x93,           0x00,           0x00,           0x00,           0x86,           0x00,           0x8A,           0x00
                 }
             };
+
+        private readonly IEnumRegisterField<InterruptTrigger>[] externalInterruptTrigger;
+        private readonly IValueRegisterField[] interruptEventLink;
+        private readonly IFlagRegisterField[] interruptPending;
+
+        private readonly EventToInterruptLinkType eventLinkType;
+        private readonly ISet<int>[] interruptsForEvent;
+        private readonly bool[] latestEventState;
+        private readonly IGPIOReceiver nvic;
+
+        private const int NoEventIndex = 0;
+        private const uint DefaultNumberOfExternalInterrupts = 16;
+        private const uint DefaultHighestEventNumber = 0x1DA;
+        private const uint DefaultNumberOfDMACEvents = 8;
+        private const uint DefaultNumberOfNVICOutputs = 96;
 
         public enum EventToInterruptLinkType
         {

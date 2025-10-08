@@ -6,10 +6,11 @@
 //
 
 using System;
-using System.Text;
 using System.Collections.Generic;
-using Antmicro.Renode.Utilities;
+using System.Text;
+
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -29,6 +30,13 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             cache = new LRUCache<uint, byte[]>(CacheSize);
             buffer = new byte[BufferSize];
+        }
+
+        public override void FlushBuffer()
+        {
+            stream.Write(buffer, 0, bufferPosition);
+            stream.Flush();
+            bufferPosition = 0;
         }
 
         public override void WriteHeader()
@@ -103,12 +111,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        private bool usesMultipleInstructionSets;
-
-        private bool IncludeOpcode => this.format != TraceFormat.PC;
-
-        private bool IncludePC => this.format != TraceFormat.Opcode;
-
         private void WriteBytesToBuffer(byte[] data)
         {
             Buffer.BlockCopy(data, 0, buffer, bufferPosition, data.Length);
@@ -131,13 +133,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             BitHelper.GetBytesFromValue(buffer, bufferPosition, count, 8, true);
             bufferPosition += 8;
-        }
-
-        public override void FlushBuffer()
-        {
-            stream.Write(buffer, 0, bufferPosition);
-            stream.Flush();
-            bufferPosition = 0;
         }
 
         private bool TryReadAndDecodeInstruction(ulong pc, uint flags, out byte[] opcode)
@@ -172,6 +167,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             return true;
         }
+
+        private bool IncludeOpcode => this.format != TraceFormat.PC;
+
+        private bool IncludePC => this.format != TraceFormat.Opcode;
+
+        private bool usesMultipleInstructionSets;
 
         private int bufferPosition;
 

@@ -6,13 +6,12 @@
 //
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.IO;
-using System.Threading;
+using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU.GuestProfiling.ProtoBuf;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
@@ -34,7 +33,7 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
                     emulation.ExternalsManager.RemoveExternal(profiler);
                 }
                 catch
-                {}
+                { }
                 emulation.MasterTimeSource.SyncHook -= profiler.FlushBuffer;
             };
         }
@@ -335,8 +334,11 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
         private interface IAccessProfilerWrapper
         {
             string Type { get; }
+
             string InstanceName { get; }
+
             RegisterMapper RegisterMapper { get; }
+
             IBusController Bus { get; }
         }
 
@@ -360,8 +362,11 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
             }
 
             public string Type { get; }
+
             public string InstanceName { get; }
+
             public RegisterMapper RegisterMapper { get; }
+
             public IBusController Bus { get; }
         }
 
@@ -385,8 +390,11 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
             }
 
             public string Type { get; }
+
             public string InstanceName { get; }
+
             public RegisterMapper RegisterMapper { get; }
+
             public IBusController Bus { get; }
         }
 

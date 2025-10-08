@@ -7,14 +7,15 @@
 //
 using System;
 using System.Collections.Generic;
+using System.IO;
+
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Storage;
 using Antmicro.Renode.Utilities;
-using System.IO;
 
 namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
-    public class MassStorage: IUSBPeripheral, IDisposable
+    public class MassStorage : IUSBPeripheral, IDisposable
     {
         public event Action <uint> SendInterrupt
         {
@@ -31,6 +32,292 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
         byte[] controlPacket;
         uint addr;
 
+        public MassStorage(int numberOfBlocks, int blockSize = 512)
+        {
+            lbaBackend = new LBABackend(numberOfBlocks, blockSize);
+            Init();
+        }
+
+        public MassStorage(string underlyingFile, int? numberOfBlocks = null, int blockSize = 512, bool persistent = true)
+        {
+            lbaBackend = new LBABackend(underlyingFile, numberOfBlocks, blockSize, persistent);
+            Init();
+        }
+
+        public void ProcessVendorSet(USBPacket packet, USBSetupPacket setupPacket)
+        {
+            throw new NotImplementedException();
+        }
+
+        public byte[] ProcessVendorGet(USBPacket packet, USBSetupPacket setupPacket)
+        {
+            throw new NotImplementedException();
+        }
+
+        public byte[] GetData()
+        {
+            return null;
+        }
+
+        public void WriteData(byte[] _)
+        {
+        }
+
+        public void SyncFrame(uint endpointId)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void SetInterface(USBPacket packet, USBSetupPacket setupPacket)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void SetFeature(USBPacket packet, USBSetupPacket setupPacket)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void SetDescriptor(USBPacket packet, USBSetupPacket setupPacket)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void SetAddress(uint address)
+        {
+            addr = address;
+        }
+
+        public byte[] GetStatus(USBPacket packet, USBSetupPacket setupPacket)
+        {
+            controlPacket = new byte[2];
+            var recipient = (MessageRecipient)(setupPacket.RequestType & 0x3);
+            switch(recipient)
+            {
+            case MessageRecipient.Device:
+                controlPacket[0] = (byte)(((configurationDescriptor.RemoteWakeup ? 1 : 0) << 1) | (configurationDescriptor.SelfPowered ? 1 : 0));
+                break;
+            case MessageRecipient.Endpoint:
+                //TODO: endpoint halt status
+                goto default;
+            default:
+                controlPacket[0] = 0;
+                break;
+            }
+            return controlPacket;
+        }
+
+        public byte[] GetInterface(USBPacket packet, USBSetupPacket setupPacket)
+        {
+            throw new NotImplementedException();
+        }
+
+        public byte[] GetConfiguration()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void ClearFeature(USBPacket packet, USBSetupPacket setupPacket)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void SetConfiguration(USBPacket packet, USBSetupPacket setupPacket)
+        {
+            // throw new NotImplementedException();
+        }
+
+        public void ToggleDataToggle(byte endpointNumber)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool GetDataToggle(byte endpointNumber)
+        {
+            throw new NotImplementedException();
+        }
+
+        public byte[] ProcessClassGet(USBPacket packet, USBSetupPacket setupPacket)
+        {
+            byte request = setupPacket.Request;
+            switch((MassStorageRequestCode)request)
+            {
+            case MassStorageRequestCode.GetMaxLUN:
+                controlPacket = new[] { MaxLun };
+                return new[] { MaxLun };
+            default:
+                controlPacket = new byte[0];
+                return new byte[0];
+            }
+        }
+
+        public byte[] GetDescriptor(USBPacket packet, USBSetupPacket setupPacket)
+        {
+            var type = (DescriptorType)((setupPacket.Value & 0xff00) >> 8);
+            switch(type)
+            {
+            case DescriptorType.Device:
+                controlPacket = deviceDescriptor.ToArray();
+                break;
+            case DescriptorType.Configuration:
+                controlPacket = configurationDescriptor.ToArray();
+                break;
+            case DescriptorType.DeviceQualifier:
+                controlPacket = deviceQualifierDescriptor.ToArray();
+                break;
+            case DescriptorType.InterfacePower:
+                throw new NotImplementedException("Interface Power Descriptor is not yet implemented. Please contact AntMicro for further support.");
+            case DescriptorType.OtherSpeedConfiguration:
+                controlPacket = otherConfigurationDescriptor.ToArray();
+                break;
+            case DescriptorType.String:
+                uint index = (uint)(setupPacket.Value & 0xff);
+                if(index == 0)
+                {
+                    stringDescriptor = new StringUSBDescriptor(1);
+                    stringDescriptor.LangId[0] = EnglishLangId;
+                }
+                else
+                {
+                    stringDescriptor = new StringUSBDescriptor(stringValues[setupPacket.Index][index]);
+                }
+                controlPacket = stringDescriptor.ToArray();
+                break;
+            default:
+                this.Log(LogLevel.Warning, "Unsupported descriptor");
+                return null;
+            }
+            return controlPacket;
+        }
+
+        public void WriteDataBulk(USBPacket packet)
+        {
+            if(packet.Data != null && packet.BytesToTransfer != 31)
+            {
+                oData.AddRange(packet.Data);
+            }
+            else if(packet.BytesToTransfer == 31 || oData.Count > 0)
+            {
+                byte[] data;
+                var cbw = new CommandBlockWrapper();
+                var cdb = new SCSI.CommandDescriptorBlock();
+                if(packet.BytesToTransfer == 31)
+                {
+                    data = packet.Data;
+                }
+                else
+                {
+                    data = oData.ToArray();
+                    oData.Clear();
+                }
+                if(!cbw.Fill(data))
+                {
+                    if(writeFlag)
+                    {
+                        writeFlag = false;
+                        lbaBackend.Write((int)writeCDB.LogicalBlockAddress, data, (int)writeCDB.TransferLength);
+                        writeCSW.DataResidue -= (uint)(data.Length);
+                        transmissionQueue.Enqueue(writeCSW.ToArray());
+                    }
+                    else
+                    {
+                        //throw new InvalidOperationException ("Corrupted Command Block Wrapper");
+                        this.Log(LogLevel.Warning, "Corrupted Command Block Wrapper");
+                    }
+                }
+                else
+                {
+                    ReceiveCommandBlockWrapper(cbw, cdb, data);
+                }
+            }
+        }
+
+        public void WriteDataControl(USBPacket packet)
+        {
+        }
+
+        public byte[] WriteInterrupt(USBPacket packet)
+        {
+            return null;
+        }
+
+        public void Reset()
+        {
+            //throw new NotImplementedException();
+        }
+
+        public byte GetTransferStatus()
+        {
+            return 0;
+        }
+
+        public byte[] GetDataControl(USBPacket packet)
+        {
+            return controlPacket;
+        }
+
+        public void ProcessClassSet(USBPacket packet, USBSetupPacket setupPacket)
+        {
+            byte request = setupPacket.Request;
+
+            switch((MassStorageRequestCode)request)
+            {
+            case MassStorageRequestCode.MassStorageReset:
+                this.DebugLog("Mass storage reset");
+                break;
+            default:
+                this.Log(LogLevel.Warning, "Unknown Class Set Code ({0:X})", request);
+                break;
+            }
+        }
+
+        public void SetDataToggle(byte endpointNumber)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void CleanDataToggle(byte endpointNumber)
+        {
+            throw new NotImplementedException();
+        }
+
+        public byte[] GetDataBulk(USBPacket packet)
+        {
+            USBPacket pack;
+            pack.Data = null;
+            pack.Ep = 0;
+            pack.BytesToTransfer = 0;
+            if(oData.Count != 0)
+            {
+                WriteDataBulk(pack);
+                oData.Clear();
+            }
+            if(transmissionQueue.Count > 0)
+            {
+                if(packet.BytesToTransfer > 0)
+                {
+                    var dataPacket = new byte[packet.BytesToTransfer];
+                    if(currentIDataRegister == null)
+                    {
+                        currentIDataRegister = transmissionQueue.Dequeue();
+                    }
+                    Array.Copy(currentIDataRegister, currentIDataPointer, dataPacket, 0, (int)packet.BytesToTransfer);
+                    currentIDataPointer += (int)packet.BytesToTransfer;
+                    if(currentIDataPointer >= currentIDataRegister.Length)
+                    {
+                        currentIDataRegister = null;
+                        currentIDataPointer = 0;
+                    }
+
+                    return dataPacket;
+                }
+                //TODO: Rly? A nie przypadkiem "Trying to read 0 bytes"?
+                this.Log(LogLevel.Warning, "Trying to read from empty queue");
+                return new byte[0];
+            }
+            return null;
+        }
+
         public uint GetAddress()
         {
             return addr;
@@ -46,25 +333,13 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             lbaBackend.Dispose();
         }
 
-        public MassStorage(int numberOfBlocks, int blockSize = 512)
-        {
-            lbaBackend = new LBABackend(numberOfBlocks, blockSize);
-            Init();
-        }
-
-        public MassStorage(string underlyingFile, int? numberOfBlocks = null, int blockSize = 512, bool persistent = true)
-        {
-            lbaBackend = new LBABackend(underlyingFile, numberOfBlocks, blockSize, persistent);
-            Init();
-
-        }
-
         public string ImageFile
         {
             get
             {
                 return lbaBackend.UnderlyingFile;
             }
+
             set
             {
                 if(lbaBackend != null)
@@ -84,109 +359,6 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
                     }
                 }
                 lbaBackend = new LBABackend(value, lbaBackend.BlockSize);
-            }
-        }
-
-        public void Reset()
-        {
-            //throw new NotImplementedException();
-        }
-
-        #region IUSBDevice implementation
-        public byte[] ProcessClassGet(USBPacket packet, USBSetupPacket setupPacket)
-        {
-            byte request = setupPacket.request;
-            switch((MassStorageRequestCode)request)
-            {
-
-            case MassStorageRequestCode.GetMaxLUN:
-                controlPacket = new [] {MaxLun};
-                return new [] {MaxLun};
-            default:
-                controlPacket = new byte[0];
-                return new byte[0];
-            }
-        }
-
-        public byte[] GetDescriptor(USBPacket packet, USBSetupPacket setupPacket)
-        {
-            var type = (DescriptorType)((setupPacket.value & 0xff00) >> 8);
-            switch(type)
-            {
-            case DescriptorType.Device:
-                controlPacket = deviceDescriptor.ToArray();
-                break;
-            case DescriptorType.Configuration:
-                controlPacket = configurationDescriptor.ToArray();
-                break;
-            case DescriptorType.DeviceQualifier:
-                controlPacket = deviceQualifierDescriptor.ToArray();
-                break;
-            case DescriptorType.InterfacePower:
-                throw new NotImplementedException("Interface Power Descriptor is not yet implemented. Please contact AntMicro for further support.");
-            case DescriptorType.OtherSpeedConfiguration:
-                controlPacket = otherConfigurationDescriptor.ToArray();
-                break;
-            case DescriptorType.String:
-                uint index = (uint)(setupPacket.value & 0xff);
-                if(index == 0)
-                {
-                    stringDescriptor = new StringUSBDescriptor(1);
-                    stringDescriptor.LangId[0] = EnglishLangId;
-                }
-                else
-                {
-                    stringDescriptor = new StringUSBDescriptor(stringValues[setupPacket.index][index]);
-                }
-                controlPacket = stringDescriptor.ToArray();
-                break;
-            default:
-                this.Log(LogLevel.Warning, "Unsupported descriptor");
-                return null;
-            }
-            return controlPacket;
-        }
-
-        public void WriteDataBulk(USBPacket packet)
-        {
-            if(packet.data != null && packet.bytesToTransfer != 31)
-            {
-                oData.AddRange(packet.data);
-            }
-            else if(packet.bytesToTransfer == 31 || oData.Count > 0)
-            {
-                byte[] data;
-                var cbw = new CommandBlockWrapper();
-                var cdb = new SCSI.CommandDescriptorBlock();
-                if(packet.bytesToTransfer == 31)
-                {
-                    data = packet.data;
-                }
-                else
-                {
-                    data = oData.ToArray();
-                    oData.Clear();
-                }
-                if(!cbw.Fill(data))
-                {
-                    if(writeFlag)
-                    {
-                        writeFlag = false;
-                        lbaBackend.Write((int)writeCDB.LogicalBlockAddress, data, (int)writeCDB.TransferLength);
-                        writeCSW.DataResidue -= (uint)(data.Length);
-                        transmissionQueue.Enqueue(writeCSW.ToArray());
-
-                    }
-                    else
-                    {
-                        //throw new InvalidOperationException ("Corrupted Command Block Wrapper");
-                        this.Log(LogLevel.Warning, "Corrupted Command Block Wrapper");
-                    }
-                }
-                else
-                {
-                    ReceiveCommandBlockWrapper(cbw, cdb, data);
-                }
             }
         }
 
@@ -253,13 +425,13 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
                 transmissionQueue.Enqueue(capData.ToArray());
                 transmissionQueue.Enqueue(csw.ToArray());
                 break;
-	    case SCSI.CommandDescriptorBlock.GroupCode.RequestSense:
-		// TODO: this was copied from TestUnitReady. do a proper implementation
+            case SCSI.CommandDescriptorBlock.GroupCode.RequestSense:
+                // TODO: this was copied from TestUnitReady. do a proper implementation
                 csw.Tag = cbw.Tag;
                 csw.DataResidue = 0x00;
                 csw.Status = 0x00;
                 transmissionQueue.Enqueue(csw.ToArray());
-	    	break;
+                break;
             case SCSI.CommandDescriptorBlock.GroupCode.TestUnitReady:
                 csw.Tag = cbw.Tag;
                 csw.DataResidue = 0x00;
@@ -272,190 +444,9 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             }
         }
 
-        public void WriteDataControl(USBPacket packet)
-        {
-
-        }
-
-        public byte[] WriteInterrupt(USBPacket packet)
-        {
-            return null;
-        }
-
         byte[] currentIDataRegister;
         int currentIDataPointer;
         List<byte> oData;
-
-        public byte[] GetDataBulk(USBPacket packet)
-        {
-
-            USBPacket pack;
-            pack.data = null;
-            pack.ep = 0;
-            pack.bytesToTransfer = 0;
-            if(oData.Count != 0)
-            {
-                WriteDataBulk(pack);
-                oData.Clear();
-            }
-            if(transmissionQueue.Count > 0)
-            {
-                if(packet.bytesToTransfer > 0)
-                {
-                    var dataPacket = new byte[packet.bytesToTransfer];
-                    if(currentIDataRegister == null)
-                    {
-                        currentIDataRegister = transmissionQueue.Dequeue();
-
-                    }
-                    Array.Copy(currentIDataRegister, currentIDataPointer, dataPacket, 0, (int)packet.bytesToTransfer);
-                    currentIDataPointer += (int)packet.bytesToTransfer;
-                    if(currentIDataPointer >= currentIDataRegister.Length)
-                    {
-                        currentIDataRegister = null;
-                        currentIDataPointer = 0;
-                    }
-
-                    return dataPacket;
-                }
-                //TODO: Rly? A nie przypadkiem "Trying to read 0 bytes"?
-                this.Log(LogLevel.Warning, "Trying to read from empty queue");
-                return new byte[0];
-
-            }
-            return null;
-        }
-
-        public byte GetTransferStatus()
-        {
-            return 0;
-        }
-
-        public byte[] GetDataControl(USBPacket packet)
-        {
-            return controlPacket;
-        }
-
-        public void ProcessClassSet(USBPacket packet, USBSetupPacket setupPacket)
-        {
-            byte request = setupPacket.request;
-
-            switch((MassStorageRequestCode)request)
-            {
-            case MassStorageRequestCode.MassStorageReset:
-                this.DebugLog("Mass storage reset");
-                break;
-            default:
-                this.Log(LogLevel.Warning, "Unknown Class Set Code ({0:X})", request);
-                break;
-            }
-        }
-
-        public void SetDataToggle(byte endpointNumber)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void CleanDataToggle(byte endpointNumber)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void ToggleDataToggle(byte endpointNumber)
-        {
-            throw new NotImplementedException();
-        }
-
-        public bool GetDataToggle(byte endpointNumber)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void ClearFeature(USBPacket packet, USBSetupPacket setupPacket)
-        {
-            throw new NotImplementedException();
-        }
-
-        public byte[] GetConfiguration()
-        {
-            throw new NotImplementedException();
-        }
-
-        public byte[] GetInterface(USBPacket packet, USBSetupPacket setupPacket)
-        {
-            throw new NotImplementedException();
-        }
-
-        public byte[] GetStatus(USBPacket packet, USBSetupPacket setupPacket)
-        {
-            controlPacket = new byte[2];
-            var recipient = (MessageRecipient)(setupPacket.requestType & 0x3);
-            switch(recipient)
-            {
-            case MessageRecipient.Device:
-                controlPacket[0] = (byte)(((configurationDescriptor.RemoteWakeup ? 1 : 0) << 1) | (configurationDescriptor.SelfPowered ? 1 : 0));
-                break;
-            case MessageRecipient.Endpoint:
-                //TODO: endpoint halt status
-                goto default;
-            default:
-                controlPacket[0] = 0;
-                break;
-            }
-            return controlPacket;
-        }
-
-        public void SetAddress(uint address)
-        {
-            addr = address;
-        }
-
-        public void SetConfiguration(USBPacket packet, USBSetupPacket setupPacket)
-        {
-            // throw new NotImplementedException();
-        }
-
-        public void SetDescriptor(USBPacket packet, USBSetupPacket setupPacket)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void SetFeature(USBPacket packet, USBSetupPacket setupPacket)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void SetInterface(USBPacket packet, USBSetupPacket setupPacket)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void SyncFrame(uint endpointId)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void WriteData(byte[] data)
-        {
-
-        }
-
-        public byte[] GetData()
-        {
-
-            return null;
-        }
-
-        public byte[] ProcessVendorGet(USBPacket packet, USBSetupPacket setupPacket)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void ProcessVendorSet(USBPacket packet, USBSetupPacket setupPacket)
-        {
-            throw new NotImplementedException();
-        }
-        #endregion
 
         void Init()
         {
@@ -473,24 +464,121 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             oData = new List<byte>();
         }
 
-        #region Massage Data Structure
+        private void FillEndpointsDescriptors(EndpointUSBDescriptor[] endpointDesc)
+        {
+            endpointDesc[0].EndpointNumber = 1;
+            endpointDesc[0].InEnpoint = true;
+            endpointDesc[0].TransferType = EndpointUSBDescriptor.TransferTypeEnum.Bulk;
+            endpointDesc[0].MaxPacketSize = 512;
+            endpointDesc[0].SynchronizationType = EndpointUSBDescriptor.SynchronizationTypeEnum.NoSynchronization;
+            endpointDesc[0].UsageType = EndpointUSBDescriptor.UsageTypeEnum.Data;
+            endpointDesc[0].Interval = 0;
 
-        private Queue<byte[]> transmissionQueue = new Queue<byte[]>();
+            endpointDesc[1].EndpointNumber = 2;
+            endpointDesc[1].InEnpoint = false;
+            endpointDesc[1].TransferType = EndpointUSBDescriptor.TransferTypeEnum.Bulk;
+            endpointDesc[1].MaxPacketSize = 512;
+            endpointDesc[1].SynchronizationType = EndpointUSBDescriptor.SynchronizationTypeEnum.NoSynchronization;
+            endpointDesc[1].UsageType = EndpointUSBDescriptor.UsageTypeEnum.Data;
+            endpointDesc[1].Interval = 0;
+        }
 
-        #endregion
+        private StringUSBDescriptor stringDescriptor;
+        private SCSI.CommandDescriptorBlock writeCDB;
+        private EndpointUSBDescriptor[] endpointDescriptor;
+        private bool writeFlag;
 
-        #region Device constans
+        private CommandStatusWrapper writeCSW;
+
+        private LBABackend lbaBackend;
+
+        private readonly SCSI.StandardInquiryData inquiry = new SCSI.StandardInquiryData//all data sniffed from real device
+        {
+            PeripheralQualifier = (byte)SCSI.PeripheralQualifier.Connected,
+            PeripheralDeviceType = (byte)SCSI.PeripheralDeviceType.DirectAccessBlockDevice,
+            RMB = true,
+            Version = (byte)SCSI.VersionCode.NotStandard,
+            NormalACASupport = false,
+            HierachicalSupport = false,
+            ResponseDataFormat = 0x00,
+            AdditionalLength = 0x29,
+            SCCSupport = false,
+            AccessControlsCoordintor = false,
+            TargetPortGroupSupport = 0x00,
+            ThirdPartyCopy = false,
+            Protect = false,
+            BasingQueuing = false,
+            EnclosureServices = false,
+            VS1 = false,
+            MultiPort = false,
+            MediumChanger = false,
+            ADDR16 = false,
+            WBUS16a = false,
+            Sync = false,
+            LinkedCommand = false,
+            VS2 = false
+        };
+
+        private readonly Dictionary<ushort, string[]> stringValues = new Dictionary<ushort, string[]>
+        {
+            {EnglishLangId, new string[]{
+                    "",
+                    "Mass Storage",
+                    "0xALLMAN",
+                    "Configuration",
+                    "AntMicro"
+                }}
+        };
+
+        private readonly InterfaceUSBDescriptor[] interfaceDescriptor = new[]{new InterfaceUSBDescriptor
+        {
+            AlternateSetting = 0,
+            InterfaceNumber = 0,
+            NumberOfEndpoints = NumberOfEndpoints,
+            InterfaceClass = 0x08, //vendor specific
+            InterfaceProtocol = 0x50, //Bulk only
+            InterfaceSubClass = 0x06, //SCSI transparent
+            InterfaceIndex = 0
+        }
+        };
+
+        private readonly StandardUSBDescriptor deviceDescriptor = new StandardUSBDescriptor
+        {
+            DeviceClass=0x00,//specified in interface descritor
+            DeviceSubClass = 0x00,//specified in interface descritor
+            USB = 0x0200,
+            DeviceProtocol = 0x00,//specified in interface descritor
+            MaxPacketSize = 64,
+            VendorId = 0x05e3,
+            ProductId = 0x0727,
+            Device = 0x0207,
+            ManufacturerIndex = 0,
+            ProductIndex = 0,
+            SerialNumberIndex = 0,
+            NumberOfConfigurations = 1
+        };
+
+        private readonly DeviceQualifierUSBDescriptor deviceQualifierDescriptor = new DeviceQualifierUSBDescriptor();
+        private readonly ConfigurationUSBDescriptor otherConfigurationDescriptor = new ConfigurationUSBDescriptor();
+
+        private readonly ConfigurationUSBDescriptor configurationDescriptor = new ConfigurationUSBDescriptor
+        {
+            ConfigurationIndex = 0,
+            SelfPowered = false,
+            NumberOfInterfaces = 1,
+            RemoteWakeup = true,
+            MaxPower = 250, //500mA
+            ConfigurationValue = 1
+        };
+
+        private readonly Queue<byte[]> transmissionQueue = new Queue<byte[]>();
+
         private const byte MaxLun = 0;
         private const byte NumberOfEndpoints = 2;
         private const ushort EnglishLangId = 0x09;
 
-        #endregion
-
-        #region Mass Storage data structures
-
         private class CommandBlockWrapper
         {
-
             public bool Fill(byte[] data)
             {
                 if(data.Length != 31)
@@ -513,13 +601,14 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
                 return true;
             }
 
-            private const uint ProperSignature = 0x43425355;
             public uint Signature;
             public uint Tag;
             public uint DataTransferLength;
             public byte Flags;
             public byte LogicalUnitNumber;
             public byte Length;
+
+            private const uint ProperSignature = 0x43425355;
         }
 
         private class CommandStatusWrapper
@@ -545,116 +634,13 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
 
                 return arr;
             }
-            private byte[] arr = new byte[13];
-            private const uint CommandStatusWrapperSignature = 0x53425355;
+
             public uint Tag;
             public uint DataResidue;
             public byte Status;
+            private readonly byte[] arr = new byte[13];
+            private const uint CommandStatusWrapperSignature = 0x53425355;
         }
-
-        #endregion
-
-        #region USB descriptors
-
-        private ConfigurationUSBDescriptor configurationDescriptor = new ConfigurationUSBDescriptor
-        {
-            ConfigurationIndex = 0,
-            SelfPowered = false,
-            NumberOfInterfaces = 1,
-            RemoteWakeup = true,
-            MaxPower = 250, //500mA
-            ConfigurationValue = 1
-        };
-        private ConfigurationUSBDescriptor otherConfigurationDescriptor = new ConfigurationUSBDescriptor();
-        private StringUSBDescriptor stringDescriptor;
-        private StandardUSBDescriptor deviceDescriptor = new StandardUSBDescriptor
-        {
-            DeviceClass=0x00,//specified in interface descritor
-            DeviceSubClass = 0x00,//specified in interface descritor
-            USB = 0x0200,
-            DeviceProtocol = 0x00,//specified in interface descritor
-            MaxPacketSize = 64,
-            VendorId = 0x05e3,
-            ProductId = 0x0727,
-            Device = 0x0207,
-            ManufacturerIndex = 0,
-            ProductIndex = 0,
-            SerialNumberIndex = 0,
-            NumberOfConfigurations = 1
-        };
-        private DeviceQualifierUSBDescriptor deviceQualifierDescriptor = new DeviceQualifierUSBDescriptor();
-        private EndpointUSBDescriptor[] endpointDescriptor;
-        private InterfaceUSBDescriptor[] interfaceDescriptor = new[]{new InterfaceUSBDescriptor
-        {
-            AlternateSetting = 0,
-            InterfaceNumber = 0,
-            NumberOfEndpoints = NumberOfEndpoints,
-            InterfaceClass = 0x08, //vendor specific
-            InterfaceProtocol = 0x50, //Bulk only
-            InterfaceSubClass = 0x06, //SCSI transparent
-            InterfaceIndex = 0
-        }
-        };
-        private Dictionary<ushort, string[]> stringValues = new Dictionary<ushort, string[]>
-        {
-            {EnglishLangId, new string[]{
-                    "",
-                    "Mass Storage",
-                    "0xALLMAN",
-                    "Configuration",
-                    "AntMicro"
-                }}
-        };
-
-        private void FillEndpointsDescriptors(EndpointUSBDescriptor[] endpointDesc)
-        {
-            endpointDesc[0].EndpointNumber = 1;
-            endpointDesc[0].InEnpoint = true;
-            endpointDesc[0].TransferType = EndpointUSBDescriptor.TransferTypeEnum.Bulk;
-            endpointDesc[0].MaxPacketSize = 512;
-            endpointDesc[0].SynchronizationType = EndpointUSBDescriptor.SynchronizationTypeEnum.NoSynchronization;
-            endpointDesc[0].UsageType = EndpointUSBDescriptor.UsageTypeEnum.Data;
-            endpointDesc[0].Interval = 0;
-
-            endpointDesc[1].EndpointNumber = 2;
-            endpointDesc[1].InEnpoint = false;
-            endpointDesc[1].TransferType = EndpointUSBDescriptor.TransferTypeEnum.Bulk;
-            endpointDesc[1].MaxPacketSize = 512;
-            endpointDesc[1].SynchronizationType = EndpointUSBDescriptor.SynchronizationTypeEnum.NoSynchronization;
-            endpointDesc[1].UsageType = EndpointUSBDescriptor.UsageTypeEnum.Data;
-            endpointDesc[1].Interval = 0;
-
-
-        }
-
-        private SCSI.StandardInquiryData inquiry = new SCSI.StandardInquiryData//all data sniffed from real device
-        {
-
-            PeripheralQualifier = (byte)SCSI.PeripheralQualifier.Connected,
-            PeripheralDeviceType = (byte)SCSI.PeripheralDeviceType.DirectAccessBlockDevice,
-            RMB = true,
-            Version = (byte)SCSI.VersionCode.NotStandard,
-            NormalACASupport = false,
-            HierachicalSupport = false,
-            ResponseDataFormat = 0x00,
-            AdditionalLength = 0x29,
-            SCCSupport = false,
-            AccessControlsCoordintor = false,
-            TargetPortGroupSupport = 0x00,
-            ThirdPartyCopy = false,
-            Protect = false,
-            BasingQueuing = false,
-            EnclosureServices = false,
-            VS1 = false,
-            MultiPort = false,
-            MediumChanger = false,
-            ADDR16 = false,
-            WBUS16a = false,
-            Sync = false,
-            LinkedCommand = false,
-            VS2 = false
-
-        };
 
         private enum MassStorageRequestCode
         {
@@ -664,18 +650,5 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             GetMaxLUN = 0xFE,
             MassStorageReset = 0xFE//Bulk Only
         }
-     #endregion
-
-     #region lba backend
-
-        private LBABackend lbaBackend;
-        private CommandStatusWrapper writeCSW;
-        private SCSI.CommandDescriptorBlock writeCDB;
-        private bool writeFlag;
-
-     #endregion
-
-
     }
-
 }

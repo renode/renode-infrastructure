@@ -14,22 +14,22 @@
 #endif
 
 using System;
-using System.Collections.Generic;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals;
-using Antmicro.Renode.Utilities;
-using System.Threading;
-using System.Runtime.CompilerServices;
-using System.IO;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Text;
+using System.Threading;
+
 using Antmicro.Migrant;
 using Antmicro.Migrant.Hooks;
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Peripherals;
+using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Collections;
-using System.Diagnostics;
-using System.Text;
-using System.Linq;
-using Antmicro.Renode.Debugging;
 
 namespace Antmicro.Renode.Logging
 {
@@ -62,7 +62,7 @@ namespace Antmicro.Renode.Logging
         {
             lock(backendsChangeLock)
             {
-                foreach(var level in levels.Where(pair => pair.Key.backend == backend).ToList())
+                foreach(var level in levels.Where(pair => pair.Key.Backend == backend).ToList())
                 {
                     levels.TryRemove(level.Key, out var _);
                 }
@@ -381,7 +381,7 @@ namespace Antmicro.Renode.Logging
             }
         }
 
-// see a comment at the top
+        // see a comment at the top
 #if !TRACE_ENABLED
         [Conditional("TRACE_ENABLED")]
 #endif
@@ -402,7 +402,7 @@ namespace Antmicro.Renode.Logging
             LogAs(o, type, fullMessage.ToString());
         }
 
-// see a comment at the top
+        // see a comment at the top
 #if !TRACE_ENABLED
         [Conditional("TRACE_ENABLED")]
 #endif
@@ -451,14 +451,6 @@ namespace Antmicro.Renode.Logging
             return logger;
         }
 
-        private static ulong nextEntryId = 0;
-        private static LogLevel minLevel = DefaultLogLevel;
-        private static readonly object backendsChangeLock = new object();
-        private static readonly ConcurrentDictionary<string, ILoggerBackend> backendNames = new ConcurrentDictionary<string, ILoggerBackend>();
-        private static readonly FastReadConcurrentCollection<ILoggerBackend> backends = new FastReadConcurrentCollection<ILoggerBackend>();
-        private static readonly ConcurrentDictionary<BackendSourceIdPair, LogLevel> levels = new ConcurrentDictionary<BackendSourceIdPair, LogLevel>();
-
-
         private static string GetGenericName(object o)
         {
             if(Misc.IsPythonObject(o))
@@ -473,6 +465,13 @@ namespace Antmicro.Renode.Logging
         {
             minLevel = levels.Min(l => l.Value);
         }
+
+        private static ulong nextEntryId = 0;
+        private static LogLevel minLevel = DefaultLogLevel;
+        private static readonly object backendsChangeLock = new object();
+        private static readonly ConcurrentDictionary<string, ILoggerBackend> backendNames = new ConcurrentDictionary<string, ILoggerBackend>();
+        private static readonly FastReadConcurrentCollection<ILoggerBackend> backends = new FastReadConcurrentCollection<ILoggerBackend>();
+        private static readonly ConcurrentDictionary<BackendSourceIdPair, LogLevel> levels = new ConcurrentDictionary<BackendSourceIdPair, LogLevel>();
 
         internal class ActualLogger : ILogger
         {
@@ -844,12 +843,12 @@ namespace Antmicro.Renode.Logging
         {
             public BackendSourceIdPair(ILoggerBackend backend, int sourceId)
             {
-                this.backend = backend;
-                this.sourceId = sourceId;
+                this.Backend = backend;
+                this.SourceId = sourceId;
             }
 
-            public readonly ILoggerBackend backend;
-            public readonly int sourceId;
+            public readonly ILoggerBackend Backend;
+            public readonly int SourceId;
         }
     }
 }

@@ -5,10 +5,10 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
@@ -86,11 +86,9 @@ namespace Antmicro.Renode.Peripherals.SPI
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {
                 {(long)Registers.Control, controlRegister},
-
                 {(long)Registers.FrameSize, new DoubleWordRegister(this, 0x4)
                     .WithValueField(0, 6, out frameSize, name: "FRAMESIZE")
                 },
-
                 {(long)Registers.Status, new DoubleWordRegister(this, 0x2440)
                     .WithFlag(0, out dataSent, FieldMode.Read, name: "TXDATASENT")
                     .WithFlag(1, out dataReceived, FieldMode.Read, name: "RXDATARCVD")
@@ -108,7 +106,6 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithTag("SSEL", 13, 1)
                     .WithTag("ACTIVE", 14, 1)
                 },
-
                 {(long)Registers.InterruptClear, new DoubleWordRegister(this)
                     .WithFlag(0, FieldMode.WriteOneToClear,
                         writeCallback: (_, val) =>
@@ -159,7 +156,6 @@ namespace Antmicro.Renode.Peripherals.SPI
                             }
                         }, name: "SSEND")
                 },
-
                 {(long)Registers.ReceiveData, new DoubleWordRegister(this)
                     .WithValueField(0, 32, FieldMode.Read,
                         valueProviderCallback: _ =>
@@ -168,7 +164,6 @@ namespace Antmicro.Renode.Peripherals.SPI
                             return receiveBuffer.Count > 0 ? receiveBuffer.Dequeue() : (byte)0x00;
                         }, name: "RXDATA")
                 },
-
                 {(long)Registers.TransmitData, new DoubleWordRegister(this)
                     .WithValueField(0, 32, FieldMode.Write,
                         writeCallback: (_, val) =>
@@ -200,11 +195,9 @@ namespace Antmicro.Renode.Peripherals.SPI
                             }
                         }, name: "TXDATA")
                 },
-
                 {(long)Registers.ClockRate, new DoubleWordRegister(this)
                     .WithValueField(0, 8, name: "CLKRATE")
                 },
-
                 {(long)Registers.SlaveSelect, new DoubleWordRegister(this)
                     .WithValueField(0, 8, out slaveSelect,
                         writeCallback: (_, val) =>
@@ -222,11 +215,9 @@ namespace Antmicro.Renode.Peripherals.SPI
                             }
                         },  name: "SSEL")
                 },
-
                 {(long)Registers.InterruptMasked, new DoubleWordRegister(this)
                     .WithValueField(0, 6, valueProviderCallback: _ => CalculateMaskedInterruptValue())
                 },
-
                 {(long)Registers.InterruptRaw, new DoubleWordRegister(this)
                     .WithFlag(0, out transmitDone, name: "TXDONE")
                     .WithFlag(1, out receiveDone, name: "RXDONE")
@@ -235,7 +226,6 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithFlag(4, out fullCommandReceived, name: "CMDINT")
                     .WithFlag(5, out slaveSelectGoneInactve, name: "SSEND")
                 },
-
                 {(long)Registers.ControlBitsForEnhancedModes, new DoubleWordRegister(this)
                     .WithTag("AUTOSTATUS", 0, 1)
                     .WithTag("AUTOPOLL", 1, 1)
@@ -244,7 +234,6 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithFlag(4, out enableIrqOnCmd, name: "INTEN_CMD")
                     .WithFlag(5, out enableIrqOnSsend, name: "INTEN_SSEND")
                 },
-
                 {(long)Registers.CommandRegister, new DoubleWordRegister(this)
                     .WithFlag(0, FieldMode.Read,
                         writeCallback: (_, val) =>
@@ -287,15 +276,12 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithTag("AUTOSTALL", 5, 1)
                     .WithTag("TXNOW", 6, 1)
                 },
-
                 {(long)Registers.CommandSize, new DoubleWordRegister(this)
                     .WithValueField(0, 6, out commandSize, name: "CMDSIZE")
                 },
-
                 {(long)Registers.SlaveHardwareStatus, new DoubleWordRegister(this)
                     .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: (_) => CalculateSlaveHardwareStatus(), name: "HWSTATUS")
                 },
-
                 {(long)Registers.Status8, new DoubleWordRegister(this)
                     .WithTag("FIRSTFRAME", 0, 1)
                     .WithFlag(1, FieldMode.Read, valueProviderCallback: (_) => dataSent.Value && dataReceived.Value, name: "DONE")
@@ -306,25 +292,21 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithFlag(6, FieldMode.Read, valueProviderCallback: (_) => slaveSelect.Value > 0, name: "SSEL")
                     .WithTag("ACTIVE", 7, 1)
                 },
-
                 {(long)Registers.AliasedControlRegister0, new DoubleWordRegister(this)
                     .WithValueField(0, 8,
                         writeCallback: (_, newVal) => controlRegister.Write(0, (uint)BitHelper.SetMaskedValue(controlRegister.Value, newVal, 0, 8)),
                         valueProviderCallback: (_) => BitHelper.GetMaskedValue(controlRegister.Value, 0, 8), name: "CTRL0")
                 },
-
                 {(long)Registers.AliasedControlRegister1, new DoubleWordRegister(this)
                     .WithValueField(0, 8,
                         writeCallback: (_, newVal) => controlRegister.Write(0, (uint)BitHelper.SetMaskedValue(controlRegister.Value, newVal, 8, 8)),
                         valueProviderCallback: (_) => BitHelper.GetMaskedValue(controlRegister.Value, 8, 8), name: "CTRL1")
                 },
-
                 {(long)Registers.AliasedControlRegister2, new DoubleWordRegister(this)
                     .WithValueField(0, 8,
                         writeCallback: (_, newVal) => controlRegister.Write(0, (uint)BitHelper.SetMaskedValue(controlRegister.Value, newVal, 16, 8)),
                         valueProviderCallback: (_) => BitHelper.GetMaskedValue(controlRegister.Value, 16, 8), name: "CTRL2")
                 },
-
                 {(long)Registers.AliasedControlRegister3, new DoubleWordRegister(this)
                     .WithValueField(0, 8,
                         writeCallback: (_, newVal) => controlRegister.Write(0, (uint)BitHelper.SetMaskedValue(controlRegister.Value, newVal, 24, 8)),
@@ -466,35 +448,36 @@ namespace Antmicro.Renode.Peripherals.SPI
             IRQ.Set(CalculateMaskedInterruptValue() != 0);
         }
 
+        private int framesReceived;
+        private int fifoSize;
+        private int framesTransmitted;
+        private readonly IValueRegisterField frameCounterLimit;
+        private readonly IFlagRegisterField enableIrqOnSsend;
+        private readonly IValueRegisterField commandSize;
+        private readonly IFlagRegisterField enableIrqOnCmd;
+        private readonly IFlagRegisterField disableFrameCount;
+        private readonly IFlagRegisterField receiveDone;
+        private readonly IFlagRegisterField transmitDone;
+        private readonly IFlagRegisterField slaveSelectGoneInactve;
+        private readonly IFlagRegisterField fullCommandReceived;
+        private readonly IFlagRegisterField transmitUnderrun;
+        private readonly IFlagRegisterField dataReceived;
+        private readonly IFlagRegisterField dataSent;
+        private readonly IValueRegisterField frameSize;
+        private readonly IFlagRegisterField enableIrqOnUnderrun;
+        private readonly IFlagRegisterField enableIrqOnOverflow;
+        private readonly IFlagRegisterField enableIrqOnTransmit;
+        private readonly IFlagRegisterField enableIrqOnReceive;
+        private readonly IFlagRegisterField master;
+        private readonly IFlagRegisterField coreEnabled;
+        private readonly IValueRegisterField slaveSelect;
+        private readonly IFlagRegisterField receiveOverflow;
+        private readonly object locker;
+
         private readonly DoubleWordRegisterCollection registers;
         private readonly DoubleWordRegister controlRegister;
         private readonly Queue<byte> receiveBuffer;
         private readonly Queue<byte> transmitBuffer;
-        private IValueRegisterField frameCounterLimit;
-        private IValueRegisterField slaveSelect;
-        private IFlagRegisterField coreEnabled;
-        private IFlagRegisterField master;
-        private IFlagRegisterField enableIrqOnReceive;
-        private IFlagRegisterField enableIrqOnTransmit;
-        private IFlagRegisterField enableIrqOnOverflow;
-        private IFlagRegisterField enableIrqOnUnderrun;
-        private IValueRegisterField frameSize;
-        private IFlagRegisterField dataSent;
-        private IFlagRegisterField dataReceived;
-        private IFlagRegisterField receiveOverflow;
-        private IFlagRegisterField transmitUnderrun;
-        private IFlagRegisterField fullCommandReceived;
-        private IFlagRegisterField slaveSelectGoneInactve;
-        private IFlagRegisterField transmitDone;
-        private IFlagRegisterField receiveDone;
-        private IFlagRegisterField disableFrameCount;
-        private IFlagRegisterField enableIrqOnCmd;
-        private IValueRegisterField commandSize;
-        private IFlagRegisterField enableIrqOnSsend;
-        private int fifoSize;
-        private int framesReceived;
-        private int framesTransmitted;
-        private object locker;
 
         private enum Registers : long
         {

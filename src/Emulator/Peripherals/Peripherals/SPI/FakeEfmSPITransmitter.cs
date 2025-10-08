@@ -6,6 +6,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
+
 using Antmicro.Renode.Backends.Terminals;
 using Antmicro.Renode.Logging;
 
@@ -36,4 +37,3 @@ namespace Antmicro.Renode.Peripherals.SPI
         private readonly Dictionary<int, byte> responses;
     }
 }
-

@@ -6,6 +6,7 @@
 //
 using System;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -404,6 +405,9 @@ namespace Antmicro.Renode.Peripherals.MTD
         private IFlagRegisterField programmingSizeError;
         private IFlagRegisterField busy;
         private IFlagRegisterField endOfOperation;
+
+        private readonly MappedMemory underlyingFlash;
+        private readonly MappedMemory underlyingEeprom;
         private readonly LockRegister powerDownLock;
         private readonly LockRegister programEraseControlLock;
         private readonly LockRegister programEraseLock;

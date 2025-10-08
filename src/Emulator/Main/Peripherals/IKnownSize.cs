@@ -10,8 +10,8 @@ using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals
 {
-	public interface IKnownSize : IBusPeripheral
-	{
-		long Size { get; }
-	}
+    public interface IKnownSize : IBusPeripheral
+    {
+        long Size { get; }
+    }
 }

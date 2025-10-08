@@ -4,13 +4,14 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Extensions.Mocks;
+using Antmicro.Renode.Utilities;
+
 using NUnit.Framework;
-using SPI = Antmicro.Renode.Peripherals.SPI.OpenTitan_SpiDevice;
+
 using Range = Antmicro.Renode.Core.Range;
+using SPI = Antmicro.Renode.Peripherals.SPI.OpenTitan_SpiDevice;
 
 namespace Antmicro.Renode.PeripheralsTests
 {

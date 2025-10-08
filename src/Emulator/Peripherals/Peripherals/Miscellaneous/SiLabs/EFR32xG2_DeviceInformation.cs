@@ -7,11 +7,10 @@
 //
 
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Memory;
-using Antmicro.Renode.Peripherals.Miscellaneous;
-using Antmicro.Renode.Peripherals.Miscellaneous.SiLabs;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 {
@@ -40,25 +39,26 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             registers.Write(offset, value);
         }
 
-        private static uint count = 0;
-        private ulong UID;
         public long Size => 0x400;
-        public static readonly ulong OUI64 = 0xCCCCCC0000000000;
-        public ulong EUI48 
-        { 
+
+        public ulong EUI48
+        {
             get
             {
                 // TODO: for now we just return the UID
                 return (ulong)UID;
             }
         }
-        public ulong EUI64 
-        { 
+
+        public ulong EUI64
+        {
             get
             {
                 return (ulong)(OUI64 + UID);
-            } 
+            }
         }
+
+        private static uint count = 0;
 
         private DoubleWordRegisterCollection BuildRegisters()
         {
@@ -561,6 +561,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
             return new DoubleWordRegisterCollection(this, registerDictionary);
         }
+
+        private readonly ulong UID;
+        public static readonly ulong OUI64 = 0xCCCCCC0000000000;
 
         private readonly DoubleWordRegisterCollection registers;
 

@@ -6,6 +6,7 @@
 //
 
 using System;
+
 using Antmicro.Renode.UserInterface;
 
 namespace Antmicro.Renode.Peripherals.UART

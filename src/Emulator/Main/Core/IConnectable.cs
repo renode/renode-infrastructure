@@ -10,6 +10,7 @@ namespace Antmicro.Renode.Core
     public interface IConnectable<T> : IConnectable
     {
         void AttachTo(T obj);
+
         void DetachFrom(T obj);
     }
 
@@ -17,4 +18,3 @@ namespace Antmicro.Renode.Core
     {
     }
 }
-

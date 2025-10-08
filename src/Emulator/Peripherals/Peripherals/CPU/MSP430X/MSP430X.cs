@@ -5,10 +5,12 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Text;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 
+using Antmicro.Migrant;
+using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
@@ -18,8 +20,7 @@ using Antmicro.Renode.Peripherals.CPU.Assembler;
 using Antmicro.Renode.Peripherals.CPU.Disassembler;
 using Antmicro.Renode.Peripherals.Memory;
 using Antmicro.Renode.Utilities;
-using Antmicro.Migrant;
-using Antmicro.Migrant.Hooks;
+
 using ELFSharp.ELF;
 
 namespace Antmicro.Renode.Peripherals.CPU
@@ -265,36 +266,52 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override ulong ExecutedInstructions => executedInstructions;
 
-        public event Action<int> InterruptAcknowledged;
-
         public string GDBArchitecture => "MSP430X";
-        public List<GDBFeatureDescriptor> GDBFeatures => new List<GDBFeatureDescriptor>();
 
-        public int StackDumpLength { get; set; } = 15;
+        public RegisterValue R13 { get; set; }
 
-        public RegisterValue SP { get; set; }
+        public RegisterValue R12 { get; set; }
+
+        public RegisterValue R11 { get; set; }
+
+        public RegisterValue R10 { get; set; }
+
+        public RegisterValue R9 { get; set; }
+
+        public RegisterValue R8 { get; set; }
+
+        public RegisterValue R7 { get; set; }
+
+        public RegisterValue R6 { get; set; }
+
+        public RegisterValue R5 { get; set; }
+
+        // NOTE: Skipping R3/CG register as it's value depends on the opcode
+        public RegisterValue R4 { get; set; }
+
+        public RegisterValue R2 => SR;
+
+        public RegisterValue R1 => SP;
+
+        public RegisterValue R0 => PC;
+
         public RegisterValue SR
         {
             get => (uint)statusRegister;
             set => statusRegister = (StatusFlags)value.RawValue;
         }
 
-        public RegisterValue R0 => PC;
-        public RegisterValue R1 => SP;
-        public RegisterValue R2 => SR;
-        // NOTE: Skipping R3/CG register as it's value depends on the opcode
-        public RegisterValue R4 { get; set; }
-        public RegisterValue R5 { get; set; }
-        public RegisterValue R6 { get; set; }
-        public RegisterValue R7 { get; set; }
-        public RegisterValue R8 { get; set; }
-        public RegisterValue R9 { get; set; }
-        public RegisterValue R10 { get; set; }
-        public RegisterValue R11 { get; set; }
-        public RegisterValue R12 { get; set; }
-        public RegisterValue R13 { get; set; }
+        public RegisterValue SP { get; set; }
+
+        public int StackDumpLength { get; set; } = 15;
+
+        public List<GDBFeatureDescriptor> GDBFeatures => new List<GDBFeatureDescriptor>();
+
         public RegisterValue R14 { get; set; }
+
         public RegisterValue R15 { get; set; }
+
+        public event Action<int> InterruptAcknowledged;
 
         protected override bool ExecutionFinished(ExecutionResult result)
         {
@@ -315,10 +332,10 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             switch(accessWidth)
             {
-                case AccessWidth._8bit: return 8;
-                case AccessWidth._16bit: return 16;
-                case AccessWidth._20bit: return 20;
-                default: throw new Exception("unreachable");
+            case AccessWidth._8bit: return 8;
+            case AccessWidth._16bit: return 16;
+            case AccessWidth._20bit: return 20;
+            default: throw new Exception("unreachable");
             }
         }
 
@@ -360,72 +377,72 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             switch(register)
             {
-                case Registers.PC:
-                    return PC;
-                case Registers.SP:
-                    return SP;
-                case Registers.SR:
-                    switch(addressingMode)
-                    {
-                        case AddressingMode.Register:
-                            return SR;
+            case Registers.PC:
+                return PC;
+            case Registers.SP:
+                return SP;
+            case Registers.SR:
+                switch(addressingMode)
+                {
+                case AddressingMode.Register:
+                    return SR;
 
-                        case AddressingMode.Indexed:
-                            return 0;
+                case AddressingMode.Indexed:
+                    return 0;
 
-                        case AddressingMode.IndirectRegister:
-                            return 0x0004;
+                case AddressingMode.IndirectRegister:
+                    return 0x0004;
 
-                        case AddressingMode.IndirectAutoincrement:
-                            return 0x0008;
+                case AddressingMode.IndirectAutoincrement:
+                    return 0x0008;
 
-                        default:
-                            throw new Exception("unreachable");
-                    }
-                case Registers.R3:
-                    switch(addressingMode)
-                    {
-                        case AddressingMode.Register:
-                            return 0;
-
-                        case AddressingMode.Indexed:
-                            return 0x0001;
-
-                        case AddressingMode.IndirectRegister:
-                            return 0x0002;
-
-                        case AddressingMode.IndirectAutoincrement:
-                            return 0xFFFFF;
-
-                        default:
-                            throw new Exception("unreachable");
-                    }
-                case Registers.R4:
-                    return R4;
-                case Registers.R5:
-                    return R5;
-                case Registers.R6:
-                    return R6;
-                case Registers.R7:
-                    return R7;
-                case Registers.R8:
-                    return R8;
-                case Registers.R9:
-                    return R9;
-                case Registers.R10:
-                    return R10;
-                case Registers.R11:
-                    return R11;
-                case Registers.R12:
-                    return R12;
-                case Registers.R13:
-                    return R13;
-                case Registers.R14:
-                    return R14;
-                case Registers.R15:
-                    return R15;
                 default:
-                    throw new Exception($"{register} is not a valid register");
+                    throw new Exception("unreachable");
+                }
+            case Registers.R3:
+                switch(addressingMode)
+                {
+                case AddressingMode.Register:
+                    return 0;
+
+                case AddressingMode.Indexed:
+                    return 0x0001;
+
+                case AddressingMode.IndirectRegister:
+                    return 0x0002;
+
+                case AddressingMode.IndirectAutoincrement:
+                    return 0xFFFFF;
+
+                default:
+                    throw new Exception("unreachable");
+                }
+            case Registers.R4:
+                return R4;
+            case Registers.R5:
+                return R5;
+            case Registers.R6:
+                return R6;
+            case Registers.R7:
+                return R7;
+            case Registers.R8:
+                return R8;
+            case Registers.R9:
+                return R9;
+            case Registers.R10:
+                return R10;
+            case Registers.R11:
+                return R11;
+            case Registers.R12:
+                return R12;
+            case Registers.R13:
+                return R13;
+            case Registers.R14:
+                return R14;
+            case Registers.R15:
+                return R15;
+            default:
+                throw new Exception($"{register} is not a valid register");
             }
         }
 
@@ -434,57 +451,57 @@ namespace Antmicro.Renode.Peripherals.CPU
             this.Log(LogLevel.Debug, "{0}: 0x{1:X05} -> 0x{2:X05}", register, GetRegisterValue(register), value);
             switch(register)
             {
-                case Registers.PC:
-                    PC = value;
-                    break;
-                case Registers.SP:
-                    SP = value;
-                    break;
-                case Registers.SR:
-                    SR = value;
-                    break;
-                case Registers.R3:
-                    // NOTE: Write to this register does nothing
-                    // NOTE: Compiler uses it to emulate NOP
-                    break;
-                case Registers.R4:
-                    R4 = value;
-                    break;
-                case Registers.R5:
-                    R5 = value;
-                    break;
-                case Registers.R6:
-                    R6 = value;
-                    break;
-                case Registers.R7:
-                    R7 = value;
-                    break;
-                case Registers.R8:
-                    R8 = value;
-                    break;
-                case Registers.R9:
-                    R9 = value;
-                    break;
-                case Registers.R10:
-                    R10 = value;
-                    break;
-                case Registers.R11:
-                    R11 = value;
-                    break;
-                case Registers.R12:
-                    R12 = value;
-                    break;
-                case Registers.R13:
-                    R13 = value;
-                    break;
-                case Registers.R14:
-                    R14 = value;
-                    break;
-                case Registers.R15:
-                    R15 = value;
-                    break;
-                default:
-                    throw new Exception($"{register} is not a valid register");
+            case Registers.PC:
+                PC = value;
+                break;
+            case Registers.SP:
+                SP = value;
+                break;
+            case Registers.SR:
+                SR = value;
+                break;
+            case Registers.R3:
+                // NOTE: Write to this register does nothing
+                // NOTE: Compiler uses it to emulate NOP
+                break;
+            case Registers.R4:
+                R4 = value;
+                break;
+            case Registers.R5:
+                R5 = value;
+                break;
+            case Registers.R6:
+                R6 = value;
+                break;
+            case Registers.R7:
+                R7 = value;
+                break;
+            case Registers.R8:
+                R8 = value;
+                break;
+            case Registers.R9:
+                R9 = value;
+                break;
+            case Registers.R10:
+                R10 = value;
+                break;
+            case Registers.R11:
+                R11 = value;
+                break;
+            case Registers.R12:
+                R12 = value;
+                break;
+            case Registers.R13:
+                R13 = value;
+                break;
+            case Registers.R14:
+                R14 = value;
+                break;
+            case Registers.R15:
+                R15 = value;
+                break;
+            default:
+                throw new Exception($"{register} is not a valid register");
             }
         }
 
@@ -515,14 +532,14 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 switch(addressingMode)
                 {
-                    case AddressingMode.IndirectRegister:
-                        return 0x00004;
+                case AddressingMode.IndirectRegister:
+                    return 0x00004;
 
-                    case AddressingMode.IndirectAutoincrement:
-                        return 0x00008;
+                case AddressingMode.IndirectAutoincrement:
+                    return 0x00008;
 
-                    default:
-                        break;
+                default:
+                    break;
                 }
             }
 
@@ -531,82 +548,82 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 switch(addressingMode)
                 {
-                    case AddressingMode.Register:
-                        return 0x00000;
+                case AddressingMode.Register:
+                    return 0x00000;
 
-                    case AddressingMode.Indexed:
-                        return 0x00001;
+                case AddressingMode.Indexed:
+                    return 0x00001;
 
-                    case AddressingMode.IndirectRegister:
-                        return 0x00002;
+                case AddressingMode.IndirectRegister:
+                    return 0x00002;
 
-                    case AddressingMode.IndirectAutoincrement:
-                        return 0xFFFFF;
+                case AddressingMode.IndirectAutoincrement:
+                    return 0xFFFFF;
 
-                    default:
-                        throw new Exception("unreachable");
+                default:
+                    throw new Exception("unreachable");
                 }
             }
 
             switch(addressingMode)
             {
-                case AddressingMode.Register:
-                    return GetRegisterValue(register);
+            case AddressingMode.Register:
+                return GetRegisterValue(register);
 
-                case AddressingMode.Indexed:
+            case AddressingMode.Indexed:
+            {
+                var registerValue = GetRegisterValue(register, addressingMode);
+                var index = PerformMemoryRead(PC, AccessWidth._16bit);
+                PC += 2U;
+                index |= addressExtension;
+                var memoryAddress = (uint)(registerValue + index);
+                if(registerValue < 64.KB() && !extended)
                 {
-                    var registerValue = GetRegisterValue(register, addressingMode);
-                    var index = PerformMemoryRead(PC, AccessWidth._16bit);
-                    PC += 2U;
-                    index |= addressExtension;
-                    var memoryAddress = (uint)(registerValue + index);
-                    if(registerValue < 64.KB() && !extended)
-                    {
-                        // NOTE: If register value points to lower 64KB, we should truncate the address
-                        //       This is not applicable for MSP430X instructions
-                        memoryAddress &= 0xFFFF;
-                    }
-
-                    address = (ulong)memoryAddress;
-                    return PerformMemoryRead(address, accessWidth);
+                    // NOTE: If register value points to lower 64KB, we should truncate the address
+                    //       This is not applicable for MSP430X instructions
+                    memoryAddress &= 0xFFFF;
                 }
 
-                case AddressingMode.IndirectRegister:
+                address = (ulong)memoryAddress;
+                return PerformMemoryRead(address, accessWidth);
+            }
+
+            case AddressingMode.IndirectRegister:
+            {
+                uint registerValue = GetRegisterValue(register, addressingMode);
+                registerValue |= addressExtension;
+                address = (ulong)registerValue;
+                return PerformMemoryRead(address, accessWidth);
+            }
+
+            case AddressingMode.IndirectAutoincrement:
+            {
+                uint registerValue = GetRegisterValue(register, addressingMode);
+                var offset = (accessWidth != AccessWidth._8bit) || register == Registers.PC ? 2U : 1U;
+                SetRegisterValue(register, (uint)(registerValue + offset) & 0xFFFFF);
+
+                if(register == Registers.PC)
                 {
-                    uint registerValue = GetRegisterValue(register, addressingMode);
-                    registerValue |= addressExtension;
+                    // NOTE: Immediate addressing (@PC+)
+                    //       Get immediate value @PC and append the extended address
                     address = (ulong)registerValue;
+                    uint immediate = PerformMemoryRead(registerValue, AccessWidth._16bit);
+                    immediate |= addressExtension;
+                    return immediate;
+                }
+                else
+                {
+                    // NOTE: Indirect addressing (@Rn+)
+                    //       Get address in the register and append the extended address
+                    //       then access the memory
+                    address = (ulong)registerValue | addressExtension;
+                    address &= 0xFFFFF;
                     return PerformMemoryRead(address, accessWidth);
                 }
+            }
 
-                case AddressingMode.IndirectAutoincrement:
-                {
-                    uint registerValue = GetRegisterValue(register, addressingMode);
-                    var offset = (accessWidth != AccessWidth._8bit) || register == Registers.PC ? 2U : 1U;
-                    SetRegisterValue(register, (uint)(registerValue + offset) & 0xFFFFF);
-
-                    if(register == Registers.PC)
-                    {
-                        // NOTE: Immediate addressing (@PC+)
-                        //       Get immediate value @PC and append the extended address
-                        address = (ulong)registerValue;
-                        uint immediate = PerformMemoryRead(registerValue, AccessWidth._16bit);
-                        immediate |= addressExtension;
-                        return immediate;
-                    }
-                    else
-                    {
-                        // NOTE: Indirect addressing (@Rn+)
-                        //       Get address in the register and append the extended address
-                        //       then access the memory
-                        address = (ulong)registerValue | addressExtension;
-                        address &= 0xFFFFF;
-                        return PerformMemoryRead(address, accessWidth);
-                    }
-                }
-
-                default:
-                    throw new Exception("unreachable");
+            default:
+                throw new Exception("unreachable");
             }
         }
 
@@ -623,51 +640,51 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             switch(opcodeCondition)
             {
-                case 0x00:
-                    // NOTE: JNE, JNZ
-                    shouldJump = !statusRegister.HasFlag(StatusFlags.Zero);
-                    break;
+            case 0x00:
+                // NOTE: JNE, JNZ
+                shouldJump = !statusRegister.HasFlag(StatusFlags.Zero);
+                break;
 
-                case 0x01:
-                    // NOTE: JEQ, JZ
-                    shouldJump = statusRegister.HasFlag(StatusFlags.Zero);
-                    break;
+            case 0x01:
+                // NOTE: JEQ, JZ
+                shouldJump = statusRegister.HasFlag(StatusFlags.Zero);
+                break;
 
-                case 0x02:
-                    // NOTE: JNC
-                    shouldJump = !statusRegister.HasFlag(StatusFlags.Carry);
-                    break;
+            case 0x02:
+                // NOTE: JNC
+                shouldJump = !statusRegister.HasFlag(StatusFlags.Carry);
+                break;
 
-                case 0x03:
-                    // NOTE: JC
-                    shouldJump = statusRegister.HasFlag(StatusFlags.Carry);
-                    break;
+            case 0x03:
+                // NOTE: JC
+                shouldJump = statusRegister.HasFlag(StatusFlags.Carry);
+                break;
 
-                case 0x04:
-                    // NOTE: JN
-                    shouldJump = statusRegister.HasFlag(StatusFlags.Negative);
-                    break;
+            case 0x04:
+                // NOTE: JN
+                shouldJump = statusRegister.HasFlag(StatusFlags.Negative);
+                break;
 
-                case 0x05:
-                    // NOTE: JGE
-                    // NOTE: Negative ^ Overflow == False
-                    shouldJump = !(statusRegister.HasFlag(StatusFlags.Negative) ^ statusRegister.HasFlag(StatusFlags.Overflow));
-                    break;
+            case 0x05:
+                // NOTE: JGE
+                // NOTE: Negative ^ Overflow == False
+                shouldJump = !(statusRegister.HasFlag(StatusFlags.Negative) ^ statusRegister.HasFlag(StatusFlags.Overflow));
+                break;
 
-                case 0x06:
-                    // NOTE: JL
-                    // NOTE: Negative ^ Overflow == True
-                    shouldJump = statusRegister.HasFlag(StatusFlags.Negative) ^ statusRegister.HasFlag(StatusFlags.Overflow);
-                    break;
+            case 0x06:
+                // NOTE: JL
+                // NOTE: Negative ^ Overflow == True
+                shouldJump = statusRegister.HasFlag(StatusFlags.Negative) ^ statusRegister.HasFlag(StatusFlags.Overflow);
+                break;
 
-                case 0x07:
-                    // NOTE: JMP
-                    // NOTE: Jump unconditionally
-                    shouldJump = true;
-                    break;
+            case 0x07:
+                // NOTE: JMP
+                // NOTE: Jump unconditionally
+                shouldJump = true;
+                break;
 
-                default:
-                    return ExecutionResult.Aborted;
+            default:
+                return ExecutionResult.Aborted;
             }
 
             if(shouldJump)
@@ -702,205 +719,205 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                     switch(funcIdentifier)
                     {
-                        case 0:
-                        {
-                            // NOTE: MOVA @Rsrc
-                            var sourceRegister = (Registers)((instr & 0x0F00) >> 8);
-                            var memoryAddress = GetRegisterValue(sourceRegister, AddressingMode.Register);
-                            var memoryValue = PerformMemoryRead(memoryAddress, AccessWidth._20bit);
-
-                            SetRegisterValue((Registers)destination, memoryValue);
-                            continue;
-                        }
-                        case 1:
-                        {
-                            // NOTE: MOVA @Rsrc+
-                            var sourceRegister = (Registers)((instr & 0x0F00) >> 8);
-                            var memoryAddress = GetRegisterValue(sourceRegister, AddressingMode.Register);
-                            SetRegisterValue(sourceRegister, memoryAddress + 4);
-
-                            var memoryValue = PerformMemoryRead(memoryAddress, AccessWidth._20bit);
-                            SetRegisterValue((Registers)destination, memoryValue);
-                            continue;
-                        }
-                        case 2:
-                        {
-                            // NOTE: MOVA &abs20
-                            var absoluteAddress = (uint)GetOperandValue(Registers.PC, AddressingMode.IndirectAutoincrement, out _);
-                            absoluteAddress |= (uint)(instr & 0x0F00) << 8;
-
-                            var memoryValue = PerformMemoryRead(absoluteAddress, AccessWidth._20bit);
-                            SetRegisterValue((Registers)destination, memoryValue);
-                            continue;
-                        }
-                        case 3:
-                        {
-                            // NOTE: MOVA z16(Rsrc)
-                            var sourceRegister = (Registers)((instr & 0x0F00) >> 8);
-                            var offset = (short)GetOperandValue(Registers.PC, AddressingMode.IndirectAutoincrement, out _);
-                            var memoryAddress = (ulong)(GetRegisterValue(sourceRegister) + offset);
-
-                            var memoryValue = PerformMemoryRead(memoryAddress, AccessWidth._20bit);
-                            SetRegisterValue((Registers)destination, memoryValue);
-                            continue;
-                        }
-                        case 4:
-                        case 5:
-                        {
-                            // NOTE: RRCM/RRAM/RLAM/RRUM
-                            var instructionWidth = (instr & 0x0010) > 0 ? AccessWidth._16bit : AccessWidth._20bit;
-                            var bitLocation = ((instr & 0x0C00) >> 10) + 1;
-                            var func = (instr & 0x0300) >> 8;
-                            var registerValue = GetRegisterValue((Registers)destination);
-                            var width = GetAccessWidthInBits(instructionWidth);
-
-                            switch(func)
-                            {
-                                case 0:
-                                {
-                                    // NOTE: RRCM
-                                    var shouldCarry = (registerValue & (1 << (bitLocation - 1))) > 0;
-
-                                    registerValue >>= bitLocation;
-                                    registerValue |= statusRegister.HasFlag(StatusFlags.Carry) ? (1U << (width - bitLocation)) : 0U;
-
-                                    SetStatusFlag(StatusFlags.Carry, shouldCarry);
-                                    TruncateWithFlags((uint)registerValue, accessWidth);
-                                    SetRegisterValue((Registers)destination, registerValue);
-                                    break;
-                                }
-                                case 1:
-                                {
-                                    // NOTE: RRAM
-                                    var signExtension = ((1U << (bitLocation + 1)) - 1) << (width - bitLocation);
-                                    signExtension = (registerValue & GetAccessWidthMSB(instructionWidth)) > 0 ? signExtension : 0;
-
-                                    var shouldCarry = (registerValue & (1 << (bitLocation - 1))) > 0;
-                                    registerValue >>= bitLocation;
-                                    registerValue |= signExtension;
-                                    TruncateWithFlags(registerValue);
-                                    SetStatusFlag(StatusFlags.Carry, shouldCarry);
-                                    SetRegisterValue((Registers)destination, registerValue);
-                                    break;
-                                }
-                                case 2:
-                                {
-                                    // NOTE: RLAM
-                                    var shouldCarry = (registerValue & (1 << (width - bitLocation))) > 0;
-                                    registerValue <<= bitLocation;
-                                    TruncateWithFlags(registerValue);
-                                    SetStatusFlag(StatusFlags.Carry, shouldCarry);
-                                    SetRegisterValue((Registers)destination, registerValue);
-                                    break;
-                                }
-                                case 3:
-                                {
-                                    // NOTE: RRUM
-                                    var shouldCarry = (registerValue & (1 << (bitLocation - 1))) > 0;
-                                    registerValue >>= bitLocation;
-                                    TruncateWithFlags(registerValue);
-                                    SetStatusFlag(StatusFlags.Carry, shouldCarry);
-                                    SetRegisterValue((Registers)destination, registerValue);
-                                    break;
-                                }
-                            }
-
-                            continue;
-                        }
-                        case 6:
-                        {
-                            // NOTE: MOVA @Rsrc, &abs20
-                            var sourceRegister = (Registers)((instr & 0x0F00) >> 8);
-                            var value = GetRegisterValue(sourceRegister, AddressingMode.Register);
-                            var offset = (short)GetOperandValue(Registers.PC, AddressingMode.IndirectAutoincrement, out _);
-                            var memoryAddress = (ulong)(destination + offset);
-                            PerformMemoryWrite(memoryAddress, value, AccessWidth._20bit);
-                            continue;
-                        }
-                        case 7:
-                        {
-                            // NOTE: MOVA @Rsrc, z16(Rdst)
-                            var sourceRegister = (Registers)((instr & 0x0F00) >> 8);
-                            var value = GetRegisterValue(sourceRegister, AddressingMode.Register);
-                            var offset = (short)GetOperandValue(Registers.PC, AddressingMode.IndirectAutoincrement, out _);
-                            var memoryAddress = (ulong)(GetRegisterValue((Registers)destination) + offset);
-                            PerformMemoryWrite(memoryAddress, value, AccessWidth._20bit);
-                            continue;
-                        }
-                }
-
-                // NOTE: Third bit defines addressing mode
-                var immediateValue = ((funcIdentifier & 0x4) >> 2) == 0;
-
-                uint sourceValue;
-                if(immediateValue)
-                {
-                    sourceValue = GetOperandValue(Registers.PC, AddressingMode.IndirectAutoincrement, out _);
-                    sourceValue |= (uint)(instr & 0x0F00) << 8;
-                }
-                else
-                {
-                    var sourceRegister = (Registers)((instr & 0x0F00) >> 8);
-                    var sourceRegisterAddressing = AddressingMode.Register;
-
-                    // NOTE: ADDA R2/3, Rdst and SUBA R2/3, Rdst should read the CG in indirect register mode
-                    if((sourceRegister == Registers.SR || sourceRegister == Registers.R3) && (funcIdentifier & 0xE) == 0xE)
+                    case 0:
                     {
-                        sourceRegisterAddressing = AddressingMode.IndirectRegister;
-                    }
-                    sourceValue = GetRegisterValue(sourceRegister, sourceRegisterAddressing);
-                }
+                        // NOTE: MOVA @Rsrc
+                        var sourceRegister = (Registers)((instr & 0x0F00) >> 8);
+                        var memoryAddress = GetRegisterValue(sourceRegister, AddressingMode.Register);
+                        var memoryValue = PerformMemoryRead(memoryAddress, AccessWidth._20bit);
 
-                switch(funcIdentifier & 0x3)
-                {
+                        SetRegisterValue((Registers)destination, memoryValue);
+                        continue;
+                    }
+                    case 1:
+                    {
+                        // NOTE: MOVA @Rsrc+
+                        var sourceRegister = (Registers)((instr & 0x0F00) >> 8);
+                        var memoryAddress = GetRegisterValue(sourceRegister, AddressingMode.Register);
+                        SetRegisterValue(sourceRegister, memoryAddress + 4);
+
+                        var memoryValue = PerformMemoryRead(memoryAddress, AccessWidth._20bit);
+                        SetRegisterValue((Registers)destination, memoryValue);
+                        continue;
+                    }
+                    case 2:
+                    {
+                        // NOTE: MOVA &abs20
+                        var absoluteAddress = (uint)GetOperandValue(Registers.PC, AddressingMode.IndirectAutoincrement, out _);
+                        absoluteAddress |= (uint)(instr & 0x0F00) << 8;
+
+                        var memoryValue = PerformMemoryRead(absoluteAddress, AccessWidth._20bit);
+                        SetRegisterValue((Registers)destination, memoryValue);
+                        continue;
+                    }
+                    case 3:
+                    {
+                        // NOTE: MOVA z16(Rsrc)
+                        var sourceRegister = (Registers)((instr & 0x0F00) >> 8);
+                        var offset = (short)GetOperandValue(Registers.PC, AddressingMode.IndirectAutoincrement, out _);
+                        var memoryAddress = (ulong)(GetRegisterValue(sourceRegister) + offset);
+
+                        var memoryValue = PerformMemoryRead(memoryAddress, AccessWidth._20bit);
+                        SetRegisterValue((Registers)destination, memoryValue);
+                        continue;
+                    }
+                    case 4:
+                    case 5:
+                    {
+                        // NOTE: RRCM/RRAM/RLAM/RRUM
+                        var instructionWidth = (instr & 0x0010) > 0 ? AccessWidth._16bit : AccessWidth._20bit;
+                        var bitLocation = ((instr & 0x0C00) >> 10) + 1;
+                        var func = (instr & 0x0300) >> 8;
+                        var registerValue = GetRegisterValue((Registers)destination);
+                        var width = GetAccessWidthInBits(instructionWidth);
+
+                        switch(func)
+                        {
                         case 0:
                         {
-                            // NOTE: MOVA #imm20
-                            // NOTE: MOVA @Rsrc
-                            SetRegisterValue((Registers)destination, sourceValue);
+                            // NOTE: RRCM
+                            var shouldCarry = (registerValue & (1 << (bitLocation - 1))) > 0;
+
+                            registerValue >>= bitLocation;
+                            registerValue |= statusRegister.HasFlag(StatusFlags.Carry) ? (1U << (width - bitLocation)) : 0U;
+
+                            SetStatusFlag(StatusFlags.Carry, shouldCarry);
+                            TruncateWithFlags((uint)registerValue, accessWidth);
+                            SetRegisterValue((Registers)destination, registerValue);
                             break;
                         }
                         case 1:
                         {
-                            // NOTE: CMPA #imm20
-                            // NOTE: CMPA @Rsrc
-                            var destinationValue = GetRegisterValue((Registers)destination);
+                            // NOTE: RRAM
+                            var signExtension = ((1U << (bitLocation + 1)) - 1) << (width - bitLocation);
+                            signExtension = (registerValue & GetAccessWidthMSB(instructionWidth)) > 0 ? signExtension : 0;
 
-                            var cmpTemp = (sourceValue ^ 0xFFFFF) & 0xFFFFF;
-                            cmpTemp = cmpTemp + destinationValue + 1;
-                            cmpTemp = TruncateWithFlags(cmpTemp, AccessWidth._20bit);
-                            CheckForOverflow(sourceValue, cmpTemp, destinationValue, AccessWidth._20bit);
+                            var shouldCarry = (registerValue & (1 << (bitLocation - 1))) > 0;
+                            registerValue >>= bitLocation;
+                            registerValue |= signExtension;
+                            TruncateWithFlags(registerValue);
+                            SetStatusFlag(StatusFlags.Carry, shouldCarry);
+                            SetRegisterValue((Registers)destination, registerValue);
                             break;
                         }
                         case 2:
                         {
-                            // NOTE: ADDA #imm20
-                            // NOTE: ADDA @Rsrc
-                            var destinationValue = GetRegisterValue((Registers)destination);
-
-                            var calculatedValue = sourceValue + destinationValue;
-                            calculatedValue = TruncateWithFlags(calculatedValue, AccessWidth._20bit);
-                            CheckForOverflow(sourceValue, destinationValue, calculatedValue, AccessWidth._20bit);
-                            SetRegisterValue((Registers)destination, calculatedValue);
+                            // NOTE: RLAM
+                            var shouldCarry = (registerValue & (1 << (width - bitLocation))) > 0;
+                            registerValue <<= bitLocation;
+                            TruncateWithFlags(registerValue);
+                            SetStatusFlag(StatusFlags.Carry, shouldCarry);
+                            SetRegisterValue((Registers)destination, registerValue);
                             break;
                         }
                         case 3:
                         {
-                            // NOTE: SUBA #imm20
-                            // NOTE: SUBA @Rsrc
-                            var destinationValue = GetRegisterValue((Registers)destination);
-
-                            sourceValue = (sourceValue ^ 0xFFFFF) & 0xFFFFF;
-                            sourceValue += 1;
-
-                            var calculatedValue = sourceValue + destinationValue;
-                            calculatedValue = TruncateWithFlags(calculatedValue, AccessWidth._20bit);
-                            CheckForOverflow(sourceValue, destinationValue, calculatedValue, AccessWidth._20bit);
-                            SetRegisterValue((Registers)destination, calculatedValue);
+                            // NOTE: RRUM
+                            var shouldCarry = (registerValue & (1 << (bitLocation - 1))) > 0;
+                            registerValue >>= bitLocation;
+                            TruncateWithFlags(registerValue);
+                            SetStatusFlag(StatusFlags.Carry, shouldCarry);
+                            SetRegisterValue((Registers)destination, registerValue);
                             break;
                         }
-                        default:
-                            return true;
+                        }
+
+                        continue;
+                    }
+                    case 6:
+                    {
+                        // NOTE: MOVA @Rsrc, &abs20
+                        var sourceRegister = (Registers)((instr & 0x0F00) >> 8);
+                        var value = GetRegisterValue(sourceRegister, AddressingMode.Register);
+                        var offset = (short)GetOperandValue(Registers.PC, AddressingMode.IndirectAutoincrement, out _);
+                        var memoryAddress = (ulong)(destination + offset);
+                        PerformMemoryWrite(memoryAddress, value, AccessWidth._20bit);
+                        continue;
+                    }
+                    case 7:
+                    {
+                        // NOTE: MOVA @Rsrc, z16(Rdst)
+                        var sourceRegister = (Registers)((instr & 0x0F00) >> 8);
+                        var value = GetRegisterValue(sourceRegister, AddressingMode.Register);
+                        var offset = (short)GetOperandValue(Registers.PC, AddressingMode.IndirectAutoincrement, out _);
+                        var memoryAddress = (ulong)(GetRegisterValue((Registers)destination) + offset);
+                        PerformMemoryWrite(memoryAddress, value, AccessWidth._20bit);
+                        continue;
+                    }
+                    }
+
+                    // NOTE: Third bit defines addressing mode
+                    var immediateValue = ((funcIdentifier & 0x4) >> 2) == 0;
+
+                    uint sourceValue;
+                    if(immediateValue)
+                    {
+                        sourceValue = GetOperandValue(Registers.PC, AddressingMode.IndirectAutoincrement, out _);
+                        sourceValue |= (uint)(instr & 0x0F00) << 8;
+                    }
+                    else
+                    {
+                        var sourceRegister = (Registers)((instr & 0x0F00) >> 8);
+                        var sourceRegisterAddressing = AddressingMode.Register;
+
+                        // NOTE: ADDA R2/3, Rdst and SUBA R2/3, Rdst should read the CG in indirect register mode
+                        if((sourceRegister == Registers.SR || sourceRegister == Registers.R3) && (funcIdentifier & 0xE) == 0xE)
+                        {
+                            sourceRegisterAddressing = AddressingMode.IndirectRegister;
+                        }
+                        sourceValue = GetRegisterValue(sourceRegister, sourceRegisterAddressing);
+                    }
+
+                    switch(funcIdentifier & 0x3)
+                    {
+                    case 0:
+                    {
+                        // NOTE: MOVA #imm20
+                        // NOTE: MOVA @Rsrc
+                        SetRegisterValue((Registers)destination, sourceValue);
+                        break;
+                    }
+                    case 1:
+                    {
+                        // NOTE: CMPA #imm20
+                        // NOTE: CMPA @Rsrc
+                        var destinationValue = GetRegisterValue((Registers)destination);
+
+                        var cmpTemp = (sourceValue ^ 0xFFFFF) & 0xFFFFF;
+                        cmpTemp = cmpTemp + destinationValue + 1;
+                        cmpTemp = TruncateWithFlags(cmpTemp, AccessWidth._20bit);
+                        CheckForOverflow(sourceValue, cmpTemp, destinationValue, AccessWidth._20bit);
+                        break;
+                    }
+                    case 2:
+                    {
+                        // NOTE: ADDA #imm20
+                        // NOTE: ADDA @Rsrc
+                        var destinationValue = GetRegisterValue((Registers)destination);
+
+                        var calculatedValue = sourceValue + destinationValue;
+                        calculatedValue = TruncateWithFlags(calculatedValue, AccessWidth._20bit);
+                        CheckForOverflow(sourceValue, destinationValue, calculatedValue, AccessWidth._20bit);
+                        SetRegisterValue((Registers)destination, calculatedValue);
+                        break;
+                    }
+                    case 3:
+                    {
+                        // NOTE: SUBA #imm20
+                        // NOTE: SUBA @Rsrc
+                        var destinationValue = GetRegisterValue((Registers)destination);
+
+                        sourceValue = (sourceValue ^ 0xFFFFF) & 0xFFFFF;
+                        sourceValue += 1;
+
+                        var calculatedValue = sourceValue + destinationValue;
+                        calculatedValue = TruncateWithFlags(calculatedValue, AccessWidth._20bit);
+                        CheckForOverflow(sourceValue, destinationValue, calculatedValue, AccessWidth._20bit);
+                        SetRegisterValue((Registers)destination, calculatedValue);
+                        break;
+                    }
+                    default:
+                        return true;
                     }
 
                     continue;
@@ -913,142 +930,141 @@ namespace Antmicro.Renode.Peripherals.CPU
                     // NOTE: CALLA (20-bit), handle this separately
                     switch(fullOpcode)
                     {
-                        case 0x06:
+                    case 0x06:
+                    {
+                        uint newPC;
+                        // NOTE: RETI / CALLA
+                        if((Registers)destination == Registers.PC)
                         {
-                            uint newPC;
-                            // NOTE: RETI / CALLA
-                            if((Registers)destination == Registers.PC)
-                            {
-                                // NOTE: RETI
-                                var statusAndPC = PerformMemoryRead(SP, AccessWidth._16bit);
-                                statusRegister = (StatusFlags)(statusAndPC & 0x1FF);
-                                SP += 2U;
+                            // NOTE: RETI
+                            var statusAndPC = PerformMemoryRead(SP, AccessWidth._16bit);
+                            statusRegister = (StatusFlags)(statusAndPC & 0x1FF);
+                            SP += 2U;
 
-                                newPC = PerformMemoryRead(SP, AccessWidth._16bit);
-                                SP += 2U;
-                                newPC |= (uint)((statusAndPC & 0xF000) << 4);
-                                PC = newPC;
-                            }
-                            else
-                            {
-                                // NOTE: CALLA
-                                // NOTE: Decrement SP before reading the address
-                                SP -= 2;
-                                newPC = GetOperandValue((Registers)destination, addressingMode, out  _, accessWidth: AccessWidth._20bit, addressExtension: addressExtension, extended: extended);
-
-                                SP -= 2;
-                                PerformMemoryWrite(SP, PC, AccessWidth._20bit);
-                                PC = (uint)newPC;
-                            }
-                            continue;
+                            newPC = PerformMemoryRead(SP, AccessWidth._16bit);
+                            SP += 2U;
+                            newPC |= (uint)((statusAndPC & 0xF000) << 4);
+                            PC = newPC;
                         }
-
-                        case 0x07:
+                        else
                         {
-                            // NOTE: `register` contains part of the address
-                            var fullAddress = (uint)destination << 16;
-                            SP -= 2U;
-                            var imm = GetOperandValue(Registers.PC, AddressingMode.IndirectAutoincrement, out var _);
-                            fullAddress |= imm;
+                            // NOTE: CALLA
+                            // NOTE: Decrement SP before reading the address
+                            SP -= 2;
+                            newPC = GetOperandValue((Registers)destination, addressingMode, out _, accessWidth: AccessWidth._20bit, addressExtension: addressExtension, extended: extended);
 
-                            SP -= 2U;
+                            SP -= 2;
                             PerformMemoryWrite(SP, PC, AccessWidth._20bit);
+                            PC = (uint)newPC;
+                        }
+                        continue;
+                    }
 
-                            switch(addressingMode)
-                            {
-                                case AddressingMode.Register:
-                                    // NOTE: Absolute addressing
-                                    fullAddress = PerformMemoryRead(fullAddress, AccessWidth._20bit);
-                                    PC = (uint)fullAddress;
-                                    break;
+                    case 0x07:
+                    {
+                        // NOTE: `register` contains part of the address
+                        var fullAddress = (uint)destination << 16;
+                        SP -= 2U;
+                        var imm = GetOperandValue(Registers.PC, AddressingMode.IndirectAutoincrement, out var _);
+                        fullAddress |= imm;
 
-                                case AddressingMode.Indexed:
-                                    // TODO: Indexed addressing
-                                    this.Log(LogLevel.Error, "CALLA indexed addressing is not supported");
-                                    return true;
+                        SP -= 2U;
+                        PerformMemoryWrite(SP, PC, AccessWidth._20bit);
 
-                                case AddressingMode.IndirectAutoincrement:
-                                    // NOTE: Immediate addressing
-                                    PC = (uint)fullAddress;
-                                    break;
+                        switch(addressingMode)
+                        {
+                        case AddressingMode.Register:
+                            // NOTE: Absolute addressing
+                            fullAddress = PerformMemoryRead(fullAddress, AccessWidth._20bit);
+                            PC = (uint)fullAddress;
+                            break;
 
-                                default:
-                                    return true;
-                            }
+                        case AddressingMode.Indexed:
+                            // TODO: Indexed addressing
+                            this.Log(LogLevel.Error, "CALLA indexed addressing is not supported");
+                            return true;
 
-                            continue;
+                        case AddressingMode.IndirectAutoincrement:
+                            // NOTE: Immediate addressing
+                            PC = (uint)fullAddress;
+                            break;
+
+                        default:
+                            return true;
                         }
 
+                        continue;
+                    }
                     }
 
                     switch(fullOpcode)
                     {
-                        case 0x04: // NOTE: PUSH
-                        case 0x05: // NOTE: CALL
-                            // NOTE: PUSH and CALL decrement stack pointer before operand evaluation
-                            SP -= 2U;
-                            break;
+                    case 0x04: // NOTE: PUSH
+                    case 0x05: // NOTE: CALL
+                               // NOTE: PUSH and CALL decrement stack pointer before operand evaluation
+                        SP -= 2U;
+                        break;
 
-                        default:
-                            // NOTE: Do nothing
-                            break;
+                    default:
+                        // NOTE: Do nothing
+                        break;
                     }
 
                     var operand = GetOperandValue((Registers)destination, addressingMode, out var address, accessWidth: accessWidth, addressExtension: addressExtension, extended: extended);
                     switch(fullOpcode)
                     {
-                        case 0x00:
-                        {
-                            // NOTE: RRC
-                            var msb = statusRegister.HasFlag(StatusFlags.Carry) ? GetAccessWidthMSB(accessWidth) : 0;
-                            SetStatusFlag(StatusFlags.Carry, (operand & 0x1) > 0);
-                            operand = (operand >> 1) | msb;
-                            TruncateWithFlags((uint)operand, accessWidth);
-                            break;
-                        }
+                    case 0x00:
+                    {
+                        // NOTE: RRC
+                        var msb = statusRegister.HasFlag(StatusFlags.Carry) ? GetAccessWidthMSB(accessWidth) : 0;
+                        SetStatusFlag(StatusFlags.Carry, (operand & 0x1) > 0);
+                        operand = (operand >> 1) | msb;
+                        TruncateWithFlags((uint)operand, accessWidth);
+                        break;
+                    }
 
-                        case 0x01:
-                            // NOTE: SWPB
-                            // NOTE: Status bits are not affected
-                            operand = ((operand >> 8) | (operand << 8)) & 0xFFFF;
-                            operand &= GetAccessWidthMask(accessWidth);
-                            break;
+                    case 0x01:
+                        // NOTE: SWPB
+                        // NOTE: Status bits are not affected
+                        operand = ((operand >> 8) | (operand << 8)) & 0xFFFF;
+                        operand &= GetAccessWidthMask(accessWidth);
+                        break;
 
-                        case 0x02:
-                        {
-                            // NOTE: RRA
-                            var msb = GetAccessWidthMSB(accessWidth);
-                            msb = (uint)(operand & msb);
-                            SetStatusFlag(StatusFlags.Carry, (operand & 0x1) > 0);
-                            operand = msb | (operand >> 1);
-                            TruncateWithFlags((uint)operand, accessWidth);
-                            break;
-                        }
+                    case 0x02:
+                    {
+                        // NOTE: RRA
+                        var msb = GetAccessWidthMSB(accessWidth);
+                        msb = (uint)(operand & msb);
+                        SetStatusFlag(StatusFlags.Carry, (operand & 0x1) > 0);
+                        operand = msb | (operand >> 1);
+                        TruncateWithFlags((uint)operand, accessWidth);
+                        break;
+                    }
 
-                        case 0x03:
-                        {
-                            // NOTE: SXT
-                            var msb = GetAccessWidthMSB(accessWidth);
-                            msb = (uint)(operand & msb);
-                            operand |= msb > 0 ? 0xFFFF00U : 0U;
-                            TruncateWithFlags((uint)operand, accessWidth);
-                            SetStatusFlag(StatusFlags.Carry, !statusRegister.HasFlag(StatusFlags.Zero));
-                            break;
-                        }
+                    case 0x03:
+                    {
+                        // NOTE: SXT
+                        var msb = GetAccessWidthMSB(accessWidth);
+                        msb = (uint)(operand & msb);
+                        operand |= msb > 0 ? 0xFFFF00U : 0U;
+                        TruncateWithFlags((uint)operand, accessWidth);
+                        SetStatusFlag(StatusFlags.Carry, !statusRegister.HasFlag(StatusFlags.Zero));
+                        break;
+                    }
 
-                        case 0x04:
-                            // NOTE: PUSH
-                            PerformMemoryWrite(SP, operand, accessWidth);
-                            continue;
+                    case 0x04:
+                        // NOTE: PUSH
+                        PerformMemoryWrite(SP, operand, accessWidth);
+                        continue;
 
-                        case 0x05:
-                            // NOTE: CALL
-                            PerformMemoryWrite(SP, PC, AccessWidth._16bit);
-                            PC = (uint)operand;
-                            continue;
+                    case 0x05:
+                        // NOTE: CALL
+                        PerformMemoryWrite(SP, PC, AccessWidth._16bit);
+                        PC = (uint)operand;
+                        continue;
 
-                        default:
-                            return true;
+                    default:
+                        return true;
                     }
 
                     if(addressingMode == AddressingMode.Register)
@@ -1067,79 +1083,79 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                     switch((instr & 0x0300) >> 8)
                     {
-                        case 0:
-                            // NOTE: PUSHM.A
-                            // NOTE: Check if the instruction is correct, otherwise abort CPU
-                            if(destination < n - 1)
-                            {
-                                this.Log(LogLevel.Error, "Tried to push {0} registers, starting from {1} which is illegal; compilator bug?", n, (Registers)destination);
-                                executionResult = ExecutionResult.Aborted;
-                                return true;
-                            }
+                    case 0:
+                        // NOTE: PUSHM.A
+                        // NOTE: Check if the instruction is correct, otherwise abort CPU
+                        if(destination < n - 1)
+                        {
+                            this.Log(LogLevel.Error, "Tried to push {0} registers, starting from {1} which is illegal; compilator bug?", n, (Registers)destination);
+                            executionResult = ExecutionResult.Aborted;
+                            return true;
+                        }
 
-                            for(var reg = destination; n != 0; n--, reg--)
-                            {
-                                var registerValue = GetRegisterValue((Registers)reg, AddressingMode.Register);
-                                SP -= 2U;
-                                PerformMemoryWrite(SP, (ushort)(registerValue >> 16), AccessWidth._16bit);
-                                SP -= 2U;
-                                PerformMemoryWrite(SP, (ushort)registerValue, AccessWidth._16bit);
-                            }
-                            break;
-                        case 1:
-                            // NOTE: PUSHM.W
-                            // NOTE: Check if the instruction is correct, otherwise abort CPU
-                            if(destination < n - 1)
-                            {
-                                this.Log(LogLevel.Error, "Tried to push {0} registers, starting from {1} which is illegal; compilator bug?", n, (Registers)destination);
-                                executionResult = ExecutionResult.Aborted;
-                                return true;
-                            }
+                        for(var reg = destination; n != 0; n--, reg--)
+                        {
+                            var registerValue = GetRegisterValue((Registers)reg, AddressingMode.Register);
+                            SP -= 2U;
+                            PerformMemoryWrite(SP, (ushort)(registerValue >> 16), AccessWidth._16bit);
+                            SP -= 2U;
+                            PerformMemoryWrite(SP, (ushort)registerValue, AccessWidth._16bit);
+                        }
+                        break;
+                    case 1:
+                        // NOTE: PUSHM.W
+                        // NOTE: Check if the instruction is correct, otherwise abort CPU
+                        if(destination < n - 1)
+                        {
+                            this.Log(LogLevel.Error, "Tried to push {0} registers, starting from {1} which is illegal; compilator bug?", n, (Registers)destination);
+                            executionResult = ExecutionResult.Aborted;
+                            return true;
+                        }
 
-                            for(var reg = destination; n != 0; n--, reg--)
-                            {
-                                var registerValue = GetRegisterValue((Registers)reg, AddressingMode.Register);
-                                SP -= 2U;
-                                PerformMemoryWrite(SP, (ushort)registerValue, AccessWidth._16bit);
-                            }
-                            break;
-                        case 2:
-                            // NOTE: POPM.A
-                            // NOTE: Check if the instruction is correct, otherwise abort CPU
-                            if(destination + n - 1 > 16)
-                            {
-                                this.Log(LogLevel.Error, "Tried to pop {0} registers, starting from {1} which is illegal; compilator bug?", n, (Registers)destination);
-                                executionResult = ExecutionResult.Aborted;
-                                return true;
-                            }
+                        for(var reg = destination; n != 0; n--, reg--)
+                        {
+                            var registerValue = GetRegisterValue((Registers)reg, AddressingMode.Register);
+                            SP -= 2U;
+                            PerformMemoryWrite(SP, (ushort)registerValue, AccessWidth._16bit);
+                        }
+                        break;
+                    case 2:
+                        // NOTE: POPM.A
+                        // NOTE: Check if the instruction is correct, otherwise abort CPU
+                        if(destination + n - 1 > 16)
+                        {
+                            this.Log(LogLevel.Error, "Tried to pop {0} registers, starting from {1} which is illegal; compilator bug?", n, (Registers)destination);
+                            executionResult = ExecutionResult.Aborted;
+                            return true;
+                        }
 
-                            for(var reg = destination; n != 0; n--, reg++)
-                            {
-                                var registerValue = PerformMemoryRead(SP, AccessWidth._16bit);
-                                SP += 2U;
-                                registerValue |= PerformMemoryRead(SP, AccessWidth._16bit) << 16;
-                                SP += 2U;
-                                SetRegisterValue((Registers)reg, registerValue);
-                            }
-                            break;
-                        case 3:
-                            // NOTE: POPM.W
-                            // NOTE: Check if the instruction is correct, otherwise abort CPU
-                            if(destination + n - 1 > 16)
-                            {
-                                this.Log(LogLevel.Error, "Tried to pop {0} registers, starting from {1} which is illegal; compilator bug?", n, (Registers)destination);
-                                executionResult = ExecutionResult.Aborted;
-                                return true;
-                            }
+                        for(var reg = destination; n != 0; n--, reg++)
+                        {
+                            var registerValue = PerformMemoryRead(SP, AccessWidth._16bit);
+                            SP += 2U;
+                            registerValue |= PerformMemoryRead(SP, AccessWidth._16bit) << 16;
+                            SP += 2U;
+                            SetRegisterValue((Registers)reg, registerValue);
+                        }
+                        break;
+                    case 3:
+                        // NOTE: POPM.W
+                        // NOTE: Check if the instruction is correct, otherwise abort CPU
+                        if(destination + n - 1 > 16)
+                        {
+                            this.Log(LogLevel.Error, "Tried to pop {0} registers, starting from {1} which is illegal; compilator bug?", n, (Registers)destination);
+                            executionResult = ExecutionResult.Aborted;
+                            return true;
+                        }
 
-                            for(var reg = destination; n != 0; n--, reg++)
-                            {
-                                var registerValue = PerformMemoryRead(SP, AccessWidth._16bit);
-                                SP += 2U;
-                                SetRegisterValue((Registers)reg, registerValue);
-                                this.Log(LogLevel.Noisy, "POPM.W={0:X}", registerValue);
-                            }
-                            break;
+                        for(var reg = destination; n != 0; n--, reg++)
+                        {
+                            var registerValue = PerformMemoryRead(SP, AccessWidth._16bit);
+                            SP += 2U;
+                            SetRegisterValue((Registers)reg, registerValue);
+                            this.Log(LogLevel.Noisy, "POPM.W={0:X}", registerValue);
+                        }
+                        break;
                     }
                 }
                 else if(opc < 0x2000)
@@ -1178,115 +1194,115 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                 switch(opcode)
                 {
-                    case 0x4:
-                        // NOTE: MOV, MOV.B
-                        operand1 &= GetAccessWidthMask(accessWidth);
-                        break;
+                case 0x4:
+                    // NOTE: MOV, MOV.B
+                    operand1 &= GetAccessWidthMask(accessWidth);
+                    break;
 
-                    case 0x5:
-                        // NOTE: ADD, ADD.B
-                        temporaryValue = operand1 + operand2;
-                        temporaryValue = TruncateWithFlags(temporaryValue, accessWidth);
-                        CheckForOverflow(operand1, operand2, temporaryValue, accessWidth);
-                        operand1 = temporaryValue; // XXX: Just use this variable instead of operand1
-                        break;
+                case 0x5:
+                    // NOTE: ADD, ADD.B
+                    temporaryValue = operand1 + operand2;
+                    temporaryValue = TruncateWithFlags(temporaryValue, accessWidth);
+                    CheckForOverflow(operand1, operand2, temporaryValue, accessWidth);
+                    operand1 = temporaryValue; // XXX: Just use this variable instead of operand1
+                    break;
 
-                    case 0x6:
-                        // NOTE: ADDC, ADDC.B
-                        temporaryValue = operand1 + operand2 + (statusRegister.HasFlag(StatusFlags.Carry) ? 1U : 0U);
-                        temporaryValue = TruncateWithFlags(temporaryValue, accessWidth);
-                        CheckForOverflow(operand1, operand2, temporaryValue, accessWidth);
-                        operand1 = temporaryValue;
-                        break;
+                case 0x6:
+                    // NOTE: ADDC, ADDC.B
+                    temporaryValue = operand1 + operand2 + (statusRegister.HasFlag(StatusFlags.Carry) ? 1U : 0U);
+                    temporaryValue = TruncateWithFlags(temporaryValue, accessWidth);
+                    CheckForOverflow(operand1, operand2, temporaryValue, accessWidth);
+                    operand1 = temporaryValue;
+                    break;
 
-                    case 0x7:
-                        // NOTE: SUBC, SUBC.B
-                        operand1 = (operand1 ^ GetAccessWidthMask(accessWidth)) & GetAccessWidthMask(accessWidth);
-                        operand1 += statusRegister.HasFlag(StatusFlags.Carry) ? 1U : 0U;
-                        temporaryValue = operand1 + operand2;
-                        temporaryValue = TruncateWithFlags(temporaryValue, accessWidth);
-                        CheckForOverflow(operand1, operand2, temporaryValue, accessWidth);
-                        operand1 = temporaryValue;
-                        break;
+                case 0x7:
+                    // NOTE: SUBC, SUBC.B
+                    operand1 = (operand1 ^ GetAccessWidthMask(accessWidth)) & GetAccessWidthMask(accessWidth);
+                    operand1 += statusRegister.HasFlag(StatusFlags.Carry) ? 1U : 0U;
+                    temporaryValue = operand1 + operand2;
+                    temporaryValue = TruncateWithFlags(temporaryValue, accessWidth);
+                    CheckForOverflow(operand1, operand2, temporaryValue, accessWidth);
+                    operand1 = temporaryValue;
+                    break;
 
-                    case 0x8:
-                        // NOTE: SUB, SUB.B
-                        operand1 = (operand1 ^ GetAccessWidthMask(accessWidth)) & GetAccessWidthMask(accessWidth);
-                        operand1 += 1;
-                        temporaryValue = operand1 + operand2;
-                        temporaryValue = TruncateWithFlags(temporaryValue, accessWidth);
-                        CheckForOverflow(operand1, operand2, temporaryValue, accessWidth);
-                        operand1 = temporaryValue;
-                        break;
+                case 0x8:
+                    // NOTE: SUB, SUB.B
+                    operand1 = (operand1 ^ GetAccessWidthMask(accessWidth)) & GetAccessWidthMask(accessWidth);
+                    operand1 += 1;
+                    temporaryValue = operand1 + operand2;
+                    temporaryValue = TruncateWithFlags(temporaryValue, accessWidth);
+                    CheckForOverflow(operand1, operand2, temporaryValue, accessWidth);
+                    operand1 = temporaryValue;
+                    break;
 
-                    case 0x9:
-                        // NOTE: CMP, CMP.B
-                        operand1 = (operand1 ^ GetAccessWidthMask(accessWidth)) & GetAccessWidthMask(accessWidth);
-                        operand1 += 1;
-                        var cmpTemp = operand1 + operand2;
-                        cmpTemp = TruncateWithFlags((uint)cmpTemp, accessWidth);
-                        CheckForOverflow(operand1, operand2, cmpTemp, accessWidth);
-                        continue;
+                case 0x9:
+                    // NOTE: CMP, CMP.B
+                    operand1 = (operand1 ^ GetAccessWidthMask(accessWidth)) & GetAccessWidthMask(accessWidth);
+                    operand1 += 1;
+                    var cmpTemp = operand1 + operand2;
+                    cmpTemp = TruncateWithFlags((uint)cmpTemp, accessWidth);
+                    CheckForOverflow(operand1, operand2, cmpTemp, accessWidth);
+                    continue;
 
-                    case 0xA:
-                        // NOTE: DADD, DADD.B
+                case 0xA:
+                    // NOTE: DADD, DADD.B
 
-                        // NOTE: Convert operands to binary
-                        operand1 = BCDToBinary(operand1 & GetAccessWidthMask(accessWidth));
-                        operand2 = BCDToBinary(operand2 & GetAccessWidthMask(accessWidth));
+                    // NOTE: Convert operands to binary
+                    operand1 = BCDToBinary(operand1 & GetAccessWidthMask(accessWidth));
+                    operand2 = BCDToBinary(operand2 & GetAccessWidthMask(accessWidth));
 
-                        // NOTE: Add and convert back to BCD
-                        operand1 = operand1 + operand2 + (statusRegister.HasFlag(StatusFlags.Carry) ? 1U : 0U);
+                    // NOTE: Add and convert back to BCD
+                    operand1 = operand1 + operand2 + (statusRegister.HasFlag(StatusFlags.Carry) ? 1U : 0U);
 
-                        var maximumWidth = accessWidth == AccessWidth._20bit ? 99999 : (accessWidth == AccessWidth._16bit ? 9999 : 99);
-                        SetStatusFlag(StatusFlags.Carry, operand1 > maximumWidth);
-                        SetStatusFlag(StatusFlags.Zero, operand1 == 0);
+                    var maximumWidth = accessWidth == AccessWidth._20bit ? 99999 : (accessWidth == AccessWidth._16bit ? 9999 : 99);
+                    SetStatusFlag(StatusFlags.Carry, operand1 > maximumWidth);
+                    SetStatusFlag(StatusFlags.Zero, operand1 == 0);
 
-                        operand1 = BinaryToBCD(operand1);
-                        SetStatusFlag(StatusFlags.Overflow, (operand1 & GetAccessWidthMask(accessWidth)) > 0);
+                    operand1 = BinaryToBCD(operand1);
+                    SetStatusFlag(StatusFlags.Overflow, (operand1 & GetAccessWidthMask(accessWidth)) > 0);
 
-                        break;
+                    break;
 
-                    case 0xB:
-                        // NOTE: BIT, BIT.B
-                        var bitTemp = operand1 & operand2;
-                        TruncateWithFlags((uint)bitTemp, accessWidth);
-                        SetStatusFlag(StatusFlags.Carry, !statusRegister.HasFlag(StatusFlags.Zero));
-                        continue;
+                case 0xB:
+                    // NOTE: BIT, BIT.B
+                    var bitTemp = operand1 & operand2;
+                    TruncateWithFlags((uint)bitTemp, accessWidth);
+                    SetStatusFlag(StatusFlags.Carry, !statusRegister.HasFlag(StatusFlags.Zero));
+                    continue;
 
-                    case 0xC:
-                        // NOTE: BIC, BIC.B
-                        operand1 = ~operand1 & operand2;
-                        operand1 &= GetAccessWidthMask(accessWidth);
-                        break;
+                case 0xC:
+                    // NOTE: BIC, BIC.B
+                    operand1 = ~operand1 & operand2;
+                    operand1 &= GetAccessWidthMask(accessWidth);
+                    break;
 
-                    case 0xD:
-                        // NOTE: BIS, BIS.B
-                        operand1 |= operand2;
-                        operand1 &= GetAccessWidthMask(accessWidth);
-                        break;
+                case 0xD:
+                    // NOTE: BIS, BIS.B
+                    operand1 |= operand2;
+                    operand1 &= GetAccessWidthMask(accessWidth);
+                    break;
 
-                    case 0xE:
-                        // NOTE: XOR, XOR.B
-                        operand1 ^= operand2;
+                case 0xE:
+                    // NOTE: XOR, XOR.B
+                    operand1 ^= operand2;
 
-                        operand1 = TruncateWithFlags((uint)operand1, accessWidth);
-                        SetStatusFlag(StatusFlags.Carry, !statusRegister.HasFlag(StatusFlags.Zero));
-                        break;
+                    operand1 = TruncateWithFlags((uint)operand1, accessWidth);
+                    SetStatusFlag(StatusFlags.Carry, !statusRegister.HasFlag(StatusFlags.Zero));
+                    break;
 
-                    case 0xF:
-                        // NOTE: AND, AND.B
-                        operand1 &= operand2;
+                case 0xF:
+                    // NOTE: AND, AND.B
+                    operand1 &= operand2;
 
-                        operand1 = TruncateWithFlags((uint)operand1, accessWidth);
-                        SetStatusFlag(StatusFlags.Overflow, false);
-                        SetStatusFlag(StatusFlags.Carry, !statusRegister.HasFlag(StatusFlags.Zero));
-                        break;
+                    operand1 = TruncateWithFlags((uint)operand1, accessWidth);
+                    SetStatusFlag(StatusFlags.Overflow, false);
+                    SetStatusFlag(StatusFlags.Carry, !statusRegister.HasFlag(StatusFlags.Zero));
+                    break;
 
-                    default:
-                        // NOTE: Now we have handled all possible instructions, throw error if we are here
-                        this.Log(LogLevel.Error, "Unhandled instruction: 0x{0:X04}", instr);
-                        return false;
+                default:
+                    // NOTE: Now we have handled all possible instructions, throw error if we are here
+                    this.Log(LogLevel.Error, "Unhandled instruction: 0x{0:X04}", instr);
+                    return false;
                 }
 
                 if(destinationAddressing == 0)
@@ -1382,19 +1398,19 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private uint BinaryToBCD(uint binary)
         {
-            return (((binary /     1) % 10) <<  0) |
-                   (((binary /    10) % 10) <<  4) |
-                   (((binary /   100) % 10) <<  8) |
-                   (((binary /  1000) % 10) << 12) |
+            return (((binary / 1) % 10) << 0) |
+                   (((binary / 10) % 10) << 4) |
+                   (((binary / 100) % 10) << 8) |
+                   (((binary / 1000) % 10) << 12) |
                    (((binary / 10000) % 10) << 16);
         }
 
         private uint BCDToBinary(uint bcd)
         {
-            return ((bcd >>  0) & 0xf) *     1 +
-                   ((bcd >>  4) & 0xf) *    10 +
-                   ((bcd >>  8) & 0xf) *   100 +
-                   ((bcd >> 12) & 0xf) *  1000 +
+            return ((bcd >> 0) & 0xf) * 1 +
+                   ((bcd >> 4) & 0xf) * 10 +
+                   ((bcd >> 8) & 0xf) * 100 +
+                   ((bcd >> 12) & 0xf) * 1000 +
                    ((bcd >> 16) & 0xf) * 10000;
         }
 
@@ -1429,20 +1445,20 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             switch(accessWidth)
             {
-                case AccessWidth._8bit:
-                    underlyingMemory.WriteByte((long)address, (byte)value);
-                    break;
+            case AccessWidth._8bit:
+                underlyingMemory.WriteByte((long)address, (byte)value);
+                break;
 
-                case AccessWidth._16bit:
-                    underlyingMemory.WriteWord((long)address, (ushort)value);
-                    break;
+            case AccessWidth._16bit:
+                underlyingMemory.WriteWord((long)address, (ushort)value);
+                break;
 
-                case AccessWidth._20bit:
-                    underlyingMemory.WriteDoubleWord((long)address, value & GetAccessWidthMask(accessWidth));
-                    break;
+            case AccessWidth._20bit:
+                underlyingMemory.WriteDoubleWord((long)address, value & GetAccessWidthMask(accessWidth));
+                break;
 
-                default:
-                    throw new Exception("unreachable");
+            default:
+                throw new Exception("unreachable");
             }
 
             return true;
@@ -1462,21 +1478,21 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             switch(accessWidth)
             {
-                case AccessWidth._8bit:
-                    machine.SystemBus.WriteByte(address, (byte)value);
-                    break;
+            case AccessWidth._8bit:
+                machine.SystemBus.WriteByte(address, (byte)value);
+                break;
 
-                case AccessWidth._16bit:
-                    machine.SystemBus.WriteWord(address, (ushort)value);
-                    break;
+            case AccessWidth._16bit:
+                machine.SystemBus.WriteWord(address, (ushort)value);
+                break;
 
-                case AccessWidth._20bit:
-                    machine.SystemBus.WriteWord(address, (ushort)value);
-                    machine.SystemBus.WriteWord(address + 2, (ushort)((value >> 16) & 0xF));
-                    break;
+            case AccessWidth._20bit:
+                machine.SystemBus.WriteWord(address, (ushort)value);
+                machine.SystemBus.WriteWord(address + 2, (ushort)((value >> 16) & 0xF));
+                break;
 
-                default:
-                    throw new Exception("unreachable");
+            default:
+                throw new Exception("unreachable");
             }
         }
 
@@ -1495,21 +1511,21 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             switch(accessWidth)
             {
-                case AccessWidth._8bit:
-                    value = underlyingMemory.ReadByte((long)address);
-                    break;
+            case AccessWidth._8bit:
+                value = underlyingMemory.ReadByte((long)address);
+                break;
 
-                case AccessWidth._16bit:
-                    value = underlyingMemory.ReadWord((long)address);
-                    break;
+            case AccessWidth._16bit:
+                value = underlyingMemory.ReadWord((long)address);
+                break;
 
-                case AccessWidth._20bit:
-                    value = underlyingMemory.ReadDoubleWord((long)address);
-                    value &= GetAccessWidthMask(accessWidth);
-                    break;
+            case AccessWidth._20bit:
+                value = underlyingMemory.ReadDoubleWord((long)address);
+                value &= GetAccessWidthMask(accessWidth);
+                break;
 
-                default:
-                    throw new Exception("unreachable");
+            default:
+                throw new Exception("unreachable");
             }
 
             return true;
@@ -1529,20 +1545,20 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             switch(accessWidth)
             {
-                case AccessWidth._8bit:
-                    return machine.SystemBus.ReadByte(address);
+            case AccessWidth._8bit:
+                return machine.SystemBus.ReadByte(address);
 
-                case AccessWidth._16bit:
-                    return machine.SystemBus.ReadWord(address);
+            case AccessWidth._16bit:
+                return machine.SystemBus.ReadWord(address);
 
-                case AccessWidth._20bit:
-                    var value = (uint)machine.SystemBus.ReadWord(address);
-                    value |= (uint)(machine.SystemBus.ReadWord(address + 2) << 16);
-                    value &= GetAccessWidthMask(accessWidth);
-                    return value;
+            case AccessWidth._20bit:
+                var value = (uint)machine.SystemBus.ReadWord(address);
+                value |= (uint)(machine.SystemBus.ReadWord(address + 2) << 16);
+                value &= GetAccessWidthMask(accessWidth);
+                return value;
 
-                default:
-                    throw new Exception("unreachable");
+            default:
+                throw new Exception("unreachable");
             }
         }
 
@@ -1580,6 +1596,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private readonly SortedSet<int> pendingInterrupt = new SortedSet<int>();
         private readonly IDictionary<ulong, HashSet<Action<ICpuSupportingGdb, ulong>>> hooks =
             new Dictionary<ulong, HashSet<Action<ICpuSupportingGdb, ulong>>>();
+
         private readonly SortedList<ulong, ArrayMemory> arrayMemoryList = new SortedList<ulong, ArrayMemory>();
 
         private const uint InterruptVectorStart = 0xFFFE;
@@ -1599,20 +1616,22 @@ namespace Antmicro.Renode.Peripherals.CPU
                 {
                     switch(AccessWidth)
                     {
-                        case AccessWidth._8bit:
-                            return SysbusAccessWidth.Byte;
-                        case AccessWidth._16bit:
-                            return SysbusAccessWidth.Word;
-                        case AccessWidth._20bit:
-                            return SysbusAccessWidth.DoubleWord;
-                        default:
-                            throw new Exception("unreachable");
+                    case AccessWidth._8bit:
+                        return SysbusAccessWidth.Byte;
+                    case AccessWidth._16bit:
+                        return SysbusAccessWidth.Word;
+                    case AccessWidth._20bit:
+                        return SysbusAccessWidth.DoubleWord;
+                    default:
+                        throw new Exception("unreachable");
                     }
                 }
             }
 
             public ulong Address { get; }
+
             public AccessWidth AccessWidth { get; }
+
             public uint? Value { get; }
         }
 

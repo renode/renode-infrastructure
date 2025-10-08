@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+
 using Antmicro.Migrant;
 using Antmicro.Renode.Utilities;
 
@@ -27,38 +28,6 @@ namespace Antmicro.Renode.Time
             sync = new object();
             reupdateNeeded = new ThreadLocal<bool>();
             updateAlreadyInProgress = new ThreadLocal<bool>();
-        }
-
-        public TimeInterval NearestLimitIn
-        {
-            get
-            {
-                lock(sync)
-                {
-                    return nearestLimitIn;
-                }
-            }
-        }
-
-        public void Advance(TimeInterval time, bool immediately = false)
-        {
-            lock(sync)
-            {
-                if(time > nearestLimitIn && !skipAdvancesHigherThanNearestLimit)
-                {
-                    var left = time;
-                    while(left.Ticks > 0)
-                    {
-                        var thisTurn = TimeInterval.Min(nearestLimitIn, left);
-                        left -= thisTurn;
-                        AdvanceInner(thisTurn, immediately);
-                    }
-                }
-                else
-                {
-                    AdvanceInner(time, immediately);
-                }
-            }
         }
 
         public virtual void ExecuteInLock(Action action)
@@ -192,15 +161,6 @@ namespace Antmicro.Renode.Time
             }
         }
 
-        public IEnumerable<ClockEntry> GetAllClockEntries()
-        {
-            lock(sync)
-            {
-                UpdateLimits();
-                return clockEntries.ToList();
-            }
-        }
-
         public virtual bool TryRemoveClockEntry(Action handler)
         {
             int oldCount;
@@ -222,14 +182,6 @@ namespace Antmicro.Renode.Time
             return true;
         }
 
-        public virtual TimeInterval CurrentValue
-        {
-            get
-            {
-                return totalElapsed;
-            }
-        }
-
         public virtual IEnumerable<ClockEntry> EjectClockEntries()
         {
             int oldCount;
@@ -246,6 +198,36 @@ namespace Antmicro.Renode.Time
             return result;
         }
 
+        public void Advance(TimeInterval time, bool immediately = false)
+        {
+            lock(sync)
+            {
+                if(time > nearestLimitIn && !skipAdvancesHigherThanNearestLimit)
+                {
+                    var left = time;
+                    while(left.Ticks > 0)
+                    {
+                        var thisTurn = TimeInterval.Min(nearestLimitIn, left);
+                        left -= thisTurn;
+                        AdvanceInner(thisTurn, immediately);
+                    }
+                }
+                else
+                {
+                    AdvanceInner(time, immediately);
+                }
+            }
+        }
+
+        public IEnumerable<ClockEntry> GetAllClockEntries()
+        {
+            lock(sync)
+            {
+                UpdateLimits();
+                return clockEntries.ToList();
+            }
+        }
+
         public void AddClockEntries(IEnumerable<ClockEntry> entries)
         {
             lock(sync)
@@ -254,6 +236,25 @@ namespace Antmicro.Renode.Time
                 {
                     AddClockEntry(entry);
                 }
+            }
+        }
+
+        public TimeInterval NearestLimitIn
+        {
+            get
+            {
+                lock(sync)
+                {
+                    return nearestLimitIn;
+                }
+            }
+        }
+
+        public virtual TimeInterval CurrentValue
+        {
+            get
+            {
+                return totalElapsed;
             }
         }
 
@@ -327,12 +328,12 @@ namespace Antmicro.Renode.Time
         {
             lock(sync)
             {
-                #if DEBUG
+#if DEBUG
                 if(time > nearestLimitIn && !skipAdvancesHigherThanNearestLimit)
                 {
                     throw new InvalidOperationException("Should not reach here.");
                 }
-                #endif
+#endif
                 elapsed += time;
                 totalElapsed += time;
                 if(nearestLimitIn > time && !immediately)
@@ -435,14 +436,14 @@ namespace Antmicro.Renode.Time
             }
         }
 
-        [Constructor]
-        private ThreadLocal<bool> reupdateNeeded;
-        [Constructor]
-        private ThreadLocal<bool> updateAlreadyInProgress;
-
         private TimeInterval nearestLimitIn;
         private TimeInterval elapsed;
         private TimeInterval totalElapsed;
+
+        [Constructor]
+        private readonly ThreadLocal<bool> reupdateNeeded;
+        [Constructor]
+        private readonly ThreadLocal<bool> updateAlreadyInProgress;
         private readonly bool skipAdvancesHigherThanNearestLimit;
         private readonly List<Action> toNotify;
         private readonly List<ClockEntry> clockEntries;
@@ -453,4 +454,3 @@ namespace Antmicro.Renode.Time
         private delegate bool UpdateHandlerDelegate(ref ClockEntry entry, TimeInterval time, ref TimeInterval nearestTickIn);
     }
 }
-

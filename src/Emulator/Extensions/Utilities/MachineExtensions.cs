@@ -6,19 +6,22 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text;
+
 using Antmicro.Renode.Config.Devices;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
+using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU;
-using System.Collections.Generic;
-using Machine = Antmicro.Renode.Core.Machine;
-using Antmicro.Renode.Core.Structure;
-using System.IO;
+
 using FdtSharp;
-using Antmicro.Renode.Logging;
-using System.Text;
-using Antmicro.Renode.Exceptions;
+
+using Machine = Antmicro.Renode.Core.Machine;
 
 namespace Antmicro.Renode.Utilities
 {

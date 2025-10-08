@@ -5,8 +5,8 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 #if DEBUG
-    // Uncomment for detailed log messages
-    // #define GUEST_PROFILER_VERBOSE_DEBUG
+// Uncomment for detailed log messages
+// #define GUEST_PROFILER_VERBOSE_DEBUG
 #endif
 
 using System;
@@ -14,9 +14,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
-
 
 namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
 {
@@ -75,7 +75,7 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
 
             var currentStack = profilerContext.FindCurrentStack(oldPointerValue, newPointerValue, isPush);
 
-            if (isPush)
+            if(isPush)
             {
                 if(currentStack.PushFrame(currentSymbol, newPointerValue))
                 {
@@ -83,8 +83,9 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
                     AddStackToBufferWithDelta(instructionsElapsed);
                 }
             }
-            else if (isPop && (currentStack != null) && currentStack.Count != 0) {
-                if(currentStack.PopFrame(currentSymbol, newPointerValue))
+            else if(isPop && (currentStack != null) && currentStack.Count != 0)
+            {
+                if(currentStack.PopFrame(newPointerValue))
                 {
                     var instructionsElapsed = GetInstructionsDelta(instructionsCount);
                     AddStackToBufferWithDelta(instructionsElapsed);
@@ -134,6 +135,16 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
             }
         }
 
+        private Symbol GetSymbol(ulong address)
+        {
+            if(!cpu.Bus.TryFindSymbolAt(address, out var name, out var symbol))
+            {
+                // Symbol not found - address must serve as the symbol
+                symbol = new Symbol(address, address, $"0x{address:X}");
+            }
+            return symbol;
+        }
+
         private ulong GetInstructionsDelta(ulong currentInstructionsCount)
         {
             var instructionsElapsed = checked(currentInstructionsCount - lastInstructionsCount);
@@ -169,28 +180,33 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
         private string FormatCollapsedStackString(ProfilerStack stack)
         {
             var stackArr = stack.ToArray();
-            var symbols = stackArr.Select(x => x.symbol.Name);
+            var symbols = stackArr.Select(x => x.Symbol.Name);
             return string.Join(";", symbols.Reverse());
         }
+
+        private long fileWrittenBytes;
+        private bool isDisposing;
+        private ulong lastInstructionsCount;
+
+        private readonly FrameProfilerContext profilerContext;
 
         private readonly StringBuilder stringBuffer;
         private readonly StreamWriter fileStream;
         private readonly long? fileSizeLimit;
-        private long fileWrittenBytes;
-        private bool isDisposing;
         private const int BufferFlushLevel = 1000000;
-        private ulong lastInstructionsCount;
 
-        private FrameProfilerContext profilerContext;
-
-        private Symbol GetSymbol(ulong address)
+        public class ProfilerStackFrame
         {
-            if(!cpu.Bus.TryFindSymbolAt(address, out var name, out var symbol))
+            public ProfilerStackFrame(Symbol symbol, ulong bottom, ulong top)
             {
-                // Symbol not found - address must serve as the symbol
-                symbol = new Symbol(address, address, $"0x{address:X}");
+                this.Symbol = symbol;
+                this.Bottom = bottom;
+                this.Top = top;
             }
-            return symbol;
+
+            public Symbol Symbol;
+            public ulong Bottom;
+            public ulong Top;
         }
 
         private class FrameProfilerContext
@@ -209,7 +225,8 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
                 {
                     if(stacks[i].Count == 0)
                     {
-                        if(stacks[i] == CurrentStack) {
+                        if(stacks[i] == CurrentStack)
+                        {
                             CurrentStack = null;
                         }
 #if GUEST_PROFILER_VERBOSE_DEBUG
@@ -265,23 +282,9 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
             }
 
             public ProfilerStack CurrentStack;
+            private readonly TranslationCPU profiledCPU;
 
             private readonly List<ProfilerStack> stacks;
-            private TranslationCPU profiledCPU;
-        }
-
-        public class ProfilerStackFrame
-        {
-            public ProfilerStackFrame(Symbol symbol, ulong bottom, ulong top)
-            {
-                this.symbol = symbol;
-                this.bottom = bottom;
-                this.top = top;
-            }
-
-            public Symbol symbol;
-            public ulong bottom;
-            public ulong top;
         }
 
         private class ProfilerStack : Stack<ProfilerStackFrame>
@@ -293,7 +296,7 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
 
             public bool PushFrame(Symbol symbol, ulong newSP)
             {
-                var isCurrentStackInNewSymbol = Count == 0 || !this.Peek().symbol.Overlaps(symbol);
+                var isCurrentStackInNewSymbol = Count == 0 || !this.Peek().Symbol.Overlaps(symbol);
                 if(!isCurrentStackInNewSymbol)
                 {
                     return false;
@@ -305,7 +308,7 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
                     TopSP = BottomSP - GlueArea;
                 }
 
-                var bottom = Count == 0 ? newSP : this.Peek().top;
+                var bottom = Count == 0 ? newSP : this.Peek().Top;
                 if(bottom < newSP)
                 {
                     return false;
@@ -316,24 +319,24 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
                 return true;
             }
 
-            public bool PopFrame(Symbol symbol, ulong newSP)
+            public bool PopFrame(ulong newSP)
             {
                 if(this.Count == 0)
                 {
                     return false;
                 }
 
-                if(newSP < this.Peek().top || newSP > this.BottomSP)
+                if(newSP < this.Peek().Top || newSP > this.BottomSP)
                 {
                     return false;
                 }
 
-                while(this.Count != 0 && this.Peek().bottom <= newSP)
+                while(this.Count != 0 && this.Peek().Bottom <= newSP)
                 {
                     this.Pop();
                 }
 
-                this.TopSP = this.Count > 0 ? this.Peek().top - GlueArea : this.BottomSP - GlueArea;
+                this.TopSP = this.Count > 0 ? this.Peek().Top - GlueArea : this.BottomSP - GlueArea;
 
                 return true;
             }
@@ -343,14 +346,14 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
                 profiledCPU.NoisyLog("Guest profiler: TopSP: 0x{0:X}", this.TopSP);
                 foreach(var entry in this)
                 {
-                    profiledCPU.NoisyLog("Guest profiler: [0x{0:X},0x{1:X}]: {2}", entry.bottom, entry.top, entry.symbol);
+                    profiledCPU.NoisyLog("Guest profiler: [0x{0:X},0x{1:X}]: {2}", entry.Bottom, entry.Top, entry.Symbol);
                 }
                 profiledCPU.NoisyLog("Guest profiler: BottomSP: 0x{0:X}", this.BottomSP);
             }
 
             public ulong TopSP;
             public ulong BottomSP;
-            private TranslationCPU profiledCPU;
+            private readonly TranslationCPU profiledCPU;
             private const int GlueArea = 0x100;
         }
     }

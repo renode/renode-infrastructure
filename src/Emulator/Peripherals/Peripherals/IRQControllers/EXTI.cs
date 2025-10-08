@@ -5,13 +5,8 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.IRQControllers
 {

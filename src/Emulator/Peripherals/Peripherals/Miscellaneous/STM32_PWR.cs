@@ -6,12 +6,9 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
@@ -22,7 +19,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             DefineRegisters();
         }
-        
+
+        public long Size => 0x400;
+
         private void DefineRegisters()
         {
             Registers.PowerControl.Define(this, 0xFCC00, name: "PWR_CR")
@@ -58,7 +57,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithFlag(17, out odswenValue, name: "ODSWEN", writeCallback: (_, value) => { odswrdyValue.Value = value; })
                 .WithEnumField<DoubleWordRegister, UnderDriveEnableInStopMode>(18, 2, name: "UDEN")
                 .WithReservedBits(20, 12);
-                
+
             Registers.PowerControlStatus.Define(this, name: "PWR_CSR")
                 .WithTaggedFlag("WUF", 0)
                 .WithTaggedFlag("SBF", 1)
@@ -75,8 +74,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithEnumField<DoubleWordRegister, UnderDriveReady>(18, 2, FieldMode.Read | FieldMode.WriteOneToClear, name: "UDRDY")
                 .WithReservedBits(20, 12);
         }
-
-        public long Size => 0x400;
 
         private IEnumRegisterField<RegulatorVoltageScalingOutputSelection> vosValue;
         private IFlagRegisterField odswenValue;

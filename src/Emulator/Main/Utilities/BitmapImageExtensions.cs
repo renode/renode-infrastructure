@@ -6,19 +6,22 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using Xwt.Backends;
+
 using Color = Xwt.Drawing.Color;
 using BitmapImage = Xwt.Drawing.BitmapImage;
+
 #if GUI_DISABLED
 using Antmicro.Renode.Exceptions;
 #else
-    #if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS
 using Xwt.WPFBackend;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-    #else
+#else
 using Xwt.GtkBackend;
+
 using System.Runtime.InteropServices;
-    #endif
+#endif
 #endif
 
 namespace Antmicro.Renode.Utilities
@@ -31,17 +34,17 @@ namespace Antmicro.Renode.Utilities
             throw new RecoverableException("The BitmapImageExtensions.Copy() method is not supported in the non-gui configuration");
 #else
             var backend = bmp.GetBackend();
-    #if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS
             var pixelFormat = PixelFormats.Bgra32;
             var stride = (int)bmp.PixelWidth * (pixelFormat.BitsPerPixel / 8);   // width * pixel size in bytes
             var dpi = 96;           // dots per inch - WPF supports automatic scaling
                                     // by using the device independent pixel as its primary unit of measurement,
                                     // which is 1/96 of an inch
             ((WpfImage)backend).MainFrame = BitmapSource.Create((int)bmp.PixelWidth, (int)bmp.PixelHeight, dpi, dpi, pixelFormat, BitmapPalettes.WebPalette, frame, stride);
-    #else
+#else
             var outBuffer = ((GtkImage)backend).Frames[0].Pixbuf.Pixels;
             Marshal.Copy(frame, 0, outBuffer, frame.Length);
-    #endif
+#endif
 #endif
         }
 
@@ -59,8 +62,8 @@ namespace Antmicro.Renode.Utilities
 
         public static void DrawCursor(this BitmapImage img, int x, int y)
         {
-            const int CursorLength = 2;
-            for(var rx = -1 * CursorLength; rx <= CursorLength; rx++)
+            const int cursorLength = 2;
+            for(var rx = -1 * cursorLength; rx <= cursorLength; rx++)
             {
                 if(img.IsInImage(x + rx, y))
                 {
@@ -68,7 +71,7 @@ namespace Antmicro.Renode.Utilities
                 }
             }
 
-            for(var ry = -1 * CursorLength; ry <= CursorLength; ry++)
+            for(var ry = -1 * cursorLength; ry <= cursorLength; ry++)
             {
                 if(img.IsInImage(x, y + ry) && ry != 0)
                 {
@@ -78,4 +81,3 @@ namespace Antmicro.Renode.Utilities
         }
     }
 }
-

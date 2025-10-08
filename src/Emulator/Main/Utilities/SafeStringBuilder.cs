@@ -85,4 +85,3 @@ namespace Antmicro.Renode.Utilities
         private readonly StringBuilder buffer;
     }
 }
-

@@ -6,15 +6,8 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System;
-using System.IO;
-using System.Collections.Generic;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.CPU;
-using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 {
@@ -27,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         private void BusFault(uint exception)
         {
             this.Log(LogLevel.Error, "LFXO is locked, BusFault!!");
-            if (
+            if(
                 machine.SystemBus.TryGetCurrentCPU(out var cpu)
                 && cpu is TranslationCPU translationCPU
             )
@@ -38,33 +31,33 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Ctrl_Write(uint a, uint b)
         {
-            if (status_lock_bit.Value == STATUS_LOCK.LOCKED)
+            if(status_lock_bit.Value == STATUS_LOCK.LOCKED)
             {
-                BusFault(EXCP_PREFETCH_ABORT);
+                BusFault(ExcpPrefetchAbort);
             }
         }
 
         partial void Cfg_Write(uint a, uint b)
         {
-            if (status_lock_bit.Value == STATUS_LOCK.LOCKED)
+            if(status_lock_bit.Value == STATUS_LOCK.LOCKED)
             {
-                BusFault(EXCP_PREFETCH_ABORT);
+                BusFault(ExcpPrefetchAbort);
             }
         }
 
         partial void Cfg1_Write(uint a, uint b)
         {
-            if (status_lock_bit.Value == STATUS_LOCK.LOCKED)
+            if(status_lock_bit.Value == STATUS_LOCK.LOCKED)
             {
-                BusFault(EXCP_PREFETCH_ABORT);
+                BusFault(ExcpPrefetchAbort);
             }
         }
 
         partial void Cal_Write(uint a, uint b)
         {
-            if (status_lock_bit.Value == STATUS_LOCK.LOCKED)
+            if(status_lock_bit.Value == STATUS_LOCK.LOCKED)
             {
-                BusFault(EXCP_PREFETCH_ABORT);
+                BusFault(ExcpPrefetchAbort);
             }
         }
 
@@ -80,7 +73,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Lock_Lockkey_Write(ulong a, ulong b)
         {
-            if (b == 0x1A20)
+            if(b == 0x1A20)
             {
                 status_lock_bit.Value = STATUS_LOCK.UNLOCKED;
             }
@@ -92,25 +85,25 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Status_Rdy_ValueProvider(bool a)
         {
-            status_rdy_bit.Value = oscillatorUsed;
+            status_rdy_bit.Value = OscillatorUsed;
         }
 
         partial void Status_Ens_ValueProvider(bool a)
         {
-            status_ens_bit.Value = oscillatorUsed;
+            status_ens_bit.Value = OscillatorUsed;
         }
 
         partial void If_Rdy_ValueProvider(bool a)
         {
-            if_rdy_bit.Value = oscillatorUsed && ien_rdy_bit.Value;
+            if_rdy_bit.Value = OscillatorUsed && ien_rdy_bit.Value;
         }
 
-        private bool oscillatorEnabled
+        private bool OscillatorEnabled
         {
             get { return cmu.OscLfxoEnabled; }
         }
 
-        private bool oscillatorUsed
+        private bool OscillatorUsed
         {
             get { return oscillatorForce || oscillatorOnDemand; }
         }
@@ -118,6 +111,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         private bool oscillatorOnDemand = false;
         private bool oscillatorForce = false;
         // See constant definitions in src/Infrastructure/src/Emulator/Cores/tlib/arch/arm/cpu.h
-        private const uint EXCP_PREFETCH_ABORT = 3;
+        private const uint ExcpPrefetchAbort = 3;
     }
 }

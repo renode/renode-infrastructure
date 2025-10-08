@@ -5,10 +5,8 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.MemoryControllers
 {
@@ -18,11 +16,11 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         {
             Reset();
         }
-        
+
         #region IDoubleWordPeripheral implementation
-        public uint ReadDoubleWord (long offset)
+        public uint ReadDoubleWord(long offset)
         {
-            switch( (RegisterOffset) offset )
+            switch((RegisterOffset)offset)
             {
             case RegisterOffset.Config1:
                 return config1;
@@ -38,9 +36,9 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             }
         }
 
-        public void WriteDoubleWord (long offset, uint value)
+        public void WriteDoubleWord(long offset, uint value)
         {
-            switch( (RegisterOffset) offset )
+            switch((RegisterOffset)offset)
             {
             case RegisterOffset.Config1:
                 config1 = value;
@@ -60,23 +58,23 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             }
         }
         #endregion
-        
+
         #region IGaislerAPB implementation
-        public uint GetVendorID ()
+        public uint GetVendorID()
         {
             return vendorID;
         }
 
-        public uint GetDeviceID ()
+        public uint GetDeviceID()
         {
             return deviceID;
         }
 
-        public GaislerAPBPlugAndPlayRecord.SpaceType GetSpaceType ()
+        public GaislerAPBPlugAndPlayRecord.SpaceType GetSpaceType()
         {
             return spaceType;
         }
-        
+
         public uint GetInterruptNumber()
         {
             return 0;
@@ -84,7 +82,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         #endregion
 
         #region IPeripheral implementation
-        public void Reset ()
+        public void Reset()
         {
             config1 = 0xFu;
             config2 = 0;
@@ -100,7 +98,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         private readonly uint vendorID = 0x04;  // European Space Agency (ESA)
         private readonly uint deviceID = 0x00f; // GRLIB MCTRL
         private readonly GaislerAPBPlugAndPlayRecord.SpaceType spaceType = GaislerAPBPlugAndPlayRecord.SpaceType.APBIOSpace;
-        
+
         private enum RegisterOffset : uint
         {
             Config1 = 0x00,
@@ -110,4 +108,3 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         }
     }
 }
-

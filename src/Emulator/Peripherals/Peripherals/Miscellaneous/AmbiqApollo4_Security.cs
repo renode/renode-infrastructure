@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -28,6 +29,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         public bool LogDataRead { get; set; }
+
         public long Size => 0x90;
 
         private void CalculateCrc32()

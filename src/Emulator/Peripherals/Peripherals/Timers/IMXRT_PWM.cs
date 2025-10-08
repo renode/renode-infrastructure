@@ -5,18 +5,15 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.IO;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Time;
 using Antmicro.Renode.Debugging;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -195,6 +192,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
 
         private IGPIO ReloadError => Connections[NumberOfSubmodules * 3];
+
         private IGPIO Fault => Connections[NumberOfSubmodules * 3 + 1];
 
         private IFlagRegisterField reloadInterruptEnable;
@@ -205,8 +203,8 @@ namespace Antmicro.Renode.Peripherals.Timers
         private IValueRegisterField value1;
         private IValueRegisterField initValue;
 
-        private ComparingTimer halfCycleTimer;
-        private ComparingTimer fullCycleTimer;
+        private readonly ComparingTimer halfCycleTimer;
+        private readonly ComparingTimer fullCycleTimer;
 
         private const int NumberOfSubmodules = 4;
 

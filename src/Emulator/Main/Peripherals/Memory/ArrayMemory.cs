@@ -6,13 +6,12 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Logging;
 using System.Collections.Generic;
-using Antmicro.Renode.Peripherals.CPU;
+
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Utilities;
+
 using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.Memory

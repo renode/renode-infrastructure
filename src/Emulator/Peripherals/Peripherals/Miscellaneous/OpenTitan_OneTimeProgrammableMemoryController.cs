@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
@@ -18,7 +19,7 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
-    public class OpenTitan_OneTimeProgrammableMemoryController: BasicDoubleWordPeripheral, IKnownSize
+    public class OpenTitan_OneTimeProgrammableMemoryController : BasicDoubleWordPeripheral, IKnownSize
     {
         public OpenTitan_OneTimeProgrammableMemoryController(IMachine machine) : base(machine)
         {
@@ -96,7 +97,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 {
                     this.Log(LogLevel.Warning, "Transitions count already reached its limit of {0} transitions. Trying to increment it now is illegal.", MaximumTransitionsCount);
                     return -1;
-
                 }
                 LifeCycleTransitionCount = (ushort)(currentCount + 1);
             }
@@ -106,9 +106,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         public long Size => 0x1800;
 
         public GPIO FatalMacroAlert { get; }
+
         public GPIO FatalCheckErrorAlert { get; }
+
         public GPIO FatalBusAlert { get; }
+
         public GPIO FatalPrimitiveOtpAlert { get; }
+
         public GPIO RecoverablePrimitiveOtpAlert { get; }
 
         public string AValuesChain
@@ -150,6 +154,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 EncodeLifeCycleState(value);
                 cachedLifeCycleState = value;
             }
+
             get
             {
                 if(!cachedLifeCycleState.HasValue)
@@ -168,6 +173,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 cachedTransitionCount = value;
                 EncodeLifeCycleTransitionCount(value);
             }
+
             get
             {
                 if(!cachedTransitionCount.HasValue)
@@ -372,14 +378,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             switch(partition)
             {
-                case OtpPartition.VendorTest:
-                    return vendorPartitionUnlockedFlag.Value;
-                case OtpPartition.CreatorSoftwareConfig:
-                    return creatorPartitionUnlockedFlag.Value;
-                case OtpPartition.OwnerSoftwareConfig:
-                    return ownerPartitionUnlockedFlag.Value;
-                default:
-                    return true;
+            case OtpPartition.VendorTest:
+                return vendorPartitionUnlockedFlag.Value;
+            case OtpPartition.CreatorSoftwareConfig:
+                return creatorPartitionUnlockedFlag.Value;
+            case OtpPartition.OwnerSoftwareConfig:
+                return ownerPartitionUnlockedFlag.Value;
+            default:
+                return true;
             }
         }
 
@@ -387,40 +393,40 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             switch(partition)
             {
-                case OtpPartition.VendorTest:
-                    vendorPartitionError.Value = error;
-                    vendorPartitionErrorFlag.Value = true;
-                    break;
-                case OtpPartition.OwnerSoftwareConfig:
-                    ownerPartitionError.Value = error;
-                    ownerPartitionErrorFlag.Value = true;
-                    break;
-                case OtpPartition.CreatorSoftwareConfig:
-                    creatorPartitionError.Value = error;
-                    creatorPartitionErrorFlag.Value = true;
-                    break;
-                case OtpPartition.HardwareConfig:
-                    hardwarePartitionError.Value = error;
-                    hardwarePartitionErrorFlag.Value = true;
-                    break;
-                case OtpPartition.Secret0:
-                    secret0PartitionError.Value = error;
-                    secret0PartitionErrorFlag.Value = true;
-                    break;
-                case OtpPartition.Secret1:
-                    secret1PartitionError.Value = error;
-                    secret1PartitionErrorFlag.Value = true;
-                    break;
-                case OtpPartition.Secret2:
-                    secret2PartitionError.Value = error;
-                    secret2PartitionErrorFlag.Value = true;
-                    break;
-                case OtpPartition.LifeCycle:
-                    lifeCyclePartitionError.Value = error;
-                    lifeCyclePartitionErrorFlag.Value = true;
-                    break;
-                default:
-                    throw new ArgumentException($"Unknown partition {partition}");
+            case OtpPartition.VendorTest:
+                vendorPartitionError.Value = error;
+                vendorPartitionErrorFlag.Value = true;
+                break;
+            case OtpPartition.OwnerSoftwareConfig:
+                ownerPartitionError.Value = error;
+                ownerPartitionErrorFlag.Value = true;
+                break;
+            case OtpPartition.CreatorSoftwareConfig:
+                creatorPartitionError.Value = error;
+                creatorPartitionErrorFlag.Value = true;
+                break;
+            case OtpPartition.HardwareConfig:
+                hardwarePartitionError.Value = error;
+                hardwarePartitionErrorFlag.Value = true;
+                break;
+            case OtpPartition.Secret0:
+                secret0PartitionError.Value = error;
+                secret0PartitionErrorFlag.Value = true;
+                break;
+            case OtpPartition.Secret1:
+                secret1PartitionError.Value = error;
+                secret1PartitionErrorFlag.Value = true;
+                break;
+            case OtpPartition.Secret2:
+                secret2PartitionError.Value = error;
+                secret2PartitionErrorFlag.Value = true;
+                break;
+            case OtpPartition.LifeCycle:
+                lifeCyclePartitionError.Value = error;
+                lifeCyclePartitionErrorFlag.Value = true;
+                break;
+            default:
+                throw new ArgumentException($"Unknown partition {partition}");
             }
         }
 
@@ -573,6 +579,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             return output;
         }
 
+        private ushort[] aValues;
+        private ushort[] bValues;
+        private ushort[] cValues;
+        private ushort[] dValues;
+
         private IFlagRegisterField creatorPartitionUnlockedFlag;
         private IFlagRegisterField daiIdleFlag;
         private IFlagRegisterField ownerPartitionUnlockedFlag;
@@ -604,12 +615,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private Dictionary<uint, OpenTitan_LifeCycleState> positionsConsumedToLifeCycleState;
         private OpenTitan_LifeCycleState? cachedLifeCycleState;
         private ushort? cachedTransitionCount;
-        private object memoryLock;
-        private object transitionCountLock;
-        private ushort[] aValues;
-        private ushort[] bValues;
-        private ushort[] cValues;
-        private ushort[] dValues;
+        private readonly object memoryLock;
+        private readonly object transitionCountLock;
 
         private readonly ArrayMemory underlyingMemory;
 
@@ -796,6 +803,19 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             LifeCycleState = 0x7D8,
         }
 
+        private class ItemSizeAttribute : Attribute
+        {
+            public ItemSizeAttribute(int byteLength, bool is64Bit = false)
+            {
+                Is64Bit = is64Bit;
+                ByteLength = byteLength;
+            }
+
+            public bool Is64Bit { get; }
+
+            public int ByteLength { get; }
+        }
+
         private enum OtpPartition
         {
             VendorTest = OtpItem.Scratch,
@@ -818,17 +838,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Access = 0x5,
             CheckFail = 0x6,
             FsmState = 0x7,
-        }
-
-        private class ItemSizeAttribute: Attribute
-        {
-            public ItemSizeAttribute(int byteLength, bool is64Bit = false)
-            {
-                Is64Bit = is64Bit;
-                ByteLength = byteLength;
-            }
-            public bool Is64Bit { get; }
-            public int ByteLength { get; }
         }
     }
 }

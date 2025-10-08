@@ -6,8 +6,8 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using Antmicro.Renode.Utilities;
+
 using Xwt;
-using Antmicro.Renode.UI;
 
 namespace Antmicro.Renode.UI.Progress
 {
@@ -69,4 +69,3 @@ namespace Antmicro.Renode.UI.Progress
         }
     }
 }
-

@@ -5,8 +5,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-
 namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
     public enum DescriptorType : byte
@@ -20,7 +18,4 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
         OtherSpeedConfiguration = 7,
         InterfacePower = 8
     }
-
-
 }
-

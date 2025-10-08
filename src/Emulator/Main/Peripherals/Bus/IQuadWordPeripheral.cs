@@ -10,6 +10,7 @@ namespace Antmicro.Renode.Peripherals.Bus
     public interface IQuadWordPeripheral : IBusPeripheral
     {
         ulong ReadQuadWord(long offset);
+
         void WriteQuadWord(long offset, ulong value);
     }
 }

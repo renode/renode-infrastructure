@@ -18,6 +18,7 @@ namespace Antmicro.Renode.Core.Structure
         where TPeripheral : IPeripheral where TRegistrationPoint : IRegistrationPoint
     {
         void Register(TPeripheral peripheral, TRegistrationPoint registrationPoint);
+
         void Unregister(TPeripheral peripheral);
     }
 
@@ -28,4 +29,3 @@ namespace Antmicro.Renode.Core.Structure
     {
     }
 }
-

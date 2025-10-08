@@ -6,7 +6,6 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Core;
 
 using Range = Antmicro.Renode.Core.Range;
 
@@ -26,4 +25,3 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
         protected readonly Range? Subrange;
     }
 }
-

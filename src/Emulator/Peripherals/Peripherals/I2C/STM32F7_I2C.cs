@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -106,7 +107,7 @@ namespace Antmicro.Renode.Peripherals.I2C
         public GPIO ErrorInterrupt { get; private set; }
 
         public bool RxNotEmpty => rxData.Count > 0;
-        
+
         public bool OwnAddress1Enabled => ownAddress1Enabled.Value;
 
         private DoubleWordRegisterCollection CreateRegisters()
@@ -196,7 +197,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                         .WithReservedBits(11, 4)
                         .WithFlag(15, out ownAddress1Enabled, name: "OA1EN")
                         .WithReservedBits(16, 16)
-                        .WithWriteCallback((_, val) => 
+                        .WithWriteCallback((_, val) =>
                             this.Log(LogLevel.Info, "Slave address 1: 0x{0:X}, mode: {1}, status: {2}", ownAddress1.Value, ownAddress1Mode.Value ? "10-bit" : "7-bit", ownAddress1Enabled.Value ? "enabled" : "disabled")
                         )
                 }, {
@@ -222,14 +223,14 @@ namespace Antmicro.Renode.Peripherals.I2C
                     (long)Registers.InterruptAndStatus, new DoubleWordRegister(this, 1)
                         .WithFlag(0,
                             valueProviderCallback: _ => txData.Count == 0,
-                            writeCallback: (_, value)=> 
+                            writeCallback: (_, value)=>
                             {
                                 if(value)
                                 {
                                     txData.Clear();
                                 }
                             }, name: "TXE")
-                        .WithFlag(1, 
+                        .WithFlag(1,
                             valueProviderCallback: _ => transmitInterruptStatus,
                             writeCallback: (_, val) =>
                             {
@@ -260,7 +261,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                 }, {
                     (long)Registers.InterruptClear, new DoubleWordRegister(this, 0)
                         .WithReservedBits(0, 3)
-                        .WithFlag(3, FieldMode.WriteOneToClear, 
+                        .WithFlag(3, FieldMode.WriteOneToClear,
                             writeCallback: (_, value) =>
                             {
                                 if(value)
@@ -270,7 +271,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                                 }
                             }, name: "ADDRCF")
                         .WithTag("NACKCF", 4, 1)
-                        .WithFlag(5, FieldMode.WriteOneToClear, 
+                        .WithFlag(5, FieldMode.WriteOneToClear,
                             writeCallback: (_, value) =>
                             {
                                 if(value)
@@ -289,11 +290,11 @@ namespace Antmicro.Renode.Peripherals.I2C
                         .WithChangeCallback((_,__) => Update())
                 }, {
                     (long)Registers.ReceiveData, new DoubleWordRegister(this, 0)
-                        .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: preVal => ReceiveDataRead((uint)preVal), name: "RXDATA")
+                        .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ => ReceiveDataRead(), name: "RXDATA")
                         .WithReservedBits(9, 23)
                 }, {
                     (long)Registers.TransmitData, new DoubleWordRegister(this, 0)
-                        .WithValueField(0, 8, writeCallback: (prevVal, val) => HandleTransmitDataWrite((uint)prevVal, (uint)val), name: "TXDATA")
+                        .WithValueField(0, 8, writeCallback: (_, val) => HandleTransmitDataWrite((uint)val), name: "TXDATA")
                         .WithReservedBits(9, 23)
                 }
             };
@@ -368,7 +369,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             Update();
         }
 
-        private uint ReceiveDataRead(uint oldValue)
+        private uint ReceiveDataRead()
         {
             if(rxData.Count > 0)
             {
@@ -383,19 +384,19 @@ namespace Antmicro.Renode.Peripherals.I2C
             return 0;
         }
 
-        private void HandleTransmitDataWrite(uint oldValue, uint newValue)
+        private void HandleTransmitDataWrite(uint newValue)
         {
             if(masterMode)
             {
-                MasterTransmitDataWrite(oldValue, newValue);
+                MasterTransmitDataWrite(newValue);
             }
             else
             {
-                SlaveTransmitDataWrite(oldValue, newValue);
+                SlaveTransmitDataWrite(newValue);
             }
         }
 
-        private void MasterTransmitDataWrite(uint oldValue, uint newValue)
+        private void MasterTransmitDataWrite(uint newValue)
         {
             if(currentSlave == null)
             {
@@ -411,7 +412,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             }
         }
 
-        private void SlaveTransmitDataWrite(uint oldValue, uint newValue)
+        private void SlaveTransmitDataWrite(uint newValue)
         {
             txData.Enqueue((byte)newValue);
         }
@@ -450,6 +451,14 @@ namespace Antmicro.Renode.Peripherals.I2C
             EventInterrupt.Set(value);
         }
 
+        private II2CPeripheral currentSlave;
+        private Queue<byte> rxData;
+        private Queue<byte> txData;
+        private int currentSlaveAddress;
+        private bool transferOutgoing;
+        private bool transmitInterruptStatus;
+        private bool masterMode;
+
         private IValueRegisterField bytesToTransfer;
         private IValueRegisterField slaveAddress;
         private IValueRegisterField ownAddress1;
@@ -476,15 +485,7 @@ namespace Antmicro.Renode.Peripherals.I2C
         private IFlagRegisterField start;
         private IFlagRegisterField stop;
 
-        private DoubleWordRegisterCollection registers;
-
-        private II2CPeripheral currentSlave;
-        private Queue<byte> rxData;
-        private Queue<byte> txData;
-        private int currentSlaveAddress;
-        private bool transferOutgoing;
-        private bool transmitInterruptStatus;
-        private bool masterMode;
+        private readonly DoubleWordRegisterCollection registers;
 
         private enum Registers
         {

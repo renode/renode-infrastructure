@@ -4,11 +4,11 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using NUnit.Framework;
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals.GPIOPort;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.GPIOPort;
+
+using NUnit.Framework;
 
 namespace Antmicro.Renode.PeripheralsTests
 {
@@ -25,7 +25,7 @@ namespace Antmicro.Renode.PeripheralsTests
             // Given a just reseted gpio port
             gpio.Reset();
 
-            for(var port = 0; port < 8; port ++)
+            for(var port = 0; port < 8; port++)
             {
                 // Then GPIO_DIR should have a value equal to cero
                 Assert.AreEqual(gpio.ReadDoubleWord(GPIO_DIR + 4 * port), 0x00000000);
@@ -183,7 +183,5 @@ namespace Antmicro.Renode.PeripheralsTests
         private const uint GPIO_SET = 0x2200;
         private const uint GPIO_CLR = 0x2280;
         private const uint GPIO_NOT = 0x2300;
-
     }
 }
-

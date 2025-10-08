@@ -8,6 +8,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Utilities;
+
 using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.CPU
@@ -15,21 +16,21 @@ namespace Antmicro.Renode.Peripherals.CPU
     public class CV32E40P : RiscV32
     {
         public CV32E40P(IMachine machine, IRiscVTimeProvider timeProvider = null, uint hartId = 0, [NameAlias("privilegeArchitecture")] PrivilegedArchitecture privilegedArchitecture = PrivilegedArchitecture.Priv1_11, Endianess endianness = Endianess.LittleEndian, string cpuType = "rv32imfc_zicsr_zifencei")
-            : base(machine, cpuType, timeProvider, hartId, privilegedArchitecture, endianness, allowUnalignedAccesses : true)
+            : base(machine, cpuType, timeProvider, hartId, privilegedArchitecture, endianness, allowUnalignedAccesses: true)
         {
             // enable all interrupt sources
             MIE = 0xffffffff;
 
             RegisterCSR((ushort)CustomCSR.PerformanceCounterMode, () => LogUnhandledCSRRead("PerformanceCounterMode"), val => LogUnhandledCSRWrite("PerformanceCounterMode", val));
-            RegisterCSR((ushort)CustomCSR.StackCheckEnable      , () => LogUnhandledCSRRead("StackCheckEnable")      , val => LogUnhandledCSRWrite("StackCheckEnable", val));
-            RegisterCSR((ushort)CustomCSR.StackBase             , () => LogUnhandledCSRRead("StackBase")             , val => LogUnhandledCSRWrite("StackBase", val));
-            RegisterCSR((ushort)CustomCSR.StackEnd              , () => LogUnhandledCSRRead("StackEnd")              , val => LogUnhandledCSRWrite("StackEnd", val));
-            RegisterCSR((ushort)CustomCSR.HardwareLoop0Start    , () => LogUnhandledCSRRead("HardwareLoop0Start")    , val => LogUnhandledCSRWrite("HardwareLoop0Start", val));
-            RegisterCSR((ushort)CustomCSR.HardwareLoop0End      , () => LogUnhandledCSRRead("HardwareLoop0End")      , val => LogUnhandledCSRWrite("HardwareLoop0End", val));
-            RegisterCSR((ushort)CustomCSR.HardwareLoop0Counter  , () => LogUnhandledCSRRead("HardwareLoop0Counter")  , val => LogUnhandledCSRWrite("HardwareLoop0Counter", val));
-            RegisterCSR((ushort)CustomCSR.HardwareLoop1Start    , () => LogUnhandledCSRRead("HardwareLoop1Start")    , val => LogUnhandledCSRWrite("HardwareLoop1Start", val));
-            RegisterCSR((ushort)CustomCSR.HardwareLoop1End      , () => LogUnhandledCSRRead("HardwareLoop1End")      , val => LogUnhandledCSRWrite("HardwareLoop1End", val));
-            RegisterCSR((ushort)CustomCSR.HardwareLoop1Counter  , () => LogUnhandledCSRRead("HardwareLoop1Counter")  , val => LogUnhandledCSRWrite("HardwareLoop1Counter", val));
+            RegisterCSR((ushort)CustomCSR.StackCheckEnable, () => LogUnhandledCSRRead("StackCheckEnable"), val => LogUnhandledCSRWrite("StackCheckEnable", val));
+            RegisterCSR((ushort)CustomCSR.StackBase, () => LogUnhandledCSRRead("StackBase"), val => LogUnhandledCSRWrite("StackBase", val));
+            RegisterCSR((ushort)CustomCSR.StackEnd, () => LogUnhandledCSRRead("StackEnd"), val => LogUnhandledCSRWrite("StackEnd", val));
+            RegisterCSR((ushort)CustomCSR.HardwareLoop0Start, () => LogUnhandledCSRRead("HardwareLoop0Start"), val => LogUnhandledCSRWrite("HardwareLoop0Start", val));
+            RegisterCSR((ushort)CustomCSR.HardwareLoop0End, () => LogUnhandledCSRRead("HardwareLoop0End"), val => LogUnhandledCSRWrite("HardwareLoop0End", val));
+            RegisterCSR((ushort)CustomCSR.HardwareLoop0Counter, () => LogUnhandledCSRRead("HardwareLoop0Counter"), val => LogUnhandledCSRWrite("HardwareLoop0Counter", val));
+            RegisterCSR((ushort)CustomCSR.HardwareLoop1Start, () => LogUnhandledCSRRead("HardwareLoop1Start"), val => LogUnhandledCSRWrite("HardwareLoop1Start", val));
+            RegisterCSR((ushort)CustomCSR.HardwareLoop1End, () => LogUnhandledCSRRead("HardwareLoop1End"), val => LogUnhandledCSRWrite("HardwareLoop1End", val));
+            RegisterCSR((ushort)CustomCSR.HardwareLoop1Counter, () => LogUnhandledCSRRead("HardwareLoop1Counter"), val => LogUnhandledCSRWrite("HardwareLoop1Counter", val));
 
             InstallCustomInstruction(pattern: "FFFFFFFFFFFFBBBBB000DDDDD0001011", handler: opcode => LoadRegisterImmediate(opcode, Width.Byte, BitExtension.Sign, "p.lb rD, Imm(rs1!)"));
             InstallCustomInstruction(pattern: "FFFFFFFFFFFFBBBBB100DDDDD0001011", handler: opcode => LoadRegisterImmediate(opcode, Width.Byte, BitExtension.Zero, "p.lbu rD, Imm(rs1!)"));
@@ -254,33 +255,33 @@ namespace Antmicro.Renode.Peripherals.CPU
             var result = 0UL;
             switch(operation)
             {
-                case Operation.Set:
-                    // p.bset:
-                    // rD = rs1 | (((1 << (Is3 + 1)) - 1) << Is2)
-                    // p.bsetr:
-                    // rD = rs1 | (((1 << (rs2[9:5]+1)) - 1) << rs2[4:0])
-                    result = rs1Value | ((ulong)((1 << (is3 + 1)) - 1) << is2);
-                    break;
-                case Operation.Insert:
-                    // p.insert:
-                    // rD = rD | (rs1[Is3:0] << Is2)
-                    // p.insertr:
-                    // rD = rD | (rs1[rs2[9:5]:0] << rs2[4:0])
-                    result = rDValue | (BitHelper.GetValue(rs1Value, 0, is3 + 1) << is2);
-                    break;
-                case Operation.Extract:
-                    result = ExtractBits(width, sign, is2, is3, rs1Value);
-                    break;
-                case Operation.Clear:
-                    // p.bclr:
-                    // rD = rs1 & ~(((1 << (Is3 + 1)) - 1) << Is2)
-                    // p.bclrr:
-                    // rD = rs1 & ~(((1 << (rs2[9:5]+1)) - 1) << rs2[4:0])
-                    result = rs1Value & (~(ulong)(((1 << (is3 + 1)) - 1) << is2));
-                    break;
-                default:
-                    this.Log(LogLevel.Error, "Encountered an unexpected option: {0}", sign);
-                    break;
+            case Operation.Set:
+                // p.bset:
+                // rD = rs1 | (((1 << (Is3 + 1)) - 1) << Is2)
+                // p.bsetr:
+                // rD = rs1 | (((1 << (rs2[9:5]+1)) - 1) << rs2[4:0])
+                result = rs1Value | ((ulong)((1 << (is3 + 1)) - 1) << is2);
+                break;
+            case Operation.Insert:
+                // p.insert:
+                // rD = rD | (rs1[Is3:0] << Is2)
+                // p.insertr:
+                // rD = rD | (rs1[rs2[9:5]:0] << rs2[4:0])
+                result = rDValue | (BitHelper.GetValue(rs1Value, 0, is3 + 1) << is2);
+                break;
+            case Operation.Extract:
+                result = ExtractBits(width, sign, is2, is3, rs1Value);
+                break;
+            case Operation.Clear:
+                // p.bclr:
+                // rD = rs1 & ~(((1 << (Is3 + 1)) - 1) << Is2)
+                // p.bclrr:
+                // rD = rs1 & ~(((1 << (rs2[9:5]+1)) - 1) << rs2[4:0])
+                result = rs1Value & (~(ulong)(((1 << (is3 + 1)) - 1) << is2));
+                break;
+            default:
+                this.Log(LogLevel.Error, "Encountered an unexpected option: {0}", sign);
+                break;
             }
             SetRegister(rD, result);
         }
@@ -307,41 +308,41 @@ namespace Antmicro.Renode.Peripherals.CPU
             var result = 0UL;
             switch(width)
             {
-                case Width.Byte:
-                    // p.extbs rD, rs1
-                    // rD = Sext(rs1[7:0])
-                    // p.extbz rD, rs1
-                    // rD = Zext(rs1[7:0])
-                    result = sign == Sign.Signed
-                        ? BitHelper.SignExtend((uint)BitHelper.GetValue(rs1Value, 0, 8), 8)
-                        : BitHelper.GetValue(rs1Value, 0, 8);
-                    break;
-                case Width.HalfWord:
-                    // p.exths rD, rs1
-                    // rD = Sext(rs1[15:0])
-                    // p.exthz rD, rs1
-                    // rD = Zext(rs1[15:0])
-                    result = sign == Sign.Signed
-                        ? BitHelper.SignExtend((uint)BitHelper.GetValue(rs1Value, 0, 16), 16)
-                        : BitHelper.GetValue(rs1Value, 0, 16);
-                    break;
-                case Width.Word:
-                    // p.extract rD, rs1, Is3, Is2
-                    // rD = Sext((rs1 & ((1 << Is3) - 1) << Is2) >> Is2)
-                    // p.extractu rD, rs1, Is3, Is2
-                    // rD = Zext((rs1 & ((1 << Is3) - 1) << Is2) >> Is2)
-                    // p.extractr rD, rs1, rs2
-                    // rD = Sext((rs1 & ((1 << rs2[9:5]) - 1) << rs2[4:0]) >> rs2[4:0])
-                    // p.extractur rD, rs1, rs2
-                    // rD = Zext((rs1 & ((1 << rs2[9:5]) - 1) << rs2[4:0]) >> rs2[4:0])
-                    var temp = ((int)rs1Value & ((1 << is3) - 1) << is2) >> is2;
-                    result = sign == Sign.Signed
-                        ? BitHelper.SignExtend((uint)temp, 32 - is2)
-                        : (uint)temp;
-                    break;
-                default:
-                    this.Log(LogLevel.Error, "Encountered an unexpected option: {0}", sign);
-                    break;
+            case Width.Byte:
+                // p.extbs rD, rs1
+                // rD = Sext(rs1[7:0])
+                // p.extbz rD, rs1
+                // rD = Zext(rs1[7:0])
+                result = sign == Sign.Signed
+                    ? BitHelper.SignExtend((uint)BitHelper.GetValue(rs1Value, 0, 8), 8)
+                    : BitHelper.GetValue(rs1Value, 0, 8);
+                break;
+            case Width.HalfWord:
+                // p.exths rD, rs1
+                // rD = Sext(rs1[15:0])
+                // p.exthz rD, rs1
+                // rD = Zext(rs1[15:0])
+                result = sign == Sign.Signed
+                    ? BitHelper.SignExtend((uint)BitHelper.GetValue(rs1Value, 0, 16), 16)
+                    : BitHelper.GetValue(rs1Value, 0, 16);
+                break;
+            case Width.Word:
+                // p.extract rD, rs1, Is3, Is2
+                // rD = Sext((rs1 & ((1 << Is3) - 1) << Is2) >> Is2)
+                // p.extractu rD, rs1, Is3, Is2
+                // rD = Zext((rs1 & ((1 << Is3) - 1) << Is2) >> Is2)
+                // p.extractr rD, rs1, rs2
+                // rD = Sext((rs1 & ((1 << rs2[9:5]) - 1) << rs2[4:0]) >> rs2[4:0])
+                // p.extractur rD, rs1, rs2
+                // rD = Zext((rs1 & ((1 << rs2[9:5]) - 1) << rs2[4:0]) >> rs2[4:0])
+                var temp = ((int)rs1Value & ((1 << is3) - 1) << is2) >> is2;
+                result = sign == Sign.Signed
+                    ? BitHelper.SignExtend((uint)temp, 32 - is2)
+                    : (uint)temp;
+                break;
+            default:
+                this.Log(LogLevel.Error, "Encountered an unexpected option: {0}", sign);
+                break;
             }
             return result;
         }
@@ -350,18 +351,18 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             switch(width)
             {
-                case Width.Byte:
-                    WriteByteToBus(address, (uint)value);
-                    break;
-                case Width.HalfWord:
-                    WriteWordToBus(address, (uint)value);
-                    break;
-                case Width.Word:
-                    WriteDoubleWordToBus(address, (uint)value);
-                    break;
-                default:
-                    this.Log(LogLevel.Error, "Encountered an unexpected option: {0}", width);
-                    break;
+            case Width.Byte:
+                WriteByteToBus(address, (uint)value);
+                break;
+            case Width.HalfWord:
+                WriteWordToBus(address, (uint)value);
+                break;
+            case Width.Word:
+                WriteDoubleWordToBus(address, (uint)value);
+                break;
+            default:
+                this.Log(LogLevel.Error, "Encountered an unexpected option: {0}", width);
+                break;
             }
         }
 
@@ -370,18 +371,18 @@ namespace Antmicro.Renode.Peripherals.CPU
             var mem = 0UL;
             switch(width)
             {
-                case Width.Byte:
-                    mem = extension == BitExtension.Sign ? BitHelper.SignExtend(ReadByteFromBus(address), 8) : ReadByteFromBus(address);
-                    break;
-                case Width.HalfWord:
-                    mem = extension == BitExtension.Sign ? BitHelper.SignExtend(ReadWordFromBus(address), 16) : ReadWordFromBus(address);
-                    break;
-                case Width.Word:
-                    mem = ReadDoubleWordFromBus(address);
-                    break;
-                default:
-                    this.Log(LogLevel.Error, "Encountered an unexpected option: {0}", width);
-                    break;
+            case Width.Byte:
+                mem = extension == BitExtension.Sign ? BitHelper.SignExtend(ReadByteFromBus(address), 8) : ReadByteFromBus(address);
+                break;
+            case Width.HalfWord:
+                mem = extension == BitExtension.Sign ? BitHelper.SignExtend(ReadWordFromBus(address), 16) : ReadWordFromBus(address);
+                break;
+            case Width.Word:
+                mem = ReadDoubleWordFromBus(address);
+                break;
+            default:
+                this.Log(LogLevel.Error, "Encountered an unexpected option: {0}", width);
+                break;
             }
             return mem;
         }
@@ -429,6 +430,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             Register,
             Immediate
         }
+
         private enum BitExtension
         {
             Sign,

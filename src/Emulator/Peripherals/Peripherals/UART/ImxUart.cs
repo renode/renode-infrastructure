@@ -6,11 +6,12 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Generic;
+
+using Antmicro.Migrant;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using System.Collections.Generic;
-using Antmicro.Migrant;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -22,19 +23,6 @@ namespace Antmicro.Renode.Peripherals.UART
             charFifo = new Queue<byte>();
         }
 
-        public long Size
-        {
-            get
-            {
-                return 0x1000;
-            }
-        }
-
-        public GPIO IRQ { get; private set; }
-
-        [field: Transient]
-        public event Action<byte> CharReceived;
-    
         public void WriteChar(byte value)
         {
             lock(charFifo)
@@ -43,8 +31,8 @@ namespace Antmicro.Renode.Peripherals.UART
                 UpdateIRQ();
             }
         }
-    
-        public byte ReadByte(long address) 
+
+        public byte ReadByte(long address)
         {
             switch((Register)address)
             {
@@ -65,7 +53,7 @@ namespace Antmicro.Renode.Peripherals.UART
             case Register.Status1:
                 return status1Register;
             case Register.FifoStatus:
-                return (byte) ((charFifo.Count > 0) ? (1<<7) : ((1<<7) | (1<<6)));
+                return (byte)((charFifo.Count > 0) ? (1 << 7) : ((1 << 7) | (1 << 6)));
             case Register.Control2:
                 return control2Register;
             case Register.Control3:
@@ -89,7 +77,7 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
-        public void WriteByte(long address, byte value) 
+        public void WriteByte(long address, byte value)
         {
             switch((Register)address)
             {
@@ -141,12 +129,62 @@ namespace Antmicro.Renode.Peripherals.UART
             UpdateIRQ();
         }
 
+        public void Reset()
+        {
+            // TODO!
+        }
+
+        public Parity ParityBit
+        {
+            get
+            {
+                if((control1Register & (byte)Control1.ParityEnable) == 0)
+                {
+                    return Parity.None;
+                }
+                else
+                {
+                    return ((control1Register & (byte)Control1.ParityType) == 0) ? Parity.Even : Parity.Odd;
+                }
+            }
+        }
+
+        public Bits StopBits
+        {
+            get
+            {
+                return Bits.One;
+            }
+        }
+
+        public uint BaudRate
+        {
+            get
+            {
+                var divisor = (16 * (((baudRateH & 0x1F) << 8) + baudRateL) + ((control4Register & 0x1F) / 32));
+                return divisor == 0 ? 0 : (uint)(SystemClockFrequency / divisor);
+            }
+        }
+
+        public long Size
+        {
+            get
+            {
+                return 0x1000;
+            }
+        }
+
+        public GPIO IRQ { get; private set; }
+
+        [field: Transient]
+        public event Action<byte> CharReceived;
+
         private void UpdateIRQ()
-        {   
-            TDRE    = true;
-            TC      = true;
-            RDRF    = charFifo.Count > 0;
-            IDLE    = !RDRF;
+        {
+            TDRE = true;
+            TC = true;
+            RDRF = charFifo.Count > 0;
+            IDLE = !RDRF;
 
             var irqState = ((TDRE && TIE && !TDMAS) ||
                 (TC && TCIE) ||
@@ -154,11 +192,78 @@ namespace Antmicro.Renode.Peripherals.UART
                 (RDRF && RIE && !RDMAS));
             IRQ.Set(enableIRQ && irqState);
         }
-        
-        public void Reset()
+
+        private bool RDRF
         {
-            // TODO!
+            get { return (status1Register & (1u << 5)) != 0; }
+
+            set
+            {
+                if(value)
+                {
+                    status1Register |= (byte)(1u << 5);
+                }
+                else
+                {
+                    status1Register &= (byte.MaxValue - (byte)(1u << 5));
+                }
+            }
         }
+
+        private bool IDLE
+        {
+            get { return (status1Register & (1u << 4)) != 0; }
+
+            set
+            {
+                if(value)
+                {
+                    status1Register |= (byte)(1u << 4);
+                }
+                else
+                {
+                    status1Register &= (byte.MaxValue - (byte)(1u << 4));
+                }
+            }
+        }
+
+        private bool TC
+        {
+            get { return (status1Register & (1u << 6)) != 0; }
+
+            set
+            {
+                if(value)
+                {
+                    status1Register |= (byte)(1u << 6);
+                }
+            }
+        }
+
+        private bool TDRE
+        {
+            get { return (status1Register & (1u << 7)) != 0; }
+
+            set
+            {
+                if(value)
+                {
+                    status1Register |= (byte)(1u << 7);
+                }
+            }
+        }
+
+        private bool ILIE { get { return (control2Register & (1u << 4)) != 0; } }
+
+        private bool TIE { get { return (control2Register & (1u << 7)) != 0; } }
+
+        private bool RIE { get { return (control2Register & (1u << 5)) != 0; } }
+
+        private bool RDMAS { get { return (control5Register & (1u << 5)) != 0; } }
+
+        private bool TDMAS { get { return (control5Register & (1u << 7)) != 0; } }
+
+        private bool TCIE { get { return (control2Register & (1u << 6)) != 0; } }
 
         private bool enableIRQ;
 
@@ -171,13 +276,15 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private byte fifoWatermarkRegister;
         private byte fifoParametersRegister;
-
-        private readonly Queue<byte> charFifo;
+        private byte modemRegister;
+        private byte baudRateL;
+        private byte baudRateH;
 
         private byte baudRateHBuffer;
-        private byte baudRateH;
-        private byte baudRateL;
-        private byte modemRegister;
+
+        private readonly uint SystemClockFrequency = 0;
+
+        private readonly Queue<byte> charFifo;
 
         [Flags]
         private enum Control1 : byte
@@ -203,102 +310,5 @@ namespace Antmicro.Renode.Peripherals.UART
             FifoWatermark   = 0x13,
             InterruptEnable = 0x19
         }
-        #region Bits
-
-        private bool TDMAS { get { return (control5Register & (1u << 7)) != 0; } }
-        private bool RDMAS { get { return (control5Register & (1u << 5)) != 0; } }
-        private bool TIE   { get { return (control2Register & (1u << 7)) != 0; } }
-        private bool RIE   { get { return (control2Register & (1u << 5)) != 0; } }
-        private bool TCIE  { get { return (control2Register & (1u << 6)) != 0; } }
-        private bool ILIE  { get { return (control2Register & (1u << 4)) != 0; } }
-
-        private bool TDRE
-        {
-            get { return (status1Register & (1u << 7)) != 0; }
-            set
-            {
-                if (value)
-                {
-                    status1Register |= (byte)(1u << 7);
-                }
-            }
-        }
-        private bool TC
-        {
-            get { return (status1Register & (1u << 6)) != 0; }
-            set
-            {
-                if (value)
-                {
-                    status1Register |= (byte)(1u << 6);
-                }
-            }
-        }
-        private bool IDLE
-        {
-            get { return (status1Register & (1u << 4)) != 0; }
-            set 
-            {
-                if (value)
-                {
-                    status1Register |= (byte)(1u << 4);
-                }
-                else
-                {
-                    status1Register &= (byte.MaxValue - (byte)(1u << 4));
-                }
-            }
-        }
-        private bool RDRF
-        {
-            get { return (status1Register & (1u << 5)) != 0; }
-            set 
-            {
-                if (value)
-                {
-                    status1Register |= (byte)(1u << 5);
-                }
-                else
-                {
-                    status1Register &= (byte.MaxValue - (byte)(1u << 5));
-                }
-            }
-        }
-
-        #endregion
-
-        public Bits StopBits
-        {
-            get
-            {
-                return Bits.One;
-            }
-        }
-        public Parity ParityBit
-        {
-            get
-            {
-                if ((control1Register & (byte)Control1.ParityEnable) == 0)
-                {
-                    return Parity.None;
-                }
-                else
-                {
-                    return ((control1Register & (byte)Control1.ParityType) == 0) ? Parity.Even : Parity.Odd;
-                }
-            }
-        }
-
-        public uint BaudRate
-        {
-            get
-            {
-                var divisor = (16 * (((baudRateH & 0x1F) << 8) + baudRateL) + ((control4Register & 0x1F) / 32));
-                return divisor == 0 ? 0 : (uint)(SystemClockFrequency / divisor);
-            }
-        }
-
-        private uint SystemClockFrequency = 0;
     }
 }
-

@@ -5,28 +5,27 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Backends.Video;
-using Antmicro.Renode.Peripherals.Video;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals.Input;
-using Xwt;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Logging;
-using Antmicro.Migrant;
-using System.IO;
-using Xwt.Drawing;
-using System.Collections.Generic;
-using Antmicro.Renode.Peripherals;
 using System;
+using System.Collections.Generic;
+using System.IO;
+
+using Antmicro.Migrant;
+using Antmicro.Renode.Backends.Video;
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals;
+using Antmicro.Renode.Peripherals.Input;
+using Antmicro.Renode.Peripherals.Video;
 using Antmicro.Renode.UI;
+using Antmicro.Renode.Utilities;
+
+using Xwt;
 
 namespace Antmicro.Renode.Extensions.Analyzers.Video
 {
     [Transient]
     public class VideoAnalyzer : GUIPeripheralBackendAnalyzer<VideoBackend>, IExternal, IConnectable<IPointerInput>, IConnectable<IKeyboard>
     {
-        public override Widget Widget { get { return analyserWidget; } }
-
         public void AttachTo(IKeyboard keyboardToAttach)
         {
             displayWidget.AttachTo(keyboardToAttach);
@@ -47,6 +46,8 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video
             displayWidget.DetachFrom(keyboardToDetach);
         }
 
+        public override Widget Widget { get { return analyserWidget; } }
+
         protected override void OnAttach(VideoBackend backend)
         {
             var videoPeripheral = (AutoRepaintingVideo)backend.Video;
@@ -55,22 +56,22 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video
             EnsureAnalyserWidget();
 
             videoPeripheral.ConfigurationChanged += (w, h, f, e) => ApplicationExtensions.InvokeInUIThread(() => displayWidget.SetDisplayParameters(w, h, f, e));
-            videoPeripheral.FrameRendered += (f) => 
+            videoPeripheral.FrameRendered += (f) =>
             {
-                ApplicationExtensions.InvokeInUIThread(() => 
+                ApplicationExtensions.InvokeInUIThread(() =>
                 {
                     displayWidget.DrawFrame(f);
-                    snapshotButton.Sensitive = true; 
+                    snapshotButton.Sensitive = true;
                 });
             };
 
             displayWidget.InputAttached += i =>
             {
-                if (i is IKeyboard)
+                if(i is IKeyboard)
                 {
                     keyboardsComboBox.SelectedItem = i;
                 }
-                else if (i is IPointerInput)
+                else if(i is IPointerInput)
                 {
                     pointersComboBox.SelectedItem = i;
                 }
@@ -80,7 +81,7 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video
             {
                 // this must be called after setting `ConfigurationChanged` event;
                 // otherwise the frame set here would be overrwritten by a new, empty, instance
-                ApplicationExtensions.InvokeInUIThreadAndWait(() => 
+                ApplicationExtensions.InvokeInUIThreadAndWait(() =>
                 {
                     displayWidget.SetDisplayParameters(backend.Width, backend.Height, backend.Format, backend.Endianess);
                     displayWidget.DrawFrame(backend.Frame);
@@ -107,7 +108,7 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video
                 displayModeComboBox.Items.Add(DisplayMode.Center);
 
                 displayModeComboBox.SelectionChanged += (sender, e) => displayWidget.Mode = (DisplayMode)displayModeComboBox.SelectedItem;
-                ApplicationExtensions.InvokeInUIThread(() => 
+                ApplicationExtensions.InvokeInUIThread(() =>
                 {
                     displayModeComboBox.SelectedIndex = 1;
                 });
@@ -234,11 +235,6 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video
             prev = now;
         }
 
-        private const int HighFramerateThreshold = 100;
-        private const int LowFramerateThreshold = 10;
-        private const int MinimalFramerateDelta = 5;
-        private const float OffendingFramerateDeviation = 0.4F;
-
         private FrameBufferDisplayWidget displayWidget;
         private Widget analyserWidget;
         private Button snapshotButton;
@@ -249,6 +245,10 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video
         private DateTime? prev;
         private DateTime lastRewrite;
         private int lastOffendingFramerate;
+
+        private const int HighFramerateThreshold = 100;
+        private const int LowFramerateThreshold = 10;
+        private const int MinimalFramerateDelta = 5;
+        private const float OffendingFramerateDeviation = 0.4F;
     }
 }
-

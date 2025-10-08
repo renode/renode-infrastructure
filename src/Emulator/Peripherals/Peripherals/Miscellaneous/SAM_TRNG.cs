@@ -5,10 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Time;
-using System;
 using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
@@ -78,10 +75,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithFlag(0, out interruptEnabled, FieldMode.Read, name: "IMR_DATRDY");
         }
 
-        private readonly PseudorandomNumberGenerator rng = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
-
         private IFlagRegisterField enable;
         private IFlagRegisterField interruptEnabled;
+
+        private readonly PseudorandomNumberGenerator rng = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
 
         /* Enable key - ASCII for "RNG" */
         private const uint RngKey = 0x524E47;

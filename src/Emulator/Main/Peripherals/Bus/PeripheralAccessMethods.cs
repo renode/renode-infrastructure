@@ -7,14 +7,15 @@
 //
 
 using System;
-using System.Threading;
-using Antmicro.Migrant;
+using System.Collections.Generic;
 using System.Reflection;
-using Antmicro.Renode.Peripherals.Bus.Wrappers;
+using System.Threading;
+
+using Antmicro.Migrant;
 using Antmicro.Renode.Core.Extensions;
 using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Exceptions;
-using System.Collections.Generic;
+using Antmicro.Renode.Peripherals.Bus.Wrappers;
 
 using Endianess = ELFSharp.ELF.Endianess;
 
@@ -22,20 +23,6 @@ namespace Antmicro.Renode.Peripherals.Bus
 {
     public class PeripheralAccessMethods
     {
-        public BusAccess.ByteReadMethod ReadByte;
-        public BusAccess.ByteWriteMethod WriteByte;
-        public BusAccess.WordReadMethod ReadWord;
-        public BusAccess.WordWriteMethod WriteWord;
-        public BusAccess.DoubleWordReadMethod ReadDoubleWord;
-        public BusAccess.DoubleWordWriteMethod WriteDoubleWord;
-        public BusAccess.QuadWordReadMethod ReadQuadWord;
-        public BusAccess.QuadWordWriteMethod WriteQuadWord;
-        public Action<ulong> SetAbsoluteAddress;
-        public IBusPeripheral Peripheral;
-        public string Tag;
-        [Constructor(true)]
-        public SpinLock Lock;
-
         public static PeripheralAccessMethods CreateWithLock()
         {
             // Thread ownership tracking should be enabled. We use the IsHeldByCurrentThread
@@ -206,6 +193,20 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public bool AllTranslationsEnabled { get; private set; }
 
+        public BusAccess.ByteReadMethod ReadByte;
+        public BusAccess.ByteWriteMethod WriteByte;
+        public BusAccess.WordReadMethod ReadWord;
+        public BusAccess.WordWriteMethod WriteWord;
+        public BusAccess.DoubleWordReadMethod ReadDoubleWord;
+        public BusAccess.DoubleWordWriteMethod WriteDoubleWord;
+        public BusAccess.QuadWordReadMethod ReadQuadWord;
+        public BusAccess.QuadWordWriteMethod WriteQuadWord;
+        public Action<ulong> SetAbsoluteAddress;
+        public IBusPeripheral Peripheral;
+        public string Tag;
+        [Constructor(true)]
+        public SpinLock Lock;
+
         private static void SetReadOrWriteMethod<TR, TW>(MethodInfo i, object obj, BusAccess.Operation operation, ref TR readMethod, ref TW writeMethod)
         {
             switch(operation)
@@ -354,4 +355,3 @@ namespace Antmicro.Renode.Peripherals.Bus
         private bool quadWordAccessTranslationEnabledDynamically;
     }
 }
-

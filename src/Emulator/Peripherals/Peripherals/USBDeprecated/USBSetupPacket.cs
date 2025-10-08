@@ -9,12 +9,12 @@ using System;
 
 namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
-   public struct USBSetupPacket
-        {
-            public byte requestType;
-            public byte request;
-            public UInt16 value;
-            public UInt16 index;
-            public UInt16 length;
-        }
+    public struct USBSetupPacket
+    {
+        public byte RequestType;
+        public byte Request;
+        public UInt16 Value;
+        public UInt16 Index;
+        public UInt16 Length;
+    }
 }

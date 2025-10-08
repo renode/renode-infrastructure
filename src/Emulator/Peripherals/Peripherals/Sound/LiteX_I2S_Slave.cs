@@ -6,7 +6,6 @@
 //
 
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Logging;
 using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Sound

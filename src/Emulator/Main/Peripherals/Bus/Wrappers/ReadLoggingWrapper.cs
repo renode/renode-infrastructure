@@ -6,9 +6,9 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Bus.Wrappers
 {

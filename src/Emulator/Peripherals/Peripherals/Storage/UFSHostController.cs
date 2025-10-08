@@ -6,11 +6,12 @@
 //
 using System;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Logging;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities.Packets;
 
@@ -19,6 +20,8 @@ namespace Antmicro.Renode.Peripherals.Storage
     // Based on JESD223E, Universal Flash Storage Host Controller Interface (UFSHCI), Version 4.0
     public class UFSHostController : NullRegistrationPointPeripheralContainer<UFSDevice>, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IDoubleWordPeripheral, IKnownSize
     {
+        public static string UFSVersion => $"{MajorVersionNumber}.{MinorVersionNumber}{VersionSuffix}";
+
         public UFSHostController(IMachine machine, int transferRequestSlots = 32, int readyToTransferRequests = 16, int taskManagementRequestSlots = 8) : base(machine)
         {
             if(transferRequestSlots <= 0 || transferRequestSlots > 32)
@@ -41,7 +44,7 @@ namespace Antmicro.Renode.Peripherals.Storage
             TransferRequestSlots = transferRequestSlots;
             ReadyToTransferRequests = readyToTransferRequests;
             TaskManagementRequestSlots = taskManagementRequestSlots;
-            
+
             ExtraHeaderSegmentsLengthInUTRD = true;
             AutoHibernation = true;
             Addressing64Bit = true;
@@ -79,6 +82,32 @@ namespace Antmicro.Renode.Peripherals.Storage
             RegistersCollection.Write(offset, value);
         }
 
+        public int TransferRequestSlots { get; }
+
+        public int ReadyToTransferRequests { get; }
+
+        public int TaskManagementRequestSlots { get; }
+
+        public bool ExtraHeaderSegmentsLengthInUTRD { get; }
+
+        public bool AutoHibernation { get; }
+
+        public bool Addressing64Bit { get; }
+
+        public bool OutOfOrderDataDelivery { get; }
+
+        public bool DMETestModeCommand { get; }
+
+        public bool CryptoSupport { get; }
+
+        public bool LegacySingleDoorBellRemoved { get; }
+
+        public bool MultiQueue { get; }
+
+        public bool EventSpecificInterrupt { get; }
+
+        public int PRDTLengthInBytes => prdtFormatEnable.Value ? 8 : 16;
+
         // IKnownSize
         public long Size => 0x2000;
 
@@ -111,7 +140,7 @@ namespace Antmicro.Renode.Peripherals.Storage
                 .WithTaggedFlag("EIS", 10)
                 .WithReservedBits(11, 5)
                 .WithTag("QCFGPTR", 16, 8)
-                .WithTag("MIAG", 24, 8); 
+                .WithTag("MIAG", 24, 8);
             Registers.UFSVersion.Define(this)
                 .WithValueField(0, 4, FieldMode.Read, valueProviderCallback: _ => VersionSuffix, name: "VS")
                 .WithValueField(4, 4, FieldMode.Read, valueProviderCallback: _ => MinorVersionNumber, name: "MNR")
@@ -145,13 +174,13 @@ namespace Antmicro.Renode.Peripherals.Storage
             Registers.HostControllerStatusExtended.Define(this)
                 .WithValueField(0, 4, out utpErrorIID, FieldMode.Read, name: "IIDUTPE")
                 .WithValueField(4, 4, out utpErrorExtIID, FieldMode.Read, name: "EXT_IIDUTPE")
-                .WithReservedBits(8,24);
+                .WithReservedBits(8, 24);
             Registers.HostControllerStatus.Define(this)
                 .WithFlag(0, out devicePresent, FieldMode.Read, name: "DP")
                 .WithFlag(1, out transferRequestListReady, FieldMode.Read, name: "UTRLRDY")
                 .WithFlag(2, out taskManagementRequestListReady, FieldMode.Read, name: "UTMRLRDY")
                 .WithFlag(3, out uicCommandReady, FieldMode.Read, name: "UCRDY")
-                .WithReservedBits(4,4)
+                .WithReservedBits(4, 4)
                 .WithEnumField(8, 3, out uicPowerModeChangeRequestStatus, FieldMode.Read, name: "UPMCRS")
                 .WithReservedBits(11, 1)
                 .WithValueField(12, 4, out utpErrorCode, FieldMode.Read, name: "UTPEC")
@@ -361,16 +390,16 @@ namespace Antmicro.Renode.Peripherals.Storage
                 {
                     var prtdBaseAddress = ucdBaseAddress + 4 * (ulong)utrd.PRDTOffset;
                     var prdtBytesCount = utrd.PRDTLength * PRDTLengthInBytes;
-                    prdtBytes = sysbus.ReadBytes(prtdBaseAddress, prdtBytesCount, onlyMemory: true); 
+                    prdtBytes = sysbus.ReadBytes(prtdBaseAddress, prdtBytesCount, onlyMemory: true);
                 }
 
                 var responseLength = 4 * utrd.ResponseUPIULength;
                 var responseBytes = HandleUTPTransaction(utrd, upiuBytes, prdtBytes);
                 responseBytes = responseBytes.Take(responseLength).ToArray();
-                
+
                 var responseUPIUBaseAddress = ucdBaseAddress + 4 * (ulong)utrd.ResponseUPIUOffset;
                 sysbus.WriteBytes(responseBytes, responseUPIUBaseAddress, onlyMemory: true);
-                
+
                 var responseBasicHeaderData = responseBytes.Take(BasicHeaderLength).ToArray();
                 var responseBasicHeader = Packet.Decode<BasicUPIUHeader>(responseBasicHeaderData);
 
@@ -381,9 +410,9 @@ namespace Antmicro.Renode.Peripherals.Storage
 
                 doorBell.Value = false;
                 transferRequestListCompletionNotifications[i].Value = true;
-                
-                if(queueType.Value == QueueType.LegacySingleDoorbell && 
-                    (utrd.Interrupt || utrd.OverallCommandStatus != UTPTransferStatus.Success || 
+
+                if(queueType.Value == QueueType.LegacySingleDoorbell &&
+                    (utrd.Interrupt || utrd.OverallCommandStatus != UTPTransferStatus.Success ||
                     (aggregationCounter >= interruptAggregationCounterThreshold.Value && interruptAggregationEnable.Value)))
                 {
                     interruptStatusFlags[(int)UFSInterruptFlag.UTPTransferRequestCompletionStatus].Value = true;
@@ -397,7 +426,7 @@ namespace Antmicro.Renode.Peripherals.Storage
             var dataOutTransfer = PrepareDataOutTransfer(utrd, prdtBytes);
             // The UniPro Service Data Unit requires no additional headers or trailer wrapped around the UPIU structure.
             var responseBytes = RegisteredPeripheral.HandleRequest(requestBytes, dataOutTransfer, out var dataInTransfer);
-            
+
             if(dataInTransfer != null)
             {
                 HandleDataInTransfer(utrd, prdtBytes, dataInTransfer);
@@ -409,26 +438,26 @@ namespace Antmicro.Renode.Peripherals.Storage
 
             switch(transactionCode)
             {
-                case UPIUTransactionCodeTargetToInitiator.Response:
+            case UPIUTransactionCodeTargetToInitiator.Response:
+            {
+                if(!utrd.Interrupt && interruptAggregationEnable.Value)
                 {
-                    if(!utrd.Interrupt && interruptAggregationEnable.Value)
-                    {
-                        aggregationCounter++;
-                    }
-                    break;
+                    aggregationCounter++;
                 }
-                case UPIUTransactionCodeTargetToInitiator.TaskManagementResponse:
-                case UPIUTransactionCodeTargetToInitiator.QueryResponse:
-                case UPIUTransactionCodeTargetToInitiator.NopIn:
-                {
-                    // Shouldn't be counted towards interrupt aggregation
-                    break; // finish UTP transaction
-                }
-                default:
-                    // DataIn / ReadyToTransfer should be handled within dataInTransfer / dataOutTransfer blocks
-                    // because we control both Host Controller and Device implementation
-                    this.Log(LogLevel.Warning, "Unexpected response received from UFS device");
-                    break;
+                break;
+            }
+            case UPIUTransactionCodeTargetToInitiator.TaskManagementResponse:
+            case UPIUTransactionCodeTargetToInitiator.QueryResponse:
+            case UPIUTransactionCodeTargetToInitiator.NopIn:
+            {
+                // Shouldn't be counted towards interrupt aggregation
+                break; // finish UTP transaction
+            }
+            default:
+                // DataIn / ReadyToTransfer should be handled within dataInTransfer / dataOutTransfer blocks
+                // because we control both Host Controller and Device implementation
+                this.Log(LogLevel.Warning, "Unexpected response received from UFS device");
+                break;
             }
             return responseBytes;
         }
@@ -526,7 +555,7 @@ namespace Antmicro.Renode.Peripherals.Storage
 
                 var responseBasicHeaderData = responseBytes.Take(BasicHeaderLength).ToArray();
                 var responseBasicHeader = Packet.Decode<BasicUPIUHeader>(responseBasicHeaderData);
-                
+
                 // Update Overall Command Status field
                 utmrd.OverallCommandStatus = (UTPTaskManagementStatus)responseBasicHeader.Response;
                 var utmrdUpdated = Packet.Encode<UTPTaskManagementRequestHeader>(utmrd);
@@ -546,35 +575,35 @@ namespace Antmicro.Renode.Peripherals.Storage
             // DME commands are part of MIPI UniPro specification
             switch(command)
             {
-                case DMECommand.Get:
-                    var mibAttr = arg1.Value >> 16;
-                    if(mibAttr == UniProPowerStateAttribute)
-                    {
-                        arg3.Value = (ulong)LinkStatus.Up;
-                    }
-                    interruptStatusFlags[(int)UFSInterruptFlag.UICCommandCompletionStatus].Value = true;
-                    UpdateInterrupts();
-                    break;
-                case DMECommand.Set:
-                case DMECommand.PeerSet:
-                    interruptStatusFlags[(int)UFSInterruptFlag.UICCommandCompletionStatus].Value = true;
-                    UpdateInterrupts();
-                    break;
-                case DMECommand.LinkStartup:
-                    interruptStatusFlags[(int)UFSInterruptFlag.UICCommandCompletionStatus].Value = true;
-                    UpdateInterrupts();
-                    if(RegisteredPeripheral != null)
-                    {
-                        devicePresent.Value = true;
-                    }
-                    break;
-                case DMECommand.Enable:
-                case DMECommand.Reset:
-                    this.Log(LogLevel.Debug, $"Part of auto-initialization: {Enum.GetName(typeof(DMECommand), command)}");
-                    break;
-                default:
-                    this.Log(LogLevel.Warning, $"Unhandled UIC Command 0x{command:X}");
-                    break;
+            case DMECommand.Get:
+                var mibAttr = arg1.Value >> 16;
+                if(mibAttr == UniProPowerStateAttribute)
+                {
+                    arg3.Value = (ulong)LinkStatus.Up;
+                }
+                interruptStatusFlags[(int)UFSInterruptFlag.UICCommandCompletionStatus].Value = true;
+                UpdateInterrupts();
+                break;
+            case DMECommand.Set:
+            case DMECommand.PeerSet:
+                interruptStatusFlags[(int)UFSInterruptFlag.UICCommandCompletionStatus].Value = true;
+                UpdateInterrupts();
+                break;
+            case DMECommand.LinkStartup:
+                interruptStatusFlags[(int)UFSInterruptFlag.UICCommandCompletionStatus].Value = true;
+                UpdateInterrupts();
+                if(RegisteredPeripheral != null)
+                {
+                    devicePresent.Value = true;
+                }
+                break;
+            case DMECommand.Enable:
+            case DMECommand.Reset:
+                this.Log(LogLevel.Debug, $"Part of auto-initialization: {Enum.GetName(typeof(DMECommand), command)}");
+                break;
+            default:
+                this.Log(LogLevel.Warning, $"Unhandled UIC Command 0x{command:X}");
+                break;
             }
         }
 
@@ -588,22 +617,6 @@ namespace Antmicro.Renode.Peripherals.Storage
 
             IRQ.Set(flag);
         }
-
-        public int TransferRequestSlots { get; }
-        public int ReadyToTransferRequests { get; }
-        public int TaskManagementRequestSlots { get; }
-
-        public bool ExtraHeaderSegmentsLengthInUTRD { get; }
-        public bool AutoHibernation { get; }
-        public bool Addressing64Bit { get; }
-        public bool OutOfOrderDataDelivery { get; }
-        public bool DMETestModeCommand { get; }
-        public bool CryptoSupport { get; }
-        public bool LegacySingleDoorBellRemoved { get; }
-        public bool MultiQueue { get; }
-        public bool EventSpecificInterrupt { get; }
-        public int PRDTLengthInBytes => prdtFormatEnable.Value ? 8 : 16;
-        public static string UFSVersion => $"{MajorVersionNumber}.{MinorVersionNumber}{VersionSuffix}";
 
         private IFlagRegisterField hostControllerEnable;
 
@@ -662,7 +675,7 @@ namespace Antmicro.Renode.Peripherals.Storage
         private const int UTPTransferRequestBaseUPIUSizeInBytes = 32;
         private const int BasicHeaderLength = 12;
 
-        private enum DMECommand: byte
+        private enum DMECommand : byte
         {
             // Configuration commands
             Get = 0x01,
@@ -681,7 +694,7 @@ namespace Antmicro.Renode.Peripherals.Storage
             TestMode = 0x1a, // optional
         }
 
-        private enum UICPowerModeChangeRequestStatus: byte
+        private enum UICPowerModeChangeRequestStatus : byte
         {
             PowerOk = 0x0,
             PowerLocal = 0x1,

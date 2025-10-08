@@ -6,7 +6,6 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
@@ -20,6 +19,57 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         {
         }
 
+        public uint ReadDoubleWord(long offset)
+        {
+            switch((Registers)offset)
+            {
+            case Registers.STIM0:
+            case Registers.STIM8:
+                return 1;   // The stimulus port is ready to accept one piece of data.
+            case Registers.TER0:
+                return 1;   // Stimulus port enabled
+            case Registers.TCR:
+                return 1;   // ITM enabled
+            default:
+                this.Log(LogLevel.Warning, "This read access is not implemented 0x{0:X}.", offset);
+                return 0;
+            }
+        }
+
+        public void WriteByte(long offset, byte value)
+        {
+            switch((Registers)offset)
+            {
+            case Registers.STIM0:
+            case Registers.STIM8:
+                TransmitCharacter(value);
+                break;
+            case Registers.TER0:
+            case Registers.TCR:
+                break;
+            default:
+                this.Log(LogLevel.Warning, "This byte write access is not implemented 0x{0:X}.", offset);
+                break;
+            }
+        }
+
+        public void WriteDoubleWord(long offset, uint value)
+        {
+            switch((Registers)offset)
+            {
+            case Registers.STIM0:
+            case Registers.STIM8:
+                TransmitCharacter((byte)value);
+                break;
+            case Registers.TER0:
+            case Registers.TCR:
+                break;
+            default:
+                this.Log(LogLevel.Warning, "This double word write access is not implemented 0x{0:X}.", offset);
+                break;
+            }
+        }
+
         public override Parity ParityBit { get { return Parity.None; } }
 
         public override Bits StopBits { get { return Bits.One; } }
@@ -27,57 +77,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         public override uint BaudRate { get { return 115200; } }
 
         public long Size { get { return 0x4000; } }
-
-        public uint ReadDoubleWord(long offset)
-        {
-            switch ((Registers)offset)
-            {
-                case Registers.STIM0:
-                case Registers.STIM8:
-                    return 1;   // The stimulus port is ready to accept one piece of data.
-                case Registers.TER0:
-                    return 1;   // Stimulus port enabled
-                case Registers.TCR:
-                    return 1;   // ITM enabled
-                default:
-                    this.Log(LogLevel.Warning, "This read access is not implemented 0x{0:X}.", offset);
-                    return 0;
-            }
-        }
-
-        public void WriteByte(long offset, byte value)
-        {
-            switch ((Registers)offset)
-            {
-                case Registers.STIM0:
-                case Registers.STIM8:
-                    TransmitCharacter(value);
-                    break;
-                case Registers.TER0:
-                case Registers.TCR:
-                    break;
-                default:
-                    this.Log(LogLevel.Warning, "This byte write access is not implemented 0x{0:X}.", offset);
-                    break;
-            }
-        }
-
-        public void WriteDoubleWord(long offset, uint value)
-        {
-            switch ((Registers)offset)
-            {
-                case Registers.STIM0:
-                case Registers.STIM8:
-                    TransmitCharacter((byte)value);
-                    break;
-                case Registers.TER0:
-                case Registers.TCR:
-                    break;
-                default:
-                    this.Log(LogLevel.Warning, "This double word write access is not implemented 0x{0:X}.", offset);
-                    break;
-            }
-        }
 
         protected override void CharWritten()
         {

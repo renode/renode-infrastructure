@@ -28,4 +28,3 @@ namespace Antmicro.Renode.Peripherals.Bus
         private readonly AllowedTranslation allowedTranslations;
     }
 }
-

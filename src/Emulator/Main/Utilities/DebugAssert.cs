@@ -32,20 +32,19 @@ namespace Antmicro.Renode.Utilities
     /// </summary>
     static class DebugAssert
     {
-        #if DEBUG
-        static public void Assert(bool condition, string message)
+#if DEBUG
+        public static void Assert(bool condition, string message)
         {
             if(!condition)
             {
-                throw new AssertException(String.Concat("Assert failed: ",message));
+                throw new AssertException(String.Concat("Assert failed: ", message));
             }
         }
 
-        static public void AssertFalse(bool condition, string message)
+        public static void AssertFalse(bool condition, string message)
         {
             Assert(!condition, message);
         }
-        #endif
+#endif
     }
 }
-

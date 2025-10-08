@@ -7,10 +7,9 @@
 //
 using System;
 using System.Linq;
-using System.Collections.Generic;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Logging;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.I2C
 {
@@ -19,67 +18,6 @@ namespace Antmicro.Renode.Peripherals.I2C
         public BMA180()
         {
             Reset();
-        }
-
-        // TODO: Implement EEPROM snapshot on disk for storing changes to register values (WriteEEPROM)
-
-        public void Reset()
-        {
-            this.Log(LogLevel.Noisy, "Reset registers");
-            acc_z_msb = 0;
-            acc_z_lsb = 0;
-            acc_y_msb = 0;
-            acc_y_lsb = 0;
-            acc_x_msb = 0;
-            acc_x_lsb = 0;
-            temperature = 0;
-            statusReg1 = 0;
-            statusReg2 = 0;
-            statusReg3 = 0;
-            statusReg4 = 0;
-            ctrlReg0 = 0;
-            ctrlReg1 = 0;
-            ctrlReg2 = 0;
-            // Read imaged register values from EEPROM
-            UpdateImage();
-            // Used internally
-            state = (uint)States.Idle;
-            registerAddress = 0;
-            registerData = 0;
-            sensorFlipState = (byte)SensorFlipStates.XYZ_111;
-        }
-
-        private void UpdateImage()
-        {
-            // The following register values (0x20-0x3A) are images of EEPROM 
-            // registers (0x40-0x5A). Values are imaged from EEPROM at Power On Reset, 
-            // Soft Reset or when control bit update_image is set to ‘1’.
-            bw_tcs = 0x4;
-            ctrlReg4 = 0;
-            hy = 0;
-            slopeTapSens = 0;
-            highLowInfo = 0;
-            lowDur = 0x50;
-            highDur = 0x32;
-            tapSensTh = 0;
-            lowTh = 0x17;
-            highTh = 0x50;
-            slopeTh = 0;
-            customerData1 = 0;
-            customerData2 = 0;
-            offset_lsb1 = 0;
-            offset_lsb2 = 0;
-            tco_x = 0;
-            tco_y = 0;
-            tco_z = 0;
-            gain_t = 0;
-            gain_x = 0;
-            gain_y = 0;
-            gain_z = 0;
-            offset_t = 0;
-            offset_x = 0;
-            offset_y = 0;
-            offset_z = 0;
         }
 
         public void Write(byte[] data)
@@ -104,7 +42,6 @@ namespace Antmicro.Renode.Peripherals.I2C
             // TODO - handle writing of calibration data
             if(data.Length > 3)
             {
-
             }
             switch((States)state)
             {
@@ -521,6 +458,75 @@ namespace Antmicro.Renode.Peripherals.I2C
         {
         }
 
+        public byte[] Read(int count = 0)
+        {
+            this.NoisyLog("Read {0}", sendData.Select(x => x.ToString("X")).Aggregate((x, y) => x + " " + y));
+            return sendData;
+        }
+
+        // TODO: Implement EEPROM snapshot on disk for storing changes to register values (WriteEEPROM)
+
+        public void Reset()
+        {
+            this.Log(LogLevel.Noisy, "Reset registers");
+            acc_z_msb = 0;
+            acc_z_lsb = 0;
+            acc_y_msb = 0;
+            acc_y_lsb = 0;
+            acc_x_msb = 0;
+            acc_x_lsb = 0;
+            temperature = 0;
+            statusReg1 = 0;
+            statusReg2 = 0;
+            statusReg3 = 0;
+            statusReg4 = 0;
+            ctrlReg0 = 0;
+            ctrlReg1 = 0;
+            ctrlReg2 = 0;
+            // Read imaged register values from EEPROM
+            UpdateImage();
+            // Used internally
+            state = (uint)States.Idle;
+            registerAddress = 0;
+            registerData = 0;
+            sensorFlipState = (byte)SensorFlipStates.XYZ_111;
+        }
+
+        private static readonly PseudorandomNumberGenerator random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
+
+        private void UpdateImage()
+        {
+            // The following register values (0x20-0x3A) are images of EEPROM 
+            // registers (0x40-0x5A). Values are imaged from EEPROM at Power On Reset, 
+            // Soft Reset or when control bit update_image is set to ‘1’.
+            bw_tcs = 0x4;
+            ctrlReg4 = 0;
+            hy = 0;
+            slopeTapSens = 0;
+            highLowInfo = 0;
+            lowDur = 0x50;
+            highDur = 0x32;
+            tapSensTh = 0;
+            lowTh = 0x17;
+            highTh = 0x50;
+            slopeTh = 0;
+            customerData1 = 0;
+            customerData2 = 0;
+            offset_lsb1 = 0;
+            offset_lsb2 = 0;
+            tco_x = 0;
+            tco_y = 0;
+            tco_z = 0;
+            gain_t = 0;
+            gain_x = 0;
+            gain_y = 0;
+            gain_z = 0;
+            offset_t = 0;
+            offset_x = 0;
+            offset_y = 0;
+            offset_z = 0;
+        }
+
         private void WriteEEPROM()
         {
             // Currently not implemented
@@ -531,12 +537,6 @@ namespace Antmicro.Renode.Peripherals.I2C
             statusReg1 &= 0x1;
             // Write to EEPROM is always followed by soft reset
             Reset();
-        }
-
-        public byte[] Read(int count = 0)
-        {
-            this.NoisyLog("Read {0}", sendData.Select(x => x.ToString("X")).Aggregate((x, y) => x + " " + y));
-            return sendData;
         }
 
         private double SensorData(double mean, double sigma)
@@ -741,8 +741,6 @@ namespace Antmicro.Renode.Peripherals.I2C
         private byte[] sendData;
         private byte sensorFlipState;
 
-        private static PseudorandomNumberGenerator random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
-
         private enum SensorFlipStates
         {
             // State used for generation of sensor data.
@@ -929,4 +927,3 @@ namespace Antmicro.Renode.Peripherals.I2C
         }
     }
 }
-

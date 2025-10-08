@@ -6,21 +6,20 @@
 //
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Time;
+
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Utilities;
-using System.Collections.Generic;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
     public interface ICPUWithRegisters : ICPU
     {
         void SetRegister(int register, RegisterValue value);
+
         RegisterValue GetRegister(int register);
+
         IEnumerable<CPURegister> GetRegisters();
     }
 
@@ -88,4 +87,3 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
     }
 }
-

@@ -6,20 +6,16 @@
 //
 
 using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Sound;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Sound
 {
-    public class NRF52840_PDM: BasicDoubleWordPeripheral, IKnownSize
+    public class NRF52840_PDM : BasicDoubleWordPeripheral, IKnownSize
     {
         public NRF52840_PDM(IMachine machine) : base(machine)
         {
@@ -50,47 +46,41 @@ namespace Antmicro.Renode.Peripherals.Sound
         {
             switch(channel)
             {
-                case Channel.Left:
+            case Channel.Left:
+            {
+                if(decoderLeft == null)
                 {
-                    if(decoderLeft == null)
-                    {
-                        decoderLeft = new PCMDecoder(16, sampleFrequency, 1, false, this);
-                    }
-
-                    for(var i = 0; i < repeat; i++)
-                    {
-                        decoderLeft.LoadFile(fileName);
-                    }
-                    inputFileLeft = fileName;
+                    decoderLeft = new PCMDecoder(16, sampleFrequency, 1, false, this);
                 }
-                break;
 
-                case Channel.Right:
+                for(var i = 0; i < repeat; i++)
                 {
-                    if(decoderRight == null)
-                    {
-                        decoderRight = new PCMDecoder(16, sampleFrequency, 1, false, this);
-                    }
-
-                    for(var i = 0; i < repeat; i++)
-                    {
-                        decoderRight.LoadFile(fileName);
-                    }
-                    inputFileRight = fileName;
+                    decoderLeft.LoadFile(fileName);
                 }
-                break;
+                inputFileLeft = fileName;
+            }
+            break;
+
+            case Channel.Right:
+            {
+                if(decoderRight == null)
+                {
+                    decoderRight = new PCMDecoder(16, sampleFrequency, 1, false, this);
+                }
+
+                for(var i = 0; i < repeat; i++)
+                {
+                    decoderRight.LoadFile(fileName);
+                }
+                inputFileRight = fileName;
+            }
+            break;
             }
         }
 
         public GPIO IRQ { get; }
 
         public long Size => 0x1000;
-
-        public enum Channel
-        {
-            Left = 0,
-            Right = 1,
-        }
 
         private void UpdateInterrupts()
         {
@@ -100,60 +90,61 @@ namespace Antmicro.Renode.Peripherals.Sound
             IRQ.Set(stopped || started || end);
         }
 
-        private void Start()
+        private void SetSampleFrequency()
         {
-            if(!enablePDM.Value)
-            {
-                this.Log(LogLevel.Warning, "Trying to start samples aquisition before enabling peripheral. Will not start");
-                return;
-            }
-
-            if(inputFileLeft == "" || (numberOfChannels == 2 && inputFileRight == ""))
-            {
-                this.Log(LogLevel.Error, "Trying to start reception with not enough input files - please set input using `SetinputFile`. Aborting.");
-                return;
-            }
-            
-            StartPDMThread();
+            sampleFrequency = clockFrequency / sampleRatio;
+            this.Log(LogLevel.Debug, "Clock frequency = {0}kHz; Sample ratio = {1}; Sample frequency set to {2}kHz", clockFrequency / 1000.0, sampleRatio, sampleFrequency / 1000.0);
         }
 
-        private void Stop()
+        private void SetClockFrequency(ClockFrequency frequency)
         {
-            eventStopped.Value = true;
-            UpdateInterrupts();
-            this.Log(LogLevel.Debug, "Event Stopped");
-        }
-
-        private bool StartPDMThread()
-        {
-            StopPDMThread();
-
-            if(maxSamplesCount.Value == 0)
+            switch(frequency)
             {
-                // Crate stub ManagedThread just to make clear that it was started, but just send
-                // eventStarted Interrupt - software might configure proper value in the IRQ handler
-                sampleThread = machine.ObtainManagedThread(InputSamples, 1);
-                eventStarted.Value = true;
-                UpdateInterrupts();
-                return false;
+            case ClockFrequency.f1000K:
+                clockFrequency = 32000000 / 32;
+                break;
+            case ClockFrequency.Default:
+                clockFrequency = 32000000 / 31;
+                break;
+            case ClockFrequency.f1067K:
+                clockFrequency = 32000000 / 30;
+                break;
+            case ClockFrequency.f1231K:
+                clockFrequency = 32000000 / 26;
+                break;
+            case ClockFrequency.f1280K:
+                clockFrequency = 32000000 / 25;
+                break;
+            case ClockFrequency.f1333K:
+                clockFrequency = 32000000 / 24;
+                break;
+            default:
+                this.Log(LogLevel.Error, "Wrong PDMCLKCTRL value, settting to default value");
+                goto case ClockFrequency.Default;
             }
-            // Since we handle all samples in one go we have to calculate how often should we do it
-            var eventFrequency = (sampleFrequency / (int)(maxSamplesCount.Value)) * numberOfChannels;
-            sampleThread = machine.ObtainManagedThread(InputSamples, (uint)eventFrequency);
-            sampleThread.Start();
-            return true;
+            SetSampleFrequency();
         }
 
-        private bool StopPDMThread()
+        private void SetGain(ulong val, Channel channel)
         {
-           if(sampleThread == null)
-           {
-               return false;
-           }
-           sampleThread.Stop();
-           sampleThread.Dispose();
-           sampleThread = null;
-           return true;
+            if(val > 80)
+            {
+                this.Log(LogLevel.Error, "Trying to set GAIN.{0} value higher than 80. Setting gain to default value.", channel);
+                val = 40;
+            }
+            var gain = ((int)val - 40) / 2;
+            this.Log(LogLevel.Debug, "{0} channel gain set to {1}db", channel, gain);
+            // Convert dB of amplitude to multiplier
+            var multiplier = Math.Pow(10, gain / 20.0);
+            switch(channel)
+            {
+            case Channel.Left:
+                multiplierL = multiplier;
+                break;
+            case Channel.Right:
+                multiplierR = multiplier;
+                break;
+            }
         }
 
         private void InputSamples()
@@ -168,58 +159,58 @@ namespace Antmicro.Renode.Peripherals.Sound
 
             switch(numberOfChannels)
             {
-                case 1:
-                    var samples = decoderLeft.GetSamplesByCount(samplesCount);
+            case 1:
+                var samples = decoderLeft.GetSamplesByCount(samplesCount);
 
-                    var index = 1u;
-                    ushort prev = 0;
-                    
-                    foreach(ushort sample in samples)
-                    {
-                        if(index % 2 != 0)
-                        {
-                            prev = sample;
-                        }
-                        else
-                        {
-                            // Assuming input file format of s16le
-                            preparedDoubleWords[(index / 2) - 1] = (uint)((Misc.SwapBytesUShort(sample) << 16) | Misc.SwapBytesUShort(prev));
-                        }
-                        index++;
-                    }
-                    
-                    if(index % 2 == 0)
-                    {
-                        // One sample left
-                        preparedDoubleWords[(index / 2) - 1] = prev;
-                    }
-                    
-                    break;
-                case 2:
-                    var samplesLeft  = decoderLeft.GetSamplesByCount(samplesCount / 2).ToArray();
-                    var samplesRight = decoderRight.GetSamplesByCount(samplesCount / 2).ToArray();
-                                                   
-                    if(samplesLeft.Length != samplesRight.Length)
-                    {
-                        // Make sure arrays have equal size
-                        var neededSize = Math.Max(samplesLeft.Length, samplesRight.Length);
-                        Array.Resize(ref samplesLeft, neededSize);
-                        Array.Resize(ref samplesRight, neededSize);
-                    }
+                var index = 1u;
+                ushort prev = 0;
 
-                    if(invertChannels.Value)
+                foreach(ushort sample in samples)
+                {
+                    if(index % 2 != 0)
                     {
-                        Misc.Swap(ref samplesLeft, ref samplesRight);
+                        prev = sample;
                     }
-
-                    for(var i = 0; i < samplesLeft.Length; i++)
+                    else
                     {
-                        var right = (uint)Misc.SwapBytesUShort((ushort)samplesRight[i]);
-                        var left  = (uint)Misc.SwapBytesUShort((ushort)samplesLeft[i]);
-
-                        preparedDoubleWords[i] = (right << 16) | left;
+                        // Assuming input file format of s16le
+                        preparedDoubleWords[(index / 2) - 1] = (uint)((Misc.SwapBytesUShort(sample) << 16) | Misc.SwapBytesUShort(prev));
                     }
-                    break;
+                    index++;
+                }
+
+                if(index % 2 == 0)
+                {
+                    // One sample left
+                    preparedDoubleWords[(index / 2) - 1] = prev;
+                }
+
+                break;
+            case 2:
+                var samplesLeft  = decoderLeft.GetSamplesByCount(samplesCount / 2).ToArray();
+                var samplesRight = decoderRight.GetSamplesByCount(samplesCount / 2).ToArray();
+
+                if(samplesLeft.Length != samplesRight.Length)
+                {
+                    // Make sure arrays have equal size
+                    var neededSize = Math.Max(samplesLeft.Length, samplesRight.Length);
+                    Array.Resize(ref samplesLeft, neededSize);
+                    Array.Resize(ref samplesRight, neededSize);
+                }
+
+                if(invertChannels.Value)
+                {
+                    Misc.Swap(ref samplesLeft, ref samplesRight);
+                }
+
+                for(var i = 0; i < samplesLeft.Length; i++)
+                {
+                    var right = (uint)Misc.SwapBytesUShort((ushort)samplesRight[i]);
+                    var left  = (uint)Misc.SwapBytesUShort((ushort)samplesLeft[i]);
+
+                    preparedDoubleWords[i] = (right << 16) | left;
+                }
+                break;
             }
 
             foreach(uint i in preparedDoubleWords)
@@ -230,63 +221,6 @@ namespace Antmicro.Renode.Peripherals.Sound
 
             eventEnd.Value = true;
             UpdateInterrupts();
-        }
-
-        private void SetGain(ulong val, Channel channel)
-        {
-            if(val > 80)
-            {
-                this.Log(LogLevel.Error, "Trying to set GAIN.{0} value higher than 80. Setting gain to default value.", channel);
-                val = 40;
-            }
-            var gain = ((int)val - 40) / 2;
-            this.Log(LogLevel.Debug, "{0} channel gain set to {1}db", channel,  gain);
-            // Convert dB of amplitude to multiplier
-            var multiplier = Math.Pow(10, gain / 20.0);
-            switch(channel)
-            {
-                case Channel.Left:
-                    multiplierL = multiplier;
-                    break;
-                case Channel.Right:
-                    multiplierR = multiplier;
-                    break;
-            }
-        }
-
-        private void SetClockFrequency(ClockFrequency frequency)
-        {
-            switch(frequency)
-            {
-                case ClockFrequency.f1000K:
-                    clockFrequency = 32000000 / 32;
-                    break;
-                case ClockFrequency.Default:
-                    clockFrequency = 32000000 / 31;
-                    break;
-                case ClockFrequency.f1067K:
-                    clockFrequency = 32000000 / 30;
-                    break;
-                case ClockFrequency.f1231K:
-                    clockFrequency = 32000000 / 26;
-                    break;
-                case ClockFrequency.f1280K:
-                    clockFrequency = 32000000 / 25;
-                    break;
-                case ClockFrequency.f1333K:
-                    clockFrequency = 32000000 / 24;
-                    break;
-                default:
-                    this.Log(LogLevel.Error, "Wrong PDMCLKCTRL value, settting to default value");
-                    goto case ClockFrequency.Default;
-            }
-            SetSampleFrequency();
-        }
-
-        private void SetSampleFrequency()
-        {
-            sampleFrequency = clockFrequency / sampleRatio;
-            this.Log(LogLevel.Debug, "Clock frequency = {0}kHz; Sample ratio = {1}; Sample frequency set to {2}kHz", clockFrequency / 1000.0, sampleRatio, sampleFrequency / 1000.0);
         }
 
         private void CreateRegisters()
@@ -354,17 +288,17 @@ namespace Antmicro.Renode.Peripherals.Sound
                         {
                             switch((OperationMode)val)
                             {
-                                case OperationMode.Stereo:
-                                    numberOfChannels = 2;
-                                    break;
-                                case OperationMode.Mono:
-                                    numberOfChannels = 1;
-                                    break;
+                            case OperationMode.Stereo:
+                                numberOfChannels = 2;
+                                break;
+                            case OperationMode.Mono:
+                                numberOfChannels = 1;
+                                break;
                             }
                             this.Log(LogLevel.Debug, "MODE.OPERATION set to {0}", (OperationMode)val);
                         },
                     name: "OPERATION")
-                .WithFlag(1, out invertChannels, name:"EDGE")
+                .WithFlag(1, out invertChannels, name: "EDGE")
                 .WithReservedBits(2, 30);
             Registers.Ratio.Define(this, 0x0)
                 .WithValueField(0, 1,
@@ -372,16 +306,16 @@ namespace Antmicro.Renode.Peripherals.Sound
                      {
                          switch((Ratio)val)
                          {
-                             case Ratio.x64:
-                                 sampleRatio = 64;
-                                 break;
-                             case Ratio.x80:
-                                 sampleRatio = 80;
-                                 break;
+                         case Ratio.x64:
+                             sampleRatio = 64;
+                             break;
+                         case Ratio.x80:
+                             sampleRatio = 80;
+                             break;
                          }
                          SetSampleFrequency();
                      },
-                     name:"RATIO")
+                     name: "RATIO")
                 .WithReservedBits(1, 31);
             Registers.GainLeft.Define(this, 0x28)
                 .WithValueField(0, 7,
@@ -417,30 +351,92 @@ namespace Antmicro.Renode.Peripherals.Sound
                 .WithTaggedFlag("CONNECT", 31);
         }
 
-        private uint clockFrequency;
-        private uint numberOfChannels;
-        private uint sampleFrequency;
-        private uint sampleRatio;
-        private double multiplierL;
-        private double multiplierR;
-        private string inputFileLeft;
-        private string inputFileRight;
+        private bool StartPDMThread()
+        {
+            StopPDMThread();
 
-        private PCMDecoder decoderLeft;
-        private PCMDecoder decoderRight;
-        private IManagedThread sampleThread;
+            if(maxSamplesCount.Value == 0)
+            {
+                // Crate stub ManagedThread just to make clear that it was started, but just send
+                // eventStarted Interrupt - software might configure proper value in the IRQ handler
+                sampleThread = machine.ObtainManagedThread(InputSamples, 1);
+                eventStarted.Value = true;
+                UpdateInterrupts();
+                return false;
+            }
+            // Since we handle all samples in one go we have to calculate how often should we do it
+            var eventFrequency = (sampleFrequency / (int)(maxSamplesCount.Value)) * numberOfChannels;
+            sampleThread = machine.ObtainManagedThread(InputSamples, (uint)eventFrequency);
+            sampleThread.Start();
+            return true;
+        }
+
+        private void Stop()
+        {
+            eventStopped.Value = true;
+            UpdateInterrupts();
+            this.Log(LogLevel.Debug, "Event Stopped");
+        }
+
+        private void Start()
+        {
+            if(!enablePDM.Value)
+            {
+                this.Log(LogLevel.Warning, "Trying to start samples aquisition before enabling peripheral. Will not start");
+                return;
+            }
+
+            if(inputFileLeft == "" || (numberOfChannels == 2 && inputFileRight == ""))
+            {
+                this.Log(LogLevel.Error, "Trying to start reception with not enough input files - please set input using `SetinputFile`. Aborting.");
+                return;
+            }
+
+            StartPDMThread();
+        }
+
+        private bool StopPDMThread()
+        {
+            if(sampleThread == null)
+            {
+                return false;
+            }
+            sampleThread.Stop();
+            sampleThread.Dispose();
+            sampleThread = null;
+            return true;
+        }
 
         private IFlagRegisterField enablePDM;
-        private IFlagRegisterField eventEnd;
-        private IFlagRegisterField eventStarted;
-        private IFlagRegisterField eventStopped;
-        private IFlagRegisterField intenEnd;
-        private IFlagRegisterField intenStarted;
-        private IFlagRegisterField intenStopped;
-        private IFlagRegisterField invertChannels;
         private IValueRegisterField maxSamplesCount;
+        private IFlagRegisterField invertChannels;
+        private IFlagRegisterField intenStopped;
+        private IFlagRegisterField intenStarted;
+        private IFlagRegisterField intenEnd;
+        private IFlagRegisterField eventStopped;
+        private IFlagRegisterField eventStarted;
+        private IFlagRegisterField eventEnd;
+        private IManagedThread sampleThread;
+        private double multiplierR;
+
+        private PCMDecoder decoderLeft;
+        private string inputFileRight;
+        private string inputFileLeft;
         private IValueRegisterField operationMode;
+        private double multiplierL;
+        private uint sampleRatio;
+        private uint sampleFrequency;
+        private uint numberOfChannels;
+
+        private uint clockFrequency;
+        private PCMDecoder decoderRight;
         private IValueRegisterField samplePtr;
+
+        public enum Channel
+        {
+            Left = 0,
+            Right = 1,
+        }
 
         private enum Registers : long
         {

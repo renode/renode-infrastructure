@@ -11,8 +11,8 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.I2C
 {
@@ -50,7 +50,9 @@ namespace Antmicro.Renode.Peripherals.I2C
         }
 
         public DoubleWordRegisterCollection RegistersCollection { get; }
+
         public GPIO IRQ { get; }
+
         public long Size => 0x1000;
 
         private void UpdateInterrupts()
@@ -81,75 +83,77 @@ namespace Antmicro.Renode.Peripherals.I2C
 
             switch(command)
             {
-                case Command.TransmitData:
-                    if(AssertActivePeripheral("transmit data"))
-                    {
-                        txQueue.Enqueue((byte)transmitData.Value);
-                        UpdateInterrupts();
-                    }
+            case Command.TransmitData:
+                if(AssertActivePeripheral("transmit data"))
+                {
+                    txQueue.Enqueue((byte)transmitData.Value);
+                    UpdateInterrupts();
+                }
+                break;
+
+            case Command.ReceiveData:
+            case Command.ReceiveDataAndDiscard:
+                if(!AssertActivePeripheral("receive data"))
+                {
                     break;
+                }
 
-                case Command.ReceiveData:
-                case Command.ReceiveDataAndDiscard:
-                    if(!AssertActivePeripheral("receive data"))
-                    {
-                        break;
-                    }
+                // transmitData now contains `amount of data - 1` we would want to receive
+                var receivedData = activePeripheral.Read((int)transmitData.Value + 1);
 
-                    // transmitData now contains `amount of data - 1` we would want to receive
-                    var receivedData = activePeripheral.Read((int)transmitData.Value + 1);
+                if(command != Command.ReceiveDataAndDiscard)
+                {
+                    rxQueue.EnqueueRange(RunDataMatcher(receivedData));
+                    UpdateInterrupts();
+                }
+                break;
 
-                    if(command != Command.ReceiveDataAndDiscard)
-                    {
-                        rxQueue.EnqueueRange(RunDataMatcher(receivedData));
-                        UpdateInterrupts();
-                    }
-                    break;
+            case Command.GenerateSTOP:
+                GenerateStopCondition();
+                break;
 
-                case Command.GenerateSTOP:
+            case Command.Start:
+            case Command.HiSpeedStart:
+                if(activePeripheral != null)
+                {
+                    // This is RESTART condition
+                    endPacketFlag.Value = true;
+                    UpdateInterrupts();
+                }
+
+                if(automaticSTOPGeneration.Value)
+                {
                     GenerateStopCondition();
-                    break;
+                }
 
-                case Command.Start:
-                case Command.HiSpeedStart:
-                    if(activePeripheral != null)
-                    {
-                        // This is RESTART condition
-                        endPacketFlag.Value = true;
-                        UpdateInterrupts();
-                    }
+                // transmitData now contains I2C address
+                var address = (int)transmitData.Value >> 1;
+                if(!TryGetByAddress(address, out activePeripheral))
+                {
+                    this.Log(LogLevel.Warning, "Target peripheral not found at address 0x{0:X}", address);
+                    nackDetectFlag.Value = true;
+                    UpdateInterrupts();
+                }
 
-                    if(automaticSTOPGeneration.Value)
-                    {
-                        GenerateStopCondition();
-                    }
+                break;
 
-                    // transmitData now contains I2C address
-                    if(!TryGetByAddress((int)transmitData.Value >> 1, out activePeripheral))
-                    {
-                        nackDetectFlag.Value = true;
-                        UpdateInterrupts();
-                    }
+            case Command.StartExpectsNACK:
+            case Command.HiSpeedStartExpectsNACK:
+                if(activePeripheral != null)
+                {
+                    // This is RESTART condition
+                    endPacketFlag.Value = true;
+                    UpdateInterrupts();
+                }
 
-                    break;
+                if(TryGetByAddress((int)transmitData.Value, out var _))
+                {
+                    // We should write 1 to NACK Detect Flag (NDF) in case we don't expect ACK
+                    nackDetectFlag.Value = true;
+                    UpdateInterrupts();
+                }
 
-                case Command.StartExpectsNACK:
-                case Command.HiSpeedStartExpectsNACK:
-                    if(activePeripheral != null)
-                    {
-                        // This is RESTART condition
-                        endPacketFlag.Value = true;
-                        UpdateInterrupts();
-                    }
-
-                    if(TryGetByAddress((int)transmitData.Value, out var _))
-                    {
-                        // We should write 1 to NACK Detect Flag (NDF) in case we don't expect ACK
-                        nackDetectFlag.Value = true;
-                        UpdateInterrupts();
-                    }
-
-                    break;
+                break;
             }
         }
 
@@ -164,37 +168,37 @@ namespace Antmicro.Renode.Peripherals.I2C
             var bytesIterator = bytes;
             switch(matchConfiguration.Value)
             {
-                case MatchMode.FirstMatch0OrMatch1:
-                    bytesIterator = bytesIterator.Take(1);
-                    goto case MatchMode.AnyMatch0OrMatch1;
-                case MatchMode.AnyMatch0OrMatch1:
-                    found = bytesIterator
-                        .Select((Byte, Index) => new { Byte, Index })
-                        .FirstOrDefault(item => item.Byte == match0Value.Value || item.Byte == match1Value.Value)
-                        ?.Index;
-                    break;
+            case MatchMode.FirstMatch0OrMatch1:
+                bytesIterator = bytesIterator.Take(1);
+                goto case MatchMode.AnyMatch0OrMatch1;
+            case MatchMode.AnyMatch0OrMatch1:
+                found = bytesIterator
+                    .Select((@byte, index) => new { @byte, index })
+                    .FirstOrDefault(item => item.@byte == match0Value.Value || item.@byte == match1Value.Value)
+                    ?.index;
+                break;
 
-                case MatchMode.FirstMatch0ThenMatch1:
-                    bytesIterator = bytesIterator.Take(2);
-                    goto case MatchMode.AnyMatch0ThenMatch1;
-                case MatchMode.AnyMatch0ThenMatch1:
-                    found = bytesIterator
-                        .Zip(bytesIterator.Skip(1), (First, Second) => new { First, Second })
-                        .Select((Byte, Index) => new { Byte, Index })
-                        .FirstOrDefault(item => item.Byte.First == match0Value.Value && item.Byte.Second == match1Value.Value)
-                        ?.Index;
-                    break;
+            case MatchMode.FirstMatch0ThenMatch1:
+                bytesIterator = bytesIterator.Take(2);
+                goto case MatchMode.AnyMatch0ThenMatch1;
+            case MatchMode.AnyMatch0ThenMatch1:
+                found = bytesIterator
+                    .Zip(bytesIterator.Skip(1), (first, second) => new { first, second })
+                    .Select((@byte, index) => new { @byte, index })
+                    .FirstOrDefault(item => item.@byte.first == match0Value.Value && item.@byte.second == match1Value.Value)
+                    ?.index;
+                break;
 
-                case MatchMode.FirstAndMatch1EqualMatch0AndMatch1:
-                    bytesIterator = bytesIterator.Take(1);
-                    goto case MatchMode.AnyAndMatch1EqualMatch0AndMatch1;
-                case MatchMode.AnyAndMatch1EqualMatch0AndMatch1:
-                    var maskedValue = match0Value.Value & match1Value.Value;
-                    found = bytesIterator
-                        .Select((Byte, Index) => new { Byte, Index })
-                        .FirstOrDefault(item => (item.Byte & match1Value.Value) == maskedValue)
-                        ?.Index;
-                    break;
+            case MatchMode.FirstAndMatch1EqualMatch0AndMatch1:
+                bytesIterator = bytesIterator.Take(1);
+                goto case MatchMode.AnyAndMatch1EqualMatch0AndMatch1;
+            case MatchMode.AnyAndMatch1EqualMatch0AndMatch1:
+                var maskedValue = match0Value.Value & match1Value.Value;
+                found = bytesIterator
+                    .Select((@byte, index) => new { @byte, index })
+                    .FirstOrDefault(item => (item.@byte & match1Value.Value) == maskedValue)
+                    ?.index;
+                break;
             }
 
             dataMatchFlag.Value |= found.HasValue;
@@ -543,34 +547,34 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         private bool ReceiveDataFlag => rxQueue.Count > (int)rxWatermark.Value;
 
-        private readonly Queue<byte> txQueue;
-        private readonly Queue<byte> rxQueue;
-
         private II2CPeripheral activePeripheral;
-
-        private IEnumRegisterField<MatchMode> matchConfiguration;
-
-        private IValueRegisterField transmitData;
-        private IValueRegisterField txWatermark;
-        private IValueRegisterField rxWatermark;
-        private IValueRegisterField match0Value;
-        private IValueRegisterField match1Value;
-
-        private IFlagRegisterField controllerEnabled;
-        private IFlagRegisterField automaticSTOPGeneration;
-
-        private IFlagRegisterField endPacketFlag;
-        private IFlagRegisterField nackDetectFlag;
-        private IFlagRegisterField stopDetectFlag;
-        private IFlagRegisterField dataMatchFlag;
+        private IFlagRegisterField stopDetectInterruptEnabled;
+        private IFlagRegisterField nackDetectInterruptEnabled;
+        private IFlagRegisterField endPacketInterruptEnabled;
+        private IFlagRegisterField receiveDataInterruptEnabled;
 
         private IFlagRegisterField transmitDataInterruptEnabled;
-        private IFlagRegisterField receiveDataInterruptEnabled;
-        private IFlagRegisterField endPacketInterruptEnabled;
-        private IFlagRegisterField nackDetectInterruptEnabled;
-        private IFlagRegisterField stopDetectInterruptEnabled;
+        private IFlagRegisterField dataMatchFlag;
+        private IFlagRegisterField stopDetectFlag;
+        private IFlagRegisterField nackDetectFlag;
+
+        private IFlagRegisterField endPacketFlag;
+        private IFlagRegisterField automaticSTOPGeneration;
+
+        private IFlagRegisterField controllerEnabled;
+        private IValueRegisterField match1Value;
+        private IValueRegisterField match0Value;
+        private IValueRegisterField rxWatermark;
+        private IValueRegisterField txWatermark;
+
+        private IValueRegisterField transmitData;
+
+        private IEnumRegisterField<MatchMode> matchConfiguration;
         private IFlagRegisterField dataMatchInterruptEnabled;
         private IFlagRegisterField receiveDataMatchOnly;
+
+        private readonly Queue<byte> txQueue;
+        private readonly Queue<byte> rxQueue;
 
         private enum MatchMode
         {

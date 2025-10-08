@@ -16,4 +16,3 @@ namespace Antmicro.Renode
         Shift = 2
     }
 }
-

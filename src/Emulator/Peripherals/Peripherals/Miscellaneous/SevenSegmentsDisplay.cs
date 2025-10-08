@@ -5,12 +5,12 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Logging;
-using Antmicro.Migrant;
 using System.Collections.Generic;
 using System.Text;
+
+using Antmicro.Migrant;
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
@@ -64,17 +64,17 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Update();
         }
 
-        [field: Transient]
-        public event Action<IPeripheral, string> StateChanged;
-
         public string Image { get; private set; }
 
         public string State { get; private set; }
-        
+
+        [field: Transient]
+        public event Action<IPeripheral, string> StateChanged;
+
         private void Update()
         {
             lock(sync)
-            {              
+            {
                 var newState = AsSegmentsString();
                 if(newState == State)
                 {
@@ -131,23 +131,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private const int SegmentsCount = 8;
 
-        [Flags]
-        private enum Segments
-        {
-            A = 1 << 0,
-            B = 1 << 1,
-            C = 1 << 2,
-            D = 1 << 3,
-            E = 1 << 4,
-            F = 1 << 5,
-            G = 1 << 6,
-            DOT = 1 << 7
-        }
-
         private class Digit
         {
-            public Segments Value { get; private set; }
-
             public void SetSegment(Segments segment, bool asOn)
             {
                 if(asOn)
@@ -182,6 +167,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 return result;
             }
 
+            public Segments Value { get; private set; }
+
             private static readonly Dictionary<Segments, string> SegmentsToStringMapping = new Dictionary<Segments, string>()
             {
                 { Segments.A | Segments.B | Segments.C | Segments.D | Segments.E | Segments.F             , "0" },
@@ -202,6 +189,18 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 { Segments.A |                                        Segments.E | Segments.F | Segments.G, "F" },
             };
         }
+
+        [Flags]
+        private enum Segments
+        {
+            A = 1 << 0,
+            B = 1 << 1,
+            C = 1 << 2,
+            D = 1 << 3,
+            E = 1 << 4,
+            F = 1 << 5,
+            G = 1 << 6,
+            DOT = 1 << 7
+        }
     }
 }
-

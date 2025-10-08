@@ -6,6 +6,7 @@
 //
 
 using System.Text;
+
 using Antmicro.Renode.Utilities.Packets;
 
 namespace Antmicro.Renode.Core.ACPI
@@ -15,7 +16,8 @@ namespace Antmicro.Renode.Core.ACPI
     {
         public FixedACPIDescriptionTable(uint tableLength, uint extendedDSDTPointer)
         {
-            Header = new SystemDescriptionTableHeader {
+            Header = new SystemDescriptionTableHeader
+            {
                 Signature = Encoding.ASCII.GetBytes("FACP"),
                 TableLength = tableLength
             };

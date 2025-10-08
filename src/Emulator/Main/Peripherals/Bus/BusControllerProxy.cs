@@ -7,11 +7,13 @@
 
 using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Peripherals.Memory;
+using Antmicro.Renode.Utilities;
+
 using ELFSharp.ELF;
 
 using Range = Antmicro.Renode.Core.Range;
@@ -20,14 +22,14 @@ namespace Antmicro.Renode.Peripherals.Bus
 {
     public abstract class BusControllerProxy : IBusController
     {
-        public void Reset()
-        {
-            ParentController.Reset();
-        }
-
         public BusControllerProxy(IBusController parentController)
         {
             ParentController = parentController;
+        }
+
+        public void Reset()
+        {
+            ParentController.Reset();
         }
 
         public DelayedInvalidationContext EnterDelayedInvalidationContext()

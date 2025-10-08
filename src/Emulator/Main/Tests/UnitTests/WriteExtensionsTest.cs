@@ -6,12 +6,12 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System;
-using System.Runtime.InteropServices;
 using Antmicro.Renode.Core.Extensions;
 using Antmicro.Renode.Peripherals.Bus;
-using NUnit.Framework;
+
 using Moq;
+
+using NUnit.Framework;
 
 namespace Antmicro.Renode.UnitTests
 {

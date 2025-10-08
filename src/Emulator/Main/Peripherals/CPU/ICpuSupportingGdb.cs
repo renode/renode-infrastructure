@@ -13,8 +13,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         void EnterSingleStepModeSafely(HaltArguments args);
 
         string GDBArchitecture { get; }
+
         List<GDBFeatureDescriptor> GDBFeatures { get; }
+
         bool DebuggerConnected { get; set; }
     }
 }
-

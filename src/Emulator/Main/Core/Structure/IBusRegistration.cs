@@ -17,9 +17,13 @@ namespace Antmicro.Renode.Core.Structure
     public interface IBusRegistration : IRegistrationPoint
     {
         IPeripheral Initiator { get; }
+
         StateMask? StateMask { get; }
+
         ICluster<ICPU> Cluster { get; }
+
         ulong Offset { get; }
+
         ulong StartingPoint { get; }
     }
 }

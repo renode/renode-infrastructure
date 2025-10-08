@@ -5,8 +5,9 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -54,6 +55,27 @@ namespace Antmicro.Renode.Peripherals.SPI
         public DoubleWordRegisterCollection RegistersCollection { get; }
 
         public long Size => 0x1000;
+
+        private void UpdateInterrupts()
+        {
+            var status = false;
+
+            if(easyDMA)
+            {
+                status |= startedPending.Value && startedEnabled.Value;
+                status |= endPending.Value && endEnabled.Value;
+                status |= endRxPending.Value && endRxEnabled.Value;
+                status |= endTxPending.Value && endTxEnabled.Value;
+            }
+            else
+            {
+                status |= readyEnabled.Value && readyPending.Value;
+            }
+            status &= enabled;
+
+            this.Log(LogLevel.Noisy, "Setting IRQ to {0}", status);
+            IRQ.Set(status);
+        }
 
         private void DefineRegisters()
         {
@@ -144,30 +166,30 @@ namespace Antmicro.Renode.Peripherals.SPI
                     {
                         switch(val)
                         {
-                            case 0:
-                                // disabled
-                                enabled = false;
-                                break;
+                        case 0:
+                            // disabled
+                            enabled = false;
+                            break;
 
-                            case 1:
-                                // enabled, standard mode
-                                if(!easyDMA)
-                                {
-                                    enabled = true;
-                                }
-                                break;
+                        case 1:
+                            // enabled, standard mode
+                            if(!easyDMA)
+                            {
+                                enabled = true;
+                            }
+                            break;
 
-                            case 7:
-                                // enabled, easyDMA mode
-                                if(easyDMA)
-                                {
-                                    enabled = true;
-                                }
-                                break;
+                        case 7:
+                            // enabled, easyDMA mode
+                            if(easyDMA)
+                            {
+                                enabled = true;
+                            }
+                            break;
 
-                            default:
-                                this.Log(LogLevel.Warning, "Unhandled enable value: 0x{0:X}", val);
-                                return;
+                        default:
+                            this.Log(LogLevel.Warning, "Unhandled enable value: 0x{0:X}", val);
+                            return;
                         }
 
                         UpdateInterrupts();
@@ -363,60 +385,39 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
         }
 
-        // RXD is double buffered
-        private const int ReceiveBufferSize = 2;
+        private bool enabled;
 
-        private void UpdateInterrupts()
-        {
-            var status = false;
-
-            if(easyDMA)
-            {
-                status |= startedPending.Value && startedEnabled.Value;
-                status |= endPending.Value && endEnabled.Value;
-                status |= endRxPending.Value && endRxEnabled.Value;
-                status |= endTxPending.Value && endTxEnabled.Value;
-            }
-            else
-            {
-                status |= readyEnabled.Value && readyPending.Value;
-            }
-            status &= enabled;
-
-            this.Log(LogLevel.Noisy, "Setting IRQ to {0}", status);
-            IRQ.Set(status);
-        }
-
-        private IFlagRegisterField startedPending;
-        private IFlagRegisterField startedEnabled;
-
-        private IFlagRegisterField readyPending;
-        private IFlagRegisterField readyEnabled;
-
-        private IFlagRegisterField endEnabled;
-        private IFlagRegisterField endPending;
-
-        private IFlagRegisterField endTxEnabled;
-        private IFlagRegisterField endTxPending;
-
-        private IFlagRegisterField endRxEnabled;
+        private IValueRegisterField orcByte;
+        private IValueRegisterField rxTransferredDataAmount;
+        private IValueRegisterField txTransferredDataAmount;
+        private IValueRegisterField rxMaxDataCount;
+        private IValueRegisterField txMaxDataCount;
+        private IValueRegisterField rxDataPointer;
         private IFlagRegisterField endRxPending;
 
         private IValueRegisterField txDataPointer;
-        private IValueRegisterField rxDataPointer;
-        private IValueRegisterField txMaxDataCount;
-        private IValueRegisterField rxMaxDataCount;
-        private IValueRegisterField txTransferredDataAmount;
-        private IValueRegisterField rxTransferredDataAmount;
+        private IFlagRegisterField endTxPending;
 
-        private IValueRegisterField orcByte;
+        private IFlagRegisterField endTxEnabled;
+        private IFlagRegisterField endPending;
 
-        private bool enabled;
+        private IFlagRegisterField endEnabled;
+        private IFlagRegisterField readyEnabled;
+
+        private IFlagRegisterField readyPending;
+        private IFlagRegisterField startedEnabled;
+
+        private IFlagRegisterField startedPending;
+
+        private IFlagRegisterField endRxEnabled;
+        private readonly IBusController sysbus;
 
         private readonly Queue<byte> receiveFifo;
         private readonly IMachine machine;
-        private readonly IBusController sysbus;
         private readonly bool easyDMA;
+
+        // RXD is double buffered
+        private const int ReceiveBufferSize = 2;
 
         private enum Registers
         {

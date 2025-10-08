@@ -5,14 +5,16 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
+#pragma warning disable IDE0005
 using Antmicro.Renode.Utilities;
+#pragma warning restore IDE0005
 
 namespace Antmicro.Renode.Peripherals.I2C
 {
@@ -64,31 +66,31 @@ namespace Antmicro.Renode.Peripherals.I2C
 
             switch(state)
             {
-                case States.Ready:
-                    // We are being called as a result of START condition
-                    while(state == States.Ready || state == States.WaitForAddress)
+            case States.Ready:
+                // We are being called as a result of START condition
+                while(state == States.Ready || state == States.WaitForAddress)
+                {
+                    if(txQueue.TryDequeue(out var data))
                     {
-                        if(txQueue.TryDequeue(out var data))
-                        {
-                            HandleWriteByte(data);
-                        }
-                        else
-                        {
-                            break;
-                        }
+                        HandleWriteByte(data);
                     }
-                    break;
+                    else
+                    {
+                        break;
+                    }
+                }
+                break;
 
-                case States.Writing:
-                    // We are being called as a result of RESTART/STOP condition
-                    CurrentSlave.Write(txQueue.ToArray());
-                    txQueue.Clear();
-                    interruptDonePending.Value = true;
-                    break;
+            case States.Writing:
+                // We are being called as a result of RESTART/STOP condition
+                CurrentSlave.Write(txQueue.ToArray());
+                txQueue.Clear();
+                interruptDonePending.Value = true;
+                break;
 
-                default:
-                    // We don't have any writes to do; ignore
-                    break;
+            default:
+                // We don't have any writes to do; ignore
+                break;
             }
 
             UpdateInterrupts();
@@ -104,58 +106,58 @@ namespace Antmicro.Renode.Peripherals.I2C
 
             switch(state)
             {
-                case States.Idle:
-                case States.Writing:
-                    txQueue.Enqueue(data);
-                    break;
+            case States.Idle:
+            case States.Writing:
+                txQueue.Enqueue(data);
+                break;
 
-                case States.Ready:
-                    if(slaveExtendedAddress.Value)
-                    {
-                        destinationAddress = (uint)data & 0x3;
-                        state = States.WaitForAddress;
-                    }
-                    else
-                    {
-                        state = ((data & 0x1) != 0) ? States.Reading : States.Writing;
-                        destinationAddress = (uint)(data >> 1) & 0x7F;
-                        interruptAddressAckPending.Value = true;
-
-                        if(CurrentSlave == null)
-                        {
-                            this.Log(LogLevel.Warning, "Trying to access a peripheral at an address 0x{0:X02}, but no such peripheral is connected", destinationAddress);
-                            interruptTimeoutPending.Value = true;
-                            state = States.Idle;
-                            txQueue.Clear();
-                        }
-                    }
-
-                    TryReadingToBuffer();
-                    break;
-
-                case States.WaitForAddress:
-                    state = ((destinationAddress & 0x1) != 0) ? States.Reading : States.Writing;
-                    destinationAddress = (destinationAddress & 0x6) << 7;
-                    destinationAddress |= data;
+            case States.Ready:
+                if(slaveExtendedAddress.Value)
+                {
+                    destinationAddress = (uint)data & 0x3;
+                    state = States.WaitForAddress;
+                }
+                else
+                {
+                    state = ((data & 0x1) != 0) ? States.Reading : States.Writing;
+                    destinationAddress = (uint)(data >> 1) & 0x7F;
                     interruptAddressAckPending.Value = true;
 
                     if(CurrentSlave == null)
                     {
-                        this.Log(LogLevel.Warning, "Trying to access a peripheral at an address 0x{0:X03}, but no such peripheral is connected", destinationAddress);
+                        this.Log(LogLevel.Warning, "Trying to access a peripheral at an address 0x{0:X02}, but no such peripheral is connected", destinationAddress);
                         interruptTimeoutPending.Value = true;
                         state = States.Idle;
                         txQueue.Clear();
                     }
+                }
 
-                    TryReadingToBuffer();
-                    break;
+                TryReadingToBuffer();
+                break;
 
-                case States.ReadingFromBuffer:
-                    this.Log(LogLevel.Warning, "Writing data to FIFO while in reading state, ignoring incoming data.");
-                    break;
+            case States.WaitForAddress:
+                state = ((destinationAddress & 0x1) != 0) ? States.Reading : States.Writing;
+                destinationAddress = (destinationAddress & 0x6) << 7;
+                destinationAddress |= data;
+                interruptAddressAckPending.Value = true;
 
-                default:
-                    throw new Exception($"Unhandled state in HandleWriteByte: {state}");
+                if(CurrentSlave == null)
+                {
+                    this.Log(LogLevel.Warning, "Trying to access a peripheral at an address 0x{0:X03}, but no such peripheral is connected", destinationAddress);
+                    interruptTimeoutPending.Value = true;
+                    state = States.Idle;
+                    txQueue.Clear();
+                }
+
+                TryReadingToBuffer();
+                break;
+
+            case States.ReadingFromBuffer:
+                this.Log(LogLevel.Warning, "Writing data to FIFO while in reading state, ignoring incoming data.");
+                break;
+
+            default:
+                throw new Exception($"Unhandled state in HandleWriteByte: {state}");
             }
 
             UpdateInterrupts();

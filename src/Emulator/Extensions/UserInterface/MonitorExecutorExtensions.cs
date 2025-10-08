@@ -5,14 +5,15 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.IO;
 using System.Collections.Generic;
+using System.IO;
+
 using Antmicro.Renode.Core;
-using Microsoft.Scripting.Hosting;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Time;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
+
+using Microsoft.Scripting.Hosting;
 
 namespace Antmicro.Renode.UserInterface
 {
@@ -86,7 +87,7 @@ namespace Antmicro.Renode.UserInterface
 
             public Action Action { get; private set; }
 
-            private CompiledCode code;
+            private readonly CompiledCode code;
         }
 
         private sealed class PeriodicEventsRegister

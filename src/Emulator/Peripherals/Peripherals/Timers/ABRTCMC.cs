@@ -7,10 +7,10 @@
 //
 
 using System;
+
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.I2C;
-using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Timers
@@ -102,28 +102,6 @@ namespace Antmicro.Renode.Peripherals.Timers
             Reset();
         }
 
-        public void Reset()
-        {
-            RegistersCollection.Reset();
-
-            address = 0;
-            addressAutoIncrement = true;
-            isFirstByte = true;
-            isSecondByte = false;
-        }
-
-        private uint IntToBcd(int input)
-        {
-            int bcd = 0;
-            for(int digit = 0; digit < 3; ++digit)
-            {
-                int nibble = input % 10;
-                bcd |= nibble << (digit * 4);
-                input /= 10;
-            }
-            return (uint)bcd;
-        }
-
         public void FinishTransmission()
         {
             // this.Log(LogLevel.Debug, "In slave FinishTransmission()");
@@ -170,7 +148,29 @@ namespace Antmicro.Renode.Peripherals.Timers
             return new byte[] { result };
         }
 
+        public void Reset()
+        {
+            RegistersCollection.Reset();
+
+            address = 0;
+            addressAutoIncrement = true;
+            isFirstByte = true;
+            isSecondByte = false;
+        }
+
         public ByteRegisterCollection RegistersCollection { get; }
+
+        private uint IntToBcd(int input)
+        {
+            int bcd = 0;
+            for(int digit = 0; digit < 3; ++digit)
+            {
+                int nibble = input % 10;
+                bcd |= nibble << (digit * 4);
+                input /= 10;
+            }
+            return (uint)bcd;
+        }
 
         private void TryIncrementAddress()
         {

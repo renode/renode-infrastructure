@@ -4,13 +4,15 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Core;
 using System.Collections.Generic;
+
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
+#pragma warning disable IDE0005
 using Antmicro.Renode.Utilities;
-using System;
+#pragma warning restore IDE0005
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -27,7 +29,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithReservedBits(6, 10)
                 .WithTag("Baud Rate", 16, 16)
             );
-            
+
             registersMap.Add((long)Registers.InterruptEnable, new DoubleWordRegister(this)
                 .WithFlag(0, out serieIrqRxEnable, name: "SERIE_IRQ_RX_ENABLE")
                 .WithFlag(1, out serieIrqTxEnable, name: "SERIE_IRQ_TX_ENABLE")
@@ -35,10 +37,10 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithReservedBits(3, 29)
                 .WithWriteCallback((_, __) => UpdateInterrupts())
             );
-            
+
             registersMap.Add((long)Registers.PendingFlag, new DoubleWordRegister(this)
-                .WithFlag(0, out serpfRxCntFull, 
-                    FieldMode.Read | FieldMode.WriteOneToClear, 
+                .WithFlag(0, out serpfRxCntFull,
+                    FieldMode.Read | FieldMode.WriteOneToClear,
                     name: "SERPF_RX_CNT_FULL")
                 // In Renode, the TX happens instantly
                 .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => true, name: "SEPRF_TX_EMPTY")
@@ -46,13 +48,13 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithReservedBits(4, 28)
                 .WithWriteCallback((_, __) => UpdateInterrupts())
             );
-            
+
             registersMap.Add((long)Registers.Status, new DoubleWordRegister(this)
                 .WithTaggedFlag("TX_FULL", 0)
                 .WithTaggedFlag("TX_OVERRUN", 1)
                 .WithTaggedFlag("TX_BUSY", 2)
                 .WithReservedBits(3, 1)
-                .WithFlag(4, FieldMode.Read, name: "RX_EMPTY", 
+                .WithFlag(4, FieldMode.Read, name: "RX_EMPTY",
                     valueProviderCallback: _ => receiveQueue.Count == 0)
                 .WithTaggedFlag("RX_OVERRUN", 5)
                 .WithTaggedFlag("RX_BUSY", 6)
@@ -61,23 +63,23 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTaggedFlag("FRAME_ERROR", 9)
                 .WithReservedBits(10, 22)
             );
-            
+
             registersMap.Add((long)Registers.RxDataBuffer, new DoubleWordRegister(this)
-                .WithValueField(0, 8, 
-                    FieldMode.Read, 
-                    name: "SERTBUF", 
+                .WithValueField(0, 8,
+                    FieldMode.Read,
+                    name: "SERTBUF",
                     valueProviderCallback: _ => HandleReceiveData())
                 .WithReservedBits(8, 24)
             );
 
             registersMap.Add((long)Registers.TxDataBuffer, new DoubleWordRegister(this)
-                .WithValueField(0, 8, 
-                    FieldMode.Write, 
-                    name: "SERRBUF", 
+                .WithValueField(0, 8,
+                    FieldMode.Write,
+                    name: "SERRBUF",
                     writeCallback: (_, v) => HandleTransmitData((uint)v))
                 .WithReservedBits(8, 24)
             );
-            
+
             registersMap.Add((long)Registers.Control, new DoubleWordRegister(this)
                 .WithTag("SERCTRL", 0, 3)
                 .WithReservedBits(3, 29)
@@ -99,9 +101,9 @@ namespace Antmicro.Renode.Peripherals.UART
             UpdateInterrupts();
         }
 
-        public void UpdateInterrupts() 
+        public void UpdateInterrupts()
         {
-            bool irqPending = (serieIrqRxEnable.Value && serpfRxCntFull.Value) 
+            bool irqPending = (serieIrqRxEnable.Value && serpfRxCntFull.Value)
                             || (serieIrqTxEnable.Value);
             this.Log(LogLevel.Noisy, "Setting IRQ: {0}", irqPending);
             IRQ.Set(irqPending);

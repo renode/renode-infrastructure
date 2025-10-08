@@ -5,8 +5,8 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -62,11 +62,9 @@ namespace Antmicro.Renode.Peripherals.SPI
                         }
                     })
                 },
-
                 {(long)Registers.Miso, new DoubleWordRegister(this)
                     .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => bbHelper.EncodedInput)
                 },
-
                 {(long)Registers.BitBangEnable, new DoubleWordRegister(this)
                     .WithFlag(0, out bitBangEnabled)
                 }

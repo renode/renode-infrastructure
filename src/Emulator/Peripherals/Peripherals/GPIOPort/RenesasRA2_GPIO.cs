@@ -6,6 +6,7 @@
 //
 
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort

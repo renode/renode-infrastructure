@@ -6,13 +6,11 @@
 //
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.CPU;
-using Antmicro.Renode.Peripherals.IRQControllers;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
 
@@ -33,20 +31,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                 foreach(var cpu in irqController.AttachedCPUs)
                 {
                     AddCPU(cpu);
-                }
-            }
-        }
-
-        public long Size => 0x100;
-
-        public IReadOnlyDictionary<int, IGPIO> Connections
-        {
-            get
-            {
-                lock(locker)
-                {
-                    connectionsLocked = true;
-                    return connections;
                 }
             }
         }
@@ -97,6 +81,20 @@ namespace Antmicro.Renode.Peripherals.Timers
                 providedCpu = cpu;
                 base.WriteDoubleWord(offset, value);
                 providedCpu = null;
+            }
+        }
+
+        public long Size => 0x100;
+
+        public IReadOnlyDictionary<int, IGPIO> Connections
+        {
+            get
+            {
+                lock(locker)
+                {
+                    connectionsLocked = true;
+                    return connections;
+                }
             }
         }
 
@@ -216,6 +214,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
                 return globalTimer.Value;
             }
+
             set
             {
                 if(globalTimer.Value == value)

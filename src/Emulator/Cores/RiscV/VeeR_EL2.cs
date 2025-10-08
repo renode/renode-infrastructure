@@ -107,6 +107,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
 
             public InternalTimer Timer0 { get; }
+
             public InternalTimer Timer1 { get; }
 
             public class InternalTimer : LimitTimer

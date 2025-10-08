@@ -6,6 +6,7 @@
 //
 
 using System;
+
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.CPU
@@ -13,9 +14,11 @@ namespace Antmicro.Renode.Peripherals.CPU
     public interface IArmWithSystemRegisters : ICPU
     {
         bool TryGetSystemRegisterValue(ArmSystemRegisterEncoding encoding, out ulong value);
+
         bool TrySetSystemRegisterValue(ArmSystemRegisterEncoding encoding, ulong value);
 
         ExecutionState ExecutionState { get; }
+
         ExecutionState[] SupportedExecutionStates { get; }
     }
 
@@ -37,36 +40,36 @@ namespace Antmicro.Renode.Peripherals.CPU
             var hasOp2 = op2.HasValue;
             switch(coprocessor)
             {
-                case CoprocessorEnum.AArch64:
-                    if(width != 64)
-                    {
-                        throw new ArgumentException($"AArch64 can only be accessed with 64-bit widths. Given width is {width}");
-                    }
+            case CoprocessorEnum.AArch64:
+                if(width != 64)
+                {
+                    throw new ArgumentException($"AArch64 can only be accessed with 64-bit widths. Given width is {width}");
+                }
 
-                    if(!hasOp0 || !hasCrn || !hasOp2)
-                    {
-                        throw new ArgumentException("AArch64 must have op0, crn and op2");
-                    }
-                    break;
-                case CoprocessorEnum.CP14:
-                case CoprocessorEnum.CP15:
-                    // It isn't `!hasOp0` to make construction easier in code common for all coprocessors.
-                    if((op0 ?? 0) != 0)
-                    {
-                        throw new ArgumentException($"Coprocessor ${coprocessor} requires op0 to be 0 but is ${op0}");
-                    }
+                if(!hasOp0 || !hasCrn || !hasOp2)
+                {
+                    throw new ArgumentException("AArch64 must have op0, crn and op2");
+                }
+                break;
+            case CoprocessorEnum.CP14:
+            case CoprocessorEnum.CP15:
+                // It isn't `!hasOp0` to make construction easier in code common for all coprocessors.
+                if((op0 ?? 0) != 0)
+                {
+                    throw new ArgumentException($"Coprocessor ${coprocessor} requires op0 to be 0 but is ${op0}");
+                }
 
-                    // 32-bit AArch32 system register instructions require crn and op2 fields
-                    // which are missing in 64-bit AArch32 system register encodings.
-                    var isValidAarch32SystemRegister = width == 32 && hasCrn && hasOp2;
-                    var isValidAarch64SystemRegister = width == 64 && (crn ?? 0) == 0 && (op2 ?? 0) == 0;
-                    if(!isValidAarch32SystemRegister && !isValidAarch64SystemRegister)
-                    {
-                        throw new ArgumentException("Encoding must either be valid AArch32 or AArch64 system register");
-                    }
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException($"{coprocessor} is not supported.");
+                // 32-bit AArch32 system register instructions require crn and op2 fields
+                // which are missing in 64-bit AArch32 system register encodings.
+                var isValidAarch32SystemRegister = width == 32 && hasCrn && hasOp2;
+                var isValidAarch64SystemRegister = width == 64 && (crn ?? 0) == 0 && (op2 ?? 0) == 0;
+                if(!isValidAarch32SystemRegister && !isValidAarch64SystemRegister)
+                {
+                    throw new ArgumentException("Encoding must either be valid AArch32 or AArch64 system register");
+                }
+                break;
+            default:
+                throw new ArgumentOutOfRangeException($"{coprocessor} is not supported.");
             }
 
             Coprocessor = coprocessor;
@@ -120,11 +123,17 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         public CoprocessorEnum Coprocessor { get; }
+
         public uint Width { get; }
+
         public byte Crm { get; }
+
         public byte? Crn { get; }
+
         public byte? Op0 { get; }
+
         public byte Op1 { get; }
+
         public byte? Op2 { get; }
 
         public enum CoprocessorEnum
@@ -138,4 +147,3 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
     }
 }
-

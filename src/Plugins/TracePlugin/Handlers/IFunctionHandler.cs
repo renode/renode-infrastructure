@@ -5,8 +5,8 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Debug;
 using Antmicro.Renode.Peripherals.CPU;
 
@@ -18,9 +18,9 @@ namespace Antmicro.Renode.Plugins.TracePlugin.Handlers
 
         void ReturnHandler(TranslationCPU cpu, ulong pc, string functionName, IEnumerable<object> argument);
 
-        IEnumerable<FunctionCallParameter> CallParameters{ get; }
+        IEnumerable<FunctionCallParameter> CallParameters { get; }
 
-        FunctionCallParameter? ReturnParameter{ get; }
+        FunctionCallParameter? ReturnParameter { get; }
     }
 
     public class BaseFunctionHandler
@@ -33,4 +33,3 @@ namespace Antmicro.Renode.Plugins.TracePlugin.Handlers
         protected readonly TranslationCPU CPU;
     }
 }
-

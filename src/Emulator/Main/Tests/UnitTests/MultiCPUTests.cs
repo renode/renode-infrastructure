@@ -5,13 +5,16 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System.Threading;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals.CPU;
-using Antmicro.Renode.Utilities;
-using NUnit.Framework;
-using Moq;
 using Antmicro.Renode.UnitTests.Mocks;
-using System.Threading;
+using Antmicro.Renode.Utilities;
+
+using Moq;
+
+using NUnit.Framework;
 
 namespace Antmicro.Renode.UnitTests
 {
@@ -59,4 +62,3 @@ namespace Antmicro.Renode.UnitTests
         }
     }
 }
-

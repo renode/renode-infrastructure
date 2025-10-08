@@ -23,8 +23,6 @@ namespace Antmicro.Renode.Peripherals.Timers
             Reset();
         }
 
-        public GPIO IRQ { get; private set; }
-
         public uint ReadDoubleWord(long offset)
         {
             lock(sync)
@@ -78,6 +76,14 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
+        public void Reset()
+        {
+            var clockEntry = new ClockEntry((1 << 29) - 1, 1000000, OnLimitReached, this, string.Empty, enabled: false) { Value = 0 };
+            clockSource.ExchangeClockEntryWith(OnLimitReached, x => clockEntry, () => clockEntry);
+        }
+
+        public GPIO IRQ { get; private set; }
+
         public long Size
         {
             get
@@ -92,11 +98,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             IRQ.Set();
         }
 
-        public void Reset()
-        {
-            var clockEntry = new ClockEntry((1 << 29) - 1, 1000000, OnLimitReached, this, string.Empty, enabled: false) { Value = 0 };
-            clockSource.ExchangeClockEntryWith(OnLimitReached, x => clockEntry, () => clockEntry);
-        }
+        private readonly object sync;
 
         private readonly IClockSource clockSource;
 
@@ -105,8 +107,5 @@ namespace Antmicro.Renode.Peripherals.Timers
             Ptv = 0x0,
             Pcr = 0x4
         }
-
-        private readonly object sync;
     }
 }
-

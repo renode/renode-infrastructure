@@ -7,10 +7,10 @@
 using System;
 
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Time;
-using Antmicro.Renode.Logging;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -152,28 +152,29 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             switch(interval)
             {
-                case Interval._32768:
-                    mainTimer.Limit = 32768;
-                    break;
+            case Interval._32768:
+                mainTimer.Limit = 32768;
+                break;
 
-                case Interval._8192:
-                    mainTimer.Limit = 8192;
-                    break;
+            case Interval._8192:
+                mainTimer.Limit = 8192;
+                break;
 
-                case Interval._512:
-                    mainTimer.Limit = 512;
-                    break;
+            case Interval._512:
+                mainTimer.Limit = 512;
+                break;
 
-                case Interval._64:
-                    mainTimer.Limit = 64;
-                    break;
+            case Interval._64:
+                mainTimer.Limit = 64;
+                break;
 
-                default:
-                    throw new Exception("unreachable");
+            default:
+                throw new Exception("unreachable");
             }
         }
 
         private ByteRegister InterruptEnableRegister { get; }
+
         private ByteRegister InterruptStatusRegister { get; }
 
         private IFlagRegisterField intervalMode;

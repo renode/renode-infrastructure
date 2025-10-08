@@ -37,7 +37,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private void DefineRegisters()
         {
             Registers.Reset.Define(this)
-                .WithFlag(0, FieldMode.WriteOneToClear, name: "reset", writeCallback: (_, val) => 
+                .WithFlag(0, FieldMode.WriteOneToClear, name: "reset", writeCallback: (_, val) =>
                 {
                     if(val)
                     {
@@ -56,7 +56,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             ;
 
             Registers.Read.Define(this)
-                .WithFlag(0, FieldMode.WriteOneToClear, name: "read", writeCallback: (_, val) => 
+                .WithFlag(0, FieldMode.WriteOneToClear, name: "read", writeCallback: (_, val) =>
                 {
                     if(val)
                     {
@@ -125,7 +125,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private IValueRegisterField dataReadField;
         private IValueRegisterField dataWriteField;
 
-        private uint[] mmcmRegisters;
+        private readonly uint[] mmcmRegisters;
 
         private const int RegistersCount = 0x50;    // 0x4F is the last register in MMCM
 

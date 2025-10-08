@@ -129,7 +129,7 @@ namespace Antmicro.Renode.Peripherals.Storage
         public ushort DataSegmentLength;
         [PacketField, Offset(doubleWords: 3, bits: 0), Width(32)]
         public uint ExpectedDataTransferLength;
-        [PacketField, Width(16)]
+        [PacketField, Width(bytes: 16)]
         public byte[] CommandDescriptorBlock;
     }
 
@@ -144,6 +144,7 @@ namespace Antmicro.Renode.Peripherals.Storage
         [PacketField, Offset(bytes: 0, bits: 6), Width(1)]
         public bool Read;
     }
+
     public struct DataInUPIU
     {
         [PacketField, Offset(doubleWords: 0, bits: 0), Width(6)]
@@ -272,7 +273,7 @@ namespace Antmicro.Renode.Peripherals.Storage
         public byte TotalEHSLength;
         [PacketField, Offset(doubleWords: 2, bits: 16), Width(16)]
         public ushort DataSegmentLength;
-        [PacketField, Width(16)]
+        [PacketField, Width(bytes: 16)]
         public byte[] TransactionSpecificFields;
     }
 
@@ -298,7 +299,7 @@ namespace Antmicro.Renode.Peripherals.Storage
         public byte DeviceInformation;
         [PacketField, Offset(doubleWords: 2, bits: 16), Width(16)]
         public ushort DataSegmentLength;
-        [PacketField, Width(16)]
+        [PacketField, Width(bytes: 16)]
         public byte[] TransactionSpecficFields;
     }
 

@@ -63,7 +63,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public long Size => 0x1000;
 
-        public IReadOnlyDictionary<int, IGPIO> Connections { get ;}
+        public IReadOnlyDictionary<int, IGPIO> Connections { get; }
 
         private void DefineRegisters()
         {
@@ -103,7 +103,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             for(var i = 0; i < numberOfEvents; i++)
             {
                 registersMap.Add((long)Register.EventsTriggered0 + i * 0x4, new DoubleWordRegister(this)
-                    .WithFlag(0, out eventsTriggered[i],  name: $"EVENTS_TRIGGERED[{i}]")
+                    .WithFlag(0, out eventsTriggered[i], name: $"EVENTS_TRIGGERED[{i}]")
                     .WithReservedBits(1, 31)
                     .WithChangeCallback((_, __) => UpdateInterrupts()));
             }

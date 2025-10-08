@@ -6,13 +6,13 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using AntShell;
 using System.IO;
-using Antmicro.Renode.UserInterface.Commands;
-using Antmicro.Renode.Utilities;
-using AntShell.Terminal;
 using System.Linq;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Utilities;
+
+using AntShell;
 
 namespace Antmicro.Renode.UserInterface
 {
@@ -20,7 +20,8 @@ namespace Antmicro.Renode.UserInterface
     {
         public static Shell GenerateShell(Monitor monitor, bool forceVCursor = false)
         {
-            var settings = new ShellSettings {
+            var settings = new ShellSettings
+            {
                 NormalPrompt = new Prompt("(monitor) ", ConsoleColor.DarkRed),
                 BannerProvider = () => Enumerable.Repeat(Environment.NewLine, NumberOfDummyLines).Aggregate(String.Empty, (x, y) => x + y) + EmulationManager.Instance.VersionString,
                 PreprocessSuggestionsInput = Monitor.SanitizePathSeparator,
@@ -47,4 +48,3 @@ namespace Antmicro.Renode.UserInterface
         public static int NumberOfDummyLines;
     }
 }
-

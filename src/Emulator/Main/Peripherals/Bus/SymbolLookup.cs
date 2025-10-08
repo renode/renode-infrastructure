@@ -6,17 +6,16 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
+using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Utilities.Collections;
+
 using ELFSharp.ELF;
 using ELFSharp.ELF.Sections;
-
-using Antmicro.Renode.Utilities.Collections;
-using System.Collections;
-using Antmicro.Renode.Utilities;
-
-using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Core
 {
@@ -181,7 +180,7 @@ namespace Antmicro.Renode.Core
         /// <summary>
         /// All SymbolLookup objects.
         /// </summary>
-        static private readonly HashSet<SymbolLookup> allSymbolSets = new HashSet<SymbolLookup>();
+        private static readonly HashSet<SymbolLookup> allSymbolSets = new HashSet<SymbolLookup>();
         // Those symbols have a special meaning
         // $a - marks ARM code segments
         // $d - marks data segments
@@ -189,8 +188,36 @@ namespace Antmicro.Renode.Core
         // $x - marks RISC-V code segments
         // Sources: https://simplemachines.it/doc/aaelf.pdf section 4.5.6, https://www.mail-archive.com/bug-binutils@gnu.org/msg38960.html
         // All of those symbols can be used by the disassembler when reading the binary and are not needed during the execution
-        static private readonly string[] excludedSymbolNames = { "$a", "$d", "$t", "$x" };
-        static private readonly SymbolType[] excludedSymbolTypes = { SymbolType.File };
+        private static readonly string[] excludedSymbolNames = { "$a", "$d", "$t", "$x" };
+        private static readonly SymbolType[] excludedSymbolTypes = { SymbolType.File };
+
+        /// <summary>
+        /// Returs a unique reference for the equivalent of given <paramref name="symbol"/>. If there exists a duplicate, a reference
+        /// to the existing symbol is given, if not the argument is passed back.
+        /// </summary>
+        /// <description>
+        /// The algorithm for each known symbolSet works as follows:
+        /// 1. Check if the symbol is in the name set (this is O(1)), if it does it's our `candidate`.
+        ///  1.1. If not we are sure there is no matching symbol in the current set.
+        /// 2. Compare `candidate` to symbol. (It might be different, since symbols can have same names and different intervals.)
+        ///  2.1. If it is the same, return candidate.
+        ///  2.2. Otherwise, try to find the symbol via interval.
+        /// 3. If we didn't find a match in all sets return original reference.
+        /// </description>
+        /// <returns>The reference to the original symbol.</returns>
+        /// <param name="symbol">Symbol.</param>
+        private static Symbol GetUnique(Symbol symbol)
+        {
+            Symbol outSymbol;
+            foreach(var symbolSet in allSymbolSets)
+            {
+                if(symbolSet.TryGetSymbol(symbol, out outSymbol))
+                {
+                    return outSymbol;
+                }
+            }
+            return symbol;
+        }
 
         private void LoadELF<T>(ELF<T> elf, bool useVirtualAddress = false, ulong? textAddress = null) where T : struct
         {
@@ -224,7 +251,7 @@ namespace Antmicro.Renode.Core
             InsertSymbols(elfSymbols);
             InsertSymbols(elfFunctionSymbols, true);
             EntryPoint = elf.GetEntryPoint();
-            FirstNotNullSectionAddress  = elf.Sections
+            FirstNotNullSectionAddress = elf.Sections
                                     .Where(x => x.Type != SectionType.Null && x.Flags.HasFlag(SectionFlags.Allocatable))
                                     .Select(x => x.GetSectionPhysicalAddress())
                                     .Cast<ulong?>()
@@ -273,33 +300,13 @@ namespace Antmicro.Renode.Core
             }
         }
 
+        private SymbolAddress minLoadAddress = SymbolAddress.MaxValue;
+        private SymbolAddress maxLoadAddress;
+
         /// <summary>
-        /// Returs a unique reference for the equivalent of given <paramref name="symbol"/>. If there exists a duplicate, a reference
-        /// to the existing symbol is given, if not the argument is passed back.
+        /// Name to symbol mapping.
         /// </summary>
-        /// <description>
-        /// The algorithm for each known symbolSet works as follows:
-        /// 1. Check if the symbol is in the name set (this is O(1)), if it does it's our `candidate`.
-        ///  1.1. If not we are sure there is no matching symbol in the current set.
-        /// 2. Compare `candidate` to symbol. (It might be different, since symbols can have same names and different intervals.)
-        ///  2.1. If it is the same, return candidate.
-        ///  2.2. Otherwise, try to find the symbol via interval.
-        /// 3. If we didn't find a match in all sets return original reference.
-        /// </description>
-        /// <returns>The reference to the original symbol.</returns>
-        /// <param name="symbol">Symbol.</param>
-        static private Symbol GetUnique(Symbol symbol)
-        {
-            Symbol outSymbol;
-            foreach(var symbolSet in allSymbolSets)
-            {
-                if(symbolSet.TryGetSymbol(symbol, out outSymbol))
-                {
-                    return outSymbol;
-                }
-            }
-            return symbol;
-        }
+        private readonly MultiValueDictionary<string, Symbol> symbolsByName;
 
         /// <summary>
         /// Interval to symbol mapping.
@@ -310,14 +317,6 @@ namespace Antmicro.Renode.Core
         /// Interval to function symbol mapping.
         /// </summary>
         private readonly SortedIntervals functionSymbols;
-
-        /// <summary>
-        /// Name to symbol mapping.
-        /// </summary>
-        private MultiValueDictionary<string, Symbol> symbolsByName;
-
-        private SymbolAddress minLoadAddress = SymbolAddress.MaxValue;
-        private SymbolAddress maxLoadAddress;
 
         private class SortedIntervals : IEnumerable
         {
@@ -452,6 +451,154 @@ namespace Antmicro.Renode.Core
             public int Count { get; private set; }
 
             /// <summary>
+            /// Consumes whole cake from provider
+            /// </summary>
+            /// <param name="destination">Destination.</param>
+            /// <param name="source">Source.</param>
+            private static void CopyCake(ICollection<Symbol> destination, ISymbolProvider source)
+            {
+                Symbol cakeBase = source.Current;
+                destination.Add(source.Consume()); // copy base
+                // "move cake" - while current old symbol is contained in base copy it
+                while(!source.Empty && cakeBase.Contains(source.Current))
+                {
+                    destination.Add(source.Consume());
+                }
+            }
+
+            /// <summary>
+            /// Consumes all symbols from provider copying them to the destination.
+            /// </summary>
+            /// <param name="destination">Destination.</param>
+            /// <param name="source">Source.</param>
+            private static void CopyRest(ICollection<Symbol> destination, ISymbolProvider source)
+            {
+                while(!source.Empty)
+                {
+                    destination.Add(source.Consume());
+                }
+            }
+
+            /// <summary>
+            /// Rebuilds the helper table - `indexOfEnclosingInterval` from the intervals table in O(n). From fast back-of-the-envelope analysis the
+            /// the pessimistic run time is O(2n).
+            ///
+            /// The algorithms works by constructing a stack of enclosing intervals, and iterating over intervals.
+            /// 1. At the beginning the guard is created, meaning there is no enclosing interval. We also set it for the 1st element (it
+            /// obviously cannot be containted in anything else).
+            /// 2. We iterate over the remaining intervals.
+            ///   3. We check whether the current interval is enclosed in the previous one.
+            ///   4. If yes, it belong to the "tower", so we add it to the stack.
+            ///   5. If not, we descend the stack poping elements until we are enclosed by one or we hit the guard.
+            /// 6. The parent is top element from the stack.
+            /// </summary>
+            private void RebuildEnclosingIntervals()
+            {
+                indexOfEnclosingInterval = new int[Count];
+                if(Count < 1)
+                {
+                    return;
+                }
+                var parents = new Stack<int>();
+
+                // 1.
+                parents.Push(NoEnclosingInterval);
+                indexOfEnclosingInterval[0] = NoEnclosingInterval;
+
+                // 2.
+                for(int i = 1; i < Count; ++i)
+                {
+                    var interval = symbols[i];
+                    // 3.
+                    if(symbols[i - 1].Contains(interval))
+                    {
+                        // 4.
+                        parents.Push(i - 1);
+                    }
+                    else
+                    {
+                        // 5.
+                        while(parents.Peek() != NoEnclosingInterval && !symbols[parents.Peek()].Contains(interval))
+                        {
+                            parents.Pop();
+                        }
+                    }
+                    // 6.
+                    indexOfEnclosingInterval[i] = parents.Peek();
+                }
+            }
+
+            /// <summary>
+            /// Finds the next sibling. NOTE: Orphans do not have siblings.
+            /// </summary>
+            /// <returns>The next sibling or <see cref="NoRightSibling"/> special value.</returns>
+            /// <param name="index">Index.</param>
+            private int FindNextSibling(int index)
+            {
+                var parentIdx = indexOfEnclosingInterval[index];
+
+                if(parentIdx == NoEnclosingInterval)
+                {
+                    return NoRightSibling;
+                }
+
+                var parentEnd = symbols[parentIdx].End;
+                index++;
+                // as long as there are any elements and we're not past our parent's end
+                while(index < symbols.Length && symbols[index].End > parentEnd)
+                {
+                    // check if the element has the same parent
+                    if(indexOfEnclosingInterval[index] == parentIdx)
+                    {
+                        return index;
+                    }
+                    index++;
+                }
+                return NoRightSibling;
+            }
+
+            /// <summary>
+            /// Checks if the given <paramref name="interval"/> is enclosed by the one under <paramref name="index"/> or one of it's "parents".
+            /// </summary>
+            /// <returns>The enclosing interval index or NoEnclosingInterval.</returns>
+            /// <param name="index">Index of the input interval.</param>
+            /// <param name="interval">Interval.</param>
+            private int FindEnclosingInterval(int index, Symbol interval)
+            {
+                while(index != NoEnclosingInterval && !symbols[index].Contains(interval))
+                {
+                    index = indexOfEnclosingInterval[index];
+                }
+                return index;
+            }
+
+            /// <summary>
+            /// Checks if the given <paramref name="scalar"/> is enclosed by the one under <paramref name="index"/> or one of it's "parents".
+            /// </summary>
+            /// <returns>The enclosing interval index or NoEnclosingInterval.</returns>
+            /// <param name="index">Index of the input interval.</param>
+            /// <param name = "scalar"></param>
+            private int FindEnclosingInterval(int index, SymbolAddress scalar)
+            {
+                var original = index;
+                while(index != NoEnclosingInterval && !symbols[index].Contains(scalar))
+                {
+                    index = indexOfEnclosingInterval[index];
+                }
+                // A special case when we hit after a 0-length symbol thas does not have any parent.
+                // We do not need to check it in the loop, as such a symbol would never enclose other symbols.
+                // This gives an approximate result.
+                if(index == NoEnclosingInterval)
+                {
+                    if(symbols[original].Start <= scalar && symbols[original].End == symbols[original].Start && (symbols.Length == original + 1 || symbols[original + 1].Start > scalar))
+                    {
+                        index = original;
+                    }
+                }
+                return index;
+            }
+
+            /// <summary>
             /// Filters out the symbols that are just labels and are also covered by non-label symbols.
             /// </summary>
             /// <param name="symbols">Sorted collection of symbols.</param>
@@ -488,35 +635,6 @@ namespace Antmicro.Renode.Core
             }
 
             /// <summary>
-            /// Consumes whole cake from provider
-            /// </summary>
-            /// <param name="destination">Destination.</param>
-            /// <param name="source">Source.</param>
-            private static void CopyCake(ICollection<Symbol> destination, ISymbolProvider source)
-            {
-                Symbol cakeBase = source.Current;
-                destination.Add(source.Consume()); // copy base
-                // "move cake" - while current old symbol is contained in base copy it
-                while(!source.Empty && cakeBase.Contains(source.Current))
-                {
-                    destination.Add(source.Consume());
-                }
-            }
-
-            /// <summary>
-            /// Consumes all symbols from provider copying them to the destination.
-            /// </summary>
-            /// <param name="destination">Destination.</param>
-            /// <param name="source">Source.</param>
-            private static void CopyRest(ICollection<Symbol> destination, ISymbolProvider source)
-            {
-                while(!source.Empty)
-                {
-                    destination.Add(source.Consume());
-                }
-            }
-
-            /// <summary>
             /// This function filters out symbols with the same intervals perserving the most important ones.
             /// </summary>
             private IEnumerable<Symbol> SelectDistinctViaImportance(IEnumerable<Symbol> symbolSet)
@@ -548,7 +666,6 @@ namespace Antmicro.Renode.Core
                 }
                 return distinctSymbols;
             }
-
 
             /// <summary>
             /// Consumes a symbol from oldSymbols, and puts it into destination and/or tails of oldSymbols. Handles overlapping with newSymbols.
@@ -696,6 +813,21 @@ namespace Antmicro.Renode.Core
                 Symbol Consume();
             }
 
+            private Symbol[] symbols;
+
+            /// <summary>
+            /// Internal container holding mapping from interval index to its enclosing interval index,
+            /// if such exists, otherwise a special value <see cref="NoEnclosingInterval"/> is used.
+            /// It allows to get all the enclosing intervals in fast manner.
+            /// indexOfEnclosingInterval[i] says where the ith's "parent" is.
+            /// </summary>
+            private int[] indexOfEnclosingInterval;
+
+            private readonly SymbolLookup owner;
+            private readonly MarkerComparer<SymbolAddress> comparer = new MarkerComparer<SymbolAddress>();
+            private const int NoEnclosingInterval = -1;
+            private const int NoRightSibling = -1;
+
             private class OldSymbolProvider : ISymbolProvider
             {
                 public OldSymbolProvider(IComparer<Symbol> comparer, Symbol[] oldSymbols)
@@ -704,6 +836,19 @@ namespace Antmicro.Renode.Core
                     symbols = new SymbolProvider(oldSymbols);
                     tails = new Queue<Symbol>();
                     currentsSynced = false;
+                }
+
+                public void AddTail(Symbol tail)
+                {
+                    tails.Enqueue(tail);
+                    currentsSynced = false;
+                }
+
+                public Symbol Consume()
+                {
+                    Symbol ret = Current;
+                    DiscardCurrentSymbol();
+                    return ret;
                 }
 
                 public Symbol Current
@@ -736,26 +881,6 @@ namespace Antmicro.Renode.Core
                 public bool HasNextTail { get { return tails.Count != 0; } }
 
                 public Symbol NextTail { get { return tails.Peek(); } }
-
-                public void AddTail(Symbol tail)
-                {
-                    tails.Enqueue(tail);
-                    currentsSynced = false;
-                }
-
-                public Symbol Consume()
-                {
-                    Symbol ret = Current;
-                    DiscardCurrentSymbol();
-                    return ret;
-                }
-
-                public enum SymbolType
-                {
-                    NoSymbol,
-                    Original,
-                    Temporary
-                }
 
                 /// <summary>
                 /// Discards the current symbol. It consumes original symbol. Why the temporary symbols are not consumed here
@@ -857,17 +982,17 @@ namespace Antmicro.Renode.Core
                 private readonly IComparer<Symbol> intervalComparer;
                 private readonly Queue<Symbol> tails;
                 private readonly SymbolProvider symbols;
+
+                public enum SymbolType
+                {
+                    NoSymbol,
+                    Original,
+                    Temporary
+                }
             }
 
             private class SymbolProvider : ISymbolProvider
             {
-                public int Length { get { return array.Length - iterator; } }
-
-                public Symbol Current { get { return Peek(); } }
-
-                public bool Empty { get { return !HasSymbolsLeft(); } }
-
-
                 public SymbolProvider(Symbol[] symbols)
                 {
                     array = symbols;
@@ -877,6 +1002,12 @@ namespace Antmicro.Renode.Core
                 {
                     return array[iterator++];
                 }
+
+                public int Length { get { return array.Length - iterator; } }
+
+                public Symbol Current { get { return Peek(); } }
+
+                public bool Empty { get { return !HasSymbolsLeft(); } }
 
                 private bool HasSymbolsLeft()
                 {
@@ -893,148 +1024,14 @@ namespace Antmicro.Renode.Core
             }
 
             /// <summary>
-            /// Rebuilds the helper table - `indexOfEnclosingInterval` from the intervals table in O(n). From fast back-of-the-envelope analysis the
-            /// the pessimistic run time is O(2n).
-            ///
-            /// The algorithms works by constructing a stack of enclosing intervals, and iterating over intervals.
-            /// 1. At the beginning the guard is created, meaning there is no enclosing interval. We also set it for the 1st element (it
-            /// obviously cannot be containted in anything else).
-            /// 2. We iterate over the remaining intervals.
-            ///   3. We check whether the current interval is enclosed in the previous one.
-            ///   4. If yes, it belong to the "tower", so we add it to the stack.
-            ///   5. If not, we descend the stack poping elements until we are enclosed by one or we hit the guard.
-            /// 6. The parent is top element from the stack.
-            /// </summary>
-            private void RebuildEnclosingIntervals()
-            {
-                indexOfEnclosingInterval = new int[Count];
-                if(Count < 1)
-                {
-                    return;
-                }
-                var parents = new Stack<int>();
-
-                // 1.
-                parents.Push(NoEnclosingInterval);
-                indexOfEnclosingInterval[0] = NoEnclosingInterval;
-
-                // 2.
-                for(int i = 1; i < Count; ++i)
-                {
-                    var interval = symbols[i];
-                    // 3.
-                    if(symbols[i - 1].Contains(interval))
-                    {
-                        // 4.
-                        parents.Push(i - 1);
-                    }
-                    else
-                    {
-                        // 5.
-                        while(parents.Peek() != NoEnclosingInterval && !symbols[parents.Peek()].Contains(interval))
-                        {
-                            parents.Pop();
-                        }
-                    }
-                    // 6.
-                    indexOfEnclosingInterval[i] = parents.Peek();
-                }
-            }
-
-            /// <summary>
-            /// Finds the next sibling. NOTE: Orphans do not have siblings.
-            /// </summary>
-            /// <returns>The next sibling or <see cref="NoRightSibling"/> special value.</returns>
-            /// <param name="index">Index.</param>
-            private int FindNextSibling(int index)
-            {
-                var parentIdx = indexOfEnclosingInterval[index];
-
-                if(parentIdx == NoEnclosingInterval)
-                {
-                    return NoRightSibling;
-                }
-
-                var parentEnd = symbols[parentIdx].End;
-                index++;
-                // as long as there are any elements and we're not past our parent's end
-                while(index < symbols.Length && symbols[index].End > parentEnd)
-                {
-                    // check if the element has the same parent
-                    if(indexOfEnclosingInterval[index] == parentIdx)
-                    {
-                        return index;
-                    }
-                    index++;
-                }
-                return NoRightSibling;
-            }
-
-            /// <summary>
-            /// Checks if the given <paramref name="interval"/> is enclosed by the one under <paramref name="index"/> or one of it's "parents".
-            /// </summary>
-            /// <returns>The enclosing interval index or NoEnclosingInterval.</returns>
-            /// <param name="index">Index of the input interval.</param>
-            /// <param name="interval">Interval.</param>
-            private int FindEnclosingInterval(int index, Symbol interval)
-            {
-                while(index != NoEnclosingInterval && !symbols[index].Contains(interval))
-                {
-                    index = indexOfEnclosingInterval[index];
-                }
-                return index;
-            }
-
-            /// <summary>
-            /// Checks if the given <paramref name="scalar"/> is enclosed by the one under <paramref name="index"/> or one of it's "parents".
-            /// </summary>
-            /// <returns>The enclosing interval index or NoEnclosingInterval.</returns>
-            /// <param name="index">Index of the input interval.</param>
-            /// <param name = "scalar"></param>
-            private int FindEnclosingInterval(int index, SymbolAddress scalar)
-            {
-                var original = index;
-                while(index != NoEnclosingInterval && !symbols[index].Contains(scalar))
-                {
-                    index = indexOfEnclosingInterval[index];
-                }
-                // A special case when we hit after a 0-length symbol thas does not have any parent.
-                // We do not need to check it in the loop, as such a symbol would never enclose other symbols.
-                // This gives an approximate result.
-                if(index == NoEnclosingInterval)
-                {
-                    if(symbols[original].Start <= scalar && symbols[original].End == symbols[original].Start && (symbols.Length == original + 1 || symbols[original + 1].Start > scalar))
-                    {
-                        index = original;
-                    }
-                }
-                return index;
-            }
-
-            private SymbolLookup owner;
-            private const int NoEnclosingInterval = -1;
-            private const int NoRightSibling = -1;
-            private readonly MarkerComparer<SymbolAddress> comparer = new MarkerComparer<SymbolAddress>();
-
-            private Symbol[] symbols;
-
-            /// <summary>
-            /// Internal container holding mapping from interval index to its enclosing interval index,
-            /// if such exists, otherwise a special value <see cref="NoEnclosingInterval"/> is used.
-            /// It allows to get all the enclosing intervals in fast manner.
-            /// indexOfEnclosingInterval[i] says where the ith's "parent" is.
-            /// </summary>
-            private int[] indexOfEnclosingInterval;
-
-            /// <summary>
             /// This class is used with marker symbols, to find the innermost intervals which the marker (representing scalar) belongs to.
             /// It basically says if the symbol starts earlier or later than the marker.
             /// </summary>
             private class MarkerComparer<TScalar> : IntervalComparer<TScalar> where TScalar : struct, IComparable<TScalar>
             {
-                static TScalar MarkerValue = (TScalar)typeof(TScalar).GetField("MaxValue", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static).GetValue(null);
+                static readonly TScalar MarkerValue = (TScalar)typeof(TScalar).GetField("MaxValue", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static).GetValue(null);
 
-                static public TScalar GetMarkerValue()
+                public static TScalar GetMarkerValue()
                 {
                     return MarkerValue;
                 }

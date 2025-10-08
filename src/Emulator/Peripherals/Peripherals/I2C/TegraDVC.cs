@@ -5,7 +5,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 
@@ -17,16 +16,18 @@ namespace Antmicro.Renode.Peripherals.I2C
         {
         }
 
-        public override uint ReadDoubleWord (long offset)
+        public override uint ReadDoubleWord(long offset)
         {
-            if (offset < 0x40) {
-                switch ((Registers)offset) {
+            if(offset < 0x40)
+            {
+                switch((Registers)offset)
+                {
                 case Registers.Control1:
-                    return control [0];
+                    return control[0];
                 case Registers.Control2:
-                    return control [1];
+                    return control[1];
                 case Registers.Control3:
-                    return control [2];
+                    return control[2];
                 case Registers.Status:
                     return status;
                 default:
@@ -34,21 +35,23 @@ namespace Antmicro.Renode.Peripherals.I2C
                     return 0;
                 }
             }
-            return base.ReadDoubleWord ((offset >= 0x60) ? offset - 0x10 : offset - 0x40);
+            return base.ReadDoubleWord((offset >= 0x60) ? offset - 0x10 : offset - 0x40);
         }
 
-        public override void WriteDoubleWord (long offset, uint value)
+        public override void WriteDoubleWord(long offset, uint value)
         {
-            if (offset < 0x40) {
-                switch ((Registers)offset) {
+            if(offset < 0x40)
+            {
+                switch((Registers)offset)
+                {
                 case Registers.Control1:
-                    control [0] = value;
+                    control[0] = value;
                     break;
                 case Registers.Control2:
-                    control [1] = value;
+                    control[1] = value;
                     break;
                 case Registers.Control3:
-                    control [2] = value;
+                    control[2] = value;
                     break;
                 case Registers.Status:
                     status = value;
@@ -59,11 +62,12 @@ namespace Antmicro.Renode.Peripherals.I2C
                 }
                 return;
             }
-            base.WriteDoubleWord ((offset >= 0x60) ? offset - 0x10 : offset - 0x40 , value);
+            base.WriteDoubleWord((offset >= 0x60) ? offset - 0x10 : offset - 0x40, value);
         }
 
         private uint status;
-        private uint[] control = new uint[3];
+        private readonly uint[] control = new uint[3];
+
         private enum Registers
         {
             Control1 = 0x0,
@@ -73,4 +77,3 @@ namespace Antmicro.Renode.Peripherals.I2C
         }
     }
 }
-

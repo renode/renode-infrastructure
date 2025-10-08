@@ -4,10 +4,7 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using Antmicro.Renode.Peripherals.CPU;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Hooks
 {
@@ -36,6 +33,19 @@ namespace Antmicro.Renode.Hooks
             var engine = new RiscVInstructionPythonEngine(cpu, pattern, path: path);
             cpu.InstallCustomInstruction(pattern, engine.Hook);
         }
+
+        public static void AddPreStackAccessHook(this BaseRiscV cpu, string pythonScript)
+        {
+            var engine = new RiscVStackAccessPythonEngine(cpu, script: pythonScript);
+            cpu.EnablePreStackAccessHook(true);
+            cpu.PreStackAccess += engine.Hook;
+        }
+
+        public static void AddPreStackAccessHookFromFile(this BaseRiscV cpu, string path)
+        {
+            var engine = new RiscVStackAccessPythonEngine(cpu, path: path);
+            cpu.EnablePreStackAccessHook(true);
+            cpu.PreStackAccess += engine.Hook;
+        }
     }
 }
-

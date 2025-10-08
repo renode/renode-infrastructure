@@ -5,14 +5,15 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
@@ -97,6 +98,18 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             RegistersCollection.Write(offset, value);
         }
 
+        public bool IsPaused => false;
+
+        public ulong MasterFilteringStartRange { get; set; }
+
+        public ulong MasterFilteringEndRange { get; set; }
+
+        public ulong PeripheralsFilteringStartRange { get; set; }
+
+        public ulong PeripheralsFilteringEndRange { get; set; }
+
+        public long Size => 0x100;
+
         private void DefineRegisters()
         {
             Registers.Control.Define(this)
@@ -126,7 +139,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 /*  TODO: To check if a CPU is in SMP mode we should read SMP bit (6) from Auxiliary Control Register
                     For now let's mark all as participating in SMP, if the mask allows it
                 */
-                .WithValueField(4, 4, FieldMode.Read, 
+                .WithValueField(4, 4, FieldMode.Read,
                     valueProviderCallback: (_) =>
                     {
                         return BitHelper.CalculateMask(CountCPUs(), 0) & smpMask;
@@ -172,16 +185,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Registers.MasterFilteringEnd.Define(this)
                 .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => MasterFilteringEndRange & ~0xFFFFFUL);
         }
-
-        public bool IsPaused => false;
-
-        public ulong MasterFilteringStartRange { get; set; }
-        public ulong MasterFilteringEndRange { get; set; }
-
-        public ulong PeripheralsFilteringStartRange { get; set; }
-        public ulong PeripheralsFilteringEndRange { get; set; }
-
-        public long Size => 0x100;
 
         private void ApplyConfigurationSignals()
         {

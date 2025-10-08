@@ -1,4 +1,4 @@
-﻿﻿//
+﻿//
 // Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
@@ -7,11 +7,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
 {
@@ -28,12 +29,11 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithValueField(0, 32,
                         valueProviderCallback: _ =>
                         {
-                            var readOperations = pins.Select(x => (x.pinOperation & Operation.Read) != 0);
+                            var readOperations = pins.Select(x => (x.PinOperation & Operation.Read) != 0);
                             var result = readOperations.Zip(State, (operation, state) => operation && state);
                             return BitHelper.GetValueFromBitsArray(result);
                         })
                 },
-
                 {(long)Registers.PinInputEnable, new DoubleWordRegister(this)
                     .WithValueField(0, 32,
                         writeCallback: (_, val) =>
@@ -41,23 +41,21 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                             var bits = BitHelper.GetBits((uint)val);
                             for(var i = 0; i < bits.Length; i++)
                             {
-                                Misc.FlipFlag(ref pins[i].pinOperation, Operation.Read, bits[i]);
+                                Misc.FlipFlag(ref pins[i].PinOperation, Operation.Read, bits[i]);
                             }
                         })
                 },
-
                 {(long)Registers.PinOutputEnable, new DoubleWordRegister(this)
                     .WithValueField(0, 32,
-	                    writeCallback: (_, val) =>
+                        writeCallback: (_, val) =>
                         {
                             var bits = BitHelper.GetBits((uint)val);
                             for (var i = 0; i < bits.Length; i++)
                             {
-                                Misc.FlipFlag(ref pins[i].pinOperation, Operation.Write, bits[i]);
+                                Misc.FlipFlag(ref pins[i].PinOperation, Operation.Write, bits[i]);
                             }
                         })
                 },
-
                 {(long)Registers.OutputPortValue, new DoubleWordRegister(this)
                     .WithValueField(0, 32,
                         writeCallback: (_, val) =>
@@ -72,7 +70,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                             }
                         })
                 },
-
                 {(long)Registers.FallInterruptPending, new DoubleWordRegister(this)
                     .WithFlags(0, 32, out fallInterruptPending, FieldMode.Read | FieldMode.WriteOneToClear)
                     .WithWriteCallback((_, __) =>
@@ -80,7 +77,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                         UpdateInterrupts();
                     })
                 },
-
                 {(long)Registers.FallInterruptEnable, new DoubleWordRegister(this)
                     .WithFlags(0, 32, out fallInterruptEnable)
                     .WithWriteCallback((_, __) =>
@@ -88,7 +84,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                         UpdateInterrupts();
                     })
                 },
-
                 {(long)Registers.RiseInterruptPending, new DoubleWordRegister(this)
                     .WithFlags(0, 32, out riseInterruptPending, FieldMode.Read | FieldMode.WriteOneToClear)
                     .WithWriteCallback((_, __) =>
@@ -96,7 +91,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                         UpdateInterrupts();
                     })
                 },
-
                 {(long)Registers.RiseInterruptEnable, new DoubleWordRegister(this)
                     .WithFlags(0, 32, out riseInterruptEnable)
                     .WithWriteCallback((_, __) =>
@@ -104,7 +98,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                         UpdateInterrupts();
                     })
                 },
-
                 {(long)Registers.HighInterruptPending, new DoubleWordRegister(this)
                     .WithFlags(0, 32, out highInterruptPending, FieldMode.Read | FieldMode.WriteOneToClear)
                     .WithWriteCallback((_, __) =>
@@ -112,7 +105,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                         UpdateInterrupts();
                     })
                 },
-
                 {(long)Registers.HighInterruptEnable, new DoubleWordRegister(this)
                     .WithFlags(0, 32, out highInterruptEnable)
                     .WithWriteCallback((_, __) =>
@@ -120,7 +112,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                         UpdateInterrupts();
                     })
                 },
-
                 {(long)Registers.LowInterruptPending, new DoubleWordRegister(this)
                     .WithFlags(0, 32, out lowInterruptPending, FieldMode.Read | FieldMode.WriteOneToClear)
                     .WithWriteCallback((_, __) =>
@@ -128,7 +119,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                         UpdateInterrupts();
                     })
                 },
-
                 {(long)Registers.LowInterruptEnable, new DoubleWordRegister(this)
                     .WithFlags(0, 32, out lowInterruptEnable)
                     .WithWriteCallback((_, __) =>
@@ -195,7 +185,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         {
             lock(locker)
             {
-                if((pins[i].pinOperation & Operation.Write) == 0)
+                if((pins[i].PinOperation & Operation.Write) == 0)
                 {
                     this.Log(LogLevel.Warning, "Trying to write a pin that isn't configured for writing. Skipping.");
                     return;
@@ -225,24 +215,24 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             }
         }
 
+        private readonly IFlagRegisterField[] fallInterruptEnable;
+        private readonly IFlagRegisterField[] fallInterruptPending;
+        private readonly IFlagRegisterField[] riseInterruptEnable;
+        private readonly IFlagRegisterField[] riseInterruptPending;
+        private readonly IFlagRegisterField[] highInterruptEnable;
+        private readonly IFlagRegisterField[] highInterruptPending;
+        private readonly IFlagRegisterField[] lowInterruptEnable;
+        private readonly IFlagRegisterField[] lowInterruptPending;
+
         private readonly DoubleWordRegisterCollection registers;
         private readonly object locker;
         private readonly Pin[] pins;
 
         private const int NumberOfPins = 32;
 
-        private IFlagRegisterField[] fallInterruptEnable;
-        private IFlagRegisterField[] fallInterruptPending;
-        private IFlagRegisterField[] riseInterruptEnable;
-        private IFlagRegisterField[] riseInterruptPending;
-        private IFlagRegisterField[] highInterruptEnable;
-        private IFlagRegisterField[] highInterruptPending;
-        private IFlagRegisterField[] lowInterruptEnable;
-        private IFlagRegisterField[] lowInterruptPending;
-
         private struct Pin
         {
-            public Operation pinOperation;
+            public Operation PinOperation;
         }
 
         [Flags]

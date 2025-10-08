@@ -4,9 +4,9 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -39,24 +39,19 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {
                 {(long)Registers.ConfigurationLow, configurationLowRegister},
-
                 {(long)Registers.ConfigurationHigh, configurationHighRegister},
-
                 {(long)Registers.InputData, new DoubleWordRegister(this)
                     // upper 16 bits are reserved
                     .WithValueField(0, 16, FieldMode.Read, name: "IDR", valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(State))
                 },
-
                 {(long)Registers.OutputData, new DoubleWordRegister(this)
                     // upper 16 bits are reserved
                     .WithValueField(0, 16, name: "ODR", writeCallback: (_, value) => SetConnectionsStateUsingBits((uint)value), valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(Connections.Values.Select(x=>x.IsSet)))
                 },
-
                 {(long)Registers.BitSetReset, new DoubleWordRegister(this)
                     .WithValueField(16, 16, FieldMode.Write, name: "BR", writeCallback: (_, value) => SetBitsFromMask((uint)value, false))
                     .WithValueField(0, 16, FieldMode.Write, name: "BS", writeCallback: (_, value) => SetBitsFromMask((uint)value, true))
                 },
-
                 {(long)Registers.BitReset, new DoubleWordRegister(this)
                     // upper 16 bits are reserved
                     .WithValueField(0, 16, FieldMode.Write, name: "BR", writeCallback: (_, value) => SetBitsFromMask((uint)value, false))
@@ -119,6 +114,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         private readonly DoubleWordRegisterCollection registers;
         private readonly PinMode[] pins;
 
+        private const int NumberOfPorts = 16;
+
         private enum Registers
         {
             ConfigurationLow = 0x00,
@@ -137,7 +134,5 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             Output2Mhz = 2,
             Output50Mhz = 3
         }
-
-        private const int NumberOfPorts = 16;
     }
 }

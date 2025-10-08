@@ -5,14 +5,14 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-﻿using System;
-using Antmicro.Renode.Peripherals.IRQControllers;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.Bus.Wrappers;
-using Antmicro.Renode.Logging;
+using System;
+using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Extensions;
-using System.Collections.Generic;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Bus.Wrappers;
 
 namespace Antmicro.Renode.Peripherals.IRQControllers
 {
@@ -25,6 +25,22 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             priorities = new byte[NumberOfInterrupts];
             pendingInterrupts = new bool[NumberOfInterrupts];
             acknowledgedInterrupts = new Stack<int>();
+        }
+
+        public void OnGPIO(int number, bool value)
+        {
+            lock(sync)
+            {
+                pendingInterrupts[number] = value;
+                Update();
+            }
+        }
+
+        public void Reset()
+        {
+            acknowledgedInterrupts.Clear();
+            Array.Clear(pendingInterrupts, 0, pendingInterrupts.Length);
+            Array.Clear(priorities, 0, priorities.Length);
         }
 
         public byte ReadByte(long offset)
@@ -59,7 +75,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             case Register.InterruptAcknowledge:
                 return AcknowledgeInterrupts();
             case Register.CurrentPriority:
-                return (uint)(acknowledgedInterrupts.Count > 0 ? acknowledgedInterrupts.Peek() : 0);				
+                return (uint)(acknowledgedInterrupts.Count > 0 ? acknowledgedInterrupts.Peek() : 0);
             default:
                 if(offset >= (long)Register.InterruptPriority0 && offset <= (long)Register.InterruptPriorityLast)
                 {
@@ -107,22 +123,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         }
 
         public GPIO IRQ { get; private set; }
-
-        public void OnGPIO(int number, bool value)
-        {
-            lock(sync)
-            {
-                pendingInterrupts[number] = value;
-                Update();
-            }
-        }
-
-        public void Reset()
-        {
-            acknowledgedInterrupts.Clear();
-            Array.Clear(pendingInterrupts, 0, pendingInterrupts.Length);
-            Array.Clear(priorities, 0, priorities.Length);
-        }
 
         public long Size { get { return 0x4000; } }
 
@@ -224,4 +224,3 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         }
     }
 }
-

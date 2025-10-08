@@ -5,12 +5,13 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.SPI;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.RESD;
@@ -49,6 +50,14 @@ namespace Antmicro.Renode.Peripherals.Sensors
             ledRange = new IValueRegisterField[MeasurementRegisterCount];
 
             RegistersCollection = new ByteRegisterCollection(this, BuildRegisterMap());
+        }
+
+        public uint CalculateCurrentFrequency()
+        {
+            var clockBaseFrequency = clockSelect.Value
+                ? 32768u
+                : 32000u;
+            return (uint)(clockBaseFrequency / ((clockDividerHigh.Value << 8) + clockDividerLow.Value));
         }
 
         public void FeedSamplesFromRESD(ReadFilePath filePath, uint channelId = 0, ulong startTimestamp = 0,
@@ -163,14 +172,14 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             switch(state.Value)
             {
-                case States.Write:
-                    WriteByte((long)chosenRegister.Value, data);
-                    break;
-                case States.Read:
-                    output = ReadByte((long)chosenRegister.Value);
-                    break;
-                default:
-                    throw new Exception("unreachable code");
+            case States.Write:
+                WriteByte((long)chosenRegister.Value, data);
+                break;
+            case States.Read:
+                output = ReadByte((long)chosenRegister.Value);
+                break;
+            default:
+                throw new Exception("unreachable code");
             }
 
             return output;
@@ -179,6 +188,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         public ByteRegisterCollection RegistersCollection { get; }
 
         public GPIO Interrupt1 { get; }
+
         public GPIO Interrupt2 { get; }
 
         public int Measurement1ADCValue
@@ -313,7 +323,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             // GPIO ports.
 
             var interrupt1 = false;
-            interrupt1 = interrupt1FullEnabled.Value && statusFifoFull.Value;;
+            interrupt1 = interrupt1FullEnabled.Value && statusFifoFull.Value; ;
 
             var interrupt2 = false;
             interrupt2 = interrupt2FullEnabled.Value && statusFifoFull.Value;
@@ -400,20 +410,20 @@ namespace Antmicro.Renode.Peripherals.Sensors
             uint multiplier;
             switch(ledRange)
             {
-                case 0:
-                    multiplier = 125;
-                    break;
-                case 1:
-                    multiplier = 250;
-                    break;
-                case 2:
-                    multiplier = 375;
-                    break;
-                case 3:
-                    multiplier = 500;
-                    break;
-                default:
-                    throw new Exception("unreachable code");
+            case 0:
+                multiplier = 125;
+                break;
+            case 1:
+                multiplier = 250;
+                break;
+            case 2:
+                multiplier = 375;
+                break;
+            case 3:
+                multiplier = 500;
+                break;
+            default:
+                throw new Exception("unreachable code");
             }
             exposure = driveCurrent * multiplier;
             return exposure;
@@ -423,13 +433,13 @@ namespace Antmicro.Renode.Peripherals.Sensors
         {
             switch(polarity)
             {
-                case OutputPinPolarity.OpenDrainActiveLow:
-                case OutputPinPolarity.ActiveLow:
-                    return !value;
-                case OutputPinPolarity.ActiveHigh:
-                    return value;
-                default:
-                    return value;
+            case OutputPinPolarity.OpenDrainActiveLow:
+            case OutputPinPolarity.ActiveLow:
+                return !value;
+            case OutputPinPolarity.ActiveHigh:
+                return value;
+            default:
+                return value;
             }
         }
 
@@ -437,27 +447,27 @@ namespace Antmicro.Renode.Peripherals.Sensors
         {
             switch(ss)
             {
-                case SampleSource.PPGMeasurement1:
-                    return Measurement1ADCValue;
-                case SampleSource.PPGMeasurement2:
-                    return Measurement2ADCValue;
-                case SampleSource.PPGMeasurement3:
-                    return Measurement3ADCValue;
-                case SampleSource.PPGMeasurement4:
-                    return Measurement4ADCValue;
-                case SampleSource.PPGMeasurement5:
-                    return Measurement5ADCValue;
-                case SampleSource.PPGMeasurement6:
-                    return Measurement6ADCValue;
-                case SampleSource.PPGMeasurement7:
-                    return Measurement7ADCValue;
-                case SampleSource.PPGMeasurement8:
-                    return Measurement8ADCValue;
-                case SampleSource.PPGMeasurement9:
-                    return Measurement9ADCValue;
-                default:
-                    this.Log(LogLevel.Warning, "No default value specified for {0}, returning 0");
-                    return 0;
+            case SampleSource.PPGMeasurement1:
+                return Measurement1ADCValue;
+            case SampleSource.PPGMeasurement2:
+                return Measurement2ADCValue;
+            case SampleSource.PPGMeasurement3:
+                return Measurement3ADCValue;
+            case SampleSource.PPGMeasurement4:
+                return Measurement4ADCValue;
+            case SampleSource.PPGMeasurement5:
+                return Measurement5ADCValue;
+            case SampleSource.PPGMeasurement6:
+                return Measurement6ADCValue;
+            case SampleSource.PPGMeasurement7:
+                return Measurement7ADCValue;
+            case SampleSource.PPGMeasurement8:
+                return Measurement8ADCValue;
+            case SampleSource.PPGMeasurement9:
+                return Measurement9ADCValue;
+            default:
+                this.Log(LogLevel.Warning, "No default value specified for {0}, returning 0");
+                return 0;
             }
         }
 
@@ -663,101 +673,101 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 var j = i;
 
                 registerMap.Add((long)Registers.Measurement1Select + offset, new ByteRegister(this)
-                    .WithValueField(0, 2, name: $"MEAS{i+1}_SELECTS.meas{i+1}_drva",
+                    .WithValueField(0, 2, name: $"MEAS{i + 1}_SELECTS.meas{i + 1}_drva",
                         writeCallback: (_, value) =>
                         {
                             // Map register value to LED source index
                             switch(value)
                             {
-                                case 0:
-                                    measurementLEDASource[j] = 1;
-                                    break;
-                                case 1:
-                                    measurementLEDASource[j] = 2;
-                                    break;
-                                case 2:
-                                    measurementLEDASource[j] = 4;
-                                    break;
-                                case 3:
-                                    measurementLEDASource[j] = 7;
-                                    break;
-                                default:
-                                    throw new Exception("unreachable code");
+                            case 0:
+                                measurementLEDASource[j] = 1;
+                                break;
+                            case 1:
+                                measurementLEDASource[j] = 2;
+                                break;
+                            case 2:
+                                measurementLEDASource[j] = 4;
+                                break;
+                            case 3:
+                                measurementLEDASource[j] = 7;
+                                break;
+                            default:
+                                throw new Exception("unreachable code");
                             }
                         })
-                    .WithValueField(2, 2, name: $"MEAS{i+1}_SELECTS.meas{i+1}_drvb",
+                    .WithValueField(2, 2, name: $"MEAS{i + 1}_SELECTS.meas{i + 1}_drvb",
                         writeCallback: (_, value) =>
                         {
                             // Map register value to LED source index
                             switch(value)
                             {
-                                case 0:
-                                    measurementLEDBSource[j] = 2;
-                                    break;
-                                case 1:
-                                    measurementLEDBSource[j] = 3;
-                                    break;
-                                case 2:
-                                    measurementLEDBSource[j] = 5;
-                                    break;
-                                case 3:
-                                    measurementLEDBSource[j] = 8;
-                                    break;
-                                default:
-                                    throw new Exception("unreachable code");
+                            case 0:
+                                measurementLEDBSource[j] = 2;
+                                break;
+                            case 1:
+                                measurementLEDBSource[j] = 3;
+                                break;
+                            case 2:
+                                measurementLEDBSource[j] = 5;
+                                break;
+                            case 3:
+                                measurementLEDBSource[j] = 8;
+                                break;
+                            default:
+                                throw new Exception("unreachable code");
                             }
                         })
-                    .WithValueField(4, 2, name: $"MEAS{i+1}_SELECTS.meas{i+1}_drvc",
+                    .WithValueField(4, 2, name: $"MEAS{i + 1}_SELECTS.meas{i + 1}_drvc",
                         writeCallback: (_, value) =>
                         {
                             // Map register value to LED source index
                             switch(value)
                             {
-                                case 0:
-                                    measurementLEDCSource[j] = 1;
-                                    break;
-                                case 1:
-                                    measurementLEDCSource[j] = 3;
-                                    break;
-                                case 2:
-                                    measurementLEDCSource[j] = 6;
-                                    break;
-                                case 3:
-                                    measurementLEDCSource[j] = 9;
-                                    break;
-                                default:
-                                    throw new Exception("unreachable code");
+                            case 0:
+                                measurementLEDCSource[j] = 1;
+                                break;
+                            case 1:
+                                measurementLEDCSource[j] = 3;
+                                break;
+                            case 2:
+                                measurementLEDCSource[j] = 6;
+                                break;
+                            case 3:
+                                measurementLEDCSource[j] = 9;
+                                break;
+                            default:
+                                throw new Exception("unreachable code");
                             }
                         })
-                    .WithFlag(6, name: $"MEAS{i+1}_SELECTS.meas{i+1}_amb")
+                    .WithFlag(6, name: $"MEAS{i + 1}_SELECTS.meas{i + 1}_amb")
                     .WithReservedBits(7, 1)
                     .WithChangeCallback((_, __) => staleConfiguration = true));
-                registerMap.Add((long)Registers.Measurement1Configuration1 + offset, CreateDummyRegister($"MEAS{i+1}_CONF1.data"));
+                registerMap.Add((long)Registers.Measurement1Configuration1 + offset, CreateDummyRegister($"MEAS{i + 1}_CONF1.data"));
                 registerMap.Add((long)Registers.Measurement1Configuration2 + offset, new ByteRegister(this, 0x3A)
-                    .WithValueField(0, 2, name: $"MEAS{i+1}_CONF2.meas{i+1}_ppg1_adc_rge",
+                    .WithValueField(0, 2, name: $"MEAS{i + 1}_CONF2.meas{i + 1}_ppg1_adc_rge",
                         writeCallback: (_, value) => measurementPDARange[j] = (uint)(4 << (int)value))
-                    .WithValueField(2, 2, name: $"MEAS{i+1}_CONF2.meas{i+1}_ppg2_adc_rge",
+                    .WithValueField(2, 2, name: $"MEAS{i + 1}_CONF2.meas{i + 1}_ppg2_adc_rge",
                         writeCallback: (_, value) => measurementPDBRange[j] = (uint)(4 << (int)value))
-                    .WithValueField(4, 2, out ledRange[i], name: $"MEAS{i+1}_CONF2.meas{i+1}_led_rge")
-                    .WithFlag(6, name: $"MEAS{i+1}_CONF2.meas{i+1}_filt_sel")
-                    .WithFlag(7, name: $"MEAS{i+1}_CONF2.meas{i+1}_sinc3_sel")
+                    .WithValueField(4, 2, out ledRange[i], name: $"MEAS{i + 1}_CONF2.meas{i + 1}_led_rge")
+                    .WithFlag(6, name: $"MEAS{i + 1}_CONF2.meas{i + 1}_filt_sel")
+                    .WithFlag(7, name: $"MEAS{i + 1}_CONF2.meas{i + 1}_sinc3_sel")
                     .WithChangeCallback((_, __) => staleConfiguration = true));
                 registerMap.Add((long)Registers.Measurement1Configuration3 + offset, new ByteRegister(this, 0x50)
-                    .WithValueField(0, 2, name: $"MEAS{i+1}_CONF3.meas{i+1}_ppg1_dacoff",
+                    .WithValueField(0, 2, name: $"MEAS{i + 1}_CONF3.meas{i + 1}_ppg1_dacoff",
                         writeCallback: (_, value) => measurementPDAOffset[j] = (ushort)(8 * value))
-                    .WithValueField(2, 2, name: $"MEAS{i+1}_CONF3.meas{i+1}_ppg2_dacoff",
+                    .WithValueField(2, 2, name: $"MEAS{i + 1}_CONF3.meas{i + 1}_ppg2_dacoff",
                         writeCallback: (_, value) => measurementPDBOffset[j] = (ushort)(8 * value))
-                    .WithValueField(4, 2, name: $"MEAS{i+1}_CONF3.meas{i+1}_led_setlng")
-                    .WithValueField(6, 2, name: $"MEAS{i+1}_CONF3.meas{i+1}_pd_setlng")
+                    .WithValueField(4, 2, name: $"MEAS{i + 1}_CONF3.meas{i + 1}_led_setlng")
+                    .WithValueField(6, 2, name: $"MEAS{i + 1}_CONF3.meas{i + 1}_pd_setlng")
                     .WithChangeCallback((_, __) => staleConfiguration = true));
                 registerMap.Add((long)Registers.Measurement1DriverACurrent + offset, new ByteRegister(this)
-                    .WithValueField(0, 8, out measurementLEDACurrent[i], name: $"MEAS{i+1}_DRVA_CURRENT.data")
+                    .WithValueField(0, 8, out measurementLEDACurrent[i], name: $"MEAS{i + 1}_DRVA_CURRENT.data")
                     .WithChangeCallback((_, __) => staleConfiguration = true));
                 registerMap.Add((long)Registers.Measurement1DriverBCurrent + offset, new ByteRegister(this)
-                    .WithValueField(0, 8, out measurementLEDBCurrent[i], name: $"MEAS{i+1}_DRVB_CURRENT.data")
+                    .WithValueField(0, 8, out measurementLEDBCurrent[i], name: $"MEAS{i + 1}_DRVB_CURRENT.data")
                     .WithChangeCallback((_, __) => staleConfiguration = true));
                 registerMap.Add((long)Registers.Measurement1DriverCCurrent + offset, new ByteRegister(this)
-                    .WithValueField(0, 8, out measurementLEDCCurrent[i], name: $"MEAS{i+1}_DRVC_CURRENT.data")
+                    .WithValueField(0, 8, out measurementLEDCCurrent[i], name: $"MEAS{i + 1}_DRVC_CURRENT.data")
                     .WithChangeCallback((_, __) => staleConfiguration = true));
             }
 
@@ -812,7 +822,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             var ch9 = new AFESample(SampleSource.PPGMeasurement9, Measurement9ADCValue);
 
             // fifo requires two samples per channel
-            defaultMeasurements = new AFESampleFrame(new []
+            defaultMeasurements = new AFESampleFrame(new[]
             {
                 ch1, ch1,
                 ch2, ch2,
@@ -834,19 +844,57 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
-        public uint CalculateCurrentFrequency()
-        {
-            var clockBaseFrequency = clockSelect.Value
-                ? 32768u
-                : 32000u;
-            return (uint)(clockBaseFrequency / ((clockDividerHigh.Value << 8) + clockDividerLow.Value));
-        }
-
         private IEnumerable<Channel> ActiveChannels =>
             measurementEnabled.Select((active, idx) => active ? idx : -1).Where(x => x != -1).Select(x => (Channel)x);
 
         private bool FifoThresholdReached =>
             (MaximumFIFOCount - circularFifo.Count) <= fifoFullThreshold.Value;
+
+        private bool previousFifoTresholdReached;
+
+        private AFESampleFrame defaultMeasurements;
+
+        private uint resdFrequencyMultiplier;
+        private int measurement9ADCValue;
+        private int measurement8ADCValue;
+        private int measurement7ADCValue;
+        private int measurement5ADCValue;
+        private States? state;
+        private int measurement4ADCValue;
+        private int measurement3ADCValue;
+        private int measurement2ADCValue;
+        private IManagedThread feederThread;
+
+        private int measurement1ADCValue;
+
+        private bool feedingSamplesFromFile;
+        private RESDStream<MAX86171_AFESample> resdStream;
+        private Registers? chosenRegister;
+        private IEnumRegisterField<OutputPinPolarity> polarityInterrupt2;
+
+        private IEnumRegisterField<OutputPinPolarity> polarityInterrupt1;
+
+        private IValueRegisterField fifoFullThreshold;
+        private IFlagRegisterField clearFlagsOnRead;
+
+        private IFlagRegisterField fifoAssertThresholdOnce;
+        private IFlagRegisterField interrupt2FullEnabled;
+
+        private IFlagRegisterField interrupt1FullEnabled;
+        private bool staleConfiguration;
+        private int measurement6ADCValue;
+
+        private IFlagRegisterField statusFifoFull;
+
+        private IFlagRegisterField clockSelect;
+        private IValueRegisterField clockDividerHigh;
+        private IValueRegisterField clockDividerLow;
+
+        private readonly IValueRegisterField[] measurementLEDACurrent;
+        private readonly IValueRegisterField[] measurementLEDBCurrent;
+        private readonly IValueRegisterField[] measurementLEDCCurrent;
+
+        private readonly IValueRegisterField[] ledRange;
 
         private readonly IMachine machine;
         private readonly AFESampleFIFO circularFifo;
@@ -863,57 +911,83 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private readonly ushort[] measurementPDAOffset;
         private readonly ushort[] measurementPDBOffset;
 
-        private bool feedingSamplesFromFile;
-        private bool staleConfiguration;
-
-        private int measurement1ADCValue;
-        private int measurement2ADCValue;
-        private int measurement3ADCValue;
-        private int measurement4ADCValue;
-        private int measurement5ADCValue;
-        private int measurement6ADCValue;
-        private int measurement7ADCValue;
-        private int measurement8ADCValue;
-        private int measurement9ADCValue;
-
-        private uint resdFrequencyMultiplier;
-
-        private AFESampleFrame defaultMeasurements;
-        private IManagedThread feederThread;
-        private RESDStream<MAX86171_AFESample> resdStream;
-        private States? state;
-        private Registers? chosenRegister;
-        private bool previousFifoTresholdReached;
-
-        private IFlagRegisterField statusFifoFull;
-
-        private IFlagRegisterField clockSelect;
-        private IValueRegisterField clockDividerHigh;
-        private IValueRegisterField clockDividerLow;
-
-        private IValueRegisterField[] measurementLEDACurrent;
-        private IValueRegisterField[] measurementLEDBCurrent;
-        private IValueRegisterField[] measurementLEDCCurrent;
-
-        private IValueRegisterField[] ledRange;
-
-        private IFlagRegisterField interrupt1FullEnabled;
-        private IFlagRegisterField interrupt2FullEnabled;
-
-        private IFlagRegisterField fifoAssertThresholdOnce;
-        private IFlagRegisterField clearFlagsOnRead;
-
-        private IValueRegisterField fifoFullThreshold;
-
-        private IEnumRegisterField<OutputPinPolarity> polarityInterrupt1;
-        private IEnumRegisterField<OutputPinPolarity> polarityInterrupt2;
-
         private const int MeasurementRegisterCount = 9;
         private const int MaximumFIFOCount = 256;
+
+        private class AFESampleFrame
+        {
+            public AFESampleFrame(AFESample[] samples)
+            {
+                this.samples = samples;
+            }
+
+            public IEnumerable<AFESample[]> SamplePairs
+            {
+                get
+                {
+                    var i = 0;
+                    while(i < samples.Length)
+                    {
+                        if((i + 1) >= samples.Length || samples[i].Tag != samples[i + 1].Tag)
+                        {
+                            Logger.Log(LogLevel.Warning, "Missing second sample for {0}", samples[i].Tag);
+                            i += 1;
+                            continue;
+                        }
+
+                        if(i > 0 && samples[i - 1].Tag > samples[i].Tag)
+                        {
+                            Logger.Log(LogLevel.Warning, "Invalid order of samples: {0} is before {1}", samples[i - 1].Tag, samples[i].Tag);
+                        }
+
+                        yield return new AFESample[2] { samples[i], samples[i + 1] };
+                        i += 2;
+                    }
+                }
+            }
+
+            private readonly AFESample[] samples;
+        }
 
         [SampleType(SampleType.Custom)]
         private class MAX86171_AFESample : RESDSample
         {
+            public override bool TryReadFromStream(SafeBinaryReader reader)
+            {
+                if(!reader.TryReadByte(out var frameLength))
+                {
+                    return false;
+                }
+                var currentFrame = new int[frameLength];
+
+                for(var i = 0; i < frameLength; ++i)
+                {
+                    if(!reader.TryReadInt32(out currentFrame[i]))
+                    {
+                        return false;
+                    }
+                }
+
+                Frame = currentFrame;
+                return true;
+            }
+
+            public override bool Skip(SafeBinaryReader reader, int count)
+            {
+                for(; count > 0 && !reader.EOF; count--)
+                {
+                    var frameLength = reader.ReadByte();
+                    reader.SkipBytes(frameLength * 4);
+                }
+                return count == 0;
+            }
+
+            public override string ToString()
+            {
+                var sampleFrame = Frame.Select(sample => new AFESample(sample));
+                return String.Join(", ", sampleFrame.Select(frame => $"[{frame}]"));
+            }
+
             public override int? Width => null;
 
             public int[] Frame { get; private set; }
@@ -965,42 +1039,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
             public short?[] ConfigPD2DACOffset => Enumerable.Range(0, MaxChannels).Select(i =>
                 Metadata.TryGetValue($"meas{i}_pd_b_dac_offset", out var value) ? value.As<short?>() : null
             ).ToArray();
-
-            public override bool TryReadFromStream(SafeBinaryReader reader)
-            {
-                if(!reader.TryReadByte(out var frameLength))
-                {
-                    return false;
-                }
-                var currentFrame = new int[frameLength];
-
-                for(var i = 0; i < frameLength; ++i)
-                {
-                    if(!reader.TryReadInt32(out currentFrame[i]))
-                    {
-                        return false;
-                    }
-                }
-
-                Frame = currentFrame;
-                return true;
-            }
-
-            public override bool Skip(SafeBinaryReader reader, int count)
-            {
-                for(; count > 0 && !reader.EOF; count--)
-                {
-                    var frameLength = reader.ReadByte();
-                    reader.SkipBytes(frameLength * 4);
-                }
-                return count == 0;
-            }
-
-            public override string ToString()
-            {
-                var sampleFrame = Frame.Select(sample => new AFESample(sample));
-                return String.Join(", ", sampleFrame.Select(frame => $"[{frame}]"));
-            }
 
             private const int MaxChannels = 9;
         }
@@ -1098,36 +1136,38 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 Clear();
             }
 
+            public bool Enabled { get; set; }
+
+            public bool Rollover { get; set; }
+
+            public uint Count => (uint)samples.Count;
+
             private Channel? SampleSourceToChannel(SampleSource ss)
             {
                 switch(ss)
                 {
-                    case SampleSource.PPGMeasurement1:
-                        return Channel.Measurement1;
-                    case SampleSource.PPGMeasurement2:
-                        return Channel.Measurement2;
-                    case SampleSource.PPGMeasurement3:
-                        return Channel.Measurement3;
-                    case SampleSource.PPGMeasurement4:
-                        return Channel.Measurement4;
-                    case SampleSource.PPGMeasurement5:
-                        return Channel.Measurement5;
-                    case SampleSource.PPGMeasurement6:
-                        return Channel.Measurement6;
-                    case SampleSource.PPGMeasurement7:
-                        return Channel.Measurement7;
-                    case SampleSource.PPGMeasurement8:
-                        return Channel.Measurement8;
-                    case SampleSource.PPGMeasurement9:
-                        return Channel.Measurement9;
-                    default:
-                        return null;
+                case SampleSource.PPGMeasurement1:
+                    return Channel.Measurement1;
+                case SampleSource.PPGMeasurement2:
+                    return Channel.Measurement2;
+                case SampleSource.PPGMeasurement3:
+                    return Channel.Measurement3;
+                case SampleSource.PPGMeasurement4:
+                    return Channel.Measurement4;
+                case SampleSource.PPGMeasurement5:
+                    return Channel.Measurement5;
+                case SampleSource.PPGMeasurement6:
+                    return Channel.Measurement6;
+                case SampleSource.PPGMeasurement7:
+                    return Channel.Measurement7;
+                case SampleSource.PPGMeasurement8:
+                    return Channel.Measurement8;
+                case SampleSource.PPGMeasurement9:
+                    return Channel.Measurement9;
+                default:
+                    return null;
                 }
             }
-
-            public bool Enabled { get; set; }
-            public bool Rollover { get; set; }
-            public uint Count => (uint)samples.Count;
 
             private IEnumerator<byte> currentSampleEnumerator;
 
@@ -1148,11 +1188,17 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
 
             public int Value => ((innerPacket & 0x0FFFFF) << 12) >> 12;
+
             public SampleSource Tag => (SampleSource)((innerPacket & 0xF00000) >> 20);
+
             public byte Byte1 => (byte)((innerPacket & 0xFF0000) >> 16);
+
             public byte Byte2 => (byte)((innerPacket & 0x00FF00) >> 8);
+
             public byte Byte3 => (byte)(innerPacket & 0x0000FF);
+
             public byte[] Bytes => new byte[] { Byte1, Byte2, Byte3 };
+
             public IEnumerator<byte> Enumerator => Bytes.OfType<byte>().GetEnumerator();
 
             public override string ToString()
@@ -1161,41 +1207,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
 
             private readonly int innerPacket;
-        }
-
-        private class AFESampleFrame
-        {
-            public AFESampleFrame(AFESample[] samples)
-            {
-                this.samples = samples;
-            }
-
-            public IEnumerable<AFESample[]> SamplePairs
-            {
-                get
-                {
-                    var i = 0;
-                    while(i < samples.Length)
-                    {
-                        if((i + 1) >= samples.Length || samples[i].Tag != samples[i + 1].Tag)
-                        {
-                            Logger.Log(LogLevel.Warning, "Missing second sample for {0}", samples[i].Tag);
-                            i += 1;
-                            continue;
-                        }
-
-                        if(i > 0 && samples[i - 1].Tag > samples[i].Tag)
-                        {
-                            Logger.Log(LogLevel.Warning, "Invalid order of samples: {0} is before {1}", samples[i - 1].Tag, samples[i].Tag);
-                        }
-
-                        yield return new AFESample[2] { samples[i], samples[i + 1] };
-                        i += 2;
-                    }
-                }
-            }
-
-            private AFESample[] samples;
         }
 
         private enum SampleSource : byte

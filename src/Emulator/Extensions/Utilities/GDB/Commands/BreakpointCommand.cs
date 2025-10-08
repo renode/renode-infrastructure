@@ -5,11 +5,13 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Peripherals.CPU;
-using Antmicro.Renode.Peripherals.Bus;
-using SysbusAccessWidth = Antmicro.Renode.Peripherals.Bus.SysbusAccessWidth;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.CPU;
+
+using SysbusAccessWidth = Antmicro.Renode.Peripherals.Bus.SysbusAccessWidth;
 
 namespace Antmicro.Renode.Utilities.GDB.Commands
 {
@@ -22,9 +24,9 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
 
         [Execute("Z")]
         public PacketData InsertBreakpoint(
-            [Argument(Separator = ',')]BreakpointType type,
-            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]ulong address,
-            [Argument(Separator = ';', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint kind)
+            [Argument(Separator = ',')] BreakpointType type,
+            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)] ulong address,
+            [Argument(Separator = ';', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)] uint kind)
         {
             // The kind is the size of the breakpoint in bytes.
             // Currently, we only handle it for watchpoints, where it specifies the number of bytes to watch.
@@ -39,30 +41,30 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
 
             switch(type)
             {
-                case BreakpointType.MemoryBreakpoint:
-                    foreach(var cpu in manager.ManagedCpus)
-                    {
-                        cpu.AddHook(address, MemoryBreakpointHook);
-                    }
-                    break;
-                case BreakpointType.HardwareBreakpoint:
-                    foreach(var cpu in manager.ManagedCpus)
-                    {
-                        cpu.AddHook(address, HardwareBreakpointHook);
-                    }
-                    break;
-                case BreakpointType.AccessWatchpoint:
-                    AddWatchpointsCoveringMemoryArea(address, kind, Access.ReadAndWrite, AccessWatchpointHook);
-                    break;
-                case BreakpointType.ReadWatchpoint:
-                    AddWatchpointsCoveringMemoryArea(address, kind, Access.Read, ReadWatchpointHook);
-                    break;
-                case BreakpointType.WriteWatchpoint:
-                    AddWatchpointsCoveringMemoryArea(address, kind, Access.Write, WriteWatchpointHook);
-                    break;
-                default:
-                    Logger.LogAs(this, LogLevel.Warning, "Unsupported breakpoint type: {0}, not inserting.", type);
-                    return PacketData.ErrorReply();
+            case BreakpointType.MemoryBreakpoint:
+                foreach(var cpu in manager.ManagedCpus)
+                {
+                    cpu.AddHook(address, MemoryBreakpointHook);
+                }
+                break;
+            case BreakpointType.HardwareBreakpoint:
+                foreach(var cpu in manager.ManagedCpus)
+                {
+                    cpu.AddHook(address, HardwareBreakpointHook);
+                }
+                break;
+            case BreakpointType.AccessWatchpoint:
+                AddWatchpointsCoveringMemoryArea(address, kind, Access.ReadAndWrite, AccessWatchpointHook);
+                break;
+            case BreakpointType.ReadWatchpoint:
+                AddWatchpointsCoveringMemoryArea(address, kind, Access.Read, ReadWatchpointHook);
+                break;
+            case BreakpointType.WriteWatchpoint:
+                AddWatchpointsCoveringMemoryArea(address, kind, Access.Write, WriteWatchpointHook);
+                break;
+            default:
+                Logger.LogAs(this, LogLevel.Warning, "Unsupported breakpoint type: {0}, not inserting.", type);
+                return PacketData.ErrorReply();
             }
 
             return PacketData.Success;
@@ -70,39 +72,50 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
 
         [Execute("z")]
         public PacketData RemoveBreakpoint(
-            [Argument(Separator = ',')]BreakpointType type,
-            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]ulong address,
-            [Argument(Separator = ';', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint kind)
+            [Argument(Separator = ',')] BreakpointType type,
+            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)] ulong address,
+            [Argument(Separator = ';', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)] uint kind)
         {
             switch(type)
             {
-                case BreakpointType.MemoryBreakpoint:
-                    foreach(var cpu in manager.ManagedCpus)
-                    {
-                        cpu.RemoveHook(address, MemoryBreakpointHook);
-                    }
-                    break;
-                case BreakpointType.HardwareBreakpoint:
-                    foreach(var cpu in manager.ManagedCpus)
-                    {
-                        cpu.RemoveHook(address, HardwareBreakpointHook);
-                    }
-                    break;
-                case BreakpointType.AccessWatchpoint:
-                    RemoveWatchpointsCoveringMemoryArea(address, kind, Access.ReadAndWrite, AccessWatchpointHook);
-                    break;
-                case BreakpointType.ReadWatchpoint:
-                    RemoveWatchpointsCoveringMemoryArea(address, kind, Access.Read, ReadWatchpointHook);
-                    break;
-                case BreakpointType.WriteWatchpoint:
-                    RemoveWatchpointsCoveringMemoryArea(address, kind, Access.Write, WriteWatchpointHook);
-                    break;
-                default:
-                    Logger.LogAs(this, LogLevel.Warning, "Unsupported breakpoint type: {0}, not removing.", type);
-                    return PacketData.ErrorReply();
+            case BreakpointType.MemoryBreakpoint:
+                foreach(var cpu in manager.ManagedCpus)
+                {
+                    cpu.RemoveHook(address, MemoryBreakpointHook);
+                }
+                break;
+            case BreakpointType.HardwareBreakpoint:
+                foreach(var cpu in manager.ManagedCpus)
+                {
+                    cpu.RemoveHook(address, HardwareBreakpointHook);
+                }
+                break;
+            case BreakpointType.AccessWatchpoint:
+                RemoveWatchpointsCoveringMemoryArea(address, kind, Access.ReadAndWrite, AccessWatchpointHook);
+                break;
+            case BreakpointType.ReadWatchpoint:
+                RemoveWatchpointsCoveringMemoryArea(address, kind, Access.Read, ReadWatchpointHook);
+                break;
+            case BreakpointType.WriteWatchpoint:
+                RemoveWatchpointsCoveringMemoryArea(address, kind, Access.Write, WriteWatchpointHook);
+                break;
+            default:
+                Logger.LogAs(this, LogLevel.Warning, "Unsupported breakpoint type: {0}, not removing.", type);
+                return PacketData.ErrorReply();
             }
 
             return PacketData.Success;
+        }
+
+        private static IEnumerable<WatchpointDescriptor> CalculateAllCoveringAddressess(ulong address, uint kind, Access access, BusHookDelegate hook)
+        {
+            foreach(SysbusAccessWidth width in Enum.GetValues(typeof(SysbusAccessWidth)))
+            {
+                for(var offset = -(long)(address % (ulong)width); offset < kind; offset += (long)width)
+                {
+                    yield return new WatchpointDescriptor(address - (ulong)(-offset), width, access, hook);
+                }
+            }
         }
 
         private void HardwareBreakpointHook(ICpuSupportingGdb cpu, ulong address)
@@ -175,17 +188,6 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             }
         }
 
-        private static IEnumerable<WatchpointDescriptor> CalculateAllCoveringAddressess(ulong address, uint kind, Access access, BusHookDelegate hook)
-        {
-            foreach(SysbusAccessWidth width in Enum.GetValues(typeof(SysbusAccessWidth)))
-            {
-                for(var offset = -(long)(address % (ulong)width); offset < kind; offset += (long)width)
-                {
-                    yield return new WatchpointDescriptor(address - (ulong)(-offset), width, access, hook);
-                }
-            }
-        }
-
         private readonly Dictionary<WatchpointDescriptor, int> watchpoints;
 
         private class WatchpointDescriptor
@@ -227,4 +229,3 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
         }
     }
 }
-

@@ -6,8 +6,6 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System;
-
 namespace Antmicro.Renode.Peripherals
 {
     public interface IAbsoluteAddressAware
@@ -15,4 +13,3 @@ namespace Antmicro.Renode.Peripherals
         void SetAbsoluteAddress(ulong address);
     }
 }
-

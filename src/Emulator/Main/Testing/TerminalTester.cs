@@ -11,22 +11,21 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
+
+using Antmicro.Migrant;
 using Antmicro.Renode.Backends.Terminals;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.UART;
 using Antmicro.Renode.Time;
-using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
-using Antmicro.Migrant;
-using Antmicro.Migrant.Hooks;
 
 namespace Antmicro.Renode.Testing
 {
@@ -220,7 +219,7 @@ namespace Antmicro.Renode.Testing
 
                 if(result == null)
                 {
-                   return null;
+                    return null;
                 }
             }
             return result;
@@ -321,8 +320,109 @@ namespace Antmicro.Renode.Testing
         }
 
         public TimeInterval GlobalTimeout { get; set; }
+
         public TimeSpan WriteCharDelay { get; set; }
+
         public bool BinaryMode => binaryMode;
+
+        private TerminalTesterResult HandleSuccess(string eventName, int matchingLineId, string[] matchGroups = null, int matchStart = 0, int? matchEnd = null)
+        {
+            lock(lines)
+            {
+                var numberOfLinesToCopy = 0;
+                var includeCurrentLineBuffer = false;
+                switch(matchingLineId)
+                {
+                case NoLine:
+                    // default values are ok
+                    break;
+
+                case CurrentLine:
+                    includeCurrentLineBuffer = true;
+                    numberOfLinesToCopy = lines.Count;
+                    break;
+
+                default:
+                    numberOfLinesToCopy = matchingLineId + 1;
+                    break;
+                }
+
+                ReportInner(eventName, "success", numberOfLinesToCopy, includeCurrentLineBuffer);
+
+                string content = null;
+                double timestamp = 0;
+                if(includeCurrentLineBuffer)
+                {
+                    timestamp = machine.ElapsedVirtualTime.TimeElapsed.TotalMilliseconds;
+
+                    content = currentLineBuffer.Unload(matchEnd).Substring(matchStart);
+                }
+                else if(numberOfLinesToCopy > 0)
+                {
+                    var item = lines[matchingLineId];
+                    content = item.Content;
+                    timestamp = item.VirtualTimestamp;
+                }
+
+                lines.RemoveRange(0, numberOfLinesToCopy);
+                if(content != null && !binaryMode)
+                {
+                    content = content.StripNonSafeCharacters();
+                }
+
+                return new TerminalTesterResult(content, timestamp, matchGroups);
+            }
+        }
+
+        private void HandleFailure(string eventName)
+        {
+            lock(lines)
+            {
+                ReportInner(eventName, "failure", lines.Count, true);
+            }
+        }
+
+        // does not need to be locked, as both `HandleSuccess` and `HandleFailure` use locks
+        private void ReportInner(string eventName, string what, int copyLinesToReport, bool includeCurrentLineBuffer)
+        {
+            if(copyLinesToReport > 0)
+            {
+                foreach(var line in lines.Take(copyLinesToReport))
+                {
+                    report.AppendLine(line.ToString());
+                }
+            }
+
+            if(includeCurrentLineBuffer)
+            {
+                // Don't say there was no newline if we are in binary mode as it does not operate on lines
+                var newlineIndication = !binaryMode ? " [[no newline]]" : "";
+                var displayString = currentLineBuffer.ToString();
+                if(binaryMode)
+                {
+                    // Not using PrettyPrintCollection(Hex) to use simpler `01 02 03...` formatting.
+                    displayString = string.Join(" ", displayString.Select(ch => ((byte)ch).ToHex()));
+                }
+                report.AppendFormat("{0}{1}\n", displayString, newlineIndication);
+            }
+
+            var virtMs = machine.ElapsedVirtualTime.TimeElapsed.TotalMilliseconds;
+            report.AppendFormat("([host: {2}, virt: {3, 7}] {0} event: {1})\n", eventName, what, CustomDateTime.Now, virtMs);
+        }
+
+        private TerminalTesterResult MatchFailingStrings()
+        {
+            foreach(var failingString in failingStrings)
+            {
+                var lineMatch = CheckFinishedLines(failingString.Pattern, failingString.TreatAsRegex, "error", false);
+                if(lineMatch != null)
+                {
+                    lineMatch.IsFailingString = true;
+                    return lineMatch;
+                }
+            }
+            return null;
+        }
 
         private void HandleDelayedChars()
         {
@@ -591,169 +691,69 @@ namespace Antmicro.Renode.Testing
 
             switch(sgrDecodingState)
             {
-                case SGRDecodingState.NotDecoding:
+            case SGRDecodingState.NotDecoding:
+            {
+                if(value == EscapeChar)
                 {
-                    if(value == EscapeChar)
-                    {
-                        sgrDecodingBuffer.Append(value);
-                        sgrDecodingState = SGRDecodingState.EscapeDetected;
-                    }
-                    else
-                    {
-                        currentLineBuffer.Append(value);
-                    }
+                    sgrDecodingBuffer.Append(value);
+                    sgrDecodingState = SGRDecodingState.EscapeDetected;
+                }
+                else
+                {
+                    currentLineBuffer.Append(value);
+                }
+            }
+            break;
+
+            case SGRDecodingState.EscapeDetected:
+            {
+                if(value == '[')
+                {
+                    sgrDecodingState = SGRDecodingState.LeftBracketDetected;
+                }
+                else
+                {
+                    FinishSGRDecoding(abort: true);
+                }
+            }
+            break;
+
+            case SGRDecodingState.LeftBracketDetected:
+            {
+                if((value >= '0' && value <= '9') || value == ';')
+                {
+                    sgrDecodingBuffer.Append(value);
+                }
+                else
+                {
+                    FinishSGRDecoding(abort: value != 'm');
                 }
                 break;
+            }
 
-                case SGRDecodingState.EscapeDetected:
-                {
-                    if(value == '[')
-                    {
-                        sgrDecodingState = SGRDecodingState.LeftBracketDetected;
-                    }
-                    else
-                    {
-                        FinishSGRDecoding(abort: true);
-                    }
-                }
-                break;
-
-                case SGRDecodingState.LeftBracketDetected:
-                {
-                    if((value >= '0' && value <= '9') || value == ';')
-                    {
-                        sgrDecodingBuffer.Append(value);
-                    }
-                    else
-                    {
-                        FinishSGRDecoding(abort: value != 'm');
-                    }
-                    break;
-                }
-
-                default:
-                    throw new ArgumentException($"Unexpected state when decoding an SGR code: {sgrDecodingState}");
+            default:
+                throw new ArgumentException($"Unexpected state when decoding an SGR code: {sgrDecodingState}");
             }
         }
 
-        private const int NoLine = -2;
-        private const int CurrentLine = -1;
-
-        private TerminalTesterResult HandleSuccess(string eventName, int matchingLineId, string[] matchGroups = null, int matchStart = 0, int? matchEnd = null)
-        {
-            lock(lines)
-            {
-                var numberOfLinesToCopy = 0;
-                var includeCurrentLineBuffer = false;
-                switch(matchingLineId)
-                {
-                    case NoLine:
-                        // default values are ok
-                        break;
-
-                    case CurrentLine:
-                        includeCurrentLineBuffer = true;
-                        numberOfLinesToCopy = lines.Count;
-                        break;
-
-                    default:
-                        numberOfLinesToCopy = matchingLineId + 1;
-                        break;
-                }
-
-                ReportInner(eventName, "success", numberOfLinesToCopy, includeCurrentLineBuffer);
-
-                string content = null;
-                double timestamp = 0;
-                if(includeCurrentLineBuffer)
-                {
-                    timestamp = machine.ElapsedVirtualTime.TimeElapsed.TotalMilliseconds;
-
-                    content = currentLineBuffer.Unload(matchEnd).Substring(matchStart);
-                }
-                else if(numberOfLinesToCopy > 0)
-                {
-                    var item = lines[matchingLineId];
-                    content = item.Content;
-                    timestamp = item.VirtualTimestamp;
-                }
-
-                lines.RemoveRange(0, numberOfLinesToCopy);
-                if(content != null && !binaryMode)
-                {
-                    content = content.StripNonSafeCharacters();
-                }
-
-                return new TerminalTesterResult(content, timestamp, matchGroups);
-            }
-        }
-
-        private void HandleFailure(string eventName)
-        {
-            lock(lines)
-            {
-                ReportInner(eventName, "failure", lines.Count, true);
-            }
-        }
-
-        // does not need to be locked, as both `HandleSuccess` and `HandleFailure` use locks
-        private void ReportInner(string eventName, string what, int copyLinesToReport, bool includeCurrentLineBuffer)
-        {
-            if(copyLinesToReport > 0)
-            {
-                foreach(var line in lines.Take(copyLinesToReport))
-                {
-                    report.AppendLine(line.ToString());
-                }
-            }
-
-            if(includeCurrentLineBuffer)
-            {
-                // Don't say there was no newline if we are in binary mode as it does not operate on lines
-                var newlineIndication = !binaryMode ? " [[no newline]]" : "";
-                var displayString = currentLineBuffer.ToString();
-                if(binaryMode)
-                {
-                    // Not using PrettyPrintCollection(Hex) to use simpler `01 02 03...` formatting.
-                    displayString = string.Join(" ", displayString.Select(ch => ((byte)ch).ToHex()));
-                }
-                report.AppendFormat("{0}{1}\n", displayString, newlineIndication);
-            }
-
-            var virtMs = machine.ElapsedVirtualTime.TimeElapsed.TotalMilliseconds;
-            report.AppendFormat("([host: {2}, virt: {3, 7}] {0} event: {1})\n", eventName, what, CustomDateTime.Now, virtMs);
-        }
-
-        private TerminalTesterResult MatchFailingStrings()
-        {
-            foreach(var failingString in failingStrings)
-            {
-                var lineMatch = CheckFinishedLines(failingString.pattern, failingString.treatAsRegex, "error", false);
-                if(lineMatch != null)
-                {
-                    lineMatch.isFailingString = true;
-                    return lineMatch;
-                }
-            }
-            return null;
-        }
+        private bool pauseEmulation;
+        private TerminalTesterResult testerResult;
+        private bool delayedCharInProgress;
+        private string generatedReport;
+        private SGRDecodingState sgrDecodingState;
 
         private IMachine machine;
-        private SGRDecodingState sgrDecodingState;
-        private string generatedReport;
         private Func<TerminalTesterResult> resultMatcher;
-        private TerminalTesterResult testerResult;
-        private bool pauseEmulation;
-        private bool delayedCharInProgress;
+        // The same logic as above also applies for the matchEvent.
+        [Constructor(false)]
+        private readonly AutoResetEvent matchEvent;
 
         // Similarly how it is handled for FrameBufferTester it shouldn't matter if we unset the charEvent during deserialization
         // as we check for char match on load in `WaitForMatch` either way
         // Additionally in `IsIdle` the timeout would long since expire so it doesn't matter there either.
         [Constructor(false)]
-        private AutoResetEvent charEvent;
-        // The same logic as above also applies for the matchEvent.
-        [Constructor(false)]
-        private AutoResetEvent matchEvent;
+        private readonly AutoResetEvent charEvent;
+        private readonly List<FailingString> failingStrings;
         private readonly SafeStringBuilder currentLineBuffer;
         private readonly SafeStringBuilder sgrDecodingBuffer;
         private readonly EndLineOption endLineOption;
@@ -761,7 +761,9 @@ namespace Antmicro.Renode.Testing
         private readonly List<Line> lines;
         private readonly SafeStringBuilder report;
         private readonly Queue<Tuple<TimeSpan, char>> delayedChars = new Queue<Tuple<TimeSpan, char>>();
-        private readonly List<FailingString> failingStrings;
+
+        private const int NoLine = -2;
+        private const int CurrentLine = -1;
 
         private const char LineFeed = '\x0A';
         private const char CarriageReturn = '\x0D';
@@ -778,11 +780,13 @@ namespace Antmicro.Renode.Testing
 
             public override string ToString()
             {
-                return $"[host: {HostTimestamp}, virt: {(int)VirtualTimestamp, 7}] {Content}";
+                return $"[host: {HostTimestamp}, virt: {(int)VirtualTimestamp,7}] {Content}";
             }
 
             public string Content { get; }
+
             public double VirtualTimestamp { get; }
+
             public DateTime HostTimestamp { get; }
         }
 
@@ -845,23 +849,23 @@ namespace Antmicro.Renode.Testing
             private readonly int length;
         }
 
+        private struct FailingString
+        {
+            public string Pattern;
+            public bool TreatAsRegex;
+
+            public FailingString(string pattern, bool treatAsRegex)
+            {
+                this.Pattern = pattern;
+                this.TreatAsRegex = treatAsRegex;
+            }
+        }
+
         private enum SGRDecodingState
         {
             NotDecoding,
             EscapeDetected,
             LeftBracketDetected
-        }
-
-        private struct FailingString
-        {
-            public string pattern;
-            public bool treatAsRegex;
-
-            public FailingString(string pattern, bool treatAsRegex)
-            {
-                this.pattern = pattern;
-                this.treatAsRegex = treatAsRegex;
-            }
         }
     }
 
@@ -869,16 +873,19 @@ namespace Antmicro.Renode.Testing
     {
         public TerminalTesterResult(string content, double timestamp, string[] groups = null, bool isFailingString = false)
         {
-            this.line = content ?? string.Empty;
-            this.timestamp = timestamp;
-            this.groups = groups ?? new string[0];
-            this.isFailingString = isFailingString;
+            this.Line = content ?? string.Empty;
+            this.Timestamp = timestamp;
+            this.Groups = groups ?? new string[0];
+            this.IsFailingString = isFailingString;
         }
 
-        public string line { get; }
-        public double timestamp { get; }
-        public string[] groups { get; set; }
-        public bool isFailingString;
+        public string Line { get; }
+
+        public double Timestamp { get; }
+
+        public string[] Groups { get; set; }
+
+        public bool IsFailingString;
     }
 
     public enum EndLineOption
@@ -887,4 +894,3 @@ namespace Antmicro.Renode.Testing
         TreatCarriageReturnAsEndLine
     }
 }
-

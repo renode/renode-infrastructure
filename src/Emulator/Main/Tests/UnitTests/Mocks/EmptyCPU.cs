@@ -5,12 +5,9 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using Antmicro.Migrant;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals.CPU;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.UnitTests.Mocks
 {
@@ -44,10 +41,10 @@ namespace Antmicro.Renode.UnitTests.Mocks
             {
                 return 0;
             }
+
             set
             {
             }
         }
     }
 }
-

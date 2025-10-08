@@ -4,12 +4,11 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using NUnit.Framework;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Peripherals.Miscellaneous;
-using System.Collections.Generic;
+
+using NUnit.Framework;
 
 namespace Antmicro.Renode.PeripheralsTests
 {
@@ -87,7 +86,6 @@ namespace Antmicro.Renode.PeripheralsTests
                 var actual = peripheral.ReadDoubleWord((long)OpenTitan_AES.Registers.OutputData_0 + 4 * i);
                 Assert.AreEqual(encrypted[i], actual, "DATA_OUT_{0}: Expected: 0x{1:X}, Got: 0x{2:x}", i, encrypted[i], actual);
             }
-
         }
 
         [Test]
@@ -129,7 +127,7 @@ namespace Antmicro.Renode.PeripheralsTests
             peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.Trigger, 0x6);
             peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.Trigger, 0x1);
 
-            for( var i = 0; i < 4; i++)
+            for(var i = 0; i < 4; i++)
             {
                 var actual = peripheral.ReadDoubleWord((long)OpenTitan_AES.Registers.OutputData_0 + 4 * i);
                 Assert.AreNotEqual(encrypted[i], actual);

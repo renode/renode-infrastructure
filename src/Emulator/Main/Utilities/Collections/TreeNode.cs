@@ -6,14 +6,12 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-
 namespace Antmicro.Renode.Utilities.Collections
 {
     public class TreeNode<T> : TreeBase<TreeNode<T>, T>
     {
         public TreeNode(T value) : base(value)
         {
-
         }
 
         public override TreeNode<T> AddChild(T value)
@@ -24,4 +22,3 @@ namespace Antmicro.Renode.Utilities.Collections
         }
     }
 }
-

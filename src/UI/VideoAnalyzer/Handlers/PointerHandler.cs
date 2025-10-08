@@ -6,17 +6,13 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using Antmicro.Renode.Peripherals.Input;
+
 using Xwt;
 
 namespace Antmicro.Renode.Extensions.Analyzers.Video.Handlers
 {
     internal abstract class PointerHandler
     {
-        protected PointerHandler(IPointerInput input)
-        {
-            this.input = input;
-        }
-
         public virtual void Init()
         {
         }
@@ -33,6 +29,13 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Handlers
 
         public abstract void PointerMoved(int x, int y, int dx, int dy);
 
+        protected PointerHandler(IPointerInput input)
+        {
+            this.input = input;
+        }
+
+        protected IPointerInput input;
+
         private MouseButton ToMouseButton(PointerButton button)
         {
             switch(button)
@@ -47,8 +50,5 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Handlers
 
             return MouseButton.Extra;
         }
-
-        protected IPointerInput input;
     }
 }
-

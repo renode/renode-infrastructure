@@ -5,10 +5,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Core.Structure.Registers;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -16,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.UART
     {
         public MxcUart(IMachine machine) : base(machine)
         {
-            IRQ = new GPIO();            
+            IRQ = new GPIO();
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {
                 {(long)Registers.Receive, new DoubleWordRegister(this)
@@ -210,7 +211,7 @@ namespace Antmicro.Renode.Peripherals.UART
             base.Reset();
             registers.Reset();
         }
-        
+
         public GPIO IRQ { get; }
 
         public long Size => 0x100;

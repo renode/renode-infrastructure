@@ -11,13 +11,12 @@ namespace Antmicro.Renode.Exceptions
 {
     public class ConstructionException : RecoverableException
     {
-        public ConstructionException (string message):base(message)
+        public ConstructionException(string message) : base(message)
         {
         }
 
-        public ConstructionException (string message, Exception innerException):base(message, innerException)
+        public ConstructionException(string message, Exception innerException) : base(message, innerException)
         {
         }
     }
 }
-

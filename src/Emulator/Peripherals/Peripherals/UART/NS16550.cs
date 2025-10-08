@@ -6,32 +6,23 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Generic;
+
+using Antmicro.Migrant;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using System.Collections.Generic;
-using Antmicro.Migrant;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
     [AllowedTranslations(AllowedTranslation.WordToDoubleWord)]
-    public class NS16550 :  IBytePeripheral, IDoubleWordPeripheral, IUART, IKnownSize
+    public class NS16550 : IBytePeripheral, IDoubleWordPeripheral, IUART, IKnownSize
     {
         public NS16550(bool wideRegisters = false)
         {
             mode32 = wideRegisters;
             IRQ = new GPIO();
             Reset();
-        }
-
-        public GPIO IRQ { get; private set; }
-
-        public long Size
-        {
-            get
-            {
-                return 0x100;
-            }
         }
 
         public void WriteChar(byte value)
@@ -139,7 +130,6 @@ namespace Antmicro.Renode.Peripherals.UART
                     if((val & FifoControl.ReceiveReset) != 0)
                     {
                         recvFifo.Clear();
-
                     }
                     if((val & FifoControl.TransmitReset) != 0)
                     {
@@ -212,7 +202,6 @@ namespace Antmicro.Renode.Peripherals.UART
                     this.LogUnhandledWrite(originalOffset, value);
                     break;
                 }
-
             }
         }
 
@@ -308,7 +297,7 @@ namespace Antmicro.Renode.Peripherals.UART
                         break;
 
                     case Register.ModemStatusRegister:
-                //    this.DebugLog("6 modem control read");
+                        //    this.DebugLog("6 modem control read");
                         if((modemControl & ModemControl.Loopback) != 0)
                         {
                             /* in loopback, the modem output pins are connected to the inputs */
@@ -350,11 +339,11 @@ namespace Antmicro.Renode.Peripherals.UART
                         break;
 
                     default:
-                    this.LogUnhandledRead(originalOffset);
-                    break;
+                        this.LogUnhandledRead(originalOffset);
+                        break;
                     }
                 }
-                ret:
+            ret:
                 return value;
             }
         }
@@ -385,6 +374,57 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             WriteByte(offset, (byte)(value & 0xFF));
         }
+
+        public Bits StopBits
+        {
+            get
+            {
+                if((lineControl & LineControl.StopBits) == 0)
+                {
+                    return Bits.One;
+                }
+                // is word length is equal to 5? then 1.5 else 2
+                return ((byte)lineControl & 3u) == 0 ? Bits.OneAndAHalf : Bits.Two;
+            }
+        }
+
+        public Parity ParityBit
+        {
+            get
+            {
+                if((lineControl & LineControl.ParityEnable) == 0)
+                {
+                    return Parity.None;
+                }
+                if((lineControl & LineControl.ForceParity) == 0)
+                {
+                    return (lineControl & LineControl.EvenParity) == 0 ? Parity.Odd : Parity.Even;
+                }
+                return (lineControl & LineControl.EvenParity) == 0 ? Parity.Forced1 : Parity.Forced0;
+            }
+        }
+
+        public uint BaudRate
+        {
+            get
+            {
+                var divisor = (16 * (prescaler + 1) * divider);
+                return divisor == 0 ? 0 : (uint)(SystemClockFrequency / divisor);
+            }
+        }
+
+        public GPIO IRQ { get; private set; }
+
+        public long Size
+        {
+            get
+            {
+                return 0x100;
+            }
+        }
+
+        [field: Transient]
+        public event Action<byte> CharReceived;
 
         private void Update()
         {
@@ -420,12 +460,6 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
-        [field: Transient]
-        public event Action<byte> CharReceived;
-
-        private Queue<byte> recvFifo = new Queue<byte>();
-        private object UARTLock = new object();
-
         private InterruptEnableLevel interruptEnable;
         private InterruptLevel interruptIdentification;
         /* read only */
@@ -436,7 +470,6 @@ namespace Antmicro.Renode.Peripherals.UART
         private ModemStatus modemStatus;
         /* read only */
         private FifoControl fifoControl;
-        private bool mode32;
         private byte scratchRegister;
 
         private byte interruptTriggerLevel;
@@ -446,12 +479,17 @@ namespace Antmicro.Renode.Peripherals.UART
         /* receive register */
         private int transmitNotPending;
 
+        private readonly Queue<byte> recvFifo = new Queue<byte>();
+        private readonly object UARTLock = new object();
+        private readonly bool mode32;
+
+        private const uint SystemClockFrequency = 0;
+
         private const int ReceiveFIFOSize = 16;
         private const byte MaskInterruptId = 0x06;
         /* Mask for the interrupt ID */
 
-
-        private enum Register:uint
+        private enum Register : uint
         {
             Data = 0x00,
             DivisorLatchL = 0x00,
@@ -530,7 +568,6 @@ namespace Antmicro.Renode.Peripherals.UART
             ForceRingIndicator = 0x04,
             ForceRequestToSend = 0x02,
             ForceDataTerminalReady = 0x01
-
         }
 
         /*
@@ -549,7 +586,6 @@ namespace Antmicro.Renode.Peripherals.UART
             DeltaClearToSend = 0x01,
             AnyDelta = 0x0F
         }
-
 
         /*
          * These are the definitions for the Line Status Register
@@ -587,46 +623,5 @@ namespace Antmicro.Renode.Peripherals.UART
             IrqTriggerLevel3 = 0x80,
             IrqTriggerLevel4 = 0xC0
         }
-
-        public Bits StopBits
-        {
-            get
-            {
-                if((lineControl & LineControl.StopBits) == 0)
-                {
-                    return Bits.One;
-                }
-                // is word length is equal to 5? then 1.5 else 2
-                return ((byte)lineControl & 3u) == 0 ? Bits.OneAndAHalf : Bits.Two;
-            }
-        }
-
-        public Parity ParityBit
-        {
-            get
-            {
-                if((lineControl & LineControl.ParityEnable) == 0)
-                {
-                    return Parity.None;
-                }
-                if((lineControl & LineControl.ForceParity) == 0)
-                {
-                    return (lineControl & LineControl.EvenParity) == 0 ? Parity.Odd : Parity.Even;
-                }
-                return (lineControl & LineControl.EvenParity) == 0 ? Parity.Forced1 : Parity.Forced0;
-            }
-        }
-
-        public uint BaudRate
-        {
-            get
-            {
-                var divisor = (16 * (prescaler + 1) * divider);
-                return divisor == 0 ? 0 : (uint)(SystemClockFrequency / divisor);
-            }
-        }
-
-        private const uint SystemClockFrequency = 0;
     }
 }
-

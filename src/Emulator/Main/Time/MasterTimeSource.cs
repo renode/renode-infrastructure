@@ -6,9 +6,10 @@
 //
 using System;
 using System.Threading;
+
 using Antmicro.Migrant;
-using Antmicro.Renode.Logging;
 using Antmicro.Renode.Debugging;
+using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Time
 {

@@ -12,4 +12,3 @@ namespace Antmicro.Renode.Peripherals.CPU
         void OnNMI(int number, bool value, ulong? mcause);
     }
 }
-

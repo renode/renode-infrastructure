@@ -7,11 +7,13 @@
 //
 using System;
 using System.Collections.Generic;
-using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Utilities;
 using System.Linq;
+
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.UserInterface;
+using Antmicro.Renode.Utilities;
+
 using Mono.Cecil;
 
 namespace Antmicro.Renode.Plugins
@@ -203,10 +205,10 @@ namespace Antmicro.Renode.Plugins
             ConfigurationManager.Instance.Set(ConfigSection, ConfigOption, activePlugins.Any() ? activePlugins.Select(x => x.Key.FullName).Aggregate((curr, next) => curr + "," + next) : string.Empty);
         }
 
+        private HashSet<string> enabledModes;
+
         private readonly TypeDefinitionComparer typeComparer = new TypeDefinitionComparer();
         private readonly Dictionary<PluginDescriptor, object> activePlugins = new Dictionary<PluginDescriptor, object>();
-
-        private HashSet<string> enabledModes;
 
         private const string ConfigOption = "enabled-plugins";
         private const string ConfigSection = "plugins";
@@ -233,4 +235,3 @@ namespace Antmicro.Renode.Plugins
         }
     }
 }
-

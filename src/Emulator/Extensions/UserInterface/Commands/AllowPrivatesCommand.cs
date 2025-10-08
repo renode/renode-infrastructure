@@ -5,27 +5,31 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using System.Collections.Generic;
-using Antmicro.Renode.UserInterface.Tokenizer;
 using System.Reflection;
+
+using Antmicro.Renode.UserInterface.Tokenizer;
+
 using AntShell.Commands;
 
 namespace Antmicro.Renode.UserInterface.Commands
 {
     public class AllowPrivatesCommand : AutoLoadCommand
     {
+        public AllowPrivatesCommand(Monitor monitor) : base(monitor, "allowPrivates", "allow private fields and properties manipulation.", "privs")
+        {
+        }
+
         public override void PrintHelp(ICommandInteraction writer)
         {
             base.PrintHelp(writer);
             var allowed = (monitor.CurrentBindingFlags & BindingFlags.NonPublic) > 0;
             writer.WriteLine();
-            writer.WriteLine(allowed ? "Private fields are available":"Private fields are not available");
+            writer.WriteLine(allowed ? "Private fields are available" : "Private fields are not available");
             return;
         }
 
         [Runnable]
-        public void RunnableAttribute(ICommandInteraction writer, BooleanToken allow)
+        public void RunnableAttribute(ICommandInteraction _, BooleanToken allow)
         {
             if(allow.Value)
             {
@@ -38,10 +42,5 @@ namespace Antmicro.Renode.UserInterface.Commands
                 monitor.ClearCache();
             }
         }
-
-        public AllowPrivatesCommand(Monitor monitor):base(monitor, "allowPrivates","allow private fields and properties manipulation.", "privs")
-        {
-        }
     }
 }
-

@@ -5,7 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -91,12 +91,19 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         // In UT32 variant, a GPIO ports can optionally feature dedicated per-pin IRQs for first eight pins. For those pins the dedicated IRQ is asserted instead of the combined IRQ
         public GPIO DedicatedIRQ0 { get; } = new GPIO();
+
         public GPIO DedicatedIRQ1 { get; } = new GPIO();
+
         public GPIO DedicatedIRQ2 { get; } = new GPIO();
+
         public GPIO DedicatedIRQ3 { get; } = new GPIO();
+
         public GPIO DedicatedIRQ4 { get; } = new GPIO();
+
         public GPIO DedicatedIRQ5 { get; } = new GPIO();
+
         public GPIO DedicatedIRQ6 { get; } = new GPIO();
+
         public GPIO DedicatedIRQ7 { get; } = new GPIO();
 
         public DoubleWordRegisterCollection RegistersCollection { get; }
@@ -123,28 +130,28 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             var interruptPending = false;
             switch(interruptPolarity[idx])
             {
-                case InterruptPolarity.LowFalling:
-                    if(interruptType[idx] == InterruptType.EdgeTriggered)
-                    {
-                        interruptPending = !current && (previous != current);
-                    }
-                    if(interruptType[idx] == InterruptType.LevelTriggered)
-                    {
-                        interruptPending = !current;
-                    }
-                    break;
-                case InterruptPolarity.HighRising:
-                    if(interruptType[idx] == InterruptType.EdgeTriggered)
-                    {
-                        interruptPending = current && (previous != current);
-                    }
-                    if(interruptType[idx] == InterruptType.LevelTriggered)
-                    {
-                        interruptPending = current;
-                    }
-                    break;
-                default:
-                    throw new Exception("Should not reach here.");
+            case InterruptPolarity.LowFalling:
+                if(interruptType[idx] == InterruptType.EdgeTriggered)
+                {
+                    interruptPending = !current && (previous != current);
+                }
+                if(interruptType[idx] == InterruptType.LevelTriggered)
+                {
+                    interruptPending = !current;
+                }
+                break;
+            case InterruptPolarity.HighRising:
+                if(interruptType[idx] == InterruptType.EdgeTriggered)
+                {
+                    interruptPending = current && (previous != current);
+                }
+                if(interruptType[idx] == InterruptType.LevelTriggered)
+                {
+                    interruptPending = current;
+                }
+                break;
+            default:
+                throw new Exception("Should not reach here.");
             }
 
             interruptStatus[idx] |= interruptPending;
@@ -298,10 +305,11 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             });
         }
 
+        private GPIO[] DedicatedIRQs { get; }
+
         private IFlagRegisterField softReset;
         private IFlagRegisterField[] pullEnable;
         private IFlagRegisterField[] pullUpDown;
-        private GPIO[] DedicatedIRQs { get; }
 
         private readonly bool[] pinOutputEnabled = new bool[NumberOfGPIOs];
         private readonly bool[] pinAlternateFunctionEnabled = new bool[NumberOfGPIOs];

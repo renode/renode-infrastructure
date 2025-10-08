@@ -11,6 +11,12 @@ namespace Antmicro.Renode.Utilities
 {
     public class MockExternal : IExternal
     {
+        public MockExternal()
+        {
+            Ints = Enumerable.Range(1, 3).ToList();
+            WrappedInts = Ints.Select(Wrapped<int>.New).ToList();
+        }
+
         public string this[string a]
         {
             get => "1D: " + string.Join(" and ", new [] { result, a }.Where(x => !string.IsNullOrEmpty(x)));
@@ -26,6 +32,31 @@ namespace Antmicro.Renode.Utilities
         public void Clear()
         {
             result = null;
+        }
+
+        public List<int> Ints;
+        public List<Wrapped<int>> WrappedInts;
+
+        [Convertible]
+        public class Wrapped<T>
+        {
+            public static Wrapped<T> New(T val) => new Wrapped<T>(val);
+
+            public Wrapped(T val)
+            {
+                this.val = val;
+                this.AsList = new List<Wrapped<T>> { this };
+            }
+
+            public string WithExtraValues(params T[] xs)
+            {
+                return string.Join(", ", xs.Prepend(val));
+            }
+
+            public bool Ok { get; set; }
+            public List<Wrapped<T>> AsList { get; }
+
+            private readonly T val;
         }
 
         private string result;

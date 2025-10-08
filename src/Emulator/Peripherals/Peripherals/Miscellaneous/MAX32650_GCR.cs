@@ -6,6 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 
@@ -24,8 +25,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             };
         }
 
-        public Action<long> SysClkChanged;
-
         public long SysClk
         {
             get
@@ -35,6 +34,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         public long Size => 0x400;
+
+        public Action<long> SysClkChanged;
 
         private void DefineRegisters()
         {

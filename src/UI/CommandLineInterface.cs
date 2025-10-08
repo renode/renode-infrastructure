@@ -6,19 +6,21 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Diagnostics;
+using System.IO;
+
+using Antmicro.Renode.Analyzers;
+using Antmicro.Renode.Backends.Video;
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Extensions.Analyzers.Video;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Logging.Backends;
-using Antmicro.Renode.Core;
+using Antmicro.Renode.Peripherals.UART;
 using Antmicro.Renode.UserInterface;
+using Antmicro.Renode.Utilities;
+
 using AntShell;
 using AntShell.Terminal;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Peripherals.UART;
-using System.IO;
-using System.Diagnostics;
-using Antmicro.Renode.Analyzers;
-using Antmicro.Renode.Extensions.Analyzers.Video;
-using Antmicro.Renode.Backends.Video;
 
 namespace Antmicro.Renode.UI
 {

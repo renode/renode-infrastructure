@@ -6,6 +6,7 @@
 //
 
 using System.Linq;
+
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Utilities;
 
@@ -28,8 +29,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public string Path => path;
-
         public TraceWriter CreateWriter()
         {
             if(format == TraceFormat.TraceBasedModel)
@@ -45,6 +44,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 return new TraceTextWriter(cpu, path, format, compress);
             }
         }
+
+        public string Path => path;
 
         private bool AreArgumentsValid()
         {

@@ -7,6 +7,7 @@
 
 using System;
 using System.Runtime.InteropServices;
+
 using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Peripherals.CPU.Assembler
@@ -52,8 +53,6 @@ namespace Antmicro.Renode.Peripherals.CPU.Assembler
             return result;
         }
 
-        private readonly ICPU cpu;
-
         [DllImport("libllvm-disas")]
         private static extern IntPtr init_llvm_architecture(string triple);
 
@@ -62,5 +61,7 @@ namespace Antmicro.Renode.Peripherals.CPU.Assembler
 
         [DllImport("libllvm-disas")]
         private static extern void llvm_free_asm_result(IntPtr result);
+
+        private readonly ICPU cpu;
     }
 }

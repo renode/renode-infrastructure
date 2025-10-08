@@ -6,18 +6,17 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System;
 using Antmicro.Renode.Core;
-using NUnit.Framework;
-using Antmicro.Renode.UnitTests.Mocks;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.UnitTests.Mocks;
+
+using NUnit.Framework;
 
 namespace Antmicro.Renode.UnitTests
 {
     [TestFixture]
     public class GPIOTests
     {
-
         [Test]
         public void ShouldPropagateConnected()
         {

@@ -7,12 +7,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.Helpers;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Helpers;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.I2C
@@ -37,20 +38,6 @@ namespace Antmicro.Renode.Peripherals.I2C
             transferCompleted = new CadenceInterruptFlag();
         }
 
-        public void WriteDoubleWord(long offset, uint value)
-        {
-            registers.Write(offset, value);
-        }
-
-        public uint ReadDoubleWord(long offset)
-        {
-            return registers.Read(offset);
-        }
-
-        public long Size => 0x40;
-
-        public GPIO IRQ { get; }
-
         public override void Reset()
         {
             registers.Reset();
@@ -66,6 +53,20 @@ namespace Antmicro.Renode.Peripherals.I2C
             }
             UpdateInterrupts();
         }
+
+        public void WriteDoubleWord(long offset, uint value)
+        {
+            registers.Write(offset, value);
+        }
+
+        public uint ReadDoubleWord(long offset)
+        {
+            return registers.Read(offset);
+        }
+
+        public long Size => 0x40;
+
+        public GPIO IRQ { get; }
 
         private void ClearFifos()
         {
@@ -142,14 +143,14 @@ namespace Antmicro.Renode.Peripherals.I2C
             {
                 switch(transferDirection.Value)
                 {
-                    case TransferDirection.Transmit:
-                        transferState = TransferState.Transmitting;
-                        break;
-                    case TransferDirection.Receive:
-                        transferState = TransferState.Receiving;
-                        break;
-                    default:
-                        throw new Exception($"Unsupported TransferSize enum member {transferDirection.Value}");
+                case TransferDirection.Transmit:
+                    transferState = TransferState.Transmitting;
+                    break;
+                case TransferDirection.Receive:
+                    transferState = TransferState.Receiving;
+                    break;
+                default:
+                    throw new Exception($"Unsupported TransferSize enum member {transferDirection.Value}");
                 }
             }
             else if(targetDevice == null || !transferHold.Value)

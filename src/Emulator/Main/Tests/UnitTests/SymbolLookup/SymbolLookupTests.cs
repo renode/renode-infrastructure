@@ -5,12 +5,14 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System.Linq;
-using Antmicro.Renode.Core;
-using NUnit.Framework;
 using System.Collections.Generic;
+using System.Linq;
+
+using Antmicro.Renode.Core;
+
 using ELFSharp.ELF.Sections;
 
+using NUnit.Framework;
 
 namespace Antmicro.Renode.UnitTests.SymbolLookupTests
 {
@@ -40,14 +42,14 @@ namespace Antmicro.Renode.UnitTests.SymbolLookupTests
             var symbols = new List<Symbol>();
             //reverse order according to type importance. This is not optimal, but the actual
             //importance is private to Symbol type.
-            foreach(var type in new []{ SymbolType.Function,
+            foreach(var type in new[]{ SymbolType.Function,
                 SymbolType.NotSpecified,
                 SymbolType.ProcessorSpecific,
                 SymbolType.Section,
                 SymbolType.Object,
                 SymbolType.File })
             {
-                foreach(var binding in new []{ SymbolBinding.Global,
+                foreach(var binding in new[]{ SymbolBinding.Global,
                     SymbolBinding.Local,
                     SymbolBinding.ProcessorSpecific,
                     SymbolBinding.Weak })
@@ -126,7 +128,7 @@ namespace Antmicro.Renode.UnitTests.SymbolLookupTests
             var symbols = Enumerable.Range(1, 10).Select(x => MakeSymbolEntry(x.ToString(), (uint)(x * 10), 5)).ToList();
             var lookup = new SymbolLookup();
             lookup.InsertSymbols(symbols);
-            foreach (var symbol in symbols)
+            foreach(var symbol in symbols)
             {
                 Assert.AreEqual(symbol.Name, lookup.GetSymbolByAddress(symbol.Start + 2).Name);
             }
@@ -320,7 +322,6 @@ namespace Antmicro.Renode.UnitTests.SymbolLookupTests
             };
             var lookup = new SymbolLookup();
             lookup.InsertSymbols(symbols);
-
 
             Assert.AreEqual("一", lookup.GetSymbolByAddress(1).Name);
             Assert.AreEqual("二", lookup.GetSymbolByAddress(11).Name);

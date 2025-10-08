@@ -6,12 +6,13 @@
 //
 
 using System;
-using System.IO;
 using System.Collections.Generic;
+using System.IO;
+
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Sensor;
 using Antmicro.Renode.Peripherals.I2C;
+using Antmicro.Renode.Peripherals.Sensor;
 
 namespace Antmicro.Renode.Peripherals.Sensors
 {
@@ -35,10 +36,10 @@ namespace Antmicro.Renode.Peripherals.Sensors
             var output = new byte[0];
             lock(framesLock)
             {
-                if (frames.Count > 0)
+                if(frames.Count > 0)
                 {
-                        output = frames[currentFrameIndex];
-                        currentFrameIndex = (currentFrameIndex + 1) % frames.Count;
+                    output = frames[currentFrameIndex];
+                    currentFrameIndex = (currentFrameIndex + 1) % frames.Count;
                 }
                 else
                 {
@@ -78,9 +79,10 @@ namespace Antmicro.Renode.Peripherals.Sensors
         {
         }
 
+        private int currentFrameIndex;
+
         private readonly List<byte[]> frames;
         private readonly Object framesLock;
-        private int currentFrameIndex;
 
         // based on https://github.com/sparkfun/SparkFun_Apollo3_AmbiqSuite_BSPs/blob/master/common/third_party/hm01b0/HM01B0.h 
         public enum Registers

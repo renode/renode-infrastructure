@@ -5,19 +5,15 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-
 namespace Antmicro.Renode.UserInterface.Tokenizer
 {
     public class VariableToken : Token
     {
-        public VariableToken(string value):base(value)
+        public VariableToken(string value) : base(value)
         {
             Value = value.TrimStart('$');
         }
 
-        public string Value { get; private set; }
-        
         public override object GetObjectValue()
         {
             return Value;
@@ -27,6 +23,7 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
         {
             return string.Format("[VariableToken: Value={0}]", Value);
         }
+
+        public string Value { get; private set; }
     }
 }
-

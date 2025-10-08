@@ -6,9 +6,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using NUnit.Framework;
-using Antmicro.Renode.Time;
 using System.Collections.Generic;
+
+using Antmicro.Renode.Time;
+
+using NUnit.Framework;
 
 namespace Antmicro.Renode.UnitTests
 {
@@ -72,7 +74,7 @@ namespace Antmicro.Renode.UnitTests
             clockSource.Advance(TimeInterval.FromSeconds(8), true);
             clockSource.Advance(TimeInterval.FromSeconds(20), true);
 
-            CollectionAssert.AreEqual(new [] { 100, 200, 300 }, values);
+            CollectionAssert.AreEqual(new[] { 100, 200, 300 }, values);
         }
 
         [Test]
@@ -136,7 +138,7 @@ namespace Antmicro.Renode.UnitTests
             TimeInterval lower = TimeInterval.FromMicroseconds(1242);
             TimeInterval higher = TimeInterval.FromMicroseconds(1243);
 
-            Assert.Throws<OverflowException>(() => {var dummy = lower - higher; });
+            Assert.Throws<OverflowException>(() => { var dummy = lower - higher; });
         }
 
         [Test]
@@ -144,8 +146,7 @@ namespace Antmicro.Renode.UnitTests
         {
             TimeInterval value = TimeInterval.FromMicroseconds(1);
 
-            Assert.Throws<OverflowException>(() => {var dummy = TimeInterval.Maximal + value; });
+            Assert.Throws<OverflowException>(() => { var dummy = TimeInterval.Maximal + value; });
         }
     }
 }
-

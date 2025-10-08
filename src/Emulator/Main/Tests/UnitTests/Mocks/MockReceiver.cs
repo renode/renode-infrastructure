@@ -18,6 +18,16 @@ namespace Antmicro.Renode.UnitTests.Mocks
             IRQ = new GPIO();
         }
 
+        public byte ReadByte(long offset)
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public void WriteByte(long offset, byte value)
+        {
+            throw new System.NotImplementedException();
+        }
+
         public void Reset()
         {
         }
@@ -31,16 +41,5 @@ namespace Antmicro.Renode.UnitTests.Mocks
             get;
             set;
         }
-
-        public byte ReadByte(long offset)
-        {
-            throw new System.NotImplementedException();
-        }
-
-        public void WriteByte(long offset, byte value)
-        {
-            throw new System.NotImplementedException();
-        }
     }
-
 }

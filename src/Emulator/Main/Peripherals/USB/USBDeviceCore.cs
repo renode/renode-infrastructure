@@ -6,12 +6,11 @@
 //
 using System;
 using System.Collections.Generic;
-using System.Dynamic;
 using System.Linq;
+
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Utilities.Packets;
 
 namespace Antmicro.Renode.Core.USB
 {
@@ -58,6 +57,14 @@ namespace Antmicro.Renode.Core.USB
             RegisterSubdescriptors(configurations);
         }
 
+        public USBDeviceCore WithConfiguration(string description = null, bool selfPowered = false, bool remoteWakeup = false, short maximalPower = 0, Action<USBConfiguration> configure = null)
+        {
+            var newConfiguration = new USBConfiguration(device, (byte)(configurations.Count + 1), description, selfPowered, remoteWakeup, maximalPower);
+            configurations.Add(newConfiguration);
+            configure?.Invoke(newConfiguration);
+            return this;
+        }
+
         public void Reset()
         {
             Address = 0;
@@ -90,7 +97,7 @@ namespace Antmicro.Renode.Core.USB
                 var ep = iface.Endpoints.FirstOrDefault(x => x.Identifier == endpointNumber && x.Direction == direction);
                 if(ep != null)
                 {
-                   return ep;
+                    return ep;
                 }
             }
 
@@ -114,30 +121,75 @@ namespace Antmicro.Renode.Core.USB
             {
                 switch(packet.Recipient)
                 {
-                    case PacketRecipient.Device:
-                        result = HandleRequest(packet);
-                        break;
-                    case PacketRecipient.Interface:
-                        if(SelectedConfiguration == null)
-                        {
-                            device.Log(LogLevel.Warning, "Trying to access interface before selecting a configuration");
-                            resultCallback(new byte[0]);
-                            return;
-                        }
-                        var iface = SelectedConfiguration.Interfaces.FirstOrDefault(x => x.Identifier == packet.Index);
-                        if(iface == null)
-                        {
-                            device.Log(LogLevel.Warning, "Trying to access a non-existing interface #{0}", packet.Index);
-                        }
-                        result = iface.HandleRequest(packet);
-                        break;
-                    default:
-                        device.Log(LogLevel.Warning, "Unsupported recipient type: 0x{0:X}", packet.Recipient);
-                        break;
+                case PacketRecipient.Device:
+                    result = HandleRequest(packet);
+                    break;
+                case PacketRecipient.Interface:
+                    if(SelectedConfiguration == null)
+                    {
+                        device.Log(LogLevel.Warning, "Trying to access interface before selecting a configuration");
+                        resultCallback(new byte[0]);
+                        return;
+                    }
+                    var iface = SelectedConfiguration.Interfaces.FirstOrDefault(x => x.Identifier == packet.Index);
+                    if(iface == null)
+                    {
+                        device.Log(LogLevel.Warning, "Trying to access a non-existing interface #{0}", packet.Index);
+                    }
+                    result = iface.HandleRequest(packet);
+                    break;
+                default:
+                    device.Log(LogLevel.Warning, "Unsupported recipient type: 0x{0:X}", packet.Recipient);
+                    break;
                 }
 
                 SendSetupResult(resultCallback, result.AsByteArray(packet.Count * 8u));
             }
+        }
+
+        public IReadOnlyCollection<USBConfiguration> Configurations => configurations;
+
+        public USBConfiguration SelectedConfiguration { get; set; }
+
+        public byte Address { get; set; }
+
+        public USBProtocol CompatibleProtocolVersion { get; }
+
+        public USBClassCode Class { get; }
+
+        public byte SubClass { get; }
+
+        public byte Protocol { get; }
+
+        public PacketSize MaximalPacketSize { get; }
+
+        public ushort VendorId { get; }
+
+        public ushort ProductId { get; }
+
+        public short DeviceReleaseNumber { get; }
+
+        public string ManufacturerName { get; }
+
+        public string ProductName { get; }
+
+        public string SerialNumber { get; }
+
+        protected override void FillDescriptor(BitStream buffer)
+        {
+            buffer
+                .Append((short)CompatibleProtocolVersion)
+                .Append((byte)Class)
+                .Append(SubClass)
+                .Append(Protocol)
+                .Append((byte)MaximalPacketSize)
+                .Append(VendorId)
+                .Append(ProductId)
+                .Append(DeviceReleaseNumber)
+                .Append(USBString.FromString(ManufacturerName).Index)
+                .Append(USBString.FromString(ProductName).Index)
+                .Append(USBString.FromString(SerialNumber).Index)
+                .Append((byte)Configurations.Count);
         }
 
         private void SendSetupResult(Action<byte[]> resultCallback, byte[] result)
@@ -159,26 +211,26 @@ namespace Antmicro.Renode.Core.USB
             {
                 switch((StandardRequest)packet.Request)
                 {
-                    case StandardRequest.SetAddress:
-                        Address = checked((byte)packet.Value);
+                case StandardRequest.SetAddress:
+                    Address = checked((byte)packet.Value);
+                    break;
+                case StandardRequest.GetDescriptor:
+                    if(packet.Direction != Direction.DeviceToHost)
+                    {
+                        device.Log(LogLevel.Warning, "Wrong direction of Get Descriptor Standard Request");
                         break;
-                    case StandardRequest.GetDescriptor:
-                        if(packet.Direction != Direction.DeviceToHost)
-                        {
-                            device.Log(LogLevel.Warning, "Wrong direction of Get Descriptor Standard Request");
-                            break;
-                        }
-                        return HandleGetDescriptor(packet.Value);
-                    case StandardRequest.SetConfiguration:
-                        SelectedConfiguration = Configurations.SingleOrDefault(x => x.Identifier == packet.Value);
-                        if(SelectedConfiguration == null)
-                        {
-                            device.Log(LogLevel.Warning, "Tried to select a non-existing configuration #{0}", packet.Value);
-                        }
-                        break;
-                    default:
-                        device.Log(LogLevel.Warning, "Unsupported standard request: 0x{0:X}", packet.Request);
-                        break;
+                    }
+                    return HandleGetDescriptor(packet.Value);
+                case StandardRequest.SetConfiguration:
+                    SelectedConfiguration = Configurations.SingleOrDefault(x => x.Identifier == packet.Value);
+                    if(SelectedConfiguration == null)
+                    {
+                        device.Log(LogLevel.Warning, "Tried to select a non-existing configuration #{0}", packet.Value);
+                    }
+                    break;
+                default:
+                    device.Log(LogLevel.Warning, "Unsupported standard request: 0x{0:X}", packet.Request);
+                    break;
                 }
             }
 
@@ -192,88 +244,43 @@ namespace Antmicro.Renode.Core.USB
 
             switch(descriptorType)
             {
-                case DescriptorType.Device:
-                    return GetDescriptor(false);
-                case DescriptorType.Configuration:
-                    if(Configurations.Count < descriptorIndex)
+            case DescriptorType.Device:
+                return GetDescriptor(false);
+            case DescriptorType.Configuration:
+                if(Configurations.Count < descriptorIndex)
+                {
+                    device.Log(LogLevel.Warning, "Tried to access a non-existing configuration #{0}", descriptorIndex);
+                    return BitStream.Empty;
+                }
+                return Configurations.ElementAt(descriptorIndex).GetDescriptor(true);
+            case DescriptorType.String:
+            {
+                if(descriptorIndex == 0)
+                {
+                    // special String Index returning a list of supported languages
+                    return USBString.GetSupportedLanguagesDescriptor();
+                }
+                else
+                {
+                    var usbString = USBString.FromId(descriptorIndex);
+                    if(usbString == null)
                     {
-                        device.Log(LogLevel.Warning, "Tried to access a non-existing configuration #{0}", descriptorIndex);
+                        device.Log(LogLevel.Warning, "Tried to get non-existing string #{0}", descriptorIndex);
                         return BitStream.Empty;
                     }
-                    return Configurations.ElementAt(descriptorIndex).GetDescriptor(true);
-                case DescriptorType.String:
-                {
-                    if(descriptorIndex == 0)
-                    {
-                        // special String Index returning a list of supported languages
-                        return USBString.GetSupportedLanguagesDescriptor();
-                    }
-                    else
-                    {
-                        var usbString = USBString.FromId(descriptorIndex);
-                        if(usbString == null)
-                        {
-                            device.Log(LogLevel.Warning, "Tried to get non-existing string #{0}", descriptorIndex);
-                            return BitStream.Empty;
-                        }
 
-                        return usbString.GetDescriptor(false);
-                    }
+                    return usbString.GetDescriptor(false);
                 }
-                default:
-                    device.Log(LogLevel.Warning, "Unsupported descriptor type: 0x{0:X}", descriptorType);
-                    return BitStream.Empty;
+            }
+            default:
+                device.Log(LogLevel.Warning, "Unsupported descriptor type: 0x{0:X}", descriptorType);
+                return BitStream.Empty;
             }
         }
 
-        public USBDeviceCore WithConfiguration(string description = null, bool selfPowered = false, bool remoteWakeup = false, short maximalPower = 0, Action<USBConfiguration> configure = null)
-        {
-            var newConfiguration = new USBConfiguration(device, (byte)(configurations.Count + 1), description, selfPowered, remoteWakeup, maximalPower);
-            configurations.Add(newConfiguration);
-            configure?.Invoke(newConfiguration);
-            return this;
-        }
-
-        public IReadOnlyCollection<USBConfiguration> Configurations => configurations;
-
-        public USBConfiguration SelectedConfiguration { get; set; }
-        public byte Address { get; set; }
-
-        public USBProtocol CompatibleProtocolVersion { get; }
-        public USBClassCode Class { get; }
-        public byte SubClass { get; }
-        public byte Protocol { get; }
-        public PacketSize MaximalPacketSize { get; }
-
-        public ushort VendorId { get; }
-        public ushort ProductId { get; }
-
-        public short DeviceReleaseNumber { get; }
-
-        public string ManufacturerName { get; }
-        public string ProductName { get; }
-        public string SerialNumber { get; }
-
-        protected override void FillDescriptor(BitStream buffer)
-        {
-            buffer
-                .Append((short)CompatibleProtocolVersion)
-                .Append((byte)Class)
-                .Append(SubClass)
-                .Append(Protocol)
-                .Append((byte)MaximalPacketSize)
-                .Append(VendorId)
-                .Append(ProductId)
-                .Append(DeviceReleaseNumber)
-                .Append(USBString.FromString(ManufacturerName).Index)
-                .Append(USBString.FromString(ProductName).Index)
-                .Append(USBString.FromString(SerialNumber).Index)
-                .Append((byte)Configurations.Count);
-        }
+        private readonly Action<SetupPacket, byte[], Action<byte[]>> customSetupPacketHandler;
 
         private readonly List<USBConfiguration> configurations;
         private readonly IUSBDevice device;
-
-        private Action<SetupPacket, byte[], Action<byte[]>> customSetupPacketHandler;
     }
 }

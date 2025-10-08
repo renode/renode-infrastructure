@@ -5,11 +5,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Migrant;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Core.Structure.Registers;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -50,7 +50,9 @@ namespace Antmicro.Renode.Peripherals.UART
         public long Size => 0x8;
 
         public override uint BaudRate => 0;
+
         public override Parity ParityBit => Parity.None;
+
         public override Bits StopBits => Bits.None;
 
         protected override void CharWritten()

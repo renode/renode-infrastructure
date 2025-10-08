@@ -8,11 +8,9 @@
 
 using System;
 using System.Collections.Generic;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Time;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Utilities.Packets;
+
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Wireless
 {
@@ -33,12 +31,12 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         public static void Add(IRadio sender, RadioPhyId phyId, int channel, int txPowerDbm, byte[] content)
         {
-            // First we check if there is already a packet from this sender in the queue. If that is the case, 
+            // First we check if there is already a packet from this sender in the queue. If that is the case,
             // it should be stale and we are going to remove it.
             PacketInfo entry = PacketLookup(sender);
-            if (entry != null)
+            if(entry != null)
             {
-                if (!entry.PacketIsStale)
+                if(!entry.PacketIsStale)
                 {
                     Logger.Log(LogLevel.Error, "InterferenceQueue.Add: sender non-stale entry present");
                     return;
@@ -58,27 +56,27 @@ namespace Antmicro.Renode.Peripherals.Wireless
         {
             PacketInfo entry = PacketLookup(sender);
 
-            if (entry == null)
+            if(entry == null)
             {
                 Logger.Log(LogLevel.Error, "InterferenceQueue.Remove: entry not found");
                 return;
             }
 
-            if (entry.PacketIsStale)
+            if(entry.PacketIsStale)
             {
-                Logger.Log(LogLevel.Noisy, "InterferenceQueue.Remove at {0}, OTA time={1}: [{2}] - removed", 
-                        IPeripheralExtensions.GetMachine(entry.Sender).LocalTimeSource.ElapsedVirtualTime, 
+                Logger.Log(LogLevel.Noisy, "InterferenceQueue.Remove at {0}, OTA time={1}: [{2}] - removed",
+                        IPeripheralExtensions.GetMachine(entry.Sender).LocalTimeSource.ElapsedVirtualTime,
                         IPeripheralExtensions.GetMachine(entry.Sender).LocalTimeSource.ElapsedVirtualTime - entry.StartTxTimestamp,
                         BitConverter.ToString(entry.PacketContent));
-                        overTheAirPackets.Remove(entry);
+                overTheAirPackets.Remove(entry);
             }
             else
             {
-                Logger.Log(LogLevel.Noisy, "InterferenceQueue.Remove at {0}, OTA time={1}: [{2}] - marking it stale", 
-                        IPeripheralExtensions.GetMachine(entry.Sender).LocalTimeSource.ElapsedVirtualTime, 
+                Logger.Log(LogLevel.Noisy, "InterferenceQueue.Remove at {0}, OTA time={1}: [{2}] - marking it stale",
+                        IPeripheralExtensions.GetMachine(entry.Sender).LocalTimeSource.ElapsedVirtualTime,
                         IPeripheralExtensions.GetMachine(entry.Sender).LocalTimeSource.ElapsedVirtualTime - entry.StartTxTimestamp,
                         BitConverter.ToString(entry.PacketContent));
-                        entry.PacketIsStale = true;
+                entry.PacketIsStale = true;
             }
 
             overTheAirPackets.Remove(entry);
@@ -92,7 +90,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             // being short and the QuantumTime being long enough).
             PacketInfo entry = PacketLookup(sender);
 
-            if (entry == null)
+            if(entry == null)
             {
                 Logger.Log(LogLevel.Error, "InterferenceQueue.GetTxStartTime: entry not found");
                 return TimeInterval.Empty;
@@ -101,23 +99,23 @@ namespace Antmicro.Renode.Peripherals.Wireless
             return entry.StartTxTimestamp;
         }
 
-        // Simple initial implementation: we return a "high" hardcoded RSSI value if there is 
+        // Simple initial implementation: we return a "high" hardcoded RSSI value if there is
         // at least a packet going over the air on the passed PHY/Channel.
         // TODO: Eventually we will want to:
         // - take into account the distance between sender and receiver
         // - the sender TX power
         // - interference between different PHYs
-        // - Co-channel interference 
-        public static int GetCurrentRssi(IRadio receiver, RadioPhyId phyId, int channel)
+        // - Co-channel interference
+        public static int GetCurrentRssi(RadioPhyId phyId, int channel)
         {
-            if (ForceBusyRssi)
+            if(ForceBusyRssi)
             {
                 return RssiBusyChannelHardCodedValueDbm;
             }
 
             foreach(PacketInfo entry in overTheAirPackets)
             {
-                if (entry.PhyId == phyId && entry.Channel == channel)
+                if(entry.PhyId == phyId && entry.Channel == channel)
                 {
                     return RssiBusyChannelHardCodedValueDbm;
                 }
@@ -126,11 +124,13 @@ namespace Antmicro.Renode.Peripherals.Wireless
             return RssiClearChannelHardCodedValueDbm;
         }
 
+        public static bool ForceBusyRssi = false;
+
         private static PacketInfo PacketLookup(IRadio sender)
         {
             foreach(PacketInfo entry in overTheAirPackets)
             {
-                if (entry.Sender == sender)
+                if(entry.Sender == sender)
                 {
                     return entry;
                 }
@@ -149,48 +149,10 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         private const int RssiBusyChannelHardCodedValueDbm = 20;
         private const int RssiClearChannelHardCodedValueDbm = -120;
-        public static bool ForceBusyRssi = false;
     }
 
     public class PacketInfo
     {
-        // Fields
-        private byte[] packetContent;
-        private IRadio sender;
-        private RadioPhyId phyId;
-        private int channel;
-        private int txPowerDbm;
-        private TimeInterval startTx;
-        private bool packetIsStale;
-
-        // Methods
-        public IRadio Sender => sender;
-        public RadioPhyId PhyId => phyId;
-        public int Channel => channel;
-        public int TxPowerDbm => txPowerDbm;
-        public byte[] PacketContent => packetContent;
-        public bool PacketIsStale 
-        {
-            set
-            {
-                packetIsStale = value;
-            }
-            get
-            {
-                return packetIsStale;
-            }
-        }
-        public TimeInterval StartTxTimestamp
-        {
-            set
-            {
-                startTx = value;
-            }
-            get
-            {
-                return startTx;
-            }
-        }
         public PacketInfo(IRadio sender, RadioPhyId phyId, int channel, int txPowerDbm, byte[] content)
         {
             this.sender = sender;
@@ -203,6 +165,52 @@ namespace Antmicro.Renode.Peripherals.Wireless
             packetContent = new byte[content.Length];
             Array.Copy(content, packetContent, content.Length);
         }
+
+        // Methods
+        public IRadio Sender => sender;
+
+        public RadioPhyId PhyId => phyId;
+
+        public int Channel => channel;
+
+        public int TxPowerDbm => txPowerDbm;
+
+        public byte[] PacketContent => packetContent;
+
+        public bool PacketIsStale
+        {
+            set
+            {
+                packetIsStale = value;
+            }
+
+            get
+            {
+                return packetIsStale;
+            }
+        }
+
+        public TimeInterval StartTxTimestamp
+        {
+            set
+            {
+                startTx = value;
+            }
+
+            get
+            {
+                return startTx;
+            }
+        }
+
+        private TimeInterval startTx;
+        private bool packetIsStale;
+        // Fields
+        private readonly byte[] packetContent;
+        private readonly IRadio sender;
+        private readonly RadioPhyId phyId;
+        private readonly int channel;
+        private readonly int txPowerDbm;
     }
 
     public enum RadioPhyId

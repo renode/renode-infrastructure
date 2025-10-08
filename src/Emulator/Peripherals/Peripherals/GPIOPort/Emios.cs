@@ -5,12 +5,12 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-﻿using System;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals;
-using Antmicro.Renode.Logging;
+using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
 {
@@ -29,8 +29,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             {
                 var j = i;
                 controlRegisters[i] = new DoubleWordRegister(this);
-                controlRegisters[i].DefineFlagField(7, writeCallback: 
-					(oldValue, newValue) =>
+                controlRegisters[i].DefineFlagField(7, writeCallback:
+                    (oldValue, newValue) =>
                 {
                     if(channelModes[j].Value == ChannelMode.Output)
                     {
@@ -41,7 +41,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 interruptEnabled[i] = controlRegisters[i].DefineFlagField(17);
 
                 statusRegisters[i] = new DoubleWordRegister(this);
-                channelFlags[i] = statusRegisters[i].DefineFlagField(0, FieldMode.WriteOneToClear, 
+                channelFlags[i] = statusRegisters[i].DefineFlagField(0, FieldMode.WriteOneToClear,
                     writeCallback: (oldValue, newValue) =>
                     {
                         if(newValue)
@@ -51,6 +51,32 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     });
                 inputState[i] = statusRegisters[i].DefineFlagField(2, FieldMode.Read);
             }
+        }
+
+        public override void OnGPIO(int number, bool value)
+        {
+            base.OnGPIO(number, value);
+            if(number >= NumberOfChannels)
+            {
+                this.Log(LogLevel.Warning, "Input interrupt {0}, higher than channel number {1}, ignoring.", number, NumberOfChannels);
+                return;
+            }
+            if(value)
+            {
+                channelFlags[number].Value = true;
+                if(interruptEnabled[number].Value)
+                {
+                    Connections[NumberOfChannels + number].Set();
+                }
+            }
+            inputState[number].Value = value;
+        }
+
+        public override void Reset()
+        {
+            base.Reset();
+            Array.ForEach(controlRegisters, x => x.Reset());
+            Array.ForEach(statusRegisters, x => x.Reset());
         }
 
         public uint ReadDoubleWord(long offset)
@@ -91,23 +117,17 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             }
         }
 
-        public override void OnGPIO(int number, bool value)
+        private static bool TryGetChannelRegister(long offset, out int channelNo, out ChannelRegister channelRegister)
         {
-            base.OnGPIO(number, value);
-            if(number >= NumberOfChannels)
+            if(offset < UnifiedChannelRegistersStart || offset > UnifiedChannelRegistersEnd)
             {
-                this.Log(LogLevel.Warning, "Input interrupt {0}, higher than channel number {1}, ignoring.", number, NumberOfChannels);
-                return;
+                channelRegister = 0;
+                channelNo = 0;
+                return false;
             }
-            if(value)
-            {
-                channelFlags[number].Value = true;
-                if(interruptEnabled[number].Value)
-                {
-                    Connections[NumberOfChannels + number].Set();
-                }
-            }
-            inputState[number].Value = value;
+            channelNo = (int)((offset - UnifiedChannelRegistersStart) / UnifiedChannelSize);
+            channelRegister = (ChannelRegister)((offset - UnifiedChannelRegistersStart) % UnifiedChannelSize);
+            return true;
         }
 
         private uint GetGlobalFlagRegister()
@@ -154,32 +174,17 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             }
         }
 
-        private static bool TryGetChannelRegister(long offset, out int channelNo, out ChannelRegister channelRegister)
-        {
-            if(offset < UnifiedChannelRegistersStart || offset > UnifiedChannelRegistersEnd)
-            {
-                channelRegister = 0;
-                channelNo = 0;
-                return false;
-            }
-            channelNo = (int)((offset - UnifiedChannelRegistersStart) / UnifiedChannelSize);
-            channelRegister = (ChannelRegister)((offset - UnifiedChannelRegistersStart) % UnifiedChannelSize);
-            return true;
-        }
-
-        public override void Reset()
-        {
-            base.Reset();
-            Array.ForEach(controlRegisters, x => x.Reset());
-            Array.ForEach(statusRegisters, x => x.Reset());
-        }
-
         private readonly DoubleWordRegister[] controlRegisters;
         private readonly DoubleWordRegister[] statusRegisters;
         private readonly IFlagRegisterField[] channelFlags;
         private readonly IFlagRegisterField[] inputState;
         private readonly IFlagRegisterField[] interruptEnabled;
         private readonly IEnumRegisterField<ChannelMode>[] channelModes;
+
+        private const int UnifiedChannelRegistersStart = 0x20;
+        private const int UnifiedChannelRegistersEnd = 0x300;
+        private const int UnifiedChannelSize = 32;
+        private const int NumberOfChannels = (UnifiedChannelRegistersEnd - UnifiedChannelRegistersStart) / UnifiedChannelSize;
 
         private enum GlobalRegister
         {
@@ -201,11 +206,5 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             Input = 0,
             Output = 1
         }
-
-        private const int UnifiedChannelRegistersStart = 0x20;
-        private const int UnifiedChannelRegistersEnd = 0x300;
-        private const int UnifiedChannelSize = 32;
-        private const int NumberOfChannels = (UnifiedChannelRegistersEnd - UnifiedChannelRegistersStart) / UnifiedChannelSize;
     }
 }
-

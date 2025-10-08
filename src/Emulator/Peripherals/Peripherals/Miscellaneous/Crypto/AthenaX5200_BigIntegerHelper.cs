@@ -7,6 +7,7 @@
 using System;
 using System.Linq;
 using System.Numerics;
+
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto

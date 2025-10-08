@@ -5,7 +5,6 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Hooks
 {
@@ -18,4 +17,3 @@ namespace Antmicro.Renode.Hooks
         }
     }
 }
-

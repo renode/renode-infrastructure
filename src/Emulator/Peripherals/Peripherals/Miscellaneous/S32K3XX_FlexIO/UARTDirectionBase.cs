@@ -5,8 +5,8 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.UART;
 using Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel;
+using Antmicro.Renode.Peripherals.UART;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
@@ -26,6 +26,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         // The following properties support also unexpected configurations.
         public uint BaudRateDivider => (((shifter.Timer?.Compare ?? 0) & 0xFF) + 1) * 2 * (shifter.Timer?.Divider ?? 1);
+
         public Bits StopBits => shifter.StopBit == ShifterStopBitConfiguration ? Bits.One : Bits.None;
 
         protected void LogWarnings()
@@ -80,7 +81,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             LogWarningNonEqual((uint)shifter.Timer.OneTimeOperation, (uint)TimerTriggerOneTimeOperation.Normal, "one time operation", shifter.Timer.Name);
         }
 
-        private IEmulationElement owner;
         private bool warningsShown;
+
+        private readonly IEmulationElement owner;
     }
 }

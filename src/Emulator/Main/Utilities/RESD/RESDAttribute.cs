@@ -27,8 +27,11 @@ namespace Antmicro.Renode.Utilities.RESD
         }
 
         public SampleType SampleType { get; }
+
         public uint? ChannelId { get; }
+
         public RESDStreamStatus Status { get; }
+
         public string Domain { get; }
     }
 
@@ -65,5 +68,5 @@ namespace Antmicro.Renode.Utilities.RESD
         }
     }
 
-    public interface IUnderstandRESD : IPeripheral {}
+    public interface IUnderstandRESD : IPeripheral { }
 }

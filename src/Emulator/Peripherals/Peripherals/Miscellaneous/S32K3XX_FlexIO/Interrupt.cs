@@ -7,6 +7,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core.Structure.Registers;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel
@@ -24,10 +25,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel
                 {
                     Interrupt interrupt = null;
                     var flag = flagRegister.DefineFlagField(index, FieldMode.Read | FieldMode.WriteOneToClear, name: $"{name}Flag",
-                        changeCallback: (prev, val) => interrupt.OnFlagChange(prev, val)
+                        changeCallback: (prev, _) => interrupt.OnFlagChange(prev)
                     );
                     var enable = enableRegister.DefineFlagField(index, name: $"{name}Enable",
-                        changeCallback: (prev, val) => interrupt.OnMaskChange(prev, val)
+                        changeCallback: (prev, _) => interrupt.OnMaskChange(prev)
                     );
                     interrupt = new Interrupt(flag, enable);
                     return interrupt;
@@ -60,7 +61,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel
             this.mask = mask;
         }
 
-        private void OnFlagChange(bool previousValue, bool value)
+        private void OnFlagChange(bool previousValue)
         {
             if(isFlagUnchangeable)
             {
@@ -70,7 +71,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel
             HandleChange(previousValue, mask.Value);
         }
 
-        private void OnMaskChange(bool previousValue, bool value)
+        private void OnMaskChange(bool previousValue)
         {
             HandleChange(flag.Value, previousValue);
         }

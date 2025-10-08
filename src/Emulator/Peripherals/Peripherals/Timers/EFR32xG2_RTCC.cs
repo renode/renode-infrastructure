@@ -4,13 +4,13 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
-using System;
-using System.Linq;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -122,17 +122,17 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     switch(value)
                     {
-                        case Command.None:
-                            break;
-                        case Command.Start:
-                            innerTimer.Enabled = true;
-                            break;
-                        case Command.Stop:
-                            innerTimer.Enabled = false;
-                            break;
-                        default:
-                            this.Log(LogLevel.Warning, "Unsupported command combination: {0}", value);
-                            break;
+                    case Command.None:
+                        break;
+                    case Command.Start:
+                        innerTimer.Enabled = true;
+                        break;
+                    case Command.Stop:
+                        innerTimer.Enabled = false;
+                        break;
+                    default:
+                        this.Log(LogLevel.Warning, "Unsupported command combination: {0}", value);
+                        break;
                     }
                 }, name: "START/STOP")
                 .WithReservedBits(2, 30);
@@ -210,10 +210,10 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             switch(channel)
             {
-                case 0: return Interrupt.Channel0;
-                case 1: return Interrupt.Channel1;
-                case 2: return Interrupt.Channel2;
-                default: throw new System.NotImplementedException($"Channel {channel} does not have an IRQ set up");
+            case 0: return Interrupt.Channel0;
+            case 1: return Interrupt.Channel1;
+            case 2: return Interrupt.Channel2;
+            default: throw new System.NotImplementedException($"Channel {channel} does not have an IRQ set up");
             }
         }
 

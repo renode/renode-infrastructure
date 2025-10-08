@@ -7,6 +7,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
@@ -147,9 +148,9 @@ namespace Antmicro.Renode.Peripherals.Network
                     // Handle functions with side effects
                     switch(modemFunction)
                     {
-                        case ModemConfigBC660K.DeepSleepEvent:
-                            deepSleepEventEnabled = args[0] != 0;
-                            break;
+                    case ModemConfigBC660K.DeepSleepEvent:
+                        deepSleepEventEnabled = args[0] != 0;
+                        break;
                     }
                 }
                 else
@@ -163,13 +164,13 @@ namespace Antmicro.Renode.Peripherals.Network
             // Handle functions not covered by basic config
             switch(modemFunction)
             {
-                case ModemConfigBC660K.GPIOStatusConfiguration:
-                    var isOk = ConfigureGPIOStatus(out var parameters, args);
-                    if(isOk)
-                    {
-                        return Ok.WithParameters(parameters);
-                    }
-                    break;
+            case ModemConfigBC660K.GPIOStatusConfiguration:
+                var isOk = ConfigureGPIOStatus(out var parameters, args);
+                if(isOk)
+                {
+                    return Ok.WithParameters(parameters);
+                }
+                break;
             }
 
             return base.Qcfg(function, args);
@@ -190,9 +191,9 @@ namespace Antmicro.Renode.Peripherals.Network
                 {
                     switch(modemFunction)
                     {
-                        case ModemConfigBC660K.GPIOStatusConfiguration:
-                            parameters.Add(GetQcfgGPIOStatus());
-                            break;
+                    case ModemConfigBC660K.GPIOStatusConfiguration:
+                        parameters.Add(GetQcfgGPIOStatus());
+                        break;
                     }
                 }
             }
@@ -220,25 +221,25 @@ namespace Antmicro.Renode.Peripherals.Network
 
             switch(parameter)
             {
-                case "dataformat":
-                    if(args.Length < 2)
-                    {
-                        return Error;
-                    }
-                    sendDataFormat = args[0] != 0 ? DataFormat.Hex : DataFormat.Text;
-                    receiveDataFormat = args[1] != 0 ? DataFormat.Hex : DataFormat.Text;
-                    break;
-                case "showlength":
-                    showLength = args[0] != 0;
-                    break;
-                case "viewmode":
-                    dataOutputSeparator = args[0] != 0 ? "," : CrLf;
-                    break;
-                case "showRA": // display the address of the remote end while displaying received data
-                    this.Log(LogLevel.Warning, "TCP/IP config value '{0}' set to {1}, not implemented", parameter, args.Stringify());
-                    break;
-                default:
-                    return base.Qicfg(parameter, args);
+            case "dataformat":
+                if(args.Length < 2)
+                {
+                    return Error;
+                }
+                sendDataFormat = args[0] != 0 ? DataFormat.Hex : DataFormat.Text;
+                receiveDataFormat = args[1] != 0 ? DataFormat.Hex : DataFormat.Text;
+                break;
+            case "showlength":
+                showLength = args[0] != 0;
+                break;
+            case "viewmode":
+                dataOutputSeparator = args[0] != 0 ? "," : CrLf;
+                break;
+            case "showRA": // display the address of the remote end while displaying received data
+                this.Log(LogLevel.Warning, "TCP/IP config value '{0}' set to {1}, not implemented", parameter, args.Stringify());
+                break;
+            default:
+                return base.Qicfg(parameter, args);
             }
             return Ok;
         }
@@ -344,6 +345,16 @@ namespace Antmicro.Renode.Peripherals.Network
             return id == 0;
         }
 
+        protected override string Vendor => "Quectel_Ltd";
+
+        protected override string ModelName => "Quectel_BC660K-GL";
+
+        protected override string Revision => "Revision: QCX212";
+
+        protected override string ManufacturerRevision => "BC660KGLAAR01A03";
+
+        protected override string SoftwareRevision => "01.002.01.002";
+
         private bool ConfigureGPIOStatus(out string parameters, params int[] args)
         {
             parameters = string.Empty;
@@ -357,47 +368,47 @@ namespace Antmicro.Renode.Peripherals.Network
 
             switch((GPIOStatusOperation)args[0])
             {
-                case GPIOStatusOperation.Initialize:
+            case GPIOStatusOperation.Initialize:
+            {
+                // no parameter shall be omitted
+                if(args.Length != 5)
                 {
-                    // no parameter shall be omitted
-                    if(args.Length != 5)
-                    {
-                        break;
-                    }
-
-                    var pin = args[1];
-                    if(gpioConfig.TryGetValue(pin, out var gpioStatus))
-                    {
-                        gpioStatus.Direction = args[2];
-                        gpioStatus.PullTypeSelection = args[3];
-                        gpioStatus.LogicLevel = args[4];
-                        return true;
-                    }
-
                     break;
                 }
-                case GPIOStatusOperation.Query:
+
+                var pin = args[1];
+                if(gpioConfig.TryGetValue(pin, out var gpioStatus))
                 {
-                    // query the current configuration
-                    parameters = GetQcfgGPIOStatus();
+                    gpioStatus.Direction = args[2];
+                    gpioStatus.PullTypeSelection = args[3];
+                    gpioStatus.LogicLevel = args[4];
                     return true;
                 }
-                case GPIOStatusOperation.Configure:
+
+                break;
+            }
+            case GPIOStatusOperation.Query:
+            {
+                // query the current configuration
+                parameters = GetQcfgGPIOStatus();
+                return true;
+            }
+            case GPIOStatusOperation.Configure:
+            {
+                if(args.Length != 3)
                 {
-                    if(args.Length != 3)
-                    {
-                        break;
-                    }
-
-                    var pin = args[1];
-                    if(gpioConfig.TryGetValue(pin, out var gpioStatus))
-                    {
-                        gpioStatus.LogicLevel = args[2];
-                        return true;
-                    }
-
                     break;
                 }
+
+                var pin = args[1];
+                if(gpioConfig.TryGetValue(pin, out var gpioStatus))
+                {
+                    gpioStatus.LogicLevel = args[2];
+                    return true;
+                }
+
+                break;
+            }
             }
 
             return false;
@@ -410,12 +421,6 @@ namespace Antmicro.Renode.Peripherals.Network
             return string.Format("+QCFG: \"{0}\",{1}", function, gpioStatus);
         }
 
-        protected override string Vendor => "Quectel_Ltd";
-        protected override string ModelName => "Quectel_BC660K-GL";
-        protected override string Revision => "Revision: QCX212";
-        protected override string ManufacturerRevision => "BC660KGLAAR01A03";
-        protected override string SoftwareRevision => "01.002.01.002";
-
         private int minimumT3324;
         private int minimumT3412;
         private int minimumTeDRX;
@@ -426,6 +431,15 @@ namespace Antmicro.Renode.Peripherals.Network
         private const string DefaultImeiNumber = "866818039921444";
         private const string DefaultSoftwareVersionNumber = "31";
         private const string DefaultSerialNumber = "<serial number>";
+
+        private sealed class GPIOStatusConfiguration
+        {
+            public int Direction { get; set; }
+
+            public int PullTypeSelection { get; set; }
+
+            public int LogicLevel { get; set; }
+        }
 
         private enum ModemConfigBC660K
         {
@@ -452,13 +466,6 @@ namespace Antmicro.Renode.Peripherals.Network
             Initialize = 1,
             Query = 2,
             Configure = 3
-        }
-
-        private sealed class GPIOStatusConfiguration
-        {
-            public int Direction { get; set; }
-            public int PullTypeSelection { get; set; }
-            public int LogicLevel { get; set; }
         }
     }
 }

@@ -5,23 +5,28 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.CAN;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.Memory;
-using Antmicro.Renode.Hooks;
 using Antmicro.Renode.Utilities.Packets;
-using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.CAN
 {
     public partial class MCAN
     {
+        public long Size => 0x400;
+
+        public GPIO Line0 { get; private set; }
+
+        public GPIO Line1 { get; private set; }
+
+        public GPIO Calibration { get; private set; }
+
+        public event Action<CANMessageFrame> FrameSent;
+
         private void BuildStructuredViews()
         {
             rxFIFO0 = new RxFIFOView
@@ -161,27 +166,21 @@ namespace Antmicro.Renode.Peripherals.CAN
             };
         }
 
-        public long Size => 0x400;
-
-        public GPIO Line0 { get; private set; }
-        public GPIO Line1 { get; private set; }
-        public GPIO Calibration { get; private set; }
-        public event Action<CANMessageFrame> FrameSent;
-
         private bool IsProtectedWrite => rv.CCControlRegister.ControlFields[(int)Control.Initialization].Value && rv.CCControlRegister.ControlFields[(int)Control.ConfigurationChangeEnable].Value;
 
-        private readonly IMachine machine;
-        private IMultibyteWritePeripheral messageRAM;
-        private DoubleWordRegisterCollection registers;
-        private RegisterMapView rv;
-        private RxFIFOView rxFIFO0;
         private RxFIFOView rxFIFO1;
-        private FilterConfigurationView filterConfigurationStandard;
-        private FilterConfigurationView filterConfigurationExtended;
-        private RxBufferView rxBuffer;
-        private TxBufferView txBuffers;
-        private TxFIFOQueueView txFIFOQueue;
         private TxEventFIFOView txEventFIFO;
+        private TxFIFOQueueView txFIFOQueue;
+        private RxBufferView rxBuffer;
+        private FilterConfigurationView filterConfigurationExtended;
+        private FilterConfigurationView filterConfigurationStandard;
+        private TxBufferView txBuffers;
+        private RxFIFOView rxFIFO0;
+        private RegisterMapView rv;
+        private readonly DoubleWordRegisterCollection registers;
+        private readonly IMultibyteWritePeripheral messageRAM;
+
+        private readonly IMachine machine;
 
         private const int ExtendedFilterSizeInBytes = 8;
         private const int StandardFilterSizeInBytes = 4;
@@ -224,197 +223,165 @@ namespace Antmicro.Renode.Peripherals.CAN
             {15, 64},
         };
 
-        private enum TxScanModeInternal
+        private struct RxFIFO1Acknowledge
         {
-            Dedicated,
-            FIFO,
-            Queue,
-            MixedDedicatedFIFO,
-            MixedDedicatedQueue,
+            public IValueRegisterField RxFIFO1AcknowledgeIndex;
         }
 
-        private enum RxBufferOrDebugDestination
+        private struct HighPriorityMessageStatus
         {
-            StoreInRxBuffer = 0b00,
-            DebugMessageA = 0b01,
-            DebugMessageB = 0b10,
-            DebugMessageC = 0b11
+            public IValueRegisterField BufferIndex;
+            public IEnumRegisterField<MessageStorageIndicator> MessageStorageIndicator;
+            public IValueRegisterField FilterIndex;
+            public IFlagRegisterField FilterList;
         }
 
-        private enum LastErrorCode
+        private struct NewData1
         {
-            NoError = 0,
-            StuffError = 1,
-            FormError = 2,
-            AckError = 3,
-            Bit1Error = 4,
-            Bit0Error = 5,
-            CRCError = 6,
-            NoChange = 7
+            public IFlagRegisterField[] NewData1Flags;
         }
 
-        private enum Activity
+        private struct NewData2
         {
-            Synchronizing = 0b00,
-            Idle = 0b01,
-            Receiver = 0b10,
-            Transmitter = 0b11
+            public IFlagRegisterField[] NewData2Flags;
         }
 
-        private enum FIFOOperationMode
+        private struct RxFIFO0Configuration
         {
-            Blocking = 0,
-            Overwrite = 1
+            public IValueRegisterField RxFIFO0StartAddress;
+            public IValueRegisterField RxFIFO0Size;
+            public IValueRegisterField RxFIFO0Watermark;
+            public IEnumRegisterField<FIFOOperationMode> FIFO0OperationMode;
         }
 
-        private enum DebugMessageStatus
+        private struct RxFIFO0Status
         {
-            IdleState = 0b00,
-            DebugMessageA = 0b01,
-            DebugMessageAB = 0b10,
-            DebugMessageABC = 0b11
+            public IValueRegisterField RxFIFO0GetIndex;
+            public IValueRegisterField RxFIFO0PutIndex;
+            public IFlagRegisterField RxFIFO0Full;
+            public IFlagRegisterField RxFIFO0MessageLost;
         }
 
-        private enum NonMatchingFrameTarget
+        private struct RxFIFO0Acknowledge
         {
-            AcceptInRxFIFO0 = 0b00,
-            AcceptInRxFIFO1 = 0b01,
-            Reject_ = 0b10,
-            Reject__ = 0b11
+            public IValueRegisterField RxFIFO0AcknowledgeIndex;
         }
 
-        private enum MessageStorageIndicator
+        private struct RxBufferConfiguration
         {
-            NoFIFOselected = 0b00,
-            FIFOMessageLost = 0b01,
-            MessageInFIFO0 = 0b10,
-            MessageInFIFO1 = 0b11,
+            public IValueRegisterField RxBufferStartAddress;
         }
 
-        private enum Interrupt
+        private struct RxFIFO1Configuration
         {
-            RxFIFO0NewMessage = 0,                                  // RF0N
-            RxFIFO0WatermarkReached = 1,                            // RF0W
-            RxFIFO0Full = 2,                                        // RF0F
-            RxFIFO0MessageLost = 3,                                 // RF0L
-            RxFIFO1NewMessage = 4,                                  // RF1N
-            RxFIFO1WatermarkReached = 5,                            // RF1W
-            RxFIFO1Full = 6,                                        // RF1F
-            RxFIFO1MessageLost = 7,                                 // RF1L
-            HighPriorityMessage = 8,                                // HPM
-            TransmissionCompleted = 9,                              // TC
-            TransmissionCancellationFinished = 10,                  // TCF
-            TxFIFOEmpty = 11,                                       // TFE
-            TxEventFIFONewEntry = 12,                               // TEFN
-            TxEventFIFOWatermarkReached = 13,                       // TEFW
-            TxEventFIFOFull = 14,                                   // TEFF
-            TxEventFIFOElementLost = 15,                            // TEFL
-            TimestampWraparound = 16,                               // TSW
-            MessageRAMAccessFailure = 17,                           // MRAF
-            TimeoutOccurred = 18,                                   // TOO
-            MessageStoredToDedicatedRxBuffer = 19,                  // DRX
-            BitErrorCorrected = 20,                                 // BEC
-            BitErrorUncorrected = 21,                               // BEU
-            ErrorLoggingOverflow = 22,                              // ELO
-            ErrorPassive = 23,                                      // EP
-            WarningStatus = 24,                                     // EW
-            BusOffStatus = 25,                                      // BO
-            WatchdogInterrupt = 26,                                 // WDI
-            ProtocolErrorInArbitrationPhase = 27,                   // PEA
-            ProtocolErrorInDataPhase = 28,                          // PED
-            AccessToReservedAddress = 29                            // ARA
+            public IValueRegisterField RxFIFO1StartAddress;
+            public IValueRegisterField RxFIFO1Size;
+            public IValueRegisterField RxFIFO1Watermark;
+            public IEnumRegisterField<FIFOOperationMode> FIFO1OperationMode;
         }
 
-        private enum Control
+        private struct RxFIFO1Status
         {
-            Initialization = 0,                                     // INIT
-            ConfigurationChangeEnable = 1,                          // CCE
-            RestrictedOperationMode = 2,                            // ASM
-            ClockStopAcknowledge = 3,                               // CSA
-            ClockStopRequest = 4,                                   // CSR
-            BusMonitoringMode = 5,                                  // MON
-            DisableAutomaticRetransmission = 6,                     // DAR
-            TestModeEnable = 7,                                     // TEST
-            FDOperationEnable = 8,                                  // FDOE
-            BitRateSwitchEnable = 9,                                // BRSE
-            UseTimestampingUnit = 10,                               // UTSU
-            WideMessageMarker = 11,                                 // WMM
-            ProtocolExceptionHandlingDisable = 12,                  // PXHD
-            EdgeFilteringDuringBusIntegration = 13,                 // EFBI
-            TransmitPause = 14,                                     // TXP
-            NonISOOperation = 15                                    // NISO
-        }
-        
-        private enum Register
-        {
-            CoreReleaseRegister = 0x000,                            // CREL
-            EndianRegister = 0x004,                                 // ENDN
-            CustomerRegister = 0x008,                               // CUST
-            DataBitTimingAndPrescalerRegister = 0x00c,              // DBTP
-            TestRegister = 0x010,                                   // TEST
-            RAMWatchdog = 0x014,                                    // RWD
-            CCControlRegister = 0x018,                              // CCCR
-            NominalBitTimingAndPrescalerRegister = 0x01C,           // NBTP
-            TimestampCounterConfiguration = 0x020,                  // TSCC
-            TimestampCounterValue = 0x024,                          // TSCV
-            TimeoutCounterConfiguration = 0x028,                    // TOCC
-            TimeoutCounterValue = 0x02C,                            // TOCV
-            ErrorCounterRegister = 0x040,                           // ECR
-            ProtocolStatusRegister = 0x044,                         // PSR
-            TransmitterDelayCompensationRegister = 0x048,           // TDCR
-            InterruptRegister = 0x050,                              // IR
-            InterruptEnable = 0x054,                                // IE
-            InterruptLineSelect = 0x058,                            // ILS
-            InterruptLineEnable = 0x05C,                            // ILE
-            GlobalFilterConfiguration = 0x080,                      // GFC
-            StandardIDFilterConfiguration = 0x084,                  // SIDFC
-            ExtendedIDFilterConfiguration = 0x088,                  // XIDFC
-            ExtendedIdANDMask = 0x090,                              // XIDAM
-            HighPriorityMessageStatus = 0x094,                      // HPMS
-            NewData1 = 0x098,                                       // NDAT1
-            NewData2 = 0x09C,                                       // NDAT2
-            RxFIFO0Configuration = 0x0A0,                           // RXF0C
-            RxFIFO0Status = 0x0A4,                                  // RXF0S
-            RxFIFO0Acknowledge = 0x0A8,                             // RXF0A
-            RxBufferConfiguration = 0x0AC,                          // RXBC
-            RxFIFO1Configuration = 0x0B0,                           // RXF1C
-            RxFIFO1Status = 0x0B4,                                  // RXF1S
-            RxFIFO1Acknowledge = 0x0B8,                             // RXF1A
-            RxBufferFIFOElementSizeConfiguration = 0x0BC,           // RXESC
-            TxBufferConfiguration = 0x0C0,                          // TXBC
-            TxFIFOQueueStatus = 0x0C4,                              // TXFQS
-            TxBufferElementSizeConfiguration = 0x0C8,               // TXESC
-            TxBufferRequestPending = 0x0CC,                         // TXBRP
-            TxBufferAddRequest = 0x0D0,                             // TXBAR
-            TxBufferCancellationRequest = 0x0D4,                    // TXBCR
-            TxBufferTransmissionOccurred = 0x0D8,                   // TXBTO
-            TxBufferCancellationFinished = 0x0DC,                   // TXBCF
-            TxBufferTransmissionInterruptEnable = 0x0E0,            // TXBTIE
-            TxBufferCancellationFinishedInterruptEnable = 0x0E4,    // TXBCIE
-            TxEventFIFOConfiguration = 0x0F0,                       // TXEFC
-            TxEventFIFOStatus = 0x0F4,                              // TXEFS
-            TxEventFIFOAcknowledge = 0x0F8                          // TXEFA
+            public IValueRegisterField RxFIFO1GetIndex;
+            public IValueRegisterField RxFIFO1PutIndex;
+            public IFlagRegisterField RxFIFO1Full;
+            public IFlagRegisterField RxFIFO1MessageLost;
+            public IEnumRegisterField<DebugMessageStatus> DebugMessageStatus;
         }
 
-        private enum FilterType
+        private struct RxBufferFIFOElementSizeConfiguration
         {
-            Range = 0b00,
-            DualID = 0b01,
-            Classic = 0b10,
-            RangeWithoutMask = 0b11 // valid only for Extended Filter
+            public IValueRegisterField RxFIFO0DataFieldSize;
+            public IValueRegisterField RxFIFO1DataFieldSize;
+            public IValueRegisterField RxBufferDataFieldSize;
         }
 
-        private enum FilterElementConfiguration
+        private struct TxBufferCancellationFinished
         {
-            DisableFilter = 0b000,
-            RxFIFO0OnMatch = 0b001,
-            RxFIFO1OnMatch = 0b010,
-            RejectIDOnMatch = 0b011,
-            SetPriorityOnMatch = 0b100,
-            SetPriorityAndRxFIFO0OnMatch = 0b101,
-            SetPriorityAndRxFIFO1OnMatch = 0b110,
-            RxBufferOrDebugMessageOnMatch = 0b111
+            public IFlagRegisterField[] CancellationFinishedFlags;
         }
+
+        private struct TxFIFOQueueStatus
+        {
+            public IValueRegisterField TxFIFOGetIndex;
+            public IValueRegisterField TxFIFOQueuePutIndex;
+            public IFlagRegisterField TxFIFOQueueFull;
+        }
+
+        private struct TxBufferElementSizeConfiguration
+        {
+            public IValueRegisterField TxBufferDataFieldSize;
+        }
+
+        private struct TxBufferRequestPending
+        {
+            public IFlagRegisterField[] TransmissionRequestPendingFlags;
+        }
+
+        private struct TxBufferAddRequest
+        {
+            public IFlagRegisterField[] AddRequestFlags;
+        }
+
+        private struct TxBufferCancellationRequest
+        {
+            public IFlagRegisterField[] CancellationRequestFlags;
+        }
+
+        private struct TxBufferTransmissionOccurred
+        {
+            public IFlagRegisterField[] TransmissionOccurredFlags;
+        }
+
+        private struct ExtendedIdANDMask
+        {
+            public IValueRegisterField ExtendedIDANDMask;
+        }
+
+        private struct TxBufferTransmissionInterruptEnable
+        {
+            public IFlagRegisterField[] TransmissionInterruptEnableFlags;
+        }
+
+        private struct TxBufferCancellationFinishedInterruptEnable
+        {
+            public IFlagRegisterField[] CancellationFinishedInterruptEnableFlags;
+        }
+
+        private struct TxEventFIFOConfiguration
+        {
+            public IValueRegisterField EventFIFOStartAddress;
+            public IValueRegisterField EventFIFOSize;
+            public IValueRegisterField EventFIFOWatermark;
+        }
+
+        private struct TxBufferConfiguration
+        {
+            public IValueRegisterField TxBuffersStartAddress;
+            public IValueRegisterField NumberOfDedicatedTxBuffers;
+            public IValueRegisterField TxFIFOQueueSize;
+            public IFlagRegisterField TxFIFOQueueMode;
+        }
+
+        private struct ExtendedIDFilterConfiguration
+        {
+            public IValueRegisterField FilterListExtendedStartAddress;
+            public IValueRegisterField ListSizeExtended;
+        }
+
+        private struct CCControlRegister
+        {
+            public IFlagRegisterField[] ControlFields;
+        }
+
+        private struct GlobalFilterConfiguration
+        {
+            public IFlagRegisterField RejectRemoteFramesExtended;
+            public IFlagRegisterField RejectRemoteFramesStandard;
+            public IEnumRegisterField<NonMatchingFrameTarget> AcceptNonMatchingFramesExtended;
+            public IEnumRegisterField<NonMatchingFrameTarget> AcceptNonMatchingFramesStandard;
+        }
+
 #pragma warning disable 649, 169
         [LeastSignificantByteFirst]
         private struct RxBufferElementHeader
@@ -436,7 +403,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             [PacketField, Offset(doubleWords:1, bits: 21), Width(1)]
             public bool FDFormat;                                   // FDF
             [PacketField, Offset(doubleWords:1, bits: 22), Width(2)]
-            private byte Reserved;
+            private readonly byte Reserved;
             [PacketField, Offset(doubleWords:1, bits: 24), Width(7)]
             public byte FilterIndex;                                // FIDX
             [PacketField, Offset(doubleWords:1, bits: 31), Width(1)]
@@ -459,7 +426,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             [PacketField, Offset(doubleWords:1, bits: 4), Width(1)]
             public bool TimestampCaptured;                          // TSC
             [PacketField, Offset(doubleWords:1, bits: 5), Width(11)]
-            private ushort Reserved0;
+            private readonly ushort Reserved0;
             [PacketField, Offset(doubleWords:1, bits: 16), Width(4)]
             public byte DataLengthCode;                             // DLC
             [PacketField, Offset(doubleWords:1, bits: 20), Width(1)]
@@ -467,7 +434,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             [PacketField, Offset(doubleWords:1, bits: 21), Width(1)]
             public bool FDFormat;                                   // FDF
             [PacketField, Offset(doubleWords:1, bits: 22), Width(2)]
-            private byte Reserved1;
+            private readonly byte Reserved1;
             [PacketField, Offset(doubleWords:1, bits: 24), Width(7)]
             public byte FilterIndex;                                // FIDX
             [PacketField, Offset(doubleWords:1, bits: 31), Width(1)]
@@ -499,7 +466,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             [PacketField, Offset(doubleWords:0, bits: 31), Width(1)]
             public bool ErrorStateIndicator;                        // ESI
             [PacketField, Offset(doubleWords:1, bits: 0), Width(8)]
-            private byte Reserved;
+            private readonly byte Reserved;
             [PacketField, Offset(doubleWords:1, bits: 8), Width(8)]
             public byte MessageMarkerHigh;                          // MM
             [PacketField, Offset(doubleWords:1, bits: 16), Width(4)]
@@ -557,7 +524,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             [PacketField, Offset(doubleWords:1, bits: 4), Width(1)]
             public bool TimestampCaptured;                           // TSC
             [PacketField, Offset(doubleWords:1, bits: 5), Width(3)]
-            private bool Reserved;
+            private readonly bool Reserved;
             [PacketField, Offset(doubleWords:1, bits: 8), Width(8)]
             public byte MessageMarkerHigh;                           // MM
             [PacketField, Offset(doubleWords:1, bits: 16), Width(4)]
@@ -578,7 +545,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             [PacketField, Offset(doubleWords:0, bits: 0), Width(11)]
             public ushort StandardFilterID2;                         // SFID2
             [PacketField, Offset(doubleWords:0, bits: 11), Width(4)]
-            private byte Reserved;
+            private readonly byte Reserved;
             [PacketField, Offset(doubleWords:0, bits: 15), Width(1)]
             public bool StandardSyncMessage;                         // SSYNC
             [PacketField, Offset(doubleWords:0, bits: 16), Width(11)]
@@ -625,7 +592,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             public IValueRegisterField Size;
             public IValueRegisterField Watermark;
             public IEnumRegisterField<FIFOOperationMode> OperationMode;
-            
+
             public IValueRegisterField GetIndexRaw;
             public IValueRegisterField PutIndexRaw;
             public IFlagRegisterField Full;
@@ -694,7 +661,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             public IValueRegisterField ListSize;
         }
 
-        private struct RxBufferView 
+        private struct RxBufferView
         {
             public IValueRegisterField StartAddress;
             public IValueRegisterField DataFieldSize;
@@ -930,8 +897,12 @@ namespace Antmicro.Renode.Peripherals.CAN
             public IFlagRegisterField StartedValid;
         }
 
-        private struct CCControlRegister {
-            public IFlagRegisterField[] ControlFields;
+        private struct TxEventFIFOStatus
+        {
+            public IValueRegisterField EventFIFOGetIndex;
+            public IValueRegisterField EventFIFOPutIndex;
+            public IFlagRegisterField EventFIFOFull;
+            public IFlagRegisterField TxEventFIFOElementLost;
         }
 
         private struct ProtocolStatusRegister
@@ -962,177 +933,207 @@ namespace Antmicro.Renode.Peripherals.CAN
             public IFlagRegisterField EnableInterruptLine1;
         }
 
-        private struct GlobalFilterConfiguration
-        {
-            public IFlagRegisterField RejectRemoteFramesExtended;
-            public IFlagRegisterField RejectRemoteFramesStandard;
-            public IEnumRegisterField<NonMatchingFrameTarget> AcceptNonMatchingFramesExtended;
-            public IEnumRegisterField<NonMatchingFrameTarget> AcceptNonMatchingFramesStandard;
-        }
-
         private struct StandardIDFilterConfiguration
         {
             public IValueRegisterField FilterListStandardStartAddress;
             public IValueRegisterField ListSizeStandard;
         }
 
-        private struct ExtendedIDFilterConfiguration
-        {
-            public IValueRegisterField FilterListExtendedStartAddress;
-            public IValueRegisterField ListSizeExtended;
-        }
-
-        private struct ExtendedIdANDMask
-        {
-            public IValueRegisterField ExtendedIDANDMask;
-        }
-
-        private struct HighPriorityMessageStatus
-        {
-            public IValueRegisterField BufferIndex;
-            public IEnumRegisterField<MessageStorageIndicator> MessageStorageIndicator;
-            public IValueRegisterField FilterIndex;
-            public IFlagRegisterField FilterList;
-        }
-
-        private struct NewData1
-        {
-            public IFlagRegisterField[] NewData1Flags;
-        }
-
-        private struct NewData2
-        {
-            public IFlagRegisterField[] NewData2Flags;
-        }
-
-        private struct RxFIFO0Configuration
-        {
-            public IValueRegisterField RxFIFO0StartAddress;
-            public IValueRegisterField RxFIFO0Size;
-            public IValueRegisterField RxFIFO0Watermark;
-            public IEnumRegisterField<FIFOOperationMode> FIFO0OperationMode;
-        }
-
-        private struct RxFIFO0Status
-        {
-            public IValueRegisterField RxFIFO0GetIndex;
-            public IValueRegisterField RxFIFO0PutIndex;
-            public IFlagRegisterField RxFIFO0Full;
-            public IFlagRegisterField RxFIFO0MessageLost;
-        }
-
-        private struct RxFIFO0Acknowledge
-        {
-            public IValueRegisterField RxFIFO0AcknowledgeIndex;
-        }
-
-        private struct RxBufferConfiguration
-        {
-            public IValueRegisterField RxBufferStartAddress;
-        }
-
-        private struct RxFIFO1Configuration
-        {
-            public IValueRegisterField RxFIFO1StartAddress;
-            public IValueRegisterField RxFIFO1Size;
-            public IValueRegisterField RxFIFO1Watermark;
-            public IEnumRegisterField<FIFOOperationMode> FIFO1OperationMode;
-        }
-
-        private struct RxFIFO1Status
-        {
-            public IValueRegisterField RxFIFO1GetIndex;
-            public IValueRegisterField RxFIFO1PutIndex;
-            public IFlagRegisterField RxFIFO1Full;
-            public IFlagRegisterField RxFIFO1MessageLost;
-            public IEnumRegisterField<DebugMessageStatus> DebugMessageStatus;
-        }
-
-        private struct RxFIFO1Acknowledge
-        {
-            public IValueRegisterField RxFIFO1AcknowledgeIndex;
-        }
-
-        private struct RxBufferFIFOElementSizeConfiguration
-        {
-            public IValueRegisterField RxFIFO0DataFieldSize;
-            public IValueRegisterField RxFIFO1DataFieldSize;
-            public IValueRegisterField RxBufferDataFieldSize;
-        }
-
-        private struct TxBufferConfiguration
-        {
-            public IValueRegisterField TxBuffersStartAddress;
-            public IValueRegisterField NumberOfDedicatedTxBuffers;
-            public IValueRegisterField TxFIFOQueueSize;
-            public IFlagRegisterField TxFIFOQueueMode;
-        }
-
-        private struct TxFIFOQueueStatus
-        {
-            public IValueRegisterField TxFIFOGetIndex;
-            public IValueRegisterField TxFIFOQueuePutIndex;
-            public IFlagRegisterField TxFIFOQueueFull;
-        }
-
-        private struct TxBufferElementSizeConfiguration
-        {
-            public IValueRegisterField TxBufferDataFieldSize;
-        }
-
-        private struct TxBufferRequestPending
-        {
-            public IFlagRegisterField[] TransmissionRequestPendingFlags;
-        }
-
-        private struct TxBufferAddRequest
-        {
-            public IFlagRegisterField[] AddRequestFlags;
-        }
-
-        private struct TxBufferCancellationRequest
-        {
-            public IFlagRegisterField[] CancellationRequestFlags;
-        }
-
-        private struct TxBufferTransmissionOccurred
-        {
-            public IFlagRegisterField[] TransmissionOccurredFlags;
-        }
-
-        private struct TxBufferCancellationFinished
-        {
-            public IFlagRegisterField[] CancellationFinishedFlags;
-        }
-
-        private struct TxBufferTransmissionInterruptEnable
-        {
-            public IFlagRegisterField[] TransmissionInterruptEnableFlags;
-        }
-
-        private struct TxBufferCancellationFinishedInterruptEnable
-        {
-            public IFlagRegisterField[] CancellationFinishedInterruptEnableFlags;
-        }
-
-        private struct TxEventFIFOConfiguration
-        {
-            public IValueRegisterField EventFIFOStartAddress;
-            public IValueRegisterField EventFIFOSize;
-            public IValueRegisterField EventFIFOWatermark;
-        }
-
-        private struct TxEventFIFOStatus
-        {
-            public IValueRegisterField EventFIFOGetIndex;
-            public IValueRegisterField EventFIFOPutIndex;
-            public IFlagRegisterField EventFIFOFull;
-            public IFlagRegisterField TxEventFIFOElementLost;
-        }
-
         private struct TxEventFIFOAcknowledge
         {
             public IValueRegisterField EventFIFOAcknowledgeIndex;
+        }
+
+        private enum TxScanModeInternal
+        {
+            Dedicated,
+            FIFO,
+            Queue,
+            MixedDedicatedFIFO,
+            MixedDedicatedQueue,
+        }
+
+        private enum RxBufferOrDebugDestination
+        {
+            StoreInRxBuffer = 0b00,
+            DebugMessageA = 0b01,
+            DebugMessageB = 0b10,
+            DebugMessageC = 0b11
+        }
+
+        private enum LastErrorCode
+        {
+            NoError = 0,
+            StuffError = 1,
+            FormError = 2,
+            AckError = 3,
+            Bit1Error = 4,
+            Bit0Error = 5,
+            CRCError = 6,
+            NoChange = 7
+        }
+
+        private enum Activity
+        {
+            Synchronizing = 0b00,
+            Idle = 0b01,
+            Receiver = 0b10,
+            Transmitter = 0b11
+        }
+
+        private enum FIFOOperationMode
+        {
+            Blocking = 0,
+            Overwrite = 1
+        }
+
+        private enum DebugMessageStatus
+        {
+            IdleState = 0b00,
+            DebugMessageA = 0b01,
+            DebugMessageAB = 0b10,
+            DebugMessageABC = 0b11
+        }
+
+        private enum NonMatchingFrameTarget
+        {
+            AcceptInRxFIFO0 = 0b00,
+            AcceptInRxFIFO1 = 0b01,
+            Reject_ = 0b10,
+            Reject__ = 0b11
+        }
+
+        private enum MessageStorageIndicator
+        {
+            NoFIFOselected = 0b00,
+            FIFOMessageLost = 0b01,
+            MessageInFIFO0 = 0b10,
+            MessageInFIFO1 = 0b11,
+        }
+
+        private enum Interrupt
+        {
+            RxFIFO0NewMessage = 0,                                  // RF0N
+            RxFIFO0WatermarkReached = 1,                            // RF0W
+            RxFIFO0Full = 2,                                        // RF0F
+            RxFIFO0MessageLost = 3,                                 // RF0L
+            RxFIFO1NewMessage = 4,                                  // RF1N
+            RxFIFO1WatermarkReached = 5,                            // RF1W
+            RxFIFO1Full = 6,                                        // RF1F
+            RxFIFO1MessageLost = 7,                                 // RF1L
+            HighPriorityMessage = 8,                                // HPM
+            TransmissionCompleted = 9,                              // TC
+            TransmissionCancellationFinished = 10,                  // TCF
+            TxFIFOEmpty = 11,                                       // TFE
+            TxEventFIFONewEntry = 12,                               // TEFN
+            TxEventFIFOWatermarkReached = 13,                       // TEFW
+            TxEventFIFOFull = 14,                                   // TEFF
+            TxEventFIFOElementLost = 15,                            // TEFL
+            TimestampWraparound = 16,                               // TSW
+            MessageRAMAccessFailure = 17,                           // MRAF
+            TimeoutOccurred = 18,                                   // TOO
+            MessageStoredToDedicatedRxBuffer = 19,                  // DRX
+            BitErrorCorrected = 20,                                 // BEC
+            BitErrorUncorrected = 21,                               // BEU
+            ErrorLoggingOverflow = 22,                              // ELO
+            ErrorPassive = 23,                                      // EP
+            WarningStatus = 24,                                     // EW
+            BusOffStatus = 25,                                      // BO
+            WatchdogInterrupt = 26,                                 // WDI
+            ProtocolErrorInArbitrationPhase = 27,                   // PEA
+            ProtocolErrorInDataPhase = 28,                          // PED
+            AccessToReservedAddress = 29                            // ARA
+        }
+
+        private enum Control
+        {
+            Initialization = 0,                                     // INIT
+            ConfigurationChangeEnable = 1,                          // CCE
+            RestrictedOperationMode = 2,                            // ASM
+            ClockStopAcknowledge = 3,                               // CSA
+            ClockStopRequest = 4,                                   // CSR
+            BusMonitoringMode = 5,                                  // MON
+            DisableAutomaticRetransmission = 6,                     // DAR
+            TestModeEnable = 7,                                     // TEST
+            FDOperationEnable = 8,                                  // FDOE
+            BitRateSwitchEnable = 9,                                // BRSE
+            UseTimestampingUnit = 10,                               // UTSU
+            WideMessageMarker = 11,                                 // WMM
+            ProtocolExceptionHandlingDisable = 12,                  // PXHD
+            EdgeFilteringDuringBusIntegration = 13,                 // EFBI
+            TransmitPause = 14,                                     // TXP
+            NonISOOperation = 15                                    // NISO
+        }
+
+        private enum Register
+        {
+            CoreReleaseRegister = 0x000,                            // CREL
+            EndianRegister = 0x004,                                 // ENDN
+            CustomerRegister = 0x008,                               // CUST
+            DataBitTimingAndPrescalerRegister = 0x00c,              // DBTP
+            TestRegister = 0x010,                                   // TEST
+            RAMWatchdog = 0x014,                                    // RWD
+            CCControlRegister = 0x018,                              // CCCR
+            NominalBitTimingAndPrescalerRegister = 0x01C,           // NBTP
+            TimestampCounterConfiguration = 0x020,                  // TSCC
+            TimestampCounterValue = 0x024,                          // TSCV
+            TimeoutCounterConfiguration = 0x028,                    // TOCC
+            TimeoutCounterValue = 0x02C,                            // TOCV
+            ErrorCounterRegister = 0x040,                           // ECR
+            ProtocolStatusRegister = 0x044,                         // PSR
+            TransmitterDelayCompensationRegister = 0x048,           // TDCR
+            InterruptRegister = 0x050,                              // IR
+            InterruptEnable = 0x054,                                // IE
+            InterruptLineSelect = 0x058,                            // ILS
+            InterruptLineEnable = 0x05C,                            // ILE
+            GlobalFilterConfiguration = 0x080,                      // GFC
+            StandardIDFilterConfiguration = 0x084,                  // SIDFC
+            ExtendedIDFilterConfiguration = 0x088,                  // XIDFC
+            ExtendedIdANDMask = 0x090,                              // XIDAM
+            HighPriorityMessageStatus = 0x094,                      // HPMS
+            NewData1 = 0x098,                                       // NDAT1
+            NewData2 = 0x09C,                                       // NDAT2
+            RxFIFO0Configuration = 0x0A0,                           // RXF0C
+            RxFIFO0Status = 0x0A4,                                  // RXF0S
+            RxFIFO0Acknowledge = 0x0A8,                             // RXF0A
+            RxBufferConfiguration = 0x0AC,                          // RXBC
+            RxFIFO1Configuration = 0x0B0,                           // RXF1C
+            RxFIFO1Status = 0x0B4,                                  // RXF1S
+            RxFIFO1Acknowledge = 0x0B8,                             // RXF1A
+            RxBufferFIFOElementSizeConfiguration = 0x0BC,           // RXESC
+            TxBufferConfiguration = 0x0C0,                          // TXBC
+            TxFIFOQueueStatus = 0x0C4,                              // TXFQS
+            TxBufferElementSizeConfiguration = 0x0C8,               // TXESC
+            TxBufferRequestPending = 0x0CC,                         // TXBRP
+            TxBufferAddRequest = 0x0D0,                             // TXBAR
+            TxBufferCancellationRequest = 0x0D4,                    // TXBCR
+            TxBufferTransmissionOccurred = 0x0D8,                   // TXBTO
+            TxBufferCancellationFinished = 0x0DC,                   // TXBCF
+            TxBufferTransmissionInterruptEnable = 0x0E0,            // TXBTIE
+            TxBufferCancellationFinishedInterruptEnable = 0x0E4,    // TXBCIE
+            TxEventFIFOConfiguration = 0x0F0,                       // TXEFC
+            TxEventFIFOStatus = 0x0F4,                              // TXEFS
+            TxEventFIFOAcknowledge = 0x0F8                          // TXEFA
+        }
+
+        private enum FilterType
+        {
+            Range = 0b00,
+            DualID = 0b01,
+            Classic = 0b10,
+            RangeWithoutMask = 0b11 // valid only for Extended Filter
+        }
+
+        private enum FilterElementConfiguration
+        {
+            DisableFilter = 0b000,
+            RxFIFO0OnMatch = 0b001,
+            RxFIFO1OnMatch = 0b010,
+            RejectIDOnMatch = 0b011,
+            SetPriorityOnMatch = 0b100,
+            SetPriorityAndRxFIFO0OnMatch = 0b101,
+            SetPriorityAndRxFIFO1OnMatch = 0b110,
+            RxBufferOrDebugMessageOnMatch = 0b111
         }
     }
 }

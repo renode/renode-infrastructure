@@ -5,12 +5,13 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
 {
@@ -32,6 +33,55 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
             RegistersCollection = new DoubleWordRegisterCollection(this);
             Size = DefineRegisters();
+        }
+
+        public override void OnGPIO(int number, bool value)
+        {
+            if(!CheckPinNumber(number))
+            {
+                return;
+            }
+
+            base.OnGPIO(number, value);
+
+            if(!enableIrq)
+            {
+                // irq support is not enabled
+                return;
+            }
+
+            if(State[number] == previousState[number])
+            {
+                // nothing to do
+                return;
+            }
+
+            previousState[number] = State[number];
+
+            if(irqMode[number].Value == IrqMode.Edge)
+            {
+                if(irqEdge[number].Value == IrqEdge.Rising)
+                {
+                    if(State[number])
+                    {
+                        irqPending[number].Value = true;
+                        UpdateInterrupts();
+                    }
+                }
+                else // it must be Falling
+                {
+                    if(!State[number])
+                    {
+                        irqPending[number].Value = true;
+                        UpdateInterrupts();
+                    }
+                }
+            }
+            else // it must be Change
+            {
+                irqPending[number].Value = true;
+                UpdateInterrupts();
+            }
         }
 
         public uint ReadDoubleWord(long offset)
@@ -62,55 +112,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         public long Size { get; }
 
         public DoubleWordRegisterCollection RegistersCollection { get; }
-
-        public override void OnGPIO(int number, bool value)
-        {
-            if(!CheckPinNumber(number))
-            {
-                return;
-            }
-
-            base.OnGPIO(number, value);
-
-            if(!enableIrq)
-            {
-                // irq support is not enabled
-                return;
-            }
-
-            if(State[number] == previousState[number])
-            {
-                // nothing to do
-                return;
-            }
-
-            previousState[number] = State[number];
-            
-            if(irqMode[number].Value == IrqMode.Edge)
-            {
-                if(irqEdge[number].Value == IrqEdge.Rising)
-                {
-                    if(State[number])
-                    {
-                        irqPending[number].Value = true;
-                        UpdateInterrupts();
-                    }
-                }
-                else // it must be Falling
-                {
-                    if(!State[number])
-                    {
-                        irqPending[number].Value = true;
-                        UpdateInterrupts();
-                    }
-                }
-            }
-            else // it must be Change
-            {
-                irqPending[number].Value = true;
-                UpdateInterrupts();
-            }
-        }
 
         private int DefineRegisters()
         {
@@ -201,14 +202,14 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             IRQ.Set(flag);
         }
 
-        private readonly Type type;
-        private readonly bool enableIrq;
-
         private IEnumRegisterField<IrqEdge>[] irqEdge;
         private IEnumRegisterField<IrqMode>[] irqMode;
 
         private IFlagRegisterField[] irqPending;
         private IFlagRegisterField[] irqEnable;
+
+        private readonly Type type;
+        private readonly bool enableIrq;
 
         private readonly bool[] previousState;
 
@@ -247,4 +248,3 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         }
     }
 }
-

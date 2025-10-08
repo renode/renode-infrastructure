@@ -5,11 +5,14 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System;
-using System.Linq;
+using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
+using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -18,7 +21,12 @@ namespace Antmicro.Renode.Peripherals.CPU
     {
         public static void SetPC(this Cluster cluster, ulong value)
         {
-            foreach (var cpu in cluster.Clustered)
+            if(Interlocked.Exchange(ref cluster.SetPcWarningPrinted, 1) == 0)
+            {
+                cluster.WarningLog("Cluster.SetPC is deprecated and will be removed in a future release of Renode.\n" +
+                    "Use '{0} ForEach PC' instead", cluster.GetName().Split('.')[1]);
+            }
+            foreach(var cpu in cluster.Clustered)
             {
                 cpu.PC = value;
             }
@@ -74,10 +82,26 @@ namespace Antmicro.Renode.Peripherals.CPU
             cpus.Remove(cpu);
         }
 
+        public IEnumerator<TranslationCPU> GetEnumerator()
+        {
+            return Clustered.GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return Clustered.GetEnumerator();
+        }
+
         public bool IsHalted
         {
             set
             {
+                if(Interlocked.Exchange(ref isHaltedWarningPrinted, 1) == 0)
+                {
+                    this.WarningLog("Cluster.IsHalted is deprecated and will be removed in a future release of Renode.\n" +
+                        "Use '{0} ForEach IsHalted' instead", this.GetName().Split('.')[1]);
+                }
+
                 foreach(var cpu in this.Clustered)
                 {
                     cpu.IsHalted = value;
@@ -85,10 +109,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-
         public IEnumerable<ICluster<TranslationCPU>> Clusters => clusters;
 
         public IEnumerable<TranslationCPU> Clustered => cpus.Concat(clusters.SelectMany(cluster => cluster.Clustered));
+
+        public int SetPcWarningPrinted;
+        private int isHaltedWarningPrinted;
 
         private readonly List<ICluster<TranslationCPU>> clusters = new List<ICluster<TranslationCPU>>();
         private readonly List<TranslationCPU> cpus = new List<TranslationCPU>();

@@ -7,6 +7,7 @@
 
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Logging;
@@ -133,4 +134,3 @@ namespace Antmicro.Renode.Peripherals.SPI
         private readonly bool suppressExplicitFinishTransmission;
     }
 }
-

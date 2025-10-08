@@ -6,10 +6,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using NUnit.Framework;
-using Antmicro.Renode.Peripherals;
+
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Time;
+
+using NUnit.Framework;
 
 namespace Antmicro.Renode.UnitTests
 {
@@ -151,4 +152,3 @@ namespace Antmicro.Renode.UnitTests
         }
     }
 }
-

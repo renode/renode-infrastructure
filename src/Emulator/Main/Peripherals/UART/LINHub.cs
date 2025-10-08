@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
     public sealed class LINHub : UARTHubBase<ILINDevice>
     {
-        public LINHub() : base(true) {}
+        public LINHub() : base(true) { }
 
         public override void AttachTo(ILINDevice lin)
         {

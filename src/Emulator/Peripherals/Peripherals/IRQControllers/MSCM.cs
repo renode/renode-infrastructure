@@ -6,10 +6,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Logging;
 using System.Collections.Generic;
+
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.IRQControllers
 {
@@ -28,8 +29,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             Connections = new IGPIORedirector(232, HandleIRQConnect, HandleIRQDisconnect);
         }
-
-        public IReadOnlyDictionary<int, IGPIO> Connections { get; private set; }
 
         public ushort ReadWord(long offset)
         {
@@ -95,6 +94,24 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             this.LogUnhandledWrite(offset, value);
         }
 
+        public void OnGPIO(int number, bool value)
+        {
+            lock(routingTable)
+            {
+                if(routingTable[number])
+                {
+                    destinations[number].OnGPIO(value);
+                }
+            }
+        }
+
+        public void Reset()
+        {
+            Array.Clear(routingTable, 0, routingTable.Length);
+        }
+
+        public IReadOnlyDictionary<int, IGPIO> Connections { get; private set; }
+
         public long Size
         {
             get
@@ -129,22 +146,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 destinations[sourceNumber] = new Destination();
             }
-        }
-
-        public void OnGPIO(int number, bool value)
-        {
-            lock(routingTable)
-            {
-                if(routingTable[number])
-                {
-                    destinations[number].OnGPIO(value);
-                }
-            }
-        }
-
-        public void Reset()
-        {
-            Array.Clear(routingTable, 0, routingTable.Length);
         }
 
         private void HandleGenerateInterrupt(uint value)
@@ -209,7 +210,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
-        private Destination[] destinations;
+        private readonly Destination[] destinations;
         private readonly bool[] routingTable;
         private readonly GPIO[] interProcessorInterrupts;
         private readonly IBusController sysbus;
@@ -218,29 +219,28 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private const int RoutingControlStart = 0x880;
         private const int RoutingControlEnd = RoutingControlStart + NumberOfInterrupts*2;
 
+        private struct Destination
+        {
+            public Destination(IGPIOReceiver receiver, int destinationNo)
+            {
+                this.Receiver = receiver;
+                this.DestinationNo = destinationNo;
+            }
+
+            public void OnGPIO(bool state)
+            {
+                Receiver.OnGPIO(DestinationNo, state);
+            }
+
+            public readonly IGPIOReceiver Receiver;
+            public readonly int DestinationNo;
+        }
+
         private enum Register
         {
             CP0 = 0x800,
             CP1 = 0x804,
             GenerateInterrupt = 0x820
         }
-
-        private struct Destination
-        {
-            public Destination(IGPIOReceiver receiver, int destinationNo)
-            {
-                this.receiver = receiver;
-                this.destinationNo = destinationNo;
-            }
-
-            public void OnGPIO(bool state)
-            {
-                receiver.OnGPIO(destinationNo, state);
-            }
-
-            public readonly IGPIOReceiver receiver;
-            public readonly int destinationNo;
-        }
     }
 }
-

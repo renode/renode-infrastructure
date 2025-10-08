@@ -48,7 +48,7 @@ namespace Antmicro.Renode.Utilities.Collections
                 return false;
             }
             item = list[list.Keys[0]];
-            priority = list.Keys[0].priority;
+            priority = list.Keys[0].Priority;
             return true;
         }
 
@@ -69,26 +69,27 @@ namespace Antmicro.Renode.Utilities.Collections
 
         public int Count => list.Count;
 
-        private readonly SortedList<Key, TElement> list;
         // Used to ensure keys are not duplicate, incremented for every item inserted
         private ulong count;
+
+        private readonly SortedList<Key, TElement> list;
 
         private class Key : IComparable<Key>
         {
             public Key(TPriority priority, ulong count)
             {
-                this.priority = priority;
-                this.count = count;
+                this.Priority = priority;
+                this.Count = count;
             }
 
             public int CompareTo(Key other)
             {
-                int priorityDiff = priority.CompareTo(other.priority);
-                return priorityDiff != 0 ? priorityDiff : count.CompareTo(other.count);
+                int priorityDiff = Priority.CompareTo(other.Priority);
+                return priorityDiff != 0 ? priorityDiff : Count.CompareTo(other.Count);
             }
 
-            public readonly TPriority priority;
-            public readonly ulong count;
+            public readonly TPriority Priority;
+            public readonly ulong Count;
         }
     }
 }

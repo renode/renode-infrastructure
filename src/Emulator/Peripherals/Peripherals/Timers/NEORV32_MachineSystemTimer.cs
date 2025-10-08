@@ -4,11 +4,12 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using System.Collections.Generic;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -18,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         public NEORV32_MachineSystemTimer(IMachine machine, long frequency)
         {
             mTimer = new ComparingTimer(machine.ClockSource, frequency, this, nameof(mTimer), direction: Time.Direction.Ascending, workMode: Time.WorkMode.Periodic, eventEnabled: true, enabled: true);
-            mTimer.CompareReached += () => 
+            mTimer.CompareReached += () =>
             {
                 UpdateInterrupts();
             };
@@ -36,9 +37,9 @@ namespace Antmicro.Renode.Peripherals.Timers
                     valueProviderCallback: _ => mTimer.Compare,
                     writeCallback: (_, value) => mTimer.Compare = value)
                 .WithWriteCallback((_, __) => UpdateInterrupts()));
-            
+
             RegistersCollection = new QuadWordRegisterCollection(this, registersMap);
-            
+
             this.machine = machine;
         }
 
@@ -59,7 +60,9 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
 
         public QuadWordRegisterCollection RegistersCollection { get; }
+
         public GPIO IRQ { get; } = new GPIO();
+
         public long Size => 0x10;
 
         private void UpdateInterrupts()
@@ -69,7 +72,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             IRQ.Set(shouldInterrupt);
         }
 
-        private ulong TimerValue 
+        private ulong TimerValue
         {
             get
             {
@@ -92,5 +95,3 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
     }
 }
-
-

@@ -8,6 +8,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Utilities.Collections;
 
@@ -76,49 +77,49 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 var isEdge = currentState != previousState[i];
                 switch(InterruptType[i])
                 {
-                    case InterruptTrigger.ActiveHigh:
-                        if(DeassertActiveInterruptTrigger)
-                        {
-                            activeInterrupts[i] = currentState;
-                        }
-                        else
-                        {
-                            activeInterrupts[i] |= currentState;
-                        }
-                        irqState |= activeInterrupts[i] && !InterruptMask[i];
-                        break;
-                    case InterruptTrigger.ActiveLow:
-                        if(DeassertActiveInterruptTrigger)
-                        {
-                            activeInterrupts[i] = !currentState;
-                        }
-                        else
-                        {
-                            activeInterrupts[i] |= !currentState;
-                        }
-                        irqState |= activeInterrupts[i] && !InterruptMask[i];
-                        break;
-                    case InterruptTrigger.RisingEdge:
-                        if(isEdge && currentState)
-                        {
-                            irqState |= !InterruptMask[i];
-                            activeInterrupts[i] = true;
-                        }
-                        break;
-                    case InterruptTrigger.FallingEdge:
-                        if(isEdge && !currentState)
-                        {
-                            irqState |= !InterruptMask[i];
-                            activeInterrupts[i] = true;
-                        }
-                        break;
-                    case InterruptTrigger.BothEdges:
-                        if(isEdge)
-                        {
-                            irqState |= !InterruptMask[i];
-                            activeInterrupts[i] = true;
-                        }
-                        break;
+                case InterruptTrigger.ActiveHigh:
+                    if(DeassertActiveInterruptTrigger)
+                    {
+                        activeInterrupts[i] = currentState;
+                    }
+                    else
+                    {
+                        activeInterrupts[i] |= currentState;
+                    }
+                    irqState |= activeInterrupts[i] && !InterruptMask[i];
+                    break;
+                case InterruptTrigger.ActiveLow:
+                    if(DeassertActiveInterruptTrigger)
+                    {
+                        activeInterrupts[i] = !currentState;
+                    }
+                    else
+                    {
+                        activeInterrupts[i] |= !currentState;
+                    }
+                    irqState |= activeInterrupts[i] && !InterruptMask[i];
+                    break;
+                case InterruptTrigger.RisingEdge:
+                    if(isEdge && currentState)
+                    {
+                        irqState |= !InterruptMask[i];
+                        activeInterrupts[i] = true;
+                    }
+                    break;
+                case InterruptTrigger.FallingEdge:
+                    if(isEdge && !currentState)
+                    {
+                        irqState |= !InterruptMask[i];
+                        activeInterrupts[i] = true;
+                    }
+                    break;
+                case InterruptTrigger.BothEdges:
+                    if(isEdge)
+                    {
+                        irqState |= !InterruptMask[i];
+                        activeInterrupts[i] = true;
+                    }
+                    break;
                 }
             }
             Array.ConstrainedCopy(underlyingState.Array, underlyingState.Offset, previousState, 0, underlyingState.Count);
@@ -156,22 +157,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         private readonly EventRisingCollection<InterruptTrigger> interruptType;
         private readonly EventRisingCollection<bool> interruptMask;
         private readonly EventRisingCollection<Direction> pinDirection;
-
-        public enum InterruptTrigger
-        {
-            ActiveLow,
-            ActiveHigh,
-            FallingEdge,
-            RisingEdge,
-            BothEdges
-        }
-
-        [Flags]
-        public enum Direction
-        {
-            Input = 0x1,
-            Output = 0x2
-        }
 
         public class EventRisingCollection<T> : IArray<T>
         {
@@ -223,6 +208,22 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
             private readonly T[] elements;
             private readonly Action onChanged;
+        }
+
+        public enum InterruptTrigger
+        {
+            ActiveLow,
+            ActiveHigh,
+            FallingEdge,
+            RisingEdge,
+            BothEdges
+        }
+
+        [Flags]
+        public enum Direction
+        {
+            Input = 0x1,
+            Output = 0x2
         }
     }
 }

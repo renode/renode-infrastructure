@@ -6,12 +6,13 @@
 //
 using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Peripherals.IRQControllers;
+using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Utilities.Binding;
 
 using Endianess = ELFSharp.ELF.Endianess;
@@ -48,6 +49,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 securityState = this.securityState;
             }
         }
+
         public void SetAvailableExceptionLevels(bool el2Enabled, bool el3Enabled)
         {
             if(started)
@@ -133,6 +135,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         public override ExecutionState ExecutionState => ExecutionState.AArch64;
+
         public override ExecutionState[] SupportedExecutionStates => new[] { ExecutionState.AArch32, ExecutionState.AArch64 };
 
         public SecurityState SecurityState
@@ -147,32 +150,16 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         public bool FIQMaskOverride => (GetSystemRegisterValue("hcr_el2") & 0b01000) != 0;
+
         public bool IRQMaskOverride => (GetSystemRegisterValue("hcr_el2") & 0b10000) != 0;
 
         public Affinity Affinity { get; }
+
         public bool IsEL3UsingAArch32State => false; // ARM8vA currently supports only AArch64 execution
+
         public bool HasSingleSecurityState { get; private set; }
 
         public event Action<ExceptionLevel, SecurityState> ExecutionModeChanged;
-
-        protected override Interrupt DecodeInterrupt(int number)
-        {
-            switch((InterruptSignalType)number)
-            {
-                case InterruptSignalType.IRQ:
-                    return Interrupt.Hard;
-                case InterruptSignalType.FIQ:
-                    return Interrupt.TargetExternal1;
-                case InterruptSignalType.vIRQ:
-                    return Interrupt.TargetExternal2;
-                case InterruptSignalType.vFIQ:
-                    return Interrupt.TargetExternal3;
-                default:
-                    throw InvalidInterruptNumberException;
-            }
-        }
-
-        protected override Type RegistersEnum => typeof(ARMv8ARegisters);
 
         [Export]
         protected void OnTcmMappingUpdate(int index, ulong newAddress)
@@ -192,20 +179,18 @@ namespace Antmicro.Renode.Peripherals.CPU
             gic.WriteSystemRegisterCPUInterface(offset, value);
         }
 
-
         [Export]
-        protected uint ReadSystemRegisterGenericTimer32(uint offset)
+        protected uint ReadSystemRegisterGenericTimer32(uint _)
         {
             this.Log(LogLevel.Error, "Reading 32-bit registers of the ARM Generic Timer is not allowed in 64bit version of the CPU");
             return 0;
         }
 
         [Export]
-        protected void WriteSystemRegisterGenericTimer32(uint offset, uint value)
+        protected void WriteSystemRegisterGenericTimer32(uint _, uint __)
         {
             this.Log(LogLevel.Error, "Writing 32-bit registers of the ARM Generic Timer is not allowed in 64bit version of the CPU");
             return;
-
         }
 
         [Export]
@@ -230,6 +215,25 @@ namespace Antmicro.Renode.Peripherals.CPU
             timer.WriteRegisterAArch64(offset, value);
         }
 
+        protected override Interrupt DecodeInterrupt(int number)
+        {
+            switch((InterruptSignalType)number)
+            {
+            case InterruptSignalType.IRQ:
+                return Interrupt.Hard;
+            case InterruptSignalType.FIQ:
+                return Interrupt.TargetExternal1;
+            case InterruptSignalType.vIRQ:
+                return Interrupt.TargetExternal2;
+            case InterruptSignalType.vFIQ:
+                return Interrupt.TargetExternal3;
+            default:
+                throw InvalidInterruptNumberException;
+            }
+        }
+
+        protected override Type RegistersEnum => typeof(ARMv8ARegisters);
+
         [Export]
         private void OnExecutionModeChanged(uint el, uint isSecure)
         {
@@ -245,6 +249,17 @@ namespace Antmicro.Renode.Peripherals.CPU
         private SecurityState securityState;
         private ARM_GenericTimer timer;
 
+#pragma warning disable 649
+        [Import]
+        private readonly Func<uint> TlibHasEl3;
+
+        [Import]
+        private readonly Func<uint, uint, uint> TlibSetAvailableEls;
+
+        [Import]
+        private readonly Action<uint> TlibSetCurrentEl;
+#pragma warning restore 649
+
         private readonly object elAndSecurityLock = new object();
         private readonly ARM_GenericInterruptController gic;
 
@@ -255,16 +270,5 @@ namespace Antmicro.Renode.Peripherals.CPU
             EL2OrEL3EnablingFailed = 2,
             Success = 3,
         }
-
-#pragma warning disable 649
-        [Import]
-        private Func<uint> TlibHasEl3;
-
-        [Import]
-        private Func<uint, uint, uint> TlibSetAvailableEls;
-
-        [Import]
-        private Action<uint> TlibSetCurrentEl;
-#pragma warning restore 649
     }
 }

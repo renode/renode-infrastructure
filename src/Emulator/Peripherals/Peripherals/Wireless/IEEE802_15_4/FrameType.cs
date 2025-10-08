@@ -19,4 +19,3 @@ namespace Antmicro.Renode.Peripherals.Wireless.IEEE802_15_4
         Reserved7 = 0x7
     }
 }
-

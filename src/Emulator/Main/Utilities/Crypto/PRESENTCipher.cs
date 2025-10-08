@@ -5,7 +5,6 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -14,7 +13,7 @@ namespace Antmicro.Renode.Utilities
         // For cryptographic purposes use provided constants, more info: https://link.springer.com/content/pdf/10.1007%2F978-3-540-74735-2_31.pdf
         // Note that current implementation assumes 64-bit `key`, but could be extended to 80-bit or 128-bit in the future.
 
-        static public ulong Scramble(ulong data, ulong key, int width = OriginalDataWidth, uint rounds = OriginalNumberOfRounds)
+        public static ulong Scramble(ulong data, ulong key, int width = OriginalDataWidth, uint rounds = OriginalNumberOfRounds)
         {
             if(width < 0 || width > 64)
             {
@@ -36,7 +35,7 @@ namespace Antmicro.Renode.Utilities
             return state ^ key;
         }
 
-        static public ulong Descramble(ulong data, ulong key, int width = OriginalDataWidth, uint rounds = OriginalNumberOfRounds)
+        public static ulong Descramble(ulong data, ulong key, int width = OriginalDataWidth, uint rounds = OriginalNumberOfRounds)
         {
             if(width < 0 || width > 64)
             {
@@ -58,7 +57,7 @@ namespace Antmicro.Renode.Utilities
             return state ^ key;
         }
 
-        static private ulong Substitute(ulong data, int width, ulong[] coefficients)
+        private static ulong Substitute(ulong data, int width, ulong[] coefficients)
         {
             var mask = ulong.MaxValue >> (64 - width);
             var substitutionMask = ulong.MaxValue >> (64 - (width & ~0x3));
@@ -73,7 +72,7 @@ namespace Antmicro.Renode.Utilities
             return state;
         }
 
-        static private ulong Permutate(ulong data, int width)
+        private static ulong Permutate(ulong data, int width)
         {
             var mask = ulong.MaxValue >> (64 - width);
             var permutationMask = ulong.MaxValue >> (64 - (width & ~0x1));
@@ -89,7 +88,7 @@ namespace Antmicro.Renode.Utilities
             return state;
         }
 
-        static private ulong ReversePermutate(ulong data, int width)
+        private static ulong ReversePermutate(ulong data, int width)
         {
             var mask = ulong.MaxValue >> (64 - width);
             var permutationMask = ulong.MaxValue >> (64 - (width & ~0x1));
@@ -115,7 +114,7 @@ namespace Antmicro.Renode.Utilities
             0x5, 0xe, 0xf, 0x8, 0xc, 0x1, 0x2, 0xd,
             0xb, 0x4, 0x6, 0x3, 0x0, 0x7, 0x9, 0xa
         };
-        
+
         private const int OriginalDataWidth = 64;
         private const uint OriginalNumberOfRounds = 31;
     }

@@ -7,10 +7,11 @@
 //
 
 using System;
+
+using Antmicro.Migrant;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Utilities;
 
-using Antmicro.Migrant;
 namespace Antmicro.Renode.Backends.Terminals
 {
     public static class ServerSocketTerminalExtensions
@@ -45,4 +46,3 @@ namespace Antmicro.Renode.Backends.Terminals
         private readonly SocketServerProvider server;
     }
 }
-

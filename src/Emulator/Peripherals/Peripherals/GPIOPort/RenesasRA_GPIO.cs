@@ -15,7 +15,7 @@ using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
 {
-    abstract public class RenesasRA_GPIO : BaseGPIOPort, IDoubleWordPeripheral, IWordPeripheral, IProvidesRegisterCollection<WordRegisterCollection>, IKnownSize
+    public abstract class RenesasRA_GPIO : BaseGPIOPort, IDoubleWordPeripheral, IWordPeripheral, IProvidesRegisterCollection<WordRegisterCollection>, IKnownSize
     {
         public RenesasRA_GPIO(IMachine machine, int portNumber, int numberOfConnections, RenesasRA_GPIOMisc pfsMisc) : base(machine, numberOfConnections)
         {
@@ -179,27 +179,42 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         }
 
         public GPIO IRQ0 { get; }
+
         public GPIO IRQ1 { get; }
+
         public GPIO IRQ2 { get; }
+
         public GPIO IRQ3 { get; }
+
         public GPIO IRQ4 { get; }
+
         public GPIO IRQ5 { get; }
+
         public GPIO IRQ6 { get; }
+
         public GPIO IRQ7 { get; }
+
         public GPIO IRQ8 { get; }
+
         public GPIO IRQ9 { get; }
+
         public GPIO IRQ10 { get; }
+
         public GPIO IRQ11 { get; }
+
         public GPIO IRQ12 { get; }
+
         public GPIO IRQ13 { get; }
+
         public GPIO IRQ14 { get; }
+
         public GPIO IRQ15 { get; }
 
         public WordRegisterCollection RegistersCollection { get; }
 
         public long Size => 0x20;
 
-        abstract protected List<InterruptOutput>[] PinInterruptOutputs { get; }
+        protected abstract List<InterruptOutput>[] PinInterruptOutputs { get; }
 
         private bool CheckAccessAligned(long offset, uint alignment, string message)
         {
@@ -413,6 +428,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             }
 
             public int PinNumber { get; }
+
             public GPIO IRQ { get; }
         }
 

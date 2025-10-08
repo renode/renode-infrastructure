@@ -4,20 +4,19 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU;
-using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
-    public class ExternalWindowMMU: ExternalMmuBase, IDoubleWordPeripheral, IKnownSize
+    public class ExternalWindowMMU : ExternalMmuBase, IDoubleWordPeripheral, IKnownSize
     {
-        public ExternalWindowMMU(ICPUWithExternalMmu cpu, ulong startAddress, ulong windowSize, uint numberOfWindows) : base(cpu, numberOfWindows)
+        public ExternalWindowMMU(ICPUWithExternalMmu cpu, uint numberOfWindows) : base(cpu, numberOfWindows)
         {
             this.numberOfWindows = numberOfWindows;
             IRQ = new GPIO();

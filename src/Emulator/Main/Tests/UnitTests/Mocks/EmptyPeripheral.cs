@@ -13,17 +13,9 @@ namespace Antmicro.Renode.UnitTests.Mocks
 {
     public class EmptyPeripheral : II2CPeripheral, IBytePeripheral, IDoubleWordPeripheral
     {
-        // TODO: more interfaces
-
-        public EmptyPeripheral()
-        {
-            Increment();
-        }
-
-        public void FinishTransmission()
-        {
-        }
-
+        // We have to keep prameter names for nunit tests which instatiate Mock dynmically
+        // and use named arguments
+#pragma warning disable IDE0060
         public EmptyPeripheral(double value)
         {
             Increment();
@@ -36,10 +28,19 @@ namespace Antmicro.Renode.UnitTests.Mocks
             Increment();
             Increment();
         }
+        // TODO: more interfaces
+
+        public EmptyPeripheral()
+        {
+            Increment();
+        }
+
+        public void FinishTransmission()
+        {
+        }
 
         public virtual void Reset()
         {
-
         }
 
         public byte[] Read(int count)
@@ -49,7 +50,6 @@ namespace Antmicro.Renode.UnitTests.Mocks
 
         public void Write(byte[] data)
         {
-
         }
 
         public byte ReadByte(long offset)
@@ -59,7 +59,6 @@ namespace Antmicro.Renode.UnitTests.Mocks
 
         public void WriteByte(long offset, byte value)
         {
-
         }
 
         public virtual uint ReadDoubleWord(long offset)
@@ -69,7 +68,6 @@ namespace Antmicro.Renode.UnitTests.Mocks
 
         public virtual void WriteDoubleWord(long offset, uint value)
         {
-
         }
 
         public void Increment()
@@ -83,6 +81,7 @@ namespace Antmicro.Renode.UnitTests.Mocks
             {
                 return 0;
             }
+
             set
             {
                 throw new RecoverableException("Fake exception");
@@ -94,4 +93,3 @@ namespace Antmicro.Renode.UnitTests.Mocks
         public int Counter { get; private set; }
     }
 }
-

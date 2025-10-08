@@ -8,12 +8,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Linq;
-using System.Runtime.InteropServices;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Timers;
@@ -37,6 +35,30 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
             ldmaRegistersCollection = BuildLdmaRegisters();
             ldmaXbarRegistersCollection = BuildLdmaXbarRegisters();
+        }
+
+        [ConnectionRegionAttribute("ldma")]
+        public void WriteDoubleWordToLdma(long offset, uint value)
+        {
+            Write<LdmaRegisters>(ldmaRegistersCollection, "Ldma", offset, value);
+        }
+
+        [ConnectionRegionAttribute("ldma")]
+        public uint ReadDoubleWordFromLdma(long offset)
+        {
+            return Read<LdmaRegisters>(ldmaRegistersCollection, "Ldma", offset);
+        }
+
+        [ConnectionRegionAttribute("ldmaxbar")]
+        public void WriteDoubleWordToLdmaXbar(long offset, uint value)
+        {
+            Write<LdmaXbarRegisters>(ldmaXbarRegistersCollection, "LdmaXbar", offset, value);
+        }
+
+        [ConnectionRegionAttribute("ldmaxbar")]
+        public uint ReadDoubleWordFromLdmaXbar(long offset)
+        {
+            return Read<LdmaXbarRegisters>(ldmaXbarRegistersCollection, "LdmaXbar", offset);
         }
 
         public void Reset()
@@ -78,9 +100,6 @@ namespace Antmicro.Renode.Peripherals.DMA
         public GPIO IRQ { get; }
 
         public long Size => 0x400;
-        private readonly DoubleWordRegisterCollection ldmaRegistersCollection;
-        private readonly DoubleWordRegisterCollection ldmaXbarRegistersCollection;
-        private readonly Machine machine; 
 
         private uint Read<T>(DoubleWordRegisterCollection registersCollection, string regionName, long offset, bool internal_read = false)
         where T : struct, IComparable, IFormattable
@@ -89,15 +108,16 @@ namespace Antmicro.Renode.Peripherals.DMA
             long internal_offset = offset;
 
             // Set, Clear, Toggle registers should only be used for write operations. But just in case we convert here as well.
-            if (offset >= SetRegisterOffset && offset < ClearRegisterOffset) 
+            if(offset >= SetRegisterOffset && offset < ClearRegisterOffset)
             {
                 // Set register
                 internal_offset = offset - SetRegisterOffset;
                 if(!internal_read)
-                {  
+                {
                     this.Log(LogLevel.Noisy, "SET Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}", Enum.Format(typeof(T), internal_offset, "G"), offset, internal_offset);
                 }
-            } else if (offset >= ClearRegisterOffset && offset < ToggleRegisterOffset) 
+            }
+            else if(offset >= ClearRegisterOffset && offset < ToggleRegisterOffset)
             {
                 // Clear register
                 internal_offset = offset - ClearRegisterOffset;
@@ -105,7 +125,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                 {
                     this.Log(LogLevel.Noisy, "CLEAR Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}", Enum.Format(typeof(T), internal_offset, "G"), offset, internal_offset);
                 }
-            } else if (offset >= ToggleRegisterOffset)
+            }
+            else if(offset >= ToggleRegisterOffset)
             {
                 // Toggle register
                 internal_offset = offset - ToggleRegisterOffset;
@@ -126,7 +147,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             {
                 if(!internal_read)
                 {
-                    this.Log(LogLevel.Noisy, "{0}: Read from {1} at offset 0x{2:X} ({3}), returned 0x{4:X}", 
+                    this.Log(LogLevel.Noisy, "{0}: Read from {1} at offset 0x{2:X} ({3}), returned 0x{4:X}",
                              this.GetTime(), regionName, internal_offset, Enum.Format(typeof(T), internal_offset, "G"), result);
                 }
             }
@@ -137,25 +158,28 @@ namespace Antmicro.Renode.Peripherals.DMA
         private void Write<T>(DoubleWordRegisterCollection registersCollection, string regionName, long offset, uint value)
         where T : struct, IComparable, IFormattable
         {
-            machine.ClockSource.ExecuteInLock(delegate {
+            machine.ClockSource.ExecuteInLock(delegate
+            {
                 long internal_offset = offset;
                 uint internal_value = value;
 
-                if (offset >= SetRegisterOffset && offset < ClearRegisterOffset) 
+                if(offset >= SetRegisterOffset && offset < ClearRegisterOffset)
                 {
                     // Set register
                     internal_offset = offset - SetRegisterOffset;
                     uint old_value = Read<T>(registersCollection, regionName, internal_offset, true);
                     internal_value = old_value | value;
                     this.Log(LogLevel.Noisy, "SET Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}, SET_value=0x{3:X}, old_value=0x{4:X}, new_value=0x{5:X}", Enum.Format(typeof(T), internal_offset, "G"), offset, internal_offset, value, old_value, internal_value);
-                } else if (offset >= ClearRegisterOffset && offset < ToggleRegisterOffset) 
+                }
+                else if(offset >= ClearRegisterOffset && offset < ToggleRegisterOffset)
                 {
                     // Clear register
                     internal_offset = offset - ClearRegisterOffset;
                     uint old_value = Read<T>(registersCollection, regionName, internal_offset, true);
                     internal_value = old_value & ~value;
                     this.Log(LogLevel.Noisy, "CLEAR Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}, CLEAR_value=0x{3:X}, old_value=0x{4:X}, new_value=0x{5:X}", Enum.Format(typeof(T), internal_offset, "G"), offset, internal_offset, value, old_value, internal_value);
-                } else if (offset >= ToggleRegisterOffset)
+                }
+                else if(offset >= ToggleRegisterOffset)
                 {
                     // Toggle register
                     internal_offset = offset - ToggleRegisterOffset;
@@ -164,7 +188,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     this.Log(LogLevel.Noisy, "TOGGLE Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}, TOGGLE_value=0x{3:X}, old_value=0x{4:X}, new_value=0x{5:X}", Enum.Format(typeof(T), internal_offset, "G"), offset, internal_offset, value, old_value, internal_value);
                 }
 
-                this.Log(LogLevel.Noisy, "{0}: Write to {1} at offset 0x{2:X} ({3}), value 0x{4:X}", 
+                this.Log(LogLevel.Noisy, "{0}: Write to {1} at offset 0x{2:X} ({3}), value 0x{4:X}",
                         this.GetTime(), regionName, internal_offset, Enum.Format(typeof(T), internal_offset, "G"), internal_value);
 
                 if(!registersCollection.TryWrite(internal_offset, internal_value))
@@ -173,30 +197,6 @@ namespace Antmicro.Renode.Peripherals.DMA
                     return;
                 }
             });
-        }
-
-        [ConnectionRegionAttribute("ldma")]
-        public void WriteDoubleWordToLdma(long offset, uint value)
-        {
-            Write<LdmaRegisters>(ldmaRegistersCollection, "Ldma", offset, value);
-        }
-
-        [ConnectionRegionAttribute("ldma")]
-        public uint ReadDoubleWordFromLdma(long offset)
-        {
-            return Read<LdmaRegisters>(ldmaRegistersCollection, "Ldma", offset);
-        }
-
-        [ConnectionRegionAttribute("ldmaxbar")]
-        public void WriteDoubleWordToLdmaXbar(long offset, uint value)
-        {
-            Write<LdmaXbarRegisters>(ldmaXbarRegistersCollection, "LdmaXbar", offset, value);
-        }
-
-        [ConnectionRegionAttribute("ldmaxbar")]
-        public uint ReadDoubleWordFromLdmaXbar(long offset)
-        {
-            return Read<LdmaXbarRegisters>(ldmaXbarRegistersCollection, "LdmaXbar", offset);
         }
 
         private DoubleWordRegisterCollection BuildLdmaRegisters()
@@ -317,7 +317,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         private void UpdateInterrupts()
         {
-            this.Log(LogLevel.Debug, "Interrupt set for channels: {0}", String.Join(", ",            
+            this.Log(LogLevel.Debug, "Interrupt set for channels: {0}", String.Join(", ",
                 channels
                     .Where(channel => channel.IRQ)
                     .Select(channel => channel.Index)
@@ -327,6 +327,10 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         private TimeInterval GetTime() => machine.LocalTimeSource.ElapsedVirtualTime;
 
+        private readonly DoubleWordRegisterCollection ldmaRegistersCollection;
+        private readonly DoubleWordRegisterCollection ldmaXbarRegistersCollection;
+        private readonly Machine machine;
+
         private readonly DmaEngine engine;
         private readonly HashSet<int> signals;
         private readonly Channel[] channels;
@@ -334,6 +338,665 @@ namespace Antmicro.Renode.Peripherals.DMA
         private const uint ClearRegisterOffset = 0x2000;
         private const uint ToggleRegisterOffset = 0x3000;
         private const int NumberOfChannels = 8;
+
+        private class Channel
+        {
+            public Channel(EFR32xG22_LDMA parent, int index)
+            {
+                this.parent = parent;
+                Index = index;
+                descriptor = default(Descriptor);
+
+                PeripheralRequestSelectRegister = new DoubleWordRegister(parent)
+                    .WithEnumField<DoubleWordRegister, SignalSelect>(0, 4, out signalSelect, name: "SIGSEL")
+                    .WithReservedBits(4, 12)
+                    .WithEnumField<DoubleWordRegister, SourceSelect>(16, 6, out sourceSelect, name: "SOURCESEL")
+                    .WithReservedBits(22, 10)
+                ;
+                ConfigurationRegister = new DoubleWordRegister(parent)
+                    .WithReservedBits(0, 16)
+                    .WithEnumField<DoubleWordRegister, ArbitrationSlotNumberMode>(16, 2, out arbitrationSlotNumberSelect, name: "ARBSLOTS")
+                    .WithReservedBits(18, 2)
+                    .WithEnumField<DoubleWordRegister, Sign>(20, 1, out sourceAddressIncrementSign, name: "SRCINCSIGN")
+                    .WithEnumField<DoubleWordRegister, Sign>(21, 1, out destinationAddressIncrementSign, name: "DSTINCSIGN")
+                    .WithReservedBits(22, 10)
+                ;
+                LoopCounterRegister = new DoubleWordRegister(parent)
+                    .WithValueField(0, 8, out loopCounter, name: "LOOPCNT")
+                    .WithReservedBits(8, 24)
+                ;
+                DescriptorControlWordRegister = new DoubleWordRegister(parent)
+                    .WithEnumField<DoubleWordRegister, StructureType>(0, 2, FieldMode.Read,
+                        valueProviderCallback: _ => descriptor.StructureType,
+                        name: "STRUCTTYPE")
+                    .WithReservedBits(2, 1)
+                    .WithFlag(3, FieldMode.Set,
+                        writeCallback: (_, value) => descriptor.StructureTransferRequest = value,
+                        name: "STRUCTREQ")
+                    .WithValueField(4, 11,
+                        writeCallback: (_, value) => descriptor.TransferCount = (ushort)value,
+                        valueProviderCallback: _ => descriptor.TransferCount,
+                        name: "XFERCNT")
+                    .WithFlag(15,
+                        writeCallback: (_, value) => descriptor.ByteSwap = value,
+                        valueProviderCallback: _ => descriptor.ByteSwap,
+                        name: "BYTESWAP")
+                    .WithEnumField<DoubleWordRegister, BlockSizeMode>(16, 4,
+                        writeCallback: (_, value) => descriptor.BlockSize = value,
+                        valueProviderCallback: _ => descriptor.BlockSize,
+                        name: "BLOCKSIZE")
+                    .WithFlag(20,
+                        writeCallback: (_, value) => descriptor.OperationDoneInterruptFlagSetEnable = value,
+                        valueProviderCallback: _ => descriptor.OperationDoneInterruptFlagSetEnable,
+                        name: "DONEIEN")
+                    .WithEnumField<DoubleWordRegister, RequestTransferMode>(21, 1,
+                        writeCallback: (_, value) => descriptor.RequestTransferModeSelect = value,
+                        valueProviderCallback: _ => descriptor.RequestTransferModeSelect,
+                        name: "REQMODE")
+                    .WithFlag(22,
+                        writeCallback: (_, value) => descriptor.DecrementLoopCount = value,
+                        valueProviderCallback: _ => descriptor.DecrementLoopCount,
+                        name: "DECLOOPCNT")
+                    .WithFlag(23,
+                        writeCallback: (_, value) => descriptor.IgnoreSingleRequests = value,
+                        valueProviderCallback: _ => descriptor.IgnoreSingleRequests,
+                        name: "IGNORESREQ")
+                    .WithEnumField<DoubleWordRegister, IncrementMode>(24, 2,
+                        writeCallback: (_, value) => descriptor.SourceIncrement = value,
+                        valueProviderCallback: _ => descriptor.SourceIncrement,
+                        name: "SRCINC")
+                    .WithEnumField<DoubleWordRegister, SizeMode>(26, 2,
+                        writeCallback: (_, value) => descriptor.Size = value,
+                        valueProviderCallback: _ => descriptor.Size,
+                        name: "SIZE")
+                    .WithEnumField<DoubleWordRegister, IncrementMode>(28, 2,
+                        writeCallback: (_, value) => descriptor.DestinationIncrement = value,
+                        valueProviderCallback: _ => descriptor.DestinationIncrement,
+                        name: "DSTINC")
+                    .WithEnumField<DoubleWordRegister, AddressingMode>(30, 1, FieldMode.Read,
+                        valueProviderCallback: _ => descriptor.SourceAddressingMode,
+                        name: "SRCMODE")
+                    .WithEnumField<DoubleWordRegister, AddressingMode>(31, 1, FieldMode.Read,
+                        valueProviderCallback: _ => descriptor.DestinationAddressingMode,
+                        name: "DSTMODE")
+                    .WithChangeCallback((_, __) => { if(descriptor.StructureTransferRequest) LinkLoad(); })
+                ;
+                DescriptorSourceDataAddressRegister = new DoubleWordRegister(parent)
+                    .WithValueField(0, 32,
+                        writeCallback: (_, value) => descriptor.SourceAddress = (uint)value,
+                        valueProviderCallback: _ => descriptor.SourceAddress,
+                        name: "SRCADDR")
+                ;
+                DescriptorDestinationDataAddressRegister = new DoubleWordRegister(parent)
+                    .WithValueField(0, 32,
+                        writeCallback: (_, value) => descriptor.DestinationAddress = (uint)value,
+                        valueProviderCallback: _ => descriptor.DestinationAddress,
+                        name: "DSTADDR")
+                ;
+                DescriptorLinkStructureAddressRegister = new DoubleWordRegister(parent)
+                    .WithEnumField<DoubleWordRegister, AddressingMode>(0, 1, FieldMode.Read,
+                        valueProviderCallback: _ => descriptor.LinkMode,
+                        name: "LINKMODE")
+                    .WithFlag(1,
+                        writeCallback: (_, value) => descriptor.Link = value,
+                        valueProviderCallback: _ => descriptor.Link,
+                        name: "LINK")
+                    .WithValueField(2, 30,
+                        writeCallback: (_, value) => descriptor.LinkAddress = (uint)value,
+                        valueProviderCallback: _ => descriptor.LinkAddress,
+                        name: "LINKADDR")
+                ;
+
+                pullTimer = new LimitTimer(parent.machine.ClockSource, 1000000, null, $"pullTimer-{Index}", 15, Direction.Ascending, false, WorkMode.Periodic, true, true);
+                pullTimer.LimitReached += delegate
+                {
+                    if(!RequestDisable)
+                    {
+                        StartTransferInner();
+                    }
+                    if(!SignalIsOn || !ShouldPullSignal)
+                    {
+                        pullTimer.Enabled = false;
+                    }
+                };
+            }
+
+            public void StartFromSignal()
+            {
+                if(!RequestDisable)
+                {
+                    StartTransfer();
+                }
+            }
+
+            public void LinkLoad()
+            {
+                LoadDescriptor();
+                if(!RequestDisable && (descriptor.StructureTransferRequest || SignalIsOn))
+                {
+                    StartTransfer();
+                }
+            }
+
+            public void StartTransfer()
+            {
+                if(ShouldPullSignal)
+                {
+                    pullTimer.Enabled = true;
+                }
+                else
+                {
+                    StartTransferInner();
+                }
+            }
+
+            public void Reset()
+            {
+                descriptor = default(Descriptor);
+                pullTimer.Reset();
+                DoneInterrupt = false;
+                DoneInterruptEnable = false;
+                descriptorAddress = null;
+                requestDisable = false;
+                enabled = false;
+                done = false;
+            }
+
+            public int Index { get; }
+
+            public SignalSelect Signal => signalSelect.Value;
+
+            public SourceSelect Source => sourceSelect.Value;
+
+            public bool IgnoreSingleRequests => descriptor.IgnoreSingleRequests;
+
+            public bool DoneInterrupt { get; set; }
+
+            public bool DoneInterruptEnable { get; set; }
+
+            public bool IRQ => DoneInterrupt && DoneInterruptEnable;
+
+            public DoubleWordRegister PeripheralRequestSelectRegister { get; }
+
+            public DoubleWordRegister ConfigurationRegister { get; }
+
+            public DoubleWordRegister LoopCounterRegister { get; }
+
+            public DoubleWordRegister DescriptorControlWordRegister { get; }
+
+            public DoubleWordRegister DescriptorSourceDataAddressRegister { get; }
+
+            public DoubleWordRegister DescriptorDestinationDataAddressRegister { get; }
+
+            public DoubleWordRegister DescriptorLinkStructureAddressRegister { get; }
+
+            public bool Enabled
+            {
+                get
+                {
+                    return enabled;
+                }
+
+                set
+                {
+                    if(enabled == value)
+                    {
+                        return;
+                    }
+                    enabled = value;
+                    if(enabled)
+                    {
+                        Done = false;
+                        StartTransfer();
+                    }
+                }
+            }
+
+            public bool Done
+            {
+                get
+                {
+                    return done;
+                }
+
+                set
+                {
+                    if(!done)
+                    {
+                        DoneInterrupt |= value && descriptor.OperationDoneInterruptFlagSetEnable;
+                    }
+                    done = value;
+                }
+            }
+
+            public bool Busy
+            {
+                get
+                {
+                    return isInProgress;
+                }
+            }
+
+            public bool RequestDisable
+            {
+                get
+                {
+                    return requestDisable;
+                }
+
+                set
+                {
+                    bool oldValue = requestDisable;
+                    requestDisable = value;
+
+                    if(oldValue && !value)
+                    {
+                        if(SignalIsOn)
+                        {
+                            StartTransfer();
+                        }
+                    }
+                }
+            }
+
+            protected readonly int DescriptorSize = Packet.CalculateLength<Descriptor>();
+
+            private void StartTransferInner()
+            {
+                if(isInProgress || Done)
+                {
+                    return;
+                }
+
+                isInProgress = true;
+                var loaded = false;
+                do
+                {
+                    loaded = false;
+                    Transfer();
+                    if(Done && descriptor.Link)
+                    {
+                        loaded = true;
+                        LoadDescriptor();
+                        Done = false;
+                    }
+                }
+                while((descriptor.StructureTransferRequest && loaded) || (!Done && SignalIsOn));
+
+                isInProgress = false;
+                if(Done)
+                {
+                    pullTimer.Enabled = false;
+                }
+            }
+
+            private void LoadDescriptor()
+            {
+                var address = LinkStructureAddress;
+                if(descriptorAddress.HasValue && descriptor.LinkMode == AddressingMode.Relative)
+                {
+                    address += descriptorAddress.Value;
+                }
+                var data = parent.machine.SystemBus.ReadBytes(address, DescriptorSize);
+                descriptorAddress = address;
+                descriptor = Packet.Decode<Descriptor>(data);
+#if DEBUG
+                parent.Log(LogLevel.Noisy, "Channel #{0} data {1}", Index, BitConverter.ToString(data));
+                parent.Log(LogLevel.Debug, "Channel #{0} Loaded {1}", Index, descriptor.PrettyString);
+#endif
+            }
+
+            private void Transfer()
+            {
+                switch(descriptor.StructureType)
+                {
+                case StructureType.Transfer:
+                    var request = new Request(
+                            source: new Place(descriptor.SourceAddress),
+                            destination: new Place(descriptor.DestinationAddress),
+                            size: Bytes,
+                            readTransferType: SizeAsTransferType,
+                            writeTransferType: SizeAsTransferType,
+                            sourceIncrementStep: SourceIncrement,
+                            destinationIncrementStep: DestinationIncrement
+                        );
+                    parent.Log(LogLevel.Debug, "Channel #{0} Performing Transfer", Index);
+                    parent.engine.IssueCopy(request);
+                    if(descriptor.RequestTransferModeSelect == RequestTransferMode.Block)
+                    {
+                        var blockSizeMultiplier = Math.Min(TransferCount, BlockSizeMultiplier);
+                        parent.Log(LogLevel.Debug, "Channel #{0} TransferCount={1} BlockSizeMultiplier={2}", Index, TransferCount, BlockSizeMultiplier);
+                        if(blockSizeMultiplier == TransferCount)
+                        {
+                            Done = true;
+                            descriptor.TransferCount = 0;
+                        }
+                        else
+                        {
+                            descriptor.TransferCount -= blockSizeMultiplier;
+                        }
+                        descriptor.SourceAddress += SourceIncrement * blockSizeMultiplier;
+                        descriptor.DestinationAddress += DestinationIncrement * blockSizeMultiplier;
+                    }
+                    else
+                    {
+                        Done = true;
+                    }
+                    break;
+                case StructureType.Synchronize:
+                    parent.Log(LogLevel.Warning, "Channel #{0} Synchronize is not implemented.", Index);
+                    break;
+                case StructureType.Write:
+                    parent.Log(LogLevel.Warning, "Channel #{0} Write is not implemented.", Index);
+                    break;
+                default:
+                    parent.Log(LogLevel.Error, "Channel #{0} Invalid structure type value. No action was performed.", Index);
+                    return;
+                }
+                parent.UpdateInterrupts();
+            }
+
+            private bool ShouldPullSignal
+            {
+                get
+                {
+                    // if this returns true for the selected source and signal
+                    // then the signal will be periodically pulled instead of waiting
+                    // for an rising edge
+                    switch(Source)
+                    {
+                    case SourceSelect.None:
+                        return false;
+                    case SourceSelect.LDMAXBAR:
+                        switch(Signal)
+                        {
+                        case SignalSelect.LDMAXBAR_DMA_PRSREQ0:
+                        case SignalSelect.LDMAXBAR_DMA_PRSREQ1:
+                            return false;
+                        default:
+                            goto default;
+                        }
+                    case SourceSelect.IADC0:
+                        switch(Signal)
+                        {
+                        case SignalSelect.IADC0_DMA_IADC_SCAN:
+                        case SignalSelect.IADC0_DMA_IADC_SINGLE:
+                            return false;
+                        default:
+                            goto default;
+                        }
+                    case SourceSelect.USART0:
+                    case SourceSelect.USART1:
+                        switch(Signal)
+                        {
+                        case SignalSelect.USART0_DMA_RXDATAV:
+                            return false;
+                        case SignalSelect.USART0_DMA_TXBL:
+                        case SignalSelect.USART0_DMA_TXEMPTY:
+                            return true;
+                        default:
+                            goto default;
+                        }
+                    case SourceSelect.EUART0:
+                        switch(Signal)
+                        {
+                        case SignalSelect.EUART0_DMA_RXFL:
+                            return false;
+                        case SignalSelect.EUART0_DMA_TXFL:
+                            return true;
+                        default:
+                            goto default;
+                        }
+                    case SourceSelect.I2C0:
+                    case SourceSelect.I2C1:
+                        switch(Signal)
+                        {
+                        case SignalSelect.I2C0_DMA_RXDATAV:
+                            return false;
+                        case SignalSelect.I2C0_DMA_TXBL:
+                            return true;
+                        default:
+                            goto default;
+                        }
+                    case SourceSelect.TIMER0:
+                    case SourceSelect.TIMER1:
+                    case SourceSelect.TIMER2:
+                    case SourceSelect.TIMER3:
+                    case SourceSelect.TIMER4:
+                        switch(Signal)
+                        {
+                        case SignalSelect.TIMER0_DMA_CC0:
+                        case SignalSelect.TIMER0_DMA_CC1:
+                        case SignalSelect.TIMER0_DMA_CC2:
+                        case SignalSelect.TIMER0_DMA_UFOF:
+                            return false;
+                        default:
+                            goto default;
+                        }
+                    case SourceSelect.MSC:
+                        switch(Signal)
+                        {
+                        case SignalSelect.MSC_DMA_WDATA:
+                            return false;
+                        default:
+                            goto default;
+                        }
+                    default:
+                        parent.Log(LogLevel.Error, "Channel #{0} Invalid Source (0x{1:X}) and Signal (0x{2:X}) pair.", Index, Source, Signal);
+                        return false;
+                    }
+                }
+            }
+
+            private uint BlockSizeMultiplier
+            {
+                get
+                {
+                    switch(descriptor.BlockSize)
+                    {
+                    case BlockSizeMode.Unit1:
+                    case BlockSizeMode.Unit2:
+                        return 1u << (byte)descriptor.BlockSize;
+                    case BlockSizeMode.Unit3:
+                        return 3;
+                    case BlockSizeMode.Unit4:
+                        return 4;
+                    case BlockSizeMode.Unit6:
+                        return 6;
+                    case BlockSizeMode.Unit8:
+                        return 8;
+                    case BlockSizeMode.Unit16:
+                        return 16;
+                    case BlockSizeMode.Unit32:
+                    case BlockSizeMode.Unit64:
+                    case BlockSizeMode.Unit128:
+                    case BlockSizeMode.Unit256:
+                    case BlockSizeMode.Unit512:
+                    case BlockSizeMode.Unit1024:
+                        return 1u << ((byte)descriptor.BlockSize - 4);
+                    case BlockSizeMode.All:
+                        return TransferCount;
+                    default:
+                        parent.Log(LogLevel.Warning, "Channel #{0} Invalid Block Size Mode value.", Index);
+                        return 0;
+                    }
+                }
+            }
+
+            private bool SignalIsOn
+            {
+                get
+                {
+                    var number = ((int)Source << 4) | (int)Signal;
+                    return parent.signals.Contains(number) || (!IgnoreSingleRequests && parent.signals.Contains(number | 1 << 12));
+                }
+            }
+
+            private uint TransferCount => (uint)descriptor.TransferCount + 1;
+
+            private ulong LinkStructureAddress => (ulong)descriptor.LinkAddress << 2;
+
+            private uint SourceIncrement => descriptor.SourceIncrement == IncrementMode.None ? 0u : ((1u << (byte)descriptor.Size) << (byte)descriptor.SourceIncrement);
+
+            private uint DestinationIncrement => descriptor.DestinationIncrement == IncrementMode.None ? 0u : ((1u << (byte)descriptor.Size) << (byte)descriptor.DestinationIncrement);
+
+            private TransferType SizeAsTransferType => (TransferType)(1 << (byte)descriptor.Size);
+
+            private int Bytes => (int)(descriptor.RequestTransferModeSelect == RequestTransferMode.All ? TransferCount : Math.Min(TransferCount, BlockSizeMultiplier)) << (byte)descriptor.Size;
+
+            private Descriptor descriptor;
+            private ulong? descriptorAddress;
+            private bool requestDisable;
+            private bool enabled;
+            private bool done;
+
+            // Accesses to sysubs may cause changes in signals, but we should ignore those during active transaction
+            private bool isInProgress;
+
+            private readonly IEnumRegisterField<SignalSelect> signalSelect;
+            private readonly IEnumRegisterField<SourceSelect> sourceSelect;
+            private readonly IEnumRegisterField<ArbitrationSlotNumberMode> arbitrationSlotNumberSelect;
+            private readonly IEnumRegisterField<Sign> sourceAddressIncrementSign;
+            private readonly IEnumRegisterField<Sign> destinationAddressIncrementSign;
+            private readonly IValueRegisterField loopCounter;
+
+            private readonly EFR32xG22_LDMA parent;
+            private readonly LimitTimer pullTimer;
+
+            protected enum StructureType : uint
+            {
+                Transfer    = 0,
+                Synchronize = 1,
+                Write       = 2,
+            }
+
+            protected enum BlockSizeMode : uint
+            {
+                Unit1    = 0,
+                Unit2    = 1,
+                Unit3    = 2,
+                Unit4    = 3,
+                Unit6    = 4,
+                Unit8    = 5,
+                Unit16   = 7,
+                Unit32   = 9,
+                Unit64   = 10,
+                Unit128  = 11,
+                Unit256  = 12,
+                Unit512  = 13,
+                Unit1024 = 14,
+                All      = 15,
+            }
+
+            protected enum RequestTransferMode : uint
+            {
+                Block = 0,
+                All   = 1,
+            }
+
+            protected enum IncrementMode : uint
+            {
+                One  = 0,
+                Two  = 1,
+                Four = 2,
+                None = 3,
+            }
+
+            protected enum SizeMode : uint
+            {
+                Byte     = 0,
+                HalfWord = 1,
+                Word     = 2,
+            }
+
+            protected enum AddressingMode : uint
+            {
+                Absolute = 0,
+                Relative = 1,
+            }
+
+            [LeastSignificantByteFirst]
+            private struct Descriptor
+            {
+                public string PrettyString => $@"Descriptor {{
+    structureType: {StructureType},
+    structureTransferRequest: {StructureTransferRequest},
+    transferCount: {TransferCount + 1},
+    byteSwap: {ByteSwap},
+    blockSize: {BlockSize},
+    operationDoneInterruptFlagSetEnable: {OperationDoneInterruptFlagSetEnable},
+    requestTransferModeSelect: {RequestTransferModeSelect},
+    decrementLoopCount: {DecrementLoopCount},
+    ignoreSingleRequests: {IgnoreSingleRequests},
+    sourceIncrement: {SourceIncrement},
+    size: {Size},
+    destinationIncrement: {DestinationIncrement},
+    sourceAddressingMode: {SourceAddressingMode},
+    destinationAddressingMode: {DestinationAddressingMode},
+    sourceAddress: 0x{SourceAddress:X},
+    destinationAddress: 0x{DestinationAddress:X},
+    linkMode: {LinkMode},
+    link: {Link},
+    linkAddress: 0x{(LinkAddress << 2):X}
+}}";
+
+                // Some of this fields are read only via sysbus, but can be loaded from memory
+#pragma warning disable 649
+                [PacketField, Offset(bytes: 0 << 2, bits: 0), Width(2)]
+                public StructureType StructureType;
+                [PacketField, Offset(bytes: 0 << 2, bits: 3), Width(1)]
+                public bool StructureTransferRequest;
+                [PacketField, Offset(bytes: 0 << 2, bits: 4), Width(11)]
+                public uint TransferCount;
+                [PacketField, Offset(bytes: 0 << 2, bits: 15), Width(1)]
+                public bool ByteSwap;
+                [PacketField, Offset(bytes: 0 << 2, bits: 16), Width(4)]
+                public BlockSizeMode BlockSize;
+                [PacketField, Offset(bytes: 0 << 2, bits: 20), Width(1)]
+                public bool OperationDoneInterruptFlagSetEnable;
+                [PacketField, Offset(bytes: 0 << 2, bits: 21), Width(1)]
+                public RequestTransferMode RequestTransferModeSelect;
+                [PacketField, Offset(bytes: 0 << 2, bits: 22), Width(1)]
+                public bool DecrementLoopCount;
+                [PacketField, Offset(bytes: 0 << 2, bits: 23), Width(1)]
+                public bool IgnoreSingleRequests;
+                [PacketField, Offset(bytes: 0 << 2, bits: 24), Width(2)]
+                public IncrementMode SourceIncrement;
+                [PacketField, Offset(bytes: 0 << 2, bits: 26), Width(2)]
+                public SizeMode Size;
+                [PacketField, Offset(bytes: 0 << 2, bits: 28), Width(2)]
+                public IncrementMode DestinationIncrement;
+                [PacketField, Offset(bytes: 0 << 2, bits: 30), Width(1)]
+                public AddressingMode SourceAddressingMode;
+                [PacketField, Offset(bytes: 0 << 2, bits: 31), Width(1)]
+                public AddressingMode DestinationAddressingMode;
+                [PacketField, Offset(bytes: 1 << 2, bits: 0), Width(32)]
+                public uint SourceAddress;
+                [PacketField, Offset(bytes: 2 << 2, bits: 0), Width(32)]
+                public uint DestinationAddress;
+                [PacketField, Offset(bytes: 3 << 2, bits: 0), Width(1)]
+                public AddressingMode LinkMode;
+                [PacketField, Offset(bytes: 3 << 2, bits: 1), Width(1)]
+                public bool Link;
+                [PacketField, Offset(bytes: 3 << 2, bits: 2), Width(30)]
+                public uint LinkAddress;
+#pragma warning restore 649
+            }
+
+            private enum ArbitrationSlotNumberMode
+            {
+                One   = 0,
+                Two   = 1,
+                Four  = 2,
+                Eight = 3,
+            }
+
+            private enum Sign
+            {
+                Positive = 0,
+                Negative = 1,
+            }
+        }
 
         private enum SignalSelect
         {
@@ -364,7 +1027,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             USART1_DMA_TXEMPTY                  = 0x4,
             // if SOURCESEL is I2C0
             I2C0_DMA_RXDATAV                    = 0x0,
-            I2C0_DMA_TXBL                       = 0x1,            
+            I2C0_DMA_TXBL                       = 0x1,
             // if SOURCESEL is I2C1
             I2C1_DMA_RXDATAV                    = 0x0,
             I2C1_DMA_TXBL                       = 0x1,
@@ -738,650 +1401,6 @@ namespace Antmicro.Renode.Peripherals.DMA
             XBAR_CH5_REQSEL_Tgl    = 0x3014,
             XBAR_CH6_REQSEL_Tgl    = 0x3018,
             XBAR_CH7_REQSEL_Tgl    = 0x301C,
-        }
-
-
-        private class Channel
-        {
-            public Channel(EFR32xG22_LDMA parent, int index)
-            {
-                this.parent = parent;
-                Index = index;
-                descriptor = default(Descriptor);
-
-                PeripheralRequestSelectRegister = new DoubleWordRegister(parent)
-                    .WithEnumField<DoubleWordRegister, SignalSelect>(0, 4, out signalSelect, name: "SIGSEL")
-                    .WithReservedBits(4, 12)
-                    .WithEnumField<DoubleWordRegister, SourceSelect>(16, 6, out sourceSelect, name: "SOURCESEL")
-                    .WithReservedBits(22, 10)
-                ;
-                ConfigurationRegister = new DoubleWordRegister(parent)
-                    .WithReservedBits(0, 16)
-                    .WithEnumField<DoubleWordRegister, ArbitrationSlotNumberMode>(16, 2, out arbitrationSlotNumberSelect, name: "ARBSLOTS")
-                    .WithReservedBits(18, 2)
-                    .WithEnumField<DoubleWordRegister, Sign>(20, 1, out sourceAddressIncrementSign, name: "SRCINCSIGN")
-                    .WithEnumField<DoubleWordRegister, Sign>(21, 1, out destinationAddressIncrementSign, name: "DSTINCSIGN")
-                    .WithReservedBits(22, 10)
-                ;
-                LoopCounterRegister = new DoubleWordRegister(parent)
-                    .WithValueField(0, 8, out loopCounter, name: "LOOPCNT")
-                    .WithReservedBits(8, 24)
-                ;
-                DescriptorControlWordRegister = new DoubleWordRegister(parent)
-                    .WithEnumField<DoubleWordRegister, StructureType>(0, 2, FieldMode.Read,
-                        valueProviderCallback: _ => descriptor.structureType,
-                        name: "STRUCTTYPE")
-                    .WithReservedBits(2, 1)
-                    .WithFlag(3, FieldMode.Set,
-                        writeCallback: (_, value) => descriptor.structureTransferRequest = value,
-                        name: "STRUCTREQ")
-                    .WithValueField(4, 11,
-                        writeCallback: (_, value) => descriptor.transferCount = (ushort)value,
-                        valueProviderCallback: _ => descriptor.transferCount,
-                        name: "XFERCNT")
-                    .WithFlag(15,
-                        writeCallback: (_, value) => descriptor.byteSwap = value,
-                        valueProviderCallback: _ => descriptor.byteSwap,
-                        name: "BYTESWAP")
-                    .WithEnumField<DoubleWordRegister, BlockSizeMode>(16, 4,
-                        writeCallback: (_, value) => descriptor.blockSize = value,
-                        valueProviderCallback: _ => descriptor.blockSize,
-                        name: "BLOCKSIZE")
-                    .WithFlag(20,
-                        writeCallback: (_, value) => descriptor.operationDoneInterruptFlagSetEnable = value,
-                        valueProviderCallback: _ => descriptor.operationDoneInterruptFlagSetEnable,
-                        name: "DONEIEN")
-                    .WithEnumField<DoubleWordRegister, RequestTransferMode>(21, 1,
-                        writeCallback: (_, value) => descriptor.requestTransferModeSelect = value,
-                        valueProviderCallback: _ => descriptor.requestTransferModeSelect,
-                        name: "REQMODE")
-                    .WithFlag(22,
-                        writeCallback: (_, value) => descriptor.decrementLoopCount = value,
-                        valueProviderCallback: _ => descriptor.decrementLoopCount,
-                        name: "DECLOOPCNT")
-                    .WithFlag(23,
-                        writeCallback: (_, value) => descriptor.ignoreSingleRequests = value,
-                        valueProviderCallback: _ => descriptor.ignoreSingleRequests,
-                        name: "IGNORESREQ")
-                    .WithEnumField<DoubleWordRegister, IncrementMode>(24, 2,
-                        writeCallback: (_, value) => descriptor.sourceIncrement = value,
-                        valueProviderCallback: _ => descriptor.sourceIncrement,
-                        name: "SRCINC")
-                    .WithEnumField<DoubleWordRegister, SizeMode>(26, 2,
-                        writeCallback: (_, value) => descriptor.size = value,
-                        valueProviderCallback: _ => descriptor.size,
-                        name: "SIZE")
-                    .WithEnumField<DoubleWordRegister, IncrementMode>(28, 2,
-                        writeCallback: (_, value) => descriptor.destinationIncrement = value,
-                        valueProviderCallback: _ => descriptor.destinationIncrement,
-                        name: "DSTINC")
-                    .WithEnumField<DoubleWordRegister, AddressingMode>(30, 1, FieldMode.Read,
-                        valueProviderCallback: _ => descriptor.sourceAddressingMode,
-                        name: "SRCMODE")
-                    .WithEnumField<DoubleWordRegister, AddressingMode>(31, 1, FieldMode.Read,
-                        valueProviderCallback: _ => descriptor.destinationAddressingMode,
-                        name: "DSTMODE")
-                    .WithChangeCallback((_, __) => { if(descriptor.structureTransferRequest) LinkLoad(); })
-                ;
-                DescriptorSourceDataAddressRegister = new DoubleWordRegister(parent)
-                    .WithValueField(0, 32,
-                        writeCallback: (_, value) => descriptor.sourceAddress = (uint)value,
-                        valueProviderCallback: _ => descriptor.sourceAddress,
-                        name: "SRCADDR")
-                ;
-                DescriptorDestinationDataAddressRegister = new DoubleWordRegister(parent)
-                    .WithValueField(0, 32,
-                        writeCallback: (_, value) => descriptor.destinationAddress = (uint)value,
-                        valueProviderCallback: _ => descriptor.destinationAddress,
-                        name: "DSTADDR")
-                ;
-                DescriptorLinkStructureAddressRegister = new DoubleWordRegister(parent)
-                    .WithEnumField<DoubleWordRegister, AddressingMode>(0, 1, FieldMode.Read,
-                        valueProviderCallback: _ => descriptor.linkMode,
-                        name: "LINKMODE")
-                    .WithFlag(1,
-                        writeCallback: (_, value) => descriptor.link = value,
-                        valueProviderCallback: _ => descriptor.link,
-                        name: "LINK")
-                    .WithValueField(2, 30,
-                        writeCallback: (_, value) => descriptor.linkAddress = (uint)value,
-                        valueProviderCallback: _ => descriptor.linkAddress,
-                        name: "LINKADDR")
-                ;
-
-                pullTimer = new LimitTimer(parent.machine.ClockSource, 1000000, null, $"pullTimer-{Index}", 15, Direction.Ascending, false, WorkMode.Periodic, true, true);
-                pullTimer.LimitReached += delegate
-                {
-                    if(!RequestDisable)
-                    {
-                        StartTransferInner();
-                    }
-                    if(!SignalIsOn || !ShouldPullSignal)
-                    {
-                        pullTimer.Enabled = false;
-                    }
-                };
-            }
-
-            public void StartFromSignal()
-            {
-                if(!RequestDisable)
-                {
-                    StartTransfer();
-                }
-            }
-
-            public void LinkLoad()
-            {
-                LoadDescriptor();
-                if(!RequestDisable && (descriptor.structureTransferRequest || SignalIsOn))
-                {
-                    StartTransfer();
-                }
-            }
-
-            public void StartTransfer()
-            {
-                if(ShouldPullSignal)
-                {
-                    pullTimer.Enabled = true;
-                }
-                else
-                {
-                    StartTransferInner();
-                }
-            }
-
-            public void Reset()
-            {
-                descriptor = default(Descriptor);
-                pullTimer.Reset();
-                DoneInterrupt = false;
-                DoneInterruptEnable = false;
-                descriptorAddress = null;
-                requestDisable = false;
-                enabled = false;
-                done = false;
-            }
-
-            public int Index { get; }
-
-            public SignalSelect Signal => signalSelect.Value;
-            public SourceSelect Source => sourceSelect.Value;
-            public bool IgnoreSingleRequests => descriptor.ignoreSingleRequests;
-            public bool DoneInterrupt { get; set; }
-            public bool DoneInterruptEnable { get; set; }
-            public bool IRQ => DoneInterrupt && DoneInterruptEnable;
-
-            public DoubleWordRegister PeripheralRequestSelectRegister { get; }
-            public DoubleWordRegister ConfigurationRegister { get; }
-            public DoubleWordRegister LoopCounterRegister { get; }
-            public DoubleWordRegister DescriptorControlWordRegister { get; }
-            public DoubleWordRegister DescriptorSourceDataAddressRegister { get; }
-            public DoubleWordRegister DescriptorDestinationDataAddressRegister { get; }
-            public DoubleWordRegister DescriptorLinkStructureAddressRegister { get; }
-
-            public bool Enabled
-            {
-                get
-                {
-                    return enabled;
-                }
-                set
-                {
-                    if(enabled == value)
-                    {
-                        return;
-                    }
-                    enabled = value;
-                    if(enabled)
-                    {
-                        Done = false;
-                        StartTransfer();
-                    }
-                }
-            }
-
-            public bool Done
-            {
-                get
-                {
-                    return done;
-                }
-
-                set
-                {
-                    if (!done)
-                    {
-                        DoneInterrupt |= value && descriptor.operationDoneInterruptFlagSetEnable;
-                    }
-                    done = value;
-                }
-            }
-
-            public bool Busy
-            {
-                get
-                {
-                    return isInProgress;
-                }
-            }
-
-            public bool RequestDisable
-            {
-                get
-                {
-                    return requestDisable;
-                }
-
-                set
-                {
-                    bool oldValue = requestDisable;
-                    requestDisable = value;
-
-                    if(oldValue && !value)
-                    {
-                        if(SignalIsOn)
-                        {
-                            StartTransfer();
-                        }
-                    }
-                }
-            }
-
-            private void StartTransferInner()
-            {
-                if(isInProgress || Done)
-                {
-                    return;
-                }
-
-                isInProgress = true;
-                var loaded = false;
-                do
-                {
-                    loaded = false;
-                    Transfer();
-                    if(Done && descriptor.link)
-                    {
-                        loaded = true;
-                        LoadDescriptor();
-                        Done = false;
-                    }
-                }
-                while((descriptor.structureTransferRequest && loaded) || (!Done && SignalIsOn));
-                
-                isInProgress = false;
-                if (Done) 
-                {
-                    pullTimer.Enabled = false;
-                }
-            }
-
-            private void LoadDescriptor()
-            {
-                var address = LinkStructureAddress;
-                if(descriptorAddress.HasValue && descriptor.linkMode == AddressingMode.Relative)
-                {
-                    address += descriptorAddress.Value;
-                }
-                var data = parent.machine.SystemBus.ReadBytes(address, DescriptorSize);
-                descriptorAddress = address;
-                descriptor = Packet.Decode<Descriptor>(data);
-#if DEBUG
-                parent.Log(LogLevel.Noisy, "Channel #{0} data {1}", Index, BitConverter.ToString(data));
-                parent.Log(LogLevel.Debug, "Channel #{0} Loaded {1}", Index, descriptor.PrettyString);
-#endif
-            }
-
-            private void Transfer()
-            {
-                switch(descriptor.structureType)
-                {
-                    case StructureType.Transfer:
-                        var request = new Request(
-                            source: new Place(descriptor.sourceAddress),
-                            destination: new Place(descriptor.destinationAddress),
-                            size: Bytes,
-                            readTransferType: SizeAsTransferType,
-                            writeTransferType: SizeAsTransferType,
-                            sourceIncrementStep: SourceIncrement,
-                            destinationIncrementStep: DestinationIncrement
-                        );
-                        parent.Log(LogLevel.Debug, "Channel #{0} Performing Transfer", Index);
-                        parent.engine.IssueCopy(request);
-                        if(descriptor.requestTransferModeSelect == RequestTransferMode.Block)
-                        {
-                            var blockSizeMultiplier = Math.Min(TransferCount, BlockSizeMultiplier);
-                            parent.Log(LogLevel.Debug, "Channel #{0} TransferCount={1} BlockSizeMultiplier={2}", Index, TransferCount, BlockSizeMultiplier);
-                            if(blockSizeMultiplier == TransferCount)
-                            {
-                                Done = true;
-                                descriptor.transferCount = 0;
-                            }
-                            else
-                            {
-                                descriptor.transferCount -= blockSizeMultiplier;
-                            }
-                            descriptor.sourceAddress += SourceIncrement * blockSizeMultiplier;
-                            descriptor.destinationAddress += DestinationIncrement * blockSizeMultiplier;
-                        }
-                        else
-                        {
-                            Done = true;
-                        }
-                        break;
-                    case StructureType.Synchronize:
-                        parent.Log(LogLevel.Warning, "Channel #{0} Synchronize is not implemented.", Index);
-                        break;
-                    case StructureType.Write:
-                        parent.Log(LogLevel.Warning, "Channel #{0} Write is not implemented.", Index);
-                        break;
-                    default:
-                        parent.Log(LogLevel.Error, "Channel #{0} Invalid structure type value. No action was performed.", Index);
-                        return;
-                }
-                parent.UpdateInterrupts();
-            }
-
-            private bool ShouldPullSignal
-            {
-                get
-                {
-                    // if this returns true for the selected source and signal
-                    // then the signal will be periodically pulled instead of waiting
-                    // for an rising edge
-                    switch(Source)
-                    {
-                        case SourceSelect.None:
-                            return false;
-                        case SourceSelect.LDMAXBAR:
-                            switch(Signal)
-                            {
-                                case SignalSelect.LDMAXBAR_DMA_PRSREQ0:
-                                case SignalSelect.LDMAXBAR_DMA_PRSREQ1:
-                                    return false;
-                                default:
-                                    goto default;
-                            }
-                        case SourceSelect.IADC0:
-                            switch(Signal)
-                            {
-                                case SignalSelect.IADC0_DMA_IADC_SCAN:
-                                case SignalSelect.IADC0_DMA_IADC_SINGLE:
-                                    return false;
-                                default:
-                                    goto default;
-                            }
-                        case SourceSelect.USART0:
-                        case SourceSelect.USART1:
-                            switch(Signal)
-                            {
-                                case SignalSelect.USART0_DMA_RXDATAV:
-                                    return false;
-                                case SignalSelect.USART0_DMA_TXBL:
-                                case SignalSelect.USART0_DMA_TXEMPTY:
-                                    return true;
-                                default:
-                                    goto default;
-                            }
-                        case SourceSelect.EUART0:                            
-                            switch(Signal)
-                            {
-                                case SignalSelect.EUART0_DMA_RXFL:
-                                    return false;
-                                case SignalSelect.EUART0_DMA_TXFL:
-                                    return true;
-                                default:
-                                    goto default;
-                            }
-                        case SourceSelect.I2C0:
-                        case SourceSelect.I2C1:
-                            switch(Signal)
-                            {
-                                case SignalSelect.I2C0_DMA_RXDATAV:
-                                    return false;
-                                case SignalSelect.I2C0_DMA_TXBL:
-                                    return true;
-                                default:
-                                    goto default;
-                            }
-                        case SourceSelect.TIMER0:
-                        case SourceSelect.TIMER1:
-                        case SourceSelect.TIMER2:
-                        case SourceSelect.TIMER3:
-                        case SourceSelect.TIMER4:
-                            switch(Signal)
-                            {
-                                case SignalSelect.TIMER0_DMA_CC0:
-                                case SignalSelect.TIMER0_DMA_CC1:
-                                case SignalSelect.TIMER0_DMA_CC2:
-                                case SignalSelect.TIMER0_DMA_UFOF:
-                                    return false;
-                                default:
-                                    goto default;
-                            }
-                        case SourceSelect.MSC:
-                            switch(Signal)
-                            {
-                                case SignalSelect.MSC_DMA_WDATA:
-                                    return false;
-                                default:
-                                    goto default;
-                            }
-                        default:
-                            parent.Log(LogLevel.Error, "Channel #{0} Invalid Source (0x{1:X}) and Signal (0x{2:X}) pair.", Index, Source, Signal);
-                            return false;
-                    }
-                }
-            }
-
-            private uint BlockSizeMultiplier
-            {
-                get
-                {
-                    switch(descriptor.blockSize)
-                    {
-                        case BlockSizeMode.Unit1:
-                        case BlockSizeMode.Unit2:
-                            return 1u << (byte)descriptor.blockSize;
-                        case BlockSizeMode.Unit3:
-                            return 3;
-                        case BlockSizeMode.Unit4:
-                            return 4;
-                        case BlockSizeMode.Unit6:
-                            return 6;
-                        case BlockSizeMode.Unit8:
-                            return 8;
-                        case BlockSizeMode.Unit16:
-                            return 16;
-                        case BlockSizeMode.Unit32:
-                        case BlockSizeMode.Unit64:
-                        case BlockSizeMode.Unit128:
-                        case BlockSizeMode.Unit256:
-                        case BlockSizeMode.Unit512:
-                        case BlockSizeMode.Unit1024:
-                            return 1u << ((byte)descriptor.blockSize - 4);
-                        case BlockSizeMode.All:
-                            return TransferCount;
-                        default:
-                            parent.Log(LogLevel.Warning, "Channel #{0} Invalid Block Size Mode value.", Index);
-                            return 0;
-                    }
-                }
-            }
-
-            private bool SignalIsOn
-            {
-                get
-                {
-                    var number = ((int)Source << 4) | (int)Signal;
-                    return parent.signals.Contains(number) || (!IgnoreSingleRequests && parent.signals.Contains(number | 1 << 12));
-                }
-            }
-
-            private uint TransferCount => (uint)descriptor.transferCount + 1;
-            private ulong LinkStructureAddress => (ulong)descriptor.linkAddress << 2;
-
-            private uint SourceIncrement => descriptor.sourceIncrement == IncrementMode.None ? 0u : ((1u << (byte)descriptor.size) << (byte)descriptor.sourceIncrement);
-            private uint DestinationIncrement => descriptor.destinationIncrement == IncrementMode.None ? 0u : ((1u << (byte)descriptor.size) << (byte)descriptor.destinationIncrement);
-            private TransferType SizeAsTransferType => (TransferType)(1 << (byte)descriptor.size);
-            private int Bytes => (int)(descriptor.requestTransferModeSelect == RequestTransferMode.All ? TransferCount : Math.Min(TransferCount, BlockSizeMultiplier)) << (byte)descriptor.size;
-
-            private Descriptor descriptor;
-            private ulong? descriptorAddress;
-            private bool requestDisable;
-            private bool enabled;
-            private bool done;
-
-            // Accesses to sysubs may cause changes in signals, but we should ignore those during active transaction
-            private bool isInProgress;
-
-            private IEnumRegisterField<SignalSelect> signalSelect;
-            private IEnumRegisterField<SourceSelect> sourceSelect;
-            private IEnumRegisterField<ArbitrationSlotNumberMode> arbitrationSlotNumberSelect;
-            private IEnumRegisterField<Sign> sourceAddressIncrementSign;
-            private IEnumRegisterField<Sign> destinationAddressIncrementSign;
-            private IValueRegisterField loopCounter;
-
-            private readonly EFR32xG22_LDMA parent;
-            private readonly LimitTimer pullTimer;
-
-            protected readonly int DescriptorSize = Packet.CalculateLength<Descriptor>();
-
-            private enum ArbitrationSlotNumberMode
-            {
-                One   = 0,
-                Two   = 1,
-                Four  = 2,
-                Eight = 3,
-            }
-
-            private enum Sign
-            {
-                Positive = 0,
-                Negative = 1,
-            }
-
-            protected enum StructureType : uint
-            {
-                Transfer    = 0,
-                Synchronize = 1,
-                Write       = 2,
-            }
-
-            protected enum BlockSizeMode : uint
-            {
-                Unit1    = 0,
-                Unit2    = 1,
-                Unit3    = 2,
-                Unit4    = 3,
-                Unit6    = 4,
-                Unit8    = 5,
-                Unit16   = 7,
-                Unit32   = 9,
-                Unit64   = 10,
-                Unit128  = 11,
-                Unit256  = 12,
-                Unit512  = 13,
-                Unit1024 = 14,
-                All      = 15,
-            }
-
-            protected enum RequestTransferMode : uint
-            {
-                Block = 0,
-                All   = 1,
-            }
-
-            protected enum IncrementMode : uint
-            {
-                One  = 0,
-                Two  = 1,
-                Four = 2,
-                None = 3,
-            }
-
-            protected enum SizeMode : uint
-            {
-                Byte     = 0,
-                HalfWord = 1,
-                Word     = 2,
-            }
-
-            protected enum AddressingMode : uint
-            {
-                Absolute = 0,
-                Relative = 1,
-            }
-
-            [LeastSignificantByteFirst]
-            private struct Descriptor
-            {
-                public string PrettyString => $@"Descriptor {{
-    structureType: {structureType},
-    structureTransferRequest: {structureTransferRequest},
-    transferCount: {transferCount + 1},
-    byteSwap: {byteSwap},
-    blockSize: {blockSize},
-    operationDoneInterruptFlagSetEnable: {operationDoneInterruptFlagSetEnable},
-    requestTransferModeSelect: {requestTransferModeSelect},
-    decrementLoopCount: {decrementLoopCount},
-    ignoreSingleRequests: {ignoreSingleRequests},
-    sourceIncrement: {sourceIncrement},
-    size: {size},
-    destinationIncrement: {destinationIncrement},
-    sourceAddressingMode: {sourceAddressingMode},
-    destinationAddressingMode: {destinationAddressingMode},
-    sourceAddress: 0x{sourceAddress:X},
-    destinationAddress: 0x{destinationAddress:X},
-    linkMode: {linkMode},
-    link: {link},
-    linkAddress: 0x{(linkAddress << 2):X}
-}}";
-
-// Some of this fields are read only via sysbus, but can be loaded from memory
-#pragma warning disable 649
-                [PacketField, Offset(bytes: 0 << 2, bits: 0), Width(2)]
-                public StructureType structureType;
-                [PacketField, Offset(bytes: 0 << 2, bits: 3), Width(1)]
-                public bool structureTransferRequest;
-                [PacketField, Offset(bytes: 0 << 2, bits: 4), Width(11)]
-                public uint transferCount;
-                [PacketField, Offset(bytes: 0 << 2, bits: 15), Width(1)]
-                public bool byteSwap;
-                [PacketField, Offset(bytes: 0 << 2, bits: 16), Width(4)]
-                public BlockSizeMode blockSize;
-                [PacketField, Offset(bytes: 0 << 2, bits: 20), Width(1)]
-                public bool operationDoneInterruptFlagSetEnable;
-                [PacketField, Offset(bytes: 0 << 2, bits: 21), Width(1)]
-                public RequestTransferMode requestTransferModeSelect;
-                [PacketField, Offset(bytes: 0 << 2, bits: 22), Width(1)]
-                public bool decrementLoopCount;
-                [PacketField, Offset(bytes: 0 << 2, bits: 23), Width(1)]
-                public bool ignoreSingleRequests;
-                [PacketField, Offset(bytes: 0 << 2, bits: 24), Width(2)]
-                public IncrementMode sourceIncrement;
-                [PacketField, Offset(bytes: 0 << 2, bits: 26), Width(2)]
-                public SizeMode size;
-                [PacketField, Offset(bytes: 0 << 2, bits: 28), Width(2)]
-                public IncrementMode destinationIncrement;
-                [PacketField, Offset(bytes: 0 << 2, bits: 30), Width(1)]
-                public AddressingMode sourceAddressingMode;
-                [PacketField, Offset(bytes: 0 << 2, bits: 31), Width(1)]
-                public AddressingMode destinationAddressingMode;
-                [PacketField, Offset(bytes: 1 << 2, bits: 0), Width(32)]
-                public uint sourceAddress;
-                [PacketField, Offset(bytes: 2 << 2, bits: 0), Width(32)]
-                public uint destinationAddress;
-                [PacketField, Offset(bytes: 3 << 2, bits: 0), Width(1)]
-                public AddressingMode linkMode;
-                [PacketField, Offset(bytes: 3 << 2, bits: 1), Width(1)]
-                public bool link;
-                [PacketField, Offset(bytes: 3 << 2, bits: 2), Width(30)]
-                public uint linkAddress;
-#pragma warning restore 649
-            }
         }
     }
 }

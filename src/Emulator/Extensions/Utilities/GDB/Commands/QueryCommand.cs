@@ -5,9 +5,10 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Text;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.CPU;
 
@@ -21,12 +22,12 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
 
         [Execute("qXfer")]
         public PacketData SendQueryXml(
-            [Argument(Separator = ':', Encoding = ArgumentAttribute.ArgumentEncoding.String)]string command,
-            [Argument(Separator = ':', Encoding = ArgumentAttribute.ArgumentEncoding.String)]string objectType,
-            [Argument(Separator = ':', Encoding = ArgumentAttribute.ArgumentEncoding.String)]string operation,
-            [Argument(Separator = ':', Encoding = ArgumentAttribute.ArgumentEncoding.String)]string annex,
-            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]int offset,
-            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]int length
+            [Argument(Separator = ':', Encoding = ArgumentAttribute.ArgumentEncoding.String)] string _,
+            [Argument(Separator = ':', Encoding = ArgumentAttribute.ArgumentEncoding.String)] string objectType,
+            [Argument(Separator = ':', Encoding = ArgumentAttribute.ArgumentEncoding.String)] string operation,
+            [Argument(Separator = ':', Encoding = ArgumentAttribute.ArgumentEncoding.String)] string annex,
+            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)] int offset,
+            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)] int length
         )
         {
             if((objectType != "features" && objectType != "threads") || operation != "read")
@@ -75,7 +76,6 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
                     foreach(var field in type.Fields)
                     {
                         AppendTag(ref xmlFile, tagName, field);
-
                     }
                     xmlFile.Append($"</{type.Type}>\n");
                 }
@@ -111,4 +111,3 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
         }
     }
 }
-

@@ -11,13 +11,23 @@ using System.Linq;
 
 namespace Antmicro.Renode.Utilities.Collections
 {
-
     public class MultiTree<TValue, TConnectionWay> : MultiTreeNode<TValue, TConnectionWay>
     {
         public MultiTree(TValue value) : base(value, null)
         {
             valueToNode = new Dictionary<TValue, MultiTreeNode<TValue, TConnectionWay>>();
             valueToNode.Add(value, this);
+        }
+
+        public bool ContainsValue(TValue value)
+        {
+            return valueToNode.ContainsKey(value);
+        }
+
+        public void TraverseWithConnectionWaysParentFirst(Action<MultiTreeNode<TValue, TConnectionWay>, TConnectionWay, TValue, int> nodeHandler, int initialLevel)
+        {
+            nodeHandler(this, default(TConnectionWay), default(TValue), initialLevel);
+            TraverseWithConnectionWaysChildrenOnly(nodeHandler, initialLevel);
         }
 
         public MultiTreeNode<TValue, TConnectionWay> GetNode(TValue value)
@@ -42,17 +52,6 @@ namespace Antmicro.Renode.Utilities.Collections
             {
                 return valueToNode.Select(x => x.Key).ToArray();
             }
-        }
-
-        public bool ContainsValue(TValue value)
-        {
-            return valueToNode.ContainsKey(value);
-        }
-
-        public void TraverseWithConnectionWaysParentFirst(Action<MultiTreeNode<TValue, TConnectionWay>, TConnectionWay, TValue, int> nodeHandler, int initialLevel)
-        {
-            nodeHandler(this, default(TConnectionWay), default(TValue), initialLevel);
-            TraverseWithConnectionWaysChildrenOnly(nodeHandler, initialLevel);
         }
 
         internal MultiTreeNode<TValue, TConnectionWay> FindOrCreateNode(TValue value)

@@ -28,4 +28,3 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
         }
     }
 }
-

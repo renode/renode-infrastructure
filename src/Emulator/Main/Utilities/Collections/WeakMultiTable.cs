@@ -8,8 +8,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Antmicro.Migrant.Hooks;
+
 using Antmicro.Migrant;
+using Antmicro.Migrant.Hooks;
 
 namespace Antmicro.Renode.Utilities.Collections
 {
@@ -150,7 +151,6 @@ namespace Antmicro.Renode.Utilities.Collections
             FreeSnapshot();
         }
 
-        private readonly object sync;
         private List<TLeft> snapshotLefts;
         private List<TRight> snapshotRights;
 
@@ -159,6 +159,7 @@ namespace Antmicro.Renode.Utilities.Collections
 
         [Transient]
         private List<WeakReference> rights;
+
+        private readonly object sync;
     }
 }
-

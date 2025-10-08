@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+
 using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
@@ -40,13 +41,13 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
                 // We have to add the first frame, form which the first jump happened
                 // To infer this frame we use the current PC value, which should point to the jump instruction that triggered this event
                 var prevSymbol = GetSymbolName(cpu.PC.RawValue);
-                currentStack.Push(prevSymbol);
+                CurrentStack.Push(prevSymbol);
             }
 
             var instructionsElapsed = GetInstructionsDelta(instructionsCount);
             AddStackToBufferWithDelta(instructionsElapsed);
 
-            currentStack.Push(currentSymbol);
+            CurrentStack.Push(currentSymbol);
 
             CheckAndFlushBuffer();
         }
@@ -54,7 +55,7 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
         public override void StackFramePop(ulong currentAddress, ulong returnAddress, ulong instructionsCount)
         {
             cpu.Log(LogLevel.Debug, "Profiler: Trying to pop frame with returnAddress: 0x{0:X} ({1}); currentAddress: 0x{2:X}", returnAddress, GetSymbolName(returnAddress), currentAddress);
-            if(currentStack.Count == 0)
+            if(CurrentStack.Count == 0)
             {
                 cpu.Log(LogLevel.Error, "Profiler: Trying to return from frame while internal stack tracking is empty");
                 return;
@@ -63,7 +64,7 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
             var instructionsElapsed = GetInstructionsDelta(instructionsCount);
             AddStackToBufferWithDelta(instructionsElapsed);
 
-            currentStack.Pop();
+            CurrentStack.Pop();
 
             CheckAndFlushBuffer();
         }
@@ -91,7 +92,7 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
             }
 
             currentContextId = newContextId;
-            currentContext.PopCurrentStack();
+            CurrentContext.PopCurrentStack();
 
             CheckAndFlushBuffer();
         }
@@ -113,7 +114,7 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
             AddStackToBufferWithDelta(instructionsElapsed);
 
             cpu.Log(LogLevel.Debug, "Profiler: Interrupt exit - restoring the stack");
-            currentContext.PopCurrentStack();
+            CurrentContext.PopCurrentStack();
 
             CheckAndFlushBuffer();
         }
@@ -145,7 +146,7 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
 
         public override string GetCurrentStack()
         {
-            var result = FormatCollapsedStackString(currentStack);
+            var result = FormatCollapsedStackString(CurrentStack);
 
             return result;
         }
@@ -167,7 +168,7 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
                 return;
             }
 
-            var collapsedStack = FormatCollapsedStackString(currentStack);
+            var collapsedStack = FormatCollapsedStackString(CurrentStack);
             AddToBuffer($"{collapsedStack} {instructionDelta}");
         }
 
@@ -192,13 +193,13 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
             return string.Join(";", stack.Reverse());
         }
 
-        private readonly StringBuilder stringBuffer;
-        private readonly StreamWriter fileStream;
-        private readonly long? fileSizeLimit;
-
         private ulong lastInstructionsCount;
         private long fileWrittenBytes;
         private bool isDisposing;
+
+        private readonly StringBuilder stringBuffer;
+        private readonly StreamWriter fileStream;
+        private readonly long? fileSizeLimit;
 
         private const int BufferFlushLevel = 1000000;
     }

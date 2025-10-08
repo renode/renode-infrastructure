@@ -5,17 +5,12 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using Antmicro.Renode.Core;
+
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.I2C;
 using Antmicro.Renode.Peripherals.Sensor;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Peripherals.Sensors
 {
@@ -54,7 +49,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 // skip the first byte as it contains register address
                 foreach(var b in data.Skip(1))
                 {
-                    this.Log(LogLevel.Debug,"Writing 0x{0:X} to register {1} (0x{1:X})", b, regAddress);
+                    this.Log(LogLevel.Debug, "Writing 0x{0:X} to register {1} (0x{1:X})", b, regAddress);
                     RegistersCollection.Write((byte)regAddress, b);
                     regAddress = (Registers)((int)regAddress + 1);
                 }
@@ -75,7 +70,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             {
                 if(regAddress == Registers.DataOutXH)
                 {
-                   dataLock.Value = true;
+                    dataLock.Value = true;
                 }
                 result[i] = RegistersCollection.Read((byte)regAddress);
                 this.Log(LogLevel.Noisy, "Read value {0}", result[i]);
@@ -208,33 +203,33 @@ namespace Antmicro.Renode.Peripherals.Sensors
             ushort gain = 0; // [LSB/Gauss]
             switch(gainConfiguration.Value)
             {
-                case 0:
-                    gain = 980;
-                    break;
-                case 1:
-                    gain = 1100;
-                    break;
-                case 2:
-                    gain = 760;
-                    break;
-                case 3:
-                    gain = 600;
-                    break;
-                case 4:
-                    gain = 400;
-                    break;
-                case 5:
-                    gain = 355;
-                    break;
-                case 6:
-                    gain = 295;
-                    break;
-                case 7:
-                    gain = 205;
-                    break;
-                default:
-                    this.Log(LogLevel.Warning, "Unsupported value of sensor gain.");
-                    break;
+            case 0:
+                gain = 980;
+                break;
+            case 1:
+                gain = 1100;
+                break;
+            case 2:
+                gain = 760;
+                break;
+            case 3:
+                gain = 600;
+                break;
+            case 4:
+                gain = 400;
+                break;
+            case 5:
+                gain = 355;
+                break;
+            case 6:
+                gain = 295;
+                break;
+            case 7:
+                gain = 205;
+                break;
+            default:
+                this.Log(LogLevel.Warning, "Unsupported value of sensor gain.");
+                break;
             }
             return gain;
         }
@@ -265,7 +260,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 this.Log(LogLevel.Warning, "Temperature sensor disable");
                 return 0x00;
             }
-            return upperByte ? (byte)((short)value >> 8) : (byte)((short)value >> 4) ;
+            return upperByte ? (byte)((short)value >> 8) : (byte)((short)value >> 4);
         }
 
         private decimal temperature;

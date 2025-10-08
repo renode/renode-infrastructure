@@ -6,6 +6,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.UserInterface.Exceptions
@@ -18,6 +19,7 @@ namespace Antmicro.Renode.UserInterface.Exceptions
             Type = type;
             Command = command;
         }
+
         public ParametersMismatchException(Type type, string command, string name, string message) : base(message)
         {
             Name = name;
@@ -26,7 +28,9 @@ namespace Antmicro.Renode.UserInterface.Exceptions
         }
 
         public string Name { get; }
+
         public Type Type { get; }
+
         public string Command { get; }
     }
 }

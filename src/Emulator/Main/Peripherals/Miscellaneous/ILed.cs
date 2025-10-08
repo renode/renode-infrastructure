@@ -6,13 +6,13 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Peripherals;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public interface ILed : IPeripheral
     {
         bool State { get; }
+
         event Action<ILed, bool> StateChanged;
     }
 }

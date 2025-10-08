@@ -44,6 +44,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
 
         public GPIO IRQ { get; }
+
         public long Size => 0x1000;
 
         public event Action<Cadence_WDT> LimitReached;
@@ -51,7 +52,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         private void DefineRegisters()
         {
             Register.ZeroMode.Define(this, resetValue: 0x1C3)
-                .WithFlag(0, out watchdogEnable, writeCallback: (oldVal, newVal) => 
+                .WithFlag(0, out watchdogEnable, writeCallback: (oldVal, newVal) =>
                 {
                     if(zeroAccessKey.Value != ZeroAccessKey)
                     {
@@ -137,8 +138,6 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private bool WatchdogZero => watchdogTimer.Value == watchdogTimer.Limit;
 
-        private readonly LimitTimer watchdogTimer;
-
         private IFlagRegisterField watchdogEnable;
         private IFlagRegisterField resetEnable;
         private IFlagRegisterField interruptRequestEnable;
@@ -146,6 +145,8 @@ namespace Antmicro.Renode.Peripherals.Timers
         private IValueRegisterField counterClockPrescale;
         private IValueRegisterField counterRestartValue;
         private IValueRegisterField counterAccessKey;
+
+        private readonly LimitTimer watchdogTimer;
 
         private const ushort ZeroAccessKey = 0xABC;
         private const ushort CounterAccessKey = 0x248;

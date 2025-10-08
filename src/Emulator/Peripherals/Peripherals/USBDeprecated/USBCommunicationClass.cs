@@ -6,21 +6,94 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
     public class USBCommunicationClass
     {
-        public USBCommunicationClass ()
+        public USBCommunicationClass()
         {
             //deviceDescriptor.DeviceClass = DeviceClassCode;
             //endpointDescriptor.Type = (DescriptorType) CommunicationClassDescriptorType.Interface;
         }
+
         protected const byte DeviceClassCode = 0x02;
         protected const byte InterfaceClassCode = 0x02;
         protected const byte DataInterfaceClassCode = 0x0A;
 
+        protected class HeaderFunctionalDescriptor : USBDescriptor
+        {
+            public HeaderFunctionalDescriptor()
+            {
+                base.Length = 0x04;
+                base.Type = (DescriptorType)CommunicationClassDescriptorType.Interface;
+            }
+
+            public override byte[] ToArray()
+            {
+                var arr = base.ToArray ();
+                arr[0x2] = Subtype;
+                arr[0x3] = BcdCDC.LoByte();
+                arr[0x4] = BcdCDC.HiByte();
+                return arr;
+            }
+
+            public byte Subtype { get; set; }
+
+            public ushort BcdCDC { get; set; }
+        }
+
+        protected class UnionFunctionalDescriptor : USBDescriptor
+        {
+            public UnionFunctionalDescriptor(byte subordinateInterfacesNumber)
+            {
+                base.Length = (byte)(subordinateInterfacesNumber + 0x04);
+                base.Type = (DescriptorType)CommunicationClassDescriptorType.Interface;
+                SubordinateInterface = new byte[subordinateInterfacesNumber];
+            }
+
+            public override byte[] ToArray()
+            {
+                var arr =  base.ToArray ();
+                arr[0x2] = Subtype;
+                arr[0x3] = ControllInterface;
+                Array.Copy(SubordinateInterface, 0, arr, 0x4, SubordinateInterface.Length);
+                return arr;
+            }
+
+            public byte Subtype { get; set; }
+
+            public byte ControllInterface { get; set; }
+
+            public byte[] SubordinateInterface { get; set; }
+        }
+
+        protected class CountrySelectionFunctionalDescriptor : USBDescriptor
+        {
+            public CountrySelectionFunctionalDescriptor(byte countryCodesNumber)
+            {
+                base.Length = (byte)(countryCodesNumber * 2 + 4);
+                base.Type = (DescriptorType)CommunicationClassDescriptorType.Interface;
+                CountryCode = new byte[countryCodesNumber];
+            }
+
+            public override byte[] ToArray()
+            {
+                var arr = base.ToArray ();
+                arr[0x2] = Subtype;
+                arr[0x3] = CountryCodeReleaseDate;
+                Array.Copy(CountryCode, 0, arr, 0x4, CountryCode.Length);
+                return arr;
+            }
+
+            public byte Subtype { get; set; }
+
+            public byte CountryCodeReleaseDate { get; set; }
+
+            public byte[] CountryCode { get; set; }
+        }
 
         protected enum SubclassCode : byte
         {
@@ -69,8 +142,8 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             HostBasedDriver = 0xFD,
             CDCSpecification = 0xFE,
             VendorSpecific = 0xFF
-
         }
+
         protected enum CommunicationClassDescriptorType : byte
         {
             Interface = 0x24,
@@ -169,85 +242,10 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             ConnectedSpeedChange = 0x2A
         }
 
-
-        protected class HeaderFunctionalDescriptor : USBDescriptor
-        {
-
-            public HeaderFunctionalDescriptor()
-            {
-                base.Length = 0x04;
-                base.Type = (DescriptorType) CommunicationClassDescriptorType.Interface;
-            }
-            public byte Subtype{get; set;}
-            public ushort bcdCDC{get; set;}
-
-            public override byte[] ToArray ()
-            {
-
-                var arr = base.ToArray ();
-                arr[0x2] = Subtype;
-                arr[0x3] = bcdCDC.LoByte();
-                arr[0x4] = bcdCDC.HiByte();
-                return arr;
-            }
-        }
-
-        protected class UnionFunctionalDescriptor : USBDescriptor
-        {
-            public UnionFunctionalDescriptor(byte subordinateInterfacesNumber)
-            {
-                base.Length = (byte)(subordinateInterfacesNumber + 0x04);
-                base.Type = (DescriptorType) CommunicationClassDescriptorType.Interface;
-                SubordinateInterface = new byte[subordinateInterfacesNumber];
-            }
-            public byte Subtype{get; set;}
-            public byte ControllInterface{get; set;}
-            public byte[] SubordinateInterface{get; set;}
-
-            public override byte[] ToArray ()
-            {
-                var arr =  base.ToArray ();
-                arr[0x2] = Subtype;
-                arr[0x3] = ControllInterface;
-                Array.Copy(SubordinateInterface, 0,arr, 0x4, SubordinateInterface.Length);
-                return arr;
-
-            }
-        }
-
-        protected class CountrySelectionFunctionalDescriptor : USBDescriptor
-        {
-
-            public CountrySelectionFunctionalDescriptor(byte countryCodesNumber)
-            {
-                base.Length = (byte)(countryCodesNumber * 2 + 4);
-                base.Type = (DescriptorType) CommunicationClassDescriptorType.Interface;
-                CountryCode = new byte[countryCodesNumber];
-            }
-
-            public byte Subtype{get; set;}
-            public byte CountryCodeReleaseDate{get; set;}
-            public byte[] CountryCode{get; set;}
-
-            public override byte[] ToArray ()
-            {
-                var arr = base.ToArray ();
-                arr[0x2] = Subtype;
-                arr[0x3] = CountryCodeReleaseDate;
-                Array.Copy(CountryCode,0,arr,0x4,CountryCode.Length);
-                return arr;
-            }
-
-        }
-
-
         //protected ConfigurationUSBDescriptor configurationDescriptor;
         //protected StandardUSBDescriptor deviceDescriptor;
         //protected InterfaceUSBDescriptor interfaceDescriptor;
         //protected EndpointUSBDescriptor endpointDescriptor;
         //protected StringUSBDescriptor stringDesriptor;
-
-
     }
 }
-

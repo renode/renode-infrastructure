@@ -5,12 +5,12 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.IO;
-using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+
 using Antmicro.Renode.Exceptions;
-using System.Reflection;
+
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Text;
@@ -34,7 +34,8 @@ namespace Antmicro.Renode.Utilities
                 MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
             };
 
-            foreach (string sourcePath in sourcePaths) {
+            foreach(string sourcePath in sourcePaths)
+            {
                 var sourceCode = File.ReadAllText(sourcePath);
                 var codeString = SourceText.From(sourceCode);
 
@@ -46,17 +47,17 @@ namespace Antmicro.Renode.Utilities
 
             var result = CSharpCompilation.Create(outputFileName,
                 syntaxTrees: parsedSyntaxTrees,
-                references: references, 
-                options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, 
+                references: references,
+                options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary,
                     optimizationLevel: OptimizationLevel.Release,
                     assemblyIdentityComparer: DesktopAssemblyIdentityComparer.Default)).Emit(outputFilePath);
 
-            if (!result.Success) 
+            if(!result.Success)
             {
                 // Access diagnostic informations 
                 var failures = result.Diagnostics.Where(diagnostic => diagnostic.IsWarningAsError || diagnostic.Severity == DiagnosticSeverity.Error);
                 var diagnosticString = string.Join(Environment.NewLine, failures.Select(x => x.ToString()));
-                throw new RecoverableException($"Could not compile assembly from: {sourcePaths}\n{diagnosticString}");      
+                throw new RecoverableException($"Could not compile assembly from: {sourcePaths}\n{diagnosticString}");
             }
 
             return outputFilePath;

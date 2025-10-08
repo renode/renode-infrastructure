@@ -29,7 +29,7 @@ namespace Antmicro.Renode.Peripherals.Mocks
 
         // Write method is intentionally omitted to test error checking logic.
         [ConnectionRegion("region")]
-        public uint ReadDoubleWordFromRegion(long offset)
+        public uint ReadDoubleWordFromRegion(long _)
         {
             return 0;
         }

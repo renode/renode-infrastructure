@@ -5,8 +5,10 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Peripherals.Input;
 using System.Collections.Generic;
+
+using Antmicro.Renode.Peripherals.Input;
+
 using Xwt;
 
 namespace Antmicro.Renode.Extensions.Analyzers.Video.Events
@@ -45,31 +47,25 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Events
             { Key.ControlLeft /*53*/, KeyScanCode.CtrlL },
             { Key.ShiftRight /*53*/, KeyScanCode.ShiftR  },
             { Key.ControlRight /*53*/, KeyScanCode.CtrlR },
-
             { Key.Equal /*53*/, KeyScanCode.OemPlus },
             { Key.Slash /*53*/, KeyScanCode.OemQuestion },
-
             { Key.BackSpace /*10*/, KeyScanCode.BackSpace },
             { Key.Tab /*11*/, KeyScanCode.Tab },
             { Key.Return /*12*/, KeyScanCode.Enter },
             { Key.CapsLock /*53*/, KeyScanCode.CapsLock },
-
             { Key.Escape /*39*/, KeyScanCode.Escape },
             { Key.ScrollLock /*5*/, KeyScanCode.ScrollLock },
             { Key.Pause /*4*/, KeyScanCode.Pause },
-
             { Key.Home /*25*/, KeyScanCode.Home },
             { Key.PageUp /*22*/, KeyScanCode.PageUp },
             { Key.End /*17*/, KeyScanCode.End },
             { Key.PageDown /*47*/, KeyScanCode.PageDown },
             { Key.Insert /*53*/, KeyScanCode.Insert },
             { Key.Delete /*53*/, KeyScanCode.Delete },
-
             { Key.Up /*19*/, KeyScanCode.Up },
             { Key.Down /*20*/, KeyScanCode.Down },
             { Key.Left /*16*/, KeyScanCode.Left },
             { Key.Right /*31*/, KeyScanCode.Right },
-
             { Key.NumLock /*53*/, KeyScanCode.NumLock },
             { Key.NumPad0 /*53*/, KeyScanCode.Keypad0 },
             { Key.NumPad1 /*53*/, KeyScanCode.Keypad1 },
@@ -88,7 +84,6 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Events
             { Key.NumPadDecimal /*53*/, KeyScanCode.KeypadComma },
             { Key.NumPadEnter /*12*/, KeyScanCode.KeypadEnter },
             { Key.Space /*57*/, KeyScanCode.Space },
-
             { Key.F1 /*53*/, KeyScanCode.F1 },
             { Key.F2 /*53*/, KeyScanCode.F2 },
             { Key.F3 /*53*/, KeyScanCode.F3 },
@@ -127,7 +122,6 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Events
             { Key.Comma, KeyScanCode.OemComma },
             { Key.Question, KeyScanCode.OemQuestion },
             { Key.ShiftRight, KeyScanCode.ShiftR },
-
             { Key.CapsLock, KeyScanCode.CapsLock },
             { Key.A, KeyScanCode.A },
             { Key.a, KeyScanCode.A },
@@ -150,7 +144,6 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Events
             { Key.Semicolon, KeyScanCode.OemSemicolon },
             { Key.Quote, KeyScanCode.OemQuotes },
             { Key.Return, KeyScanCode.Enter },
-
             { Key.Tab, KeyScanCode.Tab },
             { Key.Q, KeyScanCode.Q },
             { Key.q, KeyScanCode.Q },
@@ -176,7 +169,6 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Events
             { Key.OpenSquareBracket, KeyScanCode.OemOpenBrackets },
             { Key.CloseCurlyBracket, KeyScanCode.OemCloseBrackets },
             { Key.CloseSquareBracket, KeyScanCode.OemCloseBrackets },
-
             { Key.Tilde, KeyScanCode.Tilde },
             { Key.BackQuote, KeyScanCode.Tilde },
             { Key.K1, KeyScanCode.Number1 },
@@ -196,7 +188,6 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Events
             { Key.Backslash, KeyScanCode.OemPipe },
             { Key.Pipe, KeyScanCode.OemPipe },
             { Key.BackSpace, KeyScanCode.BackSpace },
-
             { Key.Escape, KeyScanCode.Escape },
             { Key.F1, KeyScanCode.F1 },
             { Key.F2, KeyScanCode.F2 },
@@ -211,19 +202,16 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Events
             { Key.Print, KeyScanCode.PrtSc },
             { Key.ScrollLock, KeyScanCode.ScrollLock },
             { Key.Pause, KeyScanCode.Pause },
-
             { Key.Insert, KeyScanCode.Insert },
             { Key.Home, KeyScanCode.Home },
             { Key.PageUp, KeyScanCode.PageUp },
             { Key.Delete, KeyScanCode.Delete },
             { Key.End, KeyScanCode.End },
             { Key.PageDown, KeyScanCode.PageDown },
-
             { Key.Up, KeyScanCode.Up },
             { Key.Down, KeyScanCode.Down },
             { Key.Left, KeyScanCode.Left },
             { Key.Right, KeyScanCode.Right },
-
             { Key.NumLock, KeyScanCode.NumLock },
             { Key.NumPad0, KeyScanCode.Keypad0 },
             { Key.NumPad1, KeyScanCode.Keypad1 },
@@ -257,7 +245,6 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Events
             { 11, KeyScanCode.Number0 },
             { 12, KeyScanCode.OemMinus },
             { 13, KeyScanCode.OemPlus },
-
             { 16, KeyScanCode.Q },
             { 17, KeyScanCode.W },
             { 18, KeyScanCode.E },
@@ -270,7 +257,6 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Events
             { 25, KeyScanCode.P },
             { 26, KeyScanCode.OemOpenBrackets },
             { 27, KeyScanCode.OemCloseBrackets },
-
             { 30, KeyScanCode.A },
             { 31, KeyScanCode.S },
             { 32, KeyScanCode.D },
@@ -282,11 +268,8 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Events
             { 38, KeyScanCode.L },
             { 39, KeyScanCode.OemSemicolon },
             { 40, KeyScanCode.OemQuotes },
-
             { 41, KeyScanCode.Tilde },
-
             { 43, KeyScanCode.OemPipe },
-
             { 44, KeyScanCode.Z },
             { 45, KeyScanCode.X },
             { 46, KeyScanCode.C },
@@ -297,9 +280,7 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Events
             { 51, KeyScanCode.OemComma },
             { 52, KeyScanCode.OemPeriod },
             { 53, KeyScanCode.OemQuestion },
-
             { 57, KeyScanCode.BackSpace },
         };
     }
 }
-

@@ -6,32 +6,24 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Collections.Concurrent;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Runtime.ExceptionServices;
-using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading;
+
 using Antmicro.Migrant;
-using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Logging.Profiling;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.CPU.Disassembler;
-using Antmicro.Renode.Peripherals.CPU.Registers;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Utilities.Binding;
+
 using ELFSharp.ELF;
 using ELFSharp.UImage;
-using Machine = Antmicro.Renode.Core.Machine;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -41,27 +33,6 @@ namespace Antmicro.Renode.Peripherals.CPU
     /// </summary>
     public abstract class BaseCPU : CPUCore, ICluster<BaseCPU>, ICPU, IDisposable, ITimeSink, IInitableCPU
     {
-        protected BaseCPU(uint id, string cpuType, IMachine machine, Endianess endianness, CpuBitness bitness = CpuBitness.Bits32)
-            : base(id)
-        {
-            if(cpuType == null)
-            {
-                throw new ConstructionException("cpuType was null");
-            }
-
-            Endianness = endianness;
-            PerformanceInMips = 100;
-            this.Model = cpuType;
-            this.machine = machine;
-            this.bitness = bitness;
-            isPaused = true;
-
-            singleStepSynchronizer = new Synchronizer();
-            EmulationManager.Instance.CurrentEmulation.SingleStepBlockingChanged += UpdateHaltedState;
-
-            Clustered = new BaseCPU[] { this };
-        }
-
         public virtual void InitFromElf(IELF elf)
         {
             if(elf.GetBitness() > (int)bitness)
@@ -73,15 +44,36 @@ namespace Antmicro.Renode.Peripherals.CPU
             SetPCFromEntryPoint(elf.GetEntryPoint());
         }
 
-        public virtual void InitFromUImage(UImage uImage)
+        public virtual void Reset()
         {
-            this.Log(LogLevel.Info, "Setting PC value to 0x{0:X}.", uImage.EntryPoint);
-            SetPCFromEntryPoint(uImage.EntryPoint);
+            isAborted = false;
+            Pause();
+            EmulationState = EmulationCPUState.InReset;
         }
 
-        public void DelayStepCommand()
+        public virtual void Dispose()
         {
-            singleStepSynchronizer.DelayStepCommand();
+            DisposeInner();
+        }
+
+        public void SkipTime(TimeInterval amountOfTime)
+        {
+            var instructions = amountOfTime.ToCPUCycles(PerformanceInMips, out var residuum);
+            if(residuum > 0)
+            {
+                // We want to execute instructions for at least required amount of time, so we should add
+                // instructions += ceil(residuum / TicksPerMicrosecond) * PerformanceInMips
+                // As residuum < TicksPerMicrosecond by definition, ceiling of it will be always 1
+                instructions += PerformanceInMips;
+                var newInterval = TimeInterval.FromCPUCycles(instructions, PerformanceInMips, out var _);
+                this.Log(LogLevel.Warning, "Conversion from time to instructions is not exact, real time skipped: {0}", newInterval);
+            }
+            SkipInstructions += instructions;
+        }
+
+        public virtual void SyncTime()
+        {
+            // by default do nothing
         }
 
         public ulong Step(int count = 1)
@@ -149,89 +141,106 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public void DelayStepCommand()
+        {
+            singleStepSynchronizer.DelayStepCommand();
+        }
+
+        public virtual void InitFromUImage(UImage uImage)
+        {
+            this.Log(LogLevel.Info, "Setting PC value to 0x{0:X}.", uImage.EntryPoint);
+            SetPCFromEntryPoint(uImage.EntryPoint);
+        }
+
         public void ContinueAndEnterStepModeAfterFinishingTimeInterval()
         {
             ExecutionMode = ExecutionMode.Continuous;
             enterStepModeAfterFinishingTimeInterval = true;
         }
 
-        public void SkipTime(TimeInterval amountOfTime)
+        public IEnumerator<BaseCPU> GetEnumerator()
         {
-            var instructions = amountOfTime.ToCPUCycles(PerformanceInMips, out var residuum);
-            if(residuum > 0)
-            {
-                // We want to execute instructions for at least required amount of time, so we should add
-                // instructions += ceil(residuum / TicksPerMicrosecond) * PerformanceInMips
-                // As residuum < TicksPerMicrosecond by definition, ceiling of it will be always 1
-                instructions += PerformanceInMips;
-                var newInterval = TimeInterval.FromCPUCycles(instructions, PerformanceInMips, out var _);
-                this.Log(LogLevel.Warning, "Conversion from time to instructions is not exact, real time skipped: {0}", newInterval);
-            }
-            SkipInstructions += instructions;
+            return Clustered.GetEnumerator();
         }
 
-        public virtual void Dispose()
+        IEnumerator IEnumerable.GetEnumerator()
         {
-            DisposeInner();
-        }
-
-        public virtual void Reset()
-        {
-            isAborted = false;
-            Pause();
-            EmulationState = EmulationCPUState.InReset;
-        }
-
-        public virtual void SyncTime()
-        {
-            // by default do nothing
+            return Clustered.GetEnumerator();
         }
 
         public abstract ExecutionResult ExecuteInstructions(ulong numberOfInstructionsToExecute, out ulong numberOfExecutedInstructions);
 
-        public abstract string Architecture { get; }
+        public bool DebuggerConnected { get; set; }
 
-        public Endianess Endianness { get; }
+        public bool IsPaused => isPaused;
 
-        public IBusController Bus => machine.SystemBus;
-
-        public IEnumerable<ICluster<BaseCPU>> Clusters { get; } = new List<ICluster<BaseCPU>>(0);
-
-        public IEnumerable<BaseCPU> Clustered { get; }
-
-        public string Model { get; }
-
-        public uint PerformanceInMips
-        {
-            get => performanceInMips.Value;
-            set => performanceInMips.Value = value;
-        }
-
-        //The debug mode disables interrupt handling in the emulated CPU
-        //Additionally, some instructions, suspending execution, until an interrupt arrives (e.g. HLT on x86 or WFI on ARM) are treated as NOP
-        public virtual bool ShouldEnterDebugMode
-        {
-            get => shouldEnterDebugMode;
-            set
-            {
-                if(value == true && !(DebuggerConnected && IsSingleStepMode))
-                {
-                    this.Log(LogLevel.Warning, "The debug mode now has no effect - connect a debugger, and switch to stepping mode.");
-                }
-                shouldEnterDebugMode = value;
-            }
-        }
-
-        public bool OnPossessedThread
+        public virtual ExecutionMode ExecutionMode
         {
             get
             {
-                var cpuThreadLocal = cpuThread;
-                return cpuThreadLocal != null && Thread.CurrentThread.ManagedThreadId == cpuThreadLocal.ManagedThreadId;
+                return executionMode;
+            }
+
+            set
+            {
+                lock(singleStepSynchronizer.Guard)
+                {
+                    if(executionMode == value)
+                    {
+                        return;
+                    }
+
+                    executionMode = value;
+
+                    singleStepSynchronizer.Enabled = IsSingleStepMode;
+                    UpdateHaltedState();
+                }
             }
         }
 
-        public bool DebuggerConnected { get; set; }
+        public ulong SkippedInstructions { get; private set; }
+
+        public TimeHandle TimeHandle
+        {
+            get
+            {
+                return timeHandle;
+            }
+
+            set
+            {
+                this.Trace("Setting a new time handle");
+                timeHandle?.Dispose();
+                lock(haltedLock)
+                {
+                    timeHandle = value;
+                    timeHandle.Enabled = !currentHaltedState;
+                    timeHandle.PauseRequested += RequestPause;
+                    timeHandle.StartRequested += StartCPUThreadTimeHandle;
+                }
+            }
+        }
+
+        /// <remarks><c>StateChanged</c> is invoked when the value gets changed.</remarks>
+        public EmulationCPUState EmulationState
+        {
+            get => state;
+
+            private set
+            {
+                var oldState = state;
+                if(oldState == value)
+                {
+                    return;
+                }
+                state = value;
+                if(oldState == EmulationCPUState.InReset)
+                {
+                    OnLeavingResetState();
+                }
+                StateChanged?.Invoke(this, oldState, value);
+            }
+        }
 
         public override bool IsHalted
         {
@@ -239,6 +248,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return isHaltedRequested;
             }
+
             set
             {
                 this.Trace();
@@ -277,82 +287,136 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        /// <remarks><c>StateChanged</c> is invoked when the value gets changed.</remarks>
-        public EmulationCPUState EmulationState
-        {
-            get => state;
-
-            private set
-            {
-                var oldState = state;
-                if(oldState == value)
-                {
-                    return;
-                }
-                state = value;
-                if(oldState == EmulationCPUState.InReset)
-                {
-                    OnLeavingResetState();
-                }
-                StateChanged?.Invoke(this, oldState, value);
-            }
-        }
-
-        public TimeHandle TimeHandle
+        public bool OnPossessedThread
         {
             get
             {
-                return timeHandle;
-            }
-            set
-            {
-                this.Trace("Setting a new time handle");
-                timeHandle?.Dispose();
-                lock(haltedLock)
-                {
-                    timeHandle = value;
-                    timeHandle.Enabled = !currentHaltedState;
-                    timeHandle.PauseRequested += RequestPause;
-                    timeHandle.StartRequested += StartCPUThreadTimeHandle;
-                }
+                var cpuThreadLocal = cpuThread;
+                return cpuThreadLocal != null && Thread.CurrentThread.ManagedThreadId == cpuThreadLocal.ManagedThreadId;
             }
         }
 
-        public ulong SkippedInstructions { get; private set; }
-
-        public virtual ExecutionMode ExecutionMode
+        public uint PerformanceInMips
         {
-            get
-            {
-                return executionMode;
-            }
+            get => performanceInMips.Value;
+            set => performanceInMips.Value = value;
+        }
 
+        public virtual ulong SkipInstructions
+        {
+            get => skipInstructions;
+            protected set => skipInstructions = value;
+        }
+
+        public string Model { get; }
+
+        public IEnumerable<BaseCPU> Clustered { get; }
+
+        public IEnumerable<ICluster<BaseCPU>> Clusters { get; } = new List<ICluster<BaseCPU>>(0);
+
+        public IBusController Bus => machine.SystemBus;
+
+        public Endianess Endianness { get; }
+
+        //The debug mode disables interrupt handling in the emulated CPU
+        //Additionally, some instructions, suspending execution, until an interrupt arrives (e.g. HLT on x86 or WFI on ARM) are treated as NOP
+        public virtual bool ShouldEnterDebugMode
+        {
+            get => shouldEnterDebugMode;
             set
             {
-                lock(singleStepSynchronizer.Guard)
+                if(value == true && !(DebuggerConnected && IsSingleStepMode))
                 {
-                    if(executionMode == value)
-                    {
-                        return;
-                    }
-
-                    executionMode = value;
-
-                    singleStepSynchronizer.Enabled = IsSingleStepMode;
-                    UpdateHaltedState();
+                    this.Log(LogLevel.Warning, "The debug mode now has no effect - connect a debugger, and switch to stepping mode.");
                 }
+                shouldEnterDebugMode = value;
             }
         }
+
+        public abstract ulong ExecutedInstructions { get; }
+
+        public abstract RegisterValue PC { get; set; }
+
+        public abstract string Architecture { get; }
 
         public event Action<HaltArguments> Halted;
 
         /// <remarks>The arguments passed are: <c>StateChanged(cpu, oldState, newState)</c>.</remarks>
         public event Action<ICPU, EmulationCPUState, EmulationCPUState> StateChanged;
 
-        public abstract ulong ExecutedInstructions { get; }
-        public abstract RegisterValue PC { get; set; }
+        protected static bool IsSingleStepBlocking => EmulationManager.Instance.CurrentEmulation.SingleStepBlocking;
 
-        public bool IsPaused => isPaused;
+        protected BaseCPU(uint id, string cpuType, IMachine machine, Endianess endianness, CpuBitness bitness = CpuBitness.Bits32)
+            : base(id)
+        {
+            if(cpuType == null)
+            {
+                throw new ConstructionException("cpuType was null");
+            }
+
+            Endianness = endianness;
+            PerformanceInMips = 100;
+            this.Model = cpuType;
+            this.machine = machine;
+            this.bitness = bitness;
+            isPaused = true;
+
+            singleStepSynchronizer = new Synchronizer();
+            EmulationManager.Instance.CurrentEmulation.SingleStepBlockingChanged += UpdateHaltedState;
+
+            Clustered = new BaseCPU[] { this };
+        }
+
+        protected virtual bool UpdateHaltedState(bool ignoreExecutionMode = false)
+        {
+            var shouldBeHalted = isHaltedRequested || (IsSingleStepMode && !IsSingleStepBlocking && !ignoreExecutionMode);
+
+            if(shouldBeHalted == currentHaltedState)
+            {
+                return false;
+            }
+
+            lock(pauseLock)
+            {
+                this.Trace();
+                currentHaltedState = shouldBeHalted;
+                if(TimeHandle != null)
+                {
+                    this.Trace();
+                    TimeHandle.DeferredEnabled = !shouldBeHalted;
+                }
+            }
+
+            return true;
+        }
+
+        [Conditional("DEBUG")]
+        protected void CheckCpuThreadId()
+        {
+            if(Thread.CurrentThread != cpuThread)
+            {
+                throw new ArgumentException(
+                    string.Format("Method called from a wrong thread. Expected {0}, but got {1}",
+                                  cpuThread.ManagedThreadId, Thread.CurrentThread.ManagedThreadId));
+            }
+        }
+
+        protected void CheckIfOnSynchronizedThread()
+        {
+            if(Thread.CurrentThread.ManagedThreadId != cpuThread.ManagedThreadId)
+            {
+                this.Log(LogLevel.Warning, "An interrupt from the unsynchronized thread.");
+            }
+        }
+
+        protected void StartCPUThread()
+        {
+            this.Trace();
+            lock(pauseLock)
+            {
+                StartCPUThreadInner();
+            }
+        }
 
         protected virtual void InnerPause(bool onCpuThread, bool checkPauseGuard)
         {
@@ -506,7 +570,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 {
                     try
                     {
-restart:
+                    restart:
                         while(!isPaused && !isAborted)
                         {
                             var skipThisRound = false;
@@ -551,7 +615,7 @@ restart:
                                             ((BaseCPU)cpu).ContinueAndEnterStepModeAfterFinishingTimeInterval();
                                         }
                                     }
-                                    else if (stepResult == Synchronizer.StepResult.Granted && timeSource.ExecuteInSerial)
+                                    else if(stepResult == Synchronizer.StepResult.Granted && timeSource.ExecuteInSerial)
                                     {
                                         foreach(var cpu in steppingCpus)
                                         {
@@ -568,16 +632,16 @@ restart:
                             {
                                 switch(cpuResult)
                                 {
-                                    case CpuResult.NothingExecuted:
-                                        break;
-                                    case CpuResult.MmuFault:
-                                        this.Trace("Interrupting stepping due to the external MMU fault");
-                                        singleStepSynchronizer.StepInterrupted();
-                                        break;
-                                    default:
-                                        this.Trace();
-                                        singleStepSynchronizer.StepFinished();
-                                        break;
+                                case CpuResult.NothingExecuted:
+                                    break;
+                                case CpuResult.MmuFault:
+                                    this.Trace("Interrupting stepping due to the external MMU fault");
+                                    singleStepSynchronizer.StepInterrupted();
+                                    break;
+                                default:
+                                    this.Trace();
+                                    singleStepSynchronizer.StepFinished();
+                                    break;
                                 }
                             }
 
@@ -817,117 +881,8 @@ restart:
             }
         }
 
-        private void StartCPUThreadTimeHandle()
-        {
-            this.Trace();
-            pauseLockTimeHandleMarker = true;
-            lock(pauseLock)
-            {
-                if(!pauseLockTimeHandleMarker)
-                {
-                    /// Marker value got changed by other thread in <see cref="InnerPause"/>.
-                    /// We escaped from a deadlock and we are going to be interrupted by <see cref="TimeHandle.Interrupt"/>.
-                    /// It means there is a race between starting and pausing cpu from different threads.
-                    /// We allow pausing to win in such case because pausing cpu is more "explicit" operation
-                    /// than starting cpu as part of <see cref="TimeHandle.StartRequested"/>.
-                    /// We were allowed to enter this critical region guarded by <see cref="pauseLock"/> due to special circumstances
-                    /// despite <see cref="pauseLock"/> having previously been held by <see cref="Pause"/> + <see cref="InnerPause"/>.
-                    /// Signal that we escaped deadlock condition and return control to the other thread waiting in <see cref="InnerPause"/>.
-                    pauseLockTimeHandleMarker = true;
-                    Monitor.Pulse(pauseLock);
-                    return;
-                }
-                pauseLockTimeHandleMarker = false; // clear marker
-                StartCPUThreadInner();
-            }
-        }
-
-        protected void StartCPUThread()
-        {
-            this.Trace();
-            lock(pauseLock)
-            {
-                StartCPUThreadInner();
-            }
-        }
-
-        private void StartCPUThreadInner()
-        {
-            lock(cpuThreadBodyLock)
-            {
-                if(isAborted)
-                {
-                    return;
-                }
-                if(cpuThread == null)
-                {
-                    this.Trace();
-                    cpuThread = new Thread(CpuThreadBody)
-                    {
-                        IsBackground = true,
-                        Name = this.GetCPUThreadName(machine)
-                    };
-                    cpuThread.Start();
-                }
-                else
-                {
-                    this.Trace();
-                    dispatcherRestartRequested = true;
-                }
-            }
-        }
-
-        protected void CheckIfOnSynchronizedThread()
-        {
-            if(Thread.CurrentThread.ManagedThreadId != cpuThread.ManagedThreadId)
-            {
-                this.Log(LogLevel.Warning, "An interrupt from the unsynchronized thread.");
-            }
-        }
-
-        [Conditional("DEBUG")]
-        protected void CheckCpuThreadId()
-        {
-            if(Thread.CurrentThread != cpuThread)
-            {
-                throw new ArgumentException(
-                    string.Format("Method called from a wrong thread. Expected {0}, but got {1}",
-                                  cpuThread.ManagedThreadId, Thread.CurrentThread.ManagedThreadId));
-            }
-        }
-
-        protected virtual bool UpdateHaltedState(bool ignoreExecutionMode = false)
-        {
-            var shouldBeHalted = isHaltedRequested || (IsSingleStepMode && !IsSingleStepBlocking && !ignoreExecutionMode);
-
-            if(shouldBeHalted == currentHaltedState)
-            {
-                return false;
-            }
-
-            lock(pauseLock)
-            {
-                this.Trace();
-                currentHaltedState = shouldBeHalted;
-                if(TimeHandle != null)
-                {
-                    this.Trace();
-                    TimeHandle.DeferredEnabled = !shouldBeHalted;
-                }
-            }
-
-            return true;
-        }
-
-        public virtual ulong SkipInstructions
-        {
-            get => skipInstructions;
-            protected set => skipInstructions = value;
-        }
-
-        protected static bool IsSingleStepBlocking => EmulationManager.Instance.CurrentEmulation.SingleStepBlocking;
-
         protected bool InDebugMode => DebuggerConnected && ShouldEnterDebugMode && IsSingleStepMode;
+
         protected bool IsSingleStepMode => executionMode == ExecutionMode.SingleStep;
 
         protected bool shouldEnterDebugMode;
@@ -941,25 +896,13 @@ restart:
 
         [Transient]
         protected bool disposing;
+        protected readonly IMachine machine;
+        protected readonly CpuBitness bitness;
 
         [Constructor]
         protected readonly Synchronizer singleStepSynchronizer;
 
         protected readonly Sleeper sleeper = new Sleeper();
-        protected readonly CpuBitness bitness;
-        protected readonly IMachine machine;
-
-        protected enum CpuResult
-        {
-            ExecutedInstructions = 0,
-            NothingExecuted = 1,
-            MmuFault = 2,
-            Aborted = 3,
-        }
-
-        protected class RegisterAttribute : Attribute
-        {
-        }
 
         private ulong InstructionsToNearestLimit()
         {
@@ -1001,6 +944,62 @@ restart:
             UpdateHaltedState(ignoreExecutionMode: false);
         }
 
+        private void StartCPUThreadTimeHandle()
+        {
+            this.Trace();
+            pauseLockTimeHandleMarker = true;
+            lock(pauseLock)
+            {
+                if(!pauseLockTimeHandleMarker)
+                {
+                    /// Marker value got changed by other thread in <see cref="InnerPause"/>.
+                    /// We escaped from a deadlock and we are going to be interrupted by <see cref="TimeHandle.Interrupt"/>.
+                    /// It means there is a race between starting and pausing cpu from different threads.
+                    /// We allow pausing to win in such case because pausing cpu is more "explicit" operation
+                    /// than starting cpu as part of <see cref="TimeHandle.StartRequested"/>.
+                    /// We were allowed to enter this critical region guarded by <see cref="pauseLock"/> due to special circumstances
+                    /// despite <see cref="pauseLock"/> having previously been held by <see cref="Pause"/> + <see cref="InnerPause"/>.
+                    /// Signal that we escaped deadlock condition and return control to the other thread waiting in <see cref="InnerPause"/>.
+                    pauseLockTimeHandleMarker = true;
+                    Monitor.Pulse(pauseLock);
+                    return;
+                }
+                pauseLockTimeHandleMarker = false; // clear marker
+                StartCPUThreadInner();
+            }
+        }
+
+        private void StartCPUThreadInner()
+        {
+            lock(cpuThreadBodyLock)
+            {
+                if(isAborted)
+                {
+                    return;
+                }
+                if(cpuThread == null)
+                {
+                    this.Trace();
+                    cpuThread = new Thread(CpuThreadBody)
+                    {
+                        IsBackground = true,
+                        Name = this.GetCPUThreadName(machine)
+                    };
+                    cpuThread.Start();
+                }
+                else
+                {
+                    this.Trace();
+                    dispatcherRestartRequested = true;
+                }
+            }
+        }
+
+        private ulong skipInstructions;
+
+        [Transient]
+        private volatile bool pauseLockTimeHandleMarker;
+
         [Transient]
         private Thread cpuThread;
 
@@ -1011,13 +1010,21 @@ restart:
         private ulong executedResiduum;
         private ulong instructionsLeftThisRound;
         private ulong instructionsExecutedThisRound;
-        private ulong skipInstructions;
         private bool enterStepModeAfterFinishingTimeInterval;
-
-        [Transient]
-        private volatile bool pauseLockTimeHandleMarker;
+        private readonly SealableValue<uint> performanceInMips = new SealableValue<uint>();
 
         private readonly object cpuThreadBodyLock = new object();
-        private readonly SealableValue<uint> performanceInMips = new SealableValue<uint>();
+
+        protected class RegisterAttribute : Attribute
+        {
+        }
+
+        protected enum CpuResult
+        {
+            ExecutedInstructions = 0,
+            NothingExecuted = 1,
+            MmuFault = 2,
+            Aborted = 3,
+        }
     }
 }

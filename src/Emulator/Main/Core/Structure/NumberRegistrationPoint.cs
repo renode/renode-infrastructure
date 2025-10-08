@@ -12,13 +12,11 @@ namespace Antmicro.Renode.Core.Structure
     //TODO: constraint on T
     public class NumberRegistrationPoint<T> : IRegistrationPoint, IJsonSerializable
     {
-        public T Address { get; private set ;}
-        
         public NumberRegistrationPoint(T address)
         {
             Address = address;
         }
-        
+
         public Object SerializeJson()
         {
             return new
@@ -28,14 +26,6 @@ namespace Antmicro.Renode.Core.Structure
             };
         }
 
-        public string PrettyString
-        {
-            get
-            {
-                return ToString();
-            }
-        }
-        
         public override string ToString()
         {
             return string.Format("Address: {0}", Address);
@@ -54,7 +44,6 @@ namespace Antmicro.Renode.Core.Structure
             }
             return Address.Equals(other.Address);
         }
-        
 
         public override int GetHashCode()
         {
@@ -63,7 +52,15 @@ namespace Antmicro.Renode.Core.Structure
                 return (Address != null ? Address.GetHashCode() : 0);
             }
         }
-        
+
+        public T Address { get; private set; }
+
+        public string PrettyString
+        {
+            get
+            {
+                return ToString();
+            }
+        }
     }
 }
-

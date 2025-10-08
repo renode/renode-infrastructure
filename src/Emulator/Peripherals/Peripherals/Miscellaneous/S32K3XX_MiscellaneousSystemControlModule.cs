@@ -4,19 +4,14 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class S32K3XX_MiscellaneousSystemControlModule : BasicDoubleWordPeripheral, IWordPeripheral, IKnownSize,
         IProvidesRegisterCollection<WordRegisterCollection>
-
     {
         public S32K3XX_MiscellaneousSystemControlModule(IMachine machine) : base(machine)
         {
@@ -210,7 +205,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             );
         }
 
-        private WordRegisterCollection wordRegisterCollection;
+        private readonly WordRegisterCollection wordRegisterCollection;
 
         private const uint ProcessorCount = 4;
         private const uint ProcessorConfigurationCount = ProcessorCount + 1;

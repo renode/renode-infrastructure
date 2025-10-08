@@ -6,18 +6,27 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
-using System.Collections.Generic;
-using Antmicro.Renode.UserInterface.Tokenizer;
-using AntShell.Commands;
 using System.IO;
+using System.Linq;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.UserInterface.Tokenizer;
 using Antmicro.Renode.Utilities;
+
+using AntShell.Commands;
 
 namespace Antmicro.Renode.UserInterface.Commands
 {
     public class IncludeFileCommand : Command
     {
+        public IncludeFileCommand(Monitor monitor, Func<string, ICommandInteraction, bool> pythonExecutor, Func<string, bool> scriptExecutor, Func<string[], ICommandInteraction, bool> csharpExecutor, Func<string, ICommandInteraction, bool> replExecutor) : base(monitor, "include", "loads a Monitor script, Python code, platform file or a plugin class.", "i")
+        {
+            this.CsharpExecutor = csharpExecutor;
+            this.PythonExecutor = pythonExecutor;
+            this.ScriptExecutor = scriptExecutor;
+            this.ReplExecutor = replExecutor;
+        }
+
         public override void PrintHelp(ICommandInteraction writer)
         {
             base.PrintHelp(writer);
@@ -93,14 +102,5 @@ namespace Antmicro.Renode.UserInterface.Commands
         private readonly Func<string[], ICommandInteraction, bool> CsharpExecutor;
         private readonly Func<string, ICommandInteraction, bool> PythonExecutor;
         private readonly Func<string, ICommandInteraction, bool> ReplExecutor;
-
-        public IncludeFileCommand(Monitor monitor, Func<string, ICommandInteraction, bool> pythonExecutor, Func<string, bool> scriptExecutor, Func<string [], ICommandInteraction, bool> csharpExecutor, Func<string, ICommandInteraction, bool> replExecutor) : base(monitor, "include", "loads a Monitor script, Python code, platform file or a plugin class.", "i")
-        {
-            this.CsharpExecutor = csharpExecutor;
-            this.PythonExecutor = pythonExecutor;
-            this.ScriptExecutor = scriptExecutor;
-            this.ReplExecutor = replExecutor;
-        }
     }
 }
-

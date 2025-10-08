@@ -4,13 +4,11 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Core.USB.CDC
 {
-    public class FunctionalDescriptor: IProvidesDescriptor
+    public class FunctionalDescriptor : IProvidesDescriptor
     {
         public FunctionalDescriptor(CdcFunctionalDescriptorType type, CdcFunctionalDescriptorSubtype subtype, params byte[] specificData)
         {
@@ -35,6 +33,7 @@ namespace Antmicro.Renode.Core.USB.CDC
         }
 
         public int RecursiveDescriptorLength => DescriptorLength;
+
         public int DescriptorLength => specificData.Length + 3;
 
         private readonly CdcFunctionalDescriptorType type;

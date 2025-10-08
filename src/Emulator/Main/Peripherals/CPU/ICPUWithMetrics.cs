@@ -5,8 +5,6 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System;
-
 namespace Antmicro.Renode.Peripherals.CPU
 {
     public interface ICPUWithMetrics : ICPU
@@ -14,4 +12,3 @@ namespace Antmicro.Renode.Peripherals.CPU
         void EnableProfiling();
     }
 }
-

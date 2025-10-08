@@ -7,9 +7,10 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq.Expressions;
-using System.Collections.Generic;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq.Expressions;
+
 using ELFSharp.ELF;
 
 namespace Antmicro.Renode.Backends.Display
@@ -19,7 +20,7 @@ namespace Antmicro.Renode.Backends.Display
         public static IPixelConverter GetConverter(PixelFormat inputFormat, Endianess inputEndianess, PixelFormat outputFormat, Endianess outputEndianess, PixelFormat? clutInputFormat = null, Pixel inputFixedColor = null /* fixed color for A4 and A8 mode */)
         {
             var converterConfiguration = Tuple.Create(inputFormat, inputEndianess, outputFormat, outputEndianess, clutInputFormat, inputFixedColor);
-            return convertersCache.GetOrAdd(converterConfiguration, (_) => 
+            return convertersCache.GetOrAdd(converterConfiguration, (_) =>
                 new PixelConverter(inputFormat, outputFormat, GenerateConvertMethod(
                     new BufferDescriptor
                     {
@@ -398,10 +399,10 @@ namespace Antmicro.Renode.Backends.Display
                     // todo: indirect parameters should not be needed here, but we  m u s t  pass something
                     expressions.Add(
                         GenerateFrom(new BufferDescriptor
-                    {
-                        ColorFormat = inputBufferDescriptor.ClutColorFormat.Value,
-                        DataEndianness = inputBufferDescriptor.DataEndianness
-                    }, clutBuffer, clutBuffer, Expression.Convert(clutOffset, typeof(int)), color, tmp));
+                        {
+                            ColorFormat = inputBufferDescriptor.ClutColorFormat.Value,
+                            DataEndianness = inputBufferDescriptor.DataEndianness
+                        }, clutBuffer, clutBuffer, Expression.Convert(clutOffset, typeof(int)), color, tmp));
 
                     expressions.Add(Expression.Assign(color.AlphaChannel, tmp));
                 }
@@ -518,7 +519,6 @@ namespace Antmicro.Renode.Backends.Display
                         currentExpressionFragment = Expression.And(
                             Expression.LeftShift(currentExpressionFragment, Expression.Constant((int)(-transformation.ShiftBits))),
                             Expression.Constant((uint)0xFF));
-
                     }
 
                     currentExpression = (currentExpression == null) ? currentExpressionFragment : Expression.Or(currentExpression, currentExpressionFragment);
@@ -531,7 +531,7 @@ namespace Antmicro.Renode.Backends.Display
                                 Expression.ArrayAccess(outBuffer,
                                     Expression.Add(
                                         outPosition,
-                                        Expression.Constant((outputBufferDescriptor.DataEndianness == Endianess.BigEndian) ? (int) currentByte : (outputBufferDescriptor.ColorFormat.GetColorDepth() - currentByte - 1)))),
+                                        Expression.Constant((outputBufferDescriptor.DataEndianness == Endianess.BigEndian) ? (int)currentByte : (outputBufferDescriptor.ColorFormat.GetColorDepth() - currentByte - 1)))),
                                 Expression.Convert(currentExpression, typeof(byte))));
 
                         currentExpression = null;
@@ -610,7 +610,7 @@ namespace Antmicro.Renode.Backends.Display
                 var shift = (sbyte)(-bitOffset + additionalShift);
 
                 // optimization
-                if ((mask >> shift) == (0xFF >> shift))
+                if((mask >> shift) == (0xFF >> shift))
                 {
                     mask = 0xFF;
                 }
@@ -626,19 +626,8 @@ namespace Antmicro.Renode.Backends.Display
             return result.ToArray();
         }
 
-        private struct TransformationDescriptor
-        {
-            public TransformationDescriptor(sbyte shift, byte mask, byte usedBits) : this()
-            {
-                ShiftBits = shift;
-                MaskBits = mask;
-                UsedBits = usedBits;
-            }
-
-            public sbyte ShiftBits { get; private set; }
-            public byte  MaskBits  { get; private set; }
-            public byte  UsedBits  { get; private set; }
-        }
+        private static readonly ConcurrentDictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat?, Pixel>, IPixelConverter> convertersCache = new ConcurrentDictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat?, Pixel>, IPixelConverter>();
+        private static readonly ConcurrentDictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat, Endianess, Pixel, Tuple<Pixel>>, IPixelBlender> blendersCache = new ConcurrentDictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat, Endianess, Pixel, Tuple<Pixel>>, IPixelBlender>();
 
         private class PixelConverter : IPixelConverter
         {
@@ -660,6 +649,7 @@ namespace Antmicro.Renode.Backends.Display
             }
 
             public PixelFormat Input { get; private set; }
+
             public PixelFormat Output { get; private set; }
 
             private readonly ConvertDelegate converter;
@@ -690,17 +680,13 @@ namespace Antmicro.Renode.Backends.Display
             }
 
             public PixelFormat BackBuffer { get; private set; }
+
             public PixelFormat FrontBuffer { get; private set; }
+
             public PixelFormat Output { get; private set; }
 
             private readonly BlendDelegate blender;
         }
-
-        private static ConcurrentDictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat?, Pixel>, IPixelConverter> convertersCache = new ConcurrentDictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat?, Pixel>, IPixelConverter>();
-        private static ConcurrentDictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat, Endianess, Pixel, Tuple<Pixel>>, IPixelBlender> blendersCache = new ConcurrentDictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat, Endianess, Pixel, Tuple<Pixel>>, IPixelBlender>();
-
-        private delegate void ConvertDelegate(byte[] inBuffer, byte[] clutBuffer, byte alpha, PixelBlendingMode alphaReplaceMode, ref byte[] outBuffer);
-        private delegate void BlendDelegate(byte[] backBuffer, byte[] backClutBuffer, byte[] frontBuffer, byte[] frontClutBuffer, ref byte[] outBuffer, Pixel background = null, byte backBufferAlphaMulitplier = 0xFF, PixelBlendingMode backgroundBlendingMode = PixelBlendingMode.Multiply, byte frontBufferAlphaMultiplayer = 0xFF, PixelBlendingMode foregroundBlendingMode = PixelBlendingMode.Multiply);
 
         private class PixelDescriptor
         {
@@ -721,9 +707,32 @@ namespace Antmicro.Renode.Backends.Display
         private class BufferDescriptor
         {
             public PixelFormat ColorFormat { get; set; }
+
             public Endianess DataEndianness { get; set; }
+
             public PixelFormat? ClutColorFormat { get; set; }
+
             public Pixel FixedColor { get; set; } // for A4 and A8 modes
         }
+
+        private struct TransformationDescriptor
+        {
+            public TransformationDescriptor(sbyte shift, byte mask, byte usedBits) : this()
+            {
+                ShiftBits = shift;
+                MaskBits = mask;
+                UsedBits = usedBits;
+            }
+
+            public sbyte ShiftBits { get; private set; }
+
+            public byte MaskBits { get; private set; }
+
+            public byte UsedBits { get; private set; }
+        }
+
+        private delegate void ConvertDelegate(byte[] inBuffer, byte[] clutBuffer, byte alpha, PixelBlendingMode alphaReplaceMode, ref byte[] outBuffer);
+
+        private delegate void BlendDelegate(byte[] backBuffer, byte[] backClutBuffer, byte[] frontBuffer, byte[] frontClutBuffer, ref byte[] outBuffer, Pixel background = null, byte backBufferAlphaMulitplier = 0xFF, PixelBlendingMode backgroundBlendingMode = PixelBlendingMode.Multiply, byte frontBufferAlphaMultiplayer = 0xFF, PixelBlendingMode foregroundBlendingMode = PixelBlendingMode.Multiply);
     }
 }

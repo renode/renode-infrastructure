@@ -6,12 +6,13 @@
 //
 using System;
 using System.Globalization;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Peripherals.I2C;
-using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -39,23 +40,6 @@ namespace Antmicro.Renode.Peripherals.Timers
             DefineRegisters();
         }
 
-        public string CurrentTime
-        {
-            get => realTimeCounter.CurrentTime.ToString();
-            set
-            {
-                const string format = "dd-MM-yyyy HH:mm:ss";
-                if(!DateTime.TryParseExact(value, format, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt))
-                {
-                    throw new RecoverableException($"Couldn't parse time: {value}. Provide it in the {format} format (e.g., 31-12-2022 13:22:31)");
-                }
-                realTimeCounter.CurrentTime = DateTimeWithCustomWeekday.FromDateTime(dt);
-                this.Log(LogLevel.Debug, "RTC time set to {0}", dt);
-            }
-        }
-
-        public GPIO IRQ { get; }
-
         public void Reset()
         {
             realTimeCounter.Reset();
@@ -78,30 +62,6 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
-        private void HandleIncomingByte(byte data)
-        {
-            switch(currentState)
-            {
-                case State.WaitingForRegister:
-                    register = (Registers)data;
-                    this.Log(LogLevel.Debug, "Register set to {0}", register);
-
-                    currentState = State.HandlingData;
-                    break;
-
-                case State.HandlingData:
-                    HandleWrite(data);
-                    break;
-            }
-        }
-
-        private void HandleWrite(byte data)
-        {
-            this.Log(LogLevel.Debug, "Handling write of 0x{0:X} to {1}", data, register);
-            RegistersCollection.Write((long)register, data);
-            register++;
-        }
-
         public byte[] Read(int count = 1)
         {
             var result = new byte[count];
@@ -112,14 +72,6 @@ namespace Antmicro.Renode.Peripherals.Timers
             return result;
         }
 
-        private byte HandleRead()
-        {
-            var result = RegistersCollection.Read((long)register);
-            this.Log(LogLevel.Debug, "Read value 0x{0:X} from {1}", result, register);
-            register++;
-            return result;
-        }
-
         public void FinishTransmission()
         {
             this.Log(LogLevel.Debug, "Finished the transmission");
@@ -127,6 +79,55 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
 
         public ByteRegisterCollection RegistersCollection { get; }
+
+        public string CurrentTime
+        {
+            get => realTimeCounter.CurrentTime.ToString();
+            set
+            {
+                const string format = "dd-MM-yyyy HH:mm:ss";
+                if(!DateTime.TryParseExact(value, format, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt))
+                {
+                    throw new RecoverableException($"Couldn't parse time: {value}. Provide it in the {format} format (e.g., 31-12-2022 13:22:31)");
+                }
+                realTimeCounter.CurrentTime = DateTimeWithCustomWeekday.FromDateTime(dt);
+                this.Log(LogLevel.Debug, "RTC time set to {0}", dt);
+            }
+        }
+
+        public GPIO IRQ { get; }
+
+        private void HandleIncomingByte(byte data)
+        {
+            switch(currentState)
+            {
+            case State.WaitingForRegister:
+                register = (Registers)data;
+                this.Log(LogLevel.Debug, "Register set to {0}", register);
+
+                currentState = State.HandlingData;
+                break;
+
+            case State.HandlingData:
+                HandleWrite(data);
+                break;
+            }
+        }
+
+        private void HandleWrite(byte data)
+        {
+            this.Log(LogLevel.Debug, "Handling write of 0x{0:X} to {1}", data, register);
+            RegistersCollection.Write((long)register, data);
+            register++;
+        }
+
+        private byte HandleRead()
+        {
+            var result = RegistersCollection.Read((long)register);
+            this.Log(LogLevel.Debug, "Read value 0x{0:X} from {1}", result, register);
+            register++;
+            return result;
+        }
 
         private void DefineRegisters()
         {
@@ -300,60 +301,6 @@ namespace Antmicro.Renode.Peripherals.Timers
         private const int DefaultPeriodicTimerFrequency = 4096;
         private const int DefaultPeriodicTimerLimit = 4096;
 
-        private enum Registers
-        {
-            Seconds = 0x00,
-            Minutes = 0x01,
-            Hours = 0x02,
-            Weekday = 0x03,
-            Date = 0x04,
-            Month = 0x05,
-            Year = 0x06,
-            RAM = 0x07,
-            MinutesAlarm = 0x08,
-            HoursAlarm = 0x09,
-            WeekdayAlarm_DateAlarm = 0x0A,
-            TimerCounter0 = 0x0B,
-            TimerCounter1 = 0x0C,
-            ExtensionRegister = 0x0D,
-            FlagRegister = 0x0E,
-            ControlRegister = 0x0F,
-
-            Seconds100th_Extended1 = 0x10,
-            Seconds_Extended1 = 0x11,
-            Minutes_Extended1 = 0x12,
-            Hours_Extended1 = 0x13,
-            Weekday_Extended1 = 0x14,
-            Date_Extended1 = 0x15,
-            Month_Extended1 = 0x16,
-            Year_Extended1 = 0x17,
-            MinutesAlarm_Extended1 = 0x18,
-            HoursAlarm_Extended1 = 0x19,
-            WeekdayAlarm_DateAlarm_Extended1 = 0x1A,
-            TimerCounter0_Extended1 = 0x1B,
-            TimerCounter1_Extended1 = 0x1C,
-            ExtensionRegister_Extended1 = 0x1D,
-            FlagRegister_Extended1 = 0x1E,
-            ControlRegister_Extended1 = 0x1F,
-
-            Seconds100thCP_Extended2 = 0x20,
-            SecondsCP_Extended2 = 0x21,
-            Offset_Extended2 = 0x2C,
-            EventControl_Extended2 = 0x2F,
-        }
-
-        private enum State
-        {
-            WaitingForRegister,
-            HandlingData,
-        }
-
-        private enum Operation
-        {
-            Write = 0,
-            Read = 1
-        }
-
         private class RTCTimer
         {
             public RTCTimer(IMachine machine, IPeripheral parent)
@@ -501,6 +448,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     }
                     return 1 << (v - 1);
                 }
+
                 set
                 {
                     if(value <= 0)
@@ -534,6 +482,60 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             private const int RTCFrequency = 1;
             private const int RTCLimit = 1;
+        }
+
+        private enum Registers
+        {
+            Seconds = 0x00,
+            Minutes = 0x01,
+            Hours = 0x02,
+            Weekday = 0x03,
+            Date = 0x04,
+            Month = 0x05,
+            Year = 0x06,
+            RAM = 0x07,
+            MinutesAlarm = 0x08,
+            HoursAlarm = 0x09,
+            WeekdayAlarm_DateAlarm = 0x0A,
+            TimerCounter0 = 0x0B,
+            TimerCounter1 = 0x0C,
+            ExtensionRegister = 0x0D,
+            FlagRegister = 0x0E,
+            ControlRegister = 0x0F,
+
+            Seconds100th_Extended1 = 0x10,
+            Seconds_Extended1 = 0x11,
+            Minutes_Extended1 = 0x12,
+            Hours_Extended1 = 0x13,
+            Weekday_Extended1 = 0x14,
+            Date_Extended1 = 0x15,
+            Month_Extended1 = 0x16,
+            Year_Extended1 = 0x17,
+            MinutesAlarm_Extended1 = 0x18,
+            HoursAlarm_Extended1 = 0x19,
+            WeekdayAlarm_DateAlarm_Extended1 = 0x1A,
+            TimerCounter0_Extended1 = 0x1B,
+            TimerCounter1_Extended1 = 0x1C,
+            ExtensionRegister_Extended1 = 0x1D,
+            FlagRegister_Extended1 = 0x1E,
+            ControlRegister_Extended1 = 0x1F,
+
+            Seconds100thCP_Extended2 = 0x20,
+            SecondsCP_Extended2 = 0x21,
+            Offset_Extended2 = 0x2C,
+            EventControl_Extended2 = 0x2F,
+        }
+
+        private enum State
+        {
+            WaitingForRegister,
+            HandlingData,
+        }
+
+        private enum Operation
+        {
+            Write = 0,
+            Read = 1
         }
     }
 }

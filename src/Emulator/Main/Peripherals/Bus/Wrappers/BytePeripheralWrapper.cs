@@ -33,4 +33,3 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
         private readonly BusAccess.ByteWriteMethod write;
     }
 }
-

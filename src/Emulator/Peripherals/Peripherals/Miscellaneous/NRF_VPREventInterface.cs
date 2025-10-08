@@ -58,7 +58,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         {
                             this.Log(LogLevel.Noisy, "Triggering task #{0}", j);
                             Connections[j].Blink();
-                        },  name: $"TASKS_TRIGGER[{j}]")
+                        }, name: $"TASKS_TRIGGER[{j}]")
                     .WithReservedBits(1, 31));
 
                 registersMap.Add((long)Registers.SubscribeTrigger + j * 0x4, new DoubleWordRegister(this)

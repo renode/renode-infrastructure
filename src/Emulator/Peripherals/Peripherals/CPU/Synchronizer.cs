@@ -5,7 +5,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Threading;
 
 namespace Antmicro.Renode.Peripherals.CPU
@@ -15,8 +14,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         public Synchronizer()
         {
             Guard = new object();
-        }   
-        
+        }
+
         public void StepFinished()
         {
             lock(Guard)
@@ -30,8 +29,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                     Monitor.Pulse(Guard);
                 }
             }
-        }   
-        
+        }
+
         public void CommandStep(int steps = 1)
         {
             lock(Guard)
@@ -48,7 +47,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 while(enabled && !stepDelayed && counter == 0)
                 {
                     Monitor.Wait(Guard);
-                }   
+                }
 
                 if(stepDelayed)
                 {
@@ -61,7 +60,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 return enabled;
             }
         }
-        
+
         public void WaitForStepFinished()
         {
             lock(Guard)
@@ -71,8 +70,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                     Monitor.Wait(Guard);
                 }
             }
-        }   
-        
+        }
+
         public void StepInterrupted()
         {
             lock(Guard)
@@ -81,7 +80,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 Monitor.Pulse(Guard);
             }
         }
-        
+
         public void DelayStepCommand()
         {
             lock(Guard)
@@ -92,13 +91,14 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         public object Guard { get; }
-        
+
         public bool Enabled
         {
             get
             {
                 return enabled;
-            }   
+            }
+
             set
             {
                 lock(Guard)
@@ -111,8 +111,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                     }
                 }
             }
-        }   
-        
+        }
+
         private bool enabled;
         private bool stepDelayed;
         private int counter;
@@ -125,4 +125,3 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
     }
 }
-

@@ -8,19 +8,16 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.SPI;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Time;
-using Antmicro.Renode.Peripherals.CPU;
-using Antmicro.Renode.Peripherals.UART;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -55,6 +52,19 @@ namespace Antmicro.Renode.Peripherals.UART
             TxBufferLowRequest.Set(true);
         }
 
+        public override void WriteChar(byte value)
+        {
+            if(BufferState == BufferState.Full)
+            {
+                rxOverflowInterrupt.Value = true;
+                UpdateInterrupts();
+                this.Log(LogLevel.Warning, "RX buffer is full. Dropping incoming byte (0x{0:X})", value);
+                return;
+            }
+            TriggerCompareTimerStopEvent(TimeCompareStopSource.RxActive);
+            base.WriteChar(value);
+        }
+
         public override void Reset()
         {
             base.Reset();
@@ -64,9 +74,296 @@ namespace Antmicro.Renode.Peripherals.UART
             TxBufferLowRequest.Set(true);
         }
 
+        public void WriteDoubleWord(long offset, uint value)
+        {
+            WriteRegister(offset, value);
+        }
+
+        #region methods
+        public void Register(ISPIPeripheral peripheral, NullRegistrationPoint registrationPoint)
+        {
+            if(spiSlaveDevice != null)
+            {
+                throw new RegistrationException("Cannot register more than one peripheral.");
+            }
+            Machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
+            spiSlaveDevice = peripheral;
+        }
+
+        public void Unregister(ISPIPeripheral peripheral)
+        {
+            if(peripheral != spiSlaveDevice)
+            {
+                throw new RegistrationException("Trying to unregister not registered device.");
+            }
+
+            Machine.UnregisterAsAChildOf(this, peripheral);
+            spiSlaveDevice = null;
+        }
+
+        public IEnumerable<NullRegistrationPoint> GetRegistrationPoints(ISPIPeripheral peripheral)
+        {
+            if(peripheral != spiSlaveDevice)
+            {
+                throw new RegistrationException("Trying to obtain a registration point for a not registered device.");
+            }
+
+            return new[] { NullRegistrationPoint.Instance };
+        }
+
         public uint ReadDoubleWord(long offset)
         {
             return ReadRegister(offset);
+        }
+
+        public override Parity ParityBit { get { return parityBitModeField.Value; } }
+
+        public override Bits StopBits { get { return stopBitsModeField.Value; } }
+
+        public override uint BaudRate
+        {
+            get
+            {
+                var oversample = 1u;
+                switch(oversamplingField.Value)
+                {
+                case OversamplingMode.Times16:
+                    oversample = 16;
+                    break;
+                case OversamplingMode.Times8:
+                    oversample = 8;
+                    break;
+                case OversamplingMode.Times6:
+                    oversample = 6;
+                    break;
+                case OversamplingMode.Times4:
+                    oversample = 4;
+                    break;
+                }
+                return (uint)(uartClockFrequency / (oversample * (1 + ((double)(fractionalClockDividerField.Value << 3)) / 256)));
+            }
+        }
+
+        public BufferState BufferState
+        {
+            get
+            {
+                return bufferState;
+            }
+
+            private set
+            {
+                if(bufferState == value)
+                {
+                    return;
+                }
+                bufferState = value;
+                BufferStateChanged?.Invoke(value);
+                switch(bufferState)
+                {
+                case BufferState.Empty:
+                    RxDataAvailableRequest.Set(false);
+                    RxDataAvailableSingleRequest.Set(false);
+                    RxDataAvailableGpioSignal.Set(false);
+                    break;
+                case BufferState.Ready:
+                    RxDataAvailableRequest.Set(false);
+                    RxDataAvailableSingleRequest.Set(true);
+                    RxDataAvailableGpioSignal.Set(true);
+                    break;
+                case BufferState.Full:
+                    RxDataAvailableRequest.Set(true);
+                    RxDataAvailableGpioSignal.Set(true);
+                    rxBufferFullInterrupt.Value = true;
+                    UpdateInterrupts();
+                    break;
+                default:
+                    this.Log(LogLevel.Error, "Unreachable code. Invalid BufferState value.");
+                    return;
+                }
+            }
+        }
+
+        public GPIO TxBufferLowRightSingleRequest { get; }
+
+        public GPIO TxBufferLowRightRequest { get; }
+
+        public GPIO RxDataAvailableGpioSignal { get; }
+
+        public GPIO RxDataAvailableRightSingleRequest { get; }
+
+        public GPIO RxDataAvailableRightRequest { get; }
+
+        public GPIO TxEmptyRequest { get; }
+
+        public GPIO TxBufferLowSingleRequest { get; }
+
+        public GPIO TxBufferLowRequest { get; }
+
+        public GPIO RxDataAvailableSingleRequest { get; }
+
+        public GPIO RxDataAvailableRequest { get; }
+
+        public GPIO ReceiveIRQ { get; }
+
+        public GPIO TransmitIRQ { get; }
+
+        public long Size => 0x4000;
+
+        public event Action<BufferState> BufferStateChanged;
+
+        protected override void CharWritten()
+        {
+            rxDataValidInterrupt.Value = true;
+            receiveDataValidFlag.Value = true;
+            UpdateInterrupts();
+            BufferState = Count == BufferSize ? BufferState.Full : BufferState.Ready;
+            TriggerCompareTimerStopEvent(TimeCompareStopSource.RxInactive);
+            TriggerCompareTimerStartEvent(TimeCompareStartSource.RxEndOfFrame);
+        }
+
+        protected override void QueueEmptied()
+        {
+            rxDataValidInterrupt.Value = false;
+            receiveDataValidFlag.Value = false;
+            BufferState = BufferState.Empty;
+            UpdateInterrupts();
+        }
+
+        protected void RestartCompareTimer(uint timerIndex)
+        {
+            startIndex = (byte)timerIndex;
+
+            // Start source will reset the counter and restart it
+            compareTimer.Frequency = BaudRate;
+            compareTimer.Limit = compareTimerCompare[timerIndex].Value;
+            compareTimer.Enabled = true;
+        }
+
+        protected void CompareTimerHandleLimitReached()
+        {
+            uint timerIndex = startIndex;
+            compareTimer.Enabled = false;
+            timeCompareInterrupt[startIndex].Value = true;
+            startIndex = 0xFF;
+            UpdateInterrupts();
+
+            if(timeCompareRestart[timerIndex].Value)
+            {
+                RestartCompareTimer(timerIndex);
+            }
+        }
+
+        protected void TriggerCompareTimerStopEvent(TimeCompareStopSource source)
+        {
+            if(compareTimer.Enabled
+                && startIndex < NumberOfTimeCompareTimers
+                && source == timeCompareStopSource[startIndex].Value)
+            {
+                compareTimer.Enabled = false;
+                startIndex = 0xFF;
+            }
+        }
+
+        protected void TriggerCompareTimerStartEvent(TimeCompareStartSource source)
+        {
+            for(uint i = 0; i < NumberOfTimeCompareTimers; i++)
+            {
+                if(timeCompareStartSource[i].Value == source)
+                {
+                    // From the design book: "The start source enables the comparator, resets the counter,
+                    // and starts the counter. If the counter is already running, the start source will reset
+                    // the counter and restart it."
+                    RestartCompareTimer(i);
+                    break;
+                }
+            }
+        }
+
+        protected override bool IsReceiveEnabled => receiverEnableFlag.Value;
+
+        private byte ReadBuffer()
+        {
+            byte character;
+            if(TryGetCharacter(out character))
+            {
+                return character;
+            }
+            else
+            {
+                rxUnderflowInterrupt.Value = true;
+                UpdateInterrupts();
+                return (byte)0;
+            }
+        }
+
+        private void UpdateInterrupts()
+        {
+            machine.ClockSource.ExecuteInLock(delegate
+            {
+                var txIrq = ((txCompleteInterruptEnable.Value && txCompleteInterrupt.Value)
+                             || (txBufferLevelInterruptEnable.Value && txBufferLevelInterrupt.Value));
+                TransmitIRQ.Set(txIrq);
+
+                var rxIrq = ((rxDataValidInterruptEnable.Value && rxDataValidInterrupt.Value)
+                             || (rxBufferFullInterruptEnable.Value && rxBufferFullInterrupt.Value)
+                             || (rxOverflowInterruptEnable.Value && rxOverflowInterrupt.Value)
+                             || (rxUnderflowInterruptEnable.Value && rxUnderflowInterrupt.Value)
+                             || (timeCompareInterruptEnable[0].Value && timeCompareInterrupt[0].Value)
+                             || (timeCompareInterruptEnable[1].Value && timeCompareInterrupt[1].Value)
+                             || (timeCompareInterruptEnable[2].Value && timeCompareInterrupt[2].Value));
+                ReceiveIRQ.Set(rxIrq);
+            });
+        }
+
+        private bool TrySyncTime()
+        {
+            if(machine.SystemBus.TryGetCurrentCPU(out var cpu))
+            {
+                cpu.SyncTime();
+                return true;
+            }
+            return false;
+        }
+
+        private TimeInterval GetTime() => machine.LocalTimeSource.ElapsedVirtualTime;
+
+        private void HandleTxBufferData(byte data)
+        {
+            this.Log(LogLevel.Noisy, "Handle TX buffer data: {0}", data);
+
+            if(!transmitterEnableFlag.Value)
+            {
+                this.Log(LogLevel.Warning, "Trying to send data, but the transmitter is disabled: 0x{0:X}", data);
+                return;
+            }
+
+            TriggerCompareTimerStopEvent(TimeCompareStopSource.TxStart);
+
+            transferCompleteFlag.Value = false;
+            if(operationModeField.Value == OperationMode.Synchronous)
+            {
+                if(spiSlaveDevice != null)
+                {
+                    var result = spiSlaveDevice.Transmit(data);
+                    WriteChar(result);
+                }
+                else
+                {
+                    this.Log(LogLevel.Warning, "Writing data in synchronous mode, but no device is currently connected.");
+                    WriteChar(0x0);
+                }
+            }
+            else
+            {
+                TransmitCharacter(data);
+                txBufferLevelInterrupt.Value = true;
+                txCompleteInterrupt.Value = true;
+                UpdateInterrupts();
+            }
+            transferCompleteFlag.Value = true;
+            TriggerCompareTimerStartEvent(TimeCompareStartSource.TxEndOfFrame);
+            TriggerCompareTimerStartEvent(TimeCompareStartSource.TxComplete);
         }
 
         private uint ReadRegister(long offset, bool internal_read = false)
@@ -75,15 +372,16 @@ namespace Antmicro.Renode.Peripherals.UART
             long internal_offset = offset;
 
             // Set, Clear, Toggle registers should only be used for write operations. But just in case we convert here as well.
-            if (offset >= SetRegisterOffset && offset < ClearRegisterOffset) 
+            if(offset >= SetRegisterOffset && offset < ClearRegisterOffset)
             {
                 // Set register
                 internal_offset = offset - SetRegisterOffset;
                 if(!internal_read)
-                {  
+                {
                     this.Log(LogLevel.Noisy, "SET Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}", (Registers)internal_offset, offset, internal_offset);
                 }
-            } else if (offset >= ClearRegisterOffset && offset < ToggleRegisterOffset) 
+            }
+            else if(offset >= ClearRegisterOffset && offset < ToggleRegisterOffset)
             {
                 // Clear register
                 internal_offset = offset - ClearRegisterOffset;
@@ -91,7 +389,8 @@ namespace Antmicro.Renode.Peripherals.UART
                 {
                     this.Log(LogLevel.Noisy, "CLEAR Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}", (Registers)internal_offset, offset, internal_offset);
                 }
-            } else if (offset >= ToggleRegisterOffset)
+            }
+            else if(offset >= ToggleRegisterOffset)
             {
                 // Toggle register
                 internal_offset = offset - ToggleRegisterOffset;
@@ -119,32 +418,30 @@ namespace Antmicro.Renode.Peripherals.UART
             return result;
         }
 
-        public void WriteDoubleWord(long offset, uint value)
+        private void WriteRegister(long offset, uint value)
         {
-            WriteRegister(offset, value);
-        }
-
-        private void WriteRegister(long offset, uint value, bool internal_write = false)
-        {
-            machine.ClockSource.ExecuteInLock(delegate {
+            machine.ClockSource.ExecuteInLock(delegate
+            {
                 long internal_offset = offset;
                 uint internal_value = value;
 
-                if (offset >= SetRegisterOffset && offset < ClearRegisterOffset) 
+                if(offset >= SetRegisterOffset && offset < ClearRegisterOffset)
                 {
                     // Set register
                     internal_offset = offset - SetRegisterOffset;
                     uint old_value = ReadRegister(internal_offset, true);
                     internal_value = old_value | value;
                     this.Log(LogLevel.Noisy, "SET Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}, SET_value=0x{3:X}, old_value=0x{4:X}, new_value=0x{5:X}", (Registers)internal_offset, offset, internal_offset, value, old_value, internal_value);
-                } else if (offset >= ClearRegisterOffset && offset < ToggleRegisterOffset) 
+                }
+                else if(offset >= ClearRegisterOffset && offset < ToggleRegisterOffset)
                 {
                     // Clear register
                     internal_offset = offset - ClearRegisterOffset;
                     uint old_value = ReadRegister(internal_offset, true);
                     internal_value = old_value & ~value;
                     this.Log(LogLevel.Noisy, "CLEAR Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}, CLEAR_value=0x{3:X}, old_value=0x{4:X}, new_value=0x{5:X}", (Registers)internal_offset, offset, internal_offset, value, old_value, internal_value);
-                } else if (offset >= ToggleRegisterOffset)
+                }
+                else if(offset >= ToggleRegisterOffset)
                 {
                     // Toggle register
                     internal_offset = offset - ToggleRegisterOffset;
@@ -169,7 +466,7 @@ namespace Antmicro.Renode.Peripherals.UART
             {
                 {(long)Registers.InterruptFlag, new DoubleWordRegister(this)
                     // RENODE-80: without this workaround, the RX flow in sl_iostream_usart breaks.
-                    // It is unclear if this is the result of a bug in this model or a race condition 
+                    // It is unclear if this is the result of a bug in this model or a race condition
                     // in the embedded code.
                     .WithFlag(0, out txCompleteInterrupt, valueProviderCallback: _ => (txCompleteInterrupt.Value && txCompleteInterruptEnable.Value), name: "TXCIF")
                     .WithFlag(1, out txBufferLevelInterrupt, name: "TXBLIF")
@@ -465,58 +762,49 @@ namespace Antmicro.Renode.Peripherals.UART
             return new DoubleWordRegisterCollection(this, registerDictionary);
         }
 
-        public long Size => 0x4000;
+        private IFlagRegisterField txBufferLevelInterruptEnable;
+        private IFlagRegisterField transmitterEnableFlag;
+        private IFlagRegisterField receiverEnableFlag;
+        private IFlagRegisterField receiveDataValidFlag;
+        private IValueRegisterField fractionalClockDividerField;
+        private IEnumRegisterField<Bits> stopBitsModeField;
+        private IEnumRegisterField<Parity> parityBitModeField;
+        private IEnumRegisterField<OversamplingMode> oversamplingField;
+        private IFlagRegisterField rxUnderflowInterruptEnable;
+        private ISPIPeripheral spiSlaveDevice;
+        #endregion
+
+        #region fields
+        private bool isEnabled = false;
+        private IEnumRegisterField<OperationMode> operationModeField;
+        private IFlagRegisterField rxUnderflowInterrupt;
+        private IFlagRegisterField rxOverflowInterruptEnable;
+        private IFlagRegisterField rxBufferFullInterruptEnable;
+        private IFlagRegisterField rxDataValidInterruptEnable;
+        private BufferState bufferState;
+        private IFlagRegisterField transferCompleteFlag;
+        private byte startIndex = 0xFF;
+        // Interrupts
+        private IFlagRegisterField txCompleteInterrupt;
+        private IFlagRegisterField txBufferLevelInterrupt;
+        private IFlagRegisterField rxDataValidInterrupt;
+        private IFlagRegisterField rxBufferFullInterrupt;
+        private IFlagRegisterField rxOverflowInterrupt;
+        private IFlagRegisterField txCompleteInterruptEnable;
+        private readonly IFlagRegisterField[] timeCompareInterrupt = new IFlagRegisterField[NumberOfTimeCompareTimers];
+        private readonly LimitTimer compareTimer;
+        private readonly IFlagRegisterField[] timeCompareRestart = new IFlagRegisterField[NumberOfTimeCompareTimers];
+        private readonly IEnumRegisterField<TimeCompareStartSource>[] timeCompareStartSource = new IEnumRegisterField<TimeCompareStartSource>[NumberOfTimeCompareTimers];
+        private readonly IEnumRegisterField<TimeCompareStopSource>[] timeCompareStopSource = new IEnumRegisterField<TimeCompareStopSource>[NumberOfTimeCompareTimers];
+        private readonly IValueRegisterField[] compareTimerCompare = new IValueRegisterField[NumberOfTimeCompareTimers];
+        private readonly IFlagRegisterField[] timeCompareInterruptEnable = new IFlagRegisterField[NumberOfTimeCompareTimers];
+        private readonly uint uartClockFrequency;
         private readonly Machine machine;
         private readonly DoubleWordRegisterCollection registersCollection;
         private const uint SetRegisterOffset = 0x1000;
         private const uint ClearRegisterOffset = 0x2000;
         private const uint ToggleRegisterOffset = 0x3000;
         private const uint NumberOfTimeCompareTimers = 3;
-
-#region methods
-        public void Register(ISPIPeripheral peripheral, NullRegistrationPoint registrationPoint)
-        {
-            if(spiSlaveDevice != null)
-            {
-                throw new RegistrationException("Cannot register more than one peripheral.");
-            }
-            Machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
-            spiSlaveDevice = peripheral;
-        }
-
-        public void Unregister(ISPIPeripheral peripheral)
-        {
-            if(peripheral != spiSlaveDevice)
-            {
-                throw new RegistrationException("Trying to unregister not registered device.");
-            }
-
-            Machine.UnregisterAsAChildOf(this, peripheral);
-            spiSlaveDevice = null;
-        }
-
-        public IEnumerable<NullRegistrationPoint> GetRegistrationPoints(ISPIPeripheral peripheral)
-        {
-            if(peripheral != spiSlaveDevice)
-            {
-                throw new RegistrationException("Trying to obtain a registration point for a not registered device.");
-            }
-
-            return new[] { NullRegistrationPoint.Instance };
-        }
-
-        public override void WriteChar(byte value)
-        {
-            if(BufferState == BufferState.Full)
-            {
-                rxOverflowInterrupt.Value = true;
-                UpdateInterrupts();
-                this.Log(LogLevel.Warning, "RX buffer is full. Dropping incoming byte (0x{0:X})", value);
-                return;
-            }
-            TriggerCompareTimerStopEvent(TimeCompareStopSource.RxActive);
-            base.WriteChar(value);
-        }
 
         IEnumerable<IRegistered<ISPIPeripheral, NullRegistrationPoint>> IPeripheralContainer<ISPIPeripheral, NullRegistrationPoint>.Children
         {
@@ -526,280 +814,10 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
-        public GPIO TransmitIRQ { get; }
-        public GPIO ReceiveIRQ { get; }
-        public GPIO RxDataAvailableRequest { get; }
-        public GPIO RxDataAvailableSingleRequest { get; }
-        public GPIO TxBufferLowRequest { get; }
-        public GPIO TxBufferLowSingleRequest { get; }
-        public GPIO TxEmptyRequest { get; }
-        public GPIO RxDataAvailableRightRequest { get; }
-        public GPIO RxDataAvailableRightSingleRequest { get; }
-        public GPIO RxDataAvailableGpioSignal  { get; }
-        public GPIO TxBufferLowRightRequest { get; }
-        public GPIO TxBufferLowRightSingleRequest { get; }
-
-        public override Parity ParityBit { get { return parityBitModeField.Value; } }
-
-        public override Bits StopBits { get { return stopBitsModeField.Value; } }
-
-        public override uint BaudRate
-        {
-            get
-            {
-                var oversample = 1u;
-                switch(oversamplingField.Value)
-                {
-                    case OversamplingMode.Times16:
-                        oversample = 16;
-                        break;
-                    case OversamplingMode.Times8:
-                        oversample = 8;
-                        break;
-                    case OversamplingMode.Times6:
-                        oversample = 6;
-                        break;
-                    case OversamplingMode.Times4:
-                        oversample = 4;
-                        break;
-                }
-                return (uint)(uartClockFrequency / (oversample * (1 + ((double)(fractionalClockDividerField.Value << 3)) / 256)));
-            }
-        }
-
-        public BufferState BufferState
-        {
-            get
-            {
-                return bufferState;
-            }
-
-            private set
-            {
-                if(bufferState == value)
-                {
-                    return;
-                }
-                bufferState = value;
-                BufferStateChanged?.Invoke(value);
-                switch(bufferState)
-                {
-                    case BufferState.Empty:
-                        RxDataAvailableRequest.Set(false);
-                        RxDataAvailableSingleRequest.Set(false);
-                        RxDataAvailableGpioSignal.Set(false);
-                        break;
-                    case BufferState.Ready:
-                        RxDataAvailableRequest.Set(false);
-                        RxDataAvailableSingleRequest.Set(true);
-                        RxDataAvailableGpioSignal.Set(true);
-                        break;
-                    case BufferState.Full:
-                        RxDataAvailableRequest.Set(true);
-                        RxDataAvailableGpioSignal.Set(true);
-                        rxBufferFullInterrupt.Value = true;
-                        UpdateInterrupts();
-                        break;
-                    default:
-                        this.Log(LogLevel.Error, "Unreachable code. Invalid BufferState value.");
-                        return;
-                }
-            }
-        }
-
-        protected override void CharWritten()
-        {
-            rxDataValidInterrupt.Value = true;
-            receiveDataValidFlag.Value = true;
-            UpdateInterrupts();
-            BufferState = Count == BufferSize ? BufferState.Full : BufferState.Ready;
-            TriggerCompareTimerStopEvent(TimeCompareStopSource.RxInactive);
-            TriggerCompareTimerStartEvent(TimeCompareStartSource.RxEndOfFrame);
-        }
-
-        protected override void QueueEmptied()
-        {
-            rxDataValidInterrupt.Value = false;
-            receiveDataValidFlag.Value = false;
-            BufferState = BufferState.Empty;
-            UpdateInterrupts();
-        }
-
-        private void HandleTxBufferData(byte data)
-        {
-            this.Log(LogLevel.Noisy, "Handle TX buffer data: {0}", data);
-            
-            if(!transmitterEnableFlag.Value)
-            {
-                this.Log(LogLevel.Warning, "Trying to send data, but the transmitter is disabled: 0x{0:X}", data);
-                return;
-            }
-
-            TriggerCompareTimerStopEvent(TimeCompareStopSource.TxStart);
-
-            transferCompleteFlag.Value = false;
-            if(operationModeField.Value == OperationMode.Synchronous)
-            {
-                if(spiSlaveDevice != null)
-                {
-                    var result = spiSlaveDevice.Transmit(data);
-                    WriteChar(result);
-                }
-                else
-                {
-                    this.Log(LogLevel.Warning, "Writing data in synchronous mode, but no device is currently connected.");
-                    WriteChar(0x0);
-                }
-            }
-            else
-            {
-                TransmitCharacter(data);
-                txBufferLevelInterrupt.Value = true;
-                txCompleteInterrupt.Value = true;
-                UpdateInterrupts();
-            }
-            transferCompleteFlag.Value = true;
-            TriggerCompareTimerStartEvent(TimeCompareStartSource.TxEndOfFrame);
-            TriggerCompareTimerStartEvent(TimeCompareStartSource.TxComplete);
-        }
-
-        private byte ReadBuffer()
-        {
-            byte character;
-            if (TryGetCharacter(out character))
-            {
-                return character;
-            }
-            else
-            {
-                rxUnderflowInterrupt.Value = true;
-                UpdateInterrupts();
-                return (byte)0;
-            }
-        }
-
-        protected void TriggerCompareTimerStartEvent(TimeCompareStartSource source)
-        {
-            for(uint i=0; i<NumberOfTimeCompareTimers; i++)
-            {
-                if (timeCompareStartSource[i].Value == source)
-                {
-                    // From the design book: "The start source enables the comparator, resets the counter, 
-                    // and starts the counter. If the counter is already running, the start source will reset 
-                    // the counter and restart it."
-                    RestartCompareTimer(i);
-                    break;
-                }
-            }
-        }
-
-        protected void TriggerCompareTimerStopEvent(TimeCompareStopSource source)
-        {
-            if (compareTimer.Enabled
-                && startIndex < NumberOfTimeCompareTimers
-                && source == timeCompareStopSource[startIndex].Value)
-            {
-                compareTimer.Enabled = false;
-                startIndex = 0xFF;
-            }
-        }
-
-        protected void CompareTimerHandleLimitReached()
-        {
-            uint timerIndex = startIndex;
-            compareTimer.Enabled = false;
-            timeCompareInterrupt[startIndex].Value = true;
-            startIndex = 0xFF;
-            UpdateInterrupts();
-
-            if (timeCompareRestart[timerIndex].Value)
-            {
-                RestartCompareTimer(timerIndex);
-            }
-        }
-
-        protected void RestartCompareTimer(uint timerIndex)
-        {
-            startIndex = (byte)timerIndex;
-
-            // Start source will reset the counter and restart it
-            compareTimer.Frequency = BaudRate;
-            compareTimer.Limit = compareTimerCompare[timerIndex].Value;
-            compareTimer.Enabled = true;
-        }
-
-        private void UpdateInterrupts()
-        {
-            machine.ClockSource.ExecuteInLock(delegate {
-                var txIrq = ((txCompleteInterruptEnable.Value && txCompleteInterrupt.Value)
-                             || (txBufferLevelInterruptEnable.Value && txBufferLevelInterrupt.Value));
-                TransmitIRQ.Set(txIrq);
-
-                var rxIrq = ((rxDataValidInterruptEnable.Value && rxDataValidInterrupt.Value)
-                             || (rxBufferFullInterruptEnable.Value && rxBufferFullInterrupt.Value)
-                             || (rxOverflowInterruptEnable.Value && rxOverflowInterrupt.Value)
-                             || (rxUnderflowInterruptEnable.Value && rxUnderflowInterrupt.Value)
-                             || (timeCompareInterruptEnable[0].Value && timeCompareInterrupt[0].Value)
-                             || (timeCompareInterruptEnable[1].Value && timeCompareInterrupt[1].Value)
-                             || (timeCompareInterruptEnable[2].Value && timeCompareInterrupt[2].Value));
-                ReceiveIRQ.Set(rxIrq);
-            });
-        }
-
-        private bool TrySyncTime()
-        {
-            if(machine.SystemBus.TryGetCurrentCPU(out var cpu))
-            {
-                cpu.SyncTime();
-                return true;
-            }
-            return false;
-        }
-
-        private TimeInterval GetTime() => machine.LocalTimeSource.ElapsedVirtualTime;
-        protected override bool IsReceiveEnabled => receiverEnableFlag.Value;
-#endregion
-
-#region fields
-        private bool isEnabled = false;
-        private ISPIPeripheral spiSlaveDevice;
-        public event Action<BufferState> BufferStateChanged;
-        private IEnumRegisterField<OperationMode> operationModeField;
-        private IEnumRegisterField<OversamplingMode> oversamplingField;
-        private IEnumRegisterField<Parity> parityBitModeField;       
-        private IEnumRegisterField<Bits> stopBitsModeField;
-        private IValueRegisterField fractionalClockDividerField;
-        private IFlagRegisterField transferCompleteFlag;
-        private IFlagRegisterField receiveDataValidFlag;
-        private IFlagRegisterField receiverEnableFlag;
-        private IFlagRegisterField transmitterEnableFlag;
-        private readonly uint uartClockFrequency;
-        private BufferState bufferState;
         private const int BufferSize = 3; // with shift register
-        private IValueRegisterField[] compareTimerCompare = new IValueRegisterField[NumberOfTimeCompareTimers];
-        private IEnumRegisterField<TimeCompareStartSource>[] timeCompareStartSource = new IEnumRegisterField<TimeCompareStartSource>[NumberOfTimeCompareTimers];
-        private IEnumRegisterField<TimeCompareStopSource>[] timeCompareStopSource = new IEnumRegisterField<TimeCompareStopSource>[NumberOfTimeCompareTimers];
-        private IFlagRegisterField[] timeCompareRestart = new IFlagRegisterField[NumberOfTimeCompareTimers];
-        private LimitTimer compareTimer;
-        private byte startIndex = 0xFF;
-        // Interrupts
-        private IFlagRegisterField txCompleteInterrupt;
-        private IFlagRegisterField txBufferLevelInterrupt;
-        private IFlagRegisterField rxDataValidInterrupt;
-        private IFlagRegisterField rxBufferFullInterrupt;
-        private IFlagRegisterField rxOverflowInterrupt;
-        private IFlagRegisterField rxUnderflowInterrupt;
-        private IFlagRegisterField[] timeCompareInterrupt = new IFlagRegisterField[NumberOfTimeCompareTimers];
-        private IFlagRegisterField txCompleteInterruptEnable;
-        private IFlagRegisterField txBufferLevelInterruptEnable;
-        private IFlagRegisterField rxDataValidInterruptEnable;
-        private IFlagRegisterField rxBufferFullInterruptEnable;
-        private IFlagRegisterField rxOverflowInterruptEnable;
-        private IFlagRegisterField rxUnderflowInterruptEnable;
-        private IFlagRegisterField[] timeCompareInterruptEnable = new IFlagRegisterField[NumberOfTimeCompareTimers];
-#endregion
+        #endregion
 
-#region enums
+        #region enums
         protected enum OperationMode
         {
             Asynchronous,
@@ -889,7 +907,7 @@ namespace Antmicro.Renode.Peripherals.UART
             TimeCompare0_Set                                = 0x1060,
             TimeCompare1_Set                                = 0x1064,
             TimeCompare2_Set                                = 0x1068,
-            Test_Set                                        = 0x106C,            
+            Test_Set                                        = 0x106C,
             // Clear
             IpVersion_Clr                                   = 0x2000,
             Enable_Clr                                      = 0x2004,
@@ -918,7 +936,7 @@ namespace Antmicro.Renode.Peripherals.UART
             TimeCompare0_Clr                                = 0x2060,
             TimeCompare1_Clr                                = 0x2064,
             TimeCompare2_Clr                                = 0x2068,
-            Test_Clr                                        = 0x206C,            
+            Test_Clr                                        = 0x206C,
             // Toggle
             IpVersion_Tgl                                   = 0x3000,
             Enable_Tgl                                      = 0x3004,
@@ -949,6 +967,6 @@ namespace Antmicro.Renode.Peripherals.UART
             TimeCompare2_Tgl                                = 0x3068,
             Test_Tgl                                        = 0x306C,
         }
-#endregion        
+        #endregion
     }
 }

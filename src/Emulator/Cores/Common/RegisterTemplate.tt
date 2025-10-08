@@ -65,12 +65,15 @@
 * appropriate *.tt file.
 *
 */
+#pragma warning disable IDE0005
 using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
+
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.CPU.Registers;
 using Antmicro.Renode.Utilities.Binding;
-using Antmicro.Renode.Exceptions;
+#pragma warning restore IDE0005
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -206,11 +209,11 @@ namespace Antmicro.Renode.Peripherals.CPU
     }
 #>
         }
-
 <#
     foreach(var register in parser.Registers.Where(x => !x.IsIgnored))
     {
 #>
+
         [Register]
         public <#= virtualRegisters.Contains(register.Name) ? "override " : "" #>RegisterValue <#=register.Name#>
         {
@@ -226,6 +229,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 #>
                 return GetRegisterValue<#=register.Width#>((int)<#=CLASS_NAME#>Registers.<#=register.Name#>);
             }
+
             set
             {
 <#
@@ -253,11 +257,13 @@ namespace Antmicro.Renode.Peripherals.CPU
     foreach(var registerGroup in parser.RegisterGroups.Where(x => !x.IsIgnored))
     {
 #>
+
         public RegistersGroup <#=registerGroup.Name#> { get; private set; }
 <#
     }
 #>
 
+#pragma warning disable SA1508
         protected <#=OVERRIDE#>void InitializeRegisters()
         {
 <#
@@ -289,21 +295,21 @@ namespace Antmicro.Renode.Peripherals.CPU
     }
 #>
         }
+#pragma warning restore SA1508
 
 <#
     var ignoredWidths = parser.RegisterGroups.Where(x => x.IsIgnored).Select(x => x.Width).Union(parser.Registers.Where(x => x.IsIgnored).Select(x => x.Width)).Distinct();
     foreach(var width in parser.RegisterGroups.Select(x => x.Width).Union(parser.Registers.Select(x => x.Width)).Except(ignoredWidths).Distinct())
     {
 #>
+#pragma warning disable 649
         // 649:  Field '...' is never assigned to, and will always have its default value null
-        #pragma warning disable 649
-
         [Import(Name = "<#=ACCESSOR_PREFIX#>set_register_value_<#=width#>")]
         protected Action<int, <#=RegisterTypeHelper.GetTypeName(width)#>> SetRegisterValue<#=width#>;
+
         [Import(Name = "<#=ACCESSOR_PREFIX#>get_register_value_<#=width#>")]
         protected Func<int, <#=RegisterTypeHelper.GetTypeName(width)#>> GetRegisterValue<#=width#>;
-
-        #pragma warning restore 649
+#pragma warning restore 649
 
 <#
     }

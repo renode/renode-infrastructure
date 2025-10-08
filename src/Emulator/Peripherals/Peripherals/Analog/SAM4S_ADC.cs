@@ -6,14 +6,15 @@
 //
 
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Timers;
+using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.RESD;
-using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Analog
 {
@@ -33,10 +34,10 @@ namespace Antmicro.Renode.Peripherals.Analog
         {
             base.Reset();
 
-            foreach(var it in channelStream.Select((Stream, Index) => new { Stream, Index }))
+            foreach(var it in channelStream.Select((stream, index) => new { stream, index }))
             {
-                it.Stream?.Dispose();
-                channelStream[it.Index] = null;
+                it.stream?.Dispose();
+                channelStream[it.index] = null;
             }
         }
 
@@ -68,7 +69,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             var voltage = defaultChannelValue[channelIndex];
             if(temperatureSensorEnabled.Value && channelIndex == TemperatureChannelIndex)
             {
-                 voltage = BaseTemperatureVoltage + (Temperature - BaseTemperature) * TemperatureProportionalCoefficient;
+                voltage = BaseTemperatureVoltage + (Temperature - BaseTemperature) * TemperatureProportionalCoefficient;
             }
             else if(channelStream[channelIndex] != null)
             {
@@ -206,13 +207,13 @@ namespace Antmicro.Renode.Peripherals.Analog
 
             Registers.ChannelEnable.Define(this)
                 .WithFlags(0, 16, FieldMode.Set, name: "ADC_CHER",
-                    writeCallback: (index, _, value) => { if(value) channelStatus[index].Value = true;  })
+                    writeCallback: (index, _, value) => { if(value) channelStatus[index].Value = true; })
                 .WithReservedBits(16, 16)
             ;
 
             Registers.ChannelDisable.Define(this)
                 .WithFlags(0, 16, FieldMode.WriteOneToClear, name: "ADC_CHDR",
-                    writeCallback: (index, _, value) => { if(value) channelStatus[index].Value = false;  })
+                    writeCallback: (index, _, value) => { if(value) channelStatus[index].Value = false; })
                 .WithReservedBits(16, 16)
             ;
 

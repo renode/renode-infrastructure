@@ -8,8 +8,6 @@
 */
 
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Peripherals;
 
 namespace Antmicro.Renode.Hooks
 {
@@ -47,7 +45,6 @@ namespace Antmicro.Renode.Hooks
 
         public static void AddAfterWriteByteHook(this IProvidesRegisterCollection<ByteRegisterCollection> @this, long offset, string script)
         {
-
             var engine = new RegisterCollectionHookPythonEngine<byte, ByteRegisterCollection>(@this, script);
             @this.AddAfterWriteHook<byte, ByteRegisterCollection>(offset, (addr, value) =>
             {
@@ -107,7 +104,6 @@ namespace Antmicro.Renode.Hooks
 
         public static void AddAfterWriteWordHook(this IProvidesRegisterCollection<WordRegisterCollection> @this, long offset, string script)
         {
-
             var engine = new RegisterCollectionHookPythonEngine<ushort, WordRegisterCollection>(@this, script);
             @this.AddAfterWriteHook<ushort, WordRegisterCollection>(offset, (addr, value) =>
             {
@@ -167,7 +163,6 @@ namespace Antmicro.Renode.Hooks
 
         public static void AddAfterWriteDoubleWordHook(this IProvidesRegisterCollection<DoubleWordRegisterCollection> @this, long offset, string script)
         {
-
             var engine = new RegisterCollectionHookPythonEngine<uint, DoubleWordRegisterCollection>(@this, script);
             @this.AddAfterWriteHook<uint, DoubleWordRegisterCollection>(offset, (addr, value) =>
             {
@@ -227,7 +222,6 @@ namespace Antmicro.Renode.Hooks
 
         public static void AddAfterWriteQuadWordHook(this IProvidesRegisterCollection<QuadWordRegisterCollection> @this, long offset, string script)
         {
-
             var engine = new RegisterCollectionHookPythonEngine<ulong, QuadWordRegisterCollection>(@this, script);
             @this.AddAfterWriteHook<ulong, QuadWordRegisterCollection>(offset, (addr, value) =>
             {
@@ -254,6 +248,5 @@ namespace Antmicro.Renode.Hooks
         {
             @this.RemoveAfterWriteHook(offset);
         }
-
     }
 }

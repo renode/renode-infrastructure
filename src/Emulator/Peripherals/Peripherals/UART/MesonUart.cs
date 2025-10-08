@@ -4,15 +4,10 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using System.Collections.Generic;
-using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Core;
-using Antmicro.Migrant;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.UART;
-using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -35,6 +30,28 @@ namespace Antmicro.Renode.Peripherals.UART
         public void WriteDoubleWord(long offset, uint value)
         {
             RegistersCollection.Write(offset, value);
+        }
+
+        public override Bits StopBits => Bits.One;
+
+        public override Parity ParityBit => Parity.None;
+
+        public override uint BaudRate => 115200;
+
+        public GPIO IRQ { get; }
+
+        public DoubleWordRegisterCollection RegistersCollection { get; }
+
+        public long Size => 0x18;
+
+        protected override void CharWritten()
+        {
+            // Intentionally left blank
+        }
+
+        protected override void QueueEmptied()
+        {
+            // Intentionally left blank
         }
 
         private void DefineRegisters()
@@ -103,33 +120,14 @@ namespace Antmicro.Renode.Peripherals.UART
             ;
         }
 
-        public GPIO IRQ { get; }
-
-        public DoubleWordRegisterCollection RegistersCollection { get; }
-        public long Size => 0x18;
-        public override Bits StopBits => Bits.One;
-        public override Parity ParityBit => Parity.None;
-        public override uint BaudRate => 115200;
-
-        protected override void CharWritten()
-        {
-            // Intentionally left blank
-        }
-
-        protected override void QueueEmptied()
-        {
-            // Intentionally left blank
-        }
-
         private enum Registers
         {
-           WriteFifo = 0x0,
-           ReadFifo = 0x4,
-           Control = 0x8,
-           Status = 0xC,
-           Misc = 0x10,
-           Reg5 = 0x14,
+            WriteFifo = 0x0,
+            ReadFifo = 0x4,
+            Control = 0x8,
+            Status = 0xC,
+            Misc = 0x10,
+            Reg5 = 0x14,
         }
     }
 }
-

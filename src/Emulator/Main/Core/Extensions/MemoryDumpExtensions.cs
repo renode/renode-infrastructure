@@ -6,6 +6,7 @@
 //
 using System;
 using System.IO;
+
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.CPU;

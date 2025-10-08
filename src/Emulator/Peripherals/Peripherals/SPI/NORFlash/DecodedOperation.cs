@@ -18,12 +18,14 @@ namespace Antmicro.Renode.Peripherals.SPI.NORFlash
         public uint ExecutionAddress;
         public int CommandBytesHandled;
         public int DummyBytesRemaining;
+
         public int AddressLength
         {
             get
             {
                 return addressLength;
             }
+
             set
             {
                 addressLength = value;

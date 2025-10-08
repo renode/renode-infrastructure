@@ -7,16 +7,23 @@
 using System;
 using System.IO;
 using System.Linq;
-using Antmicro.Renode.UserInterface.Tokenizer;
-using AntShell.Commands;
-using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Utilities;
+
 using Antmicro.Renode.Backends.Display;
+using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.UserInterface.Tokenizer;
+using Antmicro.Renode.Utilities;
+
+using AntShell.Commands;
 
 namespace Antmicro.Renode.UserInterface.Commands
 {
     public class DisplayImageCommand : AutoLoadCommand
     {
+        public DisplayImageCommand(Monitor monitor)
+            : base(monitor, "displayImage", "Displays image in Monitor")
+        {
+        }
+
         public override void PrintHelp(ICommandInteraction writer)
         {
             base.PrintHelp(writer);
@@ -57,25 +64,6 @@ namespace Antmicro.Renode.UserInterface.Commands
             writer.WriteRaw(InlineImage.Encode(image.ToPng()));
         }
 
-        public DisplayImageCommand(Monitor monitor)
-            : base(monitor, "displayImage", "Displays image in Monitor")
-        {
-        }
-
-        private void Run(ICommandInteraction writer, ReadFilePath pathToImage)
-        {
-            using(var file = new FileStream(pathToImage, FileMode.Open))
-            {
-                if(!CheckFormat(file))
-                {
-                    writer.WriteError("Bad image format. Supported formats: jpeg, png");
-                    return;
-                }
-
-                writer.WriteRaw(InlineImage.Encode(file));
-            }
-        }
-
         private static bool CheckFormat(Stream file)
         {
             var head = new byte[8];
@@ -94,6 +82,20 @@ namespace Antmicro.Renode.UserInterface.Commands
             }
 
             return false;
+        }
+
+        private void Run(ICommandInteraction writer, ReadFilePath pathToImage)
+        {
+            using(var file = new FileStream(pathToImage, FileMode.Open))
+            {
+                if(!CheckFormat(file))
+                {
+                    writer.WriteError("Bad image format. Supported formats: jpeg, png");
+                    return;
+                }
+
+                writer.WriteRaw(InlineImage.Encode(file));
+            }
         }
 
         private static readonly byte[] JpegPrefix = {0xff, 0xd8, 0xff};

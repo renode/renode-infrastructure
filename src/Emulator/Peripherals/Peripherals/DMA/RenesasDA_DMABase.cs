@@ -6,11 +6,12 @@
 //
 using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.DMA
 {
@@ -75,7 +76,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             if(index != -1)
             {
                 var channelID = index * 2 + oddChannel;
-                if(!channels[channelID].dmaEnabled.Value)
+                if(!channels[channelID].DmaEnabled.Value)
                 {
                     this.Log(LogLevel.Warning, "Channel {0} isn't enabled. Ignoring request", channelID);
                     return;
@@ -112,23 +113,23 @@ namespace Antmicro.Renode.Peripherals.DMA
                 registerMap.Add(offset + (long)Registers.DestinationAddress_0, new DoubleWordRegister(this)
                     .WithValueField(0, 32,
                         valueProviderCallback: (_) => channels[channelID].DestinationAddress,
-                        writeCallback: (_, val) => {channels[channelID].DestinationAddress = val; },
+                        writeCallback: (_, val) => { channels[channelID].DestinationAddress = val; },
                         name: $"DMA{i}_B_START")
                 );
                 registerMap.Add(offset + (long)Registers.InterruptLength_0, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, out channels[i].interruptLength, name: $"DMA{i}_INT")
+                    .WithValueField(0, 16, out channels[i].InterruptLength, name: $"DMA{i}_INT")
                     .WithReservedBits(16, 16)
                 );
                 registerMap.Add(offset + (long)Registers.TransferLength_0, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, out channels[i].transferLength, name: $"DMA{i}_LEN")
+                    .WithValueField(0, 16, out channels[i].TransferLength, name: $"DMA{i}_LEN")
                     .WithReservedBits(16, 16)
                 );
                 registerMap.Add(offset + (long)Registers.Control_0, new DoubleWordRegister(this, 0x00018000)
-                    .WithFlag(0, out channels[i].dmaEnabled, name: $"DMA{i}_ON", writeCallback: (_, value) =>
+                    .WithFlag(0, out channels[i].DmaEnabled, name: $"DMA{i}_ON", writeCallback: (_, value) =>
                         {
-                            if(value && !channels[channelID].peripheralTriggered.Value)
+                            if(value && !channels[channelID].PeripheralTriggered.Value)
                             {
-                                channels[channelID].itemsAlreadyTransferred.Value = 0;
+                                channels[channelID].ItemsAlreadyTransferred.Value = 0;
                                 channels[channelID].DoTransfer();
                             }
                         })
@@ -139,23 +140,23 @@ namespace Antmicro.Renode.Peripherals.DMA
                               this.Log(LogLevel.Warning, "The bus width value cannot be set to {0}", value);
                               return;
                           }
-                          channels[channelID].transferType = (TransferType)Math.Pow(2, value);
+                          channels[channelID].TransferType = (TransferType)Math.Pow(2, value);
                       })
-                    .WithFlag(3, out channels[i].peripheralTriggered, name: "DREQ_MODE")
-                    .WithFlag(4, out channels[i].incrementDestinationAddress, name: "BINC")
-                    .WithFlag(5, out channels[i].incrementSourceAddress, name: "AINC")
-                    .WithFlag(6, out channels[i].circularMode, name: "CIRCULAR")
+                    .WithFlag(3, out channels[i].PeripheralTriggered, name: "DREQ_MODE")
+                    .WithFlag(4, out channels[i].IncrementDestinationAddress, name: "BINC")
+                    .WithFlag(5, out channels[i].IncrementSourceAddress, name: "AINC")
+                    .WithFlag(6, out channels[i].CircularMode, name: "CIRCULAR")
                     .WithTag("DMA_PRIO", 7, 3)
                     .WithTaggedFlag("DMA_IDLE", 10)
-                    .WithFlag(11, out channels[i].dmaInit, name: "DMA_INIT")
+                    .WithFlag(11, out channels[i].DmaInit, name: "DMA_INIT")
                     .WithTaggedFlag("REQ_SENSE", 12)
-                    .WithEnumField(13, 2, out channels[i].burstMode, name: "BURST_MODE")
+                    .WithEnumField(13, 2, out channels[i].BurstModeValue, name: "BURST_MODE")
                     .WithTaggedFlag("BUS_ERROR_DETECT", 15)
                     .WithTaggedFlag("DMA_EXCLUSIVE_ACCESS", 16)
                     .WithReservedBits(17, 15)
                 );
                 registerMap.Add(offset + (long)Registers.IndexPointer_0, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, out channels[i].itemsAlreadyTransferred, FieldMode.Read, name: $"DMA{i}_IDX")
+                    .WithValueField(0, 16, out channels[i].ItemsAlreadyTransferred, FieldMode.Read, name: $"DMA{i}_IDX")
                     .WithReservedBits(16, 16)
                 );
             }
@@ -185,14 +186,14 @@ namespace Antmicro.Renode.Peripherals.DMA
                 // Table 497: DMA0_IDX_REG
                 // When the transfer is completed and circular mode is not set,
                 // itemsAlreadyTransferred is automatically reset to 0 upon starting a new transfer.
-                if(transferCompleted && !circularMode.Value)
+                if(transferCompleted && !CircularMode.Value)
                 {
                     transferCompleted = false;
-                    itemsAlreadyTransferred.Value = 0;
+                    ItemsAlreadyTransferred.Value = 0;
                 }
 
-                var bytesToTransfer = (int)(transferLength.Value + 1) * (int)transferType;
-                if((ulong)bytesToTransfer == itemsAlreadyTransferred.Value)
+                var bytesToTransfer = (int)(TransferLength.Value + 1) * (int)TransferType;
+                if((ulong)bytesToTransfer == ItemsAlreadyTransferred.Value)
                 {
                     parent.Log(LogLevel.Noisy, "All requested data are already transfered. Skipping this transfer.");
                     return;
@@ -201,30 +202,30 @@ namespace Antmicro.Renode.Peripherals.DMA
                 // In normal mode, we are instantly copying requested data size,
                 // in peripheral trigger mode, peripheral should trigger DMA on each sample
                 // unless burst mode is selected which requests a few samples at once.
-                var transactionLength = peripheralTriggered.Value ? (int)transferType * GetBurstCount(burstMode.Value) : bytesToTransfer;
+                var transactionLength = PeripheralTriggered.Value ? (int)TransferType * GetBurstCount(BurstModeValue.Value) : bytesToTransfer;
                 Request getDescriptorData = new Request(sourceAddress, destinationAddress,
-                    transactionLength, transferType, transferType, incrementSourceAddress.Value && !dmaInit.Value,
-                    incrementDestinationAddress.Value);
+                    transactionLength, TransferType, TransferType, IncrementSourceAddress.Value && !DmaInit.Value,
+                    IncrementDestinationAddress.Value);
 
                 parent.Log(LogLevel.Debug, "[Channel {0}] Starting transfer from 0x{1:X} to 0x{2:X}. Copy length: 0x{3:X}; transferType = {4}, srcAddrIncr = {5} dstAddrIncr = {6}",
                            channelNumber,
                            sourceAddress,
                            destinationAddress,
                            transactionLength,
-                           transferType,
-                           (incrementSourceAddress.Value && !dmaInit.Value),
-                           incrementDestinationAddress.Value);
+                           TransferType,
+                           (IncrementSourceAddress.Value && !DmaInit.Value),
+                           IncrementDestinationAddress.Value);
 
                 var response = engine.IssueCopy(getDescriptorData);
-                itemsAlreadyTransferred.Value += (ulong)transactionLength;
+                ItemsAlreadyTransferred.Value += (ulong)transactionLength;
                 sourceAddress = (ulong)response.ReadAddress;
                 destinationAddress = (ulong)response.WriteAddress;
-                if((interruptLength.Value * (ulong)transferType) < itemsAlreadyTransferred.Value)
+                if((InterruptLength.Value * (ulong)TransferType) < ItemsAlreadyTransferred.Value)
                 {
                     parent.interruptsManager.SetInterrupt((Interrupt)channelNumber);
                 }
 
-                if((ulong)bytesToTransfer == itemsAlreadyTransferred.Value)
+                if((ulong)bytesToTransfer == ItemsAlreadyTransferred.Value)
                 {
                     // Keep internal information about transfer state
                     // to know if transfer continues or starts from begin.
@@ -232,15 +233,15 @@ namespace Antmicro.Renode.Peripherals.DMA
                     transferCompleted = true;
                 }
 
-                if(peripheralTriggered.Value && transferCompleted)
+                if(PeripheralTriggered.Value && transferCompleted)
                 {
-                    if(circularMode.Value)
+                    if(CircularMode.Value)
                     {
                         CircularModeReset();
                         return;
                     }
                     this.parent.Log(LogLevel.Noisy, "Disabling DMA channel because all items were transferred and circular mode is off");
-                    dmaEnabled.Value = false;
+                    DmaEnabled.Value = false;
                 }
             }
 
@@ -250,6 +251,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 {
                     return sourceAddress;
                 }
+
                 set
                 {
                     setSourceAddress = value;
@@ -263,6 +265,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 {
                     return destinationAddress;
                 }
+
                 set
                 {
                     setDestinationAddress = value;
@@ -270,40 +273,40 @@ namespace Antmicro.Renode.Peripherals.DMA
                 }
             }
 
-            public ulong sourceAddress;
-            public ulong destinationAddress;
-
-            public IFlagRegisterField dmaEnabled;
-            public IValueRegisterField transferLength;
-            public IValueRegisterField interruptLength;
-            public IFlagRegisterField incrementSourceAddress;
-            public IFlagRegisterField incrementDestinationAddress;
-            public IValueRegisterField itemsAlreadyTransferred;
-            public IFlagRegisterField peripheralTriggered;
-            public IFlagRegisterField circularMode;
-            public IFlagRegisterField dmaInit;
-            public IEnumRegisterField<BurstMode> burstMode;
-            public TransferType transferType;
+            public IFlagRegisterField DmaEnabled;
+            public IValueRegisterField TransferLength;
+            public IValueRegisterField InterruptLength;
+            public IFlagRegisterField IncrementSourceAddress;
+            public IFlagRegisterField IncrementDestinationAddress;
+            public IValueRegisterField ItemsAlreadyTransferred;
+            public IFlagRegisterField PeripheralTriggered;
+            public IFlagRegisterField CircularMode;
+            public IFlagRegisterField DmaInit;
+            public IEnumRegisterField<BurstMode> BurstModeValue;
+            public TransferType TransferType;
 
             private void CircularModeReset()
             {
                 sourceAddress = setSourceAddress;
                 destinationAddress = setDestinationAddress;
-                itemsAlreadyTransferred.Value = 0;
+                ItemsAlreadyTransferred.Value = 0;
             }
 
             private int GetBurstCount(BurstMode mode)
             {
                 switch(mode)
                 {
-                    case BurstMode.Disabled: return 1;
-                    case BurstMode.Four: return 4;
-                    case BurstMode.Eight: return 8;
-                    default:
-                        parent.WarningLog("Invalid selection of burst mode: {0}", mode);
-                        return 0;
+                case BurstMode.Disabled: return 1;
+                case BurstMode.Four: return 4;
+                case BurstMode.Eight: return 8;
+                default:
+                    parent.WarningLog("Invalid selection of burst mode: {0}", mode);
+                    return 0;
                 }
             }
+
+            private ulong sourceAddress;
+            private ulong destinationAddress;
 
             // For use in circular mode
             private ulong setSourceAddress;
@@ -355,4 +358,3 @@ namespace Antmicro.Renode.Peripherals.DMA
         }
     }
 }
-

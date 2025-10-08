@@ -32,11 +32,14 @@ namespace Antmicro.Renode.Peripherals.CPU
             this.PC = pc;
             this.Type = type;
         }
-        public ulong PC { get; }
-        public AdditionalDataType Type { get; }
 
         public abstract string GetStringRepresentation();
+
         public abstract byte[] GetBinaryRepresentation();
+
+        public ulong PC { get; }
+
+        public AdditionalDataType Type { get; }
     }
 
     public class MemoryAccessAdditionalData : AdditionalData
@@ -101,8 +104,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         public ulong OperationTargetVirtual { get; }
+
         public ulong OperationTargetPhysical { get; }
+
         public ulong OperationValue { get; }
+
         public MemoryOperation OperationType { get; }
     }
 
@@ -148,6 +154,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         public ulong VectorLength { get; }
+
         public ulong VectorType { get; }
     }
 }

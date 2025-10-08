@@ -5,12 +5,8 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.Sensor;
+
 using Antmicro.Renode.Peripherals.I2C;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Core.Structure.Registers;
 
 namespace Antmicro.Renode.Peripherals.Sensors
 {

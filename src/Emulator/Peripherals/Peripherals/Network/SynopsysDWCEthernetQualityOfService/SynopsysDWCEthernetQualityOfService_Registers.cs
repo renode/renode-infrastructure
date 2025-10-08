@@ -6,7 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
-using Antmicro.Renode.Core.Structure;
+
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
@@ -307,9 +307,11 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithTag("MAC1USTCR.TIC_1US_CNTR (TIC_1US_CNTR)", 0, 12)
                     .WithReservedBits(12, 20)
                 },
-                {(long)RegistersMacAndMmc.Version, new DoubleWordRegister(this, 0x3142)
-                    .WithTag("MACVR.SNPSVER (SNPSVER)", 0, 8)
-                    .WithTag("MACVR.USERVER (USERVER)", 8, 8)
+                {(long)RegistersMacAndMmc.Version, new DoubleWordRegister(this)
+                    .WithValueField(0, 8, FieldMode.Read, name: "MACVR.SNPSVER (SNPSVER)",
+                        valueProviderCallback: _ => IPVersion)
+                    .WithValueField(8, 8, FieldMode.Read, name: "MACVR.USERVER (USERVER)",
+                        valueProviderCallback: _ => UserIPVersion)
                     .WithReservedBits(16, 16)
                 },
                 {(long)RegistersMacAndMmc.Debug, new DoubleWordRegister(this)
@@ -347,13 +349,16 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithReservedBits(31, 1)
                 },
                 {(long)RegistersMacAndMmc.HardwareFeature1, new DoubleWordRegister(this, 0x1104_1904)
-                    .WithTag("MACHWF1R.RXFIFOSIZE (RXFIFOSIZE)", 0, 5)
+                    .WithValueField(0, 5, FieldMode.Read, name: "MACHWF1R.RXFIFOSIZE (RXFIFOSIZE)",
+                        valueProviderCallback: _ => (byte)(Misc.Logarithm2(RxQueueSize) - 7))
                     .WithReservedBits(5, 1)
-                    .WithTag("MACHWF1R.TXFIFOSIZE (TXFIFOSIZE)", 6, 5)
+                    .WithValueField(6, 5, FieldMode.Read, name: "MACHWF1R.TXFIFOSIZE (TXFIFOSIZE)",
+                        valueProviderCallback: _ => (byte)(Misc.Logarithm2(TxQueueSize) - 7))
                     .WithTaggedFlag("MACHWF1R.OSTEN (OSTEN)", 11)
                     .WithTaggedFlag("MACHWF1R.PTOEN (PTOEN)", 12)
                     .WithTaggedFlag("MACHWF1R.ADVTHWORD (ADVTHWORD)", 13)
-                    .WithTag("MACHWF1R.ADDR64 (ADDR64)", 14, 2)
+                    .WithEnumField<DoubleWordRegister, AddressWidth>(14, 2, FieldMode.Read, name: "MACHWF1R.ADDR64 (ADDR64)",
+                        valueProviderCallback: _ => Address64)
                     .WithTaggedFlag("MACHWF1R.DCBEN (DCBEN)", 16)
                     .WithTaggedFlag("MACHWF1R.SPHEN (SPHEN)", 17)
                     .WithTaggedFlag("MACHWF1R.TSOEN (TSOEN)", 18)
@@ -365,14 +370,20 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithTag("MACHWF1R.L3L4FNUM (L3L4FNUM)", 27, 4)
                     .WithReservedBits(31, 1)
                 },
+                // Currently the model has the same amount of TX and RX DMA channels
+                // and 1 MLT queue per each TX/RX DMA channel.
                 {(long)RegistersMacAndMmc.HardwareFeature2, new DoubleWordRegister(this, 0x4100_0000)
-                    .WithTag("MACHWF2R.RXQCNT (RXQCNT)", 0, 4)
+                    .WithValueField(0, 4, FieldMode.Read, name: "MACHWF2R.RXQCNT (RXQCNT)",
+                        valueProviderCallback: _ => (ulong)(dmaChannels.Length - 1))
                     .WithReservedBits(4, 2)
-                    .WithTag("MACHWF2R.TXQCNT (TXQCNT)", 6, 4)
+                    .WithValueField(6, 4, FieldMode.Read, name: "MACHWF2R.TXQCNT (TXQCNT)",
+                        valueProviderCallback: _ => (ulong)(dmaChannels.Length - 1))
                     .WithReservedBits(10, 2)
-                    .WithTag("MACHWF2R.RXCHCNT (RXCHCNT)", 12, 4)
+                    .WithValueField(12, 4, FieldMode.Read, name: "MACHWF2R.RXCHCNT (RXCHCNT)",
+                        valueProviderCallback: _ => (ulong)(dmaChannels.Length - 1))
                     .WithReservedBits(16, 2)
-                    .WithTag("MACHWF2R.TXCHCNT (TXCHCNT)", 18, 4)
+                    .WithValueField(18, 4, FieldMode.Read, name: "MACHWF2R.TXCHCNT (TXCHCNT)",
+                        valueProviderCallback: _ => (ulong)(dmaChannels.Length - 1))
                     .WithReservedBits(22, 2)
                     .WithTag("MACHWF2R.PPSOUTNUM (PPSOUTNUM)", 24, 3)
                     .WithReservedBits(27, 1)
@@ -1232,7 +1243,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithReservedBits(18, 14)
                     .WithChangeCallback((_, __) => UpdateInterrupts())
                 },
-                {(long)RegistersDMA.DebugStatus, new DoubleWordRegister(this)
+                {(long)RegistersDMA.DebugStatus0, new DoubleWordRegister(this)
                     .WithTaggedFlag("DMADSR.AXWHSTS (AHB Master Write Channel)", 0)
                     .WithReservedBits(1, 7)
                     .For((r, i) =>
@@ -1240,11 +1251,30 @@ namespace Antmicro.Renode.Peripherals.Network
                         var offset = i * 8;
                         r.WithEnumField<DoubleWordRegister, DMARxProcessState>(8 + offset, 4, FieldMode.Read,
                             valueProviderCallback: _ => dmaChannels[i].DmaRxState, name: $"DMADSR.RPS{i} (DMA Channel {i} Receive Process State)")
-                        .WithEnumField<DoubleWordRegister, DMATxProcessState>(12 + offset, 4, FieldMode.Read,
+                         .WithEnumField<DoubleWordRegister, DMATxProcessState>(12 + offset, 4, FieldMode.Read,
                             valueProviderCallback: _ => dmaChannels[i].DmaTxState, name: $"DMADSR.TPS{i} (DMA Channel {i} Transmit Process State)");
-                    }, 0, dmaChannels.Length)
+                    }, 0, Math.Min(3, dmaChannels.Length))
                 },
             };
+
+            const int maxDMAChannelsPerDebugRegister = 4;
+            // Start from channel 3 as channels 0, 1, 2 fit in DebugStatus0
+            for(var channelId = 3; channelId < dmaChannels.Length; channelId++)
+            {
+                var bitOffset = 8 * ((channelId + 1) % maxDMAChannelsPerDebugRegister);
+                var registerOffset = (long)RegistersDMA.DebugStatus0 + 4 * ((channelId + 1) / maxDMAChannelsPerDebugRegister);
+                if(!map.TryGetValue(registerOffset, out var register))
+                {
+                    register = new DoubleWordRegister(this);
+                    map[registerOffset] = register;
+                }
+
+                register
+                    .WithEnumField<DoubleWordRegister, DMARxProcessState>(bitOffset, 4, FieldMode.Read,
+                        valueProviderCallback: _ => dmaChannels[channelId].DmaRxState, name: $"DMADSR.RPS{channelId} (DMA Channel {channelId} Receive Process State)")
+                    .WithEnumField<DoubleWordRegister, DMATxProcessState>(4 + bitOffset, 4, FieldMode.Read,
+                        valueProviderCallback: _ => dmaChannels[channelId].DmaTxState, name: $"DMADSR.TPS{channelId} (DMA Channel {channelId} Transmit Process State)");
+            }
 
             foreach(var channel in dmaChannels)
             {
@@ -1300,63 +1330,63 @@ namespace Antmicro.Renode.Peripherals.Network
 
             switch(miiOperation.Value)
             {
-                case MIIOperation.Read:
-                    if(clause45PhyEnable.Value)
+            case MIIOperation.Read:
+                if(clause45PhyEnable.Value)
+                {
+                    if(!TryGetPhy<Clause45Address, ushort>((uint)miiPhy.Value, out var phy))
                     {
-                        if(!TryGetPhy<Clause45Address, ushort>((uint)miiPhy.Value, out var phy))
-                        {
-                            this.Log(LogLevel.Debug, "Read access to unknown phy {0} via Clause 45.", miiPhy.Value);
-                            break;
-                        }
-                        var c45Address = new Clause45Address((byte)miiRegisterOrDeviceAddress.Value, (ushort)miiAddress.Value);
-                        miiData.Value = phy.Read(c45Address);
-                        this.Log(LogLevel.Noisy, "Read ({1}, 0x{2:X}) access to phy {0} via Clause 45.", miiPhy.Value, c45Address, miiData.Value);
-                    }
-                    else
-                    {
-                        if(!TryGetPhy<ushort>((uint)miiPhy.Value, out var phy))
-                        {
-                            this.Log(LogLevel.Debug, "Read access to unknown phy {0} via Clause 22.", miiPhy.Value);
-                            break;
-                        }
-                        miiData.Value = phy.Read((ushort)miiRegisterOrDeviceAddress.Value);
-                        this.Log(LogLevel.Noisy, "Read ({1}, 0x{2:X}) access to phy {0} via Clause 22.", miiPhy.Value, miiRegisterOrDeviceAddress.Value, miiData.Value);
-                    }
-                    break;
-                case MIIOperation.Write:
-                    if(clause45PhyEnable.Value)
-                    {
-                        if(!TryGetPhy<Clause45Address, ushort>((uint)miiPhy.Value, out var phy))
-                        {
-                            this.Log(LogLevel.Debug, "Write access to unknown phy {0} via Clause 45.", miiPhy.Value);
-                            break;
-                        }
-                        var c45Address = new Clause45Address((byte)miiRegisterOrDeviceAddress.Value, (ushort)miiAddress.Value);
-                        this.Log(LogLevel.Noisy, "Write ({1}, 0x{2:X}) access to phy {0} via Clause 45.", miiPhy.Value, c45Address, miiData.Value);
-                        phy.Write(c45Address, (ushort)miiData.Value);
-                    }
-                    else
-                    {
-                        if(!TryGetPhy<ushort>((uint)miiPhy.Value, out var phy))
-                        {
-                            this.Log(LogLevel.Debug, "Write access to unknown phy {0} via Clause 22.", miiPhy.Value);
-                            break;
-                        }
-                        this.Log(LogLevel.Noisy, "Write ({1}, 0x{2:X}) access to phy {0} via Clause 22.", miiPhy.Value, miiRegisterOrDeviceAddress.Value, miiData.Value);
-                        phy.Write((ushort)miiRegisterOrDeviceAddress.Value, (ushort)miiData.Value);
-                    }
-                    break;
-                case MIIOperation.PostReadAddressIncrement:
-                    if(!clause45PhyEnable.Value)
-                    {
-                        this.Log(LogLevel.Warning, "Invalid MII Command: Post Read Increment Address is valid only for Clause 45 PHY.");
+                        this.Log(LogLevel.Debug, "Read access to unknown phy {0} via Clause 45.", miiPhy.Value);
                         break;
                     }
-                    this.Log(LogLevel.Warning, "Unimplemented Command: Post Read Increment Address.");
+                    var c45Address = new Clause45Address((byte)miiRegisterOrDeviceAddress.Value, (ushort)miiAddress.Value);
+                    miiData.Value = phy.Read(c45Address);
+                    this.Log(LogLevel.Noisy, "Read ({1}, 0x{2:X}) access to phy {0} via Clause 45.", miiPhy.Value, c45Address, miiData.Value);
+                }
+                else
+                {
+                    if(!TryGetPhy<ushort>((uint)miiPhy.Value, out var phy))
+                    {
+                        this.Log(LogLevel.Debug, "Read access to unknown phy {0} via Clause 22.", miiPhy.Value);
+                        break;
+                    }
+                    miiData.Value = phy.Read((ushort)miiRegisterOrDeviceAddress.Value);
+                    this.Log(LogLevel.Noisy, "Read ({1}, 0x{2:X}) access to phy {0} via Clause 22.", miiPhy.Value, miiRegisterOrDeviceAddress.Value, miiData.Value);
+                }
+                break;
+            case MIIOperation.Write:
+                if(clause45PhyEnable.Value)
+                {
+                    if(!TryGetPhy<Clause45Address, ushort>((uint)miiPhy.Value, out var phy))
+                    {
+                        this.Log(LogLevel.Debug, "Write access to unknown phy {0} via Clause 45.", miiPhy.Value);
+                        break;
+                    }
+                    var c45Address = new Clause45Address((byte)miiRegisterOrDeviceAddress.Value, (ushort)miiAddress.Value);
+                    this.Log(LogLevel.Noisy, "Write ({1}, 0x{2:X}) access to phy {0} via Clause 45.", miiPhy.Value, c45Address, miiData.Value);
+                    phy.Write(c45Address, (ushort)miiData.Value);
+                }
+                else
+                {
+                    if(!TryGetPhy<ushort>((uint)miiPhy.Value, out var phy))
+                    {
+                        this.Log(LogLevel.Debug, "Write access to unknown phy {0} via Clause 22.", miiPhy.Value);
+                        break;
+                    }
+                    this.Log(LogLevel.Noisy, "Write ({1}, 0x{2:X}) access to phy {0} via Clause 22.", miiPhy.Value, miiRegisterOrDeviceAddress.Value, miiData.Value);
+                    phy.Write((ushort)miiRegisterOrDeviceAddress.Value, (ushort)miiData.Value);
+                }
+                break;
+            case MIIOperation.PostReadAddressIncrement:
+                if(!clause45PhyEnable.Value)
+                {
+                    this.Log(LogLevel.Warning, "Invalid MII Command: Post Read Increment Address is valid only for Clause 45 PHY.");
                     break;
-                default:
-                    this.Log(LogLevel.Warning, "Invalid MII Command: Reserved Operation (0x{0:X}).", miiOperation.Value);
-                    break;
+                }
+                this.Log(LogLevel.Warning, "Unimplemented Command: Post Read Increment Address.");
+                break;
+            default:
+                this.Log(LogLevel.Warning, "Invalid MII Command: Reserved Operation (0x{0:X}).", miiOperation.Value);
+                break;
             }
         }
 
@@ -1611,7 +1641,9 @@ namespace Antmicro.Renode.Peripherals.Network
             DMAMode = 0x000,
             SystemBusMode = 0x004,
             InterruptStatus = 0x008,
-            DebugStatus = 0x00C,
+            DebugStatus0 = 0x00C,
+            DebugStatus1 = 0x010,
+            DebugStatus2 = 0x014,
         }
 
         public enum RegistersDMAChannel : long

@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
 
         [Execute("Hg")]
         public PacketData Execute(
-            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.ThreadId)]PacketThreadId threadId)
+            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.ThreadId)] PacketThreadId threadId)
         {
             var cpuId = threadId.ProcessId ?? threadId.ThreadId;
             if(cpuId == PacketThreadId.All)

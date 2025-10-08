@@ -12,9 +12,31 @@ namespace Antmicro.Renode.Logging
 {
     public abstract class LoggerBackend : ILoggerBackend
     {
-        public virtual bool IsControllable { get { return true; } }
+        public LogLevel GetCustomLogLevel(int? id)
+        {
+            LogLevel result = null;
+            if(id.HasValue)
+            {
+                peripheralsWithDifferentLogging.TryGetValue(id.Value, out result);
+            }
+            return result;
+        }
 
-        public abstract void Log(LogEntry entry);
+        public IDictionary<int, LogLevel> GetCustomLogLevels()
+        {
+            return new ReadOnlyDictionary<int, LogLevel>(peripheralsWithDifferentLogging);
+        }
+
+        public LogLevel GetLogLevel()
+        {
+            return logLevel;
+        }
+
+        public void Reset()
+        {
+            logLevel = Logger.DefaultLogLevel;
+            peripheralsWithDifferentLogging.Clear();
+        }
 
         public virtual void Flush()
         {
@@ -44,36 +66,9 @@ namespace Antmicro.Renode.Logging
             }
         }
 
-        public LogLevel GetCustomLogLevel(int? id)
-        {
-            LogLevel result = null;
-            if(id.HasValue)
-            {
-                peripheralsWithDifferentLogging.TryGetValue(id.Value, out result);
-            }
-            return result;
-        }
+        public abstract void Log(LogEntry entry);
 
-        public IDictionary<int, LogLevel> GetCustomLogLevels()
-        {
-            return new ReadOnlyDictionary<int, LogLevel>(peripheralsWithDifferentLogging);
-        }
-
-        public LogLevel GetLogLevel()
-        {
-            return logLevel;
-        }
-
-        public void Reset()
-        {
-            logLevel = Logger.DefaultLogLevel;
-            peripheralsWithDifferentLogging.Clear();
-        }
-
-        protected bool ShouldBeLogged(LogEntry entry)
-        {
-            return entry.Type >= (GetCustomLogLevel(entry.SourceId) ?? logLevel);
-        }
+        public virtual bool IsControllable { get { return true; } }
 
         protected LoggerBackend()
         {
@@ -81,9 +76,13 @@ namespace Antmicro.Renode.Logging
             logLevel = Logger.DefaultLogLevel;
         }
 
+        protected bool ShouldBeLogged(LogEntry entry)
+        {
+            return entry.Type >= (GetCustomLogLevel(entry.SourceId) ?? logLevel);
+        }
+
         protected LogLevel logLevel;
 
         private readonly Dictionary<int, LogLevel> peripheralsWithDifferentLogging;
     }
 }
-

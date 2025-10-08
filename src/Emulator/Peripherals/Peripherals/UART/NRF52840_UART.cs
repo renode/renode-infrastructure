@@ -4,13 +4,13 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -62,18 +62,19 @@ namespace Antmicro.Renode.Peripherals.UART
             {
                 switch(parity.Value)
                 {
-                    case ParityConfig.Excluded:
-                        return Parity.None;
-                    case ParityConfig.Included:
-                        return Parity.Even;
-                    default:
-                        this.Log(LogLevel.Error, "Wrong parity bits register value");
-                        return Parity.None;
+                case ParityConfig.Excluded:
+                    return Parity.None;
+                case ParityConfig.Included:
+                    return Parity.Even;
+                default:
+                    this.Log(LogLevel.Error, "Wrong parity bits register value");
+                    return Parity.None;
                 }
             }
         }
 
         public override uint BaudRate => GetBaudRate((uint)baudrate.Value);
+
         public long Size => 0x1000;
 
         [IrqProvider]
@@ -368,30 +369,25 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             switch((Baudrate)value)
             {
-                case Baudrate.Baud1200: return 1200;
-                case Baudrate.Baud2400: return 2400;
-                case Baudrate.Baud4800: return 4800;
-                case Baudrate.Baud9600: return 9600;
-                case Baudrate.Baud14400: return 14400;
-                case Baudrate.Baud19200: return 19200;
-                case Baudrate.Baud28800: return 28800;
-                case Baudrate.Baud31250: return 31250;
-                case Baudrate.Baud56000: return 56000;
-                case Baudrate.Baud57600: return 57600;
-                case Baudrate.Baud115200: return 115200;
-                case Baudrate.Baud230400: return 230400;
-                case Baudrate.Baud250000: return 250000;
-                case Baudrate.Baud460800: return 460800;
-                case Baudrate.Baud921600: return 921600;
-                case Baudrate.Baud1M: return 1000000;
-                default: return 0;
+            case Baudrate.Baud1200: return 1200;
+            case Baudrate.Baud2400: return 2400;
+            case Baudrate.Baud4800: return 4800;
+            case Baudrate.Baud9600: return 9600;
+            case Baudrate.Baud14400: return 14400;
+            case Baudrate.Baud19200: return 19200;
+            case Baudrate.Baud28800: return 28800;
+            case Baudrate.Baud31250: return 31250;
+            case Baudrate.Baud56000: return 56000;
+            case Baudrate.Baud57600: return 57600;
+            case Baudrate.Baud115200: return 115200;
+            case Baudrate.Baud230400: return 230400;
+            case Baudrate.Baud250000: return 250000;
+            case Baudrate.Baud460800: return 460800;
+            case Baudrate.Baud921600: return 921600;
+            case Baudrate.Baud1M: return 1000000;
+            default: return 0;
             }
         }
-
-        private readonly IBusController sysbus;
-        private readonly DoubleWordRegisterCollection registers;
-        private readonly InterruptManager<Interrupts> interruptManager;
-        private readonly bool easyDMA;
 
         private uint currentRxPointer;
         private bool rxStarted;
@@ -407,6 +403,11 @@ namespace Antmicro.Renode.Peripherals.UART
         private IEnumRegisterField<ParityConfig> parity;
         private IEnumRegisterField<EnableState> enabled;
         private IFlagRegisterField stopBit;
+
+        private readonly IBusController sysbus;
+        private readonly DoubleWordRegisterCollection registers;
+        private readonly InterruptManager<Interrupts> interruptManager;
+        private readonly bool easyDMA;
 
         private enum Interrupts
         {

@@ -6,10 +6,12 @@
 //
 
 using System;
-using NUnit.Framework;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Time;
 using Antmicro.Renode.Peripherals.Timers;
+using Antmicro.Renode.Time;
+
+using NUnit.Framework;
 
 namespace Antmicro.Renode.UnitTests
 {

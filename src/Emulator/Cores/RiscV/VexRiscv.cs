@@ -5,13 +5,13 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
-using System.Collections.Generic;
-using ELFSharp.ELF;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Timers;
+using Antmicro.Renode.Utilities;
+
+using ELFSharp.ELF;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -49,7 +49,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     {
                         base.OnGPIO((int)IrqType.MachineTimerInterrupt, value);
                     }
-                    else if (number == MachineSoftwareInterruptCustomNumber)
+                    else if(number == MachineSoftwareInterruptCustomNumber)
                     {
                         base.OnGPIO((int)IrqType.MachineSoftwareInterrupt, value);
                     }
@@ -60,8 +60,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                     }
                     else // machine external
                     {
-                         BitHelper.SetBit(ref machineInterrupts.Pending, (byte)number, value);
-                         Update();
+                        BitHelper.SetBit(ref machineInterrupts.Pending, (byte)number, value);
+                        Update();
                     }
                 }
             }

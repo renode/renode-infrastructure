@@ -8,10 +8,11 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using Antmicro.Renode.Peripherals.Bus;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Timers
@@ -32,7 +33,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
 
                 timerUnits[index] = timer;
-                irqs[index] = timer.irq;
+                irqs[index] = timer.IRQ;
             }
 
             Connections = new ReadOnlyDictionary<int, IGPIO>(irqs);
@@ -260,7 +261,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             public void UpdateInterrupts()
             {
-                irq.Set((OverflowInterruptFlag && OverflowInterruptEnabled)
+                IRQ.Set((OverflowInterruptFlag && OverflowInterruptEnabled)
                     || (IntervalInterruptFlag && IntervalInterruptEnabled)
                     || Match.Any(m => m.IRQ));
             }
@@ -356,12 +357,16 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
 
             public bool OverflowInterruptFlag { get; set; }
+
             public bool OverflowInterruptEnabled { get; set; }
+
             public bool IntervalInterruptFlag { get; set; }
+
             public bool IntervalInterruptEnabled { get; set; }
+
             public MatchTimerUnit[] Match { get; }
 
-            public readonly IGPIO irq = new GPIO();
+            public readonly IGPIO IRQ = new GPIO();
 
             private void OnLimitReached()
             {

@@ -5,15 +5,15 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using AntShell.Terminal;
+
+using Antmicro.Migrant;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.UART;
 using Antmicro.Renode.Utilities;
-using Antmicro.Migrant;
+
+using AntShell.Terminal;
 
 namespace Antmicro.Renode.Analyzers
 {
@@ -73,7 +73,7 @@ namespace Antmicro.Renode.Analyzers
         private class SimpleActiveIOSource : IActiveIOSource
         {
             public void Flush()
-            {}
+            { }
 
             public void Write(byte b)
             {
@@ -86,10 +86,10 @@ namespace Antmicro.Renode.Analyzers
             }
 
             public void Pause()
-            {}
+            { }
 
             public void Resume()
-            {}
+            { }
 
             public bool IsAnythingAttached => true;
 

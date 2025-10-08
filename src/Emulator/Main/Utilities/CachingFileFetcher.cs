@@ -6,27 +6,37 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Globalization;
+using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Net;
-using System.IO;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading;
+
+using Antmicro.Migrant;
+using Antmicro.Migrant.Customization;
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using System.Collections.Generic;
-using Antmicro.Migrant;
-using System.IO.Compression;
-using System.Threading;
-using System.Security.Cryptography;
-using System.Text.RegularExpressions;
-using System.Globalization;
-using System.ComponentModel;
-using Antmicro.Renode.Core;
-using System.Text;
-using Antmicro.Migrant.Customization;
 
 namespace Antmicro.Renode.Utilities
 {
     public class CachingFileFetcher : IDisposable
     {
+        static CachingFileFetcher()
+        {
+            ServicePointManager.ServerCertificateValidationCallback = delegate
+            {
+                return true;
+            };
+            ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
+        }
+
         public CachingFileFetcher()
         {
             fetchedFiles = new Dictionary<string, string>();
@@ -97,6 +107,97 @@ namespace Antmicro.Renode.Utilities
                     // nothing we can do
                 }
             }
+        }
+
+        private static string ResolveWebException(WebException e)
+        {
+            string reason;
+            switch(e.Status)
+            {
+            case WebExceptionStatus.ConnectFailure:
+                reason = "unable to connect to the server";
+                break;
+
+            case WebExceptionStatus.ConnectionClosed:
+                reason = "the connection was prematurely closed";
+                break;
+
+            case WebExceptionStatus.NameResolutionFailure:
+                reason = "server name resolution error";
+                break;
+
+            case WebExceptionStatus.ProtocolError:
+                switch(((HttpWebResponse)e.Response).StatusCode)
+                {
+                case HttpStatusCode.NotFound:
+                    reason = "file was not found on a server";
+                    break;
+
+                default:
+                    reason = string.Format("http protocol status code {0}", (int)((HttpWebResponse)e.Response).StatusCode);
+                    break;
+                }
+                break;
+
+            default:
+                reason = e.Status.ToString();
+                break;
+            }
+
+            return reason;
+        }
+
+        private static string ChecksumToText(byte[] checksum)
+        {
+            return checksum.Select(x => x.ToString("x2")).Aggregate((x, y) => x + y);
+        }
+
+        private static string GetCacheLocation()
+        {
+            return Path.Combine(Emulator.UserDirectoryPath, CacheDirectory);
+        }
+
+        private static string GetCacheIndexLocation()
+        {
+            return Path.Combine(Emulator.UserDirectoryPath, CacheIndex);
+        }
+
+        private static string GetCacheIndexLockLocation()
+        {
+            return Path.Combine(Emulator.UserDirectoryPath, CacheLock);
+        }
+
+        private static byte[] GetSHA1Checksum(string fileName)
+        {
+            using(var file = new FileStream(fileName, FileMode.Open))
+            using(var sha = SHA1.Create())
+            {
+                sha.Initialize();
+                return sha.ComputeHash(file);
+            }
+        }
+
+        private static bool TryGetChecksumAndSizeFromUri(Uri uri, out byte[] checksum, out long size)
+        {
+            size = 0;
+            checksum = null;
+
+            var groups = ChecksumRegex.Match(uri.ToString()).Groups;
+            if(groups.Count != 3)
+            {
+                return false;
+            }
+
+            // regex check above ensures that all the data below is parsable
+            size = long.Parse(groups[1].Value);
+            var checksumAsString = groups[2].Value;
+            checksum = new byte[20];
+            for(var i = 0; i < checksum.Length; i++)
+            {
+                checksum[i] = byte.Parse(checksumAsString.Substring(2 * i, 2), NumberStyles.HexNumber);
+            }
+
+            return true;
         }
 
         private bool TryFetchFromCacheOrUriInner(Uri uri, out string fileName)
@@ -255,44 +356,6 @@ namespace Antmicro.Renode.Utilities
             }
 
             return decompressedFile;
-        }
-
-        private static string ResolveWebException(WebException e)
-        {
-            string reason;
-            switch(e.Status)
-            {
-            case WebExceptionStatus.ConnectFailure:
-                reason = "unable to connect to the server";
-                break;
-
-            case WebExceptionStatus.ConnectionClosed:
-                reason = "the connection was prematurely closed";
-                break;
-
-            case WebExceptionStatus.NameResolutionFailure:
-                reason = "server name resolution error";
-                break;
-
-            case WebExceptionStatus.ProtocolError:
-                switch(((HttpWebResponse)e.Response).StatusCode)
-                {
-                case HttpStatusCode.NotFound:
-                    reason = "file was not found on a server";
-                    break;
-
-                default:
-                    reason = string.Format("http protocol status code {0}", (int)((HttpWebResponse)e.Response).StatusCode);
-                    break;
-                }
-                break;
-
-            default:
-                reason = e.Status.ToString();
-                break;
-            }
-
-            return reason;
         }
 
         private string GenerateProgressMessage(Uri uri, long? bytesDownloaded = null, long? totalBytes = null, int? progressPercentage = null, double? speed = null)
@@ -483,75 +546,14 @@ namespace Antmicro.Renode.Utilities
             return Path.Combine(cacheDir, "bin" + id);
         }
 
-        private static string ChecksumToText(byte[] checksum)
-        {
-            return checksum.Select(x => x.ToString("x2")).Aggregate((x, y) => x + y);
-        }
-
-        private static string GetCacheLocation()
-        {
-            return Path.Combine(Emulator.UserDirectoryPath, CacheDirectory);
-        }
-
-        private static string GetCacheIndexLocation()
-        {
-            return Path.Combine(Emulator.UserDirectoryPath, CacheIndex);
-        }
-
-        private static string GetCacheIndexLockLocation()
-        {
-            return Path.Combine(Emulator.UserDirectoryPath, CacheLock);
-        }
-
-        private static byte[] GetSHA1Checksum(string fileName)
-        {
-            using(var file = new FileStream(fileName, FileMode.Open))
-            using(var sha = SHA1.Create())
-            {
-                sha.Initialize();
-                return sha.ComputeHash(file);
-            }
-        }
-
-        private static bool TryGetChecksumAndSizeFromUri(Uri uri, out byte[] checksum, out long size)
-        {
-            size = 0;
-            checksum = null;
-
-            var groups = ChecksumRegex.Match(uri.ToString()).Groups;
-            if(groups.Count != 3)
-            {
-                return false;
-            }
-
-            // regex check above ensures that all the data below is parsable
-            size = long.Parse(groups[1].Value);
-            var checksumAsString = groups[2].Value;
-            checksum = new byte[20];
-            for(var i = 0; i < checksum.Length; i++)
-            {
-                checksum[i] = byte.Parse(checksumAsString.Substring(2 * i, 2), NumberStyles.HexNumber);
-            }
-
-            return true;
-        }
-
-        static CachingFileFetcher()
-        {
-            ServicePointManager.ServerCertificateValidationCallback = delegate
-            {
-                return true;
-            };
-            ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
-        }
-
-        private TimeSpan progressUpdateThreshold;
         private WebClient client;
-        private object concurrentLock = new object();
+
+        private readonly TimeSpan progressUpdateThreshold;
+        private readonly object concurrentLock = new object();
+        private readonly Dictionary<string, string> fetchedFiles;
         private const string CacheDirectory = "cached_binaries";
         private const string CacheIndex = "binaries_index";
         private const string CacheLock = "cache_lock";
-        private readonly Dictionary<string, string> fetchedFiles;
 
         private static readonly Serializer Serializer = new Serializer(new Settings(versionTolerance: VersionToleranceLevel.AllowGuidChange, disableTypeStamping: true));
         private static readonly Regex ChecksumRegex = new Regex(@"-s_(\d+)-([a-f,0-9]{40})$");
@@ -568,7 +570,9 @@ namespace Antmicro.Renode.Utilities
             }
 
             public int Index { get; set; }
+
             public long Size { get; set; }
+
             public byte[] Checksum { get; set; }
         }
 

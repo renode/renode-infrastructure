@@ -4,9 +4,9 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -43,7 +43,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                         },
                         valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(irqManager.ActiveInterrupts), name: "INTR")
                 },
-
                 {(long)Registers.InputRegister, new DoubleWordRegister(this)
                     .WithValueField(0, 32, FieldMode.Read,
                         valueProviderCallback: val =>
@@ -53,7 +52,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                             return BitHelper.GetValueFromBitsArray(result);
                         }, name: "GPIN")
                 },
-
                 {(long)Registers.OutputRegister, new DoubleWordRegister(this)
                     .WithValueField(0, 32,
                         valueProviderCallback: val =>
@@ -76,11 +74,9 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                             }
                         }, name: "GPOUT")
                 },
-
                 {(long)Registers.ClearRegister, new DoubleWordRegister(this)
                     .WithValueField(0, 32, writeCallback: (_, val) => SetRegisterBits((uint)val, false), name: "CLEAR_BITS")
                 },
-
                 {(long)Registers.SetRegister, new DoubleWordRegister(this)
                     .WithValueField(0, 32, writeCallback: (_, val) => SetRegisterBits((uint)val, true), name: "SET_BITS")
                 },
@@ -200,7 +196,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             lock(locker)
             {
                 var setBits = BitHelper.GetSetBits(regVal);
-                foreach (var i in setBits)
+                foreach(var i in setBits)
                 {
                     Connections[i].Set(state);
                 }

@@ -5,9 +5,9 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.IO;
 using System.Threading;
+
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Logging
@@ -81,4 +81,3 @@ namespace Antmicro.Renode.Logging
         private readonly bool flushAfterEachWrite;
     }
 }
-

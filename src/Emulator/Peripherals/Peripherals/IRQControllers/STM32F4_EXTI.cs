@@ -4,13 +4,12 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using Antmicro.Renode.Peripherals.Bus;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.IRQControllers
@@ -70,6 +69,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public long NumberOfLines => Connections.Count;
 
+        // We treat lines above 23 as direct by default for backwards compatibility with
+        // the old behavior of the EXTI model.
+        protected const int DefaultFirstDirectLine = 23;
+
         private void DefineRegisters()
         {
             Registers.InterruptMask.Define(this)
@@ -102,10 +105,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         BitHelper.ForeachActiveBit(value, x => Connections[x].Unset());
                     });
         }
-
-        // We treat lines above 23 as direct by default for backwards compatibility with
-        // the old behavior of the EXTI model.
-        protected const int DefaultFirstDirectLine = 23;
 
         private ulong softwareInterrupt;
 

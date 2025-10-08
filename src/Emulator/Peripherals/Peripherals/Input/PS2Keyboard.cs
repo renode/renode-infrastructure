@@ -5,10 +5,9 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Core;
 
 namespace Antmicro.Renode.Peripherals.Input
 {
@@ -49,8 +48,8 @@ namespace Antmicro.Renode.Peripherals.Input
                 lock(data)
                 {
                     SendAck();
-                    data.Enqueue((byte) (deviceId >> 8));
-                    data.Enqueue((byte) (deviceId & 0xff));
+                    data.Enqueue((byte)(DeviceId >> 8));
+                    data.Enqueue((byte)(DeviceId & 0xff));
                 }
                 break;
             default:
@@ -103,7 +102,7 @@ namespace Antmicro.Renode.Peripherals.Input
         }
 
         private readonly Queue<byte> data;
-        private const ushort deviceId = 0xABBA;
+        private const ushort DeviceId = 0xABBA;
 
         private enum Command
         {

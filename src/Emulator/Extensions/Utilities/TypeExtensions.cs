@@ -1,22 +1,25 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using System;
-using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals;
-using Microsoft.CSharp.RuntimeBinder;
-using System.Collections.Generic;
-using Dynamitey;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.Utilities.Collections;
+
+using Dynamitey;
+
+using Microsoft.CSharp.RuntimeBinder;
 
 using Range = Antmicro.Renode.Core.Range;
 
@@ -52,7 +55,7 @@ namespace Antmicro.Renode.Utilities
         public static bool IsStatic(this MemberInfo info)
         {
             return cache.Get(info, InnerIsStatic);
-	}
+        }
 
         public static bool IsCurrentlyGettable(this PropertyInfo info, BindingFlags flags)
         {
@@ -69,13 +72,13 @@ namespace Antmicro.Renode.Utilities
             return cache.Get(info, InnerIsExtension);
         }
 
-        private static bool IsBaseCallable(this MemberInfo info)
+        public static Type GetEnumerableElementType(this Type type)
         {
-            return cache.Get(info, InnerIsBaseCallable);
-        }
+            if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+            {
+                return type.GetGenericArguments()[0];
+            }
 
-        private static Type GetEnumerableType(Type type)
-        {
             var ifaces = type.GetInterfaces();
             if(ifaces.Length == 0)
             {
@@ -90,21 +93,6 @@ namespace Antmicro.Renode.Utilities
             return iface.GetGenericArguments()[0];
         }
 
-        private static Type[] convertibleTypes = {
-            typeof(FilePath),
-            typeof(IConnectable),
-            typeof(IConvertible),
-            typeof(IPeripheral),
-            typeof(IExternal),
-            typeof(IEmulationElement),
-            typeof(IClockSource),
-            typeof(Range),
-            typeof(TimeSpan),
-            typeof(TimeInterval),
-            typeof(TimeStamp),
-            typeof(TimerResult)
-        };
-
         private static bool IsTypeConvertible(Type type)
         {
             return cache.Get(type, InnerIsTypeConvertible);
@@ -112,8 +100,8 @@ namespace Antmicro.Renode.Utilities
 
         private static bool InnerIsTypeConvertible(Type type)
         {
-            var underlyingType = GetEnumerableType(type);
-            if(underlyingType != null)
+            var underlyingType = GetEnumerableElementType(type);
+            if(underlyingType != null && underlyingType != type)
             {
                 return IsTypeConvertible(underlyingType);
             }
@@ -133,7 +121,7 @@ namespace Antmicro.Renode.Utilities
             }
             //because every conversion operator may throw anything
             //trying to convert Span<T> and ReadOnlySpan<T> always throws exception
-            catch(Exception ex) when (ex is TypeLoadException ||
+            catch(Exception ex) when(ex is TypeLoadException ||
                                       ex is BadImageFormatException ||
                                       ex is RuntimeBinderException ||
                                       ex is ArgumentException)
@@ -144,7 +132,7 @@ namespace Antmicro.Renode.Utilities
                 Dynamic.InvokeConvert("a", type, false);
                 return true;
             }
-            catch(Exception ex) when (ex is TypeLoadException ||
+            catch(Exception ex) when(ex is TypeLoadException ||
                                       ex is BadImageFormatException ||
                                       ex is RuntimeBinderException ||
                                       ex is ArgumentException)
@@ -155,7 +143,7 @@ namespace Antmicro.Renode.Utilities
                 Dynamic.InvokeConvert('a', type, false);
                 return true;
             }
-            catch(Exception ex) when (ex is TypeLoadException ||
+            catch(Exception ex) when(ex is TypeLoadException ||
                                       ex is BadImageFormatException ||
                                       ex is RuntimeBinderException ||
                                       ex is ArgumentException)
@@ -166,7 +154,7 @@ namespace Antmicro.Renode.Utilities
                 Dynamic.InvokeConvert(true, type, false);
                 return true;
             }
-            catch(Exception ex) when (ex is TypeLoadException ||
+            catch(Exception ex) when(ex is TypeLoadException ||
                                       ex is BadImageFormatException ||
                                       ex is RuntimeBinderException ||
                                       ex is ArgumentException)
@@ -275,7 +263,26 @@ namespace Antmicro.Renode.Utilities
             return !i.IsDefined(typeof(HideInMonitorAttribute));
         }
 
+        private static bool IsBaseCallable(this MemberInfo info)
+        {
+            return cache.Get(info, InnerIsBaseCallable);
+        }
+
+        private static readonly Type[] convertibleTypes = {
+            typeof(FilePath),
+            typeof(IConnectable),
+            typeof(IConvertible),
+            typeof(IPeripheral),
+            typeof(IExternal),
+            typeof(IEmulationElement),
+            typeof(IClockSource),
+            typeof(Range),
+            typeof(TimeSpan),
+            typeof(TimeInterval),
+            typeof(TimeStamp),
+            typeof(TimerResult)
+        };
+
         private static readonly SimpleCache cache = new SimpleCache();
     }
 }
-

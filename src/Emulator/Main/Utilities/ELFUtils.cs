@@ -5,7 +5,9 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Exceptions;
+
 using ELFSharp.ELF;
 
 namespace Antmicro.Renode.Utilities
@@ -30,4 +32,3 @@ namespace Antmicro.Renode.Utilities
         }
     }
 }
-

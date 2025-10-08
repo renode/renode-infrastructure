@@ -5,15 +5,13 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System;
 using System.Linq;
+
 using Antmicro.Renode.Backends.Display;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.Memory;
-using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Video
 {
@@ -46,6 +44,7 @@ namespace Antmicro.Renode.Peripherals.Video
         }
 
         public long Size => 0x100;
+
         public DoubleWordRegisterCollection RegistersCollection { get; private set; }
 
         protected override void Repaint()
@@ -96,11 +95,11 @@ namespace Antmicro.Renode.Peripherals.Video
             ;
         }
 
-        private IValueRegisterField[] vres = new IValueRegisterField[2];
-        private IValueRegisterField[] hres = new IValueRegisterField[2];
-        private IValueRegisterField[] bufferRegisters = new IValueRegisterField[4];
-
         private uint bufferAddress;
+
+        private readonly IValueRegisterField[] vres = new IValueRegisterField[2];
+        private readonly IValueRegisterField[] hres = new IValueRegisterField[2];
+        private readonly IValueRegisterField[] bufferRegisters = new IValueRegisterField[4];
 
         private readonly IBusPeripheral memory;
         private readonly IBusController sysbus;

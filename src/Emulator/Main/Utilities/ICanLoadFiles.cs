@@ -4,12 +4,13 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals;
-using Antmicro.Renode.Peripherals.Bus;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Utilities
 {

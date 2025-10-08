@@ -6,8 +6,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-
 namespace Antmicro.Renode.Backends.Display
 {
     public class Pixel
@@ -19,11 +17,6 @@ namespace Antmicro.Renode.Backends.Display
             Green = green;
             Blue = blue;
         }
-
-        public byte Alpha { get; private set; }
-        public byte Red   { get; private set; }
-        public byte Green { get; private set; }
-        public byte Blue  { get; private set; }
 
         public override bool Equals(object obj)
         {
@@ -38,6 +31,13 @@ namespace Antmicro.Renode.Backends.Display
         {
             return Alpha << 24 + Red << 16 + Green << 8 + Blue;
         }
+
+        public byte Alpha { get; private set; }
+
+        public byte Red { get; private set; }
+
+        public byte Green { get; private set; }
+
+        public byte Blue { get; private set; }
     }
 }
-

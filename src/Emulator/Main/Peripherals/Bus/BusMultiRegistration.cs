@@ -6,6 +6,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
@@ -24,9 +25,6 @@ namespace Antmicro.Renode.Peripherals.Bus
         public BusMultiRegistration(ulong address, ulong size, string region, string condition) : this(address, size, region, stateMask: null, condition: condition)
         {
         }
-
-        public string ConnectionRegionName { get; private set; }
-        public override string PrettyString { get { return ToString(); } }
 
         public override bool Equals(object obj)
         {
@@ -65,6 +63,10 @@ namespace Antmicro.Renode.Peripherals.Bus
             RegisterForEachContextInner(register, cpu => new BusMultiRegistration(Range.StartAddress, Range.Size, ConnectionRegionName, stateMask: StateMask, cpu));
         }
 
+        public string ConnectionRegionName { get; private set; }
+
+        public override string PrettyString { get { return ToString(); } }
+
         private BusMultiRegistration(ulong address, ulong size, string region, StateMask? stateMask, IPeripheral cpu = null, ICluster<ICPU> cluster = null, string condition = null) : base(new Range(address, size), stateMask, 0, cpu, cluster, condition)
         {
             if(string.IsNullOrWhiteSpace(region))
@@ -75,4 +77,3 @@ namespace Antmicro.Renode.Peripherals.Bus
         }
     }
 }
-

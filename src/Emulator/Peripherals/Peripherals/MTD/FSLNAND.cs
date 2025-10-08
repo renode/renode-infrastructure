@@ -5,10 +5,9 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.MTD
 {
@@ -19,16 +18,6 @@ namespace Antmicro.Renode.Peripherals.MTD
         {
             IRQ = new GPIO();
         }
-
-        public long Size
-        {
-            get
-            {
-                return 0x10000;
-            }
-        }
-
-        public GPIO IRQ { get; private set; }
 
         public uint ReadDoubleWord(long offset)
         {
@@ -60,6 +49,14 @@ namespace Antmicro.Renode.Peripherals.MTD
         {
         }
 
+        public long Size
+        {
+            get
+            {
+                return 0x10000;
+            }
+        }
+
+        public GPIO IRQ { get; private set; }
     }
 }
-

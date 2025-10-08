@@ -4,17 +4,14 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Logging.Profiling;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Peripherals.Memory;
-using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.MTD
 {
@@ -130,7 +127,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                             controlLock.Lock();
                         }
                     })
-                .WithChangeCallback((_, __) => 
+                .WithChangeCallback((_, __) =>
                 {
                     if(startErase.Value)
                     {
@@ -142,7 +139,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                 .WithFlag(0, FieldMode.Read | FieldMode.Set, name: "OPTLOCK", valueProviderCallback: _ => optionControlLock.IsLocked,
                     changeCallback: (_, value) =>
                     {
-                        if (value)
+                        if(value)
                         {
                             optionControlLock.Lock();
                         }
@@ -221,16 +218,16 @@ namespace Antmicro.Renode.Peripherals.MTD
             }
         }
 
-        private readonly MappedMemory flash;
-        private readonly LockRegister controlLock;
-        private readonly LockRegister optionControlLock;
-        private readonly DoubleWordRegisterCollection optionBytesRegisters;
-
         private IValueRegisterField readProtectionRegister;
         private IValueRegisterField writeProtectionRegister;
 
         private IValueRegisterField readProtectionOptionBytes;
         private IValueRegisterField writeProtectionOptionBytes;
+
+        private readonly MappedMemory flash;
+        private readonly LockRegister controlLock;
+        private readonly LockRegister optionControlLock;
+        private readonly DoubleWordRegisterCollection optionBytesRegisters;
 
         private static readonly uint[] ControlLockKey = {0x45670123, 0xCDEF89AB};
         private static readonly uint[] OptionLockKey = {0x8192A3B, 0x4C5D6E7F};
@@ -256,6 +253,7 @@ namespace Antmicro.Renode.Peripherals.MTD
         private class Sector
         {
             public uint Offset { get; set; }
+
             public int Size { get; set; }
         }
 

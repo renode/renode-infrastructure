@@ -4,13 +4,14 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Peripherals.Input;
-using Antmicro.Renode.Core.USB;
-using Antmicro.Renode.Extensions.Utilities.USBIP;
 using System.Linq;
+
+using Antmicro.Renode.Core.USB;
 using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Extensions.Utilities.USBIP;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Input;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.USB
 {

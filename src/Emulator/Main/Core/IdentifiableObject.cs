@@ -15,18 +15,18 @@ namespace Antmicro.Renode.Core
             uniqueObjectId = Interlocked.Increment(ref IdCounter);
         }
 
-        public int UniqueObjectId
-        {
-            get { return uniqueObjectId; }
-        }
-
         public override string ToString()
         {
             return $"[IdentifiableObject: {uniqueObjectId}]";
         }
 
-        private int uniqueObjectId;
+        public int UniqueObjectId
+        {
+            get { return uniqueObjectId; }
+        }
 
         private static int IdCounter = 0;
+
+        private readonly int uniqueObjectId;
     }
 }
