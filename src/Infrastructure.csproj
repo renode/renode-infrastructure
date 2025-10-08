@@ -1832,6 +1832,7 @@
     <Compile Include="Emulator/Main/Utilities/GDB/PacketData.cs" />
     <Compile Include="Emulator/Main/Utilities/GDB/PacketThreadId.cs" />
     <Compile Include="Emulator/Main/Utilities/GDB/GdbStub.cs" />
+    <Compile Include="Emulator/Main/Utilities/GDB/WatchpointDescriptor.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/ICpuSupportingGdb.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/ICPUWithMMU.cs" />
     <Compile Include="Emulator/Main/Peripherals/IPeripheralWithTransactionState.cs" />
