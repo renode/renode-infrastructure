@@ -244,7 +244,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                         mVfpFeature.Registers.Add(new GDBRegisterDescriptor(reg + vfpRegisterOffset, 64, $"d{reg}", "ieee_double", "float"));
                     }
                     // The fpscr is always reg# = 74
-                    mVfpFeature.Registers.Add(new GDBRegisterDescriptor(74, 64, "fpscr", "int", "float"));
+                    mVfpFeature.Registers.Add(new GDBRegisterDescriptor(74, 32, "fpscr", "int", "float"));
                     features.Add(mVfpFeature);
                 }
 
@@ -582,6 +582,13 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             get => GetTrustZoneRelatedRegister(nameof(FPCCR_NS), () => GetRegisterValue32NonSecure((int)CortexMRegisters.FPCCR));
             set => SetTrustZoneRelatedRegister(nameof(FPCCR_NS), val => SetRegisterValue32NonSecure((int)CortexMRegisters.FPCCR, val), value);
+        }
+
+        [Register]
+        public RegisterValue FPSCR_NS
+        {
+            get => GetTrustZoneRelatedRegister(nameof(FPSCR_NS), () => GetRegisterValue32NonSecure((int)CortexMRegisters.FPSCR));
+            set => SetTrustZoneRelatedRegister(nameof(FPSCR_NS), val => SetRegisterValue32NonSecure((int)CortexMRegisters.FPSCR, val), value);
         }
 
         [Register]
