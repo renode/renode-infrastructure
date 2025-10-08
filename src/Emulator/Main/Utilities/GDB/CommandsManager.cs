@@ -17,6 +17,8 @@ using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.CPU;
+using Antmicro.Renode.Time;
+using Antmicro.Renode.Utilities.GDB.Commands;
 
 namespace Antmicro.Renode.Utilities.GDB
 {
@@ -154,6 +156,23 @@ namespace Antmicro.Renode.Utilities.GDB
             unifiedRegisters.Add(registerNumber, registers);
 
             return registers;
+        }
+
+        public void AddBreakpoint(ulong address, BreakpointType type)
+        {
+            GetOrCreateCommand<BreakpointCommand>().InsertBreakpoint(type, address);
+        }
+
+        public void AddWatchpoint(WatchpointDescriptor descriptor, int counter = 1)
+        {
+            GetOrCreateCommand<BreakpointCommand>().InsertBreakpoint(BreakpointType.AccessWatchpoint, descriptor.Address, descriptor, counter);
+        }
+
+        public void RemoveAllBreakpoints()
+        {
+            var breakpointCommand = GetOrCreateCommand<BreakpointCommand>();
+            breakpointCommand.RemoveAllBreakpoints();
+            breakpointCommand.RemoveAllWatchpoints();
         }
 
         public IMachine Machine { get; }

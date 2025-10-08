@@ -7,6 +7,7 @@
 using System;
 using System.Collections.Generic;
 
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU;
@@ -20,6 +21,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
         public BreakpointCommand(CommandsManager manager) : base(manager)
         {
             watchpoints = new Dictionary<WatchpointDescriptor, int>();
+            breakpoints = new HashSet<Tuple<ulong, BreakpointType>>();
         }
 
         [Execute("Z")]
@@ -46,12 +48,14 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
                 {
                     cpu.AddHook(address, MemoryBreakpointHook);
                 }
+                breakpoints.Add(Tuple.Create(address, type));
                 break;
             case BreakpointType.HardwareBreakpoint:
                 foreach(var cpu in manager.ManagedCpus)
                 {
                     cpu.AddHook(address, HardwareBreakpointHook);
                 }
+                breakpoints.Add(Tuple.Create(address, type));
                 break;
             case BreakpointType.AccessWatchpoint:
                 AddWatchpointsCoveringMemoryArea(address, kind, Access.ReadAndWrite, AccessWatchpointHook);
@@ -70,6 +74,42 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             return PacketData.Success;
         }
 
+        public void InsertBreakpoint(BreakpointType type, ulong address, WatchpointDescriptor descriptor = null, int? counter = null)
+        {
+            if((type == BreakpointType.AccessWatchpoint ||
+                type == BreakpointType.ReadWatchpoint ||
+                type == BreakpointType.WriteWatchpoint) && (descriptor == null || counter == null))
+            {
+                throw new ArgumentException("Watchpoint descriptor and counter are required for watchpoint manual insertion");
+            }
+
+            switch(type)
+            {
+            case BreakpointType.MemoryBreakpoint:
+                foreach(var cpu in manager.ManagedCpus)
+                {
+                    cpu.AddHook(address, MemoryBreakpointHook);
+                }
+                breakpoints.Add(Tuple.Create(address, type));
+                break;
+            case BreakpointType.HardwareBreakpoint:
+                foreach(var cpu in manager.ManagedCpus)
+                {
+                    cpu.AddHook(address, HardwareBreakpointHook);
+                }
+                breakpoints.Add(Tuple.Create(address, type));
+                break;
+            case BreakpointType.AccessWatchpoint:
+            case BreakpointType.ReadWatchpoint:
+            case BreakpointType.WriteWatchpoint:
+                manager.Machine.SystemBus.AddWatchpointHook(descriptor.Address, descriptor.Width, descriptor.Access, descriptor.Hook);
+                watchpoints.Add(descriptor, counter.Value);
+                break;
+            default:
+                throw new RecoverableException($"Unsupported breakpoint type: {type}");
+            }
+        }
+
         [Execute("z")]
         public PacketData RemoveBreakpoint(
             [Argument(Separator = ',')] BreakpointType type,
@@ -83,12 +123,14 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
                 {
                     cpu.RemoveHook(address, MemoryBreakpointHook);
                 }
+                breakpoints.Remove(Tuple.Create(address, type));
                 break;
             case BreakpointType.HardwareBreakpoint:
                 foreach(var cpu in manager.ManagedCpus)
                 {
                     cpu.RemoveHook(address, HardwareBreakpointHook);
                 }
+                breakpoints.Remove(Tuple.Create(address, type));
                 break;
             case BreakpointType.AccessWatchpoint:
                 RemoveWatchpointsCoveringMemoryArea(address, kind, Access.ReadAndWrite, AccessWatchpointHook);
@@ -106,6 +148,29 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
 
             return PacketData.Success;
         }
+
+        public void RemoveAllBreakpoints()
+        {
+            foreach(var cpu in manager.ManagedCpus)
+            {
+                cpu.RemoveHooks(MemoryBreakpointHook);
+                cpu.RemoveHooks(HardwareBreakpointHook);
+            }
+            breakpoints.Clear();
+        }
+
+        public void RemoveAllWatchpoints()
+        {
+            foreach(var watchpoint in watchpoints.Keys)
+            {
+                manager.Machine.SystemBus.RemoveWatchpointHook(watchpoint.Address, watchpoint.Hook);
+            }
+            watchpoints.Clear();
+        }
+
+        public ISet<Tuple<ulong, BreakpointType>> Breakpoints => new HashSet<Tuple<ulong, BreakpointType>>(breakpoints);
+
+        public IDictionary<WatchpointDescriptor, int> Watchpoints => new Dictionary<WatchpointDescriptor, int>(watchpoints);
 
         private static IEnumerable<WatchpointDescriptor> CalculateAllCoveringAddressess(ulong address, uint kind, Access access, BusHookDelegate hook)
         {
@@ -189,5 +254,6 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
         }
 
         private readonly Dictionary<WatchpointDescriptor, int> watchpoints;
+        private readonly HashSet<Tuple<ulong, BreakpointType>> breakpoints;
     }
 }
