@@ -149,6 +149,19 @@ namespace Antmicro.Renode.Peripherals.Network
             }
         }
 
+        public PhyInterface ActivePhy
+        {
+            get => activePhyValue;
+            set
+            {
+                if(!Enum.IsDefined(typeof(PhyInterface), value))
+                {
+                    throw new RecoverableException($"Invalid value for {nameof(ActivePhy)}: {value}");
+                }
+                activePhyValue = value;
+            }
+        }
+
         public event Action<EthernetFrame> FrameReady;
 
         // Configuration options for derived classes
@@ -440,6 +453,7 @@ namespace Antmicro.Renode.Peripherals.Network
         private ICPU CpuContext { get; }
 
         private AddressWidth address64Value;
+        private PhyInterface activePhyValue;
         private uint timestampSecondTimer;
         private readonly LimitTimer timestampSubsecondTimer;
         private readonly long ptpClockFrequency;
@@ -459,6 +473,18 @@ namespace Antmicro.Renode.Peripherals.Network
             Bits40 = 0b01,
             Bits48 = 0b10,
             // Ob11 - Reserved
+        }
+
+        public enum PhyInterface
+        {
+            GMIIorMII = 0x0,
+            RGMII = 0x1,
+            SGMII = 0x2,
+            TBI = 0x3,
+            RMII = 0x4,
+            RTBI = 0x5,
+            SMII = 0x6,
+            REVMII = 0x7,
         }
 
         private struct PTPInfo

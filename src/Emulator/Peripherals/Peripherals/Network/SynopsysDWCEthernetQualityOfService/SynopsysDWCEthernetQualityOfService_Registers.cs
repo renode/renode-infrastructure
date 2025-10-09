@@ -345,7 +345,8 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithTaggedFlag("MACADR64SEL", 24)
                     .WithTag("TSSTSSEL", 25, 2)
                     .WithTaggedFlag("SAVLANINS", 27)
-                    .WithTag("ACTPHYSEL", 28, 3)
+                    .WithEnumField<DoubleWordRegister, PhyInterface>(28, 3, FieldMode.Read, name: "ACTPHYSEL",
+                        valueProviderCallback: _ => ActivePhy)
                     .WithReservedBits(31, 1)
                 },
                 {(long)RegistersMacAndMmc.HardwareFeature1, new DoubleWordRegister(this, 0x1104_1904)
