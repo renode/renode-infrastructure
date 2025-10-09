@@ -9,8 +9,6 @@ using System.Linq;
 
 using ELFSharp.ELF;
 
-using Microsoft.Scripting.Utils;
-
 namespace Antmicro.Renode.Peripherals.CPU
 {
     public struct RegisterValue
