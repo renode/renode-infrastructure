@@ -19,6 +19,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         MemoryOperation operation,
         ulong virtualAddress,
         ulong physicalAddress,
+        uint width,
         ulong value
     );
 }

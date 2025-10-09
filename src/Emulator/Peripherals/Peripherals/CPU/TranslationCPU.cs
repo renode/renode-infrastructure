@@ -604,7 +604,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 machine.Profiler.Log(new ExceptionEntry(exceptionIndex));
             });
 
-            SetHookAtMemoryAccess((_, operation, __, physicalAddress, value) =>
+            SetHookAtMemoryAccess((_, operation, __, physicalAddress, ___, value) =>
             {
                 switch(operation)
                 {
@@ -1728,11 +1728,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        private void OnMemoryAccess(ulong pc, uint operation, ulong virtualAddress, ulong value)
+        private void OnMemoryAccess(ulong pc, uint operation, ulong virtualAddress, uint width, ulong value)
         {
             // We don't care if translation fails here (the address is unchanged in this case)
             TryTranslateAddress(virtualAddress, Misc.MemoryOperationToMpuAccess((MemoryOperation)operation), out var physicalAddress);
-            memoryAccessHook?.Invoke(pc, (MemoryOperation)operation, virtualAddress, physicalAddress, value);
+            memoryAccessHook?.Invoke(pc, (MemoryOperation)operation, virtualAddress, physicalAddress, width, value);
         }
 
         private void RemoveHookAtInterruptBegin(Action<ulong> hook)

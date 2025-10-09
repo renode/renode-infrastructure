@@ -75,7 +75,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 throw new RecoverableException("This feature is not yet available on the X86 platforms.");
             }
-            AttachedCPU.SetHookAtMemoryAccess((pc, operation, virtualAddress, physicalAddress, value) =>
+            AttachedCPU.SetHookAtMemoryAccess((pc, operation, virtualAddress, physicalAddress, _, value) =>
             {
                 if(operation != MemoryOperation.InsnFetch)
                 {

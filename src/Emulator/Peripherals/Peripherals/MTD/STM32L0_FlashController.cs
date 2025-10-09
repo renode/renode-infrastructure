@@ -249,7 +249,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                 .WithValueField(0, 16, FieldMode.Read, valueProviderCallback: _ => (uint)(underlyingFlash.Size / 1024), name: "F_SIZE");
         }
 
-        private void EraseMemoryAccessHook(ulong pc, MemoryOperation operation, ulong virtualAddress, ulong physicalAddress, ulong value)
+        private void EraseMemoryAccessHook(ulong pc, MemoryOperation operation, ulong virtualAddress, ulong physicalAddress, uint _, ulong value)
         {
             // Only write accesses can be used to erase
             if(operation != MemoryOperation.MemoryWrite && operation != MemoryOperation.MemoryIOWrite)
