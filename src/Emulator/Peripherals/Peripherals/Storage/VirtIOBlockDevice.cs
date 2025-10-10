@@ -42,10 +42,10 @@ namespace Antmicro.Renode.Peripherals.Storage
             storage?.Dispose();
         }
 
-        public void LoadImage(WriteFilePath file, bool persistent = false)
+        public void LoadImage(WriteFilePath file, bool persistent = false, CompressionType compression = CompressionType.None)
         {
             storage?.Dispose();
-            storage = DataStorage.CreateFromFile(file, persistent: persistent);
+            storage = DataStorage.CreateFromFile(file, persistent: persistent, compression: compression);
             capacity = (long)Math.Ceiling((decimal)storage.Length / SectorSize);
             configHasChanged.Value = true;
             UpdateInterrupts();
