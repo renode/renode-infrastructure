@@ -78,11 +78,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
         }
 
-        public void SetWindowPrivileges(uint index, uint privileges)
+        public void SetWindowPrivileges(uint index, Privilege privileges)
         {
             if(TryGetRealWindowIndex(index, out var realIndex))
             {
-                cpu.SetMmuWindowPrivileges(realIndex, (uint)privileges);
+                cpu.SetMmuWindowPrivileges(realIndex, privileges);
             }
         }
 
@@ -109,9 +109,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             return windowMapping.ContainsValue(index);
         }
 
-        protected void AddWindow(uint index, ulong? rangeStart = null, ulong? rangeEnd = null, ulong? addend = null, Privilege? privilege = null, Privilege? type = Privilege.All)
+        protected void AddWindow(uint index, ulong? rangeStart = null, ulong? rangeEnd = null, ulong? addend = null, Privilege? privilege = null, Privilege type = Privilege.All)
         {
-            var realIndex = cpu.AcquireExternalMmuWindow((uint)type.Value);
+            var realIndex = cpu.AcquireExternalMmuWindow(type);
             if(realIndex == -1)
             {
                 throw new ConstructionException("Failed to acquire the MMU window. Possibly ran out of windows");
@@ -132,7 +132,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
             if(privilege.HasValue)
             {
-                cpu.SetMmuWindowPrivileges((uint)realIndex, (uint)privilege.Value);
+                cpu.SetMmuWindowPrivileges((uint)realIndex, privilege.Value);
             }
         }
 

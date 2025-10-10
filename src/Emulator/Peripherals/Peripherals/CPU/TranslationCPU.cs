@@ -25,6 +25,7 @@ using Antmicro.Renode.Logging.Profiling;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU.Assembler;
 using Antmicro.Renode.Peripherals.CPU.Disassembler;
+using Antmicro.Renode.Peripherals.Miscellaneous;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Binding;
 
@@ -466,11 +467,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             return AssertMmuEnabledAndWindowInRange(index) ? TlibGetMmuWindowAddend(index) : 0;
         }
 
-        public void SetMmuWindowPrivileges(uint index, uint permissions)
+        public void SetMmuWindowPrivileges(uint index, ExternalMmuBase.Privilege permissions)
         {
             if(AssertMmuEnabledAndWindowInRange(index))
             {
-                TlibSetWindowPrivileges(index, permissions);
+                TlibSetWindowPrivileges(index, (uint)permissions);
             }
         }
 
@@ -519,9 +520,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public int AcquireExternalMmuWindow(uint type)
+        public int AcquireExternalMmuWindow(ExternalMmuBase.Privilege type)
         {
-            return AssertMmuEnabled() ? TlibAcquireMmuWindow(type) : -1;
+            return AssertMmuEnabled() ? TlibAcquireMmuWindow((uint)type) : -1;
         }
 
         public void EnableExternalWindowMmu(bool value)

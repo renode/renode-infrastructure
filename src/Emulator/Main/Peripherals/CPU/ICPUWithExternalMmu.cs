@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -7,13 +7,15 @@
 
 using System;
 
+using static Antmicro.Renode.Peripherals.Miscellaneous.ExternalMmuBase;
+
 namespace Antmicro.Renode.Peripherals.CPU
 {
     public interface ICPUWithExternalMmu : ICPU
     {
         void EnableExternalWindowMmu(bool value);
 
-        int AcquireExternalMmuWindow(uint type);
+        int AcquireExternalMmuWindow(Privilege type);
 
         void ResetMmuWindow(uint index);
 
@@ -23,7 +25,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         void SetMmuWindowAddend(uint index, ulong addend);
 
-        void SetMmuWindowPrivileges(uint index, uint privileges);
+        void SetMmuWindowPrivileges(uint index, Privilege privileges);
 
         void AddHookOnMmuFault(Action<ulong, AccessType, int> hook);
 

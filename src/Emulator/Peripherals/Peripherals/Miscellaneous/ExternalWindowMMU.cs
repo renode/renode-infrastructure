@@ -92,7 +92,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 registersMap.Add((long)Register.PrivilegesBase + index * 4, new DoubleWordRegister(this)
                     .WithValueField(0, 32, name: $"PRIVILEGES[{index}]", writeCallback: (_, value) =>
                     {
-                        SetWindowPrivileges(index, (uint)value);
+                        SetWindowPrivileges(index, (Privilege)value);
                     }, valueProviderCallback: _ =>
                     {
                         return GetWindowPrivileges(index);
