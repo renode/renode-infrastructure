@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Peripherals.ATAPI
         public CDROM(string imageFile, bool persistent = false, uint? size = null, uint blockSize = 2048)
         {
             BlockSize = blockSize;
-            dataBackend = DataStorage.Create(imageFile, size, persistent);
+            dataBackend = DataStorage.CreateFromFile(imageFile, size, persistent);
 
             var sizeMisalignment = dataBackend.Length % blockSize;
             if(sizeMisalignment != 0)

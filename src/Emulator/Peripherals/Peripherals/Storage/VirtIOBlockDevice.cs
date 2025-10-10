@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -25,7 +25,7 @@ namespace Antmicro.Renode.Peripherals.Storage
     {
         public VirtIOBlockDevice(IMachine machine) : base(machine)
         {
-            storage = DataStorage.Create(size: 0);
+            storage = DataStorage.CreateInTemporaryFile(size: 0);
             lastQueueIdx = 0;
             Virtqueues = new Virtqueue[lastQueueIdx + 1];
             for(int i = 0; i <= lastQueueIdx; i++)
@@ -45,7 +45,7 @@ namespace Antmicro.Renode.Peripherals.Storage
         public void LoadImage(WriteFilePath file, bool persistent = false)
         {
             storage?.Dispose();
-            storage = DataStorage.Create(file, persistent: persistent);
+            storage = DataStorage.CreateFromFile(file, persistent: persistent);
             capacity = (long)Math.Ceiling((decimal)storage.Length / SectorSize);
             configHasChanged.Value = true;
             UpdateInterrupts();

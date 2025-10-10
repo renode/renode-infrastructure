@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -90,7 +90,7 @@ namespace Antmicro.Renode.Peripherals.Storage
             dataBackends = new Stream[LogicalUnits];
             for(int i = 0; i < LogicalUnits; i++)
             {
-                dataBackends[i] = DataStorage.Create(size: (long)logicalBlockSize * (long)blockCount);
+                dataBackends[i] = DataStorage.CreateInTemporaryFile(size: (long)logicalBlockSize * (long)blockCount);
             }
             InitConfiguration();
         }
@@ -159,7 +159,7 @@ namespace Antmicro.Renode.Peripherals.Storage
                 return;
             }
             dataBackends[logicalUnitNumber].Dispose();
-            dataBackends[logicalUnitNumber] = DataStorage.Create(file, persistent: persistent);
+            dataBackends[logicalUnitNumber] = DataStorage.CreateFromFile(file, persistent: persistent);
         }
 
         public void Dispose()

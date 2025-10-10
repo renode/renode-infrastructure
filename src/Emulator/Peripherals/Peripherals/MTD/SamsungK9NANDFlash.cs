@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -44,7 +44,7 @@ namespace Antmicro.Renode.Peripherals.MTD
         {
             this.partId = partId ?? DefaultPartId;
             this.manufacturerId = manufacturerId ?? DefaultManufacturerId;
-            backingStream = DataStorage.Create(fileName, persistent: !nonPersistent, paddingByte: ErasedValue);
+            backingStream = DataStorage.CreateFromFile(fileName, persistent: !nonPersistent, paddingByte: ErasedValue);
             addressBytes = new byte[AddressCycles];
             DefineRegisters();
             Reset();
