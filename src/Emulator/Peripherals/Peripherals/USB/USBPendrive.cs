@@ -24,26 +24,26 @@ namespace Antmicro.Renode.Peripherals.USB
 {
     public static class USBPendriveExtensions
     {
-        public static void PendriveFromFile(this IMachine machine, string file, string name, IPeripheralRegister<IUSBDevice, NumberRegistrationPoint<int>> attachTo, int port, bool persistent = true)
+        public static void PendriveFromFile(this IMachine machine, string file, string name, IPeripheralRegister<IUSBDevice, NumberRegistrationPoint<int>> attachTo, int port, bool persistent = true, CompressionType compression = CompressionType.None)
         {
-            var pendrive = new USBPendrive(file, persistent: persistent);
+            var pendrive = new USBPendrive(file, persistent: persistent, compression: compression);
             attachTo.Register(pendrive, new NumberRegistrationPoint<int>(port));
             machine.SetLocalName(pendrive, name);
         }
 
-        public static void PendriveFromFile(this USBIPServer usbController, string file, bool persistent = true, int? port = null)
+        public static void PendriveFromFile(this USBIPServer usbController, string file, bool persistent = true, int? port = null, CompressionType compression = CompressionType.None)
         {
-            var pendrive = new USBPendrive(file, persistent: persistent);
+            var pendrive = new USBPendrive(file, persistent: persistent, compression: compression);
             usbController.Register(pendrive, port);
         }
     }
 
     public class USBPendrive : IUSBDevice, IDisposable
     {
-        public USBPendrive(string imageFile, long? size = null, bool persistent = false, uint blockSize = 512)
+        public USBPendrive(string imageFile, long? size = null, bool persistent = false, uint blockSize = 512, CompressionType compression = CompressionType.None)
         {
             BlockSize = blockSize;
-            dataBackend = DataStorage.CreateFromFile(imageFile, size, persistent);
+            dataBackend = DataStorage.CreateFromFile(imageFile, size, persistent, compression: compression);
 
             var sizeMisalignment = dataBackend.Length % blockSize;
             if(sizeMisalignment != 0)
