@@ -794,6 +794,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/GPIOPort/STM32F4GPIOPort_old.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/GPIOPort/STM32_GPIOPort.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/GPIOPort/STM32F1GPIOPort.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/GPIOPort/STM32F1AFIO.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/GPIOPort/NXPGPIOPort.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/GPIOPort/XilinxGPIOPS.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/USBDeprecated/USBTablet.cs" />
