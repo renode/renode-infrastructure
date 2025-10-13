@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -30,8 +30,8 @@ namespace Antmicro.Renode.Peripherals.SD
         public SDCard(long capacity, bool spiMode = false, BlockLength blockSize = BlockLength.Undefined)
             : this(DataStorage.CreateInMemory((int)capacity), capacity, spiMode, blockSize) { }
 
-        public SDCard(string imageFile, long capacity, bool persistent = false, bool spiMode = false, BlockLength blockSize = BlockLength.Undefined)
-            : this(DataStorage.CreateFromFile(imageFile, capacity, persistent), capacity, spiMode, blockSize) { }
+        public SDCard(string imageFile, long capacity, bool persistent = false, bool spiMode = false, BlockLength blockSize = BlockLength.Undefined, CompressionType compression = CompressionType.None)
+            : this(DataStorage.CreateFromFile(imageFile, capacity, persistent, compression: compression), capacity, spiMode, blockSize) { }
 
         public void Reset()
         {
