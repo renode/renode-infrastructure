@@ -21,12 +21,12 @@ namespace Antmicro.Renode.Peripherals.MTD
     public static class SamsungK9NANDFlashExtensions
     {
         public static void SamsungK9NANDFlashFromFile(this IMachine machine, string fileName, ulong busAddress, string name,
-            bool nonPersistent = false, byte? partId = null, byte? manufacturerId = null)
+            bool nonPersistent = false, byte? partId = null, byte? manufacturerId = null, CompressionType compression = CompressionType.None)
         {
             SamsungK9NANDFlash flash;
             try
             {
-                flash = new SamsungK9NANDFlash(machine, fileName, nonPersistent, partId, manufacturerId);
+                flash = new SamsungK9NANDFlash(machine, fileName, nonPersistent, partId, manufacturerId, compression);
             }
             catch(Exception e)
             {
@@ -40,11 +40,11 @@ namespace Antmicro.Renode.Peripherals.MTD
     public sealed class SamsungK9NANDFlash : BasicBytePeripheral, IKnownSize, IDisposable
     {
         public SamsungK9NANDFlash(IMachine machine, string fileName, bool nonPersistent = false,
-            byte? partId = null, byte? manufacturerId = null) : base(machine)
+            byte? partId = null, byte? manufacturerId = null, CompressionType compression = CompressionType.None) : base(machine)
         {
             this.partId = partId ?? DefaultPartId;
             this.manufacturerId = manufacturerId ?? DefaultManufacturerId;
-            backingStream = DataStorage.CreateFromFile(fileName, persistent: !nonPersistent, paddingByte: ErasedValue);
+            backingStream = DataStorage.CreateFromFile(fileName, persistent: !nonPersistent, paddingByte: ErasedValue, compression: compression);
             addressBytes = new byte[AddressCycles];
             DefineRegisters();
             Reset();
