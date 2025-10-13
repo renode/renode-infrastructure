@@ -21,10 +21,10 @@ namespace Antmicro.Renode.Peripherals.ATAPI
     //This device implements ATAPI CDROM
     public class CDROM : IAtapiPeripheral, IDisposable
     {
-        public CDROM(string imageFile, bool persistent = false, uint? size = null, uint blockSize = 2048)
+        public CDROM(string imageFile, bool persistent = false, uint? size = null, uint blockSize = 2048, CompressionType compression = CompressionType.None)
         {
             BlockSize = blockSize;
-            dataBackend = DataStorage.CreateFromFile(imageFile, size, persistent);
+            dataBackend = DataStorage.CreateFromFile(imageFile, size, persistent, compression: compression);
 
             var sizeMisalignment = dataBackend.Length % blockSize;
             if(sizeMisalignment != 0)
