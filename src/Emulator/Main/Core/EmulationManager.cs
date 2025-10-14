@@ -31,6 +31,8 @@ namespace Antmicro.Renode.Core
         static EmulationManager()
         {
             ExternalWorld = new ExternalWorldTimeDomain();
+            PreservableManager = new PreservableManager();
+
             RebuildInstance();
         }
 
@@ -38,9 +40,12 @@ namespace Antmicro.Renode.Core
         public static void RebuildInstance()
         {
             Instance = new EmulationManager();
+            PreservableManager.RegisterEvents();
         }
 
         public static ITimeDomain ExternalWorld { get; private set; }
+
+        public static PreservableManager PreservableManager { get; private set; }
 
         public static EmulationManager Instance { get; private set; }
 
