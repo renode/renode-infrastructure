@@ -137,8 +137,8 @@ namespace Antmicro.Renode.Peripherals.I3C
         protected I3cEc_StdbyCtrlMode_StbyCrDeviceAddrType I3cEc_StdbyCtrlMode_StbyCrDeviceAddr;
         /// <summary> Register "I3C_EC.StdbyCtrlMode.STBY_CR_CAPABILITIES" at 0x18c </summary>
         protected I3cEc_StdbyCtrlMode_StbyCrCapabilitiesType I3cEc_StdbyCtrlMode_StbyCrCapabilities;
-        /// <summary> Register "I3C_EC.StdbyCtrlMode.__rsvd_0" at 0x190 </summary>
-        protected I3cEc_StdbyCtrlMode_Rsvd0Type I3cEc_StdbyCtrlMode_Rsvd0;
+        /// <summary> Register "I3C_EC.StdbyCtrlMode.STBY_CR_VIRTUAL_DEVICE_CHAR" at 0x190 </summary>
+        protected I3cEc_StdbyCtrlMode_StbyCrVirtualDeviceCharType I3cEc_StdbyCtrlMode_StbyCrVirtualDeviceChar;
         /// <summary> Register "I3C_EC.StdbyCtrlMode.STBY_CR_STATUS" at 0x194 </summary>
         protected I3cEc_StdbyCtrlMode_StbyCrStatusType I3cEc_StdbyCtrlMode_StbyCrStatus;
         /// <summary> Register "I3C_EC.StdbyCtrlMode.STBY_CR_DEVICE_CHAR" at 0x198 </summary>
@@ -147,8 +147,8 @@ namespace Antmicro.Renode.Peripherals.I3C
         protected I3cEc_StdbyCtrlMode_StbyCrDevicePidLoType I3cEc_StdbyCtrlMode_StbyCrDevicePidLo;
         /// <summary> Register "I3C_EC.StdbyCtrlMode.STBY_CR_INTR_STATUS" at 0x1a0 </summary>
         protected I3cEc_StdbyCtrlMode_StbyCrIntrStatusType I3cEc_StdbyCtrlMode_StbyCrIntrStatus;
-        /// <summary> Register "I3C_EC.StdbyCtrlMode.__rsvd_1" at 0x1a4 </summary>
-        protected I3cEc_StdbyCtrlMode_Rsvd1Type I3cEc_StdbyCtrlMode_Rsvd1;
+        /// <summary> Register "I3C_EC.StdbyCtrlMode.STBY_CR_VIRTUAL_DEVICE_PID_LO" at 0x1a4 </summary>
+        protected I3cEc_StdbyCtrlMode_StbyCrVirtualDevicePidLoType I3cEc_StdbyCtrlMode_StbyCrVirtualDevicePidLo;
         /// <summary> Register "I3C_EC.StdbyCtrlMode.STBY_CR_INTR_SIGNAL_ENABLE" at 0x1a8 </summary>
         protected I3cEc_StdbyCtrlMode_StbyCrIntrSignalEnableType I3cEc_StdbyCtrlMode_StbyCrIntrSignalEnable;
         /// <summary> Register "I3C_EC.StdbyCtrlMode.STBY_CR_INTR_FORCE" at 0x1ac </summary>
@@ -199,10 +199,10 @@ namespace Antmicro.Renode.Peripherals.I3C
         protected I3cEc_SoCMgmtIf_SocMgmtControlType I3cEc_SoCMgmtIf_SocMgmtControl;
         /// <summary> Register "I3C_EC.SoCMgmtIf.SOC_MGMT_STATUS" at 0x208 </summary>
         protected I3cEc_SoCMgmtIf_SocMgmtStatusType I3cEc_SoCMgmtIf_SocMgmtStatus;
-        /// <summary> Register "I3C_EC.SoCMgmtIf.SOC_MGMT_RSVD_0" at 0x20c </summary>
-        protected I3cEc_SoCMgmtIf_SocMgmtRsvd0Type I3cEc_SoCMgmtIf_SocMgmtRsvd0;
-        /// <summary> Register "I3C_EC.SoCMgmtIf.SOC_MGMT_RSVD_1" at 0x210 </summary>
-        protected I3cEc_SoCMgmtIf_SocMgmtRsvd1Type I3cEc_SoCMgmtIf_SocMgmtRsvd1;
+        /// <summary> Register "I3C_EC.SoCMgmtIf.REC_INTF_CFG" at 0x20c </summary>
+        protected I3cEc_SoCMgmtIf_RecIntfCfgType I3cEc_SoCMgmtIf_RecIntfCfg;
+        /// <summary> Register "I3C_EC.SoCMgmtIf.REC_INTF_REG_W1C_ACCESS" at 0x210 </summary>
+        protected I3cEc_SoCMgmtIf_RecIntfRegW1cAccessType I3cEc_SoCMgmtIf_RecIntfRegW1cAccess;
         /// <summary> Register "I3C_EC.SoCMgmtIf.SOC_MGMT_RSVD_2" at 0x214 </summary>
         protected I3cEc_SoCMgmtIf_SocMgmtRsvd2Type I3cEc_SoCMgmtIf_SocMgmtRsvd2;
         /// <summary> Register "I3C_EC.SoCMgmtIf.SOC_MGMT_RSVD_3" at 0x218 </summary>
@@ -320,12 +320,12 @@ namespace Antmicro.Renode.Peripherals.I3C
             I3cEc_StdbyCtrlMode_StbyCrControl = new I3cEc_StdbyCtrlMode_StbyCrControlType(this);
             I3cEc_StdbyCtrlMode_StbyCrDeviceAddr = new I3cEc_StdbyCtrlMode_StbyCrDeviceAddrType(this);
             I3cEc_StdbyCtrlMode_StbyCrCapabilities = new I3cEc_StdbyCtrlMode_StbyCrCapabilitiesType(this);
-            I3cEc_StdbyCtrlMode_Rsvd0 = new I3cEc_StdbyCtrlMode_Rsvd0Type(this);
+            I3cEc_StdbyCtrlMode_StbyCrVirtualDeviceChar = new I3cEc_StdbyCtrlMode_StbyCrVirtualDeviceCharType(this);
             I3cEc_StdbyCtrlMode_StbyCrStatus = new I3cEc_StdbyCtrlMode_StbyCrStatusType(this);
             I3cEc_StdbyCtrlMode_StbyCrDeviceChar = new I3cEc_StdbyCtrlMode_StbyCrDeviceCharType(this);
             I3cEc_StdbyCtrlMode_StbyCrDevicePidLo = new I3cEc_StdbyCtrlMode_StbyCrDevicePidLoType(this);
             I3cEc_StdbyCtrlMode_StbyCrIntrStatus = new I3cEc_StdbyCtrlMode_StbyCrIntrStatusType(this);
-            I3cEc_StdbyCtrlMode_Rsvd1 = new I3cEc_StdbyCtrlMode_Rsvd1Type(this);
+            I3cEc_StdbyCtrlMode_StbyCrVirtualDevicePidLo = new I3cEc_StdbyCtrlMode_StbyCrVirtualDevicePidLoType(this);
             I3cEc_StdbyCtrlMode_StbyCrIntrSignalEnable = new I3cEc_StdbyCtrlMode_StbyCrIntrSignalEnableType(this);
             I3cEc_StdbyCtrlMode_StbyCrIntrForce = new I3cEc_StdbyCtrlMode_StbyCrIntrForceType(this);
             I3cEc_StdbyCtrlMode_StbyCrCccConfigGetcaps = new I3cEc_StdbyCtrlMode_StbyCrCccConfigGetcapsType(this);
@@ -351,8 +351,8 @@ namespace Antmicro.Renode.Peripherals.I3C
             I3cEc_SoCMgmtIf_ExtcapHeader = new I3cEc_SoCMgmtIf_ExtcapHeaderType(this);
             I3cEc_SoCMgmtIf_SocMgmtControl = new I3cEc_SoCMgmtIf_SocMgmtControlType(this);
             I3cEc_SoCMgmtIf_SocMgmtStatus = new I3cEc_SoCMgmtIf_SocMgmtStatusType(this);
-            I3cEc_SoCMgmtIf_SocMgmtRsvd0 = new I3cEc_SoCMgmtIf_SocMgmtRsvd0Type(this);
-            I3cEc_SoCMgmtIf_SocMgmtRsvd1 = new I3cEc_SoCMgmtIf_SocMgmtRsvd1Type(this);
+            I3cEc_SoCMgmtIf_RecIntfCfg = new I3cEc_SoCMgmtIf_RecIntfCfgType(this);
+            I3cEc_SoCMgmtIf_RecIntfRegW1cAccess = new I3cEc_SoCMgmtIf_RecIntfRegW1cAccessType(this);
             I3cEc_SoCMgmtIf_SocMgmtRsvd2 = new I3cEc_SoCMgmtIf_SocMgmtRsvd2Type(this);
             I3cEc_SoCMgmtIf_SocMgmtRsvd3 = new I3cEc_SoCMgmtIf_SocMgmtRsvd3Type(this);
             I3cEc_SoCMgmtIf_SocPadConf = new I3cEc_SoCMgmtIf_SocPadConfType(this);
@@ -424,7 +424,7 @@ namespace Antmicro.Renode.Peripherals.I3C
 
             public I3cBase_HciVersionType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(0x0, 0xffffffff, true)
+                parent.RegistersCollection.DefineRegister(0x0, 0x120, true)
                     .WithValueField(0, 32, out VERSION, mode: FieldMode.Read, name: "VERSION");
             }
         }
@@ -677,7 +677,7 @@ namespace Antmicro.Renode.Peripherals.I3C
 
             public I3cBase_DatSectionOffsetType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(0x30, 0x7ffff, true)
+                parent.RegistersCollection.DefineRegister(0x30, 0x7f400, true)
                     .WithValueField(0, 12, out TABLE_OFFSET, mode: FieldMode.Read, name: "TABLE_OFFSET")
                     .WithValueField(12, 7, out TABLE_SIZE, mode: FieldMode.Read, name: "TABLE_SIZE")
                     .WithValueField(28, 4, out ENTRY_SIZE, mode: FieldMode.Read, name: "ENTRY_SIZE");
@@ -697,7 +697,7 @@ namespace Antmicro.Renode.Peripherals.I3C
 
             public I3cBase_DctSectionOffsetType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(0x34, 0x7ffff, true)
+                parent.RegistersCollection.DefineRegister(0x34, 0x7f800, true)
                     .WithValueField(0, 12, out TABLE_OFFSET, mode: FieldMode.Read, name: "TABLE_OFFSET")
                     .WithValueField(12, 7, out TABLE_SIZE, mode: FieldMode.Read, name: "TABLE_SIZE")
                     .WithValueField(19, 5, out TABLE_INDEX, name: "TABLE_INDEX")
@@ -724,7 +724,7 @@ namespace Antmicro.Renode.Peripherals.I3C
 
             public I3cBase_PioSectionOffsetType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(0x3c, 0xffff, true)
+                parent.RegistersCollection.DefineRegister(0x3c, 0x80, true)
                     .WithValueField(0, 16, out SECTION_OFFSET, mode: FieldMode.Read, name: "SECTION_OFFSET");
             }
         }
@@ -736,7 +736,7 @@ namespace Antmicro.Renode.Peripherals.I3C
 
             public I3cBase_ExtCapsSectionOffsetType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(0x40, 0xffff, true)
+                parent.RegistersCollection.DefineRegister(0x40, 0x100, true)
                     .WithValueField(0, 16, out SECTION_OFFSET, mode: FieldMode.Read, name: "SECTION_OFFSET");
             }
         }
@@ -750,7 +750,7 @@ namespace Antmicro.Renode.Peripherals.I3C
 
             public I3cBase_IntCtrlCmdsEnType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(0x4c, 0xffff, true)
+                parent.RegistersCollection.DefineRegister(0x4c, 0x6b, true)
                     .WithFlag(0, out ICC_SUPPORT, mode: FieldMode.Read, name: "ICC_SUPPORT")
                     .WithValueField(1, 15, out MIPI_CMDS_SUPPORTED, mode: FieldMode.Read, name: "MIPI_CMDS_SUPPORTED");
             }
@@ -895,7 +895,7 @@ namespace Antmicro.Renode.Peripherals.I3C
 
             public PiOControl_QueueThldCtrlType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(0x90, 0xffffffff, true)
+                parent.RegistersCollection.DefineRegister(0x90, 0x1010101, true)
                     .WithValueField(0, 8, out CMD_EMPTY_BUF_THLD, name: "CMD_EMPTY_BUF_THLD")
                     .WithValueField(8, 8, out RESP_BUF_THLD, name: "RESP_BUF_THLD")
                     .WithValueField(16, 8, out IBI_DATA_SEGMENT_SIZE, name: "IBI_DATA_SEGMENT_SIZE")
@@ -916,7 +916,7 @@ namespace Antmicro.Renode.Peripherals.I3C
 
             public PiOControl_DataBufferThldCtrlType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(0x94, 0x7070707, true)
+                parent.RegistersCollection.DefineRegister(0x94, 0x1010101, true)
                     .WithValueField(0, 3, out TX_BUF_THLD, name: "TX_BUF_THLD")
                     .WithValueField(8, 3, out RX_BUF_THLD, name: "RX_BUF_THLD")
                     .WithValueField(16, 3, out TX_START_THLD, name: "TX_START_THLD")
@@ -937,7 +937,7 @@ namespace Antmicro.Renode.Peripherals.I3C
 
             public PiOControl_QueueSizeType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(0x98, 0xffffffff, true)
+                parent.RegistersCollection.DefineRegister(0x98, 0x505ff40, true)
                     .WithValueField(0, 8, out CR_QUEUE_SIZE, mode: FieldMode.Read, name: "CR_QUEUE_SIZE")
                     .WithValueField(8, 8, out IBI_STATUS_SIZE, mode: FieldMode.Read, name: "IBI_STATUS_SIZE")
                     .WithValueField(16, 8, out RX_DATA_BUFFER_SIZE, mode: FieldMode.Read, name: "RX_DATA_BUFFER_SIZE")
@@ -1110,7 +1110,7 @@ namespace Antmicro.Renode.Peripherals.I3C
 
             public I3cEc_SecFwRecoveryIf_ExtcapHeaderType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(0x100, 0xffffff, true)
+                parent.RegistersCollection.DefineRegister(0x100, 0x20c0, true)
                     .WithValueField(0, 8, out CAP_ID, mode: FieldMode.Read, name: "CAP_ID")
                     .WithValueField(8, 16, out CAP_LENGTH, mode: FieldMode.Read, name: "CAP_LENGTH");
             }
@@ -1123,7 +1123,7 @@ namespace Antmicro.Renode.Peripherals.I3C
 
             public I3cEc_SecFwRecoveryIf_ProtCap0Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(0x104, 0xffffffff, true)
+                parent.RegistersCollection.DefineRegister(0x104, 0x2050434f, true)
                     .WithValueField(0, 32, out REC_MAGIC_STRING_0, mode: FieldMode.Read, name: "REC_MAGIC_STRING_0");
             }
         }
@@ -1135,7 +1135,7 @@ namespace Antmicro.Renode.Peripherals.I3C
 
             public I3cEc_SecFwRecoveryIf_ProtCap1Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(0x108, 0xffffffff, true)
+                parent.RegistersCollection.DefineRegister(0x108, 0x56434552, true)
                     .WithValueField(0, 32, out REC_MAGIC_STRING_1, mode: FieldMode.Read, name: "REC_MAGIC_STRING_1");
             }
         }
@@ -1459,7 +1459,7 @@ namespace Antmicro.Renode.Peripherals.I3C
 
             public I3cEc_SecFwRecoveryIf_IndirectFifoStatus3Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(0x15c, 0xffffffff, true)
+                parent.RegistersCollection.DefineRegister(0x15c, 0x40, true)
                     .WithValueField(0, 32, out FIFO_SIZE, mode: FieldMode.Read, name: "FIFO_SIZE");
             }
         }
@@ -1471,7 +1471,7 @@ namespace Antmicro.Renode.Peripherals.I3C
 
             public I3cEc_SecFwRecoveryIf_IndirectFifoStatus4Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(0x160, 0x0, true)
+                parent.RegistersCollection.DefineRegister(0x160, 0x40, true)
                     .WithValueField(0, 32, out MAX_TRANSFER_SIZE, mode: FieldMode.Read, name: "MAX_TRANSFER_SIZE");
             }
         }
@@ -1496,7 +1496,7 @@ namespace Antmicro.Renode.Peripherals.I3C
             public I3cEc_SecFwRecoveryIf_IndirectFifoDataType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
                 parent.RegistersCollection.DefineRegister(0x168, 0x0, true)
-                    .WithValueField(0, 32, out DATA, name: "DATA");
+                    .WithValueField(0, 32, out DATA, mode: FieldMode.Read, name: "DATA");
             }
         }
 
@@ -1509,7 +1509,7 @@ namespace Antmicro.Renode.Peripherals.I3C
 
             public I3cEc_StdbyCtrlMode_ExtcapHeaderType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(0x180, 0xffffff, true)
+                parent.RegistersCollection.DefineRegister(0x180, 0x1012, true)
                     .WithValueField(0, 8, out CAP_ID, mode: FieldMode.Read, name: "CAP_ID")
                     .WithValueField(8, 16, out CAP_LENGTH, mode: FieldMode.Read, name: "CAP_LENGTH");
             }
@@ -1608,15 +1608,24 @@ namespace Antmicro.Renode.Peripherals.I3C
             }
         }
 
-        public struct I3cEc_StdbyCtrlMode_Rsvd0Type
+        public struct I3cEc_StdbyCtrlMode_StbyCrVirtualDeviceCharType
         {
-            /// <summary> Field "__rsvd" at 0x0, width: 32 bits </summary>
-            public IValueRegisterField __RSVD;
+            /// <summary> Field "PID_HI" at 0x1, width: 15 bits </summary>
+            public IValueRegisterField PID_HI;
+            /// <summary> Field "DCR" at 0x10, width: 8 bits </summary>
+            public IValueRegisterField DCR;
+            /// <summary> Field "BCR_VAR" at 0x18, width: 5 bits </summary>
+            public IValueRegisterField BCR_VAR;
+            /// <summary> Field "BCR_FIXED" at 0x1d, width: 3 bits </summary>
+            public IValueRegisterField BCR_FIXED;
 
-            public I3cEc_StdbyCtrlMode_Rsvd0Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_StdbyCtrlMode_StbyCrVirtualDeviceCharType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(0x190, 0x0, true)
-                    .WithValueField(0, 32, out __RSVD, name: "__RSVD");
+                parent.RegistersCollection.DefineRegister(0x190, 0x26bdfffe, true)
+                    .WithValueField(1, 15, out PID_HI, name: "PID_HI")
+                    .WithValueField(16, 8, out DCR, name: "DCR")
+                    .WithValueField(24, 5, out BCR_VAR, name: "BCR_VAR")
+                    .WithValueField(29, 3, out BCR_FIXED, name: "BCR_FIXED");
             }
         }
 
@@ -1651,7 +1660,7 @@ namespace Antmicro.Renode.Peripherals.I3C
 
             public I3cEc_StdbyCtrlMode_StbyCrDeviceCharType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(0x198, 0xfffffffe, true)
+                parent.RegistersCollection.DefineRegister(0x198, 0x26bdfffe, true)
                     .WithValueField(1, 15, out PID_HI, name: "PID_HI")
                     .WithValueField(16, 8, out DCR, name: "DCR")
                     .WithValueField(24, 5, out BCR_VAR, name: "BCR_VAR")
@@ -1666,7 +1675,7 @@ namespace Antmicro.Renode.Peripherals.I3C
 
             public I3cEc_StdbyCtrlMode_StbyCrDevicePidLoType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(0x19c, 0xffffffff, true)
+                parent.RegistersCollection.DefineRegister(0x19c, 0x5a00a5, true)
                     .WithValueField(0, 32, out PID_LO, name: "PID_LO");
             }
         }
@@ -1719,15 +1728,15 @@ namespace Antmicro.Renode.Peripherals.I3C
             }
         }
 
-        public struct I3cEc_StdbyCtrlMode_Rsvd1Type
+        public struct I3cEc_StdbyCtrlMode_StbyCrVirtualDevicePidLoType
         {
-            /// <summary> Field "__rsvd" at 0x0, width: 32 bits </summary>
-            public IValueRegisterField __RSVD;
+            /// <summary> Field "PID_LO" at 0x0, width: 32 bits </summary>
+            public IValueRegisterField PID_LO;
 
-            public I3cEc_StdbyCtrlMode_Rsvd1Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_StdbyCtrlMode_StbyCrVirtualDevicePidLoType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(0x1a4, 0x0, true)
-                    .WithValueField(0, 32, out __RSVD, name: "__RSVD");
+                parent.RegistersCollection.DefineRegister(0x1a4, 0x5a10a5, true)
+                    .WithValueField(0, 32, out PID_LO, name: "PID_LO");
             }
         }
 
@@ -1893,7 +1902,7 @@ namespace Antmicro.Renode.Peripherals.I3C
 
             public I3cEc_Tti_ExtcapHeaderType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(0x1c0, 0xffffff, true)
+                parent.RegistersCollection.DefineRegister(0x1c0, 0x10c4, true)
                     .WithValueField(0, 8, out CAP_ID, mode: FieldMode.Read, name: "CAP_ID")
                     .WithValueField(8, 16, out CAP_LENGTH, mode: FieldMode.Read, name: "CAP_LENGTH");
             }
@@ -2182,7 +2191,7 @@ namespace Antmicro.Renode.Peripherals.I3C
 
             public I3cEc_Tti_QueueSizeType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(0x1f0, 0xffffffff, true)
+                parent.RegistersCollection.DefineRegister(0x1f0, 0x5050505, true)
                     .WithValueField(0, 8, out RX_DESC_BUFFER_SIZE, mode: FieldMode.Read, name: "RX_DESC_BUFFER_SIZE")
                     .WithValueField(8, 8, out TX_DESC_BUFFER_SIZE, mode: FieldMode.Read, name: "TX_DESC_BUFFER_SIZE")
                     .WithValueField(16, 8, out RX_DATA_BUFFER_SIZE, mode: FieldMode.Read, name: "RX_DATA_BUFFER_SIZE")
@@ -2197,7 +2206,7 @@ namespace Antmicro.Renode.Peripherals.I3C
 
             public I3cEc_Tti_IbiQueueSizeType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(0x1f4, 0xff, true)
+                parent.RegistersCollection.DefineRegister(0x1f4, 0x5, true)
                     .WithValueField(0, 8, out IBI_QUEUE_SIZE, mode: FieldMode.Read, name: "IBI_QUEUE_SIZE");
             }
         }
@@ -2213,7 +2222,7 @@ namespace Antmicro.Renode.Peripherals.I3C
 
             public I3cEc_Tti_QueueThldCtrlType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(0x1f8, 0xff00ffff, true)
+                parent.RegistersCollection.DefineRegister(0x1f8, 0x1000101, true)
                     .WithValueField(0, 8, out TX_DESC_THLD, name: "TX_DESC_THLD")
                     .WithValueField(8, 8, out RX_DESC_THLD, name: "RX_DESC_THLD")
                     .WithValueField(24, 8, out IBI_THLD, name: "IBI_THLD");
@@ -2233,7 +2242,7 @@ namespace Antmicro.Renode.Peripherals.I3C
 
             public I3cEc_Tti_DataBufferThldCtrlType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(0x1fc, 0x7070707, true)
+                parent.RegistersCollection.DefineRegister(0x1fc, 0x1010101, true)
                     .WithValueField(0, 3, out TX_DATA_THLD, name: "TX_DATA_THLD")
                     .WithValueField(8, 3, out RX_DATA_THLD, name: "RX_DATA_THLD")
                     .WithValueField(16, 3, out TX_START_THLD, name: "TX_START_THLD")
@@ -2250,7 +2259,7 @@ namespace Antmicro.Renode.Peripherals.I3C
 
             public I3cEc_SoCMgmtIf_ExtcapHeaderType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(0x200, 0xffffff, true)
+                parent.RegistersCollection.DefineRegister(0x200, 0x18c1, true)
                     .WithValueField(0, 8, out CAP_ID, mode: FieldMode.Read, name: "CAP_ID")
                     .WithValueField(8, 16, out CAP_LENGTH, mode: FieldMode.Read, name: "CAP_LENGTH");
             }
@@ -2280,27 +2289,36 @@ namespace Antmicro.Renode.Peripherals.I3C
             }
         }
 
-        public struct I3cEc_SoCMgmtIf_SocMgmtRsvd0Type
+        public struct I3cEc_SoCMgmtIf_RecIntfCfgType
         {
-            /// <summary> Field "PLACEHOLDER" at 0x0, width: 32 bits </summary>
-            public IValueRegisterField PLACEHOLDER;
+            /// <summary> Field "REC_INTF_BYPASS" at 0x0, width: 1 bits </summary>
+            public IFlagRegisterField REC_INTF_BYPASS;
+            /// <summary> Field "REC_PAYLOAD_DONE" at 0x1, width: 1 bits </summary>
+            public IFlagRegisterField REC_PAYLOAD_DONE;
 
-            public I3cEc_SoCMgmtIf_SocMgmtRsvd0Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SoCMgmtIf_RecIntfCfgType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
                 parent.RegistersCollection.DefineRegister(0x20c, 0x0, true)
-                    .WithValueField(0, 32, out PLACEHOLDER, name: "PLACEHOLDER");
+                    .WithFlag(0, out REC_INTF_BYPASS, name: "REC_INTF_BYPASS")
+                    .WithFlag(1, out REC_PAYLOAD_DONE, name: "REC_PAYLOAD_DONE");
             }
         }
 
-        public struct I3cEc_SoCMgmtIf_SocMgmtRsvd1Type
+        public struct I3cEc_SoCMgmtIf_RecIntfRegW1cAccessType
         {
-            /// <summary> Field "PLACEHOLDER" at 0x0, width: 32 bits </summary>
-            public IValueRegisterField PLACEHOLDER;
+            /// <summary> Field "DEVICE_RESET_CTRL" at 0x0, width: 8 bits </summary>
+            public IValueRegisterField DEVICE_RESET_CTRL;
+            /// <summary> Field "RECOVERY_CTRL_ACTIVATE_REC_IMG" at 0x8, width: 8 bits </summary>
+            public IValueRegisterField RECOVERY_CTRL_ACTIVATE_REC_IMG;
+            /// <summary> Field "INDIRECT_FIFO_CTRL_RESET" at 0x10, width: 8 bits </summary>
+            public IValueRegisterField INDIRECT_FIFO_CTRL_RESET;
 
-            public I3cEc_SoCMgmtIf_SocMgmtRsvd1Type(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
+            public I3cEc_SoCMgmtIf_RecIntfRegW1cAccessType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
                 parent.RegistersCollection.DefineRegister(0x210, 0x0, true)
-                    .WithValueField(0, 32, out PLACEHOLDER, name: "PLACEHOLDER");
+                    .WithValueField(0, 8, out DEVICE_RESET_CTRL, name: "DEVICE_RESET_CTRL")
+                    .WithValueField(8, 8, out RECOVERY_CTRL_ACTIVATE_REC_IMG, name: "RECOVERY_CTRL_ACTIVATE_REC_IMG")
+                    .WithValueField(16, 8, out INDIRECT_FIFO_CTRL_RESET, name: "INDIRECT_FIFO_CTRL_RESET");
             }
         }
 
@@ -2351,7 +2369,7 @@ namespace Antmicro.Renode.Peripherals.I3C
 
             public I3cEc_SoCMgmtIf_SocPadConfType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(0x21c, 0xff000001, true)
+                parent.RegistersCollection.DefineRegister(0x21c, 0x1000001, true)
                     .WithFlag(0, out INPUT_ENABLE, name: "INPUT_ENABLE")
                     .WithFlag(1, out SCHMITT_EN, name: "SCHMITT_EN")
                     .WithFlag(2, out KEEPER_EN, name: "KEEPER_EN")
@@ -2373,7 +2391,7 @@ namespace Antmicro.Renode.Peripherals.I3C
 
             public I3cEc_SoCMgmtIf_SocPadAttrType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(0x220, 0xff00ff00, true)
+                parent.RegistersCollection.DefineRegister(0x220, 0xf000f00, true)
                     .WithValueField(8, 8, out DRIVE_SLEW_RATE, name: "DRIVE_SLEW_RATE")
                     .WithValueField(24, 8, out DRIVE_STRENGTH, name: "DRIVE_STRENGTH");
             }
@@ -2518,7 +2536,7 @@ namespace Antmicro.Renode.Peripherals.I3C
 
             public I3cEc_SoCMgmtIf_TFreeRegType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(0x250, 0xffffffff, true)
+                parent.RegistersCollection.DefineRegister(0x250, 0xc, true)
                     .WithValueField(0, 32, out T_FREE, name: "T_FREE");
             }
         }
@@ -2530,7 +2548,7 @@ namespace Antmicro.Renode.Peripherals.I3C
 
             public I3cEc_SoCMgmtIf_TAvalRegType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(0x254, 0xffffffff, true)
+                parent.RegistersCollection.DefineRegister(0x254, 0x12c, true)
                     .WithValueField(0, 32, out T_AVAL, name: "T_AVAL");
             }
         }
@@ -2542,7 +2560,7 @@ namespace Antmicro.Renode.Peripherals.I3C
 
             public I3cEc_SoCMgmtIf_TIdleRegType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(0x258, 0xffffffff, true)
+                parent.RegistersCollection.DefineRegister(0x258, 0xea60, true)
                     .WithValueField(0, 32, out T_IDLE, name: "T_IDLE");
             }
         }
@@ -2556,7 +2574,7 @@ namespace Antmicro.Renode.Peripherals.I3C
 
             public I3cEc_CtrlCfg_ExtcapHeaderType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(0x260, 0xffffff, true)
+                parent.RegistersCollection.DefineRegister(0x260, 0x202, true)
                     .WithValueField(0, 8, out CAP_ID, mode: FieldMode.Read, name: "CAP_ID")
                     .WithValueField(8, 16, out CAP_LENGTH, mode: FieldMode.Read, name: "CAP_LENGTH");
             }
@@ -2569,7 +2587,7 @@ namespace Antmicro.Renode.Peripherals.I3C
 
             public I3cEc_CtrlCfg_ControllerConfigType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(0x264, 0x30, true)
+                parent.RegistersCollection.DefineRegister(0x264, 0x10, true)
                     .WithValueField(4, 2, out OPERATION_MODE, mode: FieldMode.Read, name: "OPERATION_MODE");
             }
         }
@@ -2583,7 +2601,7 @@ namespace Antmicro.Renode.Peripherals.I3C
 
             public I3cEc_TerminationExtcapHeaderType(IProvidesRegisterCollection<DoubleWordRegisterCollection> parent)
             {
-                parent.RegistersCollection.DefineRegister(0x268, 0xffff00, true)
+                parent.RegistersCollection.DefineRegister(0x268, 0x100, true)
                     .WithValueField(0, 8, out CAP_ID, mode: FieldMode.Read, name: "CAP_ID")
                     .WithValueField(8, 16, out CAP_LENGTH, mode: FieldMode.Read, name: "CAP_LENGTH");
             }
