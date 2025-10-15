@@ -173,6 +173,12 @@ namespace Antmicro.Renode.Utilities
             return Append((short)s);
         }
 
+        public BitStream AppendBytesFromValue(ulong val, int typeSize, bool reverse = false)
+        {
+            var bytes = BitHelper.GetBytesFromValue( val, typeSize, reverse);
+            return Append(bytes);
+        }
+
         public uint Length { get; private set; }
 
         private void EnsureIsAligned()
