@@ -546,6 +546,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             TlibFlushPage(address);
         }
 
+        public void FlushTlb()
+        {
+            TlibFlushTlb();
+        }
+
         public override void Reset()
         {
             base.Reset();
@@ -2198,6 +2203,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private readonly Action<ulong> TlibFlushPage;
+
+        [Import]
+        private readonly Action TlibFlushTlb;
 
         [Import]
         private readonly Func<uint> TlibGetPageSize;
