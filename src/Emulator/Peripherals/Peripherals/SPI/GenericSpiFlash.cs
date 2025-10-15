@@ -156,6 +156,19 @@ namespace Antmicro.Renode.Peripherals.SPI
             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
         };
 
+        protected virtual byte ReadFromMemory()
+        {
+            var memoryAddress = (long)currentOperation.ExecutionAddress + currentOperation.CommandBytesHandled;
+            memoryAddress |= (uint)extendedAddressRegister.Read() << 24;
+            if(memoryAddress > underlyingMemory.Size)
+            {
+                this.Log(LogLevel.Error, "Cannot read from address 0x{0:X} because it is bigger than configured memory size.", currentOperation.ExecutionAddress);
+                return 0;
+            }
+
+            return underlyingMemory.ReadByte(memoryAddress);
+        }
+
         protected virtual void WriteToMemory(byte val)
         {
             if(!TryVerifyWriteToMemory(out var position))
@@ -219,36 +232,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
         }
 
-        protected Range? lockedRange;
-
-        protected readonly int sectorSize;
-        protected readonly ByteRegister statusRegister;
-        protected readonly WordRegister configurationRegister;
-        protected readonly MappedMemory underlyingMemory;
-
-        private void AccumulateAddressBytes(byte addressByte, DecodedOperation.OperationState nextState)
-        {
-            if(currentOperation.TryAccumulateAddress(addressByte))
-            {
-                this.Log(LogLevel.Noisy, "Address accumulated: 0x{0:X}", currentOperation.ExecutionAddress);
-                currentOperation.State = nextState;
-            }
-        }
-
-        private byte[] GetDeviceData()
-        {
-            var data = new byte[20];
-            data[0] = manufacturerId;
-            data[1] = memoryType;
-            data[2] = capacityCode;
-            data[3] = remainingIdBytes;
-            data[4] = extendedDeviceId;
-            data[5] = deviceConfiguration;
-            // unique ID code (bytes 7:20)
-            return data;
-        }
-
-        private void RecognizeOperation(byte firstByte)
+        protected virtual void RecognizeOperation(byte firstByte)
         {
             currentOperation.Operation = DecodedOperation.OperationType.None;
             currentOperation.State = DecodedOperation.OperationState.HandleCommand;
@@ -435,6 +419,120 @@ namespace Antmicro.Renode.Peripherals.SPI
             this.Log(LogLevel.Noisy, "Decoded operation: {0}, write enabled {1}", currentOperation, enable.Value);
         }
 
+        protected virtual void WriteRegister(Register register, byte data)
+        {
+            if(!enable.Value)
+            {
+                this.Log(LogLevel.Error, "Trying to write a register, but write enable latch is not set");
+                return;
+            }
+            switch(register)
+            {
+            case Register.VolatileConfiguration:
+                volatileConfigurationRegister.Write(0, data);
+                break;
+            case Register.ExtendedAddress:
+                extendedAddressRegister.Write(0, data);
+                break;
+            case Register.NonVolatileConfiguration:
+            case Register.Configuration:
+                if((currentOperation.CommandBytesHandled) >= 2)
+                {
+                    this.Log(LogLevel.Error, "Trying to write to register {0} with more than expected 2 bytes.", register);
+                    break;
+                }
+                BitHelper.UpdateWithShifted(ref temporaryConfiguration, data, currentOperation.CommandBytesHandled * 8, 8);
+                if(currentOperation.CommandBytesHandled == 1)
+                {
+                    var targetReg = register == Register.Configuration ? configurationRegister : nonVolatileConfigurationRegister;
+                    targetReg.Write(0, (ushort)temporaryConfiguration);
+                }
+                break;
+            //listing all cases as other registers are not writable at all
+            case Register.EnhancedVolatileConfiguration:
+                enhancedVolatileConfigurationRegister.Write(0, data);
+                break;
+            case Register.Status:
+                statusRegister.Write(0, data);
+                // Switch to the Configuration register and write from its start
+                currentOperation.Register = (uint)Register.Configuration;
+                currentOperation.CommandBytesHandled--;
+                break;
+            default:
+                this.Log(LogLevel.Warning, "Trying to write 0x{0} to unsupported register \"{1}\"", data, register);
+                break;
+            }
+        }
+
+        protected virtual byte ReadRegister(Register register)
+        {
+            switch(register)
+            {
+            case Register.Status:
+                // The documentation states that at least 1 byte will be read
+                // If more than 1 byte is read, the same byte is returned
+                return statusRegister.Read();
+            case Register.FlagStatus:
+                // The documentation states that at least 1 byte will be read
+                // If more than 1 byte is read, the same byte is returned
+                return flagStatusRegister.Read();
+            case Register.VolatileConfiguration:
+                // The documentation states that at least 1 byte will be read
+                // If more than 1 byte is read, the same byte is returned
+                return volatileConfigurationRegister.Read();
+            case Register.NonVolatileConfiguration:
+            case Register.Configuration:
+                // The documentation states that at least 2 bytes will be read
+                // After all 16 bits of the register have been read, 0 is returned
+                if((currentOperation.CommandBytesHandled) < 2)
+                {
+                    var sourceReg = register == Register.Configuration ? configurationRegister : nonVolatileConfigurationRegister;
+                    return (byte)BitHelper.GetValue(sourceReg.Read(), currentOperation.CommandBytesHandled * 8, 8);
+                }
+                return 0;
+            case Register.EnhancedVolatileConfiguration:
+                return enhancedVolatileConfigurationRegister.Read();
+            case Register.ExtendedAddress:
+                return extendedAddressRegister.Read();
+            default:
+                this.Log(LogLevel.Warning, "Trying to read from unsupported register \"{0}\"", register);
+                return 0;
+            }
+        }
+
+        protected bool WriteEnable => enable.Value;
+
+        protected DecodedOperation currentOperation;
+
+        protected Range? lockedRange;
+
+        protected readonly int sectorSize;
+        protected readonly ByteRegister statusRegister;
+        protected readonly WordRegister configurationRegister;
+        protected readonly MappedMemory underlyingMemory;
+
+        private void AccumulateAddressBytes(byte addressByte, DecodedOperation.OperationState nextState)
+        {
+            if(currentOperation.TryAccumulateAddress(addressByte))
+            {
+                this.Log(LogLevel.Noisy, "Address accumulated: 0x{0:X}", currentOperation.ExecutionAddress);
+                currentOperation.State = nextState;
+            }
+        }
+
+        private byte[] GetDeviceData()
+        {
+            var data = new byte[20];
+            data[0] = manufacturerId;
+            data[1] = memoryType;
+            data[2] = capacityCode;
+            data[3] = remainingIdBytes;
+            data[4] = extendedDeviceId;
+            data[5] = deviceConfiguration;
+            // unique ID code (bytes 7:20)
+            return data;
+        }
+
         private byte HandleCommand(byte data)
         {
             byte result = 0;
@@ -503,87 +601,6 @@ namespace Antmicro.Renode.Peripherals.SPI
             var output = SFDPSignature[currentOperation.ExecutionAddress];
             currentOperation.ExecutionAddress = (currentOperation.ExecutionAddress + 1) % (uint)SFDPSignature.Length;
             return output;
-        }
-
-        private void WriteRegister(Register register, byte data)
-        {
-            if(!enable.Value)
-            {
-                this.Log(LogLevel.Error, "Trying to write a register, but write enable latch is not set");
-                return;
-            }
-            switch(register)
-            {
-            case Register.VolatileConfiguration:
-                volatileConfigurationRegister.Write(0, data);
-                break;
-            case Register.ExtendedAddress:
-                extendedAddressRegister.Write(0, data);
-                break;
-            case Register.NonVolatileConfiguration:
-            case Register.Configuration:
-                if((currentOperation.CommandBytesHandled) >= 2)
-                {
-                    this.Log(LogLevel.Error, "Trying to write to register {0} with more than expected 2 bytes.", register);
-                    break;
-                }
-                BitHelper.UpdateWithShifted(ref temporaryConfiguration, data, currentOperation.CommandBytesHandled * 8, 8);
-                if(currentOperation.CommandBytesHandled == 1)
-                {
-                    var targetReg = register == Register.Configuration ? configurationRegister : nonVolatileConfigurationRegister;
-                    targetReg.Write(0, (ushort)temporaryConfiguration);
-                }
-                break;
-            //listing all cases as other registers are not writable at all
-            case Register.EnhancedVolatileConfiguration:
-                enhancedVolatileConfigurationRegister.Write(0, data);
-                break;
-            case Register.Status:
-                statusRegister.Write(0, data);
-                // Switch to the Configuration register and write from its start
-                currentOperation.Register = (uint)Register.Configuration;
-                currentOperation.CommandBytesHandled--;
-                break;
-            default:
-                this.Log(LogLevel.Warning, "Trying to write 0x{0} to unsupported register \"{1}\"", data, register);
-                break;
-            }
-        }
-
-        private byte ReadRegister(Register register)
-        {
-            switch(register)
-            {
-            case Register.Status:
-                // The documentation states that at least 1 byte will be read
-                // If more than 1 byte is read, the same byte is returned
-                return statusRegister.Read();
-            case Register.FlagStatus:
-                // The documentation states that at least 1 byte will be read
-                // If more than 1 byte is read, the same byte is returned
-                return flagStatusRegister.Read();
-            case Register.VolatileConfiguration:
-                // The documentation states that at least 1 byte will be read
-                // If more than 1 byte is read, the same byte is returned
-                return volatileConfigurationRegister.Read();
-            case Register.NonVolatileConfiguration:
-            case Register.Configuration:
-                // The documentation states that at least 2 bytes will be read
-                // After all 16 bits of the register have been read, 0 is returned
-                if((currentOperation.CommandBytesHandled) < 2)
-                {
-                    var sourceReg = register == Register.Configuration ? configurationRegister : nonVolatileConfigurationRegister;
-                    return (byte)BitHelper.GetValue(sourceReg.Read(), currentOperation.CommandBytesHandled * 8, 8);
-                }
-                return 0;
-            case Register.EnhancedVolatileConfiguration:
-                return enhancedVolatileConfigurationRegister.Read();
-            case Register.ExtendedAddress:
-                return extendedAddressRegister.Read();
-            default:
-                this.Log(LogLevel.Warning, "Trying to read from unsupported register \"{0}\"", register);
-                return 0;
-            }
         }
 
         private void HandleNoDataCommand()
@@ -673,23 +690,9 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
         }
 
-        private byte ReadFromMemory()
-        {
-            var memoryAddress = (long)currentOperation.ExecutionAddress + currentOperation.CommandBytesHandled;
-            memoryAddress |= (uint)extendedAddressRegister.Read() << 24;
-            if(memoryAddress > underlyingMemory.Size)
-            {
-                this.Log(LogLevel.Error, "Cannot read from address 0x{0:X} because it is bigger than configured memory size.", currentOperation.ExecutionAddress);
-                return 0;
-            }
-
-            return underlyingMemory.ReadByte(memoryAddress);
-        }
-
         // The addressingMode field is 1-bit wide, so a conditional expression covers all possible cases
         private int NumberOfAddressBytes => addressingMode.Value == AddressingMode.ThreeByte ? 3 : 4;
 
-        private DecodedOperation currentOperation;
         private uint temporaryConfiguration; //this should be an ushort, but due to C# type promotions it's easier to use uint
 
         private readonly byte[] deviceData;
@@ -841,13 +844,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             CyclicRedundancyCheck = 0x27
         }
 
-        private enum AddressingMode : byte
-        {
-            FourByte = 0x0,
-            ThreeByte = 0x1
-        }
-
-        private enum Register : uint
+        protected enum Register : uint
         {
             Status = 1, //starting from 1 to leave 0 as an unused value
             Configuration,
@@ -855,7 +852,14 @@ namespace Antmicro.Renode.Peripherals.SPI
             ExtendedAddress,
             NonVolatileConfiguration,
             VolatileConfiguration,
-            EnhancedVolatileConfiguration
+            EnhancedVolatileConfiguration,
+            FirstNonstandardRegister,
+        }
+
+        private enum AddressingMode : byte
+        {
+            FourByte = 0x0,
+            ThreeByte = 0x1
         }
     }
 }
