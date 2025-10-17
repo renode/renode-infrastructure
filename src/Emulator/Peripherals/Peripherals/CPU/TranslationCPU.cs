@@ -1656,6 +1656,11 @@ namespace Antmicro.Renode.Peripherals.CPU
                 Marshal.Copy(cpuState, 0, statePtr, cpuState.Length);
                 AfterLoad(statePtr);
             }
+            if(externalMmuState != null)
+            {
+                var externalMmuStatePtr = TlibExportExternalMmuState();
+                Marshal.Copy(externalMmuState, 0, externalMmuStatePtr, externalMmuState.Length);
+            }
             if(machine != null)
             {
                 atomicId = TlibAtomicMemoryStateInit(machine.AtomicMemoryStatePointer, atomicId);
@@ -1878,12 +1883,19 @@ namespace Antmicro.Renode.Peripherals.CPU
             BeforeSave(statePtr);
             cpuState = new byte[TlibGetStateSize()];
             Marshal.Copy(statePtr, cpuState, 0, cpuState.Length);
+            var externalMmuStatePtr = TlibExportExternalMmuState();
+            if(externalMmuStatePtr != IntPtr.Zero)
+            {
+                externalMmuState = new byte[TlibGetExternalMmuStateSize()];
+                Marshal.Copy(externalMmuStatePtr, externalMmuState, 0, externalMmuState.Length);
+            }
         }
 
         [PostSerialization]
         private void FreeState()
         {
             cpuState = null;
+            externalMmuState = null;
         }
 
         [LatePostDeserialization]
@@ -2023,6 +2035,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         /// </summary>
         private int atomicId;
         private byte[] cpuState;
+        private byte[] externalMmuState;
 
         [Transient]
         private TranslationBlockFetchCallback onTranslationBlockFetch;
@@ -2169,6 +2182,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         private readonly Func<int> TlibGetStateSize;
 
         [Import]
+        private readonly Func<int> TlibGetExternalMmuStateSize;
+
+        [Import]
         private readonly Action TlibReset;
 
         [Import]
@@ -2233,6 +2249,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private readonly Func<IntPtr> TlibExportState;
+
+        [Import]
+        private readonly Func<IntPtr> TlibExportExternalMmuState;
 
         [Import]
         private readonly Action TlibInvalidateTranslationCache;
