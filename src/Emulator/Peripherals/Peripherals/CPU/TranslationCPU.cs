@@ -447,37 +447,37 @@ namespace Antmicro.Renode.Peripherals.CPU
             return (uint)result.Length;
         }
 
-        public uint GetMmuWindowPrivileges(uint index)
+        public uint GetMmuWindowPrivileges(ulong id)
         {
-            return AssertMmuEnabledAndWindowInRange(index) ? TlibGetWindowPrivileges(index) : 0;
+            return AssertMmuEnabled() ? TlibGetWindowPrivileges(id) : 0;
         }
 
-        public ulong GetMmuWindowEnd(uint index)
+        public ulong GetMmuWindowEnd(ulong id)
         {
-            return AssertMmuEnabledAndWindowInRange(index) ? TlibGetMmuWindowEnd(index) : 0;
+            return AssertMmuEnabled() ? TlibGetMmuWindowEnd(id) : 0;
         }
 
-        public ulong GetMmuWindowStart(uint index)
+        public ulong GetMmuWindowStart(ulong id)
         {
-            return AssertMmuEnabledAndWindowInRange(index) ? TlibGetMmuWindowStart(index) : 0;
+            return AssertMmuEnabled() ? TlibGetMmuWindowStart(id) : 0;
         }
 
-        public ulong GetMmuWindowAddend(uint index)
+        public ulong GetMmuWindowAddend(ulong id)
         {
-            return AssertMmuEnabledAndWindowInRange(index) ? TlibGetMmuWindowAddend(index) : 0;
+            return AssertMmuEnabled() ? TlibGetMmuWindowAddend(id) : 0;
         }
 
-        public void SetMmuWindowPrivileges(uint index, ExternalMmuBase.Privilege permissions)
+        public void SetMmuWindowPrivileges(ulong id, ExternalMmuBase.Privilege permissions)
         {
-            if(AssertMmuEnabledAndWindowInRange(index))
+            if(AssertMmuEnabled())
             {
-                TlibSetWindowPrivileges(index, (uint)permissions);
+                TlibSetWindowPrivileges(id, (uint)permissions);
             }
         }
 
-        public void SetMmuWindowEnd(uint index, ulong endAddress)
+        public void SetMmuWindowEnd(ulong id, ulong endAddress)
         {
-            if(AssertMmuEnabledAndWindowInRange(index) && AssertMmuWindowAddressInRange(endAddress, inclusiveRange: true))
+            if(AssertMmuEnabled() && AssertMmuWindowAddressInRange(endAddress, inclusiveRange: true))
             {
                 bool useInclusiveEndRange= false;
                 // Overflow on 64bits currently not possible due to type constraints
@@ -492,42 +492,41 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
 
                 this.DebugLog("Setting range end to {0} addr 0x{1:x}", useInclusiveEndRange ? "inclusive" : "exclusive", endAddress);
-                TlibSetMmuWindowEnd(index, endAddress, useInclusiveEndRange ? 1u : 0u);
+                TlibSetMmuWindowEnd(id, endAddress, useInclusiveEndRange ? 1u : 0u);
             }
         }
 
-        public void SetMmuWindowStart(uint index, ulong startAddress)
+        public void SetMmuWindowStart(ulong id, ulong startAddress)
         {
-            if(AssertMmuEnabledAndWindowInRange(index) && AssertMmuWindowAddressInRange(startAddress))
+            if(AssertMmuEnabled() && AssertMmuWindowAddressInRange(startAddress))
             {
-                TlibSetMmuWindowStart(index, startAddress);
+                TlibSetMmuWindowStart(id, startAddress);
             }
         }
 
-        public void SetMmuWindowAddend(uint index, ulong addend)
-        {
-            if(AssertMmuEnabledAndWindowInRange(index))
-            {
-                TlibSetMmuWindowAddend(index, addend);
-            }
-        }
-
-        public void ResetMmuWindow(uint index)
-        {
-            if(AssertMmuEnabledAndWindowInRange(index))
-            {
-                TlibResetMmuWindow(index);
-            }
-        }
-
-        public int AcquireExternalMmuWindow(ExternalMmuBase.Privilege type)
+        public void SetMmuWindowAddend(ulong id, ulong addend)
         {
             if(AssertMmuEnabled())
             {
-                externalMmuWindowsCount++;
+                TlibSetMmuWindowAddend(id, addend);
+            }
+        }
+
+        public void ResetMmuWindow(ulong id)
+        {
+            if(AssertMmuEnabled())
+            {
+                TlibResetMmuWindow(id);
+            }
+        }
+
+        public ulong AcquireExternalMmuWindow(ExternalMmuBase.Privilege type)
+        {
+            if(AssertMmuEnabled())
+            {
                 return TlibAcquireMmuWindow((uint)type);
             }
-            return -1;
+            return 0; // unreachable (assert throws in this case)
         }
 
         public void EnableExternalWindowMmu(bool value)
@@ -904,7 +903,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         // This value should only be read in CPU hooks (during execution of translated code).
         public uint CurrentBlockDisassemblyFlags => TlibGetCurrentTbDisasFlags();
 
-        public uint ExternalMmuWindowsCount => externalMmuWindowsCount;
+        public uint ExternalMmuWindowsCount => TlibGetMmuWindowsCount();
 
         public bool ThreadSentinelEnabled { get; set; }
 
@@ -1951,23 +1950,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             return externalMmuEnabled;
         }
 
-        private bool AssertMmuEnabledAndWindowInRange(uint index)
-        {
-            if(!AssertMmuEnabled())
-            {
-                return false; // unreachable
-            }
-            if(externalMmuWindowsCount == 0)
-            {
-                throw new RecoverableException($"Window index too high, no windows configured, got {index}");
-            }
-            if(index >= externalMmuWindowsCount)
-            {
-                throw new RecoverableException($"Window index too high, maximum number: {externalMmuWindowsCount - 1}, got {index}");
-            }
-            return true;
-        }
-
         /* Currently, due to the used types, 64 bit targets will always pass this check.
         Also on such platforms unary overflow is not possible */
         private bool AssertMmuWindowAddressInRange(ulong address, bool inclusiveRange = false)
@@ -2027,7 +2009,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         private bool externalMmuEnabled;
-        private uint externalMmuWindowsCount;
 
         /// <summary>
         /// <see cref="atomicId" /> acts as a binder between the CPU and atomic state.
@@ -2092,13 +2073,13 @@ namespace Antmicro.Renode.Peripherals.CPU
         private readonly Action<uint> TlibSetBlockBeginHookPresent;
 
         [Import]
-        private readonly Action<uint, ulong> TlibSetMmuWindowStart;
+        private readonly Action<ulong, ulong> TlibSetMmuWindowStart;
 
         [Import]
-        private readonly Action<uint> TlibResetMmuWindow;
+        private readonly Action<ulong> TlibResetMmuWindow;
 
         [Import]
-        private readonly Func<uint, int> TlibAcquireMmuWindow;
+        private readonly Func<uint, ulong> TlibAcquireMmuWindow;
 
         [Import]
         private readonly Action<uint> TlibEnableExternalWindowMmu;
@@ -2140,13 +2121,13 @@ namespace Antmicro.Renode.Peripherals.CPU
         private readonly Func<uint> TlibGetCurrentTbDisasFlags;
 
         [Import]
-        private readonly Action<uint, ulong, uint> TlibSetMmuWindowEnd;
+        private readonly Action<ulong, ulong, uint> TlibSetMmuWindowEnd;
 
         [Import]
-        private readonly Action<uint, ulong> TlibSetMmuWindowAddend;
+        private readonly Action<ulong, ulong> TlibSetMmuWindowAddend;
 
         [Import]
-        private readonly Action<uint, uint> TlibSetWindowPrivileges;
+        private readonly Action<ulong, uint> TlibSetWindowPrivileges;
 
         [Import]
         private readonly Action<IntPtr> TlibAfterLoad;
@@ -2161,19 +2142,19 @@ namespace Antmicro.Renode.Peripherals.CPU
         private readonly Action<int> TlibSetBroadcastDirty;
 
         [Import]
-        private readonly Func<uint, uint> TlibGetWindowPrivileges;
+        private readonly Func<ulong, uint> TlibGetWindowPrivileges;
 
         [Import]
-        private readonly Func<uint, ulong> TlibGetMmuWindowEnd;
+        private readonly Func<ulong, ulong> TlibGetMmuWindowEnd;
 
         [Import]
-        private readonly Func<uint, ulong> TlibGetMmuWindowStart;
+        private readonly Func<ulong, ulong> TlibGetMmuWindowStart;
 
         [Import]
         private readonly Action<IntPtr> TlibBeforeSave;
 
         [Import]
-        private readonly Func<uint, ulong> TlibGetMmuWindowAddend;
+        private readonly Func<ulong, ulong> TlibGetMmuWindowAddend;
 
         [Import]
         private readonly Action<uint> TlibSetMillicyclesPerInstruction;

@@ -15,27 +15,27 @@ namespace Antmicro.Renode.Peripherals.CPU
     {
         void EnableExternalWindowMmu(bool value);
 
-        int AcquireExternalMmuWindow(Privilege type);
+        ulong AcquireExternalMmuWindow(Privilege type);
 
-        void ResetMmuWindow(uint index);
+        void ResetMmuWindow(ulong id);
 
-        void SetMmuWindowStart(uint index, ulong startAddress);
+        void SetMmuWindowStart(ulong id, ulong startAddress);
 
-        void SetMmuWindowEnd(uint index, ulong endAddress);
+        void SetMmuWindowEnd(ulong id, ulong endAddress);
 
-        void SetMmuWindowAddend(uint index, ulong addend);
+        void SetMmuWindowAddend(ulong id, ulong addend);
 
-        void SetMmuWindowPrivileges(uint index, Privilege privileges);
+        void SetMmuWindowPrivileges(ulong id, Privilege privileges);
 
         void AddHookOnMmuFault(Action<ulong, AccessType, int> hook);
 
-        ulong GetMmuWindowStart(uint index);
+        ulong GetMmuWindowStart(ulong id);
 
-        ulong GetMmuWindowEnd(uint index);
+        ulong GetMmuWindowEnd(ulong id);
 
-        ulong GetMmuWindowAddend(uint index);
+        ulong GetMmuWindowAddend(ulong id);
 
-        uint GetMmuWindowPrivileges(uint index);
+        uint GetMmuWindowPrivileges(ulong id);
 
         uint ExternalMmuWindowsCount { get; }
     }
