@@ -522,7 +522,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public int AcquireExternalMmuWindow(ExternalMmuBase.Privilege type)
         {
-            return AssertMmuEnabled() ? TlibAcquireMmuWindow((uint)type) : -1;
+            if(AssertMmuEnabled())
+            {
+                externalMmuWindowsCount++;
+                return TlibAcquireMmuWindow((uint)type);
+            }
+            return -1;
         }
 
         public void EnableExternalWindowMmu(bool value)
@@ -1026,7 +1031,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             InitializeRegisters();
             Init();
             InitDisas();
-            externalMmuWindowsCount = TlibGetMmuWindowsCount();
             Clustered = new TranslationCPU[] { this };
         }
 
@@ -1937,12 +1941,15 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private bool AssertMmuEnabledAndWindowInRange(uint index)
         {
-            var windowInRange = index < externalMmuWindowsCount;
-            if(!windowInRange)
+            if(!AssertMmuEnabled())
+            {
+                return false; // unreachable
+            }
+            if(index >= externalMmuWindowsCount)
             {
                 throw new RecoverableException($"Window index to high, maximum number: {externalMmuWindowsCount - 1}, got {index}");
             }
-            return AssertMmuEnabled() && windowInRange;
+            return true;
         }
 
         /* Currently, due to the used types, 64 bit targets will always pass this check.
@@ -2004,6 +2011,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         private bool externalMmuEnabled;
+        private uint externalMmuWindowsCount;
 
         /// <summary>
         /// <see cref="atomicId" /> acts as a binder between the CPU and atomic state.
@@ -2268,7 +2276,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         // TODO
         private readonly object lck = new object();
-        private readonly uint externalMmuWindowsCount;
         private readonly MinimalRangesCollection mappedMemory = new MinimalRangesCollection();
         private readonly CpuThreadPauseGuard pauseGuard;
 
