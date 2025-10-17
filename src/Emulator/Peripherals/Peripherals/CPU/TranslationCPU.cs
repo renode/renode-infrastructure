@@ -1945,9 +1945,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return false; // unreachable
             }
+            if(externalMmuWindowsCount == 0)
+            {
+                throw new RecoverableException($"Window index too high, no windows configured, got {index}");
+            }
             if(index >= externalMmuWindowsCount)
             {
-                throw new RecoverableException($"Window index to high, maximum number: {externalMmuWindowsCount - 1}, got {index}");
+                throw new RecoverableException($"Window index too high, maximum number: {externalMmuWindowsCount - 1}, got {index}");
             }
             return true;
         }
