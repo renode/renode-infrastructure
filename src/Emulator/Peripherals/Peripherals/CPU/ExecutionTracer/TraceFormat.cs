@@ -69,7 +69,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override byte[] GetBinaryRepresentation()
         {
-            /* 
+            /*
               [0] = [operationType]
               [1] = [operationTargetVirtual 63:56]
               [2] = [operationTargetVirtual 55:48]
