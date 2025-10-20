@@ -531,8 +531,13 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void EnableExternalWindowMmu(bool value)
         {
-            TlibEnableExternalWindowMmu(value ? 1u : 0u);
-            externalMmuEnabled = value;
+            EnableExternalWindowMmu(value ? ExternalMmuPosition.Replace : ExternalMmuPosition.None);
+        }
+
+        public void EnableExternalWindowMmu(ExternalMmuPosition position)
+        {
+            TlibEnableExternalWindowMmu((uint)position);
+            externalMmuPosition = position;
         }
 
         public void RaiseException(uint exceptionId)
@@ -1943,11 +1948,11 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private bool AssertMmuEnabled()
         {
-            if(!externalMmuEnabled)
+            if(externalMmuPosition == ExternalMmuPosition.None)
             {
                 throw new RecoverableException("External MMU not enabled");
             }
-            return externalMmuEnabled;
+            return true;
         }
 
         /* Currently, due to the used types, 64 bit targets will always pass this check.
@@ -2008,7 +2013,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             this.Log(LogLevel.Info, "End of the interrupt: {0}", GetExceptionDescription(exceptionIndex));
         }
 
-        private bool externalMmuEnabled;
+        private ExternalMmuPosition externalMmuPosition;
 
         /// <summary>
         /// <see cref="atomicId" /> acts as a binder between the CPU and atomic state.

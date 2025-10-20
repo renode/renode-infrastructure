@@ -15,6 +15,8 @@ namespace Antmicro.Renode.Peripherals.CPU
     {
         void EnableExternalWindowMmu(bool value);
 
+        void EnableExternalWindowMmu(ExternalMmuPosition position);
+
         ulong AcquireExternalMmuWindow(Privilege type);
 
         void ResetMmuWindow(ulong id);
@@ -45,5 +47,13 @@ namespace Antmicro.Renode.Peripherals.CPU
         Read = 0,
         Write = 1,
         Execute = 2,
+    }
+
+    public enum ExternalMmuPosition
+    {
+        None = 0,
+        Replace = 1,
+        BeforeInternal = 2,
+        AfterInternal = 3,
     }
 }

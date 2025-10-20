@@ -13,13 +13,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class ExternalMmuBase : IPeripheral
     {
-        public ExternalMmuBase(ICPUWithExternalMmu cpu, uint windowsCount)
+        public ExternalMmuBase(ICPUWithExternalMmu cpu, uint windowsCount, ExternalMmuPosition position = ExternalMmuPosition.Replace)
         {
             this.cpu = cpu;
             this.windowsCount = windowsCount;
             windowMapping = new Dictionary<uint, ulong>();
 
-            cpu.EnableExternalWindowMmu(true);
+            cpu.EnableExternalWindowMmu(position);
             for(uint index = 0; index < windowsCount; index++)
             {
                 AddWindow(index);
