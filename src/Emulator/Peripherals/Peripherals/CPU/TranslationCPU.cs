@@ -227,7 +227,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             memoryAccessHook = hook;
         }
 
-        public void AddHookOnMmuFault(Action<ulong, AccessType, int> hook)
+        public void AddHookOnMmuFault(Action<ulong, AccessType, ulong> hook)
         {
             mmuFaultHook += hook;
         }
@@ -1807,15 +1807,15 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        private void MmuFaultExternalHandler(ulong address, int accessType, int windowIndex)
+        private void MmuFaultExternalHandler(ulong address, int accessType, ulong windowId)
         {
             this.Log(LogLevel.Noisy, "External MMU fault at 0x{0:X} when trying to access as {1}", address, (AccessType)accessType);
 
-            if(windowIndex == -1)
+            if(windowId == ulong.MaxValue)
             {
                 this.Log(LogLevel.Error, "MMU fault - the address 0x{0:X} is not specified in any of the existing ranges", address);
             }
-            mmuFaultHook?.Invoke(address, (AccessType)accessType, windowIndex);
+            mmuFaultHook?.Invoke(address, (AccessType)accessType, windowId);
         }
 
         [Export]
@@ -2043,7 +2043,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private Action<ulong, uint> blockBeginUserHook;
         private Action<ulong> interruptBeginHook;
         private Action<ulong> interruptEndHook;
-        private Action<ulong, AccessType, int> mmuFaultHook;
+        private Action<ulong, AccessType, ulong> mmuFaultHook;
         private MemoryAccessHook memoryAccessHook;
         private Action<bool> wfiStateChangeHook;
 

@@ -103,9 +103,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             return 0;
         }
 
-        public bool ContainsWindowWithIndex(uint index)
+        public bool ContainsWindowWithId(ulong id)
         {
-            return windowMapping.ContainsValue(index);
+            return windowMapping.ContainsValue(id);
         }
 
         protected void AddWindow(uint index, ulong? rangeStart = null, ulong? rangeEnd = null, ulong? addend = null, Privilege? privilege = null, Privilege type = Privilege.All)
