@@ -7,12 +7,15 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Helpers;
+using Antmicro.Renode.Time;
+
 #pragma warning disable IDE0005
 using Antmicro.Renode.Utilities;
 #pragma warning restore IDE0005
@@ -24,12 +27,15 @@ namespace Antmicro.Renode.Peripherals.UART
     {
         public Cadence_UART(IMachine machine, bool clearInterruptStatusOnRead = false, ulong clockFrequency = 50000000, int fifoCapacity = 64) : base(machine)
         {
+            this.machine = machine;
             this.fifoCapacity = fifoCapacity;
             ClearInterruptStatusOnRead = clearInterruptStatusOnRead;
             this.clockFrequency = clockFrequency;
+            txWasEnabled = false;
+            cancellationToken = new CancellationTokenSource();
 
             registers = new DoubleWordRegisterCollection(this, BuildRegisterMap());
-            txQueue = new Queue<byte>(fifoCapacity);
+            txQueue = new Queue<byte>();
 
             txFifoOverflow = new CadenceInterruptFlag(() => false);
             txFifoNearlyFull = new CadenceInterruptFlag(() => txQueue.Count + 1 == fifoCapacity);
@@ -80,30 +86,37 @@ namespace Antmicro.Renode.Peripherals.UART
         // NOTE: Shadow original implementation of the TransmitCharacter to add additional logic
         public new void TransmitCharacter(byte character)
         {
-            if(!TxEnabled)
+            var characterEnqueued = false;
+            int queueCount;
+            lock(txQueueLock)
             {
                 if(txQueue.Count < this.fifoCapacity)
                 {
                     txQueue.Enqueue(character);
+                    characterEnqueued = true;
                 }
-                else
-                {
-                    txFifoOverflow.SetSticky(true);
-                }
-
-                UpdateSticky();
-                UpdateInterrupts();
-                return;
+                queueCount = txQueue.Count;
             }
 
-            base.TransmitCharacter(character);
+            if(characterEnqueued)
+            {
+                ScheduleTransmission(queueCount);
+            }
+            else
+            {
+                txFifoOverflow.SetSticky(true);
+            }
+            UpdateSticky();
+            UpdateInterrupts();
         }
 
         public override void Reset()
         {
             base.Reset();
             registers.Reset();
+            CancelScheduledTransmission();
             txQueue.Clear();
+            txWasEnabled = false;
 
             foreach(var flag in GetInterruptFlags())
             {
@@ -120,6 +133,31 @@ namespace Antmicro.Renode.Peripherals.UART
         public override uint BaudRate => (uint)(clockFrequency / (clockSource.Value ? 8U : 1U) / baudGenerator.Value / (baudDivider.Value + 1));
 
         public bool ClearInterruptStatusOnRead { get; set; }
+
+        public ulong CharacterTransmitDelayMicroseconds
+        {
+            get => characterTransmitDelay;
+            set
+            {
+                if(characterTransmitDelay == value)
+                {
+                    return;
+                }
+
+                characterTransmitDelay = value;
+                lock(txQueueLock)
+                {
+                    CancelScheduledTransmission();
+                    // If delay was changed we need to call `ScheduleTransmission` to either:
+                    // * Flush the TX buffer if `characterTransmitDelay == 0`
+                    // * Schedule data currently in the fifo to be transmitted if `characterTransmitDelay > 0`
+                    for(var i = 0; i < txQueue.Count; i++)
+                    {
+                        ScheduleTransmission(i);
+                    }
+                }
+            }
+        }
 
         public long Size => 0x80;
 
@@ -190,17 +228,74 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
-        private void TryTransmitTxQueue()
+        private void SetTxState()
         {
-            if(!TxEnabled || txQueue.Count == 0)
+            if(TxEnabled == txWasEnabled)
+            {
+                // State hasn't changed
+                return;
+            }
+
+            txWasEnabled = TxEnabled;
+            if(TxEnabled)
+            {
+                lock(txQueueLock)
+                {
+                    for(var i = 0; i < txQueue.Count; i++)
+                    {
+                        // Schedule transmission for all bytes currently in the queue
+                        ScheduleTransmission(i);
+                    }
+                }
+            }
+            else
+            {
+                CancelScheduledTransmission();
+            }
+        }
+
+        private void ScheduleTransmission(int n = 0)
+        {
+            if(!TxEnabled)
             {
                 return;
             }
 
-            while(txQueue.TryDequeue(out var character))
+            CancellationToken token;
+            lock(txQueueLock)
             {
-                // NOTE: Use base class method to omit additional logic for queues
+                token = cancellationToken.Token;
+            }
+
+            Action<TimeInterval> transmitCharacter = _ =>
+            {
+                if(token.IsCancellationRequested || !TxEnabled)
+                {
+                    return;
+                }
+
+                byte character;
+                lock(txQueueLock)
+                {
+                    if(!txQueue.TryDequeue(out character))
+                    {
+                        return;
+                    }
+                }
+
                 base.TransmitCharacter(character);
+                UpdateSticky();
+                UpdateInterrupts();
+            };
+
+            if(CharacterTransmitDelayMicroseconds == 0)
+            {
+                transmitCharacter(TimeInterval.Empty);
+            }
+            else
+            {
+                var delay = TimeInterval.FromMicroseconds((ulong)(n + 1) * CharacterTransmitDelayMicroseconds);
+                machine.ScheduleAction(delay, transmitCharacter);
             }
         }
 
@@ -273,14 +368,24 @@ namespace Antmicro.Renode.Peripherals.UART
                             (_, val) => rxTimeoutError.SetSticky(val)
                     )
                     .WithFlag(5, out txDisabledReg, name: "txDisabled",
-                        changeCallback: (_, __) => TryTransmitTxQueue())
+                        changeCallback: (_, __) => SetTxState())
                     .WithFlag(4, out txEnabledReg, name: "txEnabled",
-                        changeCallback: (_, __) => TryTransmitTxQueue())
+                        changeCallback: (_, __) => SetTxState())
                     .WithFlag(3, out rxDisabledReg, name: "rxDisabled")
                     .WithFlag(2, out rxEnabledReg, name: "rxEnabled")
                     .WithFlag(1, valueProviderCallback: _ => false, name: "txReset",
                         writeCallback:
-                            (_, val) => { if(val) txQueue.Clear(); })
+                            (_, val) =>
+                            {
+                                if(val)
+                                {
+                                    lock(txQueueLock)
+                                    {
+                                        CancelScheduledTransmission();
+                                        txQueue.Clear();
+                                    }
+                                }
+                            })
                     .WithFlag(0, valueProviderCallback: _ => false, name: "rxReset",
                         writeCallback:
                             (_, val) => { if(val) this.ClearBuffer(); }
@@ -534,12 +639,16 @@ namespace Antmicro.Renode.Peripherals.UART
                 },
                 {(long)Registers.ChannelStatus, new DoubleWordRegister(this)
                     .WithReservedBits(15, 17)
-                    .WithFlag(14, FieldMode.Read, valueProviderCallback: _ => false, name: "txFifoTriggerStatus")
+                    .WithFlag(14, FieldMode.Read,
+                        valueProviderCallback: _ => txFifoTrigger.Status,
+                        name: "txFifoTriggerStatus")
                     .WithTaggedFlag("rxFlowDelayTriggerStatus", 12)
                     .WithTaggedFlag("txStateMachineActiveStatus", 11)
                     .WithTaggedFlag("rxStateMachineActiveStatus", 10)
                     .WithReservedBits(5, 4)
-                    .WithFlag(4, FieldMode.Read, valueProviderCallback: _ => false, name: "txFifoFullStatus")
+                    .WithFlag(4, FieldMode.Read,
+                        valueProviderCallback: _ => txFifoFull.Status,
+                        name: "txFifoFullStatus")
                     .WithFlag(3, FieldMode.Read,
                         valueProviderCallback: _ => txFifoEmpty.Status,
                         name: "txFifoEmptyStatus")
@@ -628,6 +737,15 @@ namespace Antmicro.Renode.Peripherals.UART
             yield return txFifoEmpty;
         }
 
+        private void CancelScheduledTransmission()
+        {
+            lock(txQueueLock)
+            {
+                cancellationToken.Cancel();
+                cancellationToken = new CancellationTokenSource();
+            }
+        }
+
         private bool TxEnabled => txEnabledReg.Value && !txDisabledReg.Value;
 
         private bool RxEnabled => rxEnabledReg.Value && !rxDisabledReg.Value;
@@ -643,10 +761,14 @@ namespace Antmicro.Renode.Peripherals.UART
         private IValueRegisterField rxTriggerLevel;
         private IValueRegisterField txTriggerLevel;
         private IValueRegisterField baudDivider;
+        private CancellationTokenSource cancellationToken;
+        private bool txWasEnabled;
+        private ulong characterTransmitDelay;
 
         private readonly int fifoCapacity;
 
         private readonly Queue<byte> txQueue;
+        private readonly object txQueueLock = new object();
         private readonly CadenceInterruptFlag txFifoOverflow;
         private readonly CadenceInterruptFlag txFifoNearlyFull;
         private readonly CadenceInterruptFlag txFifoFull;
@@ -660,6 +782,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private readonly DoubleWordRegisterCollection registers;
         private readonly ulong clockFrequency;
+        private readonly IMachine machine;
 
         private enum InternalStop
         {
