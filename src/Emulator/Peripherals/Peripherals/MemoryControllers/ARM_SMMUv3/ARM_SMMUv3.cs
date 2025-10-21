@@ -15,6 +15,7 @@ using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Collections;
 
@@ -78,6 +79,11 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 var busController = new ARM_SMMUv3BusController(this, sysbus);
                 streamControllers.Add(registrationPoint.Address, busController);
                 machine.RegisterBusController(busPeripheral, busController);
+            }
+            else if(peripheral is ICPUWithExternalMmu cpu)
+            {
+                var mmu = new ARM_SMMUv3ExternalMmu(this, cpu);
+                streamControllers.Add(registrationPoint.Address, mmu);
             }
             else
             {
