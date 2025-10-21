@@ -22,13 +22,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             IRQ = new GPIO();
             registers = DefineRegisters();
 
-            cpu.AddHookOnMmuFault((faultAddress, accessType, faultyWindowId) =>
+            cpu.AddHookOnMmuFault((faultAddress, accessType, faultyWindowId, firstTry) =>
             {
-                if(faultyWindowId != ulong.MaxValue && this.ContainsWindowWithId(faultyWindowId))
+                if(!firstTry && faultyWindowId != ulong.MaxValue && this.ContainsWindowWithId(faultyWindowId))
                 {
                     this.TriggerInterrupt();
                     throw new CpuAbortException("Mmu fault occured. This must be handled properly");
                 }
+                return false;
             });
         }
 

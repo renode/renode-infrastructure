@@ -4,9 +4,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-
-using System;
-
 using static Antmicro.Renode.Peripherals.Miscellaneous.ExternalMmuBase;
 
 namespace Antmicro.Renode.Peripherals.CPU
@@ -29,9 +26,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         void SetMmuWindowPrivileges(ulong id, Privilege privileges);
 
-        void AddHookOnMmuFault(Action<ulong, AccessType, ulong> hook);
+        void AddHookOnMmuFault(ExternalMmuFaultHook hook);
 
-        void RemoveHookOnMmuFault(Action<ulong, AccessType, ulong> hook);
+        void RemoveHookOnMmuFault(ExternalMmuFaultHook hook);
 
         ulong GetMmuWindowStart(ulong id);
 
@@ -62,4 +59,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         BeforeInternal = 2,
         AfterInternal = 3,
     }
+
+    public delegate bool ExternalMmuFaultHook(ulong address, AccessType accessType, ulong windowId, bool firstTry);
 }
