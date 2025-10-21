@@ -94,6 +94,10 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             {
                 machine.RegisterBusController(busPeripheral, sysbus); // Explicitly register sysbus as the controller to remove the SMMU bus controller
             }
+            if(streamControllers[streamId] is IDisposable disposable)
+            {
+                disposable.Dispose();
+            }
             streamControllers.Remove(streamId);
             base.Unregister(peripheral);
             streams.Remove(peripheral);
