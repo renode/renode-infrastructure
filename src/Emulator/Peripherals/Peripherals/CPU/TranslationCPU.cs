@@ -525,6 +525,22 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public void ResetMmuWindowsCoveringAddress(ulong address)
+        {
+            if(AssertMmuEnabled())
+            {
+                TlibResetMmuWindowsCoveringAddress(address);
+            }
+        }
+
+        public void ResetAllMmuWindows()
+        {
+            if(AssertMmuEnabled())
+            {
+                TlibResetAllMmuWindows();
+            }
+        }
+
         public ulong AcquireExternalMmuWindow(ExternalMmuBase.Privilege type)
         {
             if(AssertMmuEnabled())
@@ -2089,6 +2105,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private readonly Action<ulong> TlibResetMmuWindow;
+
+        [Import]
+        private readonly Action<ulong> TlibResetMmuWindowsCoveringAddress;
+
+        [Import]
+        private readonly Action TlibResetAllMmuWindows;
 
         [Import]
         private readonly Func<uint, ulong> TlibAcquireMmuWindow;

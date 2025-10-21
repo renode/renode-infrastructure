@@ -18,6 +18,10 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         void ResetMmuWindow(ulong id);
 
+        void ResetMmuWindowsCoveringAddress(ulong address);
+
+        void ResetAllMmuWindows();
+
         void SetMmuWindowStart(ulong id, ulong startAddress);
 
         void SetMmuWindowEnd(ulong id, ulong endAddress);
