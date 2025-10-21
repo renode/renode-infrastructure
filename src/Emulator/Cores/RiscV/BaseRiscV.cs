@@ -625,6 +625,32 @@ namespace Antmicro.Renode.Peripherals.CPU
             return base.GetExceptionDescription(exceptionIndex);
         }
 
+        [Export]
+        protected virtual ulong ReadCSR(ulong csr)
+        {
+            var readMethod = nonstandardCSR[csr].ReadOperation;
+            if(readMethod == null)
+            {
+                this.Log(LogLevel.Warning, "Read method is not implemented for CSR=0x{0:X}", csr);
+                return 0;
+            }
+            return readMethod();
+        }
+
+        [Export]
+        protected virtual void WriteCSR(ulong csr, ulong value)
+        {
+            var writeMethod = nonstandardCSR[csr].WriteOperation;
+            if(writeMethod == null)
+            {
+                this.Log(LogLevel.Warning, "Write method is not implemented for CSR=0x{0:X}", csr);
+            }
+            else
+            {
+                writeMethod(value);
+            }
+        }
+
         protected bool TrySetNonMappedRegister(int register, RegisterValue value)
         {
             if(SupportsInstructionSet(InstructionSet.V) && IsVectorRegisterNumber(register))
@@ -893,32 +919,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             SyncTime();
             return timeProvider.TimerValue;
-        }
-
-        [Export]
-        private ulong ReadCSR(ulong csr)
-        {
-            var readMethod = nonstandardCSR[csr].ReadOperation;
-            if(readMethod == null)
-            {
-                this.Log(LogLevel.Warning, "Read method is not implemented for CSR=0x{0:X}", csr);
-                return 0;
-            }
-            return readMethod();
-        }
-
-        [Export]
-        private void WriteCSR(ulong csr, ulong value)
-        {
-            var writeMethod = nonstandardCSR[csr].WriteOperation;
-            if(writeMethod == null)
-            {
-                this.Log(LogLevel.Warning, "Write method is not implemented for CSR=0x{0:X}", csr);
-            }
-            else
-            {
-                writeMethod(value);
-            }
         }
 
         [Export]
