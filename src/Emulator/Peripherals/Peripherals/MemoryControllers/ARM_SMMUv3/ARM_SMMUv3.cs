@@ -12,6 +12,7 @@ using System.Reflection;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
@@ -21,7 +22,7 @@ using static Antmicro.Renode.Peripherals.Bus.WindowMMUBusController;
 
 namespace Antmicro.Renode.Peripherals.MemoryControllers
 {
-    public partial class ARM_SMMUv3 : SimpleContainer<IBusPeripheral>, IDoubleWordPeripheral, IQuadWordPeripheral,
+    public partial class ARM_SMMUv3 : SimpleContainer<IPeripheral>, IDoubleWordPeripheral, IQuadWordPeripheral,
         IProvidesRegisterCollection<DoubleWordRegisterCollection>, IProvidesRegisterCollection<QuadWordRegisterCollection>, IKnownSize
     {
         static ARM_SMMUv3()
@@ -70,21 +71,31 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         {
         }
 
-        public override void Register(IBusPeripheral peripheral, NumberRegistrationPoint<int> registrationPoint)
+        public override void Register(IPeripheral peripheral, NumberRegistrationPoint<int> registrationPoint)
         {
+            if(peripheral is IBusPeripheral busPeripheral)
+            {
+                var busController = new ARM_SMMUv3BusController(this, sysbus);
+                busControllers.Add(registrationPoint.Address, busController);
+                machine.RegisterBusController(busPeripheral, busController);
+            }
+            else
+            {
+                throw new RecoverableException($"Don't know how to register a {peripheral?.GetType()?.Name ?? "(null)"}");
+            }
             base.Register(peripheral, registrationPoint);
-            var busController = new ARM_SMMUv3BusController(this, sysbus);
-            busControllers.Add(registrationPoint.Address, busController);
-            machine.RegisterBusController(peripheral, busController);
             streams.Add(registrationPoint.Address, peripheral);
         }
 
-        public override void Unregister(IBusPeripheral peripheral)
+        public override void Unregister(IPeripheral peripheral)
         {
             var streamId = streams[peripheral];
-            base.Unregister(peripheral);
-            machine.RegisterBusController(peripheral, sysbus); // Explicitly register sysbus as the controller to remove the SMMU bus controller
+            if(peripheral is IBusPeripheral busPeripheral)
+            {
+                machine.RegisterBusController(busPeripheral, sysbus); // Explicitly register sysbus as the controller to remove the SMMU bus controller
+            }
             busControllers.Remove(streamId);
+            base.Unregister(peripheral);
             streams.Remove(peripheral);
         }
 
