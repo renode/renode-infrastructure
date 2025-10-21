@@ -937,8 +937,17 @@ namespace Antmicro.Renode.Peripherals.CPU
                 // stack pointer and program counter are being sent according
                 // to VTOR (vector table offset register)
                 var sysbus = machine.SystemBus;
-                var pc = sysbus.ReadDoubleWord(VectorTableOffset + 4, this);
-                var sp = sysbus.ReadDoubleWord(VectorTableOffset, this);
+                uint pc, sp;
+                if (TrustZoneEnabled) {
+                    var bootState = new ContextState { Privileged = true, CpuSecure = true, AttributionSecure = true };
+                    pc = sysbus.ReadDoubleWordWithState(VectorTableOffset + 4, this, bootState);
+                    sp = sysbus.ReadDoubleWordWithState(VectorTableOffset, this, bootState);
+                }
+                else
+                {
+                    pc = sysbus.ReadDoubleWord(VectorTableOffset + 4, this);
+                    sp = sysbus.ReadDoubleWord(VectorTableOffset, this);
+                }
                 if(!sysbus.IsMemory(pc, this) || (pc == 0 && sp == 0))
                 {
                     this.Log(LogLevel.Error, "PC does not lay in memory or PC and SP are equal to zero. CPU was halted.");
