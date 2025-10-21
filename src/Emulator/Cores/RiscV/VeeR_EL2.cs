@@ -7,7 +7,9 @@
 using System;
 
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.IRQControllers;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
@@ -32,6 +34,15 @@ namespace Antmicro.Renode.Peripherals.CPU
             AddHookAtInterruptBegin(UpdateSecondaryCauseRegister);
         }
 
+        public virtual void RegisterPIC(VeeR_EL2_PIC pic)
+        {
+            if(PIC != null)
+            {
+                throw new RecoverableException($"Another {pic.GetType().Name} has been registered to the given CPU already, only one is allowed per CPU");
+            }
+            PIC = pic;
+        }
+
         public override void Reset()
         {
             base.Reset();
@@ -45,6 +56,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             pendingSecondaryCause = secondaryCause;
             RaiseException(exception);
         }
+
+        public VeeR_EL2_PIC PIC { get; protected set; }
 
         /// <remarks>
         /// Called on interrupt start to make sure that normal RISC-V exceptions triggered without
@@ -99,13 +112,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             );
 
             RegisterCSRStub(CustomCSR.DBUSErrorAddressUnlock, "mdeau");
-            RegisterCSRStub(CustomCSR.ExternalInterruptVectorTable, "meivt");
-            RegisterCSRStub(CustomCSR.ExternalInterruptPriorityThreshold, "meipt");
-            RegisterCSRStub(CustomCSR.ExternalInterruptClaimIDPriorityLevelCaptureTrigger, "meicpct");
-            RegisterCSRStub(CustomCSR.ExternalInterruptClaimIDPriorityLevel, "meicidpl");
-            RegisterCSRStub(CustomCSR.ExternalInterruptCurrentPriorityLevel, "meicurpl");
             RegisterCSRStub(CustomCSR.DBUSFirstErrorAddressCapture, "mdseac");
-            RegisterCSRStub(CustomCSR.ExternalInterruptHandlerAddressPointer, "meihap");
         }
 
         protected class InternalTimerBlock
@@ -315,13 +322,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             FeatureDisableControl = 0x7F9,                                  // mfdc
             MachineSecondaryCause = 0x7FF,                                  // mscause
             DBUSErrorAddressUnlock = 0xBC0,                                 // mdeau
-            ExternalInterruptVectorTable = 0xBC8,                           // meivt
-            ExternalInterruptPriorityThreshold = 0xBC9,                     // meipt
-            ExternalInterruptClaimIDPriorityLevelCaptureTrigger = 0xBCA,    // meicpct
-            ExternalInterruptClaimIDPriorityLevel = 0xBCB,                  // meicidpl
-            ExternalInterruptCurrentPriorityLevel = 0xBCC,                  // meicurpl
+            // See VeeR_EL2_PIC for meivt and other PIC-related CSRs.
             DBUSFirstErrorAddressCapture = 0xFC0,                           // mdseac
-            ExternalInterruptHandlerAddressPointer = 0xFC8,                 // meihap
         }
 
         private enum CustomInterrupt : ulong
