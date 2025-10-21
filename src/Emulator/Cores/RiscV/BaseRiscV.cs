@@ -208,6 +208,21 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public void RegisterCSRStub(IConvertible csr, string name, ulong returnValue = 0)
+        {
+            var csrEncoding = Convert.ToUInt16(csr);
+            RegisterCSR(csrEncoding, name: name,
+                readOperation: () =>
+                {
+                    this.WarningLog("Tried to read from an unimplemented {0} CSR (0x{1:X}), returning 0x{2:X}", name, csrEncoding, returnValue);
+                    return returnValue;
+                },
+                writeOperation: value =>
+                {
+                    this.WarningLog("Tried to write 0x{0:X} to an unimplemented {1} CSR (0x{2:X}), write ignored", value, name, csrEncoding);
+                });
+        }
+
         public void Unregister(ICFU cfu)
         {
             var toRemove = ChildCollection.Where(x => x.Value.Equals(cfu)).Select(x => x.Key).ToList(); //ToList required, as we remove from the source

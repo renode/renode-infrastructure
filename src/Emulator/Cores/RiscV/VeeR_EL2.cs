@@ -75,51 +75,36 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private void RegisterCustomCSRs()
         {
-            CreateCSRStub(CustomCSR.RegionAccessControl, "mrac");
-            CreateCSRStub(CustomCSR.CorePauseControl, "mcpc");
-            CreateCSRStub(CustomCSR.MemorySynchronizationTrigger, "dmst");
-            CreateCSRStub(CustomCSR.PowerManagementControl, "mpmc");
-            CreateCSRStub(CustomCSR.ICacheArrayWayIndexSelection, "dicawics");
-            CreateCSRStub(CustomCSR.ICacheArrayData0, "dicad0");
-            CreateCSRStub(CustomCSR.ICacheArrayData1, "dicad1");
-            CreateCSRStub(CustomCSR.ICacheArrayGo, "dicago");
-            CreateCSRStub(CustomCSR.ICacheDataArray0High, "dicac0h");
-            CreateCSRStub(CustomCSR.ForceDebugHaltThreshold, "mfdht");
-            CreateCSRStub(CustomCSR.ForceDebugHaltStatus, "mfdhs");
-            CreateCSRStub(CustomCSR.ICacheErrorCounterThreshold, "micect");
-            CreateCSRStub(CustomCSR.ICCMCorrectableErrorCounterThreshold, "miccmect");
-            CreateCSRStub(CustomCSR.DCCMCorrectableErrorCounterThreshold, "mdccmect");
-            CreateCSRStub(CustomCSR.ClockGatingControl, "mcgc");
-            CreateCSRStub(CustomCSR.FeatureDisableControl, "mfdc");
+            RegisterCSRStub(CustomCSR.RegionAccessControl, "mrac");
+            RegisterCSRStub(CustomCSR.CorePauseControl, "mcpc");
+            RegisterCSRStub(CustomCSR.MemorySynchronizationTrigger, "dmst");
+            RegisterCSRStub(CustomCSR.PowerManagementControl, "mpmc");
+            RegisterCSRStub(CustomCSR.ICacheArrayWayIndexSelection, "dicawics");
+            RegisterCSRStub(CustomCSR.ICacheArrayData0, "dicad0");
+            RegisterCSRStub(CustomCSR.ICacheArrayData1, "dicad1");
+            RegisterCSRStub(CustomCSR.ICacheArrayGo, "dicago");
+            RegisterCSRStub(CustomCSR.ICacheDataArray0High, "dicac0h");
+            RegisterCSRStub(CustomCSR.ForceDebugHaltThreshold, "mfdht");
+            RegisterCSRStub(CustomCSR.ForceDebugHaltStatus, "mfdhs");
+            RegisterCSRStub(CustomCSR.ICacheErrorCounterThreshold, "micect");
+            RegisterCSRStub(CustomCSR.ICCMCorrectableErrorCounterThreshold, "miccmect");
+            RegisterCSRStub(CustomCSR.DCCMCorrectableErrorCounterThreshold, "mdccmect");
+            RegisterCSRStub(CustomCSR.ClockGatingControl, "mcgc");
+            RegisterCSRStub(CustomCSR.FeatureDisableControl, "mfdc");
 
             RegisterCSR((ushort)CustomCSR.MachineSecondaryCause,
                     readOperation: () => (ulong)mscauseValue,
                     writeOperation: value => mscauseValue = (uint)(value & 0xF) // Only 4 lowest bits are writable
             );
 
-            CreateCSRStub(CustomCSR.DBUSErrorAddressUnlock, "mdeau");
-            CreateCSRStub(CustomCSR.ExternalInterruptVectorTable, "meivt");
-            CreateCSRStub(CustomCSR.ExternalInterruptPriorityThreshold, "meipt");
-            CreateCSRStub(CustomCSR.ExternalInterruptClaimIDPriorityLevelCaptureTrigger, "meicpct");
-            CreateCSRStub(CustomCSR.ExternalInterruptClaimIDPriorityLevel, "meicidpl");
-            CreateCSRStub(CustomCSR.ExternalInterruptCurrentPriorityLevel, "meicurpl");
-            CreateCSRStub(CustomCSR.DBUSFirstErrorAddressCapture, "mdseac");
-            CreateCSRStub(CustomCSR.ExternalInterruptHandlerAddressPointer, "meihap");
-        }
-
-        private void CreateCSRStub(IConvertible csr, string name, ulong returnValue = 0)
-        {
-            var offset = Convert.ToUInt16(csr);
-            RegisterCSR(Convert.ToUInt16(csr),
-                readOperation: () =>
-                {
-                    this.WarningLog("Reading 0x{0:X} from an unimplemented CSR: {1} (0x{2:X})", returnValue, name, offset);
-                    return returnValue;
-                },
-                writeOperation: value =>
-                {
-                    this.WarningLog("Writing 0x{0:X} to unimplemnted CSR: {1} (0x{2:X})", value, name, offset);
-                });
+            RegisterCSRStub(CustomCSR.DBUSErrorAddressUnlock, "mdeau");
+            RegisterCSRStub(CustomCSR.ExternalInterruptVectorTable, "meivt");
+            RegisterCSRStub(CustomCSR.ExternalInterruptPriorityThreshold, "meipt");
+            RegisterCSRStub(CustomCSR.ExternalInterruptClaimIDPriorityLevelCaptureTrigger, "meicpct");
+            RegisterCSRStub(CustomCSR.ExternalInterruptClaimIDPriorityLevel, "meicidpl");
+            RegisterCSRStub(CustomCSR.ExternalInterruptCurrentPriorityLevel, "meicurpl");
+            RegisterCSRStub(CustomCSR.DBUSFirstErrorAddressCapture, "mdseac");
+            RegisterCSRStub(CustomCSR.ExternalInterruptHandlerAddressPointer, "meihap");
         }
 
         protected class InternalTimerBlock
@@ -303,7 +288,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        private enum CustomCSR : ulong
+        private enum CustomCSR : ushort
         {
             RegionAccessControl = 0x7C0,                                    // mrac
             CorePauseControl = 0x7C2,                                       // mcpc
