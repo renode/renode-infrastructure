@@ -1922,7 +1922,10 @@ namespace Antmicro.Renode.Peripherals.Bus
                                       && x.RegistrationPoint.StateMask?.Mask == registrationPoint.StateMask?.Mask);
                 if(intersecting != null)
                 {
-                    throw new RegistrationException($"Given address {registrationPoint.Range} for peripheral {peripheral} conflicts with address {intersecting.RegistrationPoint.Range} of peripheral {intersecting.Peripheral}", "address");
+                    throw new RegistrationException(
+                        $"Could not register {peripheral} at the given address {registrationPoint.Range} because it conflicts "
+                        + $"with peripheral {intersecting.Peripheral} registered at {intersecting.RegistrationPoint.Range}"
+                    );
                 }
 
                 var registeredPeripheral = new BusRegistered<IBusPeripheral>(peripheral, registrationPoint);
