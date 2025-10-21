@@ -232,6 +232,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             mmuFaultHook += hook;
         }
 
+        public void RemoveHookOnMmuFault(Action<ulong, AccessType, ulong> hook)
+        {
+            mmuFaultHook -= hook;
+        }
+
         public void AddHookAtInterruptEnd(Action<ulong> hook)
         {
             if(!Architecture.Contains("riscv") && !Architecture.Contains("arm") && !Architecture.Contains("sparc"))

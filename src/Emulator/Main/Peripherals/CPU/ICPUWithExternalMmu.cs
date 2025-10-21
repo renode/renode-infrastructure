@@ -31,6 +31,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         void AddHookOnMmuFault(Action<ulong, AccessType, ulong> hook);
 
+        void RemoveHookOnMmuFault(Action<ulong, AccessType, ulong> hook);
+
         ulong GetMmuWindowStart(ulong id);
 
         ulong GetMmuWindowEnd(ulong id);
