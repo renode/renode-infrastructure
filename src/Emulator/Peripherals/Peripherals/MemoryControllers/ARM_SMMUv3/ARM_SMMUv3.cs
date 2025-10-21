@@ -76,7 +76,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             if(peripheral is IBusPeripheral busPeripheral)
             {
                 var busController = new ARM_SMMUv3BusController(this, sysbus);
-                busControllers.Add(registrationPoint.Address, busController);
+                streamControllers.Add(registrationPoint.Address, busController);
                 machine.RegisterBusController(busPeripheral, busController);
             }
             else
@@ -94,7 +94,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             {
                 machine.RegisterBusController(busPeripheral, sysbus); // Explicitly register sysbus as the controller to remove the SMMU bus controller
             }
-            busControllers.Remove(streamId);
+            streamControllers.Remove(streamId);
             base.Unregister(peripheral);
             streams.Remove(peripheral);
         }
@@ -808,7 +808,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
 
         private void InvalidateTlb(ulong? virtualAddress = null)
         {
-            foreach(var controller in busControllers.Values)
+            foreach(var controller in streamControllers.Values)
             {
                 controller.InvalidateTlb(virtualAddress);
             }
@@ -839,7 +839,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         private readonly WrappingQueue<Command> commandQueue;
         private readonly StreamTableEntry[] streamTable = new StreamTableEntry[1 << StreamIdBits];
         private readonly TwoWayDictionary<int, IPeripheral> streams = new TwoWayDictionary<int, IPeripheral>();
-        private readonly Dictionary<int, ARM_SMMUv3BusController> busControllers = new Dictionary<int, ARM_SMMUv3BusController>(); // TODO: Index by (ASID, VMID, StreamWorld)
+        private readonly Dictionary<int, ISMMUv3StreamController> streamControllers = new Dictionary<int, ISMMUv3StreamController>(); // TODO: Index by (ASID, VMID, StreamWorld)
 
         private readonly IBusController sysbus;
 

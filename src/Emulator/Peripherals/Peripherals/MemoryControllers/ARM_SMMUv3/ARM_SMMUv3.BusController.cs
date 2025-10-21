@@ -8,7 +8,7 @@ using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.MemoryControllers
 {
-    public class ARM_SMMUv3BusController : WindowMMUBusController
+    public class ARM_SMMUv3BusController : WindowMMUBusController, ISMMUv3StreamController
     {
         // TODO: Fault handling
         public ARM_SMMUv3BusController(ARM_SMMUv3 smmu, IBusController parentController) : base(smmu, parentController)
