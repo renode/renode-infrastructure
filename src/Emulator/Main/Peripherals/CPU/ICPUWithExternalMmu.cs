@@ -39,6 +39,10 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         uint GetMmuWindowPrivileges(ulong id);
 
+        void FlushTlb();
+
+        void FlushTlbPage(ulong address);
+
         uint ExternalMmuWindowsCount { get; }
     }
 
