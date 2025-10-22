@@ -64,5 +64,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         AfterInternal = 3,
     }
 
-    public delegate bool ExternalMmuFaultHook(ulong address, AccessType accessType, ulong windowId, bool firstTry);
+    // windowId is null if the address was not found in any of the defined windows
+    public delegate bool ExternalMmuFaultHook(ulong address, AccessType accessType, ulong? windowId, bool firstTry);
 }

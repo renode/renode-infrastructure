@@ -1828,12 +1828,13 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        private int MmuFaultExternalHandler(ulong address, int accessType, ulong windowId, int firstTry)
+        private int MmuFaultExternalHandler(ulong address, int accessType, ulong rawWindowId, int firstTry)
         {
             this.Log(LogLevel.Noisy, "External MMU fault at 0x{0:X} when trying to access as {1}", address, (AccessType)accessType);
 
             var isFirstTry = firstTry == 1;
-            if(windowId == ulong.MaxValue && !isFirstTry)
+            var windowId = rawWindowId == ulong.MaxValue ? null : (ulong?)rawWindowId;
+            if(windowId == null && !isFirstTry)
             {
                 this.Log(LogLevel.Error, "MMU fault - the address 0x{0:X} is not specified in any of the existing ranges", address);
             }

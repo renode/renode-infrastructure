@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             cpu.AddHookOnMmuFault((faultAddress, accessType, faultyWindowId, firstTry) =>
             {
-                if(!firstTry && faultyWindowId != ulong.MaxValue && this.ContainsWindowWithId(faultyWindowId))
+                if(!firstTry && faultyWindowId is ulong id && this.ContainsWindowWithId(id))
                 {
                     this.TriggerInterrupt();
                     throw new CpuAbortException("Mmu fault occured. This must be handled properly");
