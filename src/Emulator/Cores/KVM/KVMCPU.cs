@@ -25,7 +25,7 @@ using Range = Antmicro.Renode.Core.Range;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public abstract class KVMCPU : BaseCPU, IGPIOReceiver, ICPUWithRegisters, IControllableCPU, ICPUWithMappedMemory
+    public abstract class KVMCPU : BaseCPU, IGPIOReceiver, ICPUWithRegisters, IControllableCPU, ICPUWithMappedMemory, ICPUWithMMU
     {
         public KVMCPU(string cpuType, IMachine machine, Endianess endianess, CpuBitness cpuBitness, uint cpuId = 0)
             : base(cpuId, cpuType, machine, endianess, cpuBitness)
@@ -98,6 +98,24 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public ulong TranslateAddress(ulong logicalAddress, MpuAccess accessType)
+        {
+            if(TryTranslateAddress(logicalAddress, accessType, out var physicalAddress))
+            {
+                return physicalAddress;
+            }
+            else
+            {
+                throw new RecoverableException($"Failed to translate address: 0x{logicalAddress:X}");
+            }
+        }
+
+        public bool TryTranslateAddress(ulong logicalAddress, MpuAccess accessType, out ulong physicalAddress)
+        {
+            physicalAddress = KvmTranslateGuestVirtualAddress(logicalAddress);
+            return physicalAddress != ulong.MaxValue;
+        }
+
         public void RegisterAccessFlags(ulong startAddress, ulong size, bool isIoMemory = false)
         {
             // all ArrayMemory is set as executable by default
@@ -158,6 +176,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         public abstract IEnumerable<CPURegister> GetRegisters();
 
         public override ulong ExecutedInstructions => throw new RecoverableException("ExecutedInstructions property is not implemented");
+
+        public virtual uint PageSize => 4096;
 
         protected virtual void InitializeRegisters()
         {
@@ -383,6 +403,13 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             binder = new NativeBinder(this, libraryFile);
         }
+
+#pragma warning disable 649
+
+        [Import]
+        private readonly Func<ulong, ulong> KvmTranslateGuestVirtualAddress;
+
+#pragma warning restore 649
 
         protected class SegmentMappingWithSlotNumber : SegmentMapping
         {
