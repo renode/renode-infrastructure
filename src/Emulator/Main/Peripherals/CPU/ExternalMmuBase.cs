@@ -150,6 +150,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public enum Privilege : uint
         {
+            None = 0b000,
             Read = 0b001,
             Write = 0b010,
             ReadAndWrite = 0b011,
