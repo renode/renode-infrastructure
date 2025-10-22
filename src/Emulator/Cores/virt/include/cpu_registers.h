@@ -1,6 +1,5 @@
 #pragma once
 
-
 typedef enum {
 #ifdef TARGET_X86_64KVM
     RAX_64    = 0,
@@ -77,7 +76,6 @@ typedef enum {
 
 
 #ifdef TARGET_X86_64KVM
-typedef uint64_t reg_t;
 #define RAX RAX_64
 #define RCX RCX_64
 #define RDX RDX_64
@@ -118,7 +116,6 @@ typedef uint64_t reg_t;
 #define CR8 CR8_64
 #define EFER EFER_64
 #else
-typedef uint32_t reg_t;
 #define RAX EAX_32
 #define RCX ECX_32
 #define RDX EDX_32
