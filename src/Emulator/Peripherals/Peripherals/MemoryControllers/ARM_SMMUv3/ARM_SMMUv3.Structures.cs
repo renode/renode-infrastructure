@@ -299,7 +299,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
 
                 if((privilegedAccess && !PXN) || (!privilegedAccess && !UXN))
                 {
-                    // TODO: Add execute permission
+                    allowed |= BusAccessPrivileges.Other;
                 }
                 return allowed;
             }
