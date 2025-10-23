@@ -19,11 +19,12 @@ namespace Antmicro.Renode.Peripherals.MTD
     {
         public STM32H7_FlashController(IMachine machine, MappedMemory flash1, MappedMemory flash2) : base(machine)
         {
-            bank1 = flash1;
-            bank2 = flash2;
+            banks = new Bank[NrOfBanks]
+            {
+                new Bank(this, 1, flash1),
+                new Bank(this, 2, flash2),
+            };
 
-            controlBank1Lock = new LockRegister(this, nameof(controlBank1Lock), ControlBankKey);
-            controlBank2Lock = new LockRegister(this, nameof(controlBank2Lock), ControlBankKey);
             optionControlLock = new LockRegister(this, nameof(optionControlLock), OptionControlKey);
 
             DefineRegisters();
@@ -33,8 +34,10 @@ namespace Antmicro.Renode.Peripherals.MTD
         public override void Reset()
         {
             base.Reset();
-            controlBank1Lock.Reset();
-            controlBank2Lock.Reset();
+            foreach(var bank in banks)
+            {
+                bank.Reset();
+            }
             optionControlLock.Reset();
 
             ProgramCurrentValues();
@@ -60,46 +63,9 @@ namespace Antmicro.Renode.Peripherals.MTD
                 .WithValueField(4, 2, name: "WRHIGHFREQ")
                 .WithReservedBits(6, 26);
 
-            Registers.KeyBank1.Define(this)
-                .WithValueField(0, 32, FieldMode.Write, name: "FLASH_KEYR1",
-                    writeCallback: (_, value) => controlBank1Lock.ConsumeValue((uint)value));
-
             Registers.OptionKey.Define(this)
                 .WithValueField(0, 32, FieldMode.Write, name: "FLASH_OPTKEYR",
                     writeCallback: (_, value) => optionControlLock.ConsumeValue((uint)value));
-
-            Registers.ControlBank1.Define(this, 0x31)
-                .WithFlag(0, FieldMode.Read | FieldMode.Set, name: "LOCK1", valueProviderCallback: _ => controlBank1Lock.IsLocked,
-                    changeCallback: (_, value) =>
-                    {
-                        if(value)
-                        {
-                            controlBank1Lock.Lock();
-                        }
-                    })
-                .WithTaggedFlag("PG1", 1)
-                .WithTaggedFlag("SER1", 2)
-                .WithTaggedFlag("BER1", 3)
-                .WithTag("PSIZE1", 4, 2)
-                .WithTaggedFlag("FW1", 6)
-                .WithTaggedFlag("START1", 7)
-                .WithTag("SNB1", 8, 3)
-                .WithReservedBits(11, 4)
-                .WithTaggedFlag("CRC_EN", 15)
-                .WithTaggedFlag("EOPIE1", 16)
-                .WithTaggedFlag("WRPERRIE1", 17)
-                .WithTaggedFlag("PGSERRIE1", 18)
-                .WithTaggedFlag("STRBERRIE1", 19)
-                .WithReservedBits(20, 1)
-                .WithTaggedFlag("INCERRIE1", 21)
-                .WithTaggedFlag("OPERRIE1", 22)
-                .WithTaggedFlag("RDPERRIE1", 23)
-                .WithTaggedFlag("RDSERRIE1", 24)
-                .WithTaggedFlag("SNECCERRIE1", 25)
-                .WithTaggedFlag("DBECCERRIE1", 26)
-                .WithTaggedFlag("CRCENDIE1", 27)
-                .WithTaggedFlag("CRCRDERRIE1", 28)
-                .WithReservedBits(29, 3);
 
             Registers.OptionControl.Define(this, 0x1)
                 .WithFlag(0, FieldMode.Read | FieldMode.Set, name: "OPTLOCK", valueProviderCallback: _ => optionControlLock.IsLocked,
@@ -137,65 +103,20 @@ namespace Antmicro.Renode.Peripherals.MTD
             Registers.OptionStatusProgram.Define(this, 0x406AAF0, false)
                 .WithValueField(0, 32, out optionStatusProgramRegister, name: "FLASH_OPTSR_PRG", softResettable: false);
 
-            Registers.WriteSectorProtectionCurrentBank1.Define(this)
-                .WithValueField(0, 8, FieldMode.Read, name: "WRPSn1", valueProviderCallback: _ => bank1WriteProtectionCurrentValue)
-                .WithReservedBits(8, 24);
+            foreach(var bank in banks)
+            {
+                bank.DefineRegisters();
+            }
 
-            Registers.WriteSectorProtectionProgramBank1.Define(this, 0xFF, false)
-                .WithValueField(0, 8, out bank1WriteProtectionProgramRegister, name: "WRPSn1", softResettable: false)
-                .WithReservedBits(8, 24);
-
-            Registers.KeyBank2.Define(this)
-                .WithValueField(0, 32, FieldMode.Write, name: "FLASH_KEYR2",
-                    writeCallback: (_, value) => controlBank2Lock.ConsumeValue((uint)value));
-
-            Registers.ControlBank2.Define(this, 0x31)
-                .WithFlag(0, FieldMode.Read | FieldMode.Set, name: "LOCK2", valueProviderCallback: _ => controlBank2Lock.IsLocked,
-                    changeCallback: (_, value) =>
-                    {
-                        if(value)
-                        {
-                            controlBank2Lock.Lock();
-                        }
-                    })
-                .WithTaggedFlag("PG1", 1)
-                .WithTaggedFlag("SER1", 2)
-                .WithTaggedFlag("BER1", 3)
-                .WithTag("PSIZE1", 4, 2)
-                .WithTaggedFlag("FW1", 6)
-                .WithTaggedFlag("START1", 7)
-                .WithTag("SNB1", 8, 3)
-                .WithReservedBits(11, 4)
-                .WithTaggedFlag("CRC_EN", 15)
-                .WithTaggedFlag("EOPIE1", 16)
-                .WithTaggedFlag("WRPERRIE1", 17)
-                .WithTaggedFlag("PGSERRIE1", 18)
-                .WithTaggedFlag("STRBERRIE1", 19)
-                .WithReservedBits(20, 1)
-                .WithTaggedFlag("INCERRIE1", 21)
-                .WithTaggedFlag("OPERRIE1", 22)
-                .WithTaggedFlag("RDPERRIE1", 23)
-                .WithTaggedFlag("RDSERRIE1", 24)
-                .WithTaggedFlag("SNECCERRIE1", 25)
-                .WithTaggedFlag("DBECCERRIE1", 26)
-                .WithTaggedFlag("CRCENDIE1", 27)
-                .WithTaggedFlag("CRCRDERRIE1", 28)
-                .WithReservedBits(29, 3);
-
-            Registers.WriteSectorProtectionCurrentBank2.Define(this)
-                .WithValueField(0, 8, FieldMode.Read, name: "WRPSn2", valueProviderCallback: _ => bank2WriteProtectionCurrentValue)
-                .WithReservedBits(8, 24);
-
-            Registers.WriteSectorProtectionProgramBank2.Define(this, 0xFF, false)
-                .WithValueField(0, 8, out bank2WriteProtectionProgramRegister, name: "WRPSn2", softResettable: false)
-                .WithReservedBits(8, 24);
         }
 
         private void ProgramCurrentValues()
         {
             optionStatusCurrentValue = (uint)optionStatusProgramRegister.Value;
-            bank1WriteProtectionCurrentValue = (byte)bank1WriteProtectionProgramRegister.Value;
-            bank2WriteProtectionCurrentValue = (byte)bank2WriteProtectionProgramRegister.Value;
+            foreach(var bank in banks)
+            {
+                bank.ProgramCurrentValues();
+            }
         }
 
         private bool IsOffsetToProgramRegister(long offset)
@@ -217,22 +138,101 @@ namespace Antmicro.Renode.Peripherals.MTD
         }
 
         private uint optionStatusCurrentValue;
-        private byte bank1WriteProtectionCurrentValue;
-        private byte bank2WriteProtectionCurrentValue;
 
         private IValueRegisterField optionStatusProgramRegister;
-        private IValueRegisterField bank1WriteProtectionProgramRegister;
-        private IValueRegisterField bank2WriteProtectionProgramRegister;
 
-        private readonly MappedMemory bank1;
-        private readonly MappedMemory bank2;
-
-        private readonly LockRegister controlBank1Lock;
-        private readonly LockRegister controlBank2Lock;
         private readonly LockRegister optionControlLock;
+
+        private readonly Bank[] banks;
 
         private static readonly uint[] ControlBankKey = {0x45670123, 0xCDEF89AB};
         private static readonly uint[] OptionControlKey = {0x08192A3B, 0x4C5D6E7F};
+
+        private const int NrOfBanks = 2;
+
+        private class Bank
+        {
+            public Bank(STM32H7_FlashController parent, int id, MappedMemory memory)
+            {
+                this.parent = parent;
+                this.Id = id;
+                this.memory = memory;
+
+                controlBankLock = new LockRegister(parent, $"{nameof(controlBankLock)}{id}", ControlBankKey);
+            }
+
+            public void Reset()
+            {
+                controlBankLock.Reset();
+            }
+
+            public void ProgramCurrentValues()
+            {
+                bankWriteProtectionCurrentValue = (byte)bankWriteProtectionProgramRegister.Value;
+            }
+
+            public void DefineRegisters()
+            {
+                var bankOffset = (Id - 1) * BanksOffset;
+
+                (Registers.KeyBank1 + bankOffset).Define(parent)
+                    .WithValueField(0, 32, FieldMode.Write, name: $"FLASH_KEYR{Id}",
+                        writeCallback: (_, value) => controlBankLock.ConsumeValue((uint)value));
+
+                (Registers.ControlBank1 + bankOffset).Define(parent, 0x31)
+                    .WithFlag(0, FieldMode.Read | FieldMode.Set, name: $"LOCK{Id}",
+                        valueProviderCallback: _ => controlBankLock.IsLocked,
+                        changeCallback: (_, value) =>
+                        {
+                            if(value)
+                            {
+                                controlBankLock.Lock();
+                            }
+                        })
+                    .WithTaggedFlag($"PG{Id}", 1)
+                    .WithTaggedFlag($"SER{Id}", 2)
+                    .WithTaggedFlag($"BER{Id}", 3)
+                    .WithTag($"PSIZE{Id}", 4, 2)
+                    .WithTaggedFlag($"FW{Id}", 6)
+                    .WithTaggedFlag($"START{Id}", 7)
+                    .WithTag($"SNB{Id}", 8, 3)
+                    .WithReservedBits(11, 4)
+                    .WithTaggedFlag($"CRC_EN", 15)
+                    .WithTaggedFlag($"EOPIE{Id}", 16)
+                    .WithTaggedFlag($"WRPERRIE{Id}", 17)
+                    .WithTaggedFlag($"PGSERRIE{Id}", 18)
+                    .WithTaggedFlag($"STRBERRIE{Id}", 19)
+                    .WithReservedBits(20, 1)
+                    .WithTaggedFlag($"INCERRIE{Id}", 21)
+                    .WithTaggedFlag($"OPERRIE{Id}", 22)
+                    .WithTaggedFlag($"RDPERRIE{Id}", 23)
+                    .WithTaggedFlag($"RDSERRIE{Id}", 24)
+                    .WithTaggedFlag($"SNECCERRIE{Id}", 25)
+                    .WithTaggedFlag($"DBECCERRIE{Id}", 26)
+                    .WithTaggedFlag($"CRCENDIE{Id}", 27)
+                    .WithTaggedFlag($"CRCRDERRIE{Id}", 28)
+                    .WithReservedBits(29, 3);
+
+                (Registers.WriteSectorProtectionCurrentBank1 + bankOffset).Define(parent)
+                    .WithValueField(0, 8, FieldMode.Read, name: $"WRPSn{Id}", valueProviderCallback: _ => bankWriteProtectionCurrentValue)
+                    .WithReservedBits(8, 24);
+
+                (Registers.WriteSectorProtectionProgramBank1 + bankOffset).Define(parent, 0xFF, false)
+                    .WithValueField(0, 8, out bankWriteProtectionProgramRegister, name: $"WRPSn{Id}", softResettable: false)
+                    .WithReservedBits(8, 24);
+            }
+
+            public int Id { get; }
+
+            private IValueRegisterField bankWriteProtectionProgramRegister;
+            private byte bankWriteProtectionCurrentValue;
+            private readonly STM32H7_FlashController parent;
+            private readonly MappedMemory memory;
+
+            private readonly LockRegister controlBankLock;
+
+            private const int BanksOffset = 0x100;
+        }
 
         private enum Registers
         {
