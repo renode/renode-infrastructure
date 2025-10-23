@@ -53,6 +53,8 @@ namespace Antmicro.Renode.Peripherals.MTD
             base.WriteDoubleWord(offset, value);
         }
 
+        public GPIO IRQ { get; } = new GPIO();
+
         public long Size => 0x1000;
 
         private void DefineRegisters()
@@ -109,7 +111,13 @@ namespace Antmicro.Renode.Peripherals.MTD
             {
                 bank.DefineRegisters();
             }
+        }
 
+        private void UpdateInterrupts()
+        {
+            var irqStatus = banks.Any(bank => bank.IrqStatus);
+            this.DebugLog("Set IRQ: {0}", irqStatus);
+            IRQ.Set(irqStatus);
         }
 
         private void ProgramCurrentValues()
@@ -216,7 +224,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                     .WithValueField(8, 3, out bankSectorEraseNumber, name: $"SNB{Id}")
                     .WithReservedBits(11, 4)
                     .WithTaggedFlag($"CRC_EN", 15)
-                    .WithTaggedFlag($"EOPIE{Id}", 16)
+                    .WithFlag(16, out bankEndOfProgramIrqEnabled, name: $"EOPIE{Id}")
                     .WithTaggedFlag($"WRPERRIE{Id}", 17)
                     .WithTaggedFlag($"PGSERRIE{Id}", 18)
                     .WithTaggedFlag($"STRBERRIE{Id}", 19)
@@ -231,6 +239,44 @@ namespace Antmicro.Renode.Peripherals.MTD
                     .WithTaggedFlag($"CRCRDERRIE{Id}", 28)
                     .WithReservedBits(29, 3);
 
+                (Registers.StatusBank1 + bankOffset).Define(parent)
+                    .WithTaggedFlag($"BSY{Id}", 0)
+                    .WithTaggedFlag($"WBNE{Id}", 1)
+                    .WithTaggedFlag($"QW{Id}", 2)
+                    .WithTaggedFlag($"CRC_BUSY{Id}", 3)
+                    .WithReservedBits(4, 12)
+                    .WithFlag(16, out bankEndOfProgramIrqStatus, name: $"EOP{Id}")
+                    .WithTaggedFlag($"WRPERR{Id}", 17)
+                    .WithTaggedFlag($"PGSERR{Id}", 18)
+                    .WithTaggedFlag($"STRBERR{Id}", 19)
+                    .WithReservedBits(20, 1)
+                    .WithTaggedFlag($"INCERR{Id}", 21)
+                    .WithTaggedFlag($"OPERR{Id}", 22)
+                    .WithTaggedFlag($"RDPERR{Id}", 23)
+                    .WithTaggedFlag($"RDSERR{Id}", 24)
+                    .WithTaggedFlag($"SNECCERR{Id}", 25)
+                    .WithTaggedFlag($"DBECCERR{Id}", 26)
+                    .WithTaggedFlag($"CRCEND{Id}", 27)
+                    .WithReservedBits(28, 4);
+
+                (Registers.ClearControlBank1 + bankOffset).Define(parent)
+                    .WithReservedBits(0, 16)
+                    .WithFlag(16, FieldMode.Set, name: $"CLR_EOP{Id}",
+                        writeCallback: (_, val) => { if(val) bankEndOfProgramIrqStatus.Value = false; })
+                    .WithTaggedFlag($"CLR_WRPERR{Id}", 17)
+                    .WithTaggedFlag($"CLR_PGSERR{Id}", 18)
+                    .WithTaggedFlag($"CLR_STRBERR{Id}", 19)
+                    .WithReservedBits(20, 1)
+                    .WithTaggedFlag($"CLR_INCERR{Id}", 21)
+                    .WithTaggedFlag($"CLR_OPERR{Id}", 22)
+                    .WithTaggedFlag($"CLR_RDPERR{Id}", 23)
+                    .WithTaggedFlag($"CLR_RDSERR{Id}", 24)
+                    .WithTaggedFlag($"CLR_SNECCERR{Id}", 25)
+                    .WithTaggedFlag($"CLR_DBECCERR{Id}", 26)
+                    .WithTaggedFlag($"CLR_CRCEND{Id}", 27)
+                    .WithReservedBits(28, 4)
+                    .WithWriteCallback((_, __) => parent.UpdateInterrupts());
+
                 (Registers.WriteSectorProtectionCurrentBank1 + bankOffset).Define(parent)
                     .WithValueField(0, 8, FieldMode.Read, name: $"WRPSn{Id}", valueProviderCallback: _ => bankWriteProtectionCurrentValue)
                     .WithReservedBits(8, 24);
@@ -242,18 +288,24 @@ namespace Antmicro.Renode.Peripherals.MTD
 
             public int Id { get; }
 
+            public bool IrqStatus => bankEndOfProgramIrqEnabled.Value && bankEndOfProgramIrqStatus.Value;
+
             private void BankErase()
             {
                 // Bank erase operation has higher priority than sector erase operation
                 if(bankEraseRequest.Value)
                 {
                     memory.SetRange(0, memory.Size, 0xff);
+                    bankEndOfProgramIrqStatus.Value = true;
+                    parent.UpdateInterrupts();
                 }
                 else if(bankSectorEraseRequest.Value)
                 {
                     var sectorIdx = bankSectorEraseNumber.Value;
                     var sectorStartAddr = (long)(sectorIdx * SectorSize);
                     memory.SetRange(sectorStartAddr, SectorSize, 0xff);
+                    bankEndOfProgramIrqStatus.Value = true;
+                    parent.UpdateInterrupts();
                 }
                 else
                 {
@@ -267,6 +319,8 @@ namespace Antmicro.Renode.Peripherals.MTD
             private IFlagRegisterField bankEraseRequest;
             private IFlagRegisterField bankSectorEraseRequest;
             private IValueRegisterField bankSectorEraseNumber;
+            private IFlagRegisterField bankEndOfProgramIrqEnabled;
+            private IFlagRegisterField bankEndOfProgramIrqStatus;
 
             private byte bankWriteProtectionCurrentValue;
             private readonly STM32H7_FlashController parent;
