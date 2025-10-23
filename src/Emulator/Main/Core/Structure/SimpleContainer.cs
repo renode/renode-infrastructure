@@ -11,6 +11,7 @@ using System.Linq;
 
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals;
+using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Core.Structure
 {
@@ -46,7 +47,7 @@ namespace Antmicro.Renode.Core.Structure
 
         public virtual void Dispose()
         {
-            foreach(var child in ChildCollection.Values.OfType<IDisposable>())
+            foreach(var child in ChildCollection.Values.OfType<IDisposable>().Where(c => !(c is ICPU)))
             {
                 child.Dispose();
             }
