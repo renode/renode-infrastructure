@@ -92,7 +92,9 @@ namespace Antmicro.Renode.Peripherals.MTD
                         ProgramCurrentValues();
                     })
                 .WithReservedBits(2, 2)
-                .WithTaggedFlag("MER", 4)
+                .WithFlag(4, name: "MER",
+                        valueProviderCallback: _ => false,
+                        writeCallback: (_, val) => { if(val) MassErase(); })
                 .WithReservedBits(5, 25)
                 .WithTaggedFlag("OPTCHANGEERRIE", 30)
                 .WithTaggedFlag("SWAP_BANK", 31);
@@ -137,6 +139,14 @@ namespace Antmicro.Renode.Peripherals.MTD
             }
         }
 
+        private void MassErase()
+        {
+            foreach(var bank in banks)
+            {
+                bank.HandleMassErase();
+            }
+        }
+
         private uint optionStatusCurrentValue;
 
         private IValueRegisterField optionStatusProgramRegister;
@@ -171,6 +181,12 @@ namespace Antmicro.Renode.Peripherals.MTD
                 bankWriteProtectionCurrentValue = (byte)bankWriteProtectionProgramRegister.Value;
             }
 
+            public void HandleMassErase()
+            {
+                bankEraseRequest.Value = true;
+                BankErase();
+            }
+
             public void DefineRegisters()
             {
                 var bankOffset = (Id - 1) * BanksOffset;
@@ -190,12 +206,14 @@ namespace Antmicro.Renode.Peripherals.MTD
                             }
                         })
                     .WithTaggedFlag($"PG{Id}", 1)
-                    .WithTaggedFlag($"SER{Id}", 2)
-                    .WithTaggedFlag($"BER{Id}", 3)
+                    .WithFlag(2, out bankSectorEraseRequest, name: $"SER{Id}")
+                    .WithFlag(3, out bankEraseRequest, name: $"BER{Id}")
                     .WithTag($"PSIZE{Id}", 4, 2)
                     .WithTaggedFlag($"FW{Id}", 6)
-                    .WithTaggedFlag($"START{Id}", 7)
-                    .WithTag($"SNB{Id}", 8, 3)
+                    .WithFlag(7, FieldMode.Set | FieldMode.Read, name: $"START{Id}",
+                        valueProviderCallback: _ => false,
+                        writeCallback: (_, val) => { if(val) BankErase(); })
+                    .WithValueField(8, 3, out bankSectorEraseNumber, name: $"SNB{Id}")
                     .WithReservedBits(11, 4)
                     .WithTaggedFlag($"CRC_EN", 15)
                     .WithTaggedFlag($"EOPIE{Id}", 16)
@@ -224,7 +242,32 @@ namespace Antmicro.Renode.Peripherals.MTD
 
             public int Id { get; }
 
+            private void BankErase()
+            {
+                // Bank erase operation has higher priority than sector erase operation
+                if(bankEraseRequest.Value)
+                {
+                    memory.SetRange(0, memory.Size, 0xff);
+                }
+                else if(bankSectorEraseRequest.Value)
+                {
+                    var sectorIdx = bankSectorEraseNumber.Value;
+                    var sectorStartAddr = (long)(sectorIdx * SectorSize);
+                    memory.SetRange(sectorStartAddr, SectorSize, 0xff);
+                }
+                else
+                {
+                    parent.WarningLog(
+                        "Trying to perform a bank erase operation but neither Bank Erase Request nor Sector Erase Request was selected."
+                    );
+                }
+            }
+
             private IValueRegisterField bankWriteProtectionProgramRegister;
+            private IFlagRegisterField bankEraseRequest;
+            private IFlagRegisterField bankSectorEraseRequest;
+            private IValueRegisterField bankSectorEraseNumber;
+
             private byte bankWriteProtectionCurrentValue;
             private readonly STM32H7_FlashController parent;
             private readonly MappedMemory memory;
@@ -232,6 +275,7 @@ namespace Antmicro.Renode.Peripherals.MTD
             private readonly LockRegister controlBankLock;
 
             private const int BanksOffset = 0x100;
+            private const int SectorSize = 0x20000; // 128KiB
         }
 
         private enum Registers
