@@ -4,7 +4,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Linq;
 
 using Antmicro.Renode.Core;
@@ -311,8 +310,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                 return;
             }
 
-            Action<ulong, MemoryOperation, ulong, ulong, ulong> hook = EraseMemoryAccessHook;
-            cpu.SetHookAtMemoryAccess(enabled ? hook : null);
+            cpu.SetHookAtMemoryAccess(enabled ? (MemoryAccessHook)EraseMemoryAccessHook : null);
         }
 
         private DoubleWordRegister programEraseControl;

@@ -220,7 +220,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public void SetHookAtMemoryAccess(Action<ulong, MemoryOperation, ulong, ulong, ulong> hook)
+        public void SetHookAtMemoryAccess(MemoryAccessHook hook)
         {
             TlibOnMemoryAccessEventEnabled(hook != null ? 1 : 0);
             memoryAccessHook = hook;
@@ -2027,7 +2027,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private Action<ulong> interruptBeginHook;
         private Action<ulong> interruptEndHook;
         private Action<ulong, AccessType, int> mmuFaultHook;
-        private Action<ulong, MemoryOperation, ulong, ulong, ulong> memoryAccessHook;
+        private MemoryAccessHook memoryAccessHook;
         private Action<bool> wfiStateChangeHook;
 
         private List<SegmentMapping> currentMappings;
