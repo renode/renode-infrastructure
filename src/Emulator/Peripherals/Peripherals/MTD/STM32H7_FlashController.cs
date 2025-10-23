@@ -5,11 +5,14 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Linq;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Logging.Profiling;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Peripherals.Memory;
 
 namespace Antmicro.Renode.Peripherals.MTD
@@ -155,6 +158,20 @@ namespace Antmicro.Renode.Peripherals.MTD
             }
         }
 
+        private void OnMemoryProgramWrite(ulong _, MemoryOperation operation, ulong __, ulong physicalAddress, uint width, ulong ___)
+        {
+            if(operation != MemoryOperation.MemoryWrite)
+            {
+                return;
+            }
+
+            var writeTarget = machine.GetSystemBus(this).WhatIsAt(physicalAddress)?.Peripheral;
+            foreach(var bank in banks)
+            {
+                bank.HandleMemoryProgramWrite(writeTarget, physicalAddress, width);
+            }
+        }
+
         private uint optionStatusCurrentValue;
 
         private IValueRegisterField optionStatusProgramRegister;
@@ -195,6 +212,52 @@ namespace Antmicro.Renode.Peripherals.MTD
                 BankErase();
             }
 
+            public void HandleMemoryProgramWrite(IPeripheral writeTarget, ulong address, uint width)
+            {
+                if(writeTarget != memory)
+                {
+                    return;
+                }
+
+                // We don't monitor memory banks all the time because it's expensive.
+                // But since the hook is already set up we might as well check if write is enabled.
+                // It might not be if hook was set up by another bank.
+                if(!bankWriteEnabled.Value || bankInconsistencyErrorStatus.Value)
+                {
+                    bankProgrammingErrorStatus.Value = true;
+                    parent.UpdateInterrupts();
+                    return;
+                }
+
+                if(bankWriteBufferCounter == 0)
+                {
+                    bankWriteBufferAddress = address;
+                }
+                // Writes have to be consecutive, otherwise incosistency error is raised.
+                else if(bankWriteBufferAddress + (ulong)bankWriteBufferCounter != address)
+                {
+                    bankInconsistencyErrorStatus.Value = true;
+                    parent.UpdateInterrupts();
+                    return;
+                }
+
+                bankWriteBufferCounter += (int)width;
+
+                if(bankWriteBufferCounter >= WriteBufferSize)
+                {
+                    if(bankWriteBufferCounter > WriteBufferSize)
+                    {
+                        // Manual doesn't describe what should happen in this case, hence instead of
+                        // setting any error, we only show warning.
+                        parent.WarningLog(
+                            "More than the required number of bytes (32 bytes) have been written to the Flash Bank {0}",
+                            Id
+                        );
+                    }
+                    FinishProgramWrite();
+                }
+            }
+
             public void DefineRegisters()
             {
                 var bankOffset = (Id - 1) * BanksOffset;
@@ -213,11 +276,14 @@ namespace Antmicro.Renode.Peripherals.MTD
                                 controlBankLock.Lock();
                             }
                         })
-                    .WithTaggedFlag($"PG{Id}", 1)
+                    .WithFlag(1, out bankWriteEnabled, name: $"PG{Id}",
+                        changeCallback: (_, val) => HandleProgramWriteEnableChange(val))
                     .WithFlag(2, out bankSectorEraseRequest, name: $"SER{Id}")
                     .WithFlag(3, out bankEraseRequest, name: $"BER{Id}")
                     .WithTag($"PSIZE{Id}", 4, 2)
-                    .WithTaggedFlag($"FW{Id}", 6)
+                    .WithFlag(6, FieldMode.Set | FieldMode.Read, name: $"FW{Id}",
+                        valueProviderCallback: _ => false,
+                        writeCallback: (_, val) => { if(val) FinishProgramWrite(); })
                     .WithFlag(7, FieldMode.Set | FieldMode.Read, name: $"START{Id}",
                         valueProviderCallback: _ => false,
                         writeCallback: (_, val) => { if(val) BankErase(); })
@@ -226,10 +292,10 @@ namespace Antmicro.Renode.Peripherals.MTD
                     .WithTaggedFlag($"CRC_EN", 15)
                     .WithFlag(16, out bankEndOfProgramIrqEnabled, name: $"EOPIE{Id}")
                     .WithTaggedFlag($"WRPERRIE{Id}", 17)
-                    .WithTaggedFlag($"PGSERRIE{Id}", 18)
+                    .WithFlag(18, out bankProgrammingErrorIrqEnable, name: $"PGSERRIE{Id}")
                     .WithTaggedFlag($"STRBERRIE{Id}", 19)
                     .WithReservedBits(20, 1)
-                    .WithTaggedFlag($"INCERRIE{Id}", 21)
+                    .WithFlag(21, out bankInconsistencyErrorIrqEnable, name: $"INCERRIE{Id}")
                     .WithTaggedFlag($"OPERRIE{Id}", 22)
                     .WithTaggedFlag($"RDPERRIE{Id}", 23)
                     .WithTaggedFlag($"RDSERRIE{Id}", 24)
@@ -241,16 +307,17 @@ namespace Antmicro.Renode.Peripherals.MTD
 
                 (Registers.StatusBank1 + bankOffset).Define(parent)
                     .WithTaggedFlag($"BSY{Id}", 0)
-                    .WithTaggedFlag($"WBNE{Id}", 1)
+                    .WithFlag(1, FieldMode.Read, name: $"WBNE{Id}",
+                        valueProviderCallback: _ => bankWriteEnabled.Value && bankWriteBufferCounter > 0)
                     .WithTaggedFlag($"QW{Id}", 2)
                     .WithTaggedFlag($"CRC_BUSY{Id}", 3)
                     .WithReservedBits(4, 12)
                     .WithFlag(16, out bankEndOfProgramIrqStatus, name: $"EOP{Id}")
                     .WithTaggedFlag($"WRPERR{Id}", 17)
-                    .WithTaggedFlag($"PGSERR{Id}", 18)
+                    .WithFlag(18, out bankProgrammingErrorStatus, FieldMode.Read, name: $"PGSERR{Id}")
                     .WithTaggedFlag($"STRBERR{Id}", 19)
                     .WithReservedBits(20, 1)
-                    .WithTaggedFlag($"INCERR{Id}", 21)
+                    .WithFlag(21, out bankInconsistencyErrorStatus, FieldMode.Read, name: $"INCERR{Id}")
                     .WithTaggedFlag($"OPERR{Id}", 22)
                     .WithTaggedFlag($"RDPERR{Id}", 23)
                     .WithTaggedFlag($"RDSERR{Id}", 24)
@@ -264,10 +331,12 @@ namespace Antmicro.Renode.Peripherals.MTD
                     .WithFlag(16, FieldMode.Set, name: $"CLR_EOP{Id}",
                         writeCallback: (_, val) => { if(val) bankEndOfProgramIrqStatus.Value = false; })
                     .WithTaggedFlag($"CLR_WRPERR{Id}", 17)
-                    .WithTaggedFlag($"CLR_PGSERR{Id}", 18)
+                    .WithFlag(18, FieldMode.Set, name: $"CLR_PGSERR{Id}",
+                        writeCallback: (_, val) => { if(val) bankProgrammingErrorStatus.Value = false; })
                     .WithTaggedFlag($"CLR_STRBERR{Id}", 19)
                     .WithReservedBits(20, 1)
-                    .WithTaggedFlag($"CLR_INCERR{Id}", 21)
+                    .WithFlag(21, FieldMode.Set, name: $"CLR_INCERR{Id}",
+                        writeCallback: (_, val) => { if(val) bankInconsistencyErrorStatus.Value = false; })
                     .WithTaggedFlag($"CLR_OPERR{Id}", 22)
                     .WithTaggedFlag($"CLR_RDPERR{Id}", 23)
                     .WithTaggedFlag($"CLR_RDSERR{Id}", 24)
@@ -288,7 +357,11 @@ namespace Antmicro.Renode.Peripherals.MTD
 
             public int Id { get; }
 
-            public bool IrqStatus => bankEndOfProgramIrqEnabled.Value && bankEndOfProgramIrqStatus.Value;
+            public bool IrqStatus => (bankEndOfProgramIrqEnabled.Value && bankEndOfProgramIrqStatus.Value) ||
+                                     (bankInconsistencyErrorIrqEnable.Value && bankInconsistencyErrorStatus.Value) ||
+                                     (bankProgrammingErrorIrqEnable.Value && bankProgrammingErrorStatus.Value);
+
+            public bool WriteEnabled => bankWriteEnabled.Value;
 
             private void BankErase()
             {
@@ -315,14 +388,50 @@ namespace Antmicro.Renode.Peripherals.MTD
                 }
             }
 
+            private void HandleProgramWriteEnableChange(bool value)
+            {
+                var areOtherBanksInWriteState = parent
+                    .banks
+                    .Any(bank => bank.Id != Id && bank.WriteEnabled);
+
+                // Entering write state, when another bank is already in write state doesn't require setting up hooks,
+                // as they already should be configured.
+                // When leaving write state we also shouldn't remove hooks as other bank is still using them.
+                if(!areOtherBanksInWriteState)
+                {
+                    var cpus = parent.machine.GetSystemBus(parent).GetCPUs().OfType<ICPUWithMemoryAccessHooks>();
+                    foreach(var cpu in cpus)
+                    {
+                        cpu.SetHookAtMemoryAccess(value ? (MemoryAccessHook)parent.OnMemoryProgramWrite : null);
+                    }
+                }
+
+                bankWriteBufferCounter = 0;
+            }
+
+            private void FinishProgramWrite()
+            {
+                bankWriteBufferCounter = 0;
+                bankEndOfProgramIrqStatus.Value = true;
+                parent.UpdateInterrupts();
+            }
+
             private IValueRegisterField bankWriteProtectionProgramRegister;
             private IFlagRegisterField bankEraseRequest;
             private IFlagRegisterField bankSectorEraseRequest;
             private IValueRegisterField bankSectorEraseNumber;
             private IFlagRegisterField bankEndOfProgramIrqEnabled;
             private IFlagRegisterField bankEndOfProgramIrqStatus;
+            private IFlagRegisterField bankWriteEnabled;
+            private IFlagRegisterField bankInconsistencyErrorIrqEnable;
+            private IFlagRegisterField bankInconsistencyErrorStatus;
+            private IFlagRegisterField bankProgrammingErrorIrqEnable;
+            private IFlagRegisterField bankProgrammingErrorStatus;
 
             private byte bankWriteProtectionCurrentValue;
+            private int bankWriteBufferCounter;
+            private ulong bankWriteBufferAddress;
+
             private readonly STM32H7_FlashController parent;
             private readonly MappedMemory memory;
 
@@ -330,6 +439,7 @@ namespace Antmicro.Renode.Peripherals.MTD
 
             private const int BanksOffset = 0x100;
             private const int SectorSize = 0x20000; // 128KiB
+            private const int WriteBufferSize = 32;
         }
 
         private enum Registers
