@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -42,6 +42,9 @@ namespace Antmicro.Renode.Core
         public static ITimeDomain ExternalWorld { get; private set; }
 
         public static EmulationManager Instance { get; private set; }
+
+        // Incremented every time new Emulation is created on current Renode instance
+        public static int EmulationEpoch { get; private set; }
 
         public static bool DisableEmulationFilesCleanup = false;
 
@@ -89,7 +92,7 @@ namespace Antmicro.Renode.Core
 
         public void Clear()
         {
-            CurrentEmulation = new Emulation();
+            CurrentEmulation = GetNewEmulation();
         }
 
         public void EnableCompiledFilesCache(bool value)
@@ -104,6 +107,7 @@ namespace Antmicro.Renode.Core
                                 ? (Stream)new GZipStream(fstream, CompressionMode.Decompress)
                                 : (Stream)fstream)
             {
+                EmulationEpoch++;
                 var deserializationResult = serializer.TryDeserialize<Emulation>(stream, out var emulation, out var metadata);
                 string metadataStringFromFile = null;
 
@@ -277,6 +281,12 @@ namespace Antmicro.Renode.Core
 
         public event Action EmulationChanged;
 
+        private static Emulation GetNewEmulation()
+        {
+            EmulationEpoch++;
+            return new Emulation();
+        }
+
         private static bool TryFindPath(object obj, Dictionary<object, IEnumerable<object>> parents, Type finalType, out List<object> resultPath)
         {
             return TryFindPathInnerRecursive(obj, parents, new List<object>(), finalType, out resultPath);
@@ -324,7 +334,7 @@ namespace Antmicro.Renode.Core
             serializer = new Serializer(settings);
             serializer.ForObject<PythonDictionary>().SetSurrogate(x => new PythonDictionarySurrogate(x));
             serializer.ForSurrogate<PythonDictionarySurrogate>().SetObject(x => x.Restore());
-            currentEmulation = new Emulation();
+            currentEmulation = GetNewEmulation();
             ProgressMonitor = new ProgressMonitor();
             stopwatch = new Stopwatch();
             currentEmulationLock = new object();
