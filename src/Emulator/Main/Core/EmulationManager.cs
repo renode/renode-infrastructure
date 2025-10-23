@@ -103,11 +103,29 @@ namespace Antmicro.Renode.Core
 
         public void Load(ReadFilePath path)
         {
-            using(var fstream = new FileStream(path, FileMode.Open, FileAccess.Read))
-            using(var stream = path.ToString().EndsWith(".gz", StringComparison.InvariantCulture)
-                                ? (Stream)new GZipStream(fstream, CompressionMode.Decompress)
-                                : (Stream)fstream)
+            FileStream fstream = null;
+            MemoryStream ms = null;
+            Stream stream = null;
+
+            try
             {
+                fstream = new FileStream(path, FileMode.Open, FileAccess.Read);
+
+                if(path.ToString().EndsWith(".gz", StringComparison.InvariantCulture))
+                {
+                    // Migrant deserializer uses the .Position, which is not supported
+                    // by GZipStream. Decompress and copy the data to a MemoryStream.
+                    var gz = new GZipStream(fstream, CompressionMode.Decompress);
+                    ms = new MemoryStream();
+                    gz.CopyTo(ms);
+                    gz.Dispose();
+                    ms.Position = 0;
+                    stream = ms;
+                }
+                else
+                {
+                    stream = fstream;
+                }
                 EmulationEpoch++;
                 var deserializationResult = serializer.TryDeserialize<Emulation>(stream, out var emulation, out var metadata);
                 string metadataStringFromFile = null;
@@ -137,6 +155,11 @@ namespace Antmicro.Renode.Core
                 {
                     Logger.Log(LogLevel.Warning, "Version of deserialized emulation ({0}) does not match current one ({1}). Things may go awry!", metadataStringFromFile, MetadataString);
                 }
+            }
+            finally
+            {
+                ms?.Dispose();
+                fstream?.Dispose();
             }
         }
 
