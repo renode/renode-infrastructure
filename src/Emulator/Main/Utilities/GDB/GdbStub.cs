@@ -184,29 +184,30 @@ namespace Antmicro.Renode.Utilities.GDB
                     }
                     catch(Exception e)
                     {
-                        var error = Error.Unknown;
-                        // Can't check for the innermost recursively
-                        // since this won't be the innermost.
                         if(e.InnerException is InvalidRegisterAccessException)
                         {
-                            error = Error.OperationNotPermitted;
+                            ctx.Send(new Packet(PacketData.ErrorReply(Error.OperationNotPermitted)));
+                            return;
                         }
 
-                        if(LogsEnabled)
+                        // Get to the innermost exception, as it will have the reason for the error.
+                        Exception innermostException = e;
+                        while(innermostException.InnerException != null)
                         {
-                            // Get to the inner-most exception. The outer-most exception here is often
-                            // 'Reflection.TargetInvocationException' which doesn't have any useful message.
-                            while(e.InnerException != null)
-                            {
-                                e = e.InnerException;
-                            }
-                            var commandString = result.Packet.Data.GetDataAsStringLimited();
-                            commandsManager.Cpu.Log(LogLevel.Error, "GDB '{0}' command failed: {1}", commandString, e.Message);
+                            innermostException = innermostException.InnerException;
+                        }
+                        var commandString = result.Packet.Data.GetDataAsStringLimited();
+                        commandsManager.Cpu.Log(LogLevel.Error, "GDB '{0}' command failed: {1}", commandString, innermostException.Message);
+
+                        if(Emulator.InCIMode && !(innermostException is RecoverableException))
+                        {
+                            throw;
                         }
 
-                        ctx.Send(new Packet(PacketData.ErrorReply(error)));
+                        ctx.Send(new Packet(PacketData.ErrorReply(innermostException.Message)));
                         return;
                     }
+
                     // If there is no data here, we will respond later with Stop Reply Response
                     foreach(var packetData in packetDatas)
                     {
