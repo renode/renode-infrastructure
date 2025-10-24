@@ -14,20 +14,9 @@ using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Wireless
 {
-    public interface IInterferenceQueueListener
-    {
-        void InteferenceQueueChangedCallback();
-    }
-
     public static class InterferenceQueue
     {
         static readonly List<PacketInfo> overTheAirPackets = new List<PacketInfo>();
-        static readonly List<IInterferenceQueueListener> listeners = new List<IInterferenceQueueListener>();
-
-        public static void Subscribe(IInterferenceQueueListener listener)
-        {
-            listeners.Add(listener);
-        }
 
         public static void Add(IRadio sender, RadioPhyId phyId, int channel, int txPowerDbm, byte[] content)
         {
@@ -49,7 +38,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             newEntry.StartTxTimestamp = addTime;
             overTheAirPackets.Add(newEntry);
             Logger.Log(LogLevel.Noisy, "InterferenceQueue.Add at {0}: [{1}]", addTime, BitConverter.ToString(content));
-            NotifyListeners();
+            InterferenceQueueChanged?.Invoke();
         }
 
         public static void Remove(IRadio sender)
@@ -80,7 +69,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             }
 
             overTheAirPackets.Remove(entry);
-            NotifyListeners();
+            InterferenceQueueChanged?.Invoke();
         }
 
         public static TimeInterval GetTxStartTime(IRadio sender)
@@ -92,7 +81,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
             if(entry == null)
             {
-                Logger.Log(LogLevel.Error, "InterferenceQueue.GetTxStartTime: entry not found");
                 return TimeInterval.Empty;
             }
 
@@ -106,7 +94,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
         // - the sender TX power
         // - interference between different PHYs
         // - Co-channel interference
-        public static int GetCurrentRssi(RadioPhyId phyId, int channel)
+        public static int GetCurrentRssi(IRadio receiver, RadioPhyId phyId, int channel)
         {
             if(ForceBusyRssi)
             {
@@ -139,16 +127,10 @@ namespace Antmicro.Renode.Peripherals.Wireless
             return null;
         }
 
-        private static void NotifyListeners()
-        {
-            foreach(IInterferenceQueueListener listener in listeners)
-            {
-                listener.InteferenceQueueChangedCallback();
-            }
-        }
-
         private const int RssiBusyChannelHardCodedValueDbm = 20;
         private const int RssiClearChannelHardCodedValueDbm = -120;
+
+        public static event Action InterferenceQueueChanged;
     }
 
     public class PacketInfo
@@ -216,6 +198,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
     public enum RadioPhyId
     {
         Phy_802154_2_4GHz_OQPSK = 0,
-        Phy_BLE_2_4GHz_GFSK     = 1,
+        Phy_BLE_2_4GHz_GFSK = 1,
+        Phy_SubGHz_GFSK = 2,
     }
 }
