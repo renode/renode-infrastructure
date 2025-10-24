@@ -11,6 +11,7 @@ using System;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Timers;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 {
@@ -18,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public partial class SiLabs_PRS_3
     {
-        public SiLabs_PRS_3(Machine machine, SiLabs_HFXO_3 hfxo, EFR32xG2_SYSRTC_1 sysrtc) : this(machine)
+        public SiLabs_PRS_3(Machine machine, SiLabs_HFXO_3 hfxo, SiLabs_SYSRTC_1 sysrtc) : this(machine)
         {
             this.hfxo = hfxo;
             this.sysrtc = sysrtc;
@@ -120,7 +121,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         private Action[] asyncSignalHandlers;
 
         // A reference to sysrtc so that the prs can subscribe to events the sysrtc produces
-        private readonly EFR32xG2_SYSRTC_1 sysrtc;
+        private readonly SiLabs_SYSRTC_1 sysrtc;
 
         // A reference to hfxo so that the prs can subscribe to events the hfxo produces
         private readonly SiLabs_HFXO_3 hfxo;
