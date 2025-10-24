@@ -4,6 +4,7 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
 using System.Collections.Generic;
 
 using Antmicro.Renode.Logging;
@@ -148,14 +149,15 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private readonly ICPUWithExternalMmu cpu;
         private readonly uint windowsCount;
 
+        [Flags]
         public enum Privilege : uint
         {
             None = 0b000,
             Read = 0b001,
             Write = 0b010,
-            ReadAndWrite = 0b011,
+            ReadAndWrite = Read | Write,
             Execute = 0b100,
-            All = 0b111,
+            All = ReadAndWrite | Execute,
         }
     }
 }
