@@ -105,6 +105,29 @@ namespace Antmicro.Renode.UnitTests
             Assert.True(ReadInterruptStatus(uart).HasFlag(InterruptFlag.TxFifoOverflow));
         }
 
+        [Test]
+        public void ShouldGenerateRxOverflowsWhenEnabled()
+        {
+            var uart = new Cadence_UART(machine, clearInterruptStatusOnRead: true, fifoCapacity: 1);
+            uart.Reset();
+            uart.EnableRxOverflow = true;
+            EnableRx(uart);
+
+            uart.WriteChar(0);
+            Assert.False(ReadInterruptStatus(uart).HasFlag(InterruptFlag.RxFifoOverflow));
+            uart.WriteChar(0);
+            Assert.True(ReadInterruptStatus(uart).HasFlag(InterruptFlag.RxFifoOverflow));
+
+            uart.Reset();
+            uart.EnableRxOverflow = false;
+            EnableRx(uart);
+
+            uart.WriteChar(0);
+            Assert.False(ReadInterruptStatus(uart).HasFlag(InterruptFlag.RxFifoOverflow));
+            uart.WriteChar(0);
+            Assert.False(ReadInterruptStatus(uart).HasFlag(InterruptFlag.RxFifoOverflow));
+        }
+
         private void EnableRx(Cadence_UART uart)
         {
             uart.WriteDoubleWord((long)Registers.Control, FlagEnableRx);
@@ -133,6 +156,7 @@ namespace Antmicro.Renode.UnitTests
             TxFifoOverflow = 1 << 12,
             TxFifoNearlyFull = 1 << 11,
             RxTimeoutError = 1 << 8,
+            RxFifoOverflow = 1 << 5,
             TxFifoFull = 1 << 4,
             TxFifoEmpty = 1 << 3,
             RxFifoEmpty = 1 << 1
