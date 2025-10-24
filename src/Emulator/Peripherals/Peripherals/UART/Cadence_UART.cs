@@ -61,7 +61,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 return;
             }
 
-            if(Count < fifoCapacity)
+            if(Count < fifoCapacity || !EnableRxOverflow)
             {
                 base.WriteChar(value);
                 UpdateBufferState();
@@ -141,6 +141,8 @@ namespace Antmicro.Renode.Peripherals.UART
         public GPIO TxFifoNearlyFullIRQ { get; } = new GPIO();
 
         public GPIO TxFifoOverflowIRQ { get; } = new GPIO();
+
+        public bool EnableRxOverflow { get; set; }
 
         public event Action<BufferState> BufferStateChanged;
 
@@ -223,6 +225,17 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private void UpdateBufferState()
         {
+            if(!EnableRxOverflow)
+            {
+                var shouldUpdate = BufferState != BufferState.Empty;
+                BufferState = BufferState.Empty;
+                if(shouldUpdate)
+                {
+                    BufferStateChanged?.Invoke(BufferState);
+                }
+                return;
+            }
+
             if((!rxFifoFull.Status && BufferState == BufferState.Full) ||
                (!rxFifoEmpty.Status && BufferState == BufferState.Empty) ||
                ((rxFifoFull.Status || rxFifoEmpty.Status) && BufferState == BufferState.Ready))
