@@ -17,6 +17,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         {
         }
 
+        partial void LFXO_Reset()
+        {
+            oscillatorOnDemand = false;
+            oscillatorForce = false;
+
+            registers.Reset();
+        }
+
         private void BusFault(uint exception)
         {
             this.Log(LogLevel.Error, "LFXO is locked, BusFault!!");
