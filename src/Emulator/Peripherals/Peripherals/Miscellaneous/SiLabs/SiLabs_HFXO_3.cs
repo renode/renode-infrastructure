@@ -80,6 +80,18 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             IRQ = new GPIO();   // IRQ object handles all HFXO interrupts
         }
 
+        partial void HFXO_Reset()
+        {
+            temp_incr = 0;
+            oscillatorOnDemand = false;
+            oscillatorForceEn = false;
+            timer.Enabled = false;
+            wakeUpRequester = WakeupSource.NONE;
+
+            registers.Reset();
+            UpdateInterrupts();
+        }
+
         partial void Ctrl_Forceen_Write(bool a, bool b)
         {
             status_corebiasoptrdy_bit.Value = false;
