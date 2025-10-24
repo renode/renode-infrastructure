@@ -10,6 +10,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 {
     public partial class SiLabs_LFRCO_2
     {
+        partial void LFRCO_Reset()
+        {
+            oscillatorOnDemand = false;
+            oscillatorForce = false;
+
+            registers.Reset();
+        }
+
         partial void Ctrl_Forceen_Write(bool a, bool b)
         {
             oscillatorForce = (b == true);
