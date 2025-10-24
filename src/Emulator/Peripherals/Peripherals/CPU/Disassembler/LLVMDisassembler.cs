@@ -81,6 +81,7 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
             if(!cache.ContainsKey(key))
             {
                 IDisassembler disas = new LLVMDisasWrapper(model, triple, flags);
+                Logger.Info($"Created new disassembler for triple {triple}, cpu {model}, with flags {flags}");
                 if(!xtensaSupportWarningIssued && triple == "xtensa")
                 {
                     Logger.Log(LogLevel.Warning, "The disassembler for Xtensa is currently an experimental feature in Renode");
