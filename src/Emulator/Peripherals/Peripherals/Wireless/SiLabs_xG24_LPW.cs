@@ -8,6 +8,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 
 using Antmicro.Renode.Core;
@@ -17,15 +18,16 @@ using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Bus.Wrappers;
 using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Peripherals.Memory;
+using Antmicro.Renode.Peripherals.Miscellaneous.SiLabs;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Wireless
 {
-    public class SiLabs_xG24_LPW : IBusPeripheral, IRadio, IInterferenceQueueListener
+    public class SiLabs_xG24_LPW : IBusPeripheral, IRadio, ISiLabs_PacketTraceSniffer
     {
-        public SiLabs_xG24_LPW(Machine machine, MappedMemory ram, CortexM sequencer, bool pa0DbmSupport = false, bool pa10DbmSupport = false, bool pa20DbmSupport = false)
+        public SiLabs_xG24_LPW(Machine machine, MappedMemory ram, CortexM sequencer, SiLabs_BUFC_4 bufferController, SiLabs_SYSRTC_1 sysrtc = null, bool pa0DbmSupport = false, bool pa10DbmSupport = false, bool pa20DbmSupport = false)
         {
             this.machine = machine;
             this.ram = ram;
@@ -33,14 +35,15 @@ namespace Antmicro.Renode.Peripherals.Wireless
             this.RAC_0DbmSupport = pa0DbmSupport;
             this.RAC_10DbmSupport = pa10DbmSupport;
             this.RAC_20DbmSupport = pa20DbmSupport;
+            this.bufferController = bufferController;
 
             var initialTimerLimit = 0xFFFFUL;
 
-            seqTimer = new LimitTimer(machine.ClockSource, HfxoFrequency, this, "seqtimer", initialTimerLimit, direction: Direction.Ascending,
+            seqTimer = new LimitTimer(machine.ClockSource, MicrosecondFrequency, this, "seqtimer", initialTimerLimit, direction: Direction.Ascending,
                                       enabled: false, workMode: WorkMode.OneShot, eventEnabled: true, autoUpdate: true);
             seqTimer.LimitReached += RAC_SeqTimerHandleLimitReached;
 
-            proTimer = new LimitTimer(machine.ClockSource, HfxoFrequency, this, "protimer", initialTimerLimit, direction: Direction.Ascending,
+            proTimer = new LimitTimer(machine.ClockSource, MicrosecondFrequency, this, "protimer", initialTimerLimit, direction: Direction.Ascending,
                                       enabled: false, workMode: WorkMode.OneShot, eventEnabled: true, autoUpdate: true);
             proTimer.LimitReached += PROTIMER_HandleTimerLimitReached;
 
@@ -52,11 +55,11 @@ namespace Antmicro.Renode.Peripherals.Wireless
                                              enabled: false, workMode: WorkMode.OneShot, eventEnabled: true, autoUpdate: true);
             rssiUpdateTimer.LimitReached += AGC_RssiUpdateTimerHandleLimitReached;
 
-            txTimer = new LimitTimer(machine.ClockSource, HfxoFrequency, this, "txtimer", initialTimerLimit, direction: Direction.Ascending,
+            txTimer = new LimitTimer(machine.ClockSource, MicrosecondFrequency, this, "txtimer", initialTimerLimit, direction: Direction.Ascending,
                                              enabled: false, workMode: WorkMode.OneShot, eventEnabled: true, autoUpdate: true);
             txTimer.LimitReached += RAC_TxTimerLimitReached;
 
-            rxTimer = new LimitTimer(machine.ClockSource, HfxoFrequency, this, "rxtimer", initialTimerLimit, direction: Direction.Ascending,
+            rxTimer = new LimitTimer(machine.ClockSource, MicrosecondFrequency, this, "rxtimer", initialTimerLimit, direction: Direction.Ascending,
                                              enabled: false, workMode: WorkMode.OneShot, eventEnabled: true, autoUpdate: true);
             rxTimer.LimitReached += RAC_RxTimerLimitReached;
 
@@ -65,7 +68,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
             ModulatorAndDemodulatorIRQ = new GPIO();
             RadioControllerSequencerIRQ = new GPIO();
             RadioControllerRadioStateMachineIRQ = new GPIO();
-            BufferControllerIRQ = new GPIO();
             ProtocolTimerIRQ = new GPIO();
             SynthesizerIRQ = new GPIO();
             AutomaticGainControlIRQ = new GPIO();
@@ -88,11 +90,14 @@ namespace Antmicro.Renode.Peripherals.Wireless
             SeqFrameControllerIRQ = new GPIO();
             SeqFrameControllerPriorityIRQ = new GPIO();
             SeqModulatorAndDemodulatorIRQ = new GPIO();
-            SeqBufferControllerIRQ = new GPIO();
             SeqAutomaticGainControlIRQ = new GPIO();
             SeqProtocolTimerIRQ = new GPIO();
             SeqSynthesizerIRQ = new GPIO();
             SeqRfMailboxIRQ = new GPIO();
+            SeqSoftware0IRQ = new GPIO();
+            SeqSoftware1IRQ = new GPIO();
+
+            sequencer.CpuWaitSignal.Set(true);
 
             // Protocol Timer stuff
             PROTIMER_timeoutCounter = new PROTIMER_TimeoutCounter[PROTIMER_NumberOfTimeoutCounters];
@@ -112,11 +117,10 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 PROTIMER_captureCompareChannel[i] = new PROTIMER_CaptureCompareChannel(this, (uint)i);
             }
 
-            // BUFC stuff
-            BUFC_buffer = new BUFC_Buffer[BUFC_NumberOfBuffers];
-            for(var idx = 0u; idx < BUFC_NumberOfBuffers; ++idx)
+            if(sysrtc != null)
             {
-                BUFC_buffer[idx] = new BUFC_Buffer(this, this.machine, idx);
+                sysrtc.CompareMatchGroup1Channel0 += () => PROTIMER_RtcCapture(0);
+                sysrtc.CompareMatchGroup1Channel1 += () => PROTIMER_RtcCapture(1);
             }
 
             // FRC stuff
@@ -131,7 +135,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
             AGC_FrameRssiIntegerPart = -100;
 
             frameControllerRegistersCollection = BuildFrameControllerRegistersCollection();
-            bufferControllerRegistersCollection = BuildBufferControllerRegistersCollection();
             cyclicRedundancyCheckRegistersCollection = BuildCyclicRedundancyCheckRegistersCollection();
             synthesizerRegistersCollection = BuildSynthesizerRegistersCollection();
             radioControllerRegistersCollection = BuildRadioControllerRegistersCollection();
@@ -141,7 +144,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             hostMailboxRegistersCollection = BuildHostMailboxRegistersCollection();
             radioMailboxRegistersCollection = BuildRadioMailboxRegistersCollection();
 
-            InterferenceQueue.Subscribe(this);
+            InterferenceQueue.InterferenceQueueChanged += InteferenceQueueChangedCallback;
         }
 
         [ConnectionRegion("frc")]
@@ -150,44 +153,16 @@ namespace Antmicro.Renode.Peripherals.Wireless
             return Read<FrameControllerRegisters>(frameControllerRegistersCollection, "Frame Controller (FRC)", offset);
         }
 
-        [ConnectionRegion("bufc_ns")]
-        public byte ReadByteFromBufferControllerNonSecure(long offset)
+        [ConnectionRegion("rfmailbox")]
+        public uint ReadDoubleWordFromRadioMailbox(long offset)
         {
-            return ReadByte<BufferControllerRegisters>(bufferControllerRegistersCollection, "Buffer Controller (BUFC_NS)", offset);
-        }
-
-        [ConnectionRegion("bufc_ns")]
-        public uint ReadDoubleWordFromBufferControllerNonSecure(long offset)
-        {
-            return Read<BufferControllerRegisters>(bufferControllerRegistersCollection, "Buffer Controller (BUFC_NS)", offset);
-        }
-
-        [ConnectionRegion("bufc")]
-        public void WriteByteToBufferController(long _, byte __)
-        {
-            // TODO: Single byte writes not implemented for now
-        }
-
-        [ConnectionRegion("bufc")]
-        public void WriteDoubleWordToBufferController(long offset, uint value)
-        {
-            Write<BufferControllerRegisters>(bufferControllerRegistersCollection, "Buffer Controller (BUFC)", offset, value);
-        }
-
-        [ConnectionRegion("bufc")]
-        public byte ReadByteFromBufferController(long offset)
-        {
-            return ReadByte<BufferControllerRegisters>(bufferControllerRegistersCollection, "Buffer Controller (BUFC)", offset);
-        }
-
-        [ConnectionRegion("bufc")]
-        public uint ReadDoubleWordFromBufferController(long offset)
-        {
-            return Read<BufferControllerRegisters>(bufferControllerRegistersCollection, "Buffer Controller (BUFC)", offset);
+            return Read<RadioMailboxRegisters>(radioMailboxRegistersCollection, "Radio Mailbox (RFMAILBOX)", offset);
         }
 
         [ConnectionRegion("rac_ns")]
-        public void WriteByteToRadioControllerNonSecure(long _, byte __)
+#pragma warning disable IDE0060
+        public void WriteByteToRadioControllerNonSecure(long offset, byte value)
+#pragma warning restore IDE0060
         {
             // TODO: Single byte writes not implemented for now
         }
@@ -211,7 +186,9 @@ namespace Antmicro.Renode.Peripherals.Wireless
         }
 
         [ConnectionRegion("rac")]
-        public void WriteByteToRadioController(long _, byte __)
+#pragma warning disable IDE0060
+        public void WriteByteToRadioController(long offset, byte value)
+#pragma warning restore IDE0060
         {
             // TODO: Single byte writes not implemented for now
         }
@@ -223,13 +200,21 @@ namespace Antmicro.Renode.Peripherals.Wireless
         }
 
         [ConnectionRegion("rac")]
+        public byte ReadByteFromRadioController(long offset)
+        {
+            return ReadByte<RadioControllerRegisters>(radioControllerRegistersCollection, "Radio Controller (RAC)", offset);
+        }
+
+        [ConnectionRegion("rac")]
         public uint ReadDoubleWordFromRadioController(long offset)
         {
             return Read<RadioControllerRegisters>(radioControllerRegistersCollection, "Radio Controller (RAC)", offset);
         }
 
         [ConnectionRegion("protimer_ns")]
-        public void WriteByteToProtocolTimerNonSecure(long _, byte __)
+#pragma warning disable IDE0060
+        public void WriteByteToProtocolTimerNonSecure(long offset, byte value)
+#pragma warning restore IDE0060
         {
             // TODO: Single byte writes not implemented for now
         }
@@ -241,39 +226,479 @@ namespace Antmicro.Renode.Peripherals.Wireless
         }
 
         [ConnectionRegion("protimer_ns")]
-        public byte ReadByteFromProtocolTimerNonSecure(long offset)
-        {
-            return ReadByte<ProtocolTimerRegisters>(protocolTimerRegistersCollection, "Protocol Timer (PROTIMER_NS)", offset);
-        }
-
-        [ConnectionRegion("protimer_ns")]
         public uint ReadDoubleWordFromProtocolTimerNonSecure(long offset)
         {
             return Read<ProtocolTimerRegisters>(protocolTimerRegistersCollection, "Protocol Timer (PROTIMER_NS)", offset);
         }
 
-        [ConnectionRegion("bufc_ns")]
-        public void WriteDoubleWordToBufferControllerNonSecure(long offset, uint value)
+        [ConnectionRegion("protimer")]
+#pragma warning disable IDE0060
+        public void WriteByteToProtocolTimer(long offset, byte value)
+#pragma warning restore IDE0060
         {
-            Write<BufferControllerRegisters>(bufferControllerRegistersCollection, "Buffer Controller (BUFC_NS)", offset, value);
+            // TODO: Single byte writes not implemented for now
         }
 
         [ConnectionRegion("protimer")]
-        public void WriteByteToProtocolTimer(long _, byte __)
+        public void WriteDoubleWordToProtocolTimer(long offset, uint value)
         {
-            // TODO: Single byte writes not implemented for now
+            Write<ProtocolTimerRegisters>(protocolTimerRegistersCollection, "Protocol Timer (PROTIMER)", offset, value);
         }
 
-        [ConnectionRegion("bufc_ns")]
-        public void WriteByteToBufferControllerNonSecure(long _, byte __)
+        [ConnectionRegion("protimer")]
+        public byte ReadByteFromProtocolTimer(long offset)
         {
-            // TODO: Single byte writes not implemented for now
+            return ReadByte<ProtocolTimerRegisters>(protocolTimerRegistersCollection, "Protocol Timer (PROTIMER)", offset);
         }
 
         [ConnectionRegion("rfmailbox")]
         public byte ReadByteFromRadioMailbox(long offset)
         {
             return ReadByte<RadioMailboxRegisters>(radioMailboxRegistersCollection, "Radio Mailbox (RFMAILBOX)", offset);
+        }
+
+        [ConnectionRegion("rfmailbox")]
+        public void WriteDoubleWordToRadioMailbox(long offset, uint value)
+        {
+            Write<RadioMailboxRegisters>(radioMailboxRegistersCollection, "Radio Mailbox (RFMAILBOX)", offset, value);
+        }
+
+        [ConnectionRegion("rfmailbox")]
+#pragma warning disable IDE0060
+        public void WriteByteToRadioMailbox(long offset, byte value)
+#pragma warning restore IDE0060
+        {
+            // TODO: Single byte writes not implemented for now
+        }
+
+        [ConnectionRegion("rfmailbox_ns")]
+        public uint ReadDoubleWordFromRadioMailboxNonSecure(long offset)
+        {
+            return Read<RadioMailboxRegisters>(radioMailboxRegistersCollection, "Radio Mailbox (RFMAILBOX_NS)", offset);
+        }
+
+        [ConnectionRegion("hostmailbox_ns")]
+#pragma warning disable IDE0060
+        public void WriteByteToHostMailboxNonSecure(long offset, byte value)
+#pragma warning restore IDE0060
+        {
+            // TODO: Single byte writes not implemented for now
+        }
+
+        [ConnectionRegion("hostmailbox_ns")]
+        public void WriteDoubleWordToHostMailboxNonSecure(long offset, uint value)
+        {
+            Write<HostMailboxRegisters>(hostMailboxRegistersCollection, "Host Mailbox (HOSTMAILBOX_NS)", offset, value);
+        }
+
+        [ConnectionRegion("protimer")]
+        public uint ReadDoubleWordFromProtocolTimer(long offset)
+        {
+            return Read<ProtocolTimerRegisters>(protocolTimerRegistersCollection, "Protocol Timer (PROTIMER)", offset);
+        }
+
+        [ConnectionRegion("hostmailbox_ns")]
+        public byte ReadByteFromHostMailboxNonSecure(long offset)
+        {
+            return ReadByte<HostMailboxRegisters>(hostMailboxRegistersCollection, "Host Mailbox (HOSTMAILBOX_NS)", offset);
+        }
+
+        [ConnectionRegion("hostmailbox")]
+#pragma warning disable IDE0060
+        public void WriteByteToHostMailbox(long offset, byte value)
+#pragma warning restore IDE0060
+        {
+            // TODO: Single byte writes not implemented for now
+        }
+
+        [ConnectionRegion("hostmailbox")]
+        public void WriteDoubleWordToHostMailbox(long offset, uint value)
+        {
+            Write<HostMailboxRegisters>(hostMailboxRegistersCollection, "Host Mailbox (HOSTMAILBOX)", offset, value);
+        }
+
+        [ConnectionRegion("hostmailbox")]
+        public byte ReadByteFromHostMailbox(long offset)
+        {
+            return ReadByte<HostMailboxRegisters>(hostMailboxRegistersCollection, "Host Mailbox (HOSTMAILBOX)", offset);
+        }
+
+        [ConnectionRegion("hostmailbox")]
+        public uint ReadDoubleWordFromHostMailbox(long offset)
+        {
+            return Read<HostMailboxRegisters>(hostMailboxRegistersCollection, "Host Mailbox (HOSTMAILBOX)", offset);
+        }
+
+        [ConnectionRegion("rfmailbox_ns")]
+#pragma warning disable IDE0060
+        public void WriteByteToRadioMailboxNonSecure(long offset, byte value)
+#pragma warning restore IDE0060
+        {
+            // TODO: Single byte writes not implemented for now
+        }
+
+        [ConnectionRegion("rfmailbox_ns")]
+        public void WriteDoubleWordToRadioMailboxNonSecure(long offset, uint value)
+        {
+            Write<RadioMailboxRegisters>(radioMailboxRegistersCollection, "Radio Mailbox (RFMAILBOX_NS)", offset, value);
+        }
+
+        [ConnectionRegion("rfmailbox_ns")]
+        public byte ReadByteFromRadioMailboxNonSecure(long offset)
+        {
+            return ReadByte<RadioMailboxRegisters>(radioMailboxRegistersCollection, "Radio Mailbox (RFMAILBOX_NS)", offset);
+        }
+
+        [ConnectionRegion("hostmailbox_ns")]
+        public uint ReadDoubleWordFromHostMailboxNonSecure(long offset)
+        {
+            return Read<HostMailboxRegisters>(hostMailboxRegistersCollection, "Host Mailbox (HOSTMAILBOX_NS)", offset);
+        }
+
+        [ConnectionRegion("synth_ns")]
+#pragma warning disable IDE0060
+        public void WriteByteToSynthesizerNonSecure(long offset, byte value)
+#pragma warning restore IDE0060
+        {
+            // TODO: Single byte writes not implemented for now
+        }
+
+        [ConnectionRegion("protimer_ns")]
+        public byte ReadByteFromProtocolTimerNonSecure(long offset)
+        {
+            return ReadByte<ProtocolTimerRegisters>(protocolTimerRegistersCollection, "Protocol Timer (PROTIMER_NS)", offset);
+        }
+
+        [ConnectionRegion("synth_ns")]
+        public byte ReadByteFromSynthesizerNonSecure(long offset)
+        {
+            return ReadByte<SynthesizerRegisters>(synthesizerRegistersCollection, "Synthesizer (SYNTH_NS)", offset);
+        }
+
+        [ConnectionRegion("crc")]
+        public uint ReadDoubleWordFromCyclicRedundancyCheck(long offset)
+        {
+            return Read<CyclicRedundancyCheckRegisters>(cyclicRedundancyCheckRegistersCollection, "Cyclic Redundancy Check (CRC)", offset);
+        }
+
+        [ConnectionRegion("agc_ns")]
+#pragma warning disable IDE0060
+        public void WriteByteToAutomaticGainControllerNonSecure(long offset, byte value)
+#pragma warning restore IDE0060
+        {
+            // TODO: Single byte writes not implemented for now
+        }
+
+        [ConnectionRegion("agc_ns")]
+        public void WriteDoubleWordToAutomaticGainControllerNonSecure(long offset, uint value)
+        {
+            Write<AutomaticGainControlRegisters>(automaticGainControlRegistersCollection, "Automatic Gain Control (AGC_NS)", offset, value);
+        }
+
+        [ConnectionRegion("synth_ns")]
+        public void WriteDoubleWordToSynthesizerNonSecure(long offset, uint value)
+        {
+            Write<SynthesizerRegisters>(synthesizerRegistersCollection, "Synthesizer (SYNTH_NS)", offset, value);
+        }
+
+        [ConnectionRegion("agc_ns")]
+        public uint ReadDoubleWordFromAutomaticGainControllerNonSecure(long offset)
+        {
+            return Read<AutomaticGainControlRegisters>(automaticGainControlRegistersCollection, "Automatic Gain Control (AGC_NS)", offset);
+        }
+
+        [ConnectionRegion("agc")]
+#pragma warning disable IDE0060
+        public void WriteByteToAutomaticGainController(long offset, byte value)
+#pragma warning restore IDE0060
+        {
+            // TODO: Single byte writes not implemented for now
+        }
+
+        [ConnectionRegion("agc")]
+        public void WriteDoubleWordToAutomaticGainController(long offset, uint value)
+        {
+            Write<AutomaticGainControlRegisters>(automaticGainControlRegistersCollection, "Automatic Gain Control (AGC)", offset, value);
+        }
+
+        [ConnectionRegion("crc")]
+        public byte ReadByteFromCyclicRedundancyCheck(long offset)
+        {
+            return ReadByte<CyclicRedundancyCheckRegisters>(cyclicRedundancyCheckRegistersCollection, "Cyclic Redundancy Check (CRC)", offset);
+        }
+
+        [ConnectionRegion("agc")]
+        public byte ReadByteFromAutomaticGainController(long offset)
+        {
+            return ReadByte<AutomaticGainControlRegisters>(automaticGainControlRegistersCollection, "Automatic Gain Control (AGC)", offset);
+        }
+
+        [ConnectionRegion("frc_ns")]
+#pragma warning disable IDE0060
+        public void WriteByteToFrameControllerNonSecure(long offset, byte value)
+#pragma warning restore IDE0060
+        {
+            // TODO: Single byte writes not implemented for now
+        }
+
+        [ConnectionRegion("frc_ns")]
+        public void WriteDoubleWordToFrameControllerNonSecure(long offset, uint value)
+        {
+            Write<FrameControllerRegisters>(frameControllerRegistersCollection, "Frame Controller (FRC_NS)", offset, value);
+        }
+
+        [ConnectionRegion("frc_ns")]
+        public byte ReadByteFromFrameControllerNonSecure(long offset)
+        {
+            return ReadByte<FrameControllerRegisters>(frameControllerRegistersCollection, "Frame Controller (FRC_NS)", offset);
+        }
+
+        [ConnectionRegion("frc_ns")]
+        public uint ReadDoubleWordFromFrameControllerNonSecure(long offset)
+        {
+            return Read<FrameControllerRegisters>(frameControllerRegistersCollection, "Frame Controller (FRC_NS)", offset);
+        }
+
+        [ConnectionRegion("frc")]
+#pragma warning disable IDE0060
+        public void WriteByteToFrameController(long offset, byte value)
+#pragma warning restore IDE0060
+        {
+            // TODO: Single byte writes not implemented for now
+        }
+
+        [ConnectionRegion("frc")]
+        public void WriteDoubleWordToFrameController(long offset, uint value)
+        {
+            Write<FrameControllerRegisters>(frameControllerRegistersCollection, "Frame Controller (FRC)", offset, value);
+        }
+
+        [ConnectionRegion("frc")]
+        public byte ReadByteFromFrameController(long offset)
+        {
+            return ReadByte<FrameControllerRegisters>(frameControllerRegistersCollection, "Frame Controller (FRC)", offset);
+        }
+
+        [ConnectionRegion("agc")]
+        public uint ReadDoubleWordFromAutomaticGainController(long offset)
+        {
+            return Read<AutomaticGainControlRegisters>(automaticGainControlRegistersCollection, "Automatic Gain Control (AGC)", offset);
+        }
+
+        [ConnectionRegion("crc")]
+        public void WriteDoubleWordToCyclicRedundancyCheck(long offset, uint value)
+        {
+            Write<CyclicRedundancyCheckRegisters>(cyclicRedundancyCheckRegistersCollection, "Cyclic Redundancy Check (CRC)", offset, value);
+        }
+
+        [ConnectionRegion("agc_ns")]
+        public byte ReadByteFromAutomaticGainControllerNonSecure(long offset)
+        {
+            return ReadByte<AutomaticGainControlRegisters>(automaticGainControlRegistersCollection, "Automatic Gain Control (AGC)", offset);
+        }
+
+        [ConnectionRegion("crc_ns")]
+        public uint ReadDoubleWordFromCyclicRedundancyCheckNonSecure(long offset)
+        {
+            return Read<CyclicRedundancyCheckRegisters>(cyclicRedundancyCheckRegistersCollection, "Cyclic Redundancy Check (CRC_NS)", offset);
+        }
+
+        [ConnectionRegion("synth_ns")]
+        public uint ReadDoubleWordFromSynthesizerNonSecure(long offset)
+        {
+            return Read<SynthesizerRegisters>(synthesizerRegistersCollection, "Synthesizer (SYNTH_NS)", offset);
+        }
+
+        [ConnectionRegion("synth")]
+#pragma warning disable IDE0060
+        public void WriteByteToSynthesizer(long offset, byte value)
+#pragma warning restore IDE0060
+        {
+            // TODO: Single byte writes not implemented for now
+        }
+
+        [ConnectionRegion("synth")]
+        public void WriteDoubleWordToSynthesizer(long offset, uint value)
+        {
+            Write<SynthesizerRegisters>(synthesizerRegistersCollection, "Synthesizer (SYNTH)", offset, value);
+        }
+
+        [ConnectionRegion("crc")]
+#pragma warning disable IDE0060
+        public void WriteByteToCyclicRedundancyCheck(long offset, byte value)
+#pragma warning restore IDE0060
+        {
+            // TODO: Single byte writes not implemented for now
+        }
+
+        [ConnectionRegion("synth")]
+        public uint ReadDoubleWordFromSynthesizer(long offset)
+        {
+            return Read<SynthesizerRegisters>(synthesizerRegistersCollection, "Synthesizer (SYNTH)", offset);
+        }
+
+        [ConnectionRegion("modem_ns")]
+#pragma warning disable IDE0060
+        public void WriteByteToModulatorAndDemodulatorNonSecure(long offset, byte value)
+#pragma warning restore IDE0060
+        {
+            // TODO: Single byte writes not implemented for now
+        }
+
+        [ConnectionRegion("modem_ns")]
+        public void WriteDoubleWordToModulatorAndDemodulatorNonSecure(long offset, uint value)
+        {
+            Write<ModulatorAndDemodulatorRegisters>(modulatorAndDemodulatorRegistersCollection, "Modulator And Demodulator (MODEM_NS)", offset, value);
+        }
+
+        [ConnectionRegion("modem_ns")]
+        public byte ReadByteFromModulatorAndDemodulatorNonSecure(long offset)
+        {
+            return ReadByte<ModulatorAndDemodulatorRegisters>(modulatorAndDemodulatorRegistersCollection, "Modulator And Demodulator (MODEM_NS)", offset);
+        }
+
+        [ConnectionRegion("synth")]
+        public byte ReadByteFromSynthesizer(long offset)
+        {
+            return ReadByte<SynthesizerRegisters>(synthesizerRegistersCollection, "Synthesizer (SYNTH)", offset);
+        }
+
+        [ConnectionRegion("modem")]
+#pragma warning disable IDE0060
+        public void WriteByteToModulatorAndDemodulator(long offset, byte value)
+#pragma warning restore IDE0060
+        {
+            // TODO: Single byte writes not implemented for now
+        }
+
+        [ConnectionRegion("modem")]
+        public void WriteDoubleWordToModulatorAndDemodulator(long offset, uint value)
+        {
+            Write<ModulatorAndDemodulatorRegisters>(modulatorAndDemodulatorRegistersCollection, "Modulator And Demodulator (MODEM)", offset, value);
+        }
+
+        [ConnectionRegion("modem")]
+        public byte ReadByteFromModulatorAndDemodulator(long offset)
+        {
+            return ReadByte<ModulatorAndDemodulatorRegisters>(modulatorAndDemodulatorRegistersCollection, "Modulator And Demodulator (MODEM)", offset);
+        }
+
+        [ConnectionRegion("modem")]
+        public uint ReadDoubleWordFromModulatorAndDemodulator(long offset)
+        {
+            return Read<ModulatorAndDemodulatorRegisters>(modulatorAndDemodulatorRegistersCollection, "Modulator And Demodulator (MODEM)", offset);
+        }
+
+        [ConnectionRegion("crc_ns")]
+#pragma warning disable IDE0060
+        public void WriteByteToCyclicRedundancyCheckNonSecure(long offset, byte value)
+#pragma warning restore IDE0060
+        {
+            // TODO: Single byte writes not implemented for now
+        }
+
+        [ConnectionRegion("crc_ns")]
+        public void WriteDoubleWordToCyclicRedundancyCheckNonSecure(long offset, uint value)
+        {
+            Write<CyclicRedundancyCheckRegisters>(cyclicRedundancyCheckRegistersCollection, "Cyclic Redundancy Check (CRC_NS)", offset, value);
+        }
+
+        [ConnectionRegion("crc_ns")]
+        public byte ReadByteFromCyclicRedundancyCheckNonSecure(long offset)
+        {
+            return ReadByte<CyclicRedundancyCheckRegisters>(cyclicRedundancyCheckRegistersCollection, "Cyclic Redundancy Check (CRC_NS)", offset);
+        }
+
+        [ConnectionRegion("modem_ns")]
+        public uint ReadDoubleWordFromModulatorAndDemodulatorNonSecure(long offset)
+        {
+            return Read<ModulatorAndDemodulatorRegisters>(modulatorAndDemodulatorRegistersCollection, "Modulator And Demodulator (MODEM_NS)", offset);
+        }
+
+        public void Reset()
+        {
+            // Reset frame and channel variables
+            currentFrame = null;
+            currentFrameOffset = 0;
+            currentDisassembleSubFrame = 0;
+            currentDisassembleSubFrameStartWord = 0;
+            currentDisassembleSubFrameBytes = 0;
+            currentFrameByteOverTheAirTimeUs = 0;
+            currentFrameElapsedAirtimeUs = 0;
+
+            // Reset FRC variables
+            FRC_rxDonePending = false;
+            FRC_rxFrameIrqClearedPending = false;
+
+            // Reset RAC variables
+            RAC_ongoingRxCollided = false;
+            RAC_previous1RadioState = RAC_RadioState.Off;
+            RAC_previous2RadioState = RAC_RadioState.Off;
+            RAC_previous3RadioState = RAC_RadioState.Off;
+            RAC_paOutputLevelRamping = false;
+            RAC_seqTimerLimit = 0xFFFF;
+
+            // Reset PROTIMER variables
+            PROTIMER_preCounterSourcedBitmask = 0;
+            PROTIMER_baseCounterValue = 0;
+            PROTIMER_wrapCounterValue = 0;
+            PROTIMER_rtcWait = false;
+            PROTIMER_txEnable = false;
+            PROTIMER_txRequestState = PROTIMER_TxRxRequestState.Idle;
+            PROTIMER_rxRequestState = PROTIMER_TxRxRequestState.Idle;
+            PROTIMER_listenBeforeTalkState = PROTIMER_ListenBeforeTalkState.Idle;
+            PROTIMER_listenBeforeTalkPending = false;
+
+            // Reset MODEM variables
+            MODEM_txRampingDoneInterrupt = true;
+
+            // Reset AGC variables
+            AGC_rssiFirstRead = true;
+            AGC_rssiStartCommandOngoing = false;
+            AGC_rssiStartCommandFromProtimer = false;
+
+            // Disable all timers
+            seqTimer.Enabled = false;
+            paRampingTimer.Enabled = false;
+            rssiUpdateTimer.Enabled = false;
+            proTimer.Enabled = false;
+            rxTimer.Enabled = false;
+            txTimer.Enabled = false;
+
+            // Reset the sequencer and put it back in halted state.
+            sequencer.CpuWaitSignal.Set(true);
+            sequencer.Reset();
+
+            // TODO: clean up interference queue?
+
+            RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.Reset);
+
+            // Reset registers
+            frameControllerRegistersCollection.Reset();
+            cyclicRedundancyCheckRegistersCollection.Reset();
+            synthesizerRegistersCollection.Reset();
+            radioControllerRegistersCollection.Reset();
+            protocolTimerRegistersCollection.Reset();
+            modulatorAndDemodulatorRegistersCollection.Reset();
+            automaticGainControlRegistersCollection.Reset();
+            hostMailboxRegistersCollection.Reset();
+            radioMailboxRegistersCollection.Reset();
+
+            UpdateInterrupts();
+        }
+
+        public void InteferenceQueueChangedCallback()
+        {
+            if(RAC_currentRadioState == RAC_RadioState.RxSearch || RAC_currentRadioState == RAC_RadioState.RxFrame)
+            {
+                AGC_UpdateRssi();
+            }
+        }
+
+        public UInt64 PacketTraceRadioTimestamp()
+        {
+            TrySyncTime();
+            return (UInt64)GetTime().TotalMicroseconds * 1000;
         }
 
         public void UpdateInterrupts()
@@ -322,13 +747,17 @@ namespace Antmicro.Renode.Peripherals.Wireless
                        || (FRC_txRawEventInterrupt.Value && FRC_txRawEventInterruptEnable.Value)
                        || (FRC_packetBufferStartInterrupt.Value && FRC_packetBufferStartInterruptEnable.Value)
                        || (FRC_packetBufferThresholdInterrupt.Value && FRC_packetBufferThresholdInterruptEnable.Value));
+                for(var channel = 0; channel < FRC_NumberOfWordCounterCompareChannels; ++channel)
+                {
+                    irq |= (FRC_wordCounterCompareInterrupt[channel].Value && FRC_wordCounterCompareInterruptEnable[channel].Value);
+                }
                 if(irq)
                 {
-                    var @if = 0U;
-                    var ien = 0U;
-                    frameControllerRegistersCollection.TryRead((long)FrameControllerRegisters.InterruptFlags, out @if);
-                    frameControllerRegistersCollection.TryRead((long)FrameControllerRegisters.InterruptEnable, out ien);
-                    this.Log(LogLevel.Debug, "{0}: IRQ FRC set (IF=0x{1:X}, IEN=0x{2:X})", this.GetTime(), @if, ien);
+                    var interruptFlag = 0U;
+                    var interruptEnable = 0U;
+                    frameControllerRegistersCollection.TryRead((long)FrameControllerRegisters.InterruptFlags, out interruptFlag);
+                    frameControllerRegistersCollection.TryRead((long)FrameControllerRegisters.InterruptEnable, out interruptEnable);
+                    this.Log(LogLevel.Debug, "{0}: IRQ FRC set (IF=0x{1:X}, IEN=0x{2:X})", this.GetTime(), interruptFlag, interruptEnable);
                 }
                 FrameControllerIRQ.Set(irq);
 
@@ -343,11 +772,11 @@ namespace Antmicro.Renode.Peripherals.Wireless
                        || (MODEM_rxPreambleLostInterrupt.Value && MODEM_rxPreambleLostInterruptEnable.Value));
                 if(irq)
                 {
-                    var @if = 0U;
-                    var ien = 0U;
-                    modulatorAndDemodulatorRegistersCollection.TryRead((long)ModulatorAndDemodulatorRegisters.InterruptFlags, out @if);
-                    modulatorAndDemodulatorRegistersCollection.TryRead((long)ModulatorAndDemodulatorRegisters.InterruptEnable, out ien);
-                    this.Log(LogLevel.Debug, "{0}: IRQ MODEM set (IF=0x{1:X}, IEN=0x{2:X})", this.GetTime(), @if, ien);
+                    var interruptFlag = 0U;
+                    var interruptEnable = 0U;
+                    modulatorAndDemodulatorRegistersCollection.TryRead((long)ModulatorAndDemodulatorRegisters.InterruptFlags, out interruptFlag);
+                    modulatorAndDemodulatorRegistersCollection.TryRead((long)ModulatorAndDemodulatorRegisters.InterruptEnable, out interruptEnable);
+                    this.Log(LogLevel.Debug, "{0}: IRQ MODEM set (IF=0x{1:X}, IEN=0x{2:X})", this.GetTime(), interruptFlag, interruptEnable);
                 }
                 ModulatorAndDemodulatorIRQ.Set(irq);
 
@@ -358,31 +787,19 @@ namespace Antmicro.Renode.Peripherals.Wireless
                        || (PROTIMER_listenBeforeTalkSuccessInterrupt.Value && PROTIMER_listenBeforeTalkSuccessInterruptEnable.Value)
                        || (PROTIMER_listenBeforeTalkFailureInterrupt.Value && PROTIMER_listenBeforeTalkFailureInterruptEnable.Value)
                        || (PROTIMER_listenBeforeTalkRetryInterrupt.Value && PROTIMER_listenBeforeTalkRetryInterruptEnable.Value)
-                       || (PROTIMER_listenBeforeTalkTimeoutCounterMatchInterrupt.Value && PROTIMER_listenBeforeTalkTimeoutCounterMatchInterruptEnable.Value);
+                       || (PROTIMER_listenBeforeTalkTimeoutCounterMatchInterrupt.Value && PROTIMER_listenBeforeTalkTimeoutCounterMatchInterruptEnable.Value)
+                       || (PROTIMER_rtccSynchedInterrupt.Value && PROTIMER_rtccSynchedInterruptEnable.Value);
                 Array.ForEach(PROTIMER_timeoutCounter, x => irq |= x.Interrupt);
                 Array.ForEach(PROTIMER_captureCompareChannel, x => irq |= x.Interrupt);
                 if(irq)
                 {
-                    var @if = 0U;
-                    var ien = 0U;
-                    protocolTimerRegistersCollection.TryRead((long)ProtocolTimerRegisters.InterruptFlags, out @if);
-                    protocolTimerRegistersCollection.TryRead((long)ProtocolTimerRegisters.InterruptEnable, out ien);
-                    this.Log(LogLevel.Debug, "{0}: IRQ PROTIMER set (IF=0x{1:X}, IEN=0x{2:X})", this.GetTime(), @if, ien);
+                    var interruptFlag = 0U;
+                    var interruptEnable = 0U;
+                    protocolTimerRegistersCollection.TryRead((long)ProtocolTimerRegisters.InterruptFlags, out interruptFlag);
+                    protocolTimerRegistersCollection.TryRead((long)ProtocolTimerRegisters.InterruptEnable, out interruptEnable);
+                    this.Log(LogLevel.Debug, "{0}: IRQ PROTIMER set (IF=0x{1:X}, IEN=0x{2:X})", this.GetTime(), interruptFlag, interruptEnable);
                 }
                 ProtocolTimerIRQ.Set(irq);
-
-                // BUFC interrupt
-                irq = false;
-                Array.ForEach(BUFC_buffer, x => irq |= x.Interrupt);
-                if(irq)
-                {
-                    var @if = 0U;
-                    var ien = 0U;
-                    bufferControllerRegistersCollection.TryRead((long)BufferControllerRegisters.InterruptFlags, out @if);
-                    bufferControllerRegistersCollection.TryRead((long)BufferControllerRegisters.InterruptEnable, out ien);
-                    this.Log(LogLevel.Debug, "{0}: IRQ BUFC set (IF=0x{1:X}, IEN=0x{2:X})", this.GetTime(), @if, ien);
-                }
-                BufferControllerIRQ.Set(irq);
 
                 // AGC interrupt
                 irq = ((AGC_rssiValidInterrupt.Value && AGC_rssiValidInterruptEnable.Value)
@@ -393,11 +810,11 @@ namespace Antmicro.Renode.Peripherals.Wireless
                        || (AGC_ccaNotDetectedInterrupt.Value && AGC_ccaNotDetectedInterruptEnable.Value));
                 if(irq)
                 {
-                    var @if = 0U;
-                    var ien = 0U;
-                    automaticGainControlRegistersCollection.TryRead((long)AutomaticGainControlRegisters.InterruptFlags, out @if);
-                    automaticGainControlRegistersCollection.TryRead((long)AutomaticGainControlRegisters.InterruptEnable, out ien);
-                    this.Log(LogLevel.Debug, "{0}: IRQ AGC set (IF=0x{1:X}, IEN=0x{2:X})", this.GetTime(), @if, ien);
+                    var interruptFlag = 0U;
+                    var interruptEnable = 0U;
+                    automaticGainControlRegistersCollection.TryRead((long)AutomaticGainControlRegisters.InterruptFlags, out interruptFlag);
+                    automaticGainControlRegistersCollection.TryRead((long)AutomaticGainControlRegisters.InterruptEnable, out interruptEnable);
+                    this.Log(LogLevel.Debug, "{0}: IRQ AGC set (IF=0x{1:X}, IEN=0x{2:X})", this.GetTime(), interruptFlag, interruptEnable);
                 }
                 AutomaticGainControlIRQ.Set(irq);
 
@@ -414,11 +831,11 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 }
                 if(irq)
                 {
-                    var @if = 0U;
-                    var ien = 0U;
-                    hostMailboxRegistersCollection.TryRead((long)HostMailboxRegisters.InterruptFlags, out @if);
-                    hostMailboxRegistersCollection.TryRead((long)HostMailboxRegisters.InterruptEnable, out ien);
-                    this.Log(LogLevel.Debug, "{0}: IRQ HOSTMAILBOX set (IF=0x{1:X}, IEN=0x{2:X})", this.GetTime(), @if, ien);
+                    var interruptFlag = 0U;
+                    var interruptEnable = 0U;
+                    hostMailboxRegistersCollection.TryRead((long)HostMailboxRegisters.InterruptFlags, out interruptFlag);
+                    hostMailboxRegistersCollection.TryRead((long)HostMailboxRegisters.InterruptEnable, out interruptEnable);
+                    this.Log(LogLevel.Debug, "{0}: IRQ HOSTMAILBOX set (IF=0x{1:X}, IEN=0x{2:X})", this.GetTime(), interruptFlag, interruptEnable);
                 }
                 HostMailboxIRQ.Set(irq);
 
@@ -450,13 +867,17 @@ namespace Antmicro.Renode.Peripherals.Wireless
                        || (FRC_seqTxRawEventInterrupt.Value && FRC_seqTxRawEventInterruptEnable.Value)
                        || (FRC_seqPacketBufferStartInterrupt.Value && FRC_seqPacketBufferStartInterruptEnable.Value)
                        || (FRC_seqPacketBufferThresholdInterrupt.Value && FRC_seqPacketBufferThresholdInterruptEnable.Value));
+                for(var channel = 0; channel < FRC_NumberOfWordCounterCompareChannels; ++channel)
+                {
+                    irq |= (FRC_seqWordCounterCompareInterrupt[channel].Value && FRC_seqWordCounterCompareInterruptEnable[channel].Value);
+                }
                 if(irq)
                 {
-                    var @if = 0U;
-                    var ien = 0U;
-                    frameControllerRegistersCollection.TryRead((long)FrameControllerRegisters.SequencerInterruptFlags, out @if);
-                    frameControllerRegistersCollection.TryRead((long)FrameControllerRegisters.SequencerInterruptEnable, out ien);
-                    this.Log(LogLevel.Debug, "{0}: SEQ_IRQ FRC set (IF=0x{1:X}, IEN=0x{2:X})", this.GetTime(), @if, ien);
+                    var interruptFlag = 0U;
+                    var interruptEnable = 0U;
+                    frameControllerRegistersCollection.TryRead((long)FrameControllerRegisters.SequencerInterruptFlags, out interruptFlag);
+                    frameControllerRegistersCollection.TryRead((long)FrameControllerRegisters.SequencerInterruptEnable, out interruptEnable);
+                    this.Log(LogLevel.Debug, "{0}: SEQ_IRQ FRC set (IF=0x{1:X}, IEN=0x{2:X})", this.GetTime(), interruptFlag, interruptEnable);
                 }
                 SeqFrameControllerIRQ.Set(irq);
 
@@ -471,11 +892,11 @@ namespace Antmicro.Renode.Peripherals.Wireless
                        || (MODEM_seqRxPreambleLostInterrupt.Value && MODEM_seqRxPreambleLostInterruptEnable.Value));
                 if(irq)
                 {
-                    var @if = 0U;
-                    var ien = 0U;
-                    modulatorAndDemodulatorRegistersCollection.TryRead((long)ModulatorAndDemodulatorRegisters.SequencerInterruptFlags, out @if);
-                    modulatorAndDemodulatorRegistersCollection.TryRead((long)ModulatorAndDemodulatorRegisters.SequencerInterruptEnable, out ien);
-                    this.Log(LogLevel.Debug, "{0}: SEQ_IRQ MODEM set (IF=0x{1:X}, IEN=0x{2:X})", this.GetTime(), @if, ien);
+                    var interruptFlag = 0U;
+                    var interruptEnable = 0U;
+                    modulatorAndDemodulatorRegistersCollection.TryRead((long)ModulatorAndDemodulatorRegisters.SequencerInterruptFlags, out interruptFlag);
+                    modulatorAndDemodulatorRegistersCollection.TryRead((long)ModulatorAndDemodulatorRegisters.SequencerInterruptEnable, out interruptEnable);
+                    this.Log(LogLevel.Debug, "{0}: SEQ_IRQ MODEM set (IF=0x{1:X}, IEN=0x{2:X})", this.GetTime(), interruptFlag, interruptEnable);
                 }
                 SeqModulatorAndDemodulatorIRQ.Set(irq);
 
@@ -486,31 +907,19 @@ namespace Antmicro.Renode.Peripherals.Wireless
                        || (PROTIMER_seqListenBeforeTalkSuccessInterrupt.Value && PROTIMER_seqListenBeforeTalkSuccessInterruptEnable.Value)
                        || (PROTIMER_seqListenBeforeTalkFailureInterrupt.Value && PROTIMER_seqListenBeforeTalkFailureInterruptEnable.Value)
                        || (PROTIMER_seqListenBeforeTalkRetryInterrupt.Value && PROTIMER_seqListenBeforeTalkRetryInterruptEnable.Value)
-                       || (PROTIMER_seqListenBeforeTalkTimeoutCounterMatchInterrupt.Value && PROTIMER_seqListenBeforeTalkTimeoutCounterMatchInterruptEnable.Value);
+                       || (PROTIMER_seqListenBeforeTalkTimeoutCounterMatchInterrupt.Value && PROTIMER_seqListenBeforeTalkTimeoutCounterMatchInterruptEnable.Value)
+                       || (PROTIMER_seqRtccSynchedInterrupt.Value && PROTIMER_seqRtccSynchedInterruptEnable.Value);
                 Array.ForEach(PROTIMER_timeoutCounter, x => irq |= x.SeqInterrupt);
                 Array.ForEach(PROTIMER_captureCompareChannel, x => irq |= x.SeqInterrupt);
                 if(irq)
                 {
-                    var @if = 0U;
-                    var ien = 0U;
-                    protocolTimerRegistersCollection.TryRead((long)ProtocolTimerRegisters.SequencerInterruptFlags, out @if);
-                    protocolTimerRegistersCollection.TryRead((long)ProtocolTimerRegisters.SequencerInterruptEnable, out ien);
-                    this.Log(LogLevel.Debug, "{0}: SEQ_IRQ PROTIMER set (IF=0x{1:X}, IEN=0x{2:X})", this.GetTime(), @if, ien);
+                    var interruptFlag = 0U;
+                    var interruptEnable = 0U;
+                    protocolTimerRegistersCollection.TryRead((long)ProtocolTimerRegisters.SequencerInterruptFlags, out interruptFlag);
+                    protocolTimerRegistersCollection.TryRead((long)ProtocolTimerRegisters.SequencerInterruptEnable, out interruptEnable);
+                    this.Log(LogLevel.Debug, "{0}: SEQ_IRQ PROTIMER set (IF=0x{1:X}, IEN=0x{2:X})", this.GetTime(), interruptFlag, interruptEnable);
                 }
                 SeqProtocolTimerIRQ.Set(irq);
-
-                // BUFC interrupt
-                irq = false;
-                Array.ForEach(BUFC_buffer, x => irq |= x.SeqInterrupt);
-                if(irq)
-                {
-                    var @if = 0U;
-                    var ien = 0U;
-                    bufferControllerRegistersCollection.TryRead((long)BufferControllerRegisters.SequencerInterruptFlags, out @if);
-                    bufferControllerRegistersCollection.TryRead((long)BufferControllerRegisters.SequencerInterruptEnable, out ien);
-                    this.Log(LogLevel.Debug, "{0}: SEQ_IRQ BUFC set (IF=0x{1:X}, IEN=0x{2:X})", this.GetTime(), @if, ien);
-                }
-                SeqBufferControllerIRQ.Set(irq);
 
                 // AGC interrupt
                 irq = ((AGC_seqRssiValidInterrupt.Value && AGC_seqRssiValidInterruptEnable.Value)
@@ -521,11 +930,11 @@ namespace Antmicro.Renode.Peripherals.Wireless
                        || (AGC_seqCcaNotDetectedInterrupt.Value && AGC_seqCcaNotDetectedInterruptEnable.Value));
                 if(irq)
                 {
-                    var @if = 0U;
-                    var ien = 0U;
-                    automaticGainControlRegistersCollection.TryRead((long)AutomaticGainControlRegisters.SequencerInterruptFlags, out @if);
-                    automaticGainControlRegistersCollection.TryRead((long)AutomaticGainControlRegisters.SequencerInterruptEnable, out ien);
-                    this.Log(LogLevel.Debug, "{0}: SEQ_IRQ AGC set (IF=0x{1:X}, IEN=0x{2:X})", this.GetTime(), @if, ien);
+                    var interruptFlag = 0U;
+                    var interruptEnable = 0U;
+                    automaticGainControlRegistersCollection.TryRead((long)AutomaticGainControlRegisters.SequencerInterruptFlags, out interruptFlag);
+                    automaticGainControlRegistersCollection.TryRead((long)AutomaticGainControlRegisters.SequencerInterruptEnable, out interruptEnable);
+                    this.Log(LogLevel.Debug, "{0}: SEQ_IRQ AGC set (IF=0x{1:X}, IEN=0x{2:X})", this.GetTime(), interruptFlag, interruptEnable);
                 }
                 SeqAutomaticGainControlIRQ.Set(irq);
 
@@ -541,13 +950,29 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 }
                 if(irq)
                 {
-                    var @if = 0U;
-                    var ien = 0U;
-                    radioMailboxRegistersCollection.TryRead((long)RadioMailboxRegisters.InterruptFlags, out @if);
-                    radioMailboxRegistersCollection.TryRead((long)RadioMailboxRegisters.InterruptEnable, out ien);
-                    this.Log(LogLevel.Debug, "{0}: SEQ_IRQ RFMAILBOX set (IF=0x{1:X}, IEN=0x{2:X})", this.GetTime(), @if, ien);
+                    var interruptFlag = 0U;
+                    var interruptEnable = 0U;
+                    radioMailboxRegistersCollection.TryRead((long)RadioMailboxRegisters.InterruptFlags, out interruptFlag);
+                    radioMailboxRegistersCollection.TryRead((long)RadioMailboxRegisters.InterruptEnable, out interruptEnable);
+                    this.Log(LogLevel.Debug, "{0}: SEQ_IRQ RFMAILBOX set (IF=0x{1:X}, IEN=0x{2:X})", this.GetTime(), interruptFlag, interruptEnable);
                 }
                 SeqRfMailboxIRQ.Set(irq);
+
+                // SW0 interrupt
+                irq = ((RAC_softwareIrq.Value & 0x1) > 0);
+                if(irq)
+                {
+                    this.Log(LogLevel.Debug, "{0}: SEQ_IRQ SW0 set", this.GetTime());
+                }
+                SeqSoftware0IRQ.Set(irq);
+
+                // SW1 interrupt
+                irq = ((RAC_softwareIrq.Value & 0x2) > 0);
+                if(irq)
+                {
+                    this.Log(LogLevel.Debug, "{0}: SEQ_IRQ SW1 set", this.GetTime());
+                }
+                SeqSoftware1IRQ.Set(irq);
 
                 // Sequencer Radio State Machine interrupts
                 irq = RAC_seqStateOffInterrupt.Value && RAC_seqStateOffInterruptEnable.Value;
@@ -650,12 +1075,159 @@ namespace Antmicro.Renode.Peripherals.Wireless
             });
         }
 
+        public void ReceiveFrame(byte[] frame, IRadio sender)
+        {
+            var txStartTime = InterferenceQueue.GetTxStartTime(sender);
+            if(txStartTime == TimeInterval.Empty)
+            {
+                this.Log(LogBasicRadioActivityAsError ? LogLevel.Error : LogLevel.Info, "ReceiveFrame() at {0} on channel {1} ({2}) ({3}): Dropping (TX was aborted)",
+                         GetTime(), LogicalChannel, MODEM_GetPhySignature(), SYNTH_GetRfFrequencyString());
+                return;
+            }
+
+            TrySyncTime();
+            var txRxSimulatorDelayUs = (GetTime() - txStartTime).TotalMicroseconds;
+
+            this.Log(LogBasicRadioActivityAsError ? LogLevel.Error : LogLevel.Info, "ReceiveFrame() at {0} on channel {1} ({2}) ({3}), TX started at {4} (diff: {5})",
+                     GetTime(), LogicalChannel, MODEM_GetPhySignature(), SYNTH_GetRfFrequencyString(), txStartTime, txRxSimulatorDelayUs);
+
+            // If we are already receiving a frame, this co-channel transmission interferes with the
+            // ongoing reception. Energy-based: any co-channel signal corrupts it, regardless of whether
+            // either frame is decode-compatible. We mark the ongoing RX as collided and drop the newcomer.
+            if(RAC_internalRxState != RAC_InternalRxState.Idle)
+            {
+                // TODO: for now we always consider this a collision. In the future we will want to take into account
+                // the RSSI of both packets and determine if we could hear one of them.
+                // The ongoing RX is marked as "interfered", which can result in either a preamble not heard
+                // at all or a frame that fails CRC.
+                RAC_ongoingRxCollided = true;
+                this.Log(LogBasicRadioActivityAsError ? LogLevel.Error : LogLevel.Info, "Dropping: (RX already ongoing - collision)");
+                return;
+            }
+
+            // The txStartTime guard above already returned if the sender had no over-the-air entry, so a
+            // missing signature here is an internal invariant violation rather than a normal drop.
+            if(!InterferenceQueue.TryGetTxSignature(sender, out var senderSignature))
+            {
+                throw new Antmicro.Renode.Exceptions.RecoverableException(
+                    "ReceiveFrame: no TX signature found for sender although a TX start time was resolved");
+            }
+
+            // No reception is in progress. Drop frames whose PHY we cannot decode (the medium only matched
+            // carrier frequency). With no RX to corrupt there is nothing to flag as a collision; we simply
+            // cannot lock onto a PHY we are not configured for. The sync word is still checked later by the
+            // RX pipeline for decode-compatible frames.
+            if(!MODEM_GetPhySignature().IsDecodeCompatibleWith(senderSignature))
+            {
+                this.Log(LogBasicRadioActivityAsError ? LogLevel.Error : LogLevel.Info, "Dropping: (incompatible PHY: sender={0}, local={1})",
+                         senderSignature, MODEM_GetPhySignature());
+                return;
+            }
+
+            // Adopt the sender's coding sub-rate for the whole reception so our modelled airtime matches what
+            // the transmitter actually spent on air.
+            currentFrameCodedSymbolsPerInfoBit = senderSignature.CodedSymbolsPerInfoBit;
+
+            // Ideally we would schedule a first RX step that accounts for the txChainDelay and some portion of the preamble
+            // to still allow reception of frames for which we only heard some portion of the preamble.
+            // For simplicity, we just skip this step and check the radio state after both preamble and sync word have been received.
+
+            // We first schedule the RX timer to the point that the preamble and sych word are fully transmitted.
+            // That must also include the txChainDelay since at the transmitter we don't delay the FrameTxStart event.
+            // The RX state is set before computing the delay so the coded airtime uses the sender's sub-rate
+            // (see MODEM_GetCodedSymbolsPerInfoBit's RX override).
+            RAC_internalRxState = RAC_InternalRxState.PreambleAndSyncWord;
+            double delayUs = MODEM_GetTxChainDelayUs() + MODEM_GetPreambleOverTheAirTimeUs() + MODEM_GetSyncWordOverTheAirTimeUs();
+            MODEM_demodulatorState.Value = MODEM_DemodulatorState.FrameSearch;
+
+            currentFrame = frame;
+
+            // We set the RSSIFRAME here to make sure the sender hasn't removed the packet from the interference queue
+            // by the time the receiver has completed its RX delay.
+            AGC_FrameRssiIntegerPart = (sbyte)InterferenceQueue.GetCurrentRssi(this, Channel);
+
+            // If another transmission is already on air on our channel as we begin this reception, the two
+            // overlap in time: mark the reception as collided from the start (energy-based interference).
+            if(InterferenceQueue.AnyOtherOnAir(sender, Channel))
+            {
+                RAC_ongoingRxCollided = true;
+                this.Log(LogBasicRadioActivityAsError ? LogLevel.Error : LogLevel.Info, "RX starting with co-channel interference already on air -> collision");
+            }
+
+            if(delayUs > txRxSimulatorDelayUs && PROTIMER_UsToPreCntOverflowTicks(delayUs - txRxSimulatorDelayUs) > 0)
+            {
+                currentFrameElapsedAirtimeUs = 0;
+                rxTimer.Frequency = PROTIMER_GetPreCntOverflowFrequency();
+                rxTimer.Limit = PROTIMER_UsToPreCntOverflowTicks(delayUs - txRxSimulatorDelayUs);
+                rxTimer.Enabled = true;
+                this.Log(LogLevel.Noisy, "Schedule rxTimer for PRE/SYNC: {0}us PRE={1} SYNC={2} TXCHAIN={3}",
+                         delayUs - txRxSimulatorDelayUs, MODEM_GetPreambleOverTheAirTimeUs(), MODEM_GetSyncWordOverTheAirTimeUs(), MODEM_GetTxChainDelayUs());
+            }
+            else
+            {
+                // The RX/TX simulator delay already accounted for the intended delay.
+                // We store the time we already spent RXing the actual frame and call the RX timer
+                // handler directly.
+                currentFrameElapsedAirtimeUs = txRxSimulatorDelayUs - delayUs;
+                RAC_RxTimerLimitReached();
+            }
+            FRC_SnifferReceiveFrame(frame);
+        }
+
+        public void PROTIMER_PrsRtcTrigger()
+        {
+            // Ignore the trigger if we are not in the RTCWAIT state
+            if(PROTIMER_rtcWait && PROTIMER_rtccTriggerFromPrsEnable.Value)
+            {
+                this.Log(LogLevel.Debug, "PROTIMER RTC trigger at {0}, restarting PROTIMER", GetTime());
+                PROTIMER_rtccSynchedInterrupt.Value = true;
+                PROTIMER_seqRtccSynchedInterrupt.Value = true;
+                PROTIMER_rtcWait = false;
+                PROTIMER_Enabled = true;
+                UpdateInterrupts();
+            }
+        }
+
+        public void PROTIMER_PrsLbtStart()
+        {
+            if(PROTIMER_listenBeforeTalkPrsStartEnable.Value)
+            {
+                this.Log(LogLevel.Debug, "PROTIMER PRS LBT start at {0}", GetTime());
+                PROTIMER_ListenBeforeTalkStartCommand();
+            }
+        }
+
+        public void PROTIMER_PrsLbtStop()
+        {
+            if(PROTIMER_listenBeforeTalkPrsStopEnable.Value)
+            {
+                this.Log(LogLevel.Debug, "PROTIMER PRS LBT stop at {0}", GetTime());
+                PROTIMER_ListenBeforeTalkStopCommand();
+            }
+        }
+
+        public void PROTIMER_PrsLbtPause()
+        {
+            if(PROTIMER_listenBeforeTalkPrsPauseEnable.Value)
+            {
+                this.Log(LogLevel.Debug, "PROTIMER PRS LBT pause at {0}", GetTime());
+                PROTIMER_ListenBeforeTalkPauseCommand();
+            }
+        }
+
         public void PROTIMER_TriggerEvent(PROTIMER_Event ev)
         {
             if(ev < PROTIMER_Event.PreCounterOverflow || ev > PROTIMER_Event.InternalTrigger)
             {
                 this.Log(LogLevel.Error, "Unreachable. Invalid event value for PROTIMER_TriggerEvent.");
                 return;
+            }
+
+            if(ev >= PROTIMER_Event.CaptureCompareChannel0Event && ev <= PROTIMER_Event.CaptureCompareChannel4Event)
+            {
+                uint cc = (uint)ev - (uint)PROTIMER_Event.CaptureCompareChannel0Event;
+                this.Log(LogLevel.Noisy, "PROTIMER Triggering PRS Capture Compare {0} event at {1}", cc, GetTime());
+                PROTIMER_CaptureComparePrsEvent[cc]?.Invoke();
             }
 
             // if a Timeout Counter 0 match occurs during LBT, we change the event accordingly.
@@ -779,462 +1351,92 @@ namespace Antmicro.Renode.Peripherals.Wireless
             proTimer.Enabled = true;
         }
 
-        [ConnectionRegion("hostmailbox_ns")]
-        public void WriteByteToHostMailboxNonSecure(long _, byte __)
-        {
-            // TODO: Single byte writes not implemented for now
-        }
+        // Main core IRQs
+        public GPIO FrameControllerPrioritizedIRQ { get; }
 
-        [ConnectionRegion("hostmailbox_ns")]
-        public void WriteDoubleWordToHostMailboxNonSecure(long offset, uint value)
-        {
-            Write<HostMailboxRegisters>(hostMailboxRegistersCollection, "Host Mailbox (HOSTMAILBOX_NS)", offset, value);
-        }
+        public GPIO FrameControllerIRQ { get; }
 
-        [ConnectionRegion("hostmailbox_ns")]
-        public byte ReadByteFromHostMailboxNonSecure(long offset)
-        {
-            return ReadByte<HostMailboxRegisters>(hostMailboxRegistersCollection, "Host Mailbox (HOSTMAILBOX_NS)", offset);
-        }
+        public GPIO ModulatorAndDemodulatorIRQ { get; }
 
-        [ConnectionRegion("hostmailbox_ns")]
-        public uint ReadDoubleWordFromHostMailboxNonSecure(long offset)
-        {
-            return Read<HostMailboxRegisters>(hostMailboxRegistersCollection, "Host Mailbox (HOSTMAILBOX_NS)", offset);
-        }
+        public GPIO RadioControllerSequencerIRQ { get; }
 
-        [ConnectionRegion("hostmailbox")]
-        public void WriteByteToHostMailbox(long _, byte __)
-        {
-            // TODO: Single byte writes not implemented for now
-        }
+        public GPIO RadioControllerRadioStateMachineIRQ { get; }
 
-        [ConnectionRegion("hostmailbox")]
-        public void WriteDoubleWordToHostMailbox(long offset, uint value)
-        {
-            Write<HostMailboxRegisters>(hostMailboxRegistersCollection, "Host Mailbox (HOSTMAILBOX)", offset, value);
-        }
+        public GPIO SeqTxPoweringDownIRQ { get; }
 
-        [ConnectionRegion("hostmailbox")]
-        public byte ReadByteFromHostMailbox(long offset)
-        {
-            return ReadByte<HostMailboxRegisters>(hostMailboxRegistersCollection, "Host Mailbox (HOSTMAILBOX)", offset);
-        }
+        public GPIO ProtocolTimerIRQ { get; }
 
-        [ConnectionRegion("hostmailbox")]
-        public uint ReadDoubleWordFromHostMailbox(long offset)
-        {
-            return Read<HostMailboxRegisters>(hostMailboxRegistersCollection, "Host Mailbox (HOSTMAILBOX)", offset);
-        }
+        public GPIO SynthesizerIRQ { get; }
 
-        [ConnectionRegion("rfmailbox_ns")]
-        public void WriteByteToRadioMailboxNonSecure(long _, byte __)
-        {
-            // TODO: Single byte writes not implemented for now
-        }
-
-        [ConnectionRegion("rfmailbox_ns")]
-        public void WriteDoubleWordToRadioMailboxNonSecure(long offset, uint value)
-        {
-            Write<RadioMailboxRegisters>(radioMailboxRegistersCollection, "Radio Mailbox (RFMAILBOX_NS)", offset, value);
-        }
-
-        [ConnectionRegion("rfmailbox_ns")]
-        public byte ReadByteFromRadioMailboxNonSecure(long offset)
-        {
-            return ReadByte<RadioMailboxRegisters>(radioMailboxRegistersCollection, "Radio Mailbox (RFMAILBOX_NS)", offset);
-        }
-
-        [ConnectionRegion("rfmailbox_ns")]
-        public uint ReadDoubleWordFromRadioMailboxNonSecure(long offset)
-        {
-            return Read<RadioMailboxRegisters>(radioMailboxRegistersCollection, "Radio Mailbox (RFMAILBOX_NS)", offset);
-        }
-
-        [ConnectionRegion("rfmailbox")]
-        public void WriteByteToRadioMailbox(long _, byte __)
-        {
-            // TODO: Single byte writes not implemented for now
-        }
-
-        [ConnectionRegion("rfmailbox")]
-        public void WriteDoubleWordToRadioMailbox(long offset, uint value)
-        {
-            Write<RadioMailboxRegisters>(radioMailboxRegistersCollection, "Radio Mailbox (RFMAILBOX)", offset, value);
-        }
-
-        [ConnectionRegion("rfmailbox")]
-        public uint ReadDoubleWordFromRadioMailbox(long offset)
-        {
-            return Read<RadioMailboxRegisters>(radioMailboxRegistersCollection, "Radio Mailbox (RFMAILBOX)", offset);
-        }
-
-        [ConnectionRegion("protimer")]
-        public void WriteDoubleWordToProtocolTimer(long offset, uint value)
-        {
-            Write<ProtocolTimerRegisters>(protocolTimerRegistersCollection, "Protocol Timer (PROTIMER)", offset, value);
-        }
-
-        [ConnectionRegion("rac")]
-        public byte ReadByteFromRadioController(long offset)
-        {
-            return ReadByte<RadioControllerRegisters>(radioControllerRegistersCollection, "Radio Controller (RAC)", offset);
-        }
-
-        [ConnectionRegion("protimer")]
-        public uint ReadDoubleWordFromProtocolTimer(long offset)
-        {
-            return Read<ProtocolTimerRegisters>(protocolTimerRegistersCollection, "Protocol Timer (PROTIMER)", offset);
-        }
-
-        [ConnectionRegion("crc")]
-        public void WriteDoubleWordToCyclicRedundancyCheck(long offset, uint value)
-        {
-            Write<CyclicRedundancyCheckRegisters>(cyclicRedundancyCheckRegistersCollection, "Cyclic Redundancy Check (CRC)", offset, value);
-        }
-
-        [ConnectionRegion("crc")]
-        public byte ReadByteFromCyclicRedundancyCheck(long offset)
-        {
-            return ReadByte<CyclicRedundancyCheckRegisters>(cyclicRedundancyCheckRegistersCollection, "Cyclic Redundancy Check (CRC)", offset);
-        }
-
-        [ConnectionRegion("crc")]
-        public uint ReadDoubleWordFromCyclicRedundancyCheck(long offset)
-        {
-            return Read<CyclicRedundancyCheckRegisters>(cyclicRedundancyCheckRegistersCollection, "Cyclic Redundancy Check (CRC)", offset);
-        }
-
-        [ConnectionRegion("agc_ns")]
-        public void WriteByteToAutomaticGainControllerNonSecure(long _, byte __)
-        {
-            // TODO: Single byte writes not implemented for now
-        }
-
-        [ConnectionRegion("agc_ns")]
-        public void WriteDoubleWordToAutomaticGainControllerNonSecure(long offset, uint value)
-        {
-            Write<AutomaticGainControlRegisters>(automaticGainControlRegistersCollection, "Automatic Gain Control (AGC_NS)", offset, value);
-        }
-
-        [ConnectionRegion("protimer")]
-        public byte ReadByteFromProtocolTimer(long offset)
-        {
-            return ReadByte<ProtocolTimerRegisters>(protocolTimerRegistersCollection, "Protocol Timer (PROTIMER)", offset);
-        }
-
-        [ConnectionRegion("agc_ns")]
-        public uint ReadDoubleWordFromAutomaticGainControllerNonSecure(long offset)
-        {
-            return Read<AutomaticGainControlRegisters>(automaticGainControlRegistersCollection, "Automatic Gain Control (AGC_NS)", offset);
-        }
-
-        [ConnectionRegion("agc")]
-        public void WriteByteToAutomaticGainController(long _, byte __)
-        {
-            // TODO: Single byte writes not implemented for now
-        }
-
-        [ConnectionRegion("crc")]
-        public void WriteByteToCyclicRedundancyCheck(long _, byte __)
-        {
-            // TODO: Single byte writes not implemented for now
-        }
-
-        [ConnectionRegion("agc")]
-        public void WriteDoubleWordToAutomaticGainController(long offset, uint value)
-        {
-            Write<AutomaticGainControlRegisters>(automaticGainControlRegistersCollection, "Automatic Gain Control (AGC)", offset, value);
-        }
-
-        [ConnectionRegion("agc")]
-        public uint ReadDoubleWordFromAutomaticGainController(long offset)
-        {
-            return Read<AutomaticGainControlRegisters>(automaticGainControlRegistersCollection, "Automatic Gain Control (AGC)", offset);
-        }
-
-        [ConnectionRegion("frc_ns")]
-        public void WriteByteFromFrameControllerNonSecure(long _, byte __)
-        {
-            // TODO: Single byte writes not implemented for now
-        }
-
-        [ConnectionRegion("frc_ns")]
-        public void WriteDoubleWordToFrameControllerNonSecure(long offset, uint value)
-        {
-            Write<FrameControllerRegisters>(frameControllerRegistersCollection, "Frame Controller (FRC_NS)", offset, value);
-        }
-
-        [ConnectionRegion("frc_ns")]
-        public byte ReadByteFromFrameControllerNonSecure(long offset)
-        {
-            return ReadByte<FrameControllerRegisters>(frameControllerRegistersCollection, "Frame Controller (FRC_NS)", offset);
-        }
-
-        [ConnectionRegion("frc_ns")]
-        public uint ReadDoubleWordFromFrameControllerNonSecure(long offset)
-        {
-            return Read<FrameControllerRegisters>(frameControllerRegistersCollection, "Frame Controller (FRC_NS)", offset);
-        }
-
-        [ConnectionRegion("frc")]
-        public void WriteByteFromFrameController(long _, byte __)
-        {
-            // TODO: Single byte writes not implemented for now
-        }
-
-        [ConnectionRegion("frc")]
-        public void WriteDoubleWordToFrameController(long offset, uint value)
-        {
-            Write<FrameControllerRegisters>(frameControllerRegistersCollection, "Frame Controller (FRC)", offset, value);
-        }
-
-        [ConnectionRegion("frc")]
-        public byte ReadByteFromFrameController(long offset)
-        {
-            return ReadByte<FrameControllerRegisters>(frameControllerRegistersCollection, "Frame Controller (FRC)", offset);
-        }
-
-        [ConnectionRegion("agc")]
-        public byte ReadByteFromAutomaticGainController(long offset)
-        {
-            return ReadByte<AutomaticGainControlRegisters>(automaticGainControlRegistersCollection, "Automatic Gain Control (AGC)", offset);
-        }
-
-        [ConnectionRegion("crc_ns")]
-        public uint ReadDoubleWordFromCyclicRedundancyCheckNonSecure(long offset)
-        {
-            return Read<CyclicRedundancyCheckRegisters>(cyclicRedundancyCheckRegistersCollection, "Cyclic Redundancy Check (CRC_NS)", offset);
-        }
-
-        [ConnectionRegion("agc_ns")]
-        public byte ReadByteFromAutomaticGainControllerNonSecure(long offset)
-        {
-            return ReadByte<AutomaticGainControlRegisters>(automaticGainControlRegistersCollection, "Automatic Gain Control (AGC)", offset);
-        }
-
-        [ConnectionRegion("crc_ns")]
-        public void WriteDoubleWordToCyclicRedundancyCheckNonSecure(long offset, uint value)
-        {
-            Write<CyclicRedundancyCheckRegisters>(cyclicRedundancyCheckRegistersCollection, "Cyclic Redundancy Check (CRC_NS)", offset, value);
-        }
-
-        [ConnectionRegion("synth_ns")]
-        public byte ReadByteFromSynthesizerNonSecure(long offset)
-        {
-            return ReadByte<SynthesizerRegisters>(synthesizerRegistersCollection, "Synthesizer (SYNTH_NS)", offset);
-        }
-
-        [ConnectionRegion("crc_ns")]
-        public byte ReadByteFromCyclicRedundancyCheckNonSecure(long offset)
-        {
-            return ReadByte<CyclicRedundancyCheckRegisters>(cyclicRedundancyCheckRegistersCollection, "Cyclic Redundancy Check (CRC_NS)", offset);
-        }
-
-        [ConnectionRegion("synth_ns")]
-        public uint ReadDoubleWordFromSynthesizerNonSecure(long offset)
-        {
-            return Read<SynthesizerRegisters>(synthesizerRegistersCollection, "Synthesizer (SYNTH_NS)", offset);
-        }
-
-        [ConnectionRegion("synth")]
-        public void WriteByteToSynthesizer(long _, byte __)
-        {
-            // TODO: Single byte writes not implemented for now
-        }
-
-        [ConnectionRegion("synth")]
-        public void WriteDoubleWordToSynthesizer(long offset, uint value)
-        {
-            Write<SynthesizerRegisters>(synthesizerRegistersCollection, "Synthesizer (SYNTH)", offset, value);
-        }
-
-        [ConnectionRegion("synth")]
-        public byte ReadByteFromSynthesizer(long offset)
-        {
-            return ReadByte<SynthesizerRegisters>(synthesizerRegistersCollection, "Synthesizer (SYNTH)", offset);
-        }
-
-        [ConnectionRegion("synth_ns")]
-        public void WriteDoubleWordToSynthesizerNonSecure(long offset, uint value)
-        {
-            Write<SynthesizerRegisters>(synthesizerRegistersCollection, "Synthesizer (SYNTH_NS)", offset, value);
-        }
-
-        [ConnectionRegion("modem_ns")]
-        public void WriteByteToModulatorAndDemodulatorNonSecure(long _, byte __)
-        {
-            // TODO: Single byte writes not implemented for now
-        }
-
-        [ConnectionRegion("synth")]
-        public uint ReadDoubleWordFromSynthesizer(long offset)
-        {
-            return Read<SynthesizerRegisters>(synthesizerRegistersCollection, "Synthesizer (SYNTH)", offset);
-        }
-
-        [ConnectionRegion("modem_ns")]
-        public byte ReadByteFromModulatorAndDemodulatorNonSecure(long offset)
-        {
-            return ReadByte<ModulatorAndDemodulatorRegisters>(modulatorAndDemodulatorRegistersCollection, "Modulator And Demodulator (MODEM_NS)", offset);
-        }
-
-        [ConnectionRegion("modem_ns")]
-        public uint ReadDoubleWordFromModulatorAndDemodulatorNonSecure(long offset)
-        {
-            return Read<ModulatorAndDemodulatorRegisters>(modulatorAndDemodulatorRegistersCollection, "Modulator And Demodulator (MODEM_NS)", offset);
-        }
-
-        [ConnectionRegion("modem")]
-        public void WriteByteToModulatorAndDemodulator(long _, byte __)
-        {
-            // TODO: Single byte writes not implemented for now
-        }
-
-        [ConnectionRegion("modem")]
-        public void WriteDoubleWordToModulatorAndDemodulator(long offset, uint value)
-        {
-            Write<ModulatorAndDemodulatorRegisters>(modulatorAndDemodulatorRegistersCollection, "Modulator And Demodulator (MODEM)", offset, value);
-        }
-
-        [ConnectionRegion("modem")]
-        public byte ReadByteFromModulatorAndDemodulator(long offset)
-        {
-            return ReadByte<ModulatorAndDemodulatorRegisters>(modulatorAndDemodulatorRegistersCollection, "Modulator And Demodulator (MODEM)", offset);
-        }
-
-        [ConnectionRegion("modem")]
-        public uint ReadDoubleWordFromModulatorAndDemodulator(long offset)
-        {
-            return Read<ModulatorAndDemodulatorRegisters>(modulatorAndDemodulatorRegistersCollection, "Modulator And Demodulator (MODEM)", offset);
-        }
-
-        [ConnectionRegion("crc_ns")]
-        public void WriteByteToCyclicRedundancyCheckNonSecure(long _, byte __)
-        {
-            // TODO: Single byte writes not implemented for now
-        }
-
-        [ConnectionRegion("modem_ns")]
-        public void WriteDoubleWordToModulatorAndDemodulatorNonSecure(long offset, uint value)
-        {
-            Write<ModulatorAndDemodulatorRegisters>(modulatorAndDemodulatorRegistersCollection, "Modulator And Demodulator (MODEM_NS)", offset, value);
-        }
-
-        [ConnectionRegion("synth_ns")]
-        public void WriteByteToSynthesizerNonSecure(long _, byte __)
-        {
-            // TODO: Single byte writes not implemented for now
-        }
-
-        public void Reset()
-        {
-            PROTIMER_txRequestState = PROTIMER_TxRxRequestState.Idle;
-            PROTIMER_rxRequestState = PROTIMER_TxRxRequestState.Idle;
-            PROTIMER_listenBeforeTalkState = PROTIMER_ListenBeforeTalkState.Idle;
-            PROTIMER_listenBeforeTalkPending = false;
-            RAC_seqTimerLimit = 0xFFFF;
-            AGC_rssiFirstRead = true;
-            AGC_rssiStartCommandOngoing = false;
-            AGC_rssiStartCommandFromProtimer = false;
-
-            RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.Reset);
-
-            seqTimer.Reset();
-            paRampingTimer.Reset();
-            rssiUpdateTimer.Reset();
-            proTimer.Reset();
-
-            frameControllerRegistersCollection.Reset();
-            bufferControllerRegistersCollection.Reset();
-            cyclicRedundancyCheckRegistersCollection.Reset();
-            synthesizerRegistersCollection.Reset();
-            radioControllerRegistersCollection.Reset();
-            protocolTimerRegistersCollection.Reset();
-            modulatorAndDemodulatorRegistersCollection.Reset();
-            automaticGainControlRegistersCollection.Reset();
-            hostMailboxRegistersCollection.Reset();
-            radioMailboxRegistersCollection.Reset();
-
-            UpdateInterrupts();
-        }
-
-        public void InteferenceQueueChangedCallback()
-        {
-            if(RAC_currentRadioState == RAC_RadioState.RxSearch || RAC_currentRadioState == RAC_RadioState.RxFrame)
-            {
-                AGC_UpdateRssi();
-            }
-        }
-
-        public void ReceiveFrame(byte[] frame, IRadio sender)
-        {
-            var txStartTime = InterferenceQueue.GetTxStartTime(sender);
-            var txRxSimulatorDelayUs = (GetTime() - txStartTime).TotalMicroseconds;
-
-            this.Log(LogBasicRadioActivityAsError ? LogLevel.Error : LogLevel.Info, "ReceiveFrame() at {0} on channel {1} ({2}), TX started at {3} (diff: {4})",
-                     GetTime(), Channel, MODEM_GetCurrentPhy(), txStartTime, txRxSimulatorDelayUs);
-
-            if(RAC_internalRxState != RAC_InternalRxState.Idle)
-            {
-                // The node is already in the process of receiving a packet, and a new packet is being received.
-                // TODO: for now we always consider this a collision. In the future we will want to take into account
-                // the RSSI of both packets and determine if we could hear one of them.
-                // We drop this packet, while the ongoing RX is marked as "interfered", which can result in either a
-                // preamble not heard at all or a frame that fails CRC.
-                RAC_ongoingRxCollided = true;
-                this.Log(LogBasicRadioActivityAsError ? LogLevel.Error : LogLevel.Info, "Dropping: (RX already ongoing)");
-                return;
-            }
-
-            // Ideally we would schedule a first RX step that accounts for the txChainDelay and some portion of the preamble
-            // to still allow reception of frames for which we only heard some portion of the preamble.
-            // For simplicity, we just skip this step and check the radio state after both preamble and sync word have been received.
-
-            // We first schedule the RX timer to the point that the preamble and sych word are fully transmitted.
-            // That must also include the txChainDelay since at the transmitter we don't delay the FrameTxStart event.
-            double delayUs = MODEM_GetTxChainDelayUs() + MODEM_GetPreambleOverTheAirTimeUs() + MODEM_GetSyncWordOverTheAirTimeUs();
-            RAC_internalRxState = RAC_InternalRxState.PreambleAndSyncWord;
-            MODEM_demodulatorState.Value = MODEM_DemodulatorState.FrameSearch;
-
-            currentFrame = frame;
-
-            // We set the RSSIFRAME here to make sure the sender hasn't removed the packet from the interference queue
-            // by the time the receiver has completed its RX delay.
-            AGC_FrameRssiIntegerPart = (sbyte)InterferenceQueue.GetCurrentRssi(MODEM_GetCurrentPhy(), Channel);
-
-            if(delayUs > txRxSimulatorDelayUs && PROTIMER_UsToPreCntOverflowTicks(delayUs - txRxSimulatorDelayUs) > 0)
-            {
-                RAC_rxTimeAlreadyPassedUs = 0;
-                rxTimer.Frequency = PROTIMER_GetPreCntOverflowFrequency();
-                rxTimer.Limit = PROTIMER_UsToPreCntOverflowTicks(delayUs - txRxSimulatorDelayUs);
-                rxTimer.Enabled = true;
-                this.Log(LogLevel.Noisy, "Schedule rxTimer for PRE/SYNC: {0}us PRE={1} SYNC={2} TXCHAIN={3}",
-                         delayUs - txRxSimulatorDelayUs, MODEM_GetPreambleOverTheAirTimeUs(), MODEM_GetSyncWordOverTheAirTimeUs(), MODEM_GetTxChainDelayUs());
-            }
-            else
-            {
-                // The RX/TX simulator delay already accounted for the intended delay.
-                // We store the time we already spent RXing the actual frame and call the RX timer
-                // handler directly.
-                RAC_rxTimeAlreadyPassedUs = txRxSimulatorDelayUs - delayUs;
-                RAC_RxTimerLimitReached();
-            }
-        }
-
-        public GPIO SeqFrameControllerPriorityIRQ { get; }
-
-        public GPIO SeqFrameControllerIRQ { get; }
-
-        public GPIO SeqTx2TxIRQ { get; }
-
+        // Sequencer core IRQs
         public GPIO SeqShutdownIRQ { get; }
-
-        public GPIO SeqModulatorAndDemodulatorIRQ { get; }
 
         public GPIO SeqRadioControllerIRQ { get; }
 
-        public GPIO SeqBufferControllerIRQ { get; }
+        public GPIO SeqFrameControllerIRQ { get; }
+
+        public GPIO SeqFrameControllerPriorityIRQ { get; }
+
+        public GPIO SeqModulatorAndDemodulatorIRQ { get; }
+
+        public GPIO SeqAutomaticGainControlIRQ { get; }
+
+        public GPIO SeqSynthesizerIRQ { get; }
+
+        public GPIO SeqRfMailboxIRQ { get; }
+
+        public GPIO SeqSoftware0IRQ { get; }
+
+        public GPIO SeqSoftware1IRQ { get; }
+
+        public GPIO SeqTx2TxIRQ { get; }
+
+        public GPIO SeqProtocolTimerIRQ { get; }
+
+        public GPIO SeqTx2RxIRQ { get; }
+
+        public GPIO AutomaticGainControlIRQ { get; }
+
+        public GPIO SeqTxIRQ { get; }
+
+        public GPIO SeqRx2RxIRQ { get; }
+
+        public GPIO SeqOffIRQ { get; }
+
+        public GPIO SeqTxWarmIRQ { get; }
+
+        public GPIO SeqRxPoweringDownIRQ { get; }
+
+        public GPIO SeqRxWarmIRQ { get; }
+
+        public GPIO HostMailboxIRQ { get; }
+
+        public GPIO SeqRxOverflowIRQ { get; }
+
+        public GPIO SeqRxSearchIRQ { get; }
+
+        public GPIO SeqRx2TxIRQ { get; }
+
+        public GPIO SeqRxFrameIRQ { get; }
+
+        // Routing equality key used by WirelessMedium and InterferenceQueue. Derived from
+        // the LPW SYNTH/RAC registers (FCW + LO divider) and quantized to 10 kHz so that
+        // two radios tuned to the same RF report the same Channel id, even if the FCW
+        // is rounded slightly differently.
+        public int Channel
+        {
+            get { return (int)(SYNTH_GetQuantizedRfFrequency() / 10_000UL); }
+
+            set { }
+        }
+
+        public bool ForceBusyRssi
+        {
+            set
+            {
+                InterferenceQueue.ForceBusyRssi = value;
+            }
+        }
 
         public uint PROTIMER_WrapCounterValue
         {
@@ -1253,33 +1455,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
             set
             {
                 PROTIMER_wrapCounterValue = value;
-            }
-        }
-
-        public GPIO SeqProtocolTimerIRQ { get; }
-
-        public GPIO SeqSynthesizerIRQ { get; }
-
-        public GPIO SeqRfMailboxIRQ { get; }
-
-        public int Channel
-        {
-            get
-            {
-                return currentChannel;
-            }
-
-            set
-            {
-                currentChannel = value;
-            }
-        }
-
-        public bool ForceBusyRssi
-        {
-            set
-            {
-                InterferenceQueue.ForceBusyRssi = value;
             }
         }
 
@@ -1303,72 +1478,1878 @@ namespace Antmicro.Renode.Peripherals.Wireless
             }
         }
 
-        public GPIO SeqTx2RxIRQ { get; }
-
-        public GPIO SeqAutomaticGainControlIRQ { get; }
-
-        public GPIO SeqTxPoweringDownIRQ { get; }
-
-        public GPIO FrameControllerIRQ { get; }
-
-        public GPIO SeqTxWarmIRQ { get; }
-
-        public GPIO RadioControllerRadioStateMachineIRQ { get; }
-
-        public GPIO SeqTxIRQ { get; }
-
-        public GPIO RadioControllerSequencerIRQ { get; }
-
-        public uint PROTIMER_PreCounterValue
-        {
-            get
-            {
-                // We don't tick the PRECNT value, so we just return always 0.
-                return 0;
-            }
-
-            set
-            {
-                // We don't tick the PRECNT so we just ignore a set.
-            }
-        }
-
-        public GPIO BufferControllerIRQ { get; }
-
-        // Main core IRQs
-        public GPIO FrameControllerPrioritizedIRQ { get; }
-
-        public GPIO ProtocolTimerIRQ { get; }
-
-        public GPIO SynthesizerIRQ { get; }
-
-        public GPIO AutomaticGainControlIRQ { get; }
-
-        public GPIO ModulatorAndDemodulatorIRQ { get; }
-
-        // Sequencer core IRQs
-        public GPIO SeqOffIRQ { get; }
-
-        public GPIO SeqRx2TxIRQ { get; }
-
-        public GPIO HostMailboxIRQ { get; }
-
-        public GPIO SeqRxOverflowIRQ { get; }
-
-        public GPIO SeqRxPoweringDownIRQ { get; }
-
-        public GPIO SeqRxFrameIRQ { get; }
-
-        public GPIO SeqRx2RxIRQ { get; }
-
-        public GPIO SeqRxSearchIRQ { get; }
-
-        public GPIO SeqRxWarmIRQ { get; }
-
         public event Action<IRadio, byte[]> FrameSent;
 
+        public event Action<byte[]> PtiDataOut;
+
+        public event Action<SiLabs_PacketTraceFrameType> PtiFrameStart;
+
+        public event Action PtiFrameComplete;
+
+        public Action[] PROTIMER_CaptureComparePrsEvent = new Action[PROTIMER_NumberOfCaptureCompareChannelPrsEvents];
+
         public bool LogBasicRadioActivityAsError = false;
-        private static readonly PseudorandomNumberGenerator random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
+
+        private TimeInterval GetTime() => machine.LocalTimeSource.ElapsedVirtualTime;
+
+        private bool TrySyncTime()
+        {
+            if(machine.SystemBus.TryGetCurrentCPU(out var cpu))
+            {
+                cpu.SyncTime();
+                return true;
+            }
+            return false;
+        }
+
+        private bool SequencerIsRunning()
+        {
+            return (SeqOffIRQ.IsSet || SeqRxWarmIRQ.IsSet || SeqRxSearchIRQ.IsSet || SeqRxFrameIRQ.IsSet
+                    || SeqRxPoweringDownIRQ.IsSet || SeqRx2RxIRQ.IsSet || SeqRxOverflowIRQ.IsSet || SeqRx2TxIRQ.IsSet
+                    || SeqTxWarmIRQ.IsSet || SeqTxIRQ.IsSet || SeqTxPoweringDownIRQ.IsSet || SeqTx2RxIRQ.IsSet
+                    || SeqTx2TxIRQ.IsSet || SeqShutdownIRQ.IsSet);
+        }
+
+        private void Write<T>(DoubleWordRegisterCollection registersCollection, string regionName, long offset, uint value)
+        where T : struct, IComparable, IFormattable
+        {
+            machine.ClockSource.ExecuteInLock(delegate
+            {
+                var internal_offset = offset;
+                var internal_value = value;
+
+                if(offset >= SetRegisterOffset && offset < ClearRegisterOffset)
+                {
+                    // Set register
+                    internal_offset = offset - SetRegisterOffset;
+                    var old_value = Read<T>(registersCollection, regionName, internal_offset, true);
+                    internal_value = old_value | value;
+                    this.Log(LogLevel.Noisy, "SET Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}, SET_value=0x{3:X}, old_value=0x{4:X}, new_value=0x{5:X}", Enum.Format(typeof(T), internal_offset, "G"), offset, internal_offset, value, old_value, internal_value);
+                }
+                else if(offset >= ClearRegisterOffset && offset < ToggleRegisterOffset)
+                {
+                    // Clear register
+                    internal_offset = offset - ClearRegisterOffset;
+                    var old_value = Read<T>(registersCollection, regionName, internal_offset, true);
+                    internal_value = old_value & ~value;
+                    this.Log(LogLevel.Noisy, "CLEAR Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}, CLEAR_value=0x{3:X}, old_value=0x{4:X}, new_value=0x{5:X}", Enum.Format(typeof(T), internal_offset, "G"), offset, internal_offset, value, old_value, internal_value);
+                }
+                else if(offset >= ToggleRegisterOffset)
+                {
+                    // Toggle register
+                    internal_offset = offset - ToggleRegisterOffset;
+                    var old_value = Read<T>(registersCollection, regionName, internal_offset, true);
+                    internal_value = old_value ^ value;
+                    this.Log(LogLevel.Noisy, "TOGGLE Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}, TOGGLE_value=0x{3:X}, old_value=0x{4:X}, new_value=0x{5:X}", Enum.Format(typeof(T), internal_offset, "G"), offset, internal_offset, value, old_value, internal_value);
+                }
+
+                this.Log(LogLevel.Debug, "{0}: Write to {1} at offset 0x{2:X} ({3}), value 0x{4:X}",
+                        this.GetTime(), regionName, internal_offset, Enum.Format(typeof(T), internal_offset, "G"), internal_value);
+
+                if(!registersCollection.TryWrite(internal_offset, internal_value))
+                {
+                    this.Log(LogLevel.Warning, "Unhandled write to {0} at offset 0x{1:X} ({2}), value 0x{3:X}.", regionName, internal_offset, Enum.Format(typeof(T), internal_offset, "G"), internal_value);
+                    return;
+                }
+            });
+        }
+
+        private uint Read<T>(DoubleWordRegisterCollection registersCollection, string regionName, long offset, bool internal_read = false)
+        where T : struct, IComparable, IFormattable
+        {
+            var result = 0U;
+            long internal_offset = offset;
+
+            // Set, Clear, Toggle registers should only be used for write operations. But just in case we convert here as well.
+            if(offset >= SetRegisterOffset && offset < ClearRegisterOffset)
+            {
+                // Set register
+                internal_offset = offset - SetRegisterOffset;
+                if(!internal_read)
+                {
+                    this.Log(LogLevel.Noisy, "SET Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}", Enum.Format(typeof(T), internal_offset, "G"), offset, internal_offset);
+                }
+            }
+            else if(offset >= ClearRegisterOffset && offset < ToggleRegisterOffset)
+            {
+                // Clear register
+                internal_offset = offset - ClearRegisterOffset;
+                if(!internal_read)
+                {
+                    this.Log(LogLevel.Noisy, "CLEAR Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}", Enum.Format(typeof(T), internal_offset, "G"), offset, internal_offset);
+                }
+            }
+            else if(offset >= ToggleRegisterOffset)
+            {
+                // Toggle register
+                internal_offset = offset - ToggleRegisterOffset;
+                if(!internal_read)
+                {
+                    this.Log(LogLevel.Noisy, "TOGGLE Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}", Enum.Format(typeof(T), internal_offset, "G"), offset, internal_offset);
+                }
+            }
+
+            if(!registersCollection.TryRead(internal_offset, out result))
+            {
+                if(!internal_read)
+                {
+                    this.Log(LogLevel.Warning, "Unhandled read from {0} at offset 0x{1:X} ({2}).", regionName, internal_offset, Enum.Format(typeof(T), internal_offset, "G"));
+                }
+            }
+            else
+            {
+                if(!internal_read)
+                {
+                    this.Log(LogLevel.Debug, "{0}: Read from {1} at offset 0x{2:X} ({3}), returned 0x{4:X}",
+                             this.GetTime(), regionName, internal_offset, Enum.Format(typeof(T), internal_offset, "G"), result);
+                }
+            }
+
+            return result;
+        }
+
+        private byte ReadByte<T>(DoubleWordRegisterCollection registersCollection, string regionName, long offset)
+        where T : struct, IComparable, IFormattable
+        {
+            var byteOffset = (int)(offset & 0x3);
+            // TODO: single byte reads are treated as internal reads for now to avoid flooding the log during debugging.
+            var registerValue = Read<T>(registersCollection, regionName, offset - byteOffset, true);
+            var result = (byte)((registerValue >> byteOffset*8) & 0xFF);
+            return result;
+        }
+
+        private DoubleWordRegisterCollection BuildHostMailboxRegistersCollection()
+        {
+            var registerDictionary = new Dictionary<long, DoubleWordRegister>
+            {
+                {(long)HostMailboxRegisters.MessagePointer0, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out HOSTMAILBOX_messagePointer[0], name: "MSGPTR0")
+                },
+                {(long)HostMailboxRegisters.MessagePointer1, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out HOSTMAILBOX_messagePointer[1], name: "MSGPTR1")
+                },
+                {(long)HostMailboxRegisters.MessagePointer2, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out HOSTMAILBOX_messagePointer[2], name: "MSGPTR2")
+                },
+                {(long)HostMailboxRegisters.MessagePointer3, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out HOSTMAILBOX_messagePointer[3], name: "MSGPTR3")
+                },
+                {(long)HostMailboxRegisters.InterruptFlags, new DoubleWordRegister(this)
+                    .WithFlag(0, out HOSTMAILBOX_messageInterrupt[0], name: "MBOXIF0")
+                    .WithFlag(1, out HOSTMAILBOX_messageInterrupt[1], name: "MBOXIF1")
+                    .WithFlag(2, out HOSTMAILBOX_messageInterrupt[2], name: "MBOXIF2")
+                    .WithFlag(3, out HOSTMAILBOX_messageInterrupt[3], name: "MBOXIF3")
+                    .WithReservedBits(4, 28)
+                    .WithChangeCallback((_, __) => UpdateInterrupts())
+                },
+                {(long)HostMailboxRegisters.InterruptEnable, new DoubleWordRegister(this)
+                    .WithFlag(0, out HOSTMAILBOX_messageInterruptEnable[0], name: "MBOXIEN0")
+                    .WithFlag(1, out HOSTMAILBOX_messageInterruptEnable[1], name: "MBOXIEN1")
+                    .WithFlag(2, out HOSTMAILBOX_messageInterruptEnable[2], name: "MBOXIEN2")
+                    .WithFlag(3, out HOSTMAILBOX_messageInterruptEnable[3], name: "MBOXIEN3")
+                    .WithReservedBits(4, 28)
+                    .WithChangeCallback((_, __) => UpdateInterrupts())
+                },
+            };
+
+            return new DoubleWordRegisterCollection(this, registerDictionary);
+        }
+
+        private DoubleWordRegisterCollection BuildAutomaticGainControlRegistersCollection()
+        {
+            var registerDictionary = new Dictionary<long, DoubleWordRegister>
+            {
+                {(long)AutomaticGainControlRegisters.Status0, new DoubleWordRegister(this)
+                    .WithValueField(0, 6, name: "GAININDEX")
+                    .WithFlag(6, name: "RFPKDLOWLAT")
+                    .WithFlag(7, name: "RFPKDHILAT")
+                    .WithFlag(8, name: "IFPKDLOLAT")
+                    .WithFlag(9, name: "IFPKDHILAT")
+                    .WithFlag(10, out AGC_cca, FieldMode.Read, name: "CCA")
+                    .WithFlag(11, name: "GAINOK")
+                    .WithValueField(12, 4, name: "PGAINDEX")
+                    .WithValueField(16, 4, name: "LNAINDEX")
+                    .WithValueField(20, 5, name: "PNIINDEX")
+                    .WithValueField(25, 2, name: "ADCINDEX")
+                    .WithReservedBits(27, 5)
+                },
+                {(long)AutomaticGainControlRegisters.Status1, new DoubleWordRegister(this)
+                    .WithValueField(0, 8, name: "CHPWR")
+                    .WithReservedBits(8, 1)
+                    .WithValueField(9, 4, name: "FASTLOOPSTATE")
+                    .WithValueField(13, 2, name: "CFLOOPSTATE")
+                    .WithEnumField<DoubleWordRegister, AGC_RssiState>(15, 3, out AGC_rssiState, name: "RSSISTATE")
+                    .WithValueField(18, 12, name: "CFLOOPSTATE")
+                    .WithReservedBits(30, 2)
+                },
+                {(long)AutomaticGainControlRegisters.InterruptFlags, new DoubleWordRegister(this)
+                  .WithFlag(0, out AGC_rssiValidInterrupt, name: "RSSIVALIDIF")
+                  .WithReservedBits(1, 1)
+                  .WithFlag(2, out AGC_ccaInterrupt, name: "CCAIF")
+                  .WithFlag(3, name: "RSSIPOSSTEPIF")
+                  .WithFlag(4, name: "RSSINEGSTEPIF")
+                  .WithFlag(5, out AGC_rssiDoneInterrupt, name: "RSSIDONEIF")
+                  .WithFlag(6, name: "SHORTRSSIPOSSTEPIF")
+                  .WithReservedBits(7, 1)
+                  .WithFlag(8, name: "RFPKDPRDDONEIF")
+                  .WithFlag(9, name: "RFPKDCNTDONEIF")
+                  .WithFlag(10, out AGC_rssiHighInterrupt, name: "RSSIHIGHIF")
+                  .WithFlag(11, out AGC_rssiLowInterrupt, name: "RSSILOWIF")
+                  .WithFlag(12, out AGC_ccaNotDetectedInterrupt, name: "CCANODETIF")
+                  .WithFlag(13, name: "GAINBELOWGAINTHDIF")
+                  .WithFlag(14, name: "GAINUPDATEFRZIF")
+                  .WithReservedBits(15, 17)
+                },
+                {(long)AutomaticGainControlRegisters.InterruptEnable, new DoubleWordRegister(this)
+                  .WithFlag(0, out AGC_rssiValidInterruptEnable, name: "RSSIVALIDIEN")
+                  .WithReservedBits(1, 1)
+                  .WithFlag(2, out AGC_ccaInterruptEnable, name: "CCAIEN")
+                  .WithFlag(3, name: "RSSIPOSSTEPIEN")
+                  .WithFlag(4, name: "RSSINEGSTEPIEN")
+                  .WithFlag(5, out AGC_rssiDoneInterruptEnable, name: "RSSIDONEIEN")
+                  .WithFlag(6, name: "SHORTRSSIPOSSTEPIEN")
+                  .WithReservedBits(7, 1)
+                  .WithFlag(8, name: "RFPKDPRDDONEIEN")
+                  .WithFlag(9, name: "RFPKDCNTDONEIEN")
+                  .WithFlag(10, out AGC_rssiHighInterruptEnable, name: "RSSIHIGHIEN")
+                  .WithFlag(11, out AGC_rssiLowInterruptEnable, name: "RSSILOWIEN")
+                  .WithFlag(12, out AGC_ccaNotDetectedInterruptEnable, name: "CCANODETIEN")
+                  .WithFlag(13, name: "GAINBELOWGAINTHDIEN")
+                  .WithFlag(14, name: "GAINUPDATEFRZIEN")
+                  .WithReservedBits(15, 17)
+                },
+                {(long)AutomaticGainControlRegisters.SequencerInterruptFlags, new DoubleWordRegister(this)
+                  .WithFlag(0, out AGC_seqRssiValidInterrupt, name: "RSSIVALIDSEQIF")
+                  .WithReservedBits(1, 1)
+                  .WithFlag(2, out AGC_seqCcaInterrupt, name: "CCASEQIF")
+                  .WithFlag(3, name: "RSSIPOSSTEPSEQIF")
+                  .WithFlag(4, name: "RSSINEGSTEPSEQIF")
+                  .WithFlag(5, out AGC_seqRssiDoneInterrupt, name: "RSSIDONESEQIF")
+                  .WithFlag(6, name: "SHORTRSSIPOSSTEPSEQIF")
+                  .WithReservedBits(7, 1)
+                  .WithFlag(8, name: "RFPKDPRDDONESEQIF")
+                  .WithFlag(9, name: "RFPKDCNTDONESEQIF")
+                  .WithFlag(10, out AGC_seqRssiHighInterrupt, name: "RSSIHIGHSEQIF")
+                  .WithFlag(11, out AGC_seqRssiLowInterrupt, name: "RSSILOWSEQIF")
+                  .WithFlag(12, out AGC_seqCcaNotDetectedInterrupt, name: "CCANODETSEQIF")
+                  .WithFlag(13, name: "GAINBELOWGAINTHDSEQIF")
+                  .WithFlag(14, name: "GAINUPDATEFRZSEQIF")
+                  .WithReservedBits(15, 17)
+                },
+                {(long)AutomaticGainControlRegisters.SequencerInterruptEnable, new DoubleWordRegister(this)
+                  .WithFlag(0, out AGC_seqRssiValidInterruptEnable, name: "RSSIVALIDSEQIEN")
+                  .WithReservedBits(1, 1)
+                  .WithFlag(2, out AGC_seqCcaInterruptEnable, name: "CCASEQIEN")
+                  .WithFlag(3, name: "RSSIPOSSTEPSEQIEN")
+                  .WithFlag(4, name: "RSSINEGSTEPSEQIEN")
+                  .WithFlag(5, out AGC_seqRssiDoneInterruptEnable, name: "RSSIDONESEQIEN")
+                  .WithFlag(6, name: "SHORTRSSIPOSSTEPSEQIEN")
+                  .WithReservedBits(7, 1)
+                  .WithFlag(8, name: "RFPKDPRDDONESEQIEN")
+                  .WithFlag(9, name: "RFPKDCNTDONESEQIEN")
+                  .WithFlag(10, out AGC_seqRssiHighInterruptEnable, name: "RSSIHIGHSEQIEN")
+                  .WithFlag(11, out AGC_seqRssiLowInterruptEnable, name: "RSSILOWSEQIEN")
+                  .WithFlag(12, out AGC_seqCcaNotDetectedInterruptEnable, name: "CCANODETSEQIEN")
+                  .WithFlag(13, name: "GAINBELOWGAINTHDSEQIEN")
+                  .WithFlag(14, name: "GAINUPDATEFRZSEQIEN")
+                  .WithReservedBits(15, 17)
+                },
+                {(long)AutomaticGainControlRegisters.ListenBeforeTalkConfiguration, new DoubleWordRegister(this)
+                  .WithValueField(0, 4, out AGC_ccaRssiPeriod, name: "CCARSSIPERIOD")
+                  .WithFlag(4, out AGC_ccaRssiPeriodEnable, name: "ENCCARSSIPERIOD")
+                  .WithFlag(5, name: "ENCCAGAINREDUCED")
+                  .WithFlag(6, name: "ENCCARSSIMAX")
+                  .WithReservedBits(7, 25)
+                },
+                {(long)AutomaticGainControlRegisters.Control0, new DoubleWordRegister(this, 0x2132727F)
+                    .WithValueField(0, 8, name: "PWRTARGET")
+                    .WithValueField(8, 3, name: "MODE")
+                    .WithValueField(11, 8, out AGC_rssiShift, name: "RSSISHIFT")
+                    .WithFlag(19, name: "DISCFLOOPADJ")
+                    .WithFlag(20, name: "CFLOOPNFADJ")
+                    .WithFlag(21, name: "CFLOOPNEWCALC")
+                    .WithFlag(22, name: "DISRESETCHPWR")
+                    .WithFlag(23, name: "ADCATTENMODE")
+                    .WithFlag(24, name: "FENOTCHMODESEL")
+                    .WithValueField(25, 2, name: "ADCATTENCODE")
+                    .WithFlag(27, name: "ENRSSIRESET")
+                    .WithFlag(28, name: "DSADISCFLOOP")
+                    .WithFlag(29, name: "DISPNGAINUP")
+                    .WithFlag(30, name: "DISPNDWNCOMP")
+                    .WithFlag(31, name: "AGCRST")
+                },
+                {(long)AutomaticGainControlRegisters.Control1, new DoubleWordRegister(this, 0x00001300)
+                  .WithValueField(0, 8, out AGC_ccaThreshold, name: "CCATHRSH")
+                  .WithValueField(8, 4, out AGC_rssiMeasurePeriod, name: "RSSIPERIOD")
+                  .WithValueField(12, 3, out AGC_powerMeasurePeriod, name: "PWRPERIOD")
+                  .WithEnumField<DoubleWordRegister, AGC_CcaMode>(15, 2, out AGC_ccaMode, name: "CCAMODE")
+                  .WithEnumField<DoubleWordRegister, AGC_CcaMode3Logic>(17, 1, out AGC_ccaMode3Logic, name: "CCAMODE3LOGIC")
+                  .WithFlag(18, out AGC_ccaSoftwareControl, name: "CCASWCTRL")
+                  .WithReservedBits(19, 13)
+                },
+                {(long)AutomaticGainControlRegisters.Control7, new DoubleWordRegister(this)
+                  .WithValueField(0, 8, name: "SUBDEN")
+                  .WithValueField(8, 8, out AGC_subPeriodInteger, name: "SUBINT")
+                  .WithValueField(16, 8, name: "SUBNUM")
+                  .WithFlag(24, out AGC_subPeriod, name: "SUBPERIOD")
+                  .WithReservedBits(25, 7)
+                },
+                {(long)AutomaticGainControlRegisters.ReceivedSignalStrengthIndicator, new DoubleWordRegister(this, 0x00008000)
+                  .WithReservedBits(0, 6)
+                  .WithValueField(6, 2, FieldMode.Read, valueProviderCallback: _ => (uint)AGC_RssiFractionalPart, name: "RSSIFRAC")
+                  .WithValueField(8, 8, FieldMode.Read, valueProviderCallback: _ => (uint)AGC_RssiIntegerPartAdjusted, name: "RSSIINT")
+                  .WithReservedBits(16, 16)
+                },
+                {(long)AutomaticGainControlRegisters.FrameReceivedSignalStrengthIndicator, new DoubleWordRegister(this, 0x00008000)
+                  .WithReservedBits(0, 6)
+                  .WithValueField(6, 2, FieldMode.Read, valueProviderCallback: _ => (uint)AGC_FrameRssiFractionalPart, name: "FRAMERSSIFRAC")
+                  .WithValueField(8, 8, FieldMode.Read, valueProviderCallback: _ => (uint)AGC_FrameRssiIntegerPartAdjusted, name: "FRAMERSSIINT")
+                  .WithReservedBits(16, 16)
+                },
+                {(long)AutomaticGainControlRegisters.Command, new DoubleWordRegister(this)
+                  .WithFlag(0, FieldMode.Set, writeCallback: (_, value) => { if (value) {AGC_RssiStartCommand();} }, name: "RSSISTART")
+                  .WithReservedBits(1, 31)
+                },
+                {(long)AutomaticGainControlRegisters.ReceivedSignalStrengthIndicatorAbsoluteThreshold, new DoubleWordRegister(this)
+                  .WithValueField(0, 8, out AGC_rssiHighThreshold, name: "RSSIHIGHTHRSH")
+                  .WithValueField(8, 8, out AGC_rssiLowThreshold, name: "RSSILOWTHRSH")
+                  .WithValueField(16, 8, name: "SIRSSIHIGHTHR")
+                  .WithValueField(24, 8, name: "SIRSSINEGSTEPTHR")
+                },
+            };
+            return new DoubleWordRegisterCollection(this, registerDictionary);
+        }
+
+        private DoubleWordRegisterCollection BuildModulatorAndDemodulatorRegistersCollection()
+        {
+            var registerDictionary = new Dictionary<long, DoubleWordRegister>
+            {
+                {(long)ModulatorAndDemodulatorRegisters.InterruptFlags, new DoubleWordRegister(this, 0x00000008)
+                    .WithFlag(0, out MODEM_txFrameSentInterrupt, name: "TXFRAMESENTIF")
+                    .WithFlag(1, out MODEM_txSyncSentInterrupt, name: "TXSYNCSENTIF")
+                    .WithFlag(2, out MODEM_txPreambleSentInterrupt, name: "TXPRESENTIF")
+                    .WithFlag(3, FieldMode.Read, valueProviderCallback: _ => MODEM_TxRampingDoneInterrupt, name: "TXRAMPDONEIF")
+                    .WithFlag(4, name: "LDTNOARRIF")
+                    .WithFlag(5, name: "PHDSADETIF")
+                    .WithFlag(6, name: "PHYUNCODEDETIF")
+                    .WithFlag(7, name: "PHYCODEDETIF")
+                    .WithFlag(8, name: "RXTIMDETIF")
+                    .WithFlag(9, out MODEM_rxPreambleDetectedInterrupt, name: "RXPREDETIF")
+                    .WithFlag(10, out MODEM_rxFrameWithSyncWord0DetectedInterrupt, name: "RXFRAMEDET0IF")
+                    .WithFlag(11, out MODEM_rxFrameWithSyncWord1DetectedInterrupt, name: "RXFRAMEDET1IF")
+                    .WithFlag(12, name: "RXTIMLOSTIF")
+                    .WithFlag(13, out MODEM_rxPreambleLostInterrupt, name: "RXPRELOSTIF")
+                    .WithFlag(14, name: "RXFRAMEDETOFIF")
+                    .WithFlag(15, name: "RXTIMNFIF")
+                    .WithFlag(16, name: "FRCTIMOUTIF")
+                    .WithFlag(17, name: "ETSIF")
+                    .WithFlag(18, name: "CFGANTPATTRDIF")
+                    .WithFlag(19, name: "RXRESTARTRSSIMAPREIF")
+                    .WithFlag(20, name: "RXRESTARTRSSIMASYNCIF")
+                    .WithFlag(21, name: "SQDETIF")
+                    .WithFlag(22, name: "SQNOTDETIF")
+                    .WithFlag(23, name: "ANTDIVRDYIF")
+                    .WithFlag(24, name: "SOFTRESETDONEIF")
+                    .WithFlag(25, name: "SQPRENOTDETIF")
+                    .WithFlag(26, name: "SQFRAMENOTDETIF")
+                    .WithFlag(27, name: "SQAFCOUTOFBANDIF")
+                    .WithFlag(28, name: "SIDETIF")
+                    .WithFlag(29, name: "SIRESETIF")
+                    .WithReservedBits(30, 2)
+                    .WithChangeCallback((_, __) => UpdateInterrupts())
+                },
+                {(long)ModulatorAndDemodulatorRegisters.InterruptEnable, new DoubleWordRegister(this)
+                    .WithFlag(0, out MODEM_txFrameSentInterruptEnable, name: "TXFRAMESENTIEN")
+                    .WithFlag(1, out MODEM_txSyncSentInterruptEnable, name: "TXSYNCSENTIEN")
+                    .WithFlag(2, out MODEM_txPreambleSentInterruptEnable, name: "TXPRESENTIEN")
+                    .WithFlag(3, out MODEM_txRampingDoneInterruptEnable, name: "TXRAMPDONEIEN")
+                    .WithFlag(4, name: "LDTNOARRIEN")
+                    .WithFlag(5, name: "PHDSADETIEN")
+                    .WithFlag(6, name: "PHYUNCODEDETIEN")
+                    .WithFlag(7, name: "PHYCODEDETIEN")
+                    .WithFlag(8, name: "RXTIMDETIEN")
+                    .WithFlag(9, out MODEM_rxPreambleDetectedInterruptEnable, name: "RXPREDETIEN")
+                    .WithFlag(10, out MODEM_rxFrameWithSyncWord0DetectedInterruptEnable, name: "RXFRAMEDET0IEN")
+                    .WithFlag(11, out MODEM_rxFrameWithSyncWord1DetectedInterruptEnable, name: "RXFRAMEDET1IEN")
+                    .WithFlag(12, name: "RXTIMLOSTIEN")
+                    .WithFlag(13, out MODEM_rxPreambleLostInterruptEnable, name: "RXPRELOSTIEN")
+                    .WithFlag(14, name: "RXFRAMEDETOFIEN")
+                    .WithFlag(15, name: "RXTIMNFIEN")
+                    .WithFlag(16, name: "FRCTIMOUTIEN")
+                    .WithFlag(17, name: "ETSIEN")
+                    .WithFlag(18, name: "CFGANTPATTRDIEN")
+                    .WithFlag(19, name: "RXRESTARTRSSIMAPREIEN")
+                    .WithFlag(20, name: "RXRESTARTRSSIMASYNCIEN")
+                    .WithFlag(21, name: "SQDETIEN")
+                    .WithFlag(22, name: "SQNOTDETIEN")
+                    .WithFlag(23, name: "ANTDIVRDYIEN")
+                    .WithFlag(24, name: "SOFTRESETDONEIEN")
+                    .WithFlag(25, name: "SQPRENOTDETIEN")
+                    .WithFlag(26, name: "SQFRAMENOTDETIEN")
+                    .WithFlag(27, name: "SQAFCOUTOFBANDIEN")
+                    .WithFlag(28, name: "SIDETIEN")
+                    .WithFlag(29, name: "SIRESETIEN")
+                    .WithReservedBits(30, 2)
+                    .WithChangeCallback((_, __) => UpdateInterrupts())
+                },
+                {(long)ModulatorAndDemodulatorRegisters.SequencerInterruptFlags, new DoubleWordRegister(this, 0x00000008)
+                    .WithFlag(0, out MODEM_seqTxFrameSentInterrupt, name: "TXFRAMESENTSEQIF")
+                    .WithFlag(1, out MODEM_seqTxSyncSentInterrupt, name: "TXSYNCSENTSEQIF")
+                    .WithFlag(2, out MODEM_seqTxPreambleSentInterrupt, name: "TXPRESENTSEQIF")
+                    .WithFlag(3, FieldMode.Read, valueProviderCallback: _ => MODEM_TxRampingDoneInterrupt, name: "TXRAMPDONESEQIF")
+                    .WithFlag(4, name: "LDTNOARRSEQIF")
+                    .WithFlag(5, name: "PHDSADETSEQIF")
+                    .WithFlag(6, name: "PHYUNCODEDETSEQIF")
+                    .WithFlag(7, name: "PHYCODEDETSEQIF")
+                    .WithFlag(8, name: "RXTIMDETSEQIF")
+                    .WithFlag(9, out MODEM_seqRxPreambleDetectedInterrupt, name: "RXPREDETSEQIF")
+                    .WithFlag(10, out MODEM_seqRxFrameWithSyncWord0DetectedInterrupt, name: "RXFRAMEDET0SEQIF")
+                    .WithFlag(11, out MODEM_seqRxFrameWithSyncWord1DetectedInterrupt, name: "RXFRAMEDET1SEQIF")
+                    .WithFlag(12, name: "RXTIMLOSTSEQIF")
+                    .WithFlag(13, out MODEM_seqRxPreambleLostInterrupt, name: "RXPRELOSTSEQIF")
+                    .WithFlag(14, name: "RXFRAMEDETOFSEQIF")
+                    .WithFlag(15, name: "RXTIMNFSEQIF")
+                    .WithFlag(16, name: "FRCTIMOUTSEQIF")
+                    .WithFlag(17, name: "ETSSEQIF")
+                    .WithFlag(18, name: "CFGANTPATTRDSEQIF")
+                    .WithFlag(19, name: "RXRESTARTRSSIMAPRESEQIF")
+                    .WithFlag(20, name: "RXRESTARTRSSIMASYNCSEQIF")
+                    .WithFlag(21, name: "SQDETSEQIF")
+                    .WithFlag(22, name: "SQNOTDETSEQIF")
+                    .WithFlag(23, name: "ANTDIVRDYSEQIF")
+                    .WithFlag(24, name: "SOFTRESETDONESEQIF")
+                    .WithFlag(25, name: "SQPRENOTDETSEQIF")
+                    .WithFlag(26, name: "SQFRAMENOTDETSEQIF")
+                    .WithFlag(27, name: "SQAFCOUTOFBANDSEQIF")
+                    .WithFlag(28, name: "SIDETSEQIF")
+                    .WithFlag(29, name: "SIRESETSEQIF")
+                    .WithReservedBits(30, 2)
+                    .WithChangeCallback((_, __) => UpdateInterrupts())
+                },
+                {(long)ModulatorAndDemodulatorRegisters.SequencerInterruptEnable, new DoubleWordRegister(this)
+                    .WithFlag(0, out MODEM_seqTxFrameSentInterruptEnable, name: "TXFRAMESENTSEQIEN")
+                    .WithFlag(1, out MODEM_seqTxSyncSentInterruptEnable, name: "TXSYNCSENTSEQIEN")
+                    .WithFlag(2, out MODEM_seqTxPreambleSentInterruptEnable, name: "TXPRESENTSEQIEN")
+                    .WithFlag(3, out MODEM_seqTxRampingDoneInterruptEnable, name: "TXRAMPDONESEQIEN")
+                    .WithFlag(4, name: "LDTNOARRSEQIEN")
+                    .WithFlag(5, name: "PHDSADETSEQIEN")
+                    .WithFlag(6, name: "PHYUNCODEDETSEQIEN")
+                    .WithFlag(7, name: "PHYCODEDETSEQIEN")
+                    .WithFlag(8, name: "RXTIMDETSEQIEN")
+                    .WithFlag(9, out MODEM_seqRxPreambleDetectedInterruptEnable, name: "RXPREDETSEQIEN")
+                    .WithFlag(10, out MODEM_seqRxFrameWithSyncWord0DetectedInterruptEnable, name: "RXFRAMEDET0SEQIEN")
+                    .WithFlag(11, out MODEM_seqRxFrameWithSyncWord1DetectedInterruptEnable, name: "RXFRAMEDET1SEQIEN")
+                    .WithFlag(12, name: "RXTIMLOSTSEQIEN")
+                    .WithFlag(13, out MODEM_seqRxPreambleLostInterruptEnable, name: "RXPRELOSTSEQIEN")
+                    .WithFlag(14, name: "RXFRAMEDETOFSEQIEN")
+                    .WithFlag(15, name: "RXTIMNFSEQIEN")
+                    .WithFlag(16, name: "FRCTIMOUTSEQIEN")
+                    .WithFlag(17, name: "ETSSEQIEN")
+                    .WithFlag(18, name: "CFGANTPATTRDSEQIEN")
+                    .WithFlag(19, name: "RXRESTARTRSSIMAPRESEQIEN")
+                    .WithFlag(20, name: "RXRESTARTRSSIMASYNCSEQIEN")
+                    .WithFlag(21, name: "SQDETSEQIEN")
+                    .WithFlag(22, name: "SQNOTDETSEQIEN")
+                    .WithFlag(23, name: "ANTDIVRDYSEQIEN")
+                    .WithFlag(24, name: "SOFTRESETDONESEQIEN")
+                    .WithFlag(25, name: "SQPRENOTDETSEQIEN")
+                    .WithFlag(26, name: "SQFRAMENOTDETSEQIEN")
+                    .WithFlag(27, name: "SQAFCOUTOFBANDSEQIEN")
+                    .WithFlag(28, name: "SIDETSEQIEN")
+                    .WithFlag(29, name: "SIRESETSEQIEN")
+                    .WithReservedBits(30, 2)
+                    .WithChangeCallback((_, __) => UpdateInterrupts())
+                },
+                {(long)ModulatorAndDemodulatorRegisters.Control0, new DoubleWordRegister(this)
+                    .WithFlag(0, name: "FDM0DIFFDIS")
+                    .WithValueField(1, 3, name: "MAPFSK")
+                    .WithEnumField<DoubleWordRegister, MODEM_SymbolCoding>(4, 2, out MODEM_symbolCoding, name: "CODING")
+                    .WithEnumField<DoubleWordRegister, MODEM_ModulationFormat>(6, 3, out MODEM_modulationFormat, name: "MODFORMAT")
+                    .WithFlag(9, name: "DUALCORROPTDIS")
+                    .WithFlag(10, name: "OOKASYNCPIN")
+                    .WithValueField(11, 5, out MODEM_dsssLength, name: "DSSSLEN")
+                    .WithValueField(16, 3, out MODEM_dsssShifts, name: "DSSSSHIFTS")
+                    .WithEnumField<DoubleWordRegister, MODEM_DsssDoublingMode>(19, 2, out MODEM_dsssDoublingMode, name: "DSSSDOUBLE")
+                    .WithFlag(21, name: "DETDIS")
+                    .WithValueField(22, 3, name: "DIFFENCMODE")
+                    .WithValueField(25, 2, name: "SHAPING")
+                    .WithValueField(27, 3, name: "DEMODRAWDATASEL")
+                    .WithValueField(30, 2, name: "FRAMEDETDEL")
+                },
+                {(long)ModulatorAndDemodulatorRegisters.Control1, new DoubleWordRegister(this)
+                    .WithValueField(0, 5, out MODEM_syncBits, name: "SYNCBITS")
+                    .WithValueField(5, 4, name: "SYNCERRORS")
+                    .WithFlag(9, out MODEM_dualSync, name: "DUALSYNC")
+                    .WithFlag(10, out MODEM_txSync, name: "TXSYNC")
+                    .WithFlag(11, out MODEM_syncData, name: "SYNCDATA")
+                    .WithFlag(12, name: "SYNC1INV")
+                    .WithReservedBits(13, 1)
+                    .WithValueField(14, 2, name: "COMPMODE")
+                    .WithValueField(16, 4, name: "RESYNCPER")
+                    .WithValueField(20, 2, name: "PHASEDEMOD")
+                    .WithValueField(22, 3, name: "FREQOFFESTPER")
+                    .WithValueField(25, 7, name: "FREQOFFESTLIM")
+                },
+                {(long)ModulatorAndDemodulatorRegisters.Control2, new DoubleWordRegister(this, 0x00001000)
+                    .WithValueField(0, 8, name: "SQITHRESH")
+                    .WithValueField(8, 1, name: "RXFRCDIS")
+                    .WithValueField(9, 1, name: "RXPINMODE")
+                    .WithValueField(10, 2, name: "TXPINMODE")
+                    .WithValueField(12, 3, name: "DATAFILTER")
+                    .WithValueField(15, 4, out MODEM_baudrateDivisionFactorA, name: "BRDIVA")
+                    .WithValueField(19, 4, out MODEM_baudrateDivisionFactorB, name: "BRDIVB")
+                    .WithValueField(23, 2, name: "DEVMULA")
+                    .WithValueField(25, 2, name: "DEVMULB")
+                    .WithEnumField<DoubleWordRegister, MODEM_RateSelectMode>(27, 2, out MODEM_rateSelectMode, name: "RATESELMODE")
+                    .WithValueField(29, 1, name: "DEVWEIGHTDIS")
+                    .WithValueField(30, 2, name: "DMASEL")
+                },
+                 {(long)ModulatorAndDemodulatorRegisters.TxBaudrate, new DoubleWordRegister(this)
+                    .WithValueField(0, 16, out MODEM_txBaudrateNumerator, name: "TXBRNUM")
+                    .WithValueField(16, 8, out MODEM_txBaudrateDenominator, name: "TXBRDEN")
+                    .WithReservedBits(24, 8)
+                },
+                {(long)ModulatorAndDemodulatorRegisters.Preamble, new DoubleWordRegister(this)
+                    .WithValueField(16, 16, out MODEM_txBases, name: "TXBASES")
+                    .WithValueField(14, 2, name: "PREWNDERRORS")
+                    .WithFlag(13, name: "PREAMBDETEN")
+                    .WithFlag(12, name: "SYNCSYMB4FSK")
+                    .WithFlag(11, name: "DSSSPRE")
+                    .WithValueField(7, 4, name: "PREERRORS")
+                    .WithFlag(6, name: "PRESYMB4FSK")
+                    .WithValueField(4, 2, out MODEM_baseBits, name: "BASEBITS")
+                    .WithValueField(0, 4, name: "BASE")
+                },
+                {(long)ModulatorAndDemodulatorRegisters.SyncWord0, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out MODEM_syncWord0, name: "SYNC0")
+                },
+                {(long)ModulatorAndDemodulatorRegisters.SyncWord1, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out MODEM_syncWord1, name: "SYNC1")
+                },
+                {(long)ModulatorAndDemodulatorRegisters.Command, new DoubleWordRegister(this)
+                    .WithFlag(0, name: "PRESTOP")
+                    .WithFlag(1, name: "CHPWRACCUCLR")
+                    .WithReservedBits(2, 1)
+                    .WithFlag(3, name: "AFCTXLOCK")
+                    .WithFlag(4, name: "AFCTXCLEAR")
+                    .WithFlag(5, name: "AFCRXCLEAR")
+                    .WithReservedBits(6, 26)
+                },
+                {(long)ModulatorAndDemodulatorRegisters.Status, new DoubleWordRegister(this)
+                    .WithEnumField<DoubleWordRegister, MODEM_DemodulatorState>(0, 3, out MODEM_demodulatorState, FieldMode.Read, name: "DEMODSTATE")
+                    .WithFlag(3, name: "BCRCFEDSADET")
+                    .WithFlag(4, out MODEM_frameDetectedId, FieldMode.Read, name: "FRAMEDETID")
+                    .WithFlag(5, name: "ANTSEL")
+                    .WithFlag(6, name: "TIMSEQINV")
+                    .WithFlag(7, name: "TIMLOSTCAUSE")
+                    .WithFlag(8, name: "DSADETECTED")
+                    .WithFlag(9, name: "DSAFREQESTDONE")
+                    .WithFlag(10, name: "VITERBIDEMODTIMDET")
+                    .WithFlag(11, name: "VITERBIDEMODFRAMEDET")
+                    .WithValueField(12, 3, name: "STAMPSTATE")
+                    .WithFlag(15, name: "TRECSDSAADET")
+                    .WithValueField(16, 8, name: "CORR")
+                    .WithValueField(24, 8, name: "WEAKSYMBOLS")
+                },
+                {(long)ModulatorAndDemodulatorRegisters.Status2, new DoubleWordRegister(this)
+                    .WithValueField(0, 8, FieldMode.Read, name: "CHPWRACCUMUX")
+                    .WithValueField(8, 4, FieldMode.Read, name: "BBSSMUX")
+                    // (S=2 => 500k => 1, S=8 => 125k => 0)
+                    .WithValueField(12, 2, FieldMode.Read, valueProviderCallback: _ => MODEM_GetCodedSymbolsPerInfoBit() == 2u ? 1u : 0u, name: "LRBLECI")
+                    .WithFlag(14, FieldMode.Read, valueProviderCallback: _ => MODEM_symbolCoding.Value != MODEM_SymbolCoding.Linecode, name: "UNCODEDPHY")
+                    .WithFlag(15, FieldMode.Read, valueProviderCallback: _ => MODEM_symbolCoding.Value == MODEM_SymbolCoding.Linecode, name: "CODEDPHY")
+                    .WithReservedBits(16, 2)
+                    .WithValueField(18, 14, FieldMode.Read, name: "RTCOST")
+                },
+                {(long)ModulatorAndDemodulatorRegisters.BleLongRange, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, name: "LONGRANGE")
+                },
+                {(long)ModulatorAndDemodulatorRegisters.RampingControl, new DoubleWordRegister(this)
+                  .WithValueField(0, 4, out MODEM_rampRate0, name: "RAMPRATE0")
+                  .WithValueField(4, 4, out MODEM_rampRate1, name: "RAMPRATE1")
+                  .WithValueField(8, 4, out MODEM_rampRate2, name: "RAMPRATE2")
+                  .WithFlag(12, out MODEM_rampDisable, name: "RAMPDIS")
+                  .WithReservedBits(13, 3)
+                  .WithValueField(16, 8, out MODEM_rampValue, name: "RAMPVAL")
+                  .WithReservedBits(24, 8)
+                },
+                {(long)ModulatorAndDemodulatorRegisters.ViterbiDemodulator, new DoubleWordRegister(this)
+                    .WithFlag(0, out MODEM_viterbiDemodulatorEnable, name: "VTDEMODEN")
+                    .WithFlag(1, name: "HARDDECISION")
+                    .WithValueField(2, 7, name: "VITERBIKSI1")
+                    .WithValueField(9, 7, name: "VITERBIKSI2")
+                    .WithValueField(16, 7, name: "VITERBIKSI3")
+                    .WithFlag(23, name: "SYNTHAFC")
+                    .WithValueField(24, 4, name: "CORRCYCLE")
+                    .WithValueField(28, 4, name: "CORRSTPSIZE")
+                },
+            };
+            return new DoubleWordRegisterCollection(this, registerDictionary);
+        }
+
+        private DoubleWordRegisterCollection BuildProtocolTimerRegistersCollection()
+        {
+            var registerDictionary = new Dictionary<long, DoubleWordRegister>
+            {
+                {(long)ProtocolTimerRegisters.Control, new DoubleWordRegister(this)
+                    .WithReservedBits(0, 1)
+                    .WithFlag(1, name: "DEBUGRUN")
+                    .WithFlag(2, name: "DMACLRACT")
+                    .WithReservedBits(3, 1)
+                    .WithFlag(4, name: "OSMEN")
+                    .WithFlag(5, name: "ZEROSTARTEN")
+                    .WithReservedBits(6, 2)
+                    .WithEnumField<DoubleWordRegister, PROTIMER_PreCounterSource>(8, 2, out PROTIMER_preCounterSource, changeCallback: (_, value) =>
+                        {
+                            switch(value)
+                            {
+                                case PROTIMER_PreCounterSource.None:
+                                    PROTIMER_Enabled = false;
+                                    break;
+                                case PROTIMER_PreCounterSource.Clock:
+                                    // wait for the start command to actually start the proTimer
+                                    break;
+                                default:
+                                    PROTIMER_Enabled = false;
+                                    this.Log(LogLevel.Error, "Invalid PRECNTSRC value");
+                                    break;
+                            }
+                        }, name: "PRECNTSRC")
+                    .WithReservedBits(10, 2)
+                    .WithEnumField<DoubleWordRegister, PROTIMER_BaseCounterSource>(12, 2, out PROTIMER_baseCounterSource, changeCallback: (_, value) =>
+                        {
+                            switch(value)
+                            {
+                                case PROTIMER_BaseCounterSource.Unused0:
+                                case PROTIMER_BaseCounterSource.Unused1:
+                                    this.Log(LogLevel.Error, "Invalid BASECNTSRC value");
+                                    break;
+                            }
+                        }, name: "BASECNTSRC")
+                    .WithReservedBits(14, 2)
+                    .WithEnumField<DoubleWordRegister, PROTIMER_WrapCounterSource>(16, 2, out PROTIMER_wrapCounterSource, changeCallback: (_, value) =>
+                        {
+                            switch(value)
+                            {
+                                case PROTIMER_WrapCounterSource.Unused:
+                                    this.Log(LogLevel.Error, "Invalid WRAPCNTSRC value");
+                                    break;
+                            }
+                        }, name: "WRAPCNTSRC")
+                    .WithReservedBits(18, 2)
+                    .WithEnumField<DoubleWordRegister, PROTIMER_TimeoutCounterSource>(20, 2, out PROTIMER_timeoutCounter[0].Source, name: "TOUT0SRC")
+                    .WithEnumField<DoubleWordRegister, PROTIMER_TimeoutCounterSource>(22, 2, out PROTIMER_timeoutCounter[0].SyncSource, name: "TOUT0SYNCSRC")
+                    .WithEnumField<DoubleWordRegister, PROTIMER_TimeoutCounterSource>(24, 2, out PROTIMER_timeoutCounter[1].Source, name: "TOUT1SRC")
+                    .WithEnumField<DoubleWordRegister, PROTIMER_TimeoutCounterSource>(26, 2, out PROTIMER_timeoutCounter[1].SyncSource, name: "TOUT1SYNCSRC")
+                    .WithEnumField<DoubleWordRegister, PROTIMER_RepeatMode>(28, 1, out PROTIMER_timeoutCounter[0].Mode, name: "TOUT0MODE")
+                    .WithEnumField<DoubleWordRegister, PROTIMER_RepeatMode>(29, 1, out PROTIMER_timeoutCounter[1].Mode, name: "TOUT1MODE")
+                    .WithReservedBits(30, 2)
+                },
+                {(long)ProtocolTimerRegisters.Command, new DoubleWordRegister(this)
+                    .WithFlag(0, FieldMode.Set, writeCallback: (_, value) => { if(PROTIMER_preCounterSource.Value == PROTIMER_PreCounterSource.Clock && value) { PROTIMER_Enabled = true;} }, name: "START")
+                    .WithFlag(1, FieldMode.Set, writeCallback: (_, value) => { if(value) PROTIMER_RtcSyncStart(); }, name: "RTCSYNCSTART")
+                    .WithFlag(2, FieldMode.Set, writeCallback: (_, value) => { if(value) PROTIMER_Enabled = false; }, name: "STOP")
+                    .WithReservedBits(3, 1)
+                    .WithFlag(4, FieldMode.Set, writeCallback: (_, value) => { if(value) PROTIMER_timeoutCounter[0].Start(); }, name: "TOUT0START")
+                    .WithFlag(5, FieldMode.Set, writeCallback: (_, value) => { if(value) PROTIMER_timeoutCounter[0].Stop(); }, name: "TOUT0STOP")
+                    .WithFlag(6, FieldMode.Set, writeCallback: (_, value) => { if(value) PROTIMER_timeoutCounter[1].Start(); }, name: "TOUT1START")
+                    .WithFlag(7, FieldMode.Set, writeCallback: (_, value) => { if(value) PROTIMER_timeoutCounter[1].Stop(); }, name: "TOUT1STOP")
+                    .WithFlag(8, FieldMode.Set, writeCallback: (_, value) => { if(value) PROTIMER_txRequestState = PROTIMER_TxRxRequestState.Idle; RAC_UpdateRadioStateMachine(); }, name: "FORCETXIDLE")
+                    .WithFlag(9, FieldMode.Set, writeCallback: (_, value) => { if(value) PROTIMER_rxRequestState = PROTIMER_TxRxRequestState.Idle; RAC_UpdateRadioStateMachine(); }, name: "FORCERXIDLE")
+                    .WithFlag(10, name: "FORCERXRX")
+                    .WithReservedBits(11, 5)
+                    .WithFlag(16, FieldMode.Set, writeCallback: (_, value) => { if (value) PROTIMER_ListenBeforeTalkStartCommand(); }, name: "LBTSTART")
+                    .WithFlag(17, FieldMode.Set, writeCallback: (_, value) => { if (value) PROTIMER_ListenBeforeTalkPauseCommand(); }, name: "LBTPAUSE")
+                    .WithFlag(18, FieldMode.Set, writeCallback: (_, value) => { if(value) PROTIMER_ListenBeforeTalkStopCommand(); }, name: "LBTSTOP")
+                    .WithReservedBits(19, 13)
+                    .WithWriteCallback((_, __) => { PROTIMER_HandleChangedParams(); UpdateInterrupts(); })
+                },
+                {(long)ProtocolTimerRegisters.Status, new DoubleWordRegister(this)
+                    .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => PROTIMER_Enabled, name: "RUNNING")
+                    .WithFlag(1, out PROTIMER_listenBeforeTalkSync, FieldMode.Read, name: "LBTSYNC")
+                    .WithFlag(2, out PROTIMER_listenBeforeTalkRunning, FieldMode.Read, name: "LBTRUNNING")
+                    .WithFlag(3, out PROTIMER_listenBeforeTalkPaused, FieldMode.Read, name: "LBTPAUSED")
+                    .WithFlag(4, out PROTIMER_timeoutCounter[0].Running, FieldMode.Read, name: "TOUT0RUNNING")
+                    .WithFlag(5, out PROTIMER_timeoutCounter[0].Synchronizing, FieldMode.Read, name: "TOUT0SYNC")
+                    .WithFlag(6, out PROTIMER_timeoutCounter[1].Running, FieldMode.Read, name: "TOUT1RUNNING")
+                    .WithFlag(7, out PROTIMER_timeoutCounter[1].Synchronizing, FieldMode.Read, name: "TOUT1SYNC")
+                    .WithFlag(8, out PROTIMER_captureCompareChannel[0].CaptureValid, FieldMode.Read, name: "ICV0")
+                    .WithFlag(9, out PROTIMER_captureCompareChannel[1].CaptureValid, FieldMode.Read, name: "ICV1")
+                    .WithFlag(10, out PROTIMER_captureCompareChannel[2].CaptureValid, FieldMode.Read, name: "ICV2")
+                    .WithFlag(11, out PROTIMER_captureCompareChannel[3].CaptureValid, FieldMode.Read, name: "ICV3")
+                    .WithFlag(12, out PROTIMER_captureCompareChannel[4].CaptureValid, FieldMode.Read, name: "ICV4")
+                    .WithFlag(13, out PROTIMER_captureCompareChannel[5].CaptureValid, FieldMode.Read, name: "ICV5")
+                    .WithFlag(14, out PROTIMER_captureCompareChannel[6].CaptureValid, FieldMode.Read, name: "ICV6")
+                    .WithFlag(15, out PROTIMER_captureCompareChannel[7].CaptureValid, FieldMode.Read, name: "ICV7")
+                    .WithReservedBits(16, 16)
+                },
+                {(long)ProtocolTimerRegisters.PreCounterValue, new DoubleWordRegister(this)
+                    // We don't tick the PRECNT value, so just always return 0
+                    .WithValueField(0, 16, valueProviderCallback: _ => 0, name: "PRECNT")
+                    .WithReservedBits(16, 16)
+                },
+                {(long)ProtocolTimerRegisters.BaseCounterValue, new DoubleWordRegister(this)
+                    .WithValueField(0, 16, valueProviderCallback: _ => PROTIMER_BaseCounterValue, writeCallback: (_, value) => PROTIMER_BaseCounterValue = (ushort)value, name: "BASECNT")
+                    .WithReservedBits(16, 16)
+                    .WithWriteCallback((_, __) => PROTIMER_HandleChangedParams())
+                },
+                {(long)ProtocolTimerRegisters.WrapCounterValue, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, valueProviderCallback: _ =>  PROTIMER_WrapCounterValue, writeCallback: (_, value) => PROTIMER_WrapCounterValue = (uint)value, name: "WRAPCNT")
+                    .WithWriteCallback((_, __) => PROTIMER_HandleChangedParams())
+                },
+                {(long)ProtocolTimerRegisters.BaseAndPreCounterValues, new DoubleWordRegister(this)
+                    // We don't tick the PRECNT value, so just always return 0
+                    .WithValueField(0, 16, FieldMode.Read, valueProviderCallback: _ => 0, name: "PRECNTV")
+                    .WithValueField(16, 16, FieldMode.Read, valueProviderCallback: _ => PROTIMER_BaseCounterValue, name: "BASECNTV")
+                    .WithWriteCallback((_, __) => PROTIMER_HandleChangedParams())
+                },
+                {(long)ProtocolTimerRegisters.PreCounterTopValue, new DoubleWordRegister(this, 0xFFFF00)
+                    .WithValueField(0, 8, out PROTIMER_preCounterTopFractional, name: "PRECNTTOPFRAC")
+                    .WithValueField(8, 16, out PROTIMER_preCounterTopInteger, name: "PRECNTTOP")
+                    .WithReservedBits(24, 8)
+                    .WithWriteCallback((_, __) => PROTIMER_HandleChangedParams())
+                },
+                {(long)ProtocolTimerRegisters.BaseCounterTopValue, new DoubleWordRegister(this, 0xFFFF)
+                    .WithValueField(0, 16, out PROTIMER_baseCounterTop, name: "BASECNTTOP")
+                    .WithReservedBits(16, 16)
+                    .WithWriteCallback((_, __) => PROTIMER_HandleChangedParams())
+                },
+                {(long)ProtocolTimerRegisters.WrapCounterTopValue, new DoubleWordRegister(this, 0xFFFFFFFF)
+                    .WithValueField(0, 32, out PROTIMER_wrapCounterTop, name: "WRAPCNTTOP")
+                    .WithWriteCallback((_, __) => PROTIMER_HandleChangedParams())
+                },
+                {(long)ProtocolTimerRegisters.LatchedWrapCounterValue, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, name: "LWRAPCNT")
+                },
+                {(long)ProtocolTimerRegisters.PreCounterTopAdjustValue, new DoubleWordRegister(this)
+                    .WithValueField(0, 16, name: "PRECNTTOPADJ")
+                    .WithReservedBits(16, 16)
+                },
+                {(long)ProtocolTimerRegisters.Timeout0Counter, new DoubleWordRegister(this)
+                    .WithValueField(0, 16, out PROTIMER_timeoutCounter[0].PreCounter, name: "TOUT0PCNT")
+                    .WithValueField(16, 16, out PROTIMER_timeoutCounter[0].Counter, name: "TOUT0CNT")
+                },
+                {(long)ProtocolTimerRegisters.Timeout0CounterTop, new DoubleWordRegister(this, 0x00FF00FF)
+                    .WithValueField(0, 16, out PROTIMER_timeoutCounter[0].PreCounterTop, name: "TOUT0CNTTOP")
+                    .WithValueField(16, 16, out PROTIMER_timeoutCounter[0].CounterTop, name: "TOUT0PCNTTOP")
+                },
+                {(long)ProtocolTimerRegisters.Timeout0Compare, new DoubleWordRegister(this)
+                    .WithValueField(0, 16, out PROTIMER_timeoutCounter[0].PreCounterCompare, name: "TOUT0PCNTCOMP")
+                    .WithValueField(16, 16, out PROTIMER_timeoutCounter[0].CounterCompare, name: "TOUT0CNTCOMP")
+                },
+                {(long)ProtocolTimerRegisters.Timeout1Counter, new DoubleWordRegister(this)
+                    .WithValueField(0, 16, out PROTIMER_timeoutCounter[1].PreCounter, name: "TOUT1PCNT")
+                    .WithValueField(16, 16, out PROTIMER_timeoutCounter[1].Counter, name: "TOUT1CNT")
+                },
+                {(long)ProtocolTimerRegisters.Timeout1CounterTop, new DoubleWordRegister(this, 0x00FF00FF)
+                    .WithValueField(0, 16, out PROTIMER_timeoutCounter[1].PreCounterTop, name: "TOUT1CNTTOP")
+                    .WithValueField(16, 16, out PROTIMER_timeoutCounter[1].CounterTop, name: "TOUT1PCNTTOP")
+                },
+                {(long)ProtocolTimerRegisters.Timeout1Compare, new DoubleWordRegister(this)
+                    .WithValueField(0, 16, out PROTIMER_timeoutCounter[1].PreCounterCompare, name: "TOUT1PCNTCOMP")
+                    .WithValueField(16, 16, out PROTIMER_timeoutCounter[1].CounterCompare, name: "TOUT1CNTCOMP")
+                },
+                {(long)ProtocolTimerRegisters.InterruptFlags, new DoubleWordRegister(this)
+                    .WithFlag(0, out PROTIMER_preCounterOverflowInterrupt, name: "PRECNTOFIF")
+                    .WithFlag(1, out PROTIMER_baseCounterOverflowInterrupt, name: "BASECNTOFIF")
+                    .WithFlag(2, out PROTIMER_wrapCounterOverflowInterrupt, name: "WRAPCNTOFIF")
+                    .WithReservedBits(3, 1)
+                    .WithFlag(4, out PROTIMER_timeoutCounter[0].UnderflowInterrupt, name: "TOUT0IF")
+                    .WithFlag(5, out PROTIMER_timeoutCounter[1].UnderflowInterrupt, name: "TOUT1IF")
+                    .WithFlag(6, out PROTIMER_timeoutCounter[0].MatchInterrupt, name: "TOUT0MATCHIF")
+                    .WithFlag(7, out PROTIMER_timeoutCounter[1].MatchInterrupt, name: "TOUT1MATCHIF")
+                    .WithFlag(8, out PROTIMER_captureCompareChannel[0].InterruptField, name: "CC0IF")
+                    .WithFlag(9, out PROTIMER_captureCompareChannel[1].InterruptField, name: "CC1IF")
+                    .WithFlag(10, out PROTIMER_captureCompareChannel[2].InterruptField, name: "CC2IF")
+                    .WithFlag(11, out PROTIMER_captureCompareChannel[3].InterruptField, name: "CC3IF")
+                    .WithFlag(12, out PROTIMER_captureCompareChannel[4].InterruptField, name: "CC4IF")
+                    .WithFlag(13, out PROTIMER_captureCompareChannel[5].InterruptField, name: "CC5IF")
+                    .WithFlag(14, out PROTIMER_captureCompareChannel[6].InterruptField, name: "CC6IF")
+                    .WithFlag(15, out PROTIMER_captureCompareChannel[7].InterruptField, name: "CC7IF")
+                    .WithFlag(16, out PROTIMER_captureCompareChannel[0].OverflowInterrupt, name: "COF0IF")
+                    .WithFlag(17, out PROTIMER_captureCompareChannel[1].OverflowInterrupt, name: "COF1IF")
+                    .WithFlag(18, out PROTIMER_captureCompareChannel[2].OverflowInterrupt, name: "COF2IF")
+                    .WithFlag(19, out PROTIMER_captureCompareChannel[3].OverflowInterrupt, name: "COF3IF")
+                    .WithFlag(20, out PROTIMER_captureCompareChannel[4].OverflowInterrupt, name: "COF4IF")
+                    .WithFlag(21, out PROTIMER_captureCompareChannel[5].OverflowInterrupt, name: "COF5IF")
+                    .WithFlag(22, out PROTIMER_captureCompareChannel[6].OverflowInterrupt, name: "COF6IF")
+                    .WithFlag(23, out PROTIMER_captureCompareChannel[7].OverflowInterrupt, name: "COF7IF")
+                    .WithFlag(24, out PROTIMER_listenBeforeTalkSuccessInterrupt, name: "LBTSUCCESSIF")
+                    .WithFlag(25, out PROTIMER_listenBeforeTalkFailureInterrupt, name: "LBTFAILUREIF")
+                    .WithFlag(26, name: "LBTPAUSEDIF")
+                    .WithFlag(27, out PROTIMER_listenBeforeTalkRetryInterrupt, name: "LBTRETRYIF")
+                    .WithFlag(28, out PROTIMER_rtccSynchedInterrupt, name: "RTCCSYNCHEDIF")
+                    .WithFlag(29, out PROTIMER_listenBeforeTalkTimeoutCounterMatchInterrupt, name: "TOUT0MATCHLBTIF")
+                    .WithReservedBits(30, 2)
+                    .WithChangeCallback((_, __) => UpdateInterrupts())
+                },
+                {(long)ProtocolTimerRegisters.InterruptEnable, new DoubleWordRegister(this)
+                    .WithFlag(0, out PROTIMER_preCounterOverflowInterruptEnable, name: "PRECNTOFIEN")
+                    .WithFlag(1, out PROTIMER_baseCounterOverflowInterruptEnable, name: "BASECNTOFIEN")
+                    .WithFlag(2, out PROTIMER_wrapCounterOverflowInterruptEnable, name: "WRAPCNTOFIEN")
+                    .WithReservedBits(3, 1)
+                    .WithFlag(4, out PROTIMER_timeoutCounter[0].UnderflowInterruptEnable, name: "TOUT0IEN")
+                    .WithFlag(5, out PROTIMER_timeoutCounter[1].UnderflowInterruptEnable, name: "TOUT1IEN")
+                    .WithFlag(6, out PROTIMER_timeoutCounter[0].MatchInterruptEnable, name: "TOUT0MATCHIEN")
+                    .WithFlag(7, out PROTIMER_timeoutCounter[1].MatchInterruptEnable, name: "TOUT1MATCHIEN")
+                    .WithFlag(8, out PROTIMER_captureCompareChannel[0].InterruptEnable, name: "CC0IEN")
+                    .WithFlag(9, out PROTIMER_captureCompareChannel[1].InterruptEnable, name: "CC1IEN")
+                    .WithFlag(10, out PROTIMER_captureCompareChannel[2].InterruptEnable, name: "CC2IEN")
+                    .WithFlag(11, out PROTIMER_captureCompareChannel[3].InterruptEnable, name: "CC3IEN")
+                    .WithFlag(12, out PROTIMER_captureCompareChannel[4].InterruptEnable, name: "CC4IEN")
+                    .WithFlag(13, out PROTIMER_captureCompareChannel[5].InterruptEnable, name: "CC5IEN")
+                    .WithFlag(14, out PROTIMER_captureCompareChannel[6].InterruptEnable, name: "CC6IEN")
+                    .WithFlag(15, out PROTIMER_captureCompareChannel[7].InterruptEnable, name: "CC7IEN")
+                    .WithFlag(16, out PROTIMER_captureCompareChannel[0].OverflowInterruptEnable, name: "COF0IEN")
+                    .WithFlag(17, out PROTIMER_captureCompareChannel[1].OverflowInterruptEnable, name: "COF1IEN")
+                    .WithFlag(18, out PROTIMER_captureCompareChannel[2].OverflowInterruptEnable, name: "COF2IEN")
+                    .WithFlag(19, out PROTIMER_captureCompareChannel[3].OverflowInterruptEnable, name: "COF3IEN")
+                    .WithFlag(20, out PROTIMER_captureCompareChannel[4].OverflowInterruptEnable, name: "COF4IEN")
+                    .WithFlag(21, out PROTIMER_captureCompareChannel[5].OverflowInterruptEnable, name: "COF5IEN")
+                    .WithFlag(22, out PROTIMER_captureCompareChannel[6].OverflowInterruptEnable, name: "COF6IEN")
+                    .WithFlag(23, out PROTIMER_captureCompareChannel[7].OverflowInterruptEnable, name: "COF7IEN")
+                    .WithFlag(24, out PROTIMER_listenBeforeTalkSuccessInterruptEnable, name: "LBTSUCCESSIEN")
+                    .WithFlag(25, out PROTIMER_listenBeforeTalkFailureInterruptEnable, name: "LBTFAILUREIEN")
+                    .WithFlag(26, name: "LBTPAUSEDIEN")
+                    .WithFlag(27, out PROTIMER_listenBeforeTalkRetryInterruptEnable, name: "LBTRETRYIEN")
+                    .WithFlag(28, out PROTIMER_rtccSynchedInterruptEnable, name: "RTCCSYNCHEDIEN")
+                    .WithFlag(29, out PROTIMER_listenBeforeTalkTimeoutCounterMatchInterruptEnable, name: "TOUT0MATCHLBTIEN")
+                    .WithReservedBits(30, 2)
+                    .WithChangeCallback((_, __) => UpdateInterrupts())
+                },
+                {(long)ProtocolTimerRegisters.SequencerInterruptFlags, new DoubleWordRegister(this)
+                    .WithFlag(0, out PROTIMER_seqPreCounterOverflowInterrupt, name: "PRECNTOFSEQIF")
+                    .WithFlag(1, out PROTIMER_seqBaseCounterOverflowInterrupt, name: "BASECNTOFSEQIF")
+                    .WithFlag(2, out PROTIMER_seqWrapCounterOverflowInterrupt, name: "WRAPCNTOFSEQIF")
+                    .WithReservedBits(3, 1)
+                    .WithFlag(4, out PROTIMER_timeoutCounter[0].SeqUnderflowInterrupt, name: "TOUT0SEQIF")
+                    .WithFlag(5, out PROTIMER_timeoutCounter[1].SeqUnderflowInterrupt, name: "TOUT1SEQIF")
+                    .WithFlag(6, out PROTIMER_timeoutCounter[0].SeqMatchInterrupt, name: "TOUT0MATCHSEQIF")
+                    .WithFlag(7, out PROTIMER_timeoutCounter[1].SeqMatchInterrupt, name: "TOUT1MATCHSEQIF")
+                    .WithFlag(8, out PROTIMER_captureCompareChannel[0].SeqInterruptField, name: "CC0SEQIF")
+                    .WithFlag(9, out PROTIMER_captureCompareChannel[1].SeqInterruptField, name: "CC1SEQIF")
+                    .WithFlag(10, out PROTIMER_captureCompareChannel[2].SeqInterruptField, name: "CC2SEQIF")
+                    .WithFlag(11, out PROTIMER_captureCompareChannel[3].SeqInterruptField, name: "CC3SEQIF")
+                    .WithFlag(12, out PROTIMER_captureCompareChannel[4].SeqInterruptField, name: "CC4SEQIF")
+                    .WithFlag(13, out PROTIMER_captureCompareChannel[5].SeqInterruptField, name: "CC5SEQIF")
+                    .WithFlag(14, out PROTIMER_captureCompareChannel[6].SeqInterruptField, name: "CC6SEQIF")
+                    .WithFlag(15, out PROTIMER_captureCompareChannel[7].SeqInterruptField, name: "CC7SEQIF")
+                    .WithFlag(16, out PROTIMER_captureCompareChannel[0].SeqOverflowInterrupt, name: "COF0SEQIF")
+                    .WithFlag(17, out PROTIMER_captureCompareChannel[1].SeqOverflowInterrupt, name: "COF1SEQIF")
+                    .WithFlag(18, out PROTIMER_captureCompareChannel[2].SeqOverflowInterrupt, name: "COF2SEQIF")
+                    .WithFlag(19, out PROTIMER_captureCompareChannel[3].SeqOverflowInterrupt, name: "COF3SEQIF")
+                    .WithFlag(20, out PROTIMER_captureCompareChannel[4].SeqOverflowInterrupt, name: "COF4SEQIF")
+                    .WithFlag(21, out PROTIMER_captureCompareChannel[5].SeqOverflowInterrupt, name: "COF5SEQIF")
+                    .WithFlag(22, out PROTIMER_captureCompareChannel[6].SeqOverflowInterrupt, name: "COF6SEQIF")
+                    .WithFlag(23, out PROTIMER_captureCompareChannel[7].SeqOverflowInterrupt, name: "COF7SEQIF")
+                    .WithFlag(24, out PROTIMER_seqListenBeforeTalkSuccessInterrupt, name: "LBTSUCCESSSEQIF")
+                    .WithFlag(25, out PROTIMER_seqListenBeforeTalkFailureInterrupt, name: "LBTFAILURESEQIF")
+                    .WithFlag(26, name: "LBTPAUSEDIF")
+                    .WithFlag(27, out PROTIMER_seqListenBeforeTalkRetryInterrupt, name: "LBTRETRYSEQIF")
+                    .WithFlag(28, out PROTIMER_seqRtccSynchedInterrupt, name: "RTCCSYNCHEDSEQIF")
+                    .WithFlag(29, out PROTIMER_seqListenBeforeTalkTimeoutCounterMatchInterrupt, name: "TOUT0MATCHLBTSEQIF")
+                    .WithReservedBits(30, 2)
+                    .WithChangeCallback((_, __) => UpdateInterrupts())
+                },
+                {(long)ProtocolTimerRegisters.SequencerInterruptEnable, new DoubleWordRegister(this)
+                    .WithFlag(0, out PROTIMER_seqPreCounterOverflowInterruptEnable, name: "PRECNTOFSEQIEN")
+                    .WithFlag(1, out PROTIMER_seqBaseCounterOverflowInterruptEnable, name: "BASECNTOFSEQIEN")
+                    .WithFlag(2, out PROTIMER_seqWrapCounterOverflowInterruptEnable, name: "WRAPCNTOFSEQIEN")
+                    .WithReservedBits(3, 1)
+                    .WithFlag(4, out PROTIMER_timeoutCounter[0].SeqUnderflowInterruptEnable, name: "TOUT0SEQIEN")
+                    .WithFlag(5, out PROTIMER_timeoutCounter[1].SeqUnderflowInterruptEnable, name: "TOUT1SEQIEN")
+                    .WithFlag(6, out PROTIMER_timeoutCounter[0].SeqMatchInterruptEnable, name: "TOUT0MATCHSEQIEN")
+                    .WithFlag(7, out PROTIMER_timeoutCounter[1].SeqMatchInterruptEnable, name: "TOUT1MATCHSEQIEN")
+                    .WithFlag(8, out PROTIMER_captureCompareChannel[0].SeqInterruptEnable, name: "CC0SEQIEN")
+                    .WithFlag(9, out PROTIMER_captureCompareChannel[1].SeqInterruptEnable, name: "CC1SEQIEN")
+                    .WithFlag(10, out PROTIMER_captureCompareChannel[2].SeqInterruptEnable, name: "CC2SEQIEN")
+                    .WithFlag(11, out PROTIMER_captureCompareChannel[3].SeqInterruptEnable, name: "CC3SEQIEN")
+                    .WithFlag(12, out PROTIMER_captureCompareChannel[4].SeqInterruptEnable, name: "CC4SEQIEN")
+                    .WithFlag(13, out PROTIMER_captureCompareChannel[5].SeqInterruptEnable, name: "CC5SEQIEN")
+                    .WithFlag(14, out PROTIMER_captureCompareChannel[6].SeqInterruptEnable, name: "CC6SEQIEN")
+                    .WithFlag(15, out PROTIMER_captureCompareChannel[7].SeqInterruptEnable, name: "CC7SEQIEN")
+                    .WithFlag(16, out PROTIMER_captureCompareChannel[0].SeqOverflowInterruptEnable, name: "COF0SEQIEN")
+                    .WithFlag(17, out PROTIMER_captureCompareChannel[1].SeqOverflowInterruptEnable, name: "COF1SEQIEN")
+                    .WithFlag(18, out PROTIMER_captureCompareChannel[2].SeqOverflowInterruptEnable, name: "COF2SEQIEN")
+                    .WithFlag(19, out PROTIMER_captureCompareChannel[3].SeqOverflowInterruptEnable, name: "COF3SEQIEN")
+                    .WithFlag(20, out PROTIMER_captureCompareChannel[4].SeqOverflowInterruptEnable, name: "COF4SEQIEN")
+                    .WithFlag(21, out PROTIMER_captureCompareChannel[5].SeqOverflowInterruptEnable, name: "COF5SEQIEN")
+                    .WithFlag(22, out PROTIMER_captureCompareChannel[6].SeqOverflowInterruptEnable, name: "COF6SEQIEN")
+                    .WithFlag(23, out PROTIMER_captureCompareChannel[7].SeqOverflowInterruptEnable, name: "COF7SEQIEN")
+                    .WithFlag(24, out PROTIMER_seqListenBeforeTalkSuccessInterruptEnable, name: "LBTSUCCESSSEQIEN")
+                    .WithFlag(25, out PROTIMER_seqListenBeforeTalkFailureInterruptEnable, name: "LBTFAILURESEQIEN")
+                    .WithFlag(26, name: "LBTPAUSEDIEN")
+                    .WithFlag(27, out PROTIMER_seqListenBeforeTalkRetryInterruptEnable, name: "LBTRETRYSEQIEN")
+                    .WithFlag(28, out PROTIMER_seqRtccSynchedInterruptEnable, name: "RTCCSYNCHEDSEQIEN")
+                    .WithFlag(29, out PROTIMER_seqListenBeforeTalkTimeoutCounterMatchInterruptEnable, name: "TOUT0MATCHLBTSEQIEN")
+                    .WithReservedBits(30, 2)
+                    .WithChangeCallback((_, __) => UpdateInterrupts())
+                },
+                {(long)ProtocolTimerRegisters.RxControl, new DoubleWordRegister(this)
+                    .WithEnumField<DoubleWordRegister, PROTIMER_Event>(0, 5, out PROTIMER_rxSetEvent1, name: "RXSETEVENT1")
+                    .WithReservedBits(5, 3)
+                    .WithEnumField<DoubleWordRegister, PROTIMER_Event>(8, 5, out PROTIMER_rxSetEvent2, name: "RXSETEVENT2")
+                    .WithReservedBits(13, 3)
+                    .WithEnumField<DoubleWordRegister, PROTIMER_Event>(16, 5, out PROTIMER_rxClearEvent1, name: "RXCLREVENT1")
+                    .WithReservedBits(21, 3)
+                    .WithEnumField<DoubleWordRegister, PROTIMER_Event>(24, 5, out PROTIMER_rxClearEvent2, name: "RXCLREVENT2")
+                    .WithReservedBits(29, 3)
+                    .WithChangeCallback((_, __) => PROTIMER_UpdateRxRequestState())
+                },
+                {(long)ProtocolTimerRegisters.TxControl, new DoubleWordRegister(this)
+                    .WithEnumField<DoubleWordRegister, PROTIMER_Event>(0, 5, out PROTIMER_txSetEvent1, name: "TXSETEVENT1")
+                    .WithReservedBits(5, 3)
+                    .WithEnumField<DoubleWordRegister, PROTIMER_Event>(8, 5, out PROTIMER_txSetEvent2, name: "TXSETEVENT2")
+                    .WithReservedBits(13, 19)
+                    .WithChangeCallback((_, __) => PROTIMER_UpdateTxRequestState())
+                },
+                {(long)ProtocolTimerRegisters.ListenBeforeTalkWaitControl, new DoubleWordRegister(this)
+                    .WithValueField(0, 4, out PROTIMER_listenBeforeTalkStartExponent, name: "STARTEXP")
+                    .WithValueField(4, 4, out PROTIMER_listenBeforeTalkMaxExponent, name: "MAXEXP")
+                    .WithValueField(8, 5, out PROTIMER_ccaDelay, name: "CCADELAY")
+                    .WithReservedBits(13, 3)
+                    .WithValueField(16, 4, out PROTIMER_ccaRepeat, name: "CCAREPEAT")
+                    .WithFlag(20, out PROTIMER_fixedBackoff, name: "FIXEDBACKOFF")
+                    .WithReservedBits(21, 3)
+                    .WithValueField(24, 4, out PROTIMER_retryLimit, name: "RETRYLIMIT")
+                    .WithReservedBits(28, 4)
+                },
+                {(long)ProtocolTimerRegisters.ListenBeforeTalkState, new DoubleWordRegister(this)
+                    .WithValueField(0, 16, name: "TOUT0PCNT")
+                    .WithValueField(16, 16, name: "TOUT0CNT")
+                },
+                {(long)ProtocolTimerRegisters.PseudoRandomGeneratorValue, new DoubleWordRegister(this)
+                    .WithValueField(0, 16,
+                        // When FIXEDBACKOFF is set, hardware freezes the RANDOM register: it neither
+                        // regenerates on read nor accepts updates. Outside fixed backoff it behaves as an
+                        // LFSR (fresh value each read).
+                        valueProviderCallback: _ => { return PROTIMER_fixedBackoff.Value ? (ushort)PROTIMER_fixedBackoffRandomValue : (ushort)random.Next(); },
+                        writeCallback: (_, value) => { if(!PROTIMER_fixedBackoff.Value) { PROTIMER_fixedBackoffRandomValue = (uint)value; } },
+                        name: "RANDOM")
+                    .WithReservedBits(16, 16)
+                },
+                {(long)ProtocolTimerRegisters.ListenBeforeTalkState1, new DoubleWordRegister(this)
+                    .WithValueField(0, 4, out PROTIMER_ccaCounter, name: "CCACNT")
+                    .WithValueField(4, 4, out PROTIMER_listenBeforeTalkExponent, name: "EXP")
+                    .WithValueField(8, 4, out PROTIMER_listenBeforeTalkRetryCounter, name: "RETRYCNT")
+                    .WithReservedBits(12, 20)
+                },
+                {(long)ProtocolTimerRegisters.PrsControl, new DoubleWordRegister(this)
+                    .WithReservedBits(0, 1)
+                    .WithFlag(1, name: "STARTPRSEN")
+                    .WithValueField(2, 2, name: "STARTEDGE")
+                    .WithReservedBits(4, 5)
+                    .WithFlag(9, name: "STOPPRSEN")
+                    .WithValueField(10, 2, name: "STOPEDGE")
+                    .WithReservedBits(12, 5)
+                    .WithFlag(17, out PROTIMER_rtccTriggerFromPrsEnable, name: "RTCCTRIGGERPRSEN")
+                    .WithValueField(18, 2, name: "RTCCTRIGGEREDGE")
+                    .WithReservedBits(20, 12)
+                },
+                {(long)ProtocolTimerRegisters.ListenBeforeTalkPrsControl, new DoubleWordRegister(this)
+                    .WithReservedBits(0, 8)
+                    .WithFlag(8, out PROTIMER_listenBeforeTalkPrsStartEnable, name: "LBTSTARTPRSEN")
+                    .WithReservedBits(9, 7)
+                    .WithFlag(16, out PROTIMER_listenBeforeTalkPrsPauseEnable, name: "LBTPAUSEPRSEN")
+                    .WithReservedBits(17, 7)
+                    .WithFlag(24, out PROTIMER_listenBeforeTalkPrsStopEnable, name: "LBTSTOPPRSEN")
+                    .WithReservedBits(25, 7)
+                },
+            };
+
+            var startOffset = (long)ProtocolTimerRegisters.CaptureCompareChannel0Control;
+            var controlOffset = (long)ProtocolTimerRegisters.CaptureCompareChannel0Control - startOffset;
+            var preOffset = (long)ProtocolTimerRegisters.CaptureCompareChannel0PreValue - startOffset;
+            var baseOffset = (long)ProtocolTimerRegisters.CaptureCompareChannel0BaseValue - startOffset;
+            var wrapOffset = (long)ProtocolTimerRegisters.CaptureCompareChannel0WrapValue - startOffset;
+            var blockSize = (long)ProtocolTimerRegisters.CaptureCompareChannel1Control - (long)ProtocolTimerRegisters.CaptureCompareChannel0Control;
+            for(var index = 0; index < PROTIMER_NumberOfCaptureCompareChannels; index++)
+            {
+                var i = index;
+                // CaptureCompareChannel_n_Control
+                registerDictionary.Add(startOffset + blockSize * i + controlOffset,
+                    new DoubleWordRegister(this)
+                        .WithFlag(0, out PROTIMER_captureCompareChannel[i].Enable, name: "ENABLE")
+                        .WithEnumField<DoubleWordRegister, PROTIMER_CaptureCompareMode>(1, 1, out PROTIMER_captureCompareChannel[i].Mode, name: "CCMODE")
+                        .WithFlag(2, out PROTIMER_captureCompareChannel[i].PreMatchEnable, name: "PREMATCHEN")
+                        .WithFlag(3, out PROTIMER_captureCompareChannel[i].BaseMatchEnable, name: "BASEMATCHEN")
+                        .WithFlag(4, out PROTIMER_captureCompareChannel[i].WrapMatchEnable, name: "WRAPMATCHEN")
+                        .WithFlag(5, name: "OIST")
+                        .WithFlag(6, name: "OUTINV")
+                        .WithReservedBits(7, 1)
+                        .WithValueField(8, 2, name: "MOA")
+                        .WithValueField(10, 2, name: "OFOA")
+                        .WithValueField(12, 2, name: "OFSEL")
+                        .WithFlag(14, name: "PRSCONF")
+                        .WithReservedBits(15, 6)
+                        .WithEnumField<DoubleWordRegister, PROTIMER_CaptureInputSource>(21, 4, out PROTIMER_captureCompareChannel[i].CaptureInputSource, name: "INSEL")
+                        .WithValueField(25, 2, name: "ICEDGE")
+                        .WithReservedBits(27, 5)
+                        .WithWriteCallback((_, __) => PROTIMER_UpdateCompareTimer(i))
+                );
+                // CaptureCompareChannel_n_Pre
+                registerDictionary.Add(startOffset + blockSize * i + preOffset,
+                    new DoubleWordRegister(this)
+                        .WithValueField(0, 16, out PROTIMER_captureCompareChannel[i].PreValue,
+                            writeCallback: (_, __) =>
+                            {
+                                PROTIMER_captureCompareChannel[i].CaptureValid.Value = false;
+                                PROTIMER_UpdateCompareTimer(i);
+                            },
+                            valueProviderCallback: _ =>
+                            {
+                                PROTIMER_captureCompareChannel[i].CaptureValid.Value = false;
+                                return PROTIMER_captureCompareChannel[i].PreValue.Value;
+                            }, name: "PRE")
+                        .WithReservedBits(16, 16)
+                );
+                // CaptureCompareChannel_n_Base
+                registerDictionary.Add(startOffset + blockSize * i + baseOffset,
+                    new DoubleWordRegister(this)
+                        .WithValueField(0, 16, out PROTIMER_captureCompareChannel[i].BaseValue,
+                            writeCallback: (_, __) => { PROTIMER_captureCompareChannel[i].CaptureValid.Value = false; },
+                            valueProviderCallback: _ =>
+                            {
+                                PROTIMER_captureCompareChannel[i].CaptureValid.Value = false;
+                                return PROTIMER_captureCompareChannel[i].BaseValue.Value;
+                            }, name: "BASE")
+                        .WithReservedBits(16, 16)
+                );
+                // CaptureCompareChannel_n_Wrap
+                registerDictionary.Add(startOffset + blockSize * i + wrapOffset,
+                    new DoubleWordRegister(this)
+                        .WithValueField(0, 32, out PROTIMER_captureCompareChannel[i].WrapValue,
+                            writeCallback: (_, __) => { PROTIMER_captureCompareChannel[i].CaptureValid.Value = false; },
+                            valueProviderCallback: _ =>
+                            {
+                                PROTIMER_captureCompareChannel[i].CaptureValid.Value = false;
+                                return PROTIMER_captureCompareChannel[i].WrapValue.Value;
+                            }, name: "WRAP")
+                );
+            }
+
+            return new DoubleWordRegisterCollection(this, registerDictionary);
+        }
+
+        private DoubleWordRegisterCollection BuildRadioControllerRegistersCollection()
+        {
+            var registerDictionary = new Dictionary<long, DoubleWordRegister>
+            {
+                {(long)RadioControllerRegisters.RXENSourceEnable, new DoubleWordRegister(this)
+                    .WithValueField(0, 8, out RAC_softwareRxEnable, name: "SWRXEN")
+                    .WithFlag(8, name: "CHANNELBUSYEN")
+                    .WithFlag(9, name: "TIMDETEN")
+                    .WithFlag(10, name: "PREDETEN")
+                    .WithFlag(11, name: "FRAMEDETEN")
+                    .WithFlag(12, name: "DEMODRXREQEN")
+                    .WithFlag(13, name: "PRSRXEN")
+                    .WithReservedBits(14, 18)
+                    .WithWriteCallback((_, __) => RAC_UpdateRadioStateMachine())
+                },
+                {(long)RadioControllerRegisters.Status, new DoubleWordRegister(this)
+                    .WithValueField(0, 16, FieldMode.Read, valueProviderCallback: _ => RAC_RxEnableMask, name: "RXMASK")
+                    .WithReservedBits(16, 3)
+                    .WithFlag(19, out RAC_forceStateActive, FieldMode.Read, name: "FORCESTATEACTIVE")
+                    .WithFlag(20, out RAC_txAfterFramePending, FieldMode.Read, name: "TXAFTERFRAMEPEND")
+                    .WithFlag(21, out RAC_txAfterFrameActive, FieldMode.Read, name: "TXAFTERFRAMEACTIVE")
+                    .WithFlag(22, out RAC_sequencerInSleeping, FieldMode.Read, name: "SEQSLEEPING")
+                    .WithFlag(23, out RAC_sequencerInDeepSleep, FieldMode.Read, name: "SEQSLEEPDEEP")
+                    .WithEnumField<DoubleWordRegister, RAC_RadioState>(24, 4, FieldMode.Read, valueProviderCallback: _ => RAC_currentRadioState, name: "STATE")
+                    .WithFlag(28, out RAC_sequencerActive, FieldMode.Read, name: "SEQACTIVE")
+                    .WithFlag(29, name: "DEMODENS")
+                    .WithFlag(30, FieldMode.Read, valueProviderCallback: _ => RAC_TxEnable, name: "TXENS")
+                    .WithFlag(31, FieldMode.Read, valueProviderCallback: _ => RAC_RxEnable, name: "RXENS")
+                },
+                {(long)RadioControllerRegisters.Status1, new DoubleWordRegister(this)
+                    .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ => RAC_TxEnableMask, name: "TXMASK")
+                    .WithReservedBits(8, 24)
+                },
+                {(long)RadioControllerRegisters.Status2, new DoubleWordRegister(this)
+                    .WithEnumField<DoubleWordRegister, RAC_RadioState>(0, 4, FieldMode.Read, valueProviderCallback: _ => RAC_previous1RadioState, name: "PREVSTATE1")
+                    .WithEnumField<DoubleWordRegister, RAC_RadioState>(4, 4, FieldMode.Read, valueProviderCallback: _ => RAC_previous2RadioState, name: "PREVSTATE2")
+                    .WithEnumField<DoubleWordRegister, RAC_RadioState>(8, 4, FieldMode.Read, valueProviderCallback: _ => RAC_previous3RadioState, name: "PREVSTATE3")
+                    .WithEnumField<DoubleWordRegister, RAC_RadioState>(12, 4, FieldMode.Read, valueProviderCallback: _ => RAC_currentRadioState, name: "CURRSTATE")
+                    .WithReservedBits(16, 16)
+                },
+                {(long)RadioControllerRegisters.Control, new DoubleWordRegister(this)
+                    .WithFlag(0, out RAC_forceDisable, writeCallback: (_, value) => { if (value) {RAC_UpdateRadioStateMachine();} }, name: "FORCEDISABLE")
+                    .WithFlag(1, name: "PRSTXEN")
+                    .WithFlag(2, out RAC_txAfterRx, name: "TXAFTERRX")
+                    .WithFlag(3, name: "PRSMODE")
+                    .WithReservedBits(4, 1)
+                    .WithFlag(5, name: "PRSCLR")
+                    .WithFlag(6, name: "TXPOSTPONE")
+                    .WithFlag(7, name: "ACTIVEPOL")
+                    .WithFlag(8, name: "PAENPOL")
+                    .WithFlag(9, name: "LNAENPOL")
+                    .WithFlag(10, name: "PRSRXDIS")
+                    .WithReservedBits(11, 5)
+                    .WithFlag(16, out RAC_prsForceTx, name: "PRSFORCETX")
+                    .WithReservedBits(17, 7)
+                    .WithFlag(24, name: "SEQRESET")
+                    .WithFlag(25, out RAC_exitShutdownDisable, FieldMode.Read, name: "EXITSHUTDOWNDIS")
+                    .WithFlag(26, FieldMode.Set, writeCallback: (_, value) =>
+                        {
+                            if(value && sequencer.CpuWaitSignal.IsSet)
+                            {
+                                sequencer.VectorTableOffset = SequencerMemoryBaseAddress;
+                                sequencer.SP = machine.SystemBus.ReadDoubleWord(SequencerMemoryBaseAddress);
+                                sequencer.PC = machine.SystemBus.ReadDoubleWord(SequencerMemoryBaseAddress + 0x4);
+                                RAC_SeqTimerStart();
+                                sequencer.CpuWaitSignal.Set(false);
+                                this.Log(LogLevel.Noisy, "Sequencer resumed, isHalted={0} VTOR={1:X} SP={2:X} PC={3:X} CPUWAIT={4}.", sequencer.IsHalted, sequencer.VectorTableOffset, sequencer.SP, sequencer.PC, sequencer.CpuWaitSignal.IsSet);
+                            }
+                        }, name: "CPUWAITDIS")
+                    .WithFlag(27, name: "SEQCLKDIS")
+                    .WithFlag(28, name: "RXOFDIS")
+                    .WithReservedBits(29, 3)
+                    .WithChangeCallback((_, __) => RAC_UpdateRadioStateMachine())
+                },
+                {(long)RadioControllerRegisters.Command, new DoubleWordRegister(this)
+                    .WithFlag(0, FieldMode.Set, writeCallback: (_, value) => { if (value) {RAC_TxEnable = true;} }, name: "TXEN")
+                    .WithFlag(1, FieldMode.Set, writeCallback: (_, value) => { if (value) {RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.ForceTx);} }, name: "FORCETX")
+                    .WithFlag(2, name: "TXONCCA")
+                    .WithFlag(3, FieldMode.Set, writeCallback: (_, value) => { if (value) {RAC_TxEnable = false;} }, name: "CLEARTXEN")
+                    .WithFlag(4, FieldMode.Set, writeCallback: (_, value) => { if (value) {RAC_HandleTxAfterFrameCommand();} }, name: "TXAFTERFRAME")
+                    .WithFlag(5, FieldMode.Set, writeCallback: (_, value) => { if(value) {RAC_TxEnable = false; RAC_txAfterFramePending.Value = false; RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.TxDisable);} }, name: "TXDIS")
+                    .WithFlag(6, FieldMode.Set, writeCallback: (_, value) => { if (value && !RAC_seqStateRxOverflowInterrupt.Value) {RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.ClearRxOverflow);} }, name: "CLEARRXOVERFLOW")
+                    .WithFlag(7, FieldMode.Set, writeCallback: (_, value) => { if (value) {RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.RxCalibration);} }, name: "RXCAL")
+                    .WithFlag(8, FieldMode.Set, writeCallback: (_, value) => { if (value) {RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.RxDisable);} }, name: "RXDIS")
+                    .WithReservedBits(9, 1)
+                    .WithFlag(10, name: "FRCWR")
+                    .WithFlag(11, name: "FRCRD")
+                    .WithFlag(12, name: "PAENSET")
+                    .WithFlag(13, name: "PAENCLEAR")
+                    .WithFlag(14, name: "LNAENSET")
+                    .WithFlag(15, name: "LNAENCLEAR")
+                    .WithReservedBits(16, 14)
+                    .WithFlag(30, name: "DEMODENSET")
+                    .WithFlag(31, name: "DEMODENCLEAR")
+                },
+                {(long)RadioControllerRegisters.ForceStateTransition, new DoubleWordRegister(this)
+                    .WithEnumField<DoubleWordRegister, RAC_RadioState>(0, 4, out RAC_forceStateTransition, writeCallback: (_, __) =>
+                        {
+                            RAC_forceStateActive.Value = true;
+                        }, name: "FORCESTATE")
+                    .WithReservedBits(4, 28)
+                    .WithChangeCallback((_, __) => RAC_UpdateRadioStateMachine())
+                },
+                {(long)RadioControllerRegisters.Em1pControlAndStatus, new DoubleWordRegister(this)
+                    .WithFlag(0, FieldMode.Set, writeCallback: (_, value) => { RAC_em1pAckPending = true; }, name: "RADIOEM1PMODE")
+                    .WithFlag(1, name: "RADIOEM1PMODE")
+                    .WithReservedBits(2, 2)
+                    .WithFlag(4, name: "MCUEM1PMODE")
+                    .WithFlag(5, name: "MCUEM1PDISSWREQ")
+                    .WithReservedBits(6, 10)
+                    .WithFlag(16, name: "RADIOEM1PREQ")
+                    .WithFlag(17, FieldMode.Read, valueProviderCallback: _ =>
+                        {
+                            var retValue = RAC_em1pAckPending;
+                            RAC_em1pAckPending = false;
+                            return retValue;
+                        }, name: "RADIOEM1PACK")
+                    //.WithFlag(17, name: "RADIOEM1PACK")
+                    .WithFlag(18, name: "RADIOEM1PHWREQ")
+                    .WithReservedBits(19, 13)
+                },
+                {(long)RadioControllerRegisters.InterruptFlags, new DoubleWordRegister(this)
+                    .WithFlag(0, out RAC_radioStateChangeInterrupt, name: "STATECHANGEIF")
+                    .WithFlag(1, out RAC_stimerCompareEventInterrupt, name: "STIMCMPEVIF")
+                    .WithFlag(2, name: "SEQLOCKUPIF")
+                    .WithFlag(3, name: "SEQRESETREQIF")
+                    .WithReservedBits(4, 12)
+                    .WithValueField(16, 8, out RAC_mainCoreSeqInterrupts, name: "SEQIF")
+                    .WithReservedBits(24, 8)
+                    .WithChangeCallback((_, __) => UpdateInterrupts())
+                },
+                {(long)RadioControllerRegisters.InterruptEnable, new DoubleWordRegister(this)
+                    .WithFlag(0, out RAC_radioStateChangeInterruptEnable, name: "STATECHANGEIEN")
+                    .WithFlag(1, out RAC_stimerCompareEventInterruptEnable, name: "STIMCMPEVIEN")
+                    .WithFlag(2, name: "SEQLOCKUPIEN")
+                    .WithFlag(3, name: "SEQRESETREQIEN")
+                    .WithReservedBits(4, 12)
+                    .WithValueField(16, 8, out RAC_mainCoreSeqInterruptsEnable, name: "SEQIEN")
+                    .WithReservedBits(24, 8)
+                    .WithChangeCallback((_, __) => UpdateInterrupts())
+                },
+                {(long)RadioControllerRegisters.SequencerInterruptFlags, new DoubleWordRegister(this)
+                    .WithFlag(0, out RAC_seqRadioStateChangeInterrupt, name: "STATECHANGESEQIF")
+                    .WithFlag(1, out RAC_seqStimerCompareEventInterrupt, name: "STIMCMPEVSEQIF")
+                    .WithFlag(2, out RAC_seqDemodRxRequestClearInterrupt, name: "DEMODRXREQCLRSEQIF")
+                    .WithFlag(3, out RAC_seqPrsEventInterrupt, name: "PRSEVENTSEQIF")
+                    .WithReservedBits(4, 12)
+                    .WithFlag(16, out RAC_seqStateOffInterrupt, name: "STATEOFFIF")
+                    .WithFlag(17, out RAC_seqStateRxWarmInterrupt, changeCallback: (_, value) => { if (!value) {RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.RxWarmIrqCleared); } }, name: "STATERXWARMIF")
+                    .WithFlag(18, out RAC_seqStateRxSearchInterrupt, changeCallback: (_, value) => { if (!value) {RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.RxSearchIrqCleared); } }, name: "STATERXSEARCHIF")
+                    .WithFlag(19, out RAC_seqStateRxFrameInterrupt, changeCallback: (_, value) => { if (!value) {RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.RxFrameIrqCleared); } }, name: "STATERXFRAMEIF")
+                    .WithFlag(20, out RAC_seqStateRxPoweringDownInterrupt, changeCallback: (_, value) => { if (!value) {RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.RxPowerDownIrqCleared); } }, name: "STATERXPDIF")
+                    .WithFlag(21, out RAC_seqStateRx2RxInterrupt, changeCallback: (_, value) => { if (!value) {RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.Rx2RxIrqCleared); } }, name: "STATERX2RXIF")
+                    .WithFlag(22, out RAC_seqStateRxOverflowInterrupt, name: "STATERXOVERFLOWIF")
+                    .WithFlag(23, out RAC_seqStateRx2TxInterrupt, changeCallback: (_, value) => { if (!value) {RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.Rx2TxIrqCleared); } }, name: "STATERX2TXIF")
+                    .WithFlag(24, out RAC_seqStateTxWarmInterrupt, changeCallback: (_, value) => { if (!value) {RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.TxWarmIrqCleared);} }, name: "STATETXWARMIF")
+                    .WithFlag(25, out RAC_seqStateTxInterrupt, changeCallback: (_, value) => { if (!value) {RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.TxIrqCleared); } }, name: "STATETXIF")
+                    .WithFlag(26, out RAC_seqStateTxPoweringDownInterrupt, changeCallback: (_, value) => { if (!value) {RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.TxPowerDownIrqCleared); } }, name: "STATETXPDIF")
+                    .WithFlag(27, out RAC_seqStateTx2RxInterrupt, changeCallback: (_, value) => { if (!value) {RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.Tx2RxIrqCleared); } }, name: "STATETX2RXIF")
+                    .WithFlag(28, out RAC_seqStateTx2TxInterrupt, changeCallback: (_, value) => { if (!value) {RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.Tx2TxIrqCleared); } }, name: "STATETX2TXIF")
+                    .WithFlag(29, out RAC_seqStateShutDownInterrupt, changeCallback: (_, value) => { if (!value) {RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.ShutdownIrqCleared); } }, name: "STATESHUTDOWNIF")
+                    .WithReservedBits(30, 2)
+                    .WithChangeCallback((_, __) => UpdateInterrupts())
+                },
+                {(long)RadioControllerRegisters.SequencerInterruptEnable, new DoubleWordRegister(this)
+                    .WithFlag(0, out RAC_seqRadioStateChangeInterruptEnable, name: "STATECHANGESEQIEN")
+                    .WithFlag(1, out RAC_seqStimerCompareEventInterruptEnable, name: "STIMCMPEVSEQIEN")
+                    .WithFlag(2, out RAC_seqDemodRxRequestClearInterruptEnable, name: "DEMODRXREQCLRSEQIEN")
+                    .WithFlag(3, out RAC_seqPrsEventInterruptEnable, name: "PRSEVENTSEQIEN")
+                    .WithReservedBits(4, 12)
+                    .WithFlag(16, out RAC_seqStateOffInterruptEnable, name: "STATEOFFIEN")
+                    .WithFlag(17, out RAC_seqStateRxWarmInterruptEnable, name: "STATERXWARMIEN")
+                    .WithFlag(18, out RAC_seqStateRxSearchInterruptEnable, name: "STATERXSEARCHIEN")
+                    .WithFlag(19, out RAC_seqStateRxFrameInterruptEnable, name: "STATERXFRAMEIEN")
+                    .WithFlag(20, out RAC_seqStateRxPoweringDownInterruptEnable, name: "STATERXPDIEN")
+                    .WithFlag(21, out RAC_seqStateRx2RxInterruptEnable, name: "STATERX2RXIEN")
+                    .WithFlag(22, out RAC_seqStateRxOverflowInterruptEnable, name: "STATERXOVERFLOWIEN")
+                    .WithFlag(23, out RAC_seqStateRx2TxInterruptEnable, name: "STATERX2TXIEN")
+                    .WithFlag(24, out RAC_seqStateTxWarmInterruptEnable, name: "STATETXWARMIEN")
+                    .WithFlag(25, out RAC_seqStateTxInterruptEnable, name: "STATETXIEN")
+                    .WithFlag(26, out RAC_seqStateTxPoweringDownInterruptEnable, name: "STATETXPDIEN")
+                    .WithFlag(27, out RAC_seqStateTx2RxInterruptEnable, name: "STATETX2RXIEN")
+                    .WithFlag(28, out RAC_seqStateTx2TxInterruptEnable, name: "STATETX2TXIEN")
+                    .WithFlag(29, out RAC_seqStateShutDownInterruptEnable, name: "STATESHUTDOWNIEN")
+                    .WithReservedBits(30, 2)
+                    .WithChangeCallback((_, __) => UpdateInterrupts())
+                },
+                {(long)RadioControllerRegisters.SequencerControl, new DoubleWordRegister(this)
+                    .WithEnumField<DoubleWordRegister, RAC_SeqTimerCompareAction>(0, 1, out RAC_seqTimerCompareAction, name: "COMPACT")
+                    .WithEnumField<DoubleWordRegister, RAC_SeqTimerCompareInvalidMode>(1, 2, out RAC_seqTimerCompareInvalidMode, name: "COMPINVALMODE")
+                    .WithFlag(3, out RAC_seqTimerCompareRelative, name: "RELATIVE")
+                    .WithFlag(4, out RAC_seqTimerAlwaysRun, name: "STIMERALWAYSRUN")
+                    .WithFlag(5, name: "STIMERDEBUGRUN")
+                    .WithFlag(6, name: "STATEDEBUGRUN")
+                    .WithReservedBits(7, 17)
+                    .WithValueField(24, 2, out RAC_softwareIrq, writeCallback: (_, __) => UpdateInterrupts(), name: "SWIRQ")
+                    .WithReservedBits(26, 6)
+                },
+                {(long)RadioControllerRegisters.SequencerTimerValue, new DoubleWordRegister(this)
+                    .WithValueField(0, 16, FieldMode.Read, valueProviderCallback: _ => RAC_SeqTimerValue, name: "STIMER")
+                    .WithReservedBits(16, 16)
+                },
+                {(long)RadioControllerRegisters.SequencerTimerCompareValue, new DoubleWordRegister(this)
+                    .WithValueField(0, 15, out RAC_seqTimerCompareValue, writeCallback: (_, value) => { RAC_SeqTimerLimit = (ushort)value; }, name: "STIMERCOMP")
+                    .WithReservedBits(16, 16)
+                },
+                {(long)RadioControllerRegisters.SequencerPrescaler, new DoubleWordRegister(this, 0x7)
+                    .WithValueField(0, 7, out RAC_seqTimerPrescaler, name: "STIMERPRESC")
+                    .WithReservedBits(7, 25)
+                },
+                {(long)RadioControllerRegisters.Storage0, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out RAC_seqStorage[0], name: "SR0")
+                },
+                {(long)RadioControllerRegisters.Storage1, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out RAC_seqStorage[1], name: "SR1")
+                },
+                {(long)RadioControllerRegisters.Storage2, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out RAC_seqStorage[2], name: "SR2")
+                },
+                {(long)RadioControllerRegisters.Storage3, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out RAC_seqStorage[3], name: "SR3")
+                },
+                {(long)RadioControllerRegisters.RadioFrequencyStatus, new DoubleWordRegister(this)
+                    .WithFlag(0, out RAC_paRampingDone, FieldMode.Read, name: "MODRAMPUPDONE")
+                    .WithReservedBits(1, 31)
+                },
+                {(long)RadioControllerRegisters.PowerAmplifierEnableControl, new DoubleWordRegister(this)
+                    .WithReservedBits(0, 8)
+                    .WithFlag(8, valueProviderCallback: _ => { return RAC_PaOutputLevelRamping; }, writeCallback: (_, value) => { RAC_PaOutputLevelRamping = value; }, name: "PARAMP")
+                    .WithReservedBits(9, 7)
+                    .WithFlag(16, name: "INVRAMPCLK")
+                    .WithFlag(17, name: "DIV2RAMPCLK")
+                    .WithFlag(18, name: "RSTDIV2RAMPCLK")
+                    .WithReservedBits(19, 13)
+                },
+                {(long)RadioControllerRegisters.Scratch0, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out RAC_scratch[0], name: "SCRATCH0")
+                },
+                {(long)RadioControllerRegisters.Scratch1, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out RAC_scratch[1], name: "SCRATCH1")
+                },
+                {(long)RadioControllerRegisters.Scratch2, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out RAC_scratch[2], name: "SCRATCH2")
+                },
+                {(long)RadioControllerRegisters.Scratch3, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out RAC_scratch[3], name: "SCRATCH3")
+                },
+                {(long)RadioControllerRegisters.Scratch4, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out RAC_scratch[4], name: "SCRATCH4")
+                },
+                {(long)RadioControllerRegisters.Scratch5, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out RAC_scratch[5], name: "SCRATCH5")
+                },
+                {(long)RadioControllerRegisters.Scratch6, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out RAC_scratch[6], name: "SCRATCH6")
+                },
+                {(long)RadioControllerRegisters.Scratch7, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out RAC_scratch[7], name: "SCRATCH7")
+                },
+                {(long)RadioControllerRegisters.RadioFrequencyLock0, new DoubleWordRegister(this, 0x80000000)
+                    .WithValueField(0, 10, name: "SYNTHLODIVFREQCTRL")
+                    .WithReservedBits(10, 6)
+                    .WithFlag(16, name: "RACIFPGAEN")
+                    .WithFlag(17, valueProviderCallback: _ => !RAC_0DbmSupport, writeCallback: (_, value) => {RAC_0DbmSupport = !value;}, name: "RACTX0DBM")
+                    .WithFlag(18, valueProviderCallback: _ => !RAC_10DbmSupport, writeCallback: (_, value) => {RAC_10DbmSupport = !value;}, name: "RACTX10DBM")
+                    .WithFlag(19, valueProviderCallback: _ => !RAC_20DbmSupport, writeCallback: (_, value) => {RAC_20DbmSupport = !value;}, name: "RACTX20DBM")
+                    .WithReservedBits(20, 1)
+                    .WithFlag(21, name: "MODEMHADM")
+                    .WithFlag(22, name: "FRCCONVMODE")
+                    .WithFlag(23, name: "FRCPAUSING")
+                    .WithFlag(24, name: "MODEMANTSWENABLE")
+                    .WithFlag(25, name: "MODEMLRBLE")
+                    .WithFlag(26, name: "MODEMDSSS")
+                    .WithFlag(27, name: "MODEMDEC1")
+                    .WithFlag(28, name: "MODEMMODFORMAT")
+                    .WithFlag(29, name: "MODEMDUALSYNC")
+                    .WithFlag(30, name: "MODEMANTDIVMODE")
+                    .WithFlag(31, out RAC_unlocked, name: "UNLOCKED")
+                },
+            };
+
+            return new DoubleWordRegisterCollection(this, registerDictionary);
+        }
+
+        private DoubleWordRegisterCollection BuildFrameControllerRegistersCollection()
+        {
+            var registerDictionary = new Dictionary<long, DoubleWordRegister>
+            {
+                {(long)FrameControllerRegisters.Status, new DoubleWordRegister(this)
+                    .WithValueField(0, 5, name: "SNIFFDCOUNT")
+                    .WithFlag(5, out FRC_activeTransmitFrameDescriptor, FieldMode.Read, name: "ACTIVETXFCD")
+                    .WithFlag(6, out FRC_activeReceiveFrameDescriptor, FieldMode.Read, name: "ACTIVERXFCD")
+                    .WithFlag(7, name: "SNIFFDFRAME")
+                    .WithFlag(8, out FRC_rxRawBlocked, FieldMode.Read, name: "RXRAWBLOCKED")
+                    .WithFlag(9, name: "FRAMEOK")
+                    .WithFlag(10, FieldMode.Read, valueProviderCallback: _ => false, name: "RXABORTINPROGRESS")
+                    .WithFlag(11, name: "TXWORD")
+                    .WithFlag(12, name: "RXWORD")
+                    .WithFlag(13, name: "CONVPAUSED")
+                    .WithFlag(14, name: "TXSUBFRAMEPAUSED")
+                    .WithFlag(15, name: "INTERLEAVEREADPAUSED")
+                    .WithFlag(16, name: "INTERLEAVEWRITEPAUSED")
+                    .WithFlag(17, name: "FRAMEDETPAUSED")
+                    .WithFlag(18, name: "FRAMELENGTHERROR")
+                    .WithFlag(19, name: "DEMODERROR")
+                    .WithValueField(20, 5, out FRC_fsmState, name: "FSMSTATE")
+                    .WithFlag(25, name: "RXWCNTMATCHPAUSED")
+                    .WithFlag(26, name: "CRCERRORTOLERATED")
+                    .WithReservedBits(27, 5)
+                },
+                {(long)FrameControllerRegisters.DynamicFrameLengthControl, new DoubleWordRegister(this)
+                    .WithEnumField<DoubleWordRegister, FRC_DynamicFrameLengthMode>(0, 3, out FRC_dynamicFrameLengthMode, name: "DFLMODE")
+                    .WithEnumField<DoubleWordRegister, FRC_DynamicFrameLengthBitOrder>(3, 1, out FRC_dynamicFrameLengthBitOrder, name: "DFLBITORDER")
+                    .WithValueField(4, 3, out FRC_dynamicFrameLengthBitShift, name: "DFLSHIFT")
+                    .WithReservedBits(7, 1)
+                    .WithValueField(8, 4, out FRC_dynamicFrameLengthOffset, name: "DFLOFFSET")
+                    .WithValueField(12, 4, out FRC_dynamicFrameLengthBits, name: "DFLBITS")
+                    .WithValueField(16, 4, out FRC_minDecodedLength, name: "MINLENGTH")
+                    .WithFlag(20, out FRC_dynamicFrameCrcIncluded, name: "DFLINCLUDECRC")
+                    .WithValueField(21, 4, name: "DFLBOIOFFSET")
+                    .WithReservedBits(25, 7)
+                },
+                {(long)FrameControllerRegisters.MaximumFrameLength, new DoubleWordRegister(this)
+                    .WithValueField(0, 12, out FRC_maxDecodedLength, name: "MAXLENGTH")
+                    .WithValueField(12, 4, out FRC_initialDecodedFrameLength, name: "INILENGTH")
+                    .WithReservedBits(16, 16)
+                },
+                {(long)FrameControllerRegisters.AddressFilterControl, new DoubleWordRegister(this)
+                    .WithFlag(0, name: "EN")
+                    .WithFlag(1, name: "BRDCST00EN")
+                    .WithFlag(2, name: "BRDCSTFFEN")
+                    .WithReservedBits(3, 5)
+                    .WithValueField(8, 8, name: "ADDRESS")
+                    .WithReservedBits(16, 16)
+                },
+                {(long)FrameControllerRegisters.FrameControllerDataBuffer, new DoubleWordRegister(this)
+                    .WithValueField(0, 8, name: "DATABUFFER")
+                    .WithReservedBits(8, 24)
+                },
+                {(long)FrameControllerRegisters.WordCounter, new DoubleWordRegister(this)
+                    .WithValueField(0 ,12, out FRC_wordCounter, FieldMode.Read, name: "WCNT")
+                    .WithReservedBits(12, 20)
+                },
+                {(long)FrameControllerRegisters.WordCounterCompare0, new DoubleWordRegister(this)
+                    .WithValueField(0, 12, out FRC_frameLength, name: "FRAMELENGTH")
+                    .WithReservedBits(12, 20)
+                },
+                {(long)FrameControllerRegisters.WordCounterCompare1, new DoubleWordRegister(this)
+                    .WithValueField(0, 12, out FRC_lengthFieldLocation, name: "LENGTHFIELDLOC")
+                    .WithReservedBits(12, 20)
+                },
+                {(long)FrameControllerRegisters.WordCounterCompare2, new DoubleWordRegister(this)
+                    .WithValueField(0, 12, out FRC_addressFieldLocation, name: "ADDRFIELDLOC")
+                    .WithReservedBits(12, 20)
+                },
+                {(long)FrameControllerRegisters.Command, new DoubleWordRegister(this)
+                    .WithFlag(0, FieldMode.Set, writeCallback: (_, value) => {if (value) FRC_RxAbortCommand(); }, name: "RXABORT")
+                    .WithFlag(1, name: "FRAMEDETRESUME")
+                    .WithFlag(2, name: "INTERLEAVEWRITERESUME")
+                    .WithFlag(3, name: "INTERLEAVEREADRESUME")
+                    .WithFlag(4, name: "CONVRESUME")
+                    .WithFlag(5, name: "CONVTERMINATE")
+                    .WithFlag(6, name: "TXSUBFRAMERESUME")
+                    .WithFlag(7, name: "INTERLEAVEINIT")
+                    .WithFlag(8, name: "INTERLEAVECNTCLEAR")
+                    .WithFlag(9, name: "CONVINIT")
+                    .WithFlag(10, name: "BLOCKINIT")
+                    .WithFlag(11, name: "STATEINIT")
+                    .WithFlag(12, FieldMode.Set, writeCallback: (_, value) =>
+                        {
+                            if(value)
+                            {
+                                FRC_rxRawBlocked.Value = false;
+                                FRC_UpdateRawMode();
+                            }
+                        }, name: "RXRAWUNBLOCK")
+                    .WithFlag(13, name: "RXPAUSERESUME")
+                    .WithReservedBits(14, 18)
+                },
+                {(long)FrameControllerRegisters.Control, new DoubleWordRegister(this)
+                    .WithFlag(0, name: "RANDOMTX")
+                    .WithFlag(1, name: "UARTMODE")
+                    .WithFlag(2, name: "BITORDER")
+                    .WithReservedBits(3, 1)
+                    .WithEnumField<DoubleWordRegister, FRC_FrameDescriptorMode>(4, 2, out FRC_txFrameDescriptorMode, name: "TXFCDMODE")
+                    .WithEnumField<DoubleWordRegister, FRC_FrameDescriptorMode>(6, 2, out FRC_rxFrameDescriptorMode, name: "RXFCDMODE")
+                    .WithValueField(8, 3, name: "BITSPERWORD") // TODO: Assume 0x7 (first word in a frame is 8bit)
+                    .WithValueField(11, 2, out FRC_rateSelect, name: "RATESELECT")
+                    .WithFlag(13, name: "TXPREFETCH")
+                    .WithFlag(14, name: "TXFETCHBLOCKING")
+                    .WithReservedBits(15, 1)
+                    .WithFlag(16, name: "SEQHANDSHAKE")
+                    .WithFlag(17, name: "PRBSTEST")
+                    .WithFlag(18, name: "LPMODEDIS")
+                    .WithFlag(19, name: "WAITEOFEN")
+                    .WithFlag(20, name: "RXABORTIGNOREDIS")
+                    .WithReservedBits(21, 3)
+                    .WithFlag(24, name: "SKIPTXTRAILDATAWHITEN")
+                    .WithFlag(25, name: "SKIPRXSUPSTATEWHITEN")
+                    .WithFlag(26, name: "HOLDTXTRAILDATAACTIVE")
+                    .WithReservedBits(27, 5)
+                },
+                {(long)FrameControllerRegisters.RxControl, new DoubleWordRegister(this)
+                    .WithFlag(0, out FRC_rxStoreCrc, name: "STORECRC")
+                    .WithFlag(1, out FRC_rxAcceptCrcErrors, name: "ACCEPTCRCERRORS")
+                    .WithFlag(2, name: "ACCEPTBLOCKERRORS")
+                    .WithFlag(3, name: "TRACKABFRAME") /* TODO: RENODE-354 */
+                    .WithFlag(4, out FRC_rxBufferClear, name: "BUFCLEAR")
+                    .WithFlag(5, out FRC_rxBufferRestoreOnFrameError, name: "BUFRESTOREFRAMEERROR")
+                    .WithFlag(6, out FRC_rxBufferRestoreOnRxAborted, name: "BUFRESTORERXABORTED")
+                    .WithValueField(7, 4, name: "RXFRAMEENDAHEADBYTES")
+                    .WithFlag(11, name: "ACCEPTUARTERRORS")
+                    .WithReservedBits(12, 20)
+                },
+                {(long)FrameControllerRegisters.TrailingRxData, new DoubleWordRegister(this)
+                    .WithFlag(0, out FRC_rxAppendRssi, name: "RSSI")
+                    .WithFlag(1, out FRC_rxAppendStatus, name: "CRCOK")
+                    .WithFlag(2, out FRC_rxAppendProtimerCc0base, name: "PROTIMERCC0BASE")
+                    .WithFlag(3, out FRC_rxAppendProtimerCc0LowWrap, name: "PROTIMERCC0WRAPL")
+                    .WithFlag(4, out FRC_rxAppendProtimerCc0HighWrap, name: "PROTIMERCC0WRAPH")
+                    .WithFlag(5, name: "RTCSTAMP")
+                    .WithReservedBits(6, 26)
+                },
+                {(long)FrameControllerRegisters.InterruptFlags, new DoubleWordRegister(this)
+                    .WithFlag(0, out FRC_txDoneInterrupt, name: "TXDONEIF")
+                    .WithFlag(1, out FRC_txAfterFrameDoneInterrupt, name: "TXAFTERFRAMEDONEIF")
+                    .WithFlag(2, name: "TXABORTEDIF")
+                    .WithFlag(3, out FRC_txUnderflowInterrupt, name: "TXUFIF")
+                    .WithFlag(4, out FRC_rxDoneInterrupt, name: "RXDONEIF")
+                    .WithFlag(5, out FRC_rxAbortedInterrupt, name: "RXABORTEDIF")
+                    .WithFlag(6, out FRC_frameErrorInterrupt, name: "FRAMEERRORIF")
+                    .WithFlag(7, name: "BLOCKERRORIF")
+                    .WithFlag(8, out FRC_rxOverflowInterrupt, name: "RXOFIF")
+                    .WithFlag(9, out FRC_wordCounterCompareInterrupt[0], name: "WCNTCMP0IF")
+                    .WithFlag(10, out FRC_wordCounterCompareInterrupt[1], name: "WCNTCMP1IF")
+                    .WithFlag(11, out FRC_wordCounterCompareInterrupt[2], name: "WCNTCMP2IF")
+                    .WithFlag(12, name: "ADDRERRORIF")
+                    .WithFlag(13, name: "BUSERRORIF")
+                    .WithFlag(14, out FRC_rxRawEventInterrupt, name: "RXRAWEVENTIF")
+                    .WithFlag(15, out FRC_txRawEventInterrupt, name: "TXRAWEVENTIF")
+                    .WithFlag(16, name: "SNIFFOFIF")
+                    .WithFlag(17, name: "WCNTCMP3IF")
+                    .WithFlag(18, name: "WCNTCMP4IF")
+                    .WithFlag(19, name: "BOISETIF")
+                    .WithFlag(20, out FRC_packetBufferStartInterrupt, name: "PKTBUFSTARTIF")
+                    .WithFlag(21, out FRC_packetBufferThresholdInterrupt, name: "PKTBUFTHRESHOLDIF")
+                    .WithFlag(22, name: "RXRAWOFIF")
+                    .WithFlag(23, name: "WCNTCMP5IF")
+                    .WithFlag(24, name: "FRAMEDETPAUSEDIF")
+                    .WithFlag(25, name: "INTERLEAVEWRITEPAUSEDIF")
+                    .WithFlag(26, name: "INTERLEAVEREADPAUSEDIF")
+                    .WithFlag(27, name: "TXSUBFRAMEPAUSEDIF")
+                    .WithFlag(28, name: "CONVPAUSEDIF")
+                    .WithFlag(29, name: "RXWORDIF")
+                    .WithFlag(30, name: "TXWORDIF")
+                    .WithFlag(31, name: "UARTERRORIF")
+                    .WithChangeCallback((_, __) => UpdateInterrupts())
+                },
+                {(long)FrameControllerRegisters.InterruptEnable, new DoubleWordRegister(this)
+                    .WithFlag(0, out FRC_txDoneInterruptEnable, name: "TXDONEIEN")
+                    .WithFlag(1, out FRC_txAfterFrameDoneInterruptEnable, name: "TXAFTERFRAMEDONEIEN")
+                    .WithFlag(2, name: "TXABORTEDIEN")
+                    .WithFlag(3, out FRC_txUnderflowInterruptEnable, name: "TXUFIEN")
+                    .WithFlag(4, out FRC_rxDoneInterruptEnable, name: "RXDONEIEN")
+                    .WithFlag(5, out FRC_rxAbortedInterruptEnable, name: "RXABORTEDIEN")
+                    .WithFlag(6, out FRC_frameErrorInterruptEnable, name: "FRAMEERRORIEN")
+                    .WithFlag(7, name: "BLOCKERRORIEN")
+                    .WithFlag(8, out FRC_rxOverflowInterruptEnable, name: "RXOFIEN")
+                    .WithFlag(9, out FRC_wordCounterCompareInterruptEnable[0], name: "WCNTCMP0IEN")
+                    .WithFlag(10, out FRC_wordCounterCompareInterruptEnable[1], name: "WCNTCMP1IEN")
+                    .WithFlag(11, out FRC_wordCounterCompareInterruptEnable[2], name: "WCNTCMP2IEN")
+                    .WithFlag(12, name: "ADDRERRORIEN")
+                    .WithFlag(13, name: "BUSERRORIEN")
+                    .WithFlag(14, out FRC_rxRawEventInterruptEnable, name: "RXRAWEVENTIEN")
+                    .WithFlag(15, out FRC_txRawEventInterruptEnable, name: "TXRAWEVENTIEN")
+                    .WithFlag(16, name: "SNIFFOFIEN")
+                    .WithFlag(17, name: "WCNTCMP3IEN")
+                    .WithFlag(18, name: "WCNTCMP4IEN")
+                    .WithFlag(19, name: "BOISETIEN")
+                    .WithFlag(20, out FRC_packetBufferStartInterruptEnable, name: "PKTBUFSTARTIEN")
+                    .WithFlag(21, out FRC_packetBufferThresholdInterruptEnable, name: "PKTBUFTHRESHOLDIEN")
+                    .WithFlag(22, name: "RXRAWOFIEN")
+                    .WithFlag(23, name: "WCNTCMP5IEN")
+                    .WithFlag(24, name: "FRAMEDETPAUSEDIEN")
+                    .WithFlag(25, name: "INTERLEAVEWRITEPAUSEDIEN")
+                    .WithFlag(26, name: "INTERLEAVEREADPAUSEDIEN")
+                    .WithFlag(27, name: "TXSUBFRAMEPAUSEDIEN")
+                    .WithFlag(28, name: "CONVPAUSEDIEN")
+                    .WithFlag(29, name: "RXWORDIEN")
+                    .WithFlag(30, name: "TXWORDIEN")
+                    .WithFlag(31, name: "UARTERRORIEN")
+                    .WithChangeCallback((_, __) => UpdateInterrupts())
+                },
+                {(long)FrameControllerRegisters.SequencerInterruptFlags, new DoubleWordRegister(this)
+                    .WithFlag(0, out FRC_seqTxDoneInterrupt, name: "TXDONESEQIF")
+                    .WithFlag(1, out FRC_seqTxAfterFrameDoneInterrupt, name: "TXAFTERFRAMEDONESEQIF")
+                    .WithFlag(2, name: "TXABORTEDSEQIF")
+                    .WithFlag(3, out FRC_seqTxUnderflowInterrupt, name: "TXUFSEQIF")
+                    .WithFlag(4, out FRC_seqRxDoneInterrupt, name: "RXDONESEQIF")
+                    .WithFlag(5, out FRC_seqRxAbortedInterrupt, name: "RXABORTEDSEQIF")
+                    .WithFlag(6, out FRC_seqFrameErrorInterrupt, name: "FRAMEERRORSEQIF")
+                    .WithFlag(7, name: "BLOCKERRORSEQIF")
+                    .WithFlag(8, out FRC_seqRxOverflowInterrupt, name: "RXOFSEQIF")
+                    .WithFlag(9, out FRC_seqWordCounterCompareInterrupt[0], name: "WCNTCMP0SEQIF")
+                    .WithFlag(10, out FRC_seqWordCounterCompareInterrupt[1], name: "WCNTCMP1SEQIF")
+                    .WithFlag(11, out FRC_seqWordCounterCompareInterrupt[2], name: "WCNTCMP2SEQIF")
+                    .WithFlag(12, name: "ADDRERRORSEQIF")
+                    .WithFlag(13, name: "BUSERRORSEQIF")
+                    .WithFlag(14, out FRC_seqRxRawEventInterrupt, name: "RXRAWEVENTSEQIF")
+                    .WithFlag(15, out FRC_seqTxRawEventInterrupt, name: "TXRAWEVENTSEQIF")
+                    .WithFlag(16, name: "SNIFFOFSEQIF")
+                    .WithFlag(17, name: "WCNTCMP3SEQIF")
+                    .WithFlag(18, name: "WCNTCMP4SEQIF")
+                    .WithFlag(19, name: "BOISETSEQIF")
+                    .WithFlag(20, out FRC_seqPacketBufferStartInterrupt, name: "PKTBUFSTARTSEQIF")
+                    .WithFlag(21, out FRC_seqPacketBufferThresholdInterrupt, name: "PKTBUFTHRESHOLDSEQIF")
+                    .WithFlag(22, name: "RXRAWOFSEQIF")
+                    .WithFlag(23, name: "WCNTCMP5SEQIF")
+                    .WithFlag(24, name: "FRAMEDETPAUSEDSEQIF")
+                    .WithFlag(25, name: "INTERLEAVEWRITEPAUSEDSEQIF")
+                    .WithFlag(26, name: "INTERLEAVEREADPAUSEDSEQIF")
+                    .WithFlag(27, name: "TXSUBFRAMEPAUSEDSEQIF")
+                    .WithFlag(28, name: "CONVPAUSEDSEQIF")
+                    .WithFlag(29, name: "RXWORDSEQIF")
+                    .WithFlag(30, name: "TXWORDSEQIF")
+                    .WithFlag(31, name: "UARTERRORSEQIF")
+                    .WithChangeCallback((_, __) => UpdateInterrupts())
+                },
+                {(long)FrameControllerRegisters.SequencerInterruptEnable, new DoubleWordRegister(this)
+                    .WithFlag(0, out FRC_seqTxDoneInterruptEnable, name: "TXDONESEQIEN")
+                    .WithFlag(1, out FRC_seqTxAfterFrameDoneInterruptEnable, name: "TXAFTERFRAMEDONESEQIEN")
+                    .WithFlag(2, name: "TXABORTEDSEQIEN")
+                    .WithFlag(3, out FRC_seqTxUnderflowInterruptEnable, name: "TXUFSEQIEN")
+                    .WithFlag(4, out FRC_seqRxDoneInterruptEnable, name: "RXDONESEQIEN")
+                    .WithFlag(5, out FRC_seqRxAbortedInterruptEnable, name: "RXABORTEDSEQIEN")
+                    .WithFlag(6, out FRC_seqFrameErrorInterruptEnable, name: "FRAMEERRORSEQIEN")
+                    .WithFlag(7, name: "BLOCKERRORSEQIEN")
+                    .WithFlag(8, out FRC_seqRxOverflowInterruptEnable, name: "RXOFSEQIEN")
+                    .WithFlag(9, out FRC_seqWordCounterCompareInterruptEnable[0], name: "WCNTCMP0SEQIEN")
+                    .WithFlag(10, out FRC_seqWordCounterCompareInterruptEnable[1], name: "WCNTCMP1SEQIEN")
+                    .WithFlag(11, out FRC_seqWordCounterCompareInterruptEnable[2], name: "WCNTCMP2SEQIEN")
+                    .WithFlag(12, name: "ADDRERRORSEQIEN")
+                    .WithFlag(13, name: "BUSERRORSEQIEN")
+                    .WithFlag(14, out FRC_seqRxRawEventInterruptEnable, name: "RXRAWEVENTSEQIEN")
+                    .WithFlag(15, out FRC_seqTxRawEventInterruptEnable, name: "TXRAWEVENTSEQIEN")
+                    .WithFlag(16, name: "SNIFFOFSEQIEN")
+                    .WithFlag(17, name: "WCNTCMP3SEQIEN")
+                    .WithFlag(18, name: "WCNTCMP4SEQIEN")
+                    .WithFlag(19, name: "BOISETSEQIEN")
+                    .WithFlag(20, out FRC_seqPacketBufferStartInterruptEnable, name: "PKTBUFSTARTSEQIEN")
+                    .WithFlag(21, out FRC_seqPacketBufferThresholdInterruptEnable, name: "PKTBUFTHRESHOLDSEQIEN")
+                    .WithFlag(22, name: "RXRAWOFSEQIEN")
+                    .WithFlag(23, name: "WCNTCMP5SEQIEN")
+                    .WithFlag(24, name: "FRAMEDETPAUSEDSEQIEN")
+                    .WithFlag(25, name: "INTERLEAVEWRITEPAUSEDSEQIEN")
+                    .WithFlag(26, name: "INTERLEAVEREADPAUSEDSEQIEN")
+                    .WithFlag(27, name: "TXSUBFRAMEPAUSEDSEQIEN")
+                    .WithFlag(28, name: "CONVPAUSEDSEQIEN")
+                    .WithFlag(29, name: "RXWORDSEQIEN")
+                    .WithFlag(30, name: "TXWORDSEQIEN")
+                    .WithFlag(31, name: "UARTERRORSEQIEN")
+                    .WithChangeCallback((_, __) => UpdateInterrupts())
+                },
+                {(long)FrameControllerRegisters.RawDataControl, new DoubleWordRegister(this)
+                    .WithValueField(0, 2, name: "TXRAWMODE")
+                    .WithEnumField<DoubleWordRegister, FRC_RxRawDataMode>(2, 3, out FRC_rxRawDataSelect, writeCallback: (_, value) =>
+                        {
+                            switch(value)
+                            {
+                                case FRC_RxRawDataMode.Disable:
+                                    FRC_rxRawBlocked.Value = false;
+                                    break;
+                                case FRC_RxRawDataMode.SingleItem:
+                                    break;
+                                default:
+                                    this.Log(LogLevel.Error, "Unsupported RXRAWMODE value ({0}).", value);
+                                    break;
+                            }
+                        }, name: "RXRAWMODE")
+                    .WithFlag(5, out FRC_enableRawDataRandomNumberGenerator, name: "RXRAWRANDOM")
+                    .WithReservedBits(6, 1)
+                    .WithEnumField<DoubleWordRegister, FRC_RxRawDataTriggerMode>(7, 2, out FRC_rxRawDataTriggerSelect, writeCallback: (_, value) =>
+                        {
+                            switch(value)
+                            {
+                                case FRC_RxRawDataTriggerMode.Immediate:
+                                    break;
+                                default:
+                                    this.Log(LogLevel.Error, "Unsupported RXRAWTRIGGER value ({0}).", value);
+                                    break;
+                            }
+                        }, name: "RXRAWTRIGGER")
+                    .WithReservedBits(9, 4)
+                    .WithFlag(13, name: "DEMODRAWDATAMUX")
+                    .WithReservedBits(14, 18)
+                    .WithChangeCallback((_, __) => FRC_UpdateRawMode())
+                },
+                {(long)FrameControllerRegisters.RxRawData, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ =>
+                    {
+                        if(FRC_rxRawDataSelect.Value == FRC_RxRawDataMode.SingleItem)
+                        {
+                            FRC_rxRawBlocked.Value = false;
+                        }
+                        FRC_UpdateRawMode();
+                        return (uint)random.Next();
+                    }, name: "RXRAWDATA")
+                },
+                {(long)FrameControllerRegisters.PacketCaptureBufferControl, new DoubleWordRegister(this)
+                    .WithValueField(0, 12, out FRC_packetBufferStartAddress, name: "PKTBUFSTARTLOC")
+                    .WithValueField(12, 6, out FRC_packetBufferThreshold, writeCallback: (_, __) => { UpdateInterrupts(); }, name: "PKTBUFTHRESHOLD")
+                    .WithReservedBits(18, 6)
+                    .WithFlag(24, out FRC_packetBufferThresholdEnable, writeCallback: (_, __) => { UpdateInterrupts(); }, name: "PKTBUFTHRESHOLDEN")
+                    .WithFlag(25, out FRC_packetBufferStop, FieldMode.Write, name: "PKTBUFSTOP")
+                    .WithReservedBits(26, 6)
+                },
+                {(long)FrameControllerRegisters.PacketCaptureBufferStatus, new DoubleWordRegister(this)
+                    .WithValueField(0, 6, out FRC_packetBufferCount, FieldMode.Read, name: "PKTBUFCOUNT")
+                    .WithReservedBits(6, 24)
+                },
+                {(long)FrameControllerRegisters.SnifferControl, new DoubleWordRegister(this)
+                    .WithValueField(0, 2, name: "SNIFFMODE")
+                    .WithFlag(2, name: "SNIFFBITS")
+                    .WithFlag(3, out FRC_ptiEmitRx, name: "SNIFFRXDATA")
+                    .WithFlag(4, out FRC_ptiEmitTx, name: "SNIFFTXDATA")
+                    .WithFlag(5, out FRC_ptiEmitRssi, name: "SNIFFRSSI")
+                    .WithFlag(6, out FRC_ptiEmitState, name: "SNIFFSTATE")
+                    .WithFlag(7, out FRC_ptiEmitAux, name: "SNIFFAUXDATA")
+                    .WithValueField(8, 8, name: "SNIFFBR")
+                    .WithFlag(16, name: "SNIFFSLEEPCTRL")
+                    .WithFlag(17, out FRC_ptiEmitSyncWord, name: "SNIFFSYNCWORD")
+                    .WithReservedBits(18, 14)
+                    .WithChangeCallback((_, __) => UpdateInterrupts())
+                },
+                {(long)FrameControllerRegisters.AuxiliarySnifferDataOutput, new DoubleWordRegister(this)
+                    .WithValueField(0, 9, writeCallback: (_, data) => {
+                        if (FRC_ptiEmitAux.Value)
+                        {
+                            this.Log(LogLevel.Noisy, "PTI AUX: {0}", data);
+                            // chop off the top bit
+                            byte b = (byte) (data & 0xFF);
+                            PtiDataOut?.Invoke(new byte[] { b });
+                        }
+                        if ((data & 0x0100) == 0u) {
+                            PtiFrameComplete?.Invoke();
+                        }
+                    }, name: "SNIFFAUXDATA")
+                    .WithReservedBits(9, 23)
+                    .WithChangeCallback((_, __) => UpdateInterrupts())
+                },
+            };
+
+            var startOffset = (long)FrameControllerRegisters.FrameControlDescriptor0;
+            var blockSize = (long)FrameControllerRegisters.FrameControlDescriptor1 - (long)FrameControllerRegisters.FrameControlDescriptor0;
+            for(var index = 0; index < FRC_NumberOfFrameDescriptors; index++)
+            {
+                var i = index;
+
+                registerDictionary.Add(startOffset + blockSize * i,
+                    new DoubleWordRegister(this)
+                        .WithValueField(0, 8, out FRC_frameDescriptor[i].WordsField, name: "WORDS")
+                        .WithValueField(8, 2, out FRC_frameDescriptor[i].BufferField, name: "BUFFER")
+                        .WithFlag(10, out FRC_frameDescriptor[i].IncludeCrc, name: "INCLUDECRC")
+                        .WithFlag(11, out FRC_frameDescriptor[i].CalculateCrc, name: "CALCCRC")
+                        .WithValueField(12, 2, out FRC_frameDescriptor[i].CrcSkipWords, name: "SKIPCRC")
+                        .WithFlag(14, out FRC_frameDescriptor[i].SkipWhitening, name: "SKIPWHITE")
+                        .WithFlag(15, out FRC_frameDescriptor[i].AddTrailData, name: "ADDTRAILTXDATA")
+                        .WithFlag(16, out FRC_frameDescriptor[i].ExcludeSubframeFromWcnt, name: "EXCLUDESUBFRAMEWCNT")
+                        .WithReservedBits(17, 15)
+                );
+            }
+
+            startOffset = (long)FrameControllerRegisters.PacketCaptureDataBuffer0;
+            blockSize = (long)FrameControllerRegisters.PacketCaptureDataBuffer1 - (long)FrameControllerRegisters.PacketCaptureDataBuffer0;
+            for(var index = 0; index < (FRC_PacketBufferCaptureSize / 4); index++)
+            {
+                var i = index;
+
+                registerDictionary.Add(startOffset + blockSize * i,
+                    new DoubleWordRegister(this)
+                        .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ => FRC_packetBufferCapture[i * 4], writeCallback: (_, value) => FRC_packetBufferCapture[i * 4] = (byte)value, name: $"PKTBUF{i * 4}")
+                        .WithValueField(8, 8, FieldMode.Read, valueProviderCallback: _ => FRC_packetBufferCapture[i * 4 + 1], writeCallback: (_, value) => FRC_packetBufferCapture[i * 4 + 1] = (byte)value, name: $"PKTBUF{i * 4 + 1}")
+                        .WithValueField(16, 8, FieldMode.Read, valueProviderCallback: _ => FRC_packetBufferCapture[i * 4 + 2], writeCallback: (_, value) => FRC_packetBufferCapture[i * 4 + 2] = (byte)value, name: $"PKTBUF{i * 4 + 2}")
+                        .WithValueField(24, 8, FieldMode.Read, valueProviderCallback: _ => FRC_packetBufferCapture[i * 4 + 3], writeCallback: (_, value) => FRC_packetBufferCapture[i * 4 + 3] = (byte)value, name: $"PKTBUF{i * 4 + 3}")
+                );
+            }
+
+            return new DoubleWordRegisterCollection(this, registerDictionary);
+        }
+
+        private DoubleWordRegisterCollection BuildRadioMailboxRegistersCollection()
+        {
+            var registerDictionary = new Dictionary<long, DoubleWordRegister>
+            {
+                {(long)RadioMailboxRegisters.MessagePointer0, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out RFMAILBOX_messagePointer[0], name: "MSGPTR0")
+                },
+                {(long)RadioMailboxRegisters.MessagePointer1, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out RFMAILBOX_messagePointer[1], name: "MSGPTR1")
+                },
+                {(long)RadioMailboxRegisters.MessagePointer2, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out RFMAILBOX_messagePointer[2], name: "MSGPTR2")
+                },
+                {(long)RadioMailboxRegisters.MessagePointer3, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, out RFMAILBOX_messagePointer[3], name: "MSGPTR3")
+                },
+                {(long)RadioMailboxRegisters.InterruptFlags, new DoubleWordRegister(this)
+                    .WithFlag(0, out RFMAILBOX_messageInterrupt[0], name: "MBOXIF0")
+                    .WithFlag(1, out RFMAILBOX_messageInterrupt[1], name: "MBOXIF1")
+                    .WithFlag(2, out RFMAILBOX_messageInterrupt[2], name: "MBOXIF2")
+                    .WithFlag(3, out RFMAILBOX_messageInterrupt[3], name: "MBOXIF3")
+                    .WithReservedBits(4, 28)
+                    .WithChangeCallback((_, __) => UpdateInterrupts())
+                },
+                {(long)HostMailboxRegisters.InterruptEnable, new DoubleWordRegister(this)
+                    .WithFlag(0, out RFMAILBOX_messageInterruptEnable[0], name: "MBOXIEN0")
+                    .WithFlag(1, out RFMAILBOX_messageInterruptEnable[1], name: "MBOXIEN1")
+                    .WithFlag(2, out RFMAILBOX_messageInterruptEnable[2], name: "MBOXIEN2")
+                    .WithFlag(3, out RFMAILBOX_messageInterruptEnable[3], name: "MBOXIEN3")
+                    .WithReservedBits(4, 28)
+                    .WithChangeCallback((_, __) => UpdateInterrupts())
+                },
+            };
+
+            return new DoubleWordRegisterCollection(this, registerDictionary);
+        }
+
+        private DoubleWordRegisterCollection BuildCyclicRedundancyCheckRegistersCollection()
+        {
+            var registerDictionary = new Dictionary<long, DoubleWordRegister>
+            {
+                {(long)CyclicRedundancyCheckRegisters.Control, new DoubleWordRegister(this)
+                    .WithFlag(0, name: "INPUTINV")
+                    .WithFlag(1, name: "OUTPUTINV")
+                    .WithEnumField<DoubleWordRegister, CRC_CrcWidthMode>(2, 2, out CRC_crcWidthMode, name: "CRCWIDTH")
+                    .WithReservedBits(4, 1)
+                    .WithFlag(5, name: "INPUTBITORDER")
+                    .WithFlag(6, out CRC_reverseCrcByteOrdering, name: "BYTEREVERSE")
+                    .WithFlag(7, name: "BITREVERSE")
+                    .WithValueField(8, 4, out CRC_crcBitsPerWord, name: "BITSPERWORD")
+                    .WithFlag(12, name: "PADCRCINPUT")
+                    .WithReservedBits(13, 19)
+                },
+            };
+
+            return new DoubleWordRegisterCollection(this, registerDictionary);
+        }
+
+        private DoubleWordRegisterCollection BuildSynthesizerRegistersCollection()
+        {
+            var registerDictionary = new Dictionary<long, DoubleWordRegister>
+            {
+                {(long)SynthesizerRegisters.Frequency, new DoubleWordRegister(this)
+                    .WithValueField(0, 28, out SYNTH_frequency, name: "FREQ")
+                    .WithReservedBits(28, 4)
+                },
+                {(long)SynthesizerRegisters.FrequencyDivisionControl, new DoubleWordRegister(this, 0x001)
+                    .WithEnumField<DoubleWordRegister, SYNTH_LoDivFreqCtrl>(0, 9, out SYNTH_loDivFreqCtrl, name: "LODIVFREQCTRL")
+                    .WithReservedBits(9, 23)
+                },
+                // RAIL writes the protocol's logical channel index here (e.g. 11..26 for 802.15.4).
+                // The simulator exposes that value via LogicalChannel for human-readable log strings.
+                {(long)SynthesizerRegisters.ChannelSpacing, new DoubleWordRegister(this)
+                    .WithValueField(0, 16, out SYNTH_channelSpacing, name: "CHSP")
+                    .WithReservedBits(16, 15)
+                },
+            };
+
+            return new DoubleWordRegisterCollection(this, registerDictionary);
+        }
+
+        // TransmitFrame() is invoked as soon as the radio state machine transitions to the TX state.
+        private bool TransmitFrame(byte[] frame)
+        {
+            TrySyncTime();
+
+            if(RAC_internalTxState != RAC_InternalTxState.Idle)
+            {
+                this.Log(LogLevel.Error, "TransmitFrame(): state not IDLE");
+                return false;
+            }
+
+            RAC_TxEnable = false;
+
+            if(frame.Length == 0)
+            {
+                return false;
+            }
+
+            // We schedule the TX timer to include the whole frame (including the preamble and SYNC word) plus the 
+            // TxChainDelay and TxChainDoneDelay, so that when the timer expires, we can simply complete the TX process.
+            // Note, we subtract the TxDoneDelay since that signal occurs BEFORE the last bit of the frame actually went over the air.
+            var timerDelayUs = MODEM_GetFrameOverTheAirTimeUs(frame, true, true) + MODEM_GetTxChainDelayUs() - MODEM_GetTxChainDoneDelayUs();
+
+            this.Log(LogBasicRadioActivityAsError ? LogLevel.Error : LogLevel.Info, "Sending frame at {0} on channel {1} ({2}): {3}",
+                     GetTime(), LogicalChannel, SYNTH_GetRfFrequencyString(), BitConverter.ToString(frame));
+
+            this.Log(LogLevel.Noisy, "TX timer delay (us)={0} (PRECNT overflows={1}) (OTA frame time (us)={2})",
+                     timerDelayUs, PROTIMER_UsToPreCntOverflowTicks(timerDelayUs), MODEM_GetFrameOverTheAirTimeUs(frame, true, true));
+
+            InterferenceQueue.Add(this, MODEM_GetPhySignature(), Channel, 0 /*TODO: TxPower*/, frame);
+
+            FRC_SnifferTransmitFrame(frame);
+            FrameSent?.Invoke(this, frame);
+
+            MODEM_txPreambleSentInterrupt.Value = true;
+            MODEM_seqTxPreambleSentInterrupt.Value = true;
+            MODEM_txSyncSentInterrupt.Value |= !MODEM_syncData.Value;
+            MODEM_seqTxSyncSentInterrupt.Value = MODEM_txSyncSentInterrupt.Value;
+
+            UpdateInterrupts();
+
+            RAC_internalTxState = RAC_InternalTxState.Tx;
+            txTimer.Frequency = PROTIMER_GetPreCntOverflowFrequency();
+            txTimer.Limit = PROTIMER_UsToPreCntOverflowTicks(timerDelayUs);
+            txTimer.Enabled = true;
+
+            return true;
+        }
 
         private void PROTIMER_ListenBeforeTalkCcaCompleted(bool forceFailure = false)
         {
@@ -1384,12 +3365,20 @@ namespace Antmicro.Renode.Peripherals.Wireless
             }
             else
             {
-                AGC_cca.Value = (AGC_RssiIntegerPartAdjusted < (sbyte)AGC_ccaThreshold.Value);
+                // While the radio is receiving a preamble/sync word or a frame the channel is, by definition,
+                // busy: real hardware's AGC/RSSI is locked onto that signal. The interference-queue RSSI is
+                // reports the channel clear once the sender's over-the-air entry goes stale (the sender marks 
+                // it stale at its own TX-end). Because each node runs on an independent time source that only 
+                // syncs at quantum boundaries, the sender's entry can go stale while this receiver is still 
+                // in the RX process, so the RSSI snapshot reads below the CCA threshold mid-frame. 
+                // Gating CCA on the internal Rx state restores the "RX in progress => busy" invariant.
+                AGC_cca.Value = (AGC_RssiIntegerPartAdjusted < (sbyte)AGC_ccaThreshold.Value)
+                                && (RAC_internalRxState == RAC_InternalRxState.Idle);
             }
 
             // If the channel is clear, nothing to do here, we let CCADELAY complete.
 
-            // Channel not clear
+            // Channel not clear    
             if(!AGC_cca.Value)
             {
                 PROTIMER_timeoutCounter[0].Stop();
@@ -1418,18 +3407,21 @@ namespace Antmicro.Renode.Peripherals.Wireless
                     // RETRYCNT++
                     PROTIMER_listenBeforeTalkRetryCounter.Value += 1;
 
-                    // EXP - min(EXP+1, MAXEXP)
-                    if(PROTIMER_listenBeforeTalkExponent.Value + 1 <= PROTIMER_listenBeforeTalkMaxExponent.Value)
+                    // EXP - min(EXP+1, MAXEXP). With FIXEDBACKOFF, hardware does not update EXP.
+                    if(!PROTIMER_fixedBackoff.Value)
                     {
-                        PROTIMER_listenBeforeTalkExponent.Value += 1;
-                    }
-                    else
-                    {
-                        PROTIMER_listenBeforeTalkExponent.Value = PROTIMER_listenBeforeTalkMaxExponent.Value;
+                        if(PROTIMER_listenBeforeTalkExponent.Value + 1 <= PROTIMER_listenBeforeTalkMaxExponent.Value)
+                        {
+                            PROTIMER_listenBeforeTalkExponent.Value += 1;
+                        }
+                        else
+                        {
+                            PROTIMER_listenBeforeTalkExponent.Value = PROTIMER_listenBeforeTalkMaxExponent.Value;
+                        }
                     }
 
                     // BACKOFF = RANDOM & (2^EXP – 1)
-                    var rand = (uint)random.Next();
+                    var rand = PROTIMER_fixedBackoff.Value ? PROTIMER_fixedBackoffRandomValue : (uint)random.Next();
                     var backoff = (rand & ((1u << (byte)PROTIMER_listenBeforeTalkExponent.Value) - 1));
 
                     // Wait for BACKOFF+1 BASECNTOF events
@@ -1463,8 +3455,11 @@ namespace Antmicro.Renode.Peripherals.Wireless
             PROTIMER_listenBeforeTalkSync.Value = false;
             PROTIMER_listenBeforeTalkRunning.Value = false;
             PROTIMER_listenBeforeTalkPaused.Value = false;
-            // EXP = STARTEXP
-            PROTIMER_listenBeforeTalkExponent.Value = PROTIMER_listenBeforeTalkStartExponent.Value;
+            // EXP = STARTEXP. With FIXEDBACKOFF, hardware does not load EXP from STARTEXP.
+            if(!PROTIMER_fixedBackoff.Value)
+            {
+                PROTIMER_listenBeforeTalkExponent.Value = PROTIMER_listenBeforeTalkStartExponent.Value;
+            }
             // RETRYCNT = 0
             PROTIMER_listenBeforeTalkRetryCounter.Value = 0;
 
@@ -1479,16 +3474,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 PROTIMER_listenBeforeTalkSync.Value = true;
             }
 
-            // TODO: implement FIXED BACKOFF here if needed:
-            // "It is possible to have a fixed (non-random) backoff, by setting FIXEDBACKOFF in PROTIMER_LBTCTRL.
-            // This will prevent hardware from updating the EXP and RANDOM register fields when the LBT backoff
-            // value is calculated for each LBT attempt. Software can con- figure a fixed LBT backoff value by
-            // writing to the EXP (in PROTIMER_LBTSTATE) and RANDOM register fields.
-            // Note: When using the FIXEDBACKOFF setting, the TOUT0CNT register is still decremented during the
-            // backoff period. The EXP and RANDOM register fields will remain constant for each retry."
-
             // BACKOFF = RANDOM & (2^EXP – 1)
-            var rand = (uint)random.Next();
+            var rand = PROTIMER_fixedBackoff.Value ? PROTIMER_fixedBackoffRandomValue : (uint)random.Next();
             var backoff = (rand & ((1u << (byte)PROTIMER_listenBeforeTalkExponent.Value) - 1));
 
             // Wait for BACKOFF+1 BASECNTOF events
@@ -1505,90 +3492,135 @@ namespace Antmicro.Renode.Peripherals.Wireless
             }
         }
 
-        private void PROTIMER_TimeoutCounter0HandleUnderflow()
+        // A compare match requires every comparator enabled in CCn_CTRL to match on the same tick.
+        // BASE and WRAP are the low and high words of a single 64-bit compare, not two independent
+        // compares: sequencer firmware arms a channel from a 64-bit ptick (PROTIMER_CCTimerStartPtick
+        // writes WRAP=ptick>>32, BASE=ptick&0xFFFFFFFF with WRAPMATCHEN|BASEMATCHEN), so matching on
+        // either half on its own fires up to a full BASECNT cycle early.
+        // PREMATCHEN is not modelled here, see PROTIMER_UpdateCompareTimer.
+        private bool PROTIMER_CaptureCompareMatches(uint index)
         {
-            if(!PROTIMER_listenBeforeTalkRunning.Value)
+            var channel = PROTIMER_captureCompareChannel[index];
+
+            if(!channel.Enable.Value || channel.Mode.Value != PROTIMER_CaptureCompareMode.Compare)
             {
-                return;
+                return false;
             }
 
-            PROTIMER_timeoutCounter[0].Stop();
-
-            switch(PROTIMER_listenBeforeTalkState)
+            // With no comparator enabled there is nothing to match against.
+            if(!channel.BaseMatchEnable.Value && !channel.WrapMatchEnable.Value)
             {
-            case PROTIMER_ListenBeforeTalkState.Backoff:
+                return false;
+            }
+
+            if(channel.BaseMatchEnable.Value && channel.BaseValue.Value != PROTIMER_baseCounterValue)
             {
-                // CCACNT = 0
-                PROTIMER_ccaCounter.Value = 0;
+                return false;
+            }
 
-                PROTIMER_listenBeforeTalkState = PROTIMER_ListenBeforeTalkState.CcaDelay;
+            if(channel.WrapMatchEnable.Value && channel.WrapValue.Value != PROTIMER_wrapCounterValue)
+            {
+                return false;
+            }
 
-                // If the RSSI_START command failed to start (for example, radio is not in RX), we don't
-                // start TOUT0 here, we expect to be back in backoff or to be done with retry attempts.
-                if(AGC_RssiStartCommand(true))
+            return true;
+        }
+
+        // Latches the live BASECNT/WRAPCNT into every enabled capture channel whose input source matches the
+        // detected sync word.
+#pragma warning disable IDE0060
+        private void PROTIMER_CaptureOnSyncWordsDetected(bool foundSyncWord0, bool foundSyncWord1, bool foundSyncWord2, bool foundSyncWord3)
+#pragma warning restore IDE0060
+        {
+            for(var i = 0; i < PROTIMER_NumberOfCaptureCompareChannels; ++i)
+            {
+                var channel = PROTIMER_captureCompareChannel[i];
+                if(!channel.Enable.Value || channel.Mode.Value != PROTIMER_CaptureCompareMode.Capture)
                 {
-                    // Wait for CCDELAY+1 BASECNTOF events
-                    PROTIMER_timeoutCounter[0].CounterTop.Value = PROTIMER_ccaDelay.Value;
-                    PROTIMER_timeoutCounter[0].Start();
+                    continue;
                 }
 
-                break;
-            }
-            case PROTIMER_ListenBeforeTalkState.CcaDelay:
-            {
-                // If we get here is because CCA was successful, otherwise we would have retried the backoff or failed LBT
-
-                // CCACNT == CCAREPEAT-1
-                if(PROTIMER_ccaCounter.Value == (PROTIMER_ccaRepeat.Value - 1))
+                var triggered = false;
+                switch(channel.CaptureInputSource.Value)
                 {
-                    PROTIMER_listenBeforeTalkState = PROTIMER_ListenBeforeTalkState.Idle;
-                    PROTIMER_listenBeforeTalkSync.Value = false;
-                    PROTIMER_listenBeforeTalkRunning.Value = false;
-                    PROTIMER_listenBeforeTalkSuccessInterrupt.Value = true;
-                    PROTIMER_seqListenBeforeTalkSuccessInterrupt.Value = true;
-                    UpdateInterrupts();
-                    PROTIMER_TriggerEvent(PROTIMER_Event.ListenBeforeTalkSuccess);
-                    // Trigger the CCA cmpleted event after the LBT success event so that the radio
-                    // does not leave RX and goes directly to RX2TX.
-                    PROTIMER_TriggerEvent(PROTIMER_Event.ClearChannelAssessmentMeasurementCompleted);
-                }
-                else
-                {
-                    // CCACNT++
-                    PROTIMER_ccaCounter.Value += 1;
-
-                    // If the RSSI_START command failed to start (for example, radio is not in RX), we don't
-                    // start TOUT0 here, we expect to be back in backoff or to be done with retry attempts.
-                    if(AGC_RssiStartCommand(true))
-                    {
-                        // Wait for CCDELAY+1 BASECNTOF events
-                        PROTIMER_timeoutCounter[0].CounterTop.Value = PROTIMER_ccaDelay.Value;
-                        PROTIMER_timeoutCounter[0].Start();
-                    }
+                case PROTIMER_CaptureInputSource.DemodulatorFoundSyncWord0:
+                    triggered = foundSyncWord0;
+                    break;
+                case PROTIMER_CaptureInputSource.DemodulatorFoundSyncWord1:
+                    triggered = foundSyncWord1;
+                    break;
+                case PROTIMER_CaptureInputSource.DemodulatorFoundSyncWord0or1:
+                    triggered = foundSyncWord0 || foundSyncWord1;
+                    break;
                 }
 
-                break;
-            }
-            default:
-            {
-                this.Log(LogLevel.Error, "Unreachable. Invalid LBT state in PROTIMER_TimeoutCounter0HandleUnderflow");
-                break;
-            }
+                if(triggered)
+                {
+                    channel.Capture(PROTIMER_BaseCounterValue, PROTIMER_WrapCounterValue);
+                    PROTIMER_TriggerEvent((PROTIMER_Event)((uint)PROTIMER_Event.CaptureCompareChannel0Event + i));
+                }
             }
         }
 
-        private void PROTIMER_HandleWrapCounterOverflow()
+        // Evaluates the channels whose compare includes BASECNT. Compound BASE+WRAP compares are
+        // only evaluated here (and never from PROTIMER_IncrementWrapCounter) because BASECNT is the
+        // comparator that advances last: WRAPCNT is a qualifier that has to already hold the target
+        // value by the time BASECNT reaches it.
+        private void PROTIMER_CheckCaptureCompareBaseMatches()
         {
-            //this.Log(LogLevel.Debug, "PROTIMER_HandleWrapCounterOverflow wrapValue={0} at {1}", PROTIMER_WrapCounterValue, GetTime());
+            for(uint i = 0; i < PROTIMER_NumberOfCaptureCompareChannels; ++i)
+            {
+                if(PROTIMER_captureCompareChannel[i].BaseMatchEnable.Value && PROTIMER_CaptureCompareMatches(i))
+                {
+                    PROTIMER_HandleCaptureCompareMatch(i);
+                }
+            }
+        }
 
-            PROTIMER_TriggerEvent(PROTIMER_Event.WrapCounterOverflow);
+        private void PROTIMER_HandleCaptureCompareMatch(uint index)
+        {
+            PROTIMER_captureCompareChannel[index].InterruptField.Value = true;
+            PROTIMER_captureCompareChannel[index].SeqInterruptField.Value = true;
+            UpdateInterrupts();
+            PROTIMER_TriggerEvent((PROTIMER_Event)((uint)PROTIMER_Event.CaptureCompareChannel0Event + index));
+        }
 
-            Array.ForEach(PROTIMER_timeoutCounter, x => x.Update(PROTIMER_TimeoutCounterSource.WrapCounterOverflow));
+        private void PROTIMER_IncrementBaseCounter(uint increment = 1)
+        {
+            if(proTimer.Enabled)
+            {
+                this.Log(LogLevel.Error, "PROTIMER_IncrementBaseCounter invoked while the proTimer running");
+                return;
+            }
+
+            PROTIMER_baseCounterValue += (ushort)increment;
+
+            // BASECNT == BASECNTTOP is only observable here, before the counter rolls over.
+            PROTIMER_CheckCaptureCompareBaseMatches();
+
+            if(PROTIMER_baseCounterValue >= PROTIMER_baseCounterTop.Value)
+            {
+                PROTIMER_HandleBaseCounterOverflow();
+                PROTIMER_baseCounterValue = 0x0;
+
+                // Re-evaluate against the rolled-over BASECNT and the WRAPCNT the overflow advanced,
+                // so a target sitting at the start of a wrap is not missed.
+                PROTIMER_CheckCaptureCompareBaseMatches();
+            }
+        }
+
+        private void PROTIMER_TimeoutCounter0HandleSynchronize()
+        {
+            if(PROTIMER_listenBeforeTalkSync.Value)
+            {
+                PROTIMER_listenBeforeTalkSync.Value = false;
+                PROTIMER_listenBeforeTalkRunning.Value = true;
+            }
         }
 
         private void PROTIMER_UpdateCompareTimer(int index)
         {
-            // We don't support preMatch in Compare Timers, instead we checks that preMatch is not enabled,
+            // We don't support preMatch in Compare Timers, instead we checks that preMatch is not enabled, 
             // and if base/wrap match are enabled, we recalculate the protimer limit.
             if(PROTIMER_captureCompareChannel[index].Enable.Value
                 && PROTIMER_captureCompareChannel[index].Mode.Value == PROTIMER_CaptureCompareMode.Compare
@@ -1612,17 +3644,12 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
             for(var i = 0; i < PROTIMER_NumberOfCaptureCompareChannels; ++i)
             {
-                var triggered = PROTIMER_captureCompareChannel[i].Enable.Value
+                // Channels that also compare BASECNT are handled by PROTIMER_CheckCaptureCompareBaseMatches().
+                if(!PROTIMER_captureCompareChannel[i].BaseMatchEnable.Value
                     && PROTIMER_captureCompareChannel[i].WrapMatchEnable.Value
-                    && PROTIMER_captureCompareChannel[i].Mode.Value == PROTIMER_CaptureCompareMode.Compare
-                    && PROTIMER_wrapCounterValue == PROTIMER_captureCompareChannel[i].WrapValue.Value;
-
-                if(triggered)
+                    && PROTIMER_CaptureCompareMatches((uint)i))
                 {
-                    PROTIMER_captureCompareChannel[i].InterruptFlag.Value = true;
-                    PROTIMER_captureCompareChannel[i].SeqInterruptField.Value = true;
-                    UpdateInterrupts();
-                    PROTIMER_TriggerEvent((PROTIMER_Event)((uint)PROTIMER_Event.CaptureCompareChannel0Event + i));
+                    PROTIMER_HandleCaptureCompareMatch((uint)i);
                 }
             }
 
@@ -1633,42 +3660,32 @@ namespace Antmicro.Renode.Peripherals.Wireless
             }
         }
 
-        private void PROTIMER_IncrementBaseCounter(uint increment = 1)
+        private void PROTIMER_UpdateRxRequestState()
         {
-            if(proTimer.Enabled)
+            if(PROTIMER_rxClearEvent1.Value == PROTIMER_Event.Always
+                && PROTIMER_rxClearEvent2.Value == PROTIMER_Event.Always)
             {
-                this.Log(LogLevel.Error, "PROTIMER_IncrementBaseCounter invoked while the proTimer running");
-                return;
+                PROTIMER_rxRequestState = PROTIMER_TxRxRequestState.Idle;
             }
-
-            PROTIMER_baseCounterValue += (ushort)increment;
-
-            for(var i = 0; i < PROTIMER_NumberOfCaptureCompareChannels; ++i)
+            else if(PROTIMER_rxSetEvent1.Value == PROTIMER_Event.Always
+                     && PROTIMER_rxSetEvent2.Value == PROTIMER_Event.Always)
             {
-                var triggered = PROTIMER_captureCompareChannel[i].Enable.Value
-                    && PROTIMER_captureCompareChannel[i].BaseMatchEnable.Value
-                    && PROTIMER_captureCompareChannel[i].Mode.Value == PROTIMER_CaptureCompareMode.Compare
-                    && PROTIMER_baseCounterValue == PROTIMER_captureCompareChannel[i].BaseValue.Value;
-
-                if(triggered)
-                {
-                    PROTIMER_captureCompareChannel[i].InterruptFlag.Value = true;
-                    PROTIMER_captureCompareChannel[i].SeqInterruptField.Value = true;
-                    UpdateInterrupts();
-                    PROTIMER_TriggerEvent((PROTIMER_Event)((uint)PROTIMER_Event.CaptureCompareChannel0Event + i));
-                }
+                PROTIMER_TriggerEvent(PROTIMER_Event.InternalTrigger);
             }
+        }
 
-            if(PROTIMER_baseCounterValue >= PROTIMER_baseCounterTop.Value)
-            {
-                PROTIMER_HandleBaseCounterOverflow();
-                PROTIMER_baseCounterValue = 0x0;
-            }
+        private void PROTIMER_HandleWrapCounterOverflow()
+        {
+            //this.Log(LogLevel.Debug, "PROTIMER_HandleWrapCounterOverflow wrapValue={0} at {1}", PROTIMER_WrapCounterValue, GetTime());
+
+            PROTIMER_TriggerEvent(PROTIMER_Event.WrapCounterOverflow);
+
+            Array.ForEach(PROTIMER_timeoutCounter, x => x.Update(PROTIMER_TimeoutCounterSource.WrapCounterOverflow));
         }
 
         private void PROTIMER_HandleBaseCounterOverflow()
         {
-            // this.Log(LogLevel.Debug, "PROTIMER_HandleBaseCounterOverflow baseValue={0} topValue={1} at {2}",
+            // this.Log(LogLevel.Debug, "PROTIMER_HandleBaseCounterOverflow baseValue={0} topValue={1} at {2}", 
             //          PROTIMER_BaseCounterValue, PROTIMER_baseCounterTop.Value, GetTime());
 
             PROTIMER_TriggerEvent(PROTIMER_Event.BaseCounterOverflow);
@@ -1703,7 +3720,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
         {
             proTimer.Enabled = false;
 
-            // In lightweight mode the timer fires when N PRECNT overflows have occurred.
+            // In lightweight mode the timer fires when N PRECNT overflows have occurred. 
             // The number N is set when we start/restart the proTimer
 
             //this.Log(LogLevel.Debug, "proTimer overflow limit={0} baseTop={1} wrapTop={2}", proTimer.Limit, PROTIMER_baseCounterTop.Value, PROTIMER_wrapCounterTop.Value);
@@ -1723,7 +3740,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 return;
             }
 
-            // this.Log(LogLevel.Debug, "PROTIMER_HandlePreCntOverflows cnt={0} mask=0x{1:X} base={2}",
+            // this.Log(LogLevel.Debug, "PROTIMER_HandlePreCntOverflows cnt={0} mask=0x{1:X} base={2}", 
             //          overflowCount, PROTIMER_preCounterSourcedBitmask,
             //          (PROTIMER_preCounterSourcedBitmask & (uint)PROTIMER_PreCountOverflowSourced.BaseCounter));
 
@@ -1790,7 +3807,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 PROTIMER_preCounterSourcedBitmask |= (uint)PROTIMER_PreCountOverflowSourced.WrapCounter;
             }
 
-            // RENODE-19: for now if a Timeout Timer is active and sourced by PRE overflow,
+            // RENODE-19: for now if a Timeout Timer is active and sourced by PRE overflow, 
             // we switch to a minimum ticks interval.
             // What we really want is to compute the number of PRE overflows to the timeout
             // or the match event.
@@ -1809,67 +3826,440 @@ namespace Antmicro.Renode.Peripherals.Wireless
             // Check for Capture/Compare channels that are enabled and set in Compare mode
             for(int i = 0; i < PROTIMER_NumberOfCaptureCompareChannels; i++)
             {
-                if(PROTIMER_captureCompareChannel[i].Enable.Value
-                    && PROTIMER_captureCompareChannel[i].Mode.Value == PROTIMER_CaptureCompareMode.Compare)
-                {
-                    // Base match enabled and base counter is sourced by pre counter overflows
-                    if(PROTIMER_captureCompareChannel[i].BaseMatchEnable.Value
-                        && PROTIMER_baseCounterSource.Value == PROTIMER_BaseCounterSource.PreCounterOverflow
-                        && PROTIMER_captureCompareChannel[i].BaseValue.Value > PROTIMER_baseCounterValue)
-                    {
-                        uint temp = (uint)(PROTIMER_captureCompareChannel[i].BaseValue.Value - PROTIMER_baseCounterValue);
-                        if(temp < limit)
-                        {
-                            limit = temp;
-                        }
-                        PROTIMER_preCounterSourcedBitmask |= ((uint)PROTIMER_PreCountOverflowSourced.CaptureCompareChannel0 << i);
-                    }
+                var channel = PROTIMER_captureCompareChannel[i];
 
-                    // Wrap match enabled and wrap counter is sourced by pre counter overflows
-                    if(PROTIMER_captureCompareChannel[i].WrapMatchEnable.Value
-                        && PROTIMER_wrapCounterSource.Value == PROTIMER_WrapCounterSource.PreCounterOverflow
-                        && PROTIMER_captureCompareChannel[i].WrapValue.Value > PROTIMER_wrapCounterValue)
+                if(!channel.Enable.Value || channel.Mode.Value != PROTIMER_CaptureCompareMode.Compare)
+                {
+                    continue;
+                }
+
+                var compoundCompare = channel.BaseMatchEnable.Value && channel.WrapMatchEnable.Value;
+
+                // A compound BASE+WRAP compare cannot match before WRAPCNT reaches the target wrap,
+                // so while the wrap words differ the BASE target is not an instant of interest. The
+                // limit is still bounded by the BASECNT overflow that advances WRAPCNT, which brings
+                // us back here once the wrap words match.
+                if(compoundCompare && channel.WrapValue.Value != PROTIMER_wrapCounterValue)
+                {
+                    continue;
+                }
+
+                // Base match enabled and base counter is sourced by pre counter overflows
+                if(channel.BaseMatchEnable.Value
+                    && PROTIMER_baseCounterSource.Value == PROTIMER_BaseCounterSource.PreCounterOverflow
+                    && channel.BaseValue.Value > PROTIMER_baseCounterValue)
+                {
+                    uint temp = (uint)(channel.BaseValue.Value - PROTIMER_baseCounterValue);
+                    if(temp < limit)
                     {
-                        uint temp = (uint)(PROTIMER_captureCompareChannel[i].WrapValue.Value - PROTIMER_wrapCounterValue);
-                        if(temp < limit)
-                        {
-                            limit = temp;
-                        }
-                        PROTIMER_preCounterSourcedBitmask |= ((uint)PROTIMER_PreCountOverflowSourced.CaptureCompareChannel0 << i);
+                        limit = temp;
                     }
+                    PROTIMER_preCounterSourcedBitmask |= ((uint)PROTIMER_PreCountOverflowSourced.CaptureCompareChannel0 << i);
+                }
+
+                // Wrap match enabled and wrap counter is sourced by pre counter overflows. For a
+                // compound compare the BASE target above already covers the match instant.
+                if(channel.WrapMatchEnable.Value && !compoundCompare
+                    && PROTIMER_wrapCounterSource.Value == PROTIMER_WrapCounterSource.PreCounterOverflow
+                    && channel.WrapValue.Value > PROTIMER_wrapCounterValue)
+                {
+                    uint temp = (uint)(channel.WrapValue.Value - PROTIMER_wrapCounterValue);
+                    if(temp < limit)
+                    {
+                        limit = temp;
+                    }
+                    PROTIMER_preCounterSourcedBitmask |= ((uint)PROTIMER_PreCountOverflowSourced.CaptureCompareChannel0 << i);
                 }
             }
 
             return limit;
         }
 
-        private void PROTIMER_TimeoutCounter0HandleSynchronize()
+        private void PROTIMER_TimeoutCounter0HandleUnderflow()
         {
-            if(PROTIMER_listenBeforeTalkSync.Value)
+            if(!PROTIMER_listenBeforeTalkRunning.Value)
             {
-                PROTIMER_listenBeforeTalkSync.Value = false;
-                PROTIMER_listenBeforeTalkRunning.Value = true;
+                return;
+            }
+
+            PROTIMER_timeoutCounter[0].Stop();
+
+            switch(PROTIMER_listenBeforeTalkState)
+            {
+            case PROTIMER_ListenBeforeTalkState.Backoff:
+            {
+                // CCACNT = 0
+                PROTIMER_ccaCounter.Value = 0;
+
+                PROTIMER_listenBeforeTalkState = PROTIMER_ListenBeforeTalkState.CcaDelay;
+
+                // If the RSSI_START command failed to start (for example, radio is not in RX), we don't 
+                // start TOUT0 here, we expect to be back in backoff or to be done with retry attempts.
+                if(AGC_RssiStartCommand(true))
+                {
+                    // Wait for CCDELAY+1 BASECNTOF events
+                    PROTIMER_timeoutCounter[0].CounterTop.Value = PROTIMER_ccaDelay.Value;
+                    PROTIMER_timeoutCounter[0].Start();
+                }
+
+                break;
+            }
+            case PROTIMER_ListenBeforeTalkState.CcaDelay:
+            {
+                // If we get here is because CCA was successful, otherwise we would have retried the backoff or failed LBT
+
+                // RX in progress => channel busy. The RSSI-based CcaCompleted path already enforces this
+                // invariant (gating CCA on RxFrame), but the CCADELAY TOUT0 underflow can race ahead of it.
+                if(RAC_internalRxState != RAC_InternalRxState.Idle)
+                {
+                    PROTIMER_ListenBeforeTalkCcaCompleted(forceFailure: true);
+                    break;
+                }
+
+                // CCACNT == CCAREPEAT-1
+                if(PROTIMER_ccaCounter.Value == (PROTIMER_ccaRepeat.Value - 1))
+                {
+                    PROTIMER_listenBeforeTalkState = PROTIMER_ListenBeforeTalkState.Idle;
+                    PROTIMER_listenBeforeTalkSync.Value = false;
+                    PROTIMER_listenBeforeTalkRunning.Value = false;
+                    PROTIMER_listenBeforeTalkSuccessInterrupt.Value = true;
+                    PROTIMER_seqListenBeforeTalkSuccessInterrupt.Value = true;
+                    UpdateInterrupts();
+                    PROTIMER_TriggerEvent(PROTIMER_Event.ListenBeforeTalkSuccess);
+                    // Trigger the CCA cmpleted event after the LBT success event so that the radio 
+                    // does not leave RX and goes directly to RX2TX.
+                    PROTIMER_TriggerEvent(PROTIMER_Event.ClearChannelAssessmentMeasurementCompleted);
+                }
+                else
+                {
+                    // CCACNT++
+                    PROTIMER_ccaCounter.Value += 1;
+
+                    // If the RSSI_START command failed to start (for example, radio is not in RX), we don't 
+                    // start TOUT0 here, we expect to be back in backoff or to be done with retry attempts.
+                    if(AGC_RssiStartCommand(true))
+                    {
+                        // Wait for CCDELAY+1 BASECNTOF events
+                        PROTIMER_timeoutCounter[0].CounterTop.Value = PROTIMER_ccaDelay.Value;
+                        PROTIMER_timeoutCounter[0].Start();
+                    }
+                }
+
+                break;
+            }
+            default:
+            {
+                this.Log(LogLevel.Error, "Unreachable. Invalid LBT state in PROTIMER_TimeoutCounter0HandleUnderflow");
+                break;
+            }
             }
         }
 
-        private void PROTIMER_UpdateRxRequestState()
+        private void PROTIMER_UpdateTxRequestState()
         {
-            if(PROTIMER_rxClearEvent1.Value == PROTIMER_Event.Always
-                && PROTIMER_rxClearEvent2.Value == PROTIMER_Event.Always)
+            if(PROTIMER_txSetEvent1.Value == PROTIMER_Event.Disabled
+                && PROTIMER_txSetEvent2.Value == PROTIMER_Event.Disabled)
             {
-                PROTIMER_rxRequestState = PROTIMER_TxRxRequestState.Idle;
+                PROTIMER_txRequestState = PROTIMER_TxRxRequestState.Idle;
             }
+        }
+
+        private void PROTIMER_RtcSyncStart()
+        {
+            this.Log(LogLevel.Debug, "PROTIMER RTC Start at {0}, halting PROTIMER and entering RTCWAIT state", GetTime());
+            PROTIMER_Enabled = false;
+            PROTIMER_rtcWait = true;
+        }
+
+        private void PROTIMER_RtcCapture(uint channel)
+        {
+            if(channel > 1)
+            {
+                this.Log(LogLevel.Error, "PROTIMER_RtcCapture: invalid channel {0}", channel);
+                return;
+            }
+
+            for(var i = 0; i < PROTIMER_NumberOfCaptureCompareChannels; ++i)
+            {
+                if(PROTIMER_captureCompareChannel[i].Enable.Value
+                    && PROTIMER_captureCompareChannel[i].Mode.Value == PROTIMER_CaptureCompareMode.Capture
+                    && PROTIMER_captureCompareChannel[i].CaptureInputSource.Value == (PROTIMER_CaptureInputSource)((uint)PROTIMER_CaptureInputSource.ProRtcCaptureCompare0 + channel))
+                {
+                    PROTIMER_captureCompareChannel[i].Capture(PROTIMER_BaseCounterValue, PROTIMER_WrapCounterValue);
+                    PROTIMER_TriggerEvent((PROTIMER_Event)((uint)PROTIMER_Event.CaptureCompareChannel0Event + i));
+                }
+            }
+        }
+
+        private uint PROTIMER_GetPreCntOverflowFrequency()
+        {
+            // The PRECNTTOP value is 1 less than the intended value.
+            double frequency = (double)HfxoFrequency / (PROTIMER_preCounterTopInteger.Value + 1 + ((double)PROTIMER_preCounterTopFractional.Value / 65536));
+            return Convert.ToUInt32(frequency);
+        }
+
+        private ulong PROTIMER_UsToPreCntOverflowTicks(double timeUs)
+        {
+            return Convert.ToUInt64((timeUs * (double)PROTIMER_GetPreCntOverflowFrequency()) / (double)MicrosecondFrequency);
+        }
+
+        private uint MODEM_GetDataRate()
+        {
+            double numerator = MODEM_txBaudrateNumerator.Value * 1.0;
+            double denominator = MODEM_txBaudrateDenominator.Value * 1.0;
+            double ratio = numerator / denominator;
+            double txBaudrate = (double)HfxoFrequency /  (8.0 * ratio);
+            double chipsPerSymbol = MODEM_dsssLength.Value + 1;
+            double symbolsPerBit = 1.0;
+            uint dsssShiftedSymbols = 0;
+
+            // TODO - If want to add Dynamic rate selection support:
+            // Case statement selecting brdiv to be brdiva + 1 or brdivb + 1 from control1 register.
+            // The condition to make distinction upon is based on Modem_rateSelectMode also in control1.
+            // May need to find a way to identify whether data is header or payload and there is one situation where the brdiv can switch per symbol.
+            // In ocelot radio calculator they do not do this:
+            // double txBaudrate = (double)HfxoFrequency /  (8.0 * ratio * brdiv);
+
+            // Find shifted symbols
+            if(MODEM_dsssShifts.Value == 1)
+            {
+                // Dsslen will be max 8 due to DSSS setup restrictions
+                // A bitslice as is shown in dsssShiftedSymbols = dssslen[CORRINDEX_WIDTH-1:0]; where corrindex_width is 5
+                dsssShiftedSymbols = (uint)MODEM_dsssLength.Value & 0x1F;
+            }
+            else if(MODEM_dsssShifts.Value > 1)
+            {
+                dsssShiftedSymbols = (uint)MODEM_dsssLength.Value >> (int)(MODEM_dsssShifts.Value - 1);
+            }
+
+            if((MODEM_modulationFormat.Value == MODEM_ModulationFormat.FSK4))
+            {
+                symbolsPerBit = 2.0;
+            }
+            else if(MODEM_symbolCoding.Value == MODEM_SymbolCoding.Dsss)
+            {
+                // Convert to bits per symbol
+                switch((MODEM_DsssShiftedSymbols)dsssShiftedSymbols)
+                {
+                case MODEM_DsssShiftedSymbols.ShiftedSymbol0:
+                {
+                    symbolsPerBit = 1.0;
+                    break;
+                }
+                case MODEM_DsssShiftedSymbols.ShiftedSymbol1:
+                {
+                    if(MODEM_dsssDoublingMode.Value == MODEM_DsssDoublingMode.Disabled)
+                    {
+                        symbolsPerBit = 1.0;
+                    }
+                    else
+                    {
+                        symbolsPerBit = 2.0;
+                    }
+                    break;
+                }
+                case MODEM_DsssShiftedSymbols.ShiftedSymbol3:
+                {
+                    symbolsPerBit = 2.0;
+                    break;
+                }
+                case MODEM_DsssShiftedSymbols.ShiftedSymbol7:
+                {
+                    symbolsPerBit = 4.0;
+                    break;
+                }
+                default:
+                    this.Log(LogLevel.Error, "MODEM_GetDataRate: default DSSS Shifted Symbol switch case");
+                    symbolsPerBit = 1.0;
+                    break;
+                }
+            }
+            else
+            {
+                symbolsPerBit = 1.0;
+            }
+
+            double txBitrate = txBaudrate / (chipsPerSymbol / symbolsPerBit);
+
+            this.Log(LogLevel.Noisy, "MODEM_GetDataRate: txBaudrate={0} chipsPerSymbol={1} symbolsPerBit={2} txBitrate={3}",
+                     txBaudrate, chipsPerSymbol, symbolsPerBit, txBitrate);
+
+            return (uint)txBitrate;
+        }
+
+        // Register-derived PHY signature used for over-the-air sensing/decoding compatibility.
+        private PhySignature MODEM_GetPhySignature()
+        {
+            var coding = MODEM_GetRadioSymbolCoding();
+            bool dsss = coding == RadioSymbolCoding.Dsss;
+            uint dsssLength = dsss ? (uint)MODEM_dsssLength.Value : 0u;
+            uint dsssShifts = dsss ? (uint)MODEM_dsssShifts.Value : 0u;
+            uint dsssDoublingMode = dsss ? (uint)MODEM_dsssDoublingMode.Value : 0u;
+            return new PhySignature(MODEM_GetModulationFamily(), coding, MODEM_GetDataRate(),
+                dsssLength, dsssShifts, dsssDoublingMode, MODEM_GetCodedSymbolsPerInfoBit());
+        }
+
+        private RadioSymbolCoding MODEM_GetRadioSymbolCoding()
+        {
+            switch(MODEM_symbolCoding.Value)
+            {
+            case MODEM_SymbolCoding.Nrz:
+                return RadioSymbolCoding.Nrz;
+            case MODEM_SymbolCoding.Manchester:
+                return RadioSymbolCoding.Manchester;
+            case MODEM_SymbolCoding.Dsss:
+                return RadioSymbolCoding.Dsss;
+            case MODEM_SymbolCoding.Linecode:
+                return RadioSymbolCoding.Linecode;
+            default:
+                return RadioSymbolCoding.Nrz;
+            }
+        }
+
+        private RadioModulationFamily MODEM_GetModulationFamily()
+        {
+            switch(MODEM_modulationFormat.Value)
+            {
+            case MODEM_ModulationFormat.FSK2:
+            case MODEM_ModulationFormat.FSK4:
+                return RadioModulationFamily.Fsk;
+            case MODEM_ModulationFormat.MSK:
+                return RadioModulationFamily.Msk;
+            case MODEM_ModulationFormat.OQPSK:
+                return RadioModulationFamily.Oqpsk;
+            case MODEM_ModulationFormat.BPSK:
+            case MODEM_ModulationFormat.DBPSK:
+                return RadioModulationFamily.Bpsk;
+            case MODEM_ModulationFormat.OOKASK:
+            case MODEM_ModulationFormat.MOOK:
+                return RadioModulationFamily.Ook;
+            default:
+                return RadioModulationFamily.Unknown;
+            }
+        }
+
+        // BLE LE Coded (Long Range) spreads each information bit into C on-air symbols (the FEC convolutional
+        // encoder plus the CI-selected pattern mapper): C=8 for 125 kbps (S=8) and C=2 for 500 kbps (S=2).
+        // The symbol/baud rate stays at 1 Msym/s so the information rate is baud_rate / C and the on-air
+        // duration of the FEC-coded part of the frame is C times longer than the uncoded byte count would suggest.
+        // Both sub-rates share an identical MODEM analog config; they are distinguished only by the FRC, which
+        // selects the alternate FEC spreading path (CODINGB) for S=2 via FRC.CTRL.RATESELECT (0 => S=8, 2 => S=2).
+        private uint MODEM_GetCodedSymbolsPerInfoBit()
+        {
+            if(MODEM_GetRadioSymbolCoding() != RadioSymbolCoding.Linecode)
+            {
+                return 1u;
+            }
+            // While receiving, mirror the coding sub-rate the sender actually used. The receiver's own
+            // FRC.CTRL.RATESELECT does not reflect the incoming frame's sub-rate (the receiver only learns
+            // it from the on-air CI).
+            if(RAC_internalRxState != RAC_InternalRxState.Idle && currentFrameCodedSymbolsPerInfoBit != 0)
+            {
+                return currentFrameCodedSymbolsPerInfoBit;
+            }
+
+            return FRC_rateSelect.Value == FRC_RateSelectCodingB ? 2u : 8u;
+        }
+
+        // The passed frame is assumed to NOT include the preamble and to include the SYNC WORD.
+        private double MODEM_GetFrameOverTheAirTimeUs(byte[] frame, bool includePreamble, bool includeSyncWord)
+        {
+            // For the LE Coded PHY the frame bytes (SYNC WORD + PDU + CRC) are FEC-coded, so each information
+            // bit occupies C on-air symbols. The preamble is not FEC-coded and stays at the symbol rate.
+            uint payloadCodingFactor = MODEM_GetCodedSymbolsPerInfoBit();
+            uint syncBits = MODEM_GetSyncWordLengthInBits();
+            uint payloadBits = (uint)frame.Length*8 - syncBits;
+
+            double symbols = (double)payloadBits * payloadCodingFactor;
+
+            if(includeSyncWord)
+            {
+                symbols += MODEM_GetSyncWordOverTheAirTimeUs() * MODEM_GetDataRate() / 1000000.0;
+            }
+
+            if(includePreamble)
+            {
+                symbols += MODEM_GetPreambleOverTheAirTimeUs() * MODEM_GetDataRate() / 1000000.0;
+            }
+
+            return symbols * 1000000 / (double)MODEM_GetDataRate();
+        }
+
+        private double MODEM_GetByteOverTheAirTimeUs()
+        {
+            return 8.0 * MODEM_GetCodedSymbolsPerInfoBit() * 1000000 / MODEM_GetDataRate();
+        }
+
+        private double MODEM_GetSyncWordOverTheAirTimeUs()
+        {
+            // LE Coded PHY: the access address (sync word) is part of FEC Block 1, which is ALWAYS coded at
+            // S=8, independent of the payload sub-rate (S=2 for 500k, S=8 for 125k).
+            uint syncCodingFactor = MODEM_GetRadioSymbolCoding() == RadioSymbolCoding.Linecode
+                ? 8u
+                : MODEM_GetCodedSymbolsPerInfoBit();
+            return (double)MODEM_GetSyncWordLengthInBits() * syncCodingFactor * 1000000 / (double)MODEM_GetDataRate();
+        }
+
+        private double MODEM_GetPreambleOverTheAirTimeUs()
+        {
+            // LE Coded PHY: the preamble is a fixed 80us, sent at the 1 Msym/s base rate and independent
+            // of the S=2/S=8 payload sub-rate (BLE spec).
+            if(MODEM_GetRadioSymbolCoding() == RadioSymbolCoding.Linecode)
+            {
+                return MODEM_BleCodedPhyPreambleOverTheAirTimeUs;
+            }
+            return (double)MODEM_GetPreambleLengthInBits() * 1000000 / (double)MODEM_GetDataRate();
+        }
+
+        private double MODEM_GetTxChainDoneDelayUs()
+        {
+            return ((double)MODEM_GetTxChainDoneDelayNanoS()) / 1000;
+        }
+
+        private uint MODEM_GetTxChainDoneDelayNanoS()
+        {
+            return MODEM_viterbiDemodulatorEnable.Value ? MODEM_BlePhyTxDoneChainDelayNanoS : MODEM_802154PhyTxDoneChainDelayNanoS;
         }
 
         private uint MODEM_GetTxChainDelayNanoS()
         {
-            return MODEM_viterbiDemodulatorEnable.Value ? MODEM_Ble1MbPhyTxChainDelayNanoS : MODEM_802154PhyTxChainDelayNanoS;
+            return MODEM_viterbiDemodulatorEnable.Value ? MODEM_BlePhyTxChainDelayNanoS : MODEM_802154PhyTxChainDelayNanoS;
+        }
+
+        private uint MODEM_GetRxDoneDelayNanoS()
+        {
+            return MODEM_viterbiDemodulatorEnable.Value ? MODEM_BlePhyRxDoneDelayNanoS : MODEM_802154PhyRxDoneDelayNanoS;
+        }
+
+        private double MODEM_GetRxChainDelayUs()
+        {
+            return ((double)MODEM_GetRxChainDelayNanoS()) / 1000;
+        }
+
+        private uint MODEM_GetRxChainDelayNanoS()
+        {
+            return MODEM_viterbiDemodulatorEnable.Value ? MODEM_BlePhyRxChainDelayNanoS : MODEM_802154PhyRxChainDelayNanoS;
+        }
+
+        private uint MODEM_GetSyncWordLengthInBits()
+        {
+            return MODEM_SyncWordLength;
         }
 
         private uint MODEM_GetPreambleLengthInBits()
         {
             uint preambleLength = (uint)((MODEM_baseBits.Value + 1)*MODEM_txBases.Value);
             return preambleLength;
+        }
+
+        private double MODEM_GetRxDoneDelayUs()
+        {
+            return ((double)MODEM_GetRxDoneDelayNanoS()) / 1000;
+        }
+
+        private double MODEM_GetTxChainDelayUs()
+        {
+            return ((double)MODEM_GetTxChainDelayNanoS()) / 1000;
         }
 
         private void AGC_UpdateRssiState()
@@ -1906,7 +4296,22 @@ namespace Antmicro.Renode.Peripherals.Wireless
                     if(PROTIMER_listenBeforeTalkState != PROTIMER_ListenBeforeTalkState.Idle)
                     {
                         PROTIMER_ListenBeforeTalkCcaCompleted();
-                        AGC_RestartRssiTimer();
+                        // Only keep the RSSI timer free-running while the CCA measurement is still
+                        // in progress (LBT in CCADELAY). If the channel was busy, CcaCompleted moved
+                        // the LBT back to BACKOFF and re-armed the randomized CSMA-CA backoff (TOUT0);
+                        // the next CCA must wait for that backoff to expire (driven by
+                        // PROTIMER_TimeoutCounter0HandleUnderflow -> AGC_RssiStartCommand). Restarting
+                        // the RSSI timer here would re-trigger CCA every RSSI period and bypass the
+                        // backoff entirely, collapsing all retries into a few microseconds.
+                        if(PROTIMER_listenBeforeTalkState == PROTIMER_ListenBeforeTalkState.CcaDelay)
+                        {
+                            AGC_RestartRssiTimer();
+                        }
+                        else
+                        {
+                            AGC_rssiStartCommandOngoing = false;
+                            AGC_rssiStartCommandFromProtimer = false;
+                        }
                     }
                     else
                     {
@@ -1971,7 +4376,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         private void AGC_UpdateRssi()
         {
-            AGC_RssiIntegerPart = (sbyte)InterferenceQueue.GetCurrentRssi(MODEM_GetCurrentPhy(), Channel);
+            AGC_RssiIntegerPart = (sbyte)InterferenceQueue.GetCurrentRssi(this, Channel);
 
             if(AGC_rssiFirstRead)
             {
@@ -2010,307 +4415,254 @@ namespace Antmicro.Renode.Peripherals.Wireless
             return Enumerable.Repeat<byte>(0x0, (int)CRC_CrcWidth).ToArray();
         }
 
-        // TODO: for now we are just able to distinguish between "BLE and non-BLE" by looking at the VTDEMODEN field.
-        private RadioPhyId MODEM_GetCurrentPhy()
+        // BUFRESTOREFRAMEERROR/BUFRESTORERXABORTED save and restore the active receive buffer
+        // selected by ACTIVERXFCD (FCD2 or FCD3).
+        private void FRC_RestoreActiveRxDescriptorBufferWriteOffset()
         {
-            return (MODEM_viterbiDemodulatorEnable.Value ? RadioPhyId.Phy_BLE_2_4GHz_GFSK : RadioPhyId.Phy_802154_2_4GHz_OQPSK);
+            bufferController.RestoreWriteOffset(FRC_frameDescriptor[FRC_ActiveReceiveFrameDescriptor].BufferIndex);
         }
 
-        // The passed frame is assumed to NOT include the preamble and to include the SYNC WORD.
-        private double MODEM_GetFrameOverTheAirTimeUs(byte[] frame, bool includePreamble, bool includeSyncWord)
+        // FRC_RXCTRL.BUFCLEAR: the BUFC buffer selected by an RX descriptor is cleared before any frame data is
+        // written to it. Both descriptors of the RX pair are cleared, since either can be selected while the
+        // frame is disassembled, and this runs before the write offsets are saved so that a BUFRESTORE on a
+        // frame error rewinds to the cleared buffer rather than to a stale offset.
+        private void FRC_ClearRxDescriptorsBuffers()
         {
-            uint frameLengthInBits = (uint)frame.Length*8;
-
-            if(includePreamble)
+            if(!FRC_rxBufferClear.Value)
             {
-                frameLengthInBits += MODEM_GetPreambleLengthInBits();
-            }
-
-            if(!includeSyncWord)
-            {
-                frameLengthInBits -= MODEM_GetSyncWordLengthInBits();
-            }
-
-            return ((double)frameLengthInBits) * 1000000 / (double)MODEM_GetDataRate();
-        }
-
-        private double MODEM_GetSyncWordOverTheAirTimeUs()
-        {
-            return (double)MODEM_GetSyncWordLengthInBits() * 1000000 / (double)MODEM_GetDataRate();
-        }
-
-        private double MODEM_GetPreambleOverTheAirTimeUs()
-        {
-            return (double)MODEM_GetPreambleLengthInBits() * 1000000 / (double)MODEM_GetDataRate();
-        }
-
-        private double MODEM_GetTxChainDoneDelayUs()
-        {
-            return ((double)MODEM_GetTxChainDoneDelayNanoS()) / 1000;
-        }
-
-        private uint MODEM_GetTxChainDoneDelayNanoS()
-        {
-            return MODEM_viterbiDemodulatorEnable.Value ? MODEM_Ble1MbPhyTxDoneChainDelayNanoS : MODEM_802154PhyTxDoneChainDelayNanoS;
-        }
-
-        private double MODEM_GetTxChainDelayUs()
-        {
-            return ((double)MODEM_GetTxChainDelayNanoS()) / 1000;
-        }
-
-        private double MODEM_GetRxDoneDelayUs()
-        {
-            return ((double)MODEM_GetRxDoneDelayNanoS()) / 1000;
-        }
-
-        private uint MODEM_GetRxDoneDelayNanoS()
-        {
-            return MODEM_viterbiDemodulatorEnable.Value ? MODEM_Ble1MbPhyRxDoneDelayNanoS : MODEM_802154PhyRxDoneDelayNanoS;
-        }
-
-        private double MODEM_GetRxChainDelayUs()
-        {
-            return ((double)MODEM_GetRxChainDelayNanoS()) / 1000;
-        }
-
-        // RENODE-52
-        // HACK: for now we hard-code the 802.15.4 and BLE data rates, instead of computing it from
-        // the MODEM registers. Also, we use the Viterbi demodulator to determine if the current
-        // transmission is a BLE or 802.15.4 transmission (All BLE transmissions use the Viterbi demod).
-        private uint MODEM_GetDataRate()
-        {
-            return MODEM_viterbiDemodulatorEnable.Value ? MODEM_Ble1MbPhyDataRate : MODEM_802154PhyDataRate;
-        }
-
-        private uint MODEM_GetSyncWordLengthInBits()
-        {
-            return MODEM_SyncWordLength;
-        }
-
-        private void PROTIMER_UpdateTxRequestState()
-        {
-            if(PROTIMER_txSetEvent1.Value == PROTIMER_Event.Disabled
-                && PROTIMER_txSetEvent2.Value == PROTIMER_Event.Disabled)
-            {
-                PROTIMER_rxRequestState = PROTIMER_TxRxRequestState.Idle;
-            }
-            else if(PROTIMER_rxSetEvent1.Value == PROTIMER_Event.Always
-                     && PROTIMER_rxSetEvent2.Value == PROTIMER_Event.Always)
-            {
-                PROTIMER_TriggerEvent(PROTIMER_Event.InternalTrigger);
-            }
-        }
-
-        private ulong PROTIMER_UsToPreCntOverflowTicks(double timeUs)
-        {
-            return Convert.ToUInt64((timeUs * (double)PROTIMER_GetPreCntOverflowFrequency()) / (double)MicrosecondFrequency);
-        }
-
-        private uint MODEM_GetRxChainDelayNanoS()
-        {
-            return MODEM_viterbiDemodulatorEnable.Value ? MODEM_Ble1MbPhyRxChainDelayNanoS : MODEM_802154PhyRxChainDelayNanoS;
-        }
-
-        private void FRC_RestoreRxDescriptorsBufferWriteOffset()
-        {
-            // Descriptors 2 and 3 are used for RX.
-            BUFC_buffer[FRC_frameDescriptor[2].BufferIndex].UpdateWriteStartOffset();
-            BUFC_buffer[FRC_frameDescriptor[3].BufferIndex].UpdateWriteStartOffset();
-        }
-
-        private void FRC_DisassembleCurrentFrame(bool forceCrcError)
-        {
-            var frameLength = 0u;
-            var dynamicFrameLength = true;
-            switch(FRC_dynamicFrameLengthMode.Value)
-            {
-            case FRC_DynamicFrameLengthMode.Disable:
-                dynamicFrameLength = false;
-                break;
-            case FRC_DynamicFrameLengthMode.SingleByte:
-            case FRC_DynamicFrameLengthMode.SingleByteMSB:
-                frameLength = (uint)currentFrame[currentFrameOffset + FRC_lengthFieldLocation.Value];
-                break;
-            case FRC_DynamicFrameLengthMode.DualByteLSBFirst:
-            case FRC_DynamicFrameLengthMode.DualByteMSBFirst:
-                frameLength = (uint)currentFrame[currentFrameOffset + FRC_lengthFieldLocation.Value + 1] << 8
-                              | (uint)currentFrame[currentFrameOffset + FRC_lengthFieldLocation.Value];
-                break;
-            default:
-                this.Log(LogLevel.Error, "Unimplemented DFL mode.");
                 return;
             }
-            if(dynamicFrameLength && !FRC_TrySetFrameLength(frameLength))
+
+            for(var index = FRC_FirstReceiveFrameDescriptor; index < FRC_NumberOfFrameDescriptors; ++index)
             {
-                this.Log(LogLevel.Error, "DisassembleFrame FRAMEERROR");
-                return; // FRAMEERROR
+                bufferController.Clear(FRC_frameDescriptor[index].BufferIndex);
             }
+        }
 
-            FRC_wordCounter.Value = 0;
-            for(var subframe = 0; FRC_wordCounter.Value < FRC_FrameLength; ++subframe)
-            {
-                var descriptor = FRC_frameDescriptor[FRC_ActiveReceiveFrameDescriptor];
-                var startingWriteOffset = BUFC_buffer[descriptor.BufferIndex].WriteOffset;
+        private void FRC_SaveActiveRxDescriptorBufferWriteOffset()
+        {
+            bufferController.UpdateWriteStartOffset(FRC_frameDescriptor[FRC_ActiveReceiveFrameDescriptor].BufferIndex);
+        }
 
-                // Assemble subframe
-                var length = FRC_FrameLength - FRC_wordCounter.Value;
-                if(descriptor.Words.HasValue)
-                {
-                    length = Math.Min(length, descriptor.Words.Value);
-                }
-                else if(dynamicFrameLength && descriptor.IncludeCrc.Value && FRC_dynamicFrameCrcIncluded.Value)
-                {
-                    length = checked(length - CRC_CrcWidth); // TODO: what happends when length < CrcWidth?
-                }
-                if(currentFrameOffset + length > (uint)currentFrame.Length)
-                {
-                    this.Log(LogLevel.Error, "frame too small, payload");
-                    return;
-                }
-                var payload = currentFrame.Skip((int)currentFrameOffset).Take((int)length);
-                var skipCount = (FRC_wordCounter.Value < FRC_packetBufferStartAddress.Value)
-                                ? (FRC_packetBufferStartAddress.Value - FRC_wordCounter.Value) : 0;
-                var pktCaptureBuff = currentFrame.Skip((int)(currentFrameOffset + skipCount)).Take((int)(length - skipCount));
-                currentFrameOffset += (uint)length;
-                FRC_wordCounter.Value += length;
-
-                FRC_WritePacketCaptureBuffer(pktCaptureBuff.ToArray());
-
-                if(!BUFC_buffer[descriptor.BufferIndex].TryWriteBytes(payload.ToArray(), out var written))
-                {
-                    this.Log(LogLevel.Error, "Written only {0} bytes from {1}", written, length);
-                    if(BUFC_buffer[descriptor.BufferIndex].Overflow.Value)
-                    {
-                        FRC_rxOverflowInterrupt.Value = true;
-                        FRC_seqRxOverflowInterrupt.Value = true;
-                        UpdateInterrupts();
-                        RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.RxOverflow);
-                    }
-                }
-                else if(descriptor.IncludeCrc.Value)
-                {
-                    var crc = currentFrame.Skip((int)currentFrameOffset).Take((int)CRC_CrcWidth).ToArray();
-                    // TODO: Check CRC
-                    // FRC_frameErrorInterrupt.Value |= crc check failed
-                    currentFrameOffset += (uint)crc.Length;
-                    if(crc.Length != CRC_CrcWidth)
-                    {
-                        this.Log(LogLevel.Error, "frame too small, crc");
-                    }
-                    if(dynamicFrameLength && FRC_dynamicFrameCrcIncluded.Value)
-                    {
-                        FRC_wordCounter.Value += (uint)crc.Length;
-                    }
-                    if(FRC_rxStoreCrc.Value)
-                    {
-                        if(!BUFC_buffer[descriptor.BufferIndex].TryWriteBytes(crc, out written))
-                        {
-                            this.Log(LogLevel.Error, "Written only {0} bytes from {1}", written, crc.Length);
-                            if(BUFC_buffer[descriptor.BufferIndex].Overflow.Value)
-                            {
-                                FRC_rxOverflowInterrupt.Value = true;
-                                FRC_seqRxOverflowInterrupt.Value = true;
-                                UpdateInterrupts();
-                                RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.RxOverflow);
-                            }
-                        }
-                    }
-                }
-
-                // Select next frame descriptor
-                switch(FRC_rxFrameDescriptorMode.Value)
-                {
-                case FRC_FrameDescriptorMode.FrameDescriptorMode0:
-                case FRC_FrameDescriptorMode.FrameDescriptorMode3:
-                    break;
-                case FRC_FrameDescriptorMode.FrameDescriptorMode1:
-                    FRC_ActiveReceiveFrameDescriptor = 2 + subframe % 2;
-                    break;
-                case FRC_FrameDescriptorMode.FrameDescriptorMode2:
-                    FRC_ActiveReceiveFrameDescriptor = 3;
-                    break;
-                }
-            }
-
-            // RX TRAIL DATA
-            {
-                // Appended ascending order of field's bit index
-                var descriptor = FRC_frameDescriptor[FRC_ActiveReceiveFrameDescriptor];
-                if(FRC_rxAppendRssi.Value)
-                {
-                    // AGC RSSI register value? or RSSIINT field?
-                    // RSSI value [...] represented as a signed 2-complement integer dB number.
-                    BUFC_buffer[descriptor.BufferIndex].WriteData = 0x0;
-                }
-                if(FRC_rxAppendStatus.Value)
-                {
-                    BUFC_buffer[descriptor.BufferIndex].WriteData = (forceCrcError) ? 0x00U : 0x80U;
-                }
-                if(FRC_rxAppendProtimerCc0base.Value)
-                {
-                    BUFC_buffer[descriptor.BufferIndex].WriteData = ((uint)PROTIMER_captureCompareChannel[0].BaseValue.Value & 0xFF);
-                    BUFC_buffer[descriptor.BufferIndex].WriteData = (((uint)PROTIMER_captureCompareChannel[0].BaseValue.Value >> 8) & 0xFF);
-                }
-                if(FRC_rxAppendProtimerCc0LowWrap.Value)
-                {
-                    BUFC_buffer[descriptor.BufferIndex].WriteData = ((uint)PROTIMER_captureCompareChannel[0].WrapValue.Value & 0xFF);
-                    BUFC_buffer[descriptor.BufferIndex].WriteData = (((uint)PROTIMER_captureCompareChannel[0].WrapValue.Value >> 8) & 0xFF);
-                }
-                if(FRC_rxAppendProtimerCc0HighWrap.Value)
-                {
-                    BUFC_buffer[descriptor.BufferIndex].WriteData = (((uint)PROTIMER_captureCompareChannel[0].WrapValue.Value >> 16) & 0xFF);
-                    BUFC_buffer[descriptor.BufferIndex].WriteData = (((uint)PROTIMER_captureCompareChannel[0].WrapValue.Value >> 24) & 0xFF);
-                }
-            }
-
-            // Prepare for next frame
-            switch(FRC_rxFrameDescriptorMode.Value)
+        // Descriptor sequencing within a frame, per the FCD modes in the design book: mode 0 always uses the
+        // low descriptor of the pair, mode 3 always the high one, mode 1 alternates between them, and mode 2
+        // uses the low descriptor for the first subframe and the high one for all the remaining subframes.
+        // 'firstDescriptor' selects the pair (FCD0/FCD1 for TX, FCD2/FCD3 for RX) and 'completedSubframes' is
+        // the number of subframes already handled in the frame, so passing 0 yields the descriptor a frame
+        // starts on.
+        private int FRC_SequenceFrameDescriptor(FRC_FrameDescriptorMode mode, int firstDescriptor, int completedSubframes)
+        {
+            switch(mode)
             {
             case FRC_FrameDescriptorMode.FrameDescriptorMode0:
+                return firstDescriptor;
             case FRC_FrameDescriptorMode.FrameDescriptorMode1:
+                return firstDescriptor + (completedSubframes % 2);
             case FRC_FrameDescriptorMode.FrameDescriptorMode2:
-                FRC_ActiveReceiveFrameDescriptor = 2;
-                break;
+                return firstDescriptor + ((completedSubframes > 0) ? 1 : 0);
             case FRC_FrameDescriptorMode.FrameDescriptorMode3:
-                FRC_ActiveReceiveFrameDescriptor = 3;
-                break;
+                return firstDescriptor + 1;
+            default:
+                this.Log(LogLevel.Error, "Invalid FCD mode ({0}).", mode);
+                return firstDescriptor;
             }
-
-            this.Log(LogLevel.Noisy, "Frame disassembled, frame descriptor now is {0}", FRC_ActiveReceiveFrameDescriptor);
         }
 
-        private DoubleWordRegisterCollection BuildSynthesizerRegistersCollection()
+        // Resets WCNT at the start of a frame. A compare channel programmed to 0 matches immediately, which is
+        // the usual setting for LENGTHFIELDLOC when the length field is the first word of the frame.
+        private void FRC_ResetWordCounter()
         {
-            var registerDictionary = new Dictionary<long, DoubleWordRegister>
+            FRC_wordCounter.Value = 0;
+            FRC_UpdateWordCounterCompareInterrupts(0, 0);
+        }
+
+        // Advances WCNT by a number of words and raises the compare interrupts of every value the counter
+        // reaches on the way. Frame assembly and disassembly move WCNT a subframe or a fragment at a time rather
+        // than word by word, so a single advance can cross several compare values.
+        private void FRC_AdvanceWordCounter(uint words)
+        {
+            var previous = (uint)FRC_wordCounter.Value;
+            FRC_wordCounter.Value = previous + words;
+            FRC_UpdateWordCounterCompareInterrupts(previous + 1, previous + words);
+        }
+
+        // The WCNT compare channels hold FRAMELENGTH, LENGTHFIELDLOC and ADDRFIELDLOC, and their flags let
+        // software (or the sequencer) act on the corresponding frame boundary: the end of the frame, the arrival
+        // of the length field, and the arrival of the address field -- the last one doubling as a "N bytes
+        // received" trigger for software frame filtering when hardware address filtering is not used.
+        private void FRC_UpdateWordCounterCompareInterrupts(uint firstWordReached, uint lastWordReached)
+        {
+            var compareValues = new uint[]
             {
-                // We currently store the logical channel in the channel spacing register for PTI/debug
-                {(long)SynthesizerRegisters.ChannelSpacing, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, valueProviderCallback: _ => (ulong)Channel, writeCallback: (_, value) => { Channel = (int)value; }, name: "CHSP")
-                    .WithReservedBits(16, 15)
-                },
+                (uint)FRC_frameLength.Value,
+                (uint)FRC_lengthFieldLocation.Value,
+                (uint)FRC_addressFieldLocation.Value,
             };
 
-            return new DoubleWordRegisterCollection(this, registerDictionary);
+            var raised = false;
+            for(var channel = 0; channel < FRC_NumberOfWordCounterCompareChannels; ++channel)
+            {
+                if(compareValues[channel] < firstWordReached || compareValues[channel] > lastWordReached)
+                {
+                    continue;
+                }
+
+                FRC_wordCounterCompareInterrupt[channel].Value = true;
+                FRC_seqWordCounterCompareInterrupt[channel].Value = true;
+                raised = true;
+            }
+
+            if(raised)
+            {
+                UpdateInterrupts();
+            }
         }
 
-        private void FRC_SaveRxDescriptorsBufferWriteOffset()
+        // FRC_FCDn.EXCLUDESUBFRAMEWCNT keeps a subframe's words out of the word counter, so that FRAMELENGTH and
+        // LENGTHFIELDLOC do not count them -- the register description gives the sync word sent as the first
+        // subframe as the example. Such a subframe is bounded by WORDS alone, which makes the unlimited WORDS
+        // sentinel (0xFF, "the rest of the frame") meaningless: it would never terminate, so it is reported and
+        // the subframe is counted normally instead.
+        private bool FRC_SubframeExcludedFromWordCounter(FRC_FrameDescriptor descriptor, int index)
         {
-            // Descriptors 2 and 3 are used for RX.
-            BUFC_buffer[FRC_frameDescriptor[2].BufferIndex].UpdateWriteStartOffset();
-            BUFC_buffer[FRC_frameDescriptor[3].BufferIndex].UpdateWriteStartOffset();
+            if(!descriptor.ExcludeSubframeFromWcnt.Value)
+            {
+                return false;
+            }
+
+            if(descriptor.UnlimitedWords)
+            {
+                this.Log(LogLevel.Error, "FCD{0} sets EXCLUDESUBFRAMEWCNT together with an unlimited WORDS, counting the subframe in WCNT instead.", index);
+                return false;
+            }
+
+            return true;
+        }
+
+        // True when frame descriptor 'index' is the dedicated leading sync FCD of the BLE LE Coded layout rather
+        // than a payload descriptor: the sync word travels in the data stream (SYNCDATA=1) yet is emitted through
+        // the modulator sync path because the FRC generates the access address for the demodulator in RXSEARCH
+        // (Linecode), TXFCDMODE=2 (FCD0 once, then FCD1...), and the subframe is CRC-less with a length equal to
+        // the sync word.
+        private bool FRC_TxLeadingSyncDescriptor(int index)
+        {
+            return index == 0
+                   && MODEM_syncData.Value
+                   && MODEM_GetRadioSymbolCoding() == RadioSymbolCoding.Linecode
+                   && FRC_txFrameDescriptorMode.Value == FRC_FrameDescriptorMode.FrameDescriptorMode2
+                   && !FRC_frameDescriptor[0].IncludeCrc.Value
+                   && FRC_frameDescriptor[0].Words == MODEM_SyncWordBytes;
+        }
+
+        // True when the leading descriptor of a frame cannot contribute any transmit words of its own, so
+        // hardware moves straight on to the next descriptor in the FCD sequence. Two cases occur in practice:
+        // the descriptor holds the BLE LE Coded access address, which the modulator sync path emits instead, or
+        // the PHY points it at a BUFC buffer the stack never fills because both the payload and the dynamic
+        // length field live in the next descriptor's buffer. This only applies while resolving the first
+        // descriptor of a frame: an empty buffer encountered once assembly is under way is a real underflow.
+        private bool FRC_TxLeadingDescriptorContributesNoData(int index)
+        {
+            return FRC_TxLeadingSyncDescriptor(index)
+                   || bufferController.BytesAvailable(FRC_frameDescriptor[index].BufferIndex) == 0;
+        }
+
+        // Advances the active TX descriptor past any leading descriptors that contribute no data, so that both
+        // the dynamic frame length decoding and the subframe loop start at the descriptor which actually holds
+        // the frame. Bounded by the number of descriptors so a mode that cycles between them cannot spin.
+        private void FRC_ResolveLeadingTransmitFrameDescriptor()
+        {
+            for(var skipped = 0; skipped < FRC_NumberOfFrameDescriptors; ++skipped)
+            {
+                var current = FRC_ActiveTransmitFrameDescriptor;
+                if(!FRC_TxLeadingDescriptorContributesNoData(current))
+                {
+                    return;
+                }
+
+                var next = FRC_SequenceFrameDescriptor(FRC_txFrameDescriptorMode.Value, FRC_FirstTransmitFrameDescriptor, skipped + 1);
+                if(next == current)
+                {
+                    return;
+                }
+
+                this.Log(LogLevel.Debug, "FRC assemble: FCD{0} contributes no data, starting the frame at FCD{1}", current, next);
+                FRC_ActiveTransmitFrameDescriptor = next;
+            }
+        }
+
+        // RX counterpart of FRC_TxLeadingSyncDescriptor: the sync word travels in the data stream (SYNCDATA=1)
+        // but the Demodulator has already removed it before the FRC sees the frame, so a leading descriptor that
+        // only describes that sync word must not consume payload bytes into its buffer. Hardware marks such a
+        // subframe by keeping it out of the word counter (FRC_FCDn.EXCLUDESUBFRAMEWCNT names this exact case) or,
+        // for BLE LE Coded, by having the FRC generate the access address itself.
+        private bool FRC_RxLeadingSyncDescriptor(int index)
+        {
+            if(index != FRC_FirstReceiveFrameDescriptor
+               || FRC_rxFrameDescriptorMode.Value != FRC_FrameDescriptorMode.FrameDescriptorMode2
+               || !MODEM_syncData.Value)
+            {
+                return false;
+            }
+
+            var descriptor = FRC_frameDescriptor[index];
+            return !descriptor.IncludeCrc.Value
+                   && descriptor.Words == MODEM_SyncWordBytes
+                   && (descriptor.ExcludeSubframeFromWcnt.Value
+                       || MODEM_GetRadioSymbolCoding() == RadioSymbolCoding.Linecode);
+        }
+
+        // Advances the active RX descriptor past a leading descriptor that receives nothing, so the first
+        // payload bytes are written to the buffer that is meant to hold them. Bounded like the transmit
+        // counterpart so a mode that cycles between descriptors cannot spin.
+        private void FRC_ResolveLeadingReceiveFrameDescriptor()
+        {
+            for(var skipped = 0; skipped < FRC_NumberOfFrameDescriptors; ++skipped)
+            {
+                var current = FRC_ActiveReceiveFrameDescriptor;
+                if(!FRC_RxLeadingSyncDescriptor(current))
+                {
+                    return;
+                }
+
+                var next = FRC_SequenceFrameDescriptor(FRC_rxFrameDescriptorMode.Value, FRC_FirstReceiveFrameDescriptor, skipped + 1);
+                if(next == current)
+                {
+                    return;
+                }
+
+                this.Log(LogLevel.Debug, "FRC disassemble: FCD{0} receives no data, starting the frame at FCD{1}", current, next);
+                FRC_ActiveReceiveFrameDescriptor = next;
+            }
         }
 
         private byte[] FRC_AssembleFrame()
         {
             var frame = Enumerable.Empty<byte>();
 
-            // MODEM_CONTROL1->SYNCDATA Defines if the sync word is part of the transmit payload or not.
-            // If not, modulator adds SYNC in transmit.
-            if(!MODEM_syncData.Value)
+            // Per the FRC design the FRC operates on payload data only: insertion of the sync word on the
+            // transmit path is owned by the Modulator (and removal on RX by the Demodulator). This model
+            // represents that modulator sync insertion by emitting the sync word as a prefix here, and
+            // the RX side correspondingly checks/strips MODEM_SyncWordBytes.
+            //
+            // MODEM_CONTROL1->SYNCDATA selects how the sync reaches the air: SYNCDATA=0 means the modulator
+            // inserts it (so it is not in the FRC buffer), while SYNCDATA=1 means it is carried within the data
+            // stream. BLE LE Coded ("LongRange" / "Linecode") uses SYNCDATA=1 but is the documented special case:
+            // in RXSEARCH the FRC itself generates the access address for the demodulator, so the coded TX PHY 
+            // is programmed with a dedicated leading sync FCD ahead of the payload FCD. We still surface the
+            // access address through the modulator sync path below, so it is emitted exactly once.
+            var prependSync = !MODEM_syncData.Value || MODEM_GetRadioSymbolCoding() == RadioSymbolCoding.Linecode;
+            if(prependSync)
             {
                 frame = frame.Concat(BitHelper.GetBytesFromValue(MODEM_TxSyncWord, (int)MODEM_SyncWordBytes, reverse: true));
             }
+
+            // The access address of the BLE LE Coded layout lives in a dedicated leading sync FCD, not in the
+            // payload, and a PHY may equally point the leading FCD at a buffer the stack never fills. Either way
+            // assembly must start at the descriptor that actually holds the frame instead of re-emitting the
+            // sync FCD as data or underflowing on an empty buffer. This also makes the dynamic length field and
+            // payload read from the payload buffer, matching the hardware WCNT / FRAMELENGTH which span the
+            // payload only (DFLOFFSET accounts for the PDU header, not the access address).
+            FRC_ResolveLeadingTransmitFrameDescriptor();
 
             var descriptor = FRC_frameDescriptor[FRC_ActiveTransmitFrameDescriptor];
             var frameLength = 0u;
@@ -2323,13 +4675,12 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 break;
             case FRC_DynamicFrameLengthMode.SingleByte:
             case FRC_DynamicFrameLengthMode.SingleByteMSB:
-                frameLength = BUFC_buffer[descriptor.BufferIndex].Peek((uint)FRC_lengthFieldLocation.Value);
+                frameLength = bufferController.Peek(descriptor.BufferIndex, (uint)FRC_lengthFieldLocation.Value);
                 break;
             case FRC_DynamicFrameLengthMode.DualByteLSBFirst:
             case FRC_DynamicFrameLengthMode.DualByteMSBFirst:
-                frameLength = ((BUFC_buffer[descriptor.BufferIndex].Peek((uint)FRC_lengthFieldLocation.Value + 1) << 8)
-                                          | (BUFC_buffer[descriptor.BufferIndex].Peek((uint)FRC_lengthFieldLocation.Value)));
-
+                frameLength = ((bufferController.Peek(descriptor.BufferIndex, (uint)FRC_lengthFieldLocation.Value + 1) << 8)
+                               | (bufferController.Peek(descriptor.BufferIndex, (uint)FRC_lengthFieldLocation.Value)));
                 break;
             default:
                 this.Log(LogLevel.Error, "Unimplemented DFL mode.");
@@ -2343,68 +4694,64 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 return new byte[0];
             }
 
-            FRC_wordCounter.Value = 0;
+            FRC_ResetWordCounter();
             for(var subframe = 0; FRC_wordCounter.Value < FRC_FrameLength; ++subframe)
             {
-                var crcLength = (descriptor.IncludeCrc.Value && dynamicFrameLength && FRC_dynamicFrameCrcIncluded.Value) ? CRC_CrcWidth : 0;
-                // Assemble subframe
-                var length = (uint)(FRC_FrameLength - FRC_wordCounter.Value);
-                if(descriptor.Words.HasValue)
+                // Per FRC_FCDn, INCLUDECRC is the bit that appends the calculated CRC after this subframe's
+                // data, while CALCCRC only selects whether the subframe feeds the CRC accumulator. A subframe
+                // is (WORDS+1) words excluding any CRC it includes, so the CRC is reserved out of the remaining
+                // FRAMELENGTH budget rather than out of WORDS, and only when DFLINCLUDECRC says FRAMELENGTH
+                // counts the CRC bytes at all.
+                var crcLength = descriptor.IncludeCrc.Value ? CRC_CrcWidth : 0;
+                var crcCountsInFrameLength = (crcLength > 0) && dynamicFrameLength && FRC_dynamicFrameCrcIncluded.Value;
+                var remaining = (uint)(FRC_FrameLength - FRC_wordCounter.Value);
+                if(crcCountsInFrameLength && remaining < crcLength)
                 {
-                    length = Math.Min(length, descriptor.Words.Value);
-                }
-
-                length -= crcLength;
-                if(length < 0)
-                {
-                    this.Log(LogLevel.Error, "adding crc would exceed DFL");
-                    this.Log(LogLevel.Error, "Failed to assemble a frame, partial frame: {0}", BitConverter.ToString(frame.ToArray()));
+                    this.Log(LogLevel.Error, "Failed to assemble a frame (CRC would exceed DFL), partial frame: {0}", BitConverter.ToString(frame.ToArray()));
                     return new byte[0];
                 }
-                if(!BUFC_buffer[descriptor.BufferIndex].TryReadBytes(length, out var payload))
+
+                var excludeFromWordCounter = FRC_SubframeExcludedFromWordCounter(descriptor, FRC_ActiveTransmitFrameDescriptor);
+                // Assemble subframe. An excluded subframe is sized by WORDS alone, since FRAMELENGTH does not
+                // account for its words.
+                var length = excludeFromWordCounter
+                             ? descriptor.Words
+                             : Math.Min(crcCountsInFrameLength ? (remaining - crcLength) : remaining, descriptor.Words);
+                if(!bufferController.TryReadBytes(descriptor.BufferIndex, length, out var payload))
                 {
-                    this.Log(LogLevel.Error, "Read only {0} bytes of {1}, total length={2}", payload.Length, length, FRC_FrameLength);
                     this.Log(LogLevel.Error, "Failed to assemble a frame, partial frame: {0}", BitConverter.ToString(frame.Concat(payload).ToArray()));
                     FRC_txUnderflowInterrupt.Value = true;
                     return new byte[0];
                 }
                 frame = frame.Concat(payload);
-                FRC_wordCounter.Value += length;
+                if(!excludeFromWordCounter)
+                {
+                    FRC_AdvanceWordCounter(length);
+                }
 
                 if(descriptor.IncludeCrc.Value)
                 {
                     frame = frame.Concat(CRC_CalculateCRC());
-                    FRC_wordCounter.Value += crcLength;
+                    if(crcCountsInFrameLength)
+                    {
+                        FRC_AdvanceWordCounter(crcLength);
+                    }
                 }
 
                 // Select next frame descriptor
-                switch(FRC_txFrameDescriptorMode.Value)
+                var nextDescriptor = FRC_SequenceFrameDescriptor(FRC_txFrameDescriptorMode.Value, FRC_FirstTransmitFrameDescriptor, subframe + 1);
+                if(excludeFromWordCounter && nextDescriptor == FRC_ActiveTransmitFrameDescriptor)
                 {
-                case FRC_FrameDescriptorMode.FrameDescriptorMode0:
-                case FRC_FrameDescriptorMode.FrameDescriptorMode3:
-                    break;
-                case FRC_FrameDescriptorMode.FrameDescriptorMode1:
-                    FRC_ActiveTransmitFrameDescriptor = subframe % 2;
-                    break;
-                case FRC_FrameDescriptorMode.FrameDescriptorMode2:
-                    FRC_ActiveTransmitFrameDescriptor = 1;
-                    break;
+                    this.Log(LogLevel.Error, "FCD{0} is excluded from WCNT but the FCD mode never advances past it, aborting frame assembly.",
+                             FRC_ActiveTransmitFrameDescriptor);
+                    return new byte[0];
                 }
+                FRC_ActiveTransmitFrameDescriptor = nextDescriptor;
                 descriptor = FRC_frameDescriptor[FRC_ActiveTransmitFrameDescriptor];
             }
 
             // Prepare for next frame
-            switch(FRC_txFrameDescriptorMode.Value)
-            {
-            case FRC_FrameDescriptorMode.FrameDescriptorMode0:
-            case FRC_FrameDescriptorMode.FrameDescriptorMode1:
-            case FRC_FrameDescriptorMode.FrameDescriptorMode2:
-                FRC_ActiveTransmitFrameDescriptor = 0;
-                break;
-            case FRC_FrameDescriptorMode.FrameDescriptorMode3:
-                FRC_ActiveTransmitFrameDescriptor = 1;
-                break;
-            }
+            FRC_ActiveTransmitFrameDescriptor = FRC_SequenceFrameDescriptor(FRC_txFrameDescriptorMode.Value, FRC_FirstTransmitFrameDescriptor, 0);
 
             this.Log(LogLevel.Noisy, "Frame assembled: {0}", BitConverter.ToString(frame.ToArray()));
             return frame.ToArray();
@@ -2432,1609 +4779,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
             UpdateInterrupts();
         }
 
-        private bool TrySyncTime()
-        {
-            if(machine.SystemBus.TryGetCurrentCPU(out var cpu))
-            {
-                cpu.SyncTime();
-                return true;
-            }
-            return false;
-        }
-
-        private bool SequencerIsRunning()
-        {
-            return (SeqOffIRQ.IsSet || SeqRxWarmIRQ.IsSet || SeqRxSearchIRQ.IsSet || SeqRxFrameIRQ.IsSet
-                    || SeqRxPoweringDownIRQ.IsSet || SeqRx2RxIRQ.IsSet || SeqRxOverflowIRQ.IsSet || SeqRx2TxIRQ.IsSet
-                    || SeqTxWarmIRQ.IsSet || SeqTxIRQ.IsSet || SeqTxPoweringDownIRQ.IsSet || SeqTx2RxIRQ.IsSet
-                    || SeqTx2TxIRQ.IsSet || SeqShutdownIRQ.IsSet);
-        }
-
-        private void Write<T>(DoubleWordRegisterCollection registersCollection, string regionName, long offset, uint value)
-        where T : struct, IComparable, IFormattable
-        {
-            machine.ClockSource.ExecuteInLock(delegate
-            {
-                long internal_offset = offset;
-                uint internal_value = value;
-
-                if(offset >= SetRegisterOffset && offset < ClearRegisterOffset)
-                {
-                    // Set register
-                    internal_offset = offset - SetRegisterOffset;
-                    uint old_value = Read<T>(registersCollection, regionName, internal_offset, true);
-                    internal_value = old_value | value;
-                    this.Log(LogLevel.Noisy, "SET Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}, SET_value=0x{3:X}, old_value=0x{4:X}, new_value=0x{5:X}", Enum.Format(typeof(T), internal_offset, "G"), offset, internal_offset, value, old_value, internal_value);
-                }
-                else if(offset >= ClearRegisterOffset && offset < ToggleRegisterOffset)
-                {
-                    // Clear register
-                    internal_offset = offset - ClearRegisterOffset;
-                    uint old_value = Read<T>(registersCollection, regionName, internal_offset, true);
-                    internal_value = old_value & ~value;
-                    this.Log(LogLevel.Noisy, "CLEAR Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}, CLEAR_value=0x{3:X}, old_value=0x{4:X}, new_value=0x{5:X}", Enum.Format(typeof(T), internal_offset, "G"), offset, internal_offset, value, old_value, internal_value);
-                }
-                else if(offset >= ToggleRegisterOffset)
-                {
-                    // Toggle register
-                    internal_offset = offset - ToggleRegisterOffset;
-                    uint old_value = Read<T>(registersCollection, regionName, internal_offset, true);
-                    internal_value = old_value ^ value;
-                    this.Log(LogLevel.Noisy, "TOGGLE Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}, TOGGLE_value=0x{3:X}, old_value=0x{4:X}, new_value=0x{5:X}", Enum.Format(typeof(T), internal_offset, "G"), offset, internal_offset, value, old_value, internal_value);
-                }
-
-                this.Log(LogLevel.Debug, "{0}: Write to {1} at offset 0x{2:X} ({3}), value 0x{4:X}",
-                        this.GetTime(), regionName, internal_offset, Enum.Format(typeof(T), internal_offset, "G"), internal_value);
-
-                if(!registersCollection.TryWrite(internal_offset, internal_value))
-                {
-                    this.Log(LogLevel.Debug, "Unhandled write to {0} at offset 0x{1:X} ({2}), value 0x{3:X}.", regionName, internal_offset, Enum.Format(typeof(T), internal_offset, "G"), internal_value);
-                    return;
-                }
-            });
-        }
-
-        private byte ReadByte<T>(DoubleWordRegisterCollection registersCollection, string regionName, long offset)
-        where T : struct, IComparable, IFormattable
-        {
-            int byteOffset = (int)(offset & 0x3);
-            // TODO: single byte reads are treated as internal reads for now to avoid flooding the log during debugging.
-            uint registerValue = Read<T>(registersCollection, regionName, offset - byteOffset, true);
-            byte result = (byte)((registerValue >> byteOffset*8) & 0xFF);
-            return result;
-        }
-
-        private uint Read<T>(DoubleWordRegisterCollection registersCollection, string regionName, long offset, bool internal_read = false)
-        where T : struct, IComparable, IFormattable
-        {
-            var result = 0U;
-            long internal_offset = offset;
-
-            // Set, Clear, Toggle registers should only be used for write operations. But just in case we convert here as well.
-            if(offset >= SetRegisterOffset && offset < ClearRegisterOffset)
-            {
-                // Set register
-                internal_offset = offset - SetRegisterOffset;
-                if(!internal_read)
-                {
-                    this.Log(LogLevel.Noisy, "SET Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}", Enum.Format(typeof(T), internal_offset, "G"), offset, internal_offset);
-                }
-            }
-            else if(offset >= ClearRegisterOffset && offset < ToggleRegisterOffset)
-            {
-                // Clear register
-                internal_offset = offset - ClearRegisterOffset;
-                if(!internal_read)
-                {
-                    this.Log(LogLevel.Noisy, "CLEAR Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}", Enum.Format(typeof(T), internal_offset, "G"), offset, internal_offset);
-                }
-            }
-            else if(offset >= ToggleRegisterOffset)
-            {
-                // Toggle register
-                internal_offset = offset - ToggleRegisterOffset;
-                if(!internal_read)
-                {
-                    this.Log(LogLevel.Noisy, "TOGGLE Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}", Enum.Format(typeof(T), internal_offset, "G"), offset, internal_offset);
-                }
-            }
-
-            if(!registersCollection.TryRead(internal_offset, out result))
-            {
-                if(!internal_read)
-                {
-                    this.Log(LogLevel.Noisy, "Unhandled read from {0} at offset 0x{1:X} ({2}).", regionName, internal_offset, Enum.Format(typeof(T), internal_offset, "G"));
-                }
-            }
-            else
-            {
-                if(!internal_read)
-                {
-                    this.Log(LogLevel.Noisy, "{0}: Read from {1} at offset 0x{2:X} ({3}), returned 0x{4:X}",
-                             this.GetTime(), regionName, internal_offset, Enum.Format(typeof(T), internal_offset, "G"), result);
-                }
-            }
-
-            return result;
-        }
-
-        private DoubleWordRegisterCollection BuildRadioMailboxRegistersCollection()
-        {
-            var registerDictionary = new Dictionary<long, DoubleWordRegister>
-            {
-                {(long)RadioMailboxRegisters.MessagePointer0, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out RFMAILBOX_messagePointer[0], name: "MSGPTR0")
-                },
-                {(long)RadioMailboxRegisters.MessagePointer1, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out RFMAILBOX_messagePointer[1], name: "MSGPTR1")
-                },
-                {(long)RadioMailboxRegisters.MessagePointer2, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out RFMAILBOX_messagePointer[2], name: "MSGPTR2")
-                },
-                {(long)RadioMailboxRegisters.MessagePointer3, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out RFMAILBOX_messagePointer[3], name: "MSGPTR3")
-                },
-                {(long)RadioMailboxRegisters.InterruptFlags, new DoubleWordRegister(this)
-                    .WithFlag(0, out RFMAILBOX_messageInterrupt[0], name: "MBOXIF0")
-                    .WithFlag(1, out RFMAILBOX_messageInterrupt[1], name: "MBOXIF1")
-                    .WithFlag(2, out RFMAILBOX_messageInterrupt[2], name: "MBOXIF2")
-                    .WithFlag(3, out RFMAILBOX_messageInterrupt[3], name: "MBOXIF3")
-                    .WithReservedBits(4, 28)
-                    .WithChangeCallback((_, __) => UpdateInterrupts())
-                },
-                {(long)HostMailboxRegisters.InterruptEnable, new DoubleWordRegister(this)
-                    .WithFlag(0, out RFMAILBOX_messageInterruptEnable[0], name: "MBOXIEN0")
-                    .WithFlag(1, out RFMAILBOX_messageInterruptEnable[1], name: "MBOXIEN1")
-                    .WithFlag(2, out RFMAILBOX_messageInterruptEnable[2], name: "MBOXIEN2")
-                    .WithFlag(3, out RFMAILBOX_messageInterruptEnable[3], name: "MBOXIEN3")
-                    .WithReservedBits(4, 28)
-                    .WithChangeCallback((_, __) => UpdateInterrupts())
-                },
-            };
-
-            return new DoubleWordRegisterCollection(this, registerDictionary);
-        }
-
-        private DoubleWordRegisterCollection BuildHostMailboxRegistersCollection()
-        {
-            var registerDictionary = new Dictionary<long, DoubleWordRegister>
-            {
-                {(long)HostMailboxRegisters.MessagePointer0, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out HOSTMAILBOX_messagePointer[0], name: "MSGPTR0")
-                },
-                {(long)HostMailboxRegisters.MessagePointer1, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out HOSTMAILBOX_messagePointer[1], name: "MSGPTR1")
-                },
-                {(long)HostMailboxRegisters.MessagePointer2, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out HOSTMAILBOX_messagePointer[2], name: "MSGPTR2")
-                },
-                {(long)HostMailboxRegisters.MessagePointer3, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out HOSTMAILBOX_messagePointer[3], name: "MSGPTR3")
-                },
-                {(long)HostMailboxRegisters.InterruptFlags, new DoubleWordRegister(this)
-                    .WithFlag(0, out HOSTMAILBOX_messageInterrupt[0], name: "MBOXIF0")
-                    .WithFlag(1, out HOSTMAILBOX_messageInterrupt[1], name: "MBOXIF1")
-                    .WithFlag(2, out HOSTMAILBOX_messageInterrupt[2], name: "MBOXIF2")
-                    .WithFlag(3, out HOSTMAILBOX_messageInterrupt[3], name: "MBOXIF3")
-                    .WithReservedBits(4, 28)
-                    .WithChangeCallback((_, __) => UpdateInterrupts())
-                },
-                {(long)HostMailboxRegisters.InterruptEnable, new DoubleWordRegister(this)
-                    .WithFlag(0, out HOSTMAILBOX_messageInterruptEnable[0], name: "MBOXIEN0")
-                    .WithFlag(1, out HOSTMAILBOX_messageInterruptEnable[1], name: "MBOXIEN1")
-                    .WithFlag(2, out HOSTMAILBOX_messageInterruptEnable[2], name: "MBOXIEN2")
-                    .WithFlag(3, out HOSTMAILBOX_messageInterruptEnable[3], name: "MBOXIEN3")
-                    .WithReservedBits(4, 28)
-                    .WithChangeCallback((_, __) => UpdateInterrupts())
-                },
-            };
-
-            return new DoubleWordRegisterCollection(this, registerDictionary);
-        }
-
-        private DoubleWordRegisterCollection BuildAutomaticGainControlRegistersCollection()
-        {
-            var registerDictionary = new Dictionary<long, DoubleWordRegister>
-            {
-                {(long)AutomaticGainControlRegisters.Status0, new DoubleWordRegister(this)
-                    .WithTag("GAININDEX", 0, 6)
-                    .WithTaggedFlag("RFPKDLOWLAT", 6)
-                    .WithTaggedFlag("RFPKDHILAT", 7)
-                    .WithTaggedFlag("IFPKDLOLAT", 8)
-                    .WithTaggedFlag("IFPKDHILAT", 9)
-                    .WithFlag(10, out AGC_cca, FieldMode.Read, name: "CCA")
-                    .WithTaggedFlag("GAINOK", 11)
-                    .WithTag("PGAINDEX", 12, 4)
-                    .WithTag("LNAINDEX", 16, 4)
-                    .WithTag("PNIINDEX", 20, 5)
-                    .WithTag("ADCINDEX", 25, 2)
-                    .WithReservedBits(27, 5)
-                },
-                {(long)AutomaticGainControlRegisters.Status1, new DoubleWordRegister(this)
-                    .WithTag("CHPWR", 0, 8)
-                    .WithReservedBits(8, 1)
-                    .WithTag("FASTLOOPSTATE", 9, 4)
-                    .WithTag("CFLOOPSTATE", 13, 2)
-                    .WithEnumField<DoubleWordRegister, AGC_RssiState>(15, 3, out AGC_rssiState, name: "RSSISTATE")
-                    .WithTag("CFLOOPSTATE", 18, 12)
-                    .WithReservedBits(30, 2)
-                },
-                {(long)AutomaticGainControlRegisters.InterruptFlags, new DoubleWordRegister(this)
-                  .WithFlag(0, out AGC_rssiValidInterrupt, name: "RSSIVALIDIF")
-                  .WithReservedBits(1, 1)
-                  .WithFlag(2, out AGC_ccaInterrupt, name: "CCAIF")
-                  .WithTaggedFlag("RSSIPOSSTEPIF", 3)
-                  .WithTaggedFlag("RSSINEGSTEPIF", 4)
-                  .WithFlag(5, out AGC_rssiDoneInterrupt, name: "RSSIDONEIF")
-                  .WithTaggedFlag("SHORTRSSIPOSSTEPIF", 6)
-                  .WithReservedBits(7, 1)
-                  .WithTaggedFlag("RFPKDPRDDONEIF", 8)
-                  .WithTaggedFlag("RFPKDCNTDONEIF", 9)
-                  .WithFlag(10, out AGC_rssiHighInterrupt, name: "RSSIHIGHIF")
-                  .WithFlag(11, out AGC_rssiLowInterrupt, name: "RSSILOWIF")
-                  .WithFlag(12, out AGC_ccaNotDetectedInterrupt, name: "CCANODETIF")
-                  .WithTaggedFlag("GAINBELOWGAINTHDIF", 13)
-                  .WithTaggedFlag("GAINUPDATEFRZIF", 14)
-                  .WithReservedBits(15, 17)
-                },
-                {(long)AutomaticGainControlRegisters.InterruptEnable, new DoubleWordRegister(this)
-                  .WithFlag(0, out AGC_rssiValidInterruptEnable, name: "RSSIVALIDIEN")
-                  .WithReservedBits(1, 1)
-                  .WithFlag(2, out AGC_ccaInterruptEnable, name: "CCAIEN")
-                  .WithTaggedFlag("RSSIPOSSTEPIEN", 3)
-                  .WithTaggedFlag("RSSINEGSTEPIEN", 4)
-                  .WithFlag(5, out AGC_rssiDoneInterruptEnable, name: "RSSIDONEIEN")
-                  .WithTaggedFlag("SHORTRSSIPOSSTEPIEN", 6)
-                  .WithReservedBits(7, 1)
-                  .WithTaggedFlag("RFPKDPRDDONEIEN", 8)
-                  .WithTaggedFlag("RFPKDCNTDONEIEN", 9)
-                  .WithFlag(10, out AGC_rssiHighInterruptEnable, name: "RSSIHIGHIEN")
-                  .WithFlag(11, out AGC_rssiLowInterruptEnable, name: "RSSILOWIEN")
-                  .WithFlag(12, out AGC_ccaNotDetectedInterruptEnable, name: "CCANODETIEN")
-                  .WithTaggedFlag("GAINBELOWGAINTHDIEN", 13)
-                  .WithTaggedFlag("GAINUPDATEFRZIEN", 14)
-                  .WithReservedBits(15, 17)
-                },
-                {(long)AutomaticGainControlRegisters.SequencerInterruptFlags, new DoubleWordRegister(this)
-                  .WithFlag(0, out AGC_seqRssiValidInterrupt, name: "RSSIVALIDSEQIF")
-                  .WithReservedBits(1, 1)
-                  .WithFlag(2, out AGC_seqCcaInterrupt, name: "CCASEQIF")
-                  .WithTaggedFlag("RSSIPOSSTEPSEQIF", 3)
-                  .WithTaggedFlag("RSSINEGSTEPSEQIF", 4)
-                  .WithFlag(5, out AGC_seqRssiDoneInterrupt, name: "RSSIDONESEQIF")
-                  .WithTaggedFlag("SHORTRSSIPOSSTEPSEQIF", 6)
-                  .WithReservedBits(7, 1)
-                  .WithTaggedFlag("RFPKDPRDDONESEQIF", 8)
-                  .WithTaggedFlag("RFPKDCNTDONESEQIF", 9)
-                  .WithFlag(10, out AGC_seqRssiHighInterrupt, name: "RSSIHIGHSEQIF")
-                  .WithFlag(11, out AGC_seqRssiLowInterrupt, name: "RSSILOWSEQIF")
-                  .WithFlag(12, out AGC_seqCcaNotDetectedInterrupt, name: "CCANODETSEQIF")
-                  .WithTaggedFlag("GAINBELOWGAINTHDSEQIF", 13)
-                  .WithTaggedFlag("GAINUPDATEFRZSEQIF", 14)
-                  .WithReservedBits(15, 17)
-                },
-                {(long)AutomaticGainControlRegisters.SequencerInterruptEnable, new DoubleWordRegister(this)
-                  .WithFlag(0, out AGC_seqRssiValidInterruptEnable, name: "RSSIVALIDSEQIEN")
-                  .WithReservedBits(1, 1)
-                  .WithFlag(2, out AGC_seqCcaInterruptEnable, name: "CCASEQIEN")
-                  .WithTaggedFlag("RSSIPOSSTEPSEQIEN", 3)
-                  .WithTaggedFlag("RSSINEGSTEPSEQIEN", 4)
-                  .WithFlag(5, out AGC_seqRssiDoneInterruptEnable, name: "RSSIDONESEQIEN")
-                  .WithTaggedFlag("SHORTRSSIPOSSTEPSEQIEN", 6)
-                  .WithReservedBits(7, 1)
-                  .WithTaggedFlag("RFPKDPRDDONESEQIEN", 8)
-                  .WithTaggedFlag("RFPKDCNTDONESEQIEN", 9)
-                  .WithFlag(10, out AGC_seqRssiHighInterruptEnable, name: "RSSIHIGHSEQIEN")
-                  .WithFlag(11, out AGC_seqRssiLowInterruptEnable, name: "RSSILOWSEQIEN")
-                  .WithFlag(12, out AGC_seqCcaNotDetectedInterruptEnable, name: "CCANODETSEQIEN")
-                  .WithTaggedFlag("GAINBELOWGAINTHDSEQIEN", 13)
-                  .WithTaggedFlag("GAINUPDATEFRZSEQIEN", 14)
-                  .WithReservedBits(15, 17)
-                },
-                {(long)AutomaticGainControlRegisters.ListenBeforeTalkConfiguration, new DoubleWordRegister(this)
-                  .WithValueField(0, 4, out AGC_ccaRssiPeriod, name: "CCARSSIPERIOD")
-                  .WithFlag(4, out AGC_ccaRssiPeriodEnable, name: "ENCCARSSIPERIOD")
-                  .WithTaggedFlag("ENCCAGAINREDUCED", 5)
-                  .WithTaggedFlag("ENCCARSSIMAX", 6)
-                  .WithReservedBits(7, 25)
-                },
-                {(long)AutomaticGainControlRegisters.Control0, new DoubleWordRegister(this, 0x2132727F)
-                    .WithTag("PWRTARGET", 0, 8)
-                    .WithTag("MODE", 8, 3)
-                    .WithValueField(11, 8, out AGC_rssiShift, name: "RSSISHIFT")
-                    .WithTaggedFlag("DISCFLOOPADJ", 19)
-                    .WithTaggedFlag("CFLOOPNFADJ", 20)
-                    .WithTaggedFlag("CFLOOPNEWCALC", 21)
-                    .WithTaggedFlag("DISRESETCHPWR", 22)
-                    .WithTaggedFlag("ADCATTENMODE", 23)
-                    .WithTaggedFlag("FENOTCHMODESEL", 24)
-                    .WithTag("ADCATTENCODE", 25, 2)
-                    .WithTaggedFlag("ENRSSIRESET", 27)
-                    .WithTaggedFlag("DSADISCFLOOP", 28)
-                    .WithTaggedFlag("DISPNGAINUP", 29)
-                    .WithTaggedFlag("DISPNDWNCOMP", 30)
-                    .WithTaggedFlag("AGCRST", 31)
-                },
-                {(long)AutomaticGainControlRegisters.Control1, new DoubleWordRegister(this, 0x00001300)
-                  .WithValueField(0, 8, out AGC_ccaThreshold, name: "CCATHRSH")
-                  .WithValueField(8, 4, out AGC_rssiMeasurePeriod, name: "RSSIPERIOD")
-                  .WithValueField(12, 3, out AGC_powerMeasurePeriod, name: "PWRPERIOD")
-                  .WithEnumField<DoubleWordRegister, AGC_CcaMode>(15, 2, out AGC_ccaMode, name: "CCAMODE")
-                  .WithEnumField<DoubleWordRegister, AGC_CcaMode3Logic>(17, 1, out AGC_ccaMode3Logic, name: "CCAMODE3LOGIC")
-                  .WithFlag(18, out AGC_ccaSoftwareControl, name: "CCASWCTRL")
-                  .WithReservedBits(19, 13)
-                },
-                {(long)AutomaticGainControlRegisters.Control7, new DoubleWordRegister(this)
-                  .WithTag("SUBDEN", 0, 8)
-                  .WithValueField(8, 8, out AGC_subPeriodInteger, name: "SUBINT")
-                  .WithTag("SUBNUM", 16, 8)
-                  .WithFlag(24, out AGC_subPeriod, name: "SUBPERIOD")
-                  .WithReservedBits(25, 7)
-                },
-                {(long)AutomaticGainControlRegisters.ReceivedSignalStrengthIndicator, new DoubleWordRegister(this, 0x00008000)
-                  .WithReservedBits(0, 6)
-                  .WithValueField(6, 2, FieldMode.Read, valueProviderCallback: _ => (uint)AGC_RssiFractionalPart, name: "RSSIFRAC")
-                  .WithValueField(8, 8, FieldMode.Read, valueProviderCallback: _ => (uint)AGC_RssiIntegerPartAdjusted, name: "RSSIINT")
-                  .WithReservedBits(16, 16)
-                },
-                {(long)AutomaticGainControlRegisters.FrameReceivedSignalStrengthIndicator, new DoubleWordRegister(this, 0x00008000)
-                  .WithReservedBits(0, 6)
-                  .WithValueField(6, 2, FieldMode.Read, valueProviderCallback: _ => (uint)AGC_FrameRssiFractionalPart, name: "FRAMERSSIFRAC")
-                  .WithValueField(8, 8, FieldMode.Read, valueProviderCallback: _ => (uint)AGC_FrameRssiIntegerPartAdjusted, name: "FRAMERSSIINT")
-                  .WithReservedBits(16, 16)
-                },
-                {(long)AutomaticGainControlRegisters.Command, new DoubleWordRegister(this)
-                  .WithFlag(0, FieldMode.Set, writeCallback: (_, value) => { if (value) {AGC_RssiStartCommand();} }, name: "RSSISTART")
-                  .WithReservedBits(1, 31)
-                },
-                {(long)AutomaticGainControlRegisters.ReceivedSignalStrengthIndicatorAbsoluteThreshold, new DoubleWordRegister(this)
-                  .WithValueField(0, 8, out AGC_rssiHighThreshold, name: "RSSIHIGHTHRSH")
-                  .WithValueField(8, 8, out AGC_rssiLowThreshold, name: "RSSILOWTHRSH")
-                  .WithTag("SIRSSIHIGHTHR", 16, 8)
-                  .WithTag("SIRSSINEGSTEPTHR", 24, 8)
-                },
-            };
-            return new DoubleWordRegisterCollection(this, registerDictionary);
-        }
-
-        private DoubleWordRegisterCollection BuildModulatorAndDemodulatorRegistersCollection()
-        {
-            var registerDictionary = new Dictionary<long, DoubleWordRegister>
-            {
-                {(long)ModulatorAndDemodulatorRegisters.InterruptFlags, new DoubleWordRegister(this, 0x00000008)
-                    .WithFlag(0, out MODEM_txFrameSentInterrupt, name: "TXFRAMESENTIF")
-                    .WithFlag(1, out MODEM_txSyncSentInterrupt, name: "TXSYNCSENTIF")
-                    .WithFlag(2, out MODEM_txPreambleSentInterrupt, name: "TXPRESENTIF")
-                    .WithFlag(3, FieldMode.Read, valueProviderCallback: _ => MODEM_TxRampingDoneInterrupt, name: "TXRAMPDONEIF")
-                    .WithTaggedFlag("LDTNOARRIF", 4)
-                    .WithTaggedFlag("PHDSADETIF", 5)
-                    .WithTaggedFlag("PHYUNCODEDETIF", 6)
-                    .WithTaggedFlag("PHYCODEDETIF", 7)
-                    .WithTaggedFlag("RXTIMDETIF", 8)
-                    .WithFlag(9, out MODEM_rxPreambleDetectedInterrupt, name: "RXPREDETIF")
-                    .WithFlag(10, out MODEM_rxFrameWithSyncWord0DetectedInterrupt, name: "RXFRAMEDET0IF")
-                    .WithFlag(11, out MODEM_rxFrameWithSyncWord1DetectedInterrupt, name: "RXFRAMEDET1IF")
-                    .WithTaggedFlag("RXTIMLOSTIF", 12)
-                    .WithFlag(13, out MODEM_rxPreambleLostInterrupt, name: "RXPRELOSTIF")
-                    .WithTaggedFlag("RXFRAMEDETOFIF", 14)
-                    .WithTaggedFlag("RXTIMNFIF", 15)
-                    .WithTaggedFlag("FRCTIMOUTIF", 16)
-                    .WithTaggedFlag("ETSIF", 17)
-                    .WithTaggedFlag("CFGANTPATTRDIF", 18)
-                    .WithTaggedFlag("RXRESTARTRSSIMAPREIF", 19)
-                    .WithTaggedFlag("RXRESTARTRSSIMASYNCIF", 20)
-                    .WithTaggedFlag("SQDETIF", 21)
-                    .WithTaggedFlag("SQNOTDETIF", 22)
-                    .WithTaggedFlag("ANTDIVRDYIF", 23)
-                    .WithTaggedFlag("SOFTRESETDONEIF", 24)
-                    .WithTaggedFlag("SQPRENOTDETIF", 25)
-                    .WithTaggedFlag("SQFRAMENOTDETIF", 26)
-                    .WithTaggedFlag("SQAFCOUTOFBANDIF", 27)
-                    .WithTaggedFlag("SIDETIF", 28)
-                    .WithTaggedFlag("SIRESETIF", 29)
-                    .WithReservedBits(30, 2)
-                    .WithChangeCallback((_, __) => UpdateInterrupts())
-                },
-                {(long)ModulatorAndDemodulatorRegisters.InterruptEnable, new DoubleWordRegister(this)
-                    .WithFlag(0, out MODEM_txFrameSentInterruptEnable, name: "TXFRAMESENTIEN")
-                    .WithFlag(1, out MODEM_txSyncSentInterruptEnable, name: "TXSYNCSENTIEN")
-                    .WithFlag(2, out MODEM_txPreambleSentInterruptEnable, name: "TXPRESENTIEN")
-                    .WithFlag(3, out MODEM_txRampingDoneInterruptEnable, name: "TXRAMPDONEIEN")
-                    .WithTaggedFlag("LDTNOARRIEN", 4)
-                    .WithTaggedFlag("PHDSADETIEN", 5)
-                    .WithTaggedFlag("PHYUNCODEDETIEN", 6)
-                    .WithTaggedFlag("PHYCODEDETIEN", 7)
-                    .WithTaggedFlag("RXTIMDETIEN", 8)
-                    .WithFlag(9, out MODEM_rxPreambleDetectedInterruptEnable, name: "RXPREDETIEN")
-                    .WithFlag(10, out MODEM_rxFrameWithSyncWord0DetectedInterruptEnable, name: "RXFRAMEDET0IEN")
-                    .WithFlag(11, out MODEM_rxFrameWithSyncWord1DetectedInterruptEnable, name: "RXFRAMEDET1IEN")
-                    .WithTaggedFlag("RXTIMLOSTIEN", 12)
-                    .WithFlag(13, out MODEM_rxPreambleLostInterruptEnable, name: "RXPRELOSTIEN")
-                    .WithTaggedFlag("RXFRAMEDETOFIEN", 14)
-                    .WithTaggedFlag("RXTIMNFIEN", 15)
-                    .WithTaggedFlag("FRCTIMOUTIEN", 16)
-                    .WithTaggedFlag("ETSIEN", 17)
-                    .WithTaggedFlag("CFGANTPATTRDIEN", 18)
-                    .WithTaggedFlag("RXRESTARTRSSIMAPREIEN", 19)
-                    .WithTaggedFlag("RXRESTARTRSSIMASYNCIEN", 20)
-                    .WithTaggedFlag("SQDETIEN", 21)
-                    .WithTaggedFlag("SQNOTDETIEN", 22)
-                    .WithTaggedFlag("ANTDIVRDYIEN", 23)
-                    .WithTaggedFlag("SOFTRESETDONEIEN", 24)
-                    .WithTaggedFlag("SQPRENOTDETIEN", 25)
-                    .WithTaggedFlag("SQFRAMENOTDETIEN", 26)
-                    .WithTaggedFlag("SQAFCOUTOFBANDIEN", 27)
-                    .WithTaggedFlag("SIDETIEN", 28)
-                    .WithTaggedFlag("SIRESETIEN", 29)
-                    .WithReservedBits(30, 2)
-                    .WithChangeCallback((_, __) => UpdateInterrupts())
-                },
-                {(long)ModulatorAndDemodulatorRegisters.SequencerInterruptFlags, new DoubleWordRegister(this, 0x00000008)
-                    .WithFlag(0, out MODEM_seqTxFrameSentInterrupt, name: "TXFRAMESENTSEQIF")
-                    .WithFlag(1, out MODEM_seqTxSyncSentInterrupt, name: "TXSYNCSENTSEQIF")
-                    .WithFlag(2, out MODEM_seqTxPreambleSentInterrupt, name: "TXPRESENTSEQIF")
-                    .WithFlag(3, FieldMode.Read, valueProviderCallback: _ => MODEM_TxRampingDoneInterrupt, name: "TXRAMPDONESEQIF")
-                    .WithTaggedFlag("LDTNOARRSEQIF", 4)
-                    .WithTaggedFlag("PHDSADETSEQIF", 5)
-                    .WithTaggedFlag("PHYUNCODEDETSEQIF", 6)
-                    .WithTaggedFlag("PHYCODEDETSEQIF", 7)
-                    .WithTaggedFlag("RXTIMDETSEQIF", 8)
-                    .WithFlag(9, out MODEM_seqRxPreambleDetectedInterrupt, name: "RXPREDETSEQIF")
-                    .WithFlag(10, out MODEM_seqRxFrameWithSyncWord0DetectedInterrupt, name: "RXFRAMEDET0SEQIF")
-                    .WithFlag(11, out MODEM_seqRxFrameWithSyncWord1DetectedInterrupt, name: "RXFRAMEDET1SEQIF")
-                    .WithTaggedFlag("RXTIMLOSTSEQIF", 12)
-                    .WithFlag(13, out MODEM_seqRxPreambleLostInterrupt, name: "RXPRELOSTSEQIF")
-                    .WithTaggedFlag("RXFRAMEDETOFSEQIF", 14)
-                    .WithTaggedFlag("RXTIMNFSEQIF", 15)
-                    .WithTaggedFlag("FRCTIMOUTSEQIF", 16)
-                    .WithTaggedFlag("ETSSEQIF", 17)
-                    .WithTaggedFlag("CFGANTPATTRDSEQIF", 18)
-                    .WithTaggedFlag("RXRESTARTRSSIMAPRESEQIF", 19)
-                    .WithTaggedFlag("RXRESTARTRSSIMASYNCSEQIF", 20)
-                    .WithTaggedFlag("SQDETSEQIF", 21)
-                    .WithTaggedFlag("SQNOTDETSEQIF", 22)
-                    .WithTaggedFlag("ANTDIVRDYSEQIF", 23)
-                    .WithTaggedFlag("SOFTRESETDONESEQIF", 24)
-                    .WithTaggedFlag("SQPRENOTDETSEQIF", 25)
-                    .WithTaggedFlag("SQFRAMENOTDETSEQIF", 26)
-                    .WithTaggedFlag("SQAFCOUTOFBANDSEQIF", 27)
-                    .WithTaggedFlag("SIDETSEQIF", 28)
-                    .WithTaggedFlag("SIRESETSEQIF", 29)
-                    .WithReservedBits(30, 2)
-                    .WithChangeCallback((_, __) => UpdateInterrupts())
-                },
-                {(long)ModulatorAndDemodulatorRegisters.SequencerInterruptEnable, new DoubleWordRegister(this)
-                    .WithFlag(0, out MODEM_seqTxFrameSentInterruptEnable, name: "TXFRAMESENTSEQIEN")
-                    .WithFlag(1, out MODEM_seqTxSyncSentInterruptEnable, name: "TXSYNCSENTSEQIEN")
-                    .WithFlag(2, out MODEM_seqTxPreambleSentInterruptEnable, name: "TXPRESENTSEQIEN")
-                    .WithFlag(3, out MODEM_seqTxRampingDoneInterruptEnable, name: "TXRAMPDONESEQIEN")
-                    .WithTaggedFlag("LDTNOARRSEQIEN", 4)
-                    .WithTaggedFlag("PHDSADETSEQIEN", 5)
-                    .WithTaggedFlag("PHYUNCODEDETSEQIEN", 6)
-                    .WithTaggedFlag("PHYCODEDETSEQIEN", 7)
-                    .WithTaggedFlag("RXTIMDETSEQIEN", 8)
-                    .WithFlag(9, out MODEM_seqRxPreambleDetectedInterruptEnable, name: "RXPREDETSEQIEN")
-                    .WithFlag(10, out MODEM_seqRxFrameWithSyncWord0DetectedInterruptEnable, name: "RXFRAMEDET0SEQIEN")
-                    .WithFlag(11, out MODEM_seqRxFrameWithSyncWord1DetectedInterruptEnable, name: "RXFRAMEDET1SEQIEN")
-                    .WithTaggedFlag("RXTIMLOSTSEQIEN", 12)
-                    .WithFlag(13, out MODEM_seqRxPreambleLostInterruptEnable, name: "RXPRELOSTSEQIEN")
-                    .WithTaggedFlag("RXFRAMEDETOFSEQIEN", 14)
-                    .WithTaggedFlag("RXTIMNFSEQIEN", 15)
-                    .WithTaggedFlag("FRCTIMOUTSEQIEN", 16)
-                    .WithTaggedFlag("ETSSEQIEN", 17)
-                    .WithTaggedFlag("CFGANTPATTRDSEQIEN", 18)
-                    .WithTaggedFlag("RXRESTARTRSSIMAPRESEQIEN", 19)
-                    .WithTaggedFlag("RXRESTARTRSSIMASYNCSEQIEN", 20)
-                    .WithTaggedFlag("SQDETSEQIEN", 21)
-                    .WithTaggedFlag("SQNOTDETSEQIEN", 22)
-                    .WithTaggedFlag("ANTDIVRDYSEQIEN", 23)
-                    .WithTaggedFlag("SOFTRESETDONESEQIEN", 24)
-                    .WithTaggedFlag("SQPRENOTDETSEQIEN", 25)
-                    .WithTaggedFlag("SQFRAMENOTDETSEQIEN", 26)
-                    .WithTaggedFlag("SQAFCOUTOFBANDSEQIEN", 27)
-                    .WithTaggedFlag("SIDETSEQIEN", 28)
-                    .WithTaggedFlag("SIRESETSEQIEN", 29)
-                    .WithReservedBits(30, 2)
-                    .WithChangeCallback((_, __) => UpdateInterrupts())
-                },
-                {(long)ModulatorAndDemodulatorRegisters.Control1, new DoubleWordRegister(this)
-                    .WithValueField(0, 5, out MODEM_syncBits, name: "SYNCBITS")
-                    .WithTag("SYNCERRORS", 5, 4)
-                    .WithFlag(9, out MODEM_dualSync, name: "DUALSYNC")
-                    .WithFlag(10, out MODEM_txSync, name: "TXSYNC")
-                    .WithFlag(11, out MODEM_syncData, name: "SYNCDATA")
-                    .WithTaggedFlag("SYNC1INV", 12)
-                    .WithReservedBits(13, 1)
-                    .WithTag("COMPMODE", 14, 2)
-                    .WithTag("RESYNCPER", 16, 4)
-                    .WithTag("PHASEDEMOD", 20, 2)
-                    .WithTag("FREQOFFESTPER", 22, 3)
-                    .WithTag("FREQOFFESTLIM", 25, 7)
-                },
-                {(long)ModulatorAndDemodulatorRegisters.Preamble, new DoubleWordRegister(this)
-                    .WithValueField(16, 16, out MODEM_txBases, name: "TXBASES")
-                    .WithTag("PREWNDERRORS", 14, 2)
-                    .WithTaggedFlag("PREAMBDETEN", 13)
-                    .WithTaggedFlag("SYNCSYMB4FSK", 12)
-                    .WithTaggedFlag("DSSSPRE", 11)
-                    .WithTag("PREERRORS", 7, 4)
-                    .WithTaggedFlag("PRESYMB4FSK", 6)
-                    .WithValueField(4, 2, out MODEM_baseBits, name: "BASEBITS")
-                    .WithTag("BASE", 0, 4)
-                },
-                {(long)ModulatorAndDemodulatorRegisters.SyncWord0, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out MODEM_syncWord0, name: "SYNC0")
-                },
-                {(long)ModulatorAndDemodulatorRegisters.SyncWord1, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out MODEM_syncWord1, name: "SYNC1")
-                },
-                {(long)ModulatorAndDemodulatorRegisters.Command, new DoubleWordRegister(this)
-                    .WithTaggedFlag("PRESTOP", 0)
-                    .WithTaggedFlag("CHPWRACCUCLR", 1)
-                    .WithReservedBits(2, 1)
-                    .WithTaggedFlag("AFCTXLOCK", 3)
-                    .WithTaggedFlag("AFCTXCLEAR", 4)
-                    .WithTaggedFlag("AFCRXCLEAR", 5)
-                    .WithReservedBits(6, 26)
-                },
-                {(long)ModulatorAndDemodulatorRegisters.Status, new DoubleWordRegister(this)
-                    .WithEnumField<DoubleWordRegister, MODEM_DemodulatorState>(0, 3, out MODEM_demodulatorState, FieldMode.Read, name: "DEMODSTATE")
-                    .WithTaggedFlag("BCRCFEDSADET", 3)
-                    .WithFlag(4, out MODEM_frameDetectedId, FieldMode.Read, name: "FRAMEDETID")
-                    .WithTaggedFlag("ANTSEL", 5)
-                    .WithTaggedFlag("TIMSEQINV", 6)
-                    .WithTaggedFlag("TIMLOSTCAUSE", 7)
-                    .WithTaggedFlag("DSADETECTED", 8)
-                    .WithTaggedFlag("DSAFREQESTDONE", 9)
-                    .WithTaggedFlag("VITERBIDEMODTIMDET", 10)
-                    .WithTaggedFlag("VITERBIDEMODFRAMEDET", 11)
-                    .WithTag("STAMPSTATE", 12, 3)
-                    .WithTaggedFlag("TRECSDSAADET", 15)
-                    .WithTag("CORR", 16, 8)
-                    .WithTag("WEAKSYMBOLS", 24, 8)
-                },
-                {(long)ModulatorAndDemodulatorRegisters.RampingControl, new DoubleWordRegister(this)
-                  .WithValueField(0, 4, out MODEM_rampRate0, name: "RAMPRATE0")
-                  .WithValueField(4, 4, out MODEM_rampRate1, name: "RAMPRATE1")
-                  .WithValueField(8, 4, out MODEM_rampRate2, name: "RAMPRATE2")
-                  .WithFlag(12, out MODEM_rampDisable, name: "RAMPDIS")
-                  .WithReservedBits(13, 3)
-                  .WithValueField(16, 8, out MODEM_rampValue, name: "RAMPVAL")
-                  .WithReservedBits(24, 8)
-                },
-                {(long)ModulatorAndDemodulatorRegisters.ViterbiDemodulator, new DoubleWordRegister(this)
-                    .WithFlag(0, out MODEM_viterbiDemodulatorEnable, name: "VTDEMODEN")
-                    .WithTaggedFlag("HARDDECISION", 1)
-                    .WithTag("VITERBIKSI1", 2, 7)
-                    .WithTag("VITERBIKSI2", 9, 7)
-                    .WithTag("VITERBIKSI3", 16, 7)
-                    .WithTaggedFlag("SYNTHAFC", 23)
-                    .WithTag("CORRCYCLE", 24, 4)
-                    .WithTag("CORRSTPSIZE", 28, 4)
-                },
-            };
-            return new DoubleWordRegisterCollection(this, registerDictionary);
-        }
-
-        private DoubleWordRegisterCollection BuildProtocolTimerRegistersCollection()
-        {
-            var registerDictionary = new Dictionary<long, DoubleWordRegister>
-            {
-                {(long)ProtocolTimerRegisters.Control, new DoubleWordRegister(this)
-                    .WithReservedBits(0, 1)
-                    .WithTaggedFlag("DEBUGRUN", 1)
-                    .WithTaggedFlag("DMACLRACT", 2)
-                    .WithReservedBits(3, 1)
-                    .WithTaggedFlag("OSMEN", 4)
-                    .WithTaggedFlag("ZEROSTARTEN", 5)
-                    .WithReservedBits(6, 2)
-                    .WithEnumField<DoubleWordRegister, PROTIMER_PreCounterSource>(8, 2, out PROTIMER_preCounterSource, changeCallback: (_, value) =>
-                        {
-                            switch(value)
-                            {
-                                case PROTIMER_PreCounterSource.None:
-                                    PROTIMER_Enabled = false;
-                                    break;
-                                case PROTIMER_PreCounterSource.Clock:
-                                    // wait for the start command to actually start the proTimer
-                                    break;
-                                default:
-                                    PROTIMER_Enabled = false;
-                                    this.Log(LogLevel.Error, "Invalid PRECNTSRC value");
-                                    break;
-                            }
-                        }, name: "PRECNTSRC")
-                    .WithReservedBits(10, 2)
-                    .WithEnumField<DoubleWordRegister, PROTIMER_BaseCounterSource>(12, 2, out PROTIMER_baseCounterSource, changeCallback: (_, value) =>
-                        {
-                            switch(value)
-                            {
-                                case PROTIMER_BaseCounterSource.Unused0:
-                                case PROTIMER_BaseCounterSource.Unused1:
-                                    this.Log(LogLevel.Error, "Invalid BASECNTSRC value");
-                                    break;
-                            }
-                        }, name: "BASECNTSRC")
-                    .WithReservedBits(14, 2)
-                    .WithEnumField<DoubleWordRegister, PROTIMER_WrapCounterSource>(16, 2, out PROTIMER_wrapCounterSource, changeCallback: (_, value) =>
-                        {
-                            switch(value)
-                            {
-                                case PROTIMER_WrapCounterSource.Unused:
-                                    this.Log(LogLevel.Error, "Invalid WRAPCNTSRC value");
-                                    break;
-                            }
-                        }, name: "WRAPCNTSRC")
-                    .WithReservedBits(18, 2)
-                    .WithEnumField<DoubleWordRegister, PROTIMER_TimeoutCounterSource>(20, 2, out PROTIMER_timeoutCounter[0].Source, name: "TOUT0SRC")
-                    .WithEnumField<DoubleWordRegister, PROTIMER_TimeoutCounterSource>(22, 2, out PROTIMER_timeoutCounter[0].SyncSource, name: "TOUT0SYNCSRC")
-                    .WithEnumField<DoubleWordRegister, PROTIMER_TimeoutCounterSource>(24, 2, out PROTIMER_timeoutCounter[1].Source, name: "TOUT1SRC")
-                    .WithEnumField<DoubleWordRegister, PROTIMER_TimeoutCounterSource>(26, 2, out PROTIMER_timeoutCounter[1].SyncSource, name: "TOUT1SYNCSRC")
-                    .WithEnumField<DoubleWordRegister, PROTIMER_RepeatMode>(28, 1, out PROTIMER_timeoutCounter[0].Mode, name: "TOUT0MODE")
-                    .WithEnumField<DoubleWordRegister, PROTIMER_RepeatMode>(29, 1, out PROTIMER_timeoutCounter[1].Mode, name: "TOUT1MODE")
-                    .WithReservedBits(30, 2)
-                },
-                {(long)ProtocolTimerRegisters.Command, new DoubleWordRegister(this)
-                    .WithFlag(0, FieldMode.Set, writeCallback: (_, value) => { if(PROTIMER_preCounterSource.Value == PROTIMER_PreCounterSource.Clock && value) { PROTIMER_Enabled = true;} }, name: "START")
-                    .WithTaggedFlag("RTCSYNCSTART", 1)
-                    .WithFlag(2, FieldMode.Set, writeCallback: (_, value) => { if(value) { PROTIMER_Enabled = false;} }, name: "STOP")
-                    .WithReservedBits(3, 1)
-                    .WithFlag(4, FieldMode.Set, writeCallback: (_, value) => { if(value) PROTIMER_timeoutCounter[0].Start(); }, name: "TOUT0START")
-                    .WithFlag(5, FieldMode.Set, writeCallback: (_, value) => { if(value) PROTIMER_timeoutCounter[0].Stop(); }, name: "TOUT0STOP")
-                    .WithFlag(6, FieldMode.Set, writeCallback: (_, value) => { if(value) PROTIMER_timeoutCounter[1].Start(); }, name: "TOUT1START")
-                    .WithFlag(7, FieldMode.Set, writeCallback: (_, value) => { if(value) PROTIMER_timeoutCounter[1].Stop(); }, name: "TOUT1STOP")
-                    .WithFlag(8, FieldMode.Set, writeCallback: (_, value) => { if(value) PROTIMER_txRequestState = PROTIMER_TxRxRequestState.Idle; RAC_UpdateRadioStateMachine(); }, name: "FORCETXIDLE")
-                    .WithFlag(9, FieldMode.Set, writeCallback: (_, value) => { if(value) PROTIMER_rxRequestState = PROTIMER_TxRxRequestState.Idle; RAC_UpdateRadioStateMachine(); }, name: "FORCERXIDLE")
-                    .WithTaggedFlag("FORCERXRX", 10)
-                    .WithReservedBits(11, 5)
-                    .WithFlag(16, FieldMode.Set, writeCallback: (_, value) => { if (value) PROTIMER_ListenBeforeTalkStartCommand(); }, name: "LBTSTART")
-                    .WithFlag(17, FieldMode.Set, writeCallback: (_, value) => { if (value) PROTIMER_ListenBeforeTalkPauseCommand(); }, name: "LBTPAUSE")
-                    .WithFlag(18, FieldMode.Set, writeCallback: (_, value) => { if(value) PROTIMER_ListenBeforeTalkStopCommand(); }, name: "LBTSTOP")
-                    .WithReservedBits(19, 13)
-                    .WithWriteCallback((_, __) => { PROTIMER_HandleChangedParams(); UpdateInterrupts(); })
-                },
-                {(long)ProtocolTimerRegisters.Status, new DoubleWordRegister(this)
-                    .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => PROTIMER_Enabled, name: "RUNNING")
-                    .WithFlag(1, out PROTIMER_listenBeforeTalkSync, FieldMode.Read, name: "LBTSYNC")
-                    .WithFlag(2, out PROTIMER_listenBeforeTalkRunning, FieldMode.Read, name: "LBTRUNNING")
-                    .WithFlag(3, out PROTIMER_listenBeforeTalkPaused, FieldMode.Read, name: "LBTPAUSED")
-                    .WithFlag(4, out PROTIMER_timeoutCounter[0].Running, FieldMode.Read, name: "TOUT0RUNNING")
-                    .WithFlag(5, out PROTIMER_timeoutCounter[0].Synchronizing, FieldMode.Read, name: "TOUT0SYNC")
-                    .WithFlag(6, out PROTIMER_timeoutCounter[1].Running, FieldMode.Read, name: "TOUT1RUNNING")
-                    .WithFlag(7, out PROTIMER_timeoutCounter[1].Synchronizing, FieldMode.Read, name: "TOUT1SYNC")
-                    .WithFlag(8, out PROTIMER_captureCompareChannel[0].CaptureValid, FieldMode.Read, name: "ICV0")
-                    .WithFlag(9, out PROTIMER_captureCompareChannel[1].CaptureValid, FieldMode.Read, name: "ICV1")
-                    .WithFlag(10, out PROTIMER_captureCompareChannel[2].CaptureValid, FieldMode.Read, name: "ICV2")
-                    .WithFlag(11, out PROTIMER_captureCompareChannel[3].CaptureValid, FieldMode.Read, name: "ICV3")
-                    .WithFlag(12, out PROTIMER_captureCompareChannel[4].CaptureValid, FieldMode.Read, name: "ICV4")
-                    .WithFlag(13, out PROTIMER_captureCompareChannel[5].CaptureValid, FieldMode.Read, name: "ICV5")
-                    .WithFlag(14, out PROTIMER_captureCompareChannel[6].CaptureValid, FieldMode.Read, name: "ICV6")
-                    .WithFlag(15, out PROTIMER_captureCompareChannel[7].CaptureValid, FieldMode.Read, name: "ICV7")
-                    .WithReservedBits(16, 16)
-                },
-                {(long)ProtocolTimerRegisters.PreCounterValue, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, valueProviderCallback: _ => PROTIMER_PreCounterValue, writeCallback: (_, value) => PROTIMER_PreCounterValue = (uint)value, name: "PRECNT")
-                    .WithReservedBits(16, 16)
-                    .WithWriteCallback((_, __) => PROTIMER_HandleChangedParams())
-                },
-                {(long)ProtocolTimerRegisters.BaseCounterValue, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, valueProviderCallback: _ => PROTIMER_BaseCounterValue, writeCallback: (_, value) => PROTIMER_BaseCounterValue = (ushort)value, name: "BASECNT")
-                    .WithReservedBits(16, 16)
-                    .WithWriteCallback((_, __) => PROTIMER_HandleChangedParams())
-                },
-                {(long)ProtocolTimerRegisters.WrapCounterValue, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, valueProviderCallback: _ =>  PROTIMER_WrapCounterValue, writeCallback: (_, value) => PROTIMER_WrapCounterValue = (uint)value, name: "WRAPCNT")
-                    .WithWriteCallback((_, __) => PROTIMER_HandleChangedParams())
-                },
-                {(long)ProtocolTimerRegisters.BaseAndPreCounterValues, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, FieldMode.Read, valueProviderCallback: _ => PROTIMER_PreCounterValue, name: "PRECNTV")
-                    .WithValueField(16, 16, FieldMode.Read, valueProviderCallback: _ => PROTIMER_BaseCounterValue, name: "BASECNTV")
-                    .WithWriteCallback((_, __) => PROTIMER_HandleChangedParams())
-                },
-                {(long)ProtocolTimerRegisters.PreCounterTopValue, new DoubleWordRegister(this, 0xFFFF00)
-                    .WithValueField(0, 8, out PROTIMER_preCounterTopFractional, name: "PRECNTTOPFRAC")
-                    .WithValueField(8, 16, out PROTIMER_preCounterTopInteger, name: "PRECNTTOP")
-                    .WithReservedBits(24, 8)
-                    .WithWriteCallback((_, __) => PROTIMER_HandleChangedParams())
-                },
-                {(long)ProtocolTimerRegisters.BaseCounterTopValue, new DoubleWordRegister(this, 0xFFFF)
-                    .WithValueField(0, 16, out PROTIMER_baseCounterTop, name: "BASECNTTOP")
-                    .WithReservedBits(16, 16)
-                    .WithWriteCallback((_, __) => PROTIMER_HandleChangedParams())
-                },
-                {(long)ProtocolTimerRegisters.WrapCounterTopValue, new DoubleWordRegister(this, 0xFFFFFFFF)
-                    .WithValueField(0, 32, out PROTIMER_wrapCounterTop, name: "WRAPCNTTOP")
-                    .WithWriteCallback((_, __) => PROTIMER_HandleChangedParams())
-                },
-                {(long)ProtocolTimerRegisters.LatchedWrapCounterValue, new DoubleWordRegister(this)
-                    .WithTag("LWRAPCNT", 0, 32)
-                },
-                {(long)ProtocolTimerRegisters.PreCounterTopAdjustValue, new DoubleWordRegister(this)
-                    .WithTag("PRECNTTOPADJ", 0, 16)
-                    .WithReservedBits(16, 16)
-                },
-                {(long)ProtocolTimerRegisters.Timeout0Counter, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, out PROTIMER_timeoutCounter[0].PreCounter, name: "TOUT0PCNT")
-                    .WithValueField(16, 16, out PROTIMER_timeoutCounter[0].Counter, name: "TOUT0CNT")
-                },
-                {(long)ProtocolTimerRegisters.Timeout0CounterTop, new DoubleWordRegister(this, 0x00FF00FF)
-                    .WithValueField(0, 16, out PROTIMER_timeoutCounter[0].PreCounterTop, name: "TOUT0CNTTOP")
-                    .WithValueField(16, 16, out PROTIMER_timeoutCounter[0].CounterTop, name: "TOUT0PCNTTOP")
-                },
-                {(long)ProtocolTimerRegisters.Timeout0Compare, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, out PROTIMER_timeoutCounter[0].PreCounterCompare, name: "TOUT0PCNTCOMP")
-                    .WithValueField(16, 16, out PROTIMER_timeoutCounter[0].CounterCompare, name: "TOUT0CNTCOMP")
-                },
-                {(long)ProtocolTimerRegisters.Timeout1Counter, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, out PROTIMER_timeoutCounter[1].PreCounter, name: "TOUT1PCNT")
-                    .WithValueField(16, 16, out PROTIMER_timeoutCounter[1].Counter, name: "TOUT1CNT")
-                },
-                {(long)ProtocolTimerRegisters.Timeout1CounterTop, new DoubleWordRegister(this, 0x00FF00FF)
-                    .WithValueField(0, 16, out PROTIMER_timeoutCounter[1].PreCounterTop, name: "TOUT1CNTTOP")
-                    .WithValueField(16, 16, out PROTIMER_timeoutCounter[1].CounterTop, name: "TOUT1PCNTTOP")
-                },
-                {(long)ProtocolTimerRegisters.Timeout1Compare, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, out PROTIMER_timeoutCounter[1].PreCounterCompare, name: "TOUT1PCNTCOMP")
-                    .WithValueField(16, 16, out PROTIMER_timeoutCounter[1].CounterCompare, name: "TOUT1CNTCOMP")
-                },
-                {(long)ProtocolTimerRegisters.InterruptFlags, new DoubleWordRegister(this)
-                    .WithFlag(0, out PROTIMER_preCounterOverflowInterrupt, name: "PRECNTOFIF")
-                    .WithFlag(1, out PROTIMER_baseCounterOverflowInterrupt, name: "BASECNTOFIF")
-                    .WithFlag(2, out PROTIMER_wrapCounterOverflowInterrupt, name: "WRAPCNTOFIF")
-                    .WithReservedBits(3, 1)
-                    .WithFlag(4, out PROTIMER_timeoutCounter[0].UnderflowInterrupt, name: "TOUT0IF")
-                    .WithFlag(5, out PROTIMER_timeoutCounter[1].UnderflowInterrupt, name: "TOUT1IF")
-                    .WithFlag(6, out PROTIMER_timeoutCounter[0].MatchInterrupt, name: "TOUT0MATCHIF")
-                    .WithFlag(7, out PROTIMER_timeoutCounter[1].MatchInterrupt, name: "TOUT1MATCHIF")
-                    .WithFlag(8, out PROTIMER_captureCompareChannel[0].InterruptFlag, name: "CC0IF")
-                    .WithFlag(9, out PROTIMER_captureCompareChannel[1].InterruptFlag, name: "CC1IF")
-                    .WithFlag(10, out PROTIMER_captureCompareChannel[2].InterruptFlag, name: "CC2IF")
-                    .WithFlag(11, out PROTIMER_captureCompareChannel[3].InterruptFlag, name: "CC3IF")
-                    .WithFlag(12, out PROTIMER_captureCompareChannel[4].InterruptFlag, name: "CC4IF")
-                    .WithFlag(13, out PROTIMER_captureCompareChannel[5].InterruptFlag, name: "CC5IF")
-                    .WithFlag(14, out PROTIMER_captureCompareChannel[6].InterruptFlag, name: "CC6IF")
-                    .WithFlag(15, out PROTIMER_captureCompareChannel[7].InterruptFlag, name: "CC7IF")
-                    .WithFlag(16, out PROTIMER_captureCompareChannel[0].OverflowInterrupt, name: "COF0IF")
-                    .WithFlag(17, out PROTIMER_captureCompareChannel[1].OverflowInterrupt, name: "COF1IF")
-                    .WithFlag(18, out PROTIMER_captureCompareChannel[2].OverflowInterrupt, name: "COF2IF")
-                    .WithFlag(19, out PROTIMER_captureCompareChannel[3].OverflowInterrupt, name: "COF3IF")
-                    .WithFlag(20, out PROTIMER_captureCompareChannel[4].OverflowInterrupt, name: "COF4IF")
-                    .WithFlag(21, out PROTIMER_captureCompareChannel[5].OverflowInterrupt, name: "COF5IF")
-                    .WithFlag(22, out PROTIMER_captureCompareChannel[6].OverflowInterrupt, name: "COF6IF")
-                    .WithFlag(23, out PROTIMER_captureCompareChannel[7].OverflowInterrupt, name: "COF7IF")
-                    .WithFlag(24, out PROTIMER_listenBeforeTalkSuccessInterrupt, name: "LBTSUCCESSIF")
-                    .WithFlag(25, out PROTIMER_listenBeforeTalkFailureInterrupt, name: "LBTFAILUREIF")
-                    .WithTaggedFlag("LBTPAUSEDIF", 26)
-                    .WithFlag(27, out PROTIMER_listenBeforeTalkRetryInterrupt, name: "LBTRETRYIF")
-                    .WithTaggedFlag("RTCCSYNCHEDIF", 28)
-                    .WithFlag(29, out PROTIMER_listenBeforeTalkTimeoutCounterMatchInterrupt, name: "TOUT0MATCHLBTIF")
-                    .WithReservedBits(30, 2)
-                    .WithChangeCallback((_, __) => UpdateInterrupts())
-                },
-                {(long)ProtocolTimerRegisters.InterruptEnable, new DoubleWordRegister(this)
-                    .WithFlag(0, out PROTIMER_preCounterOverflowInterruptEnable, name: "PRECNTOFIEN")
-                    .WithFlag(1, out PROTIMER_baseCounterOverflowInterruptEnable, name: "BASECNTOFIEN")
-                    .WithFlag(2, out PROTIMER_wrapCounterOverflowInterruptEnable, name: "WRAPCNTOFIEN")
-                    .WithReservedBits(3, 1)
-                    .WithFlag(4, out PROTIMER_timeoutCounter[0].UnderflowInterruptEnable, name: "TOUT0IEN")
-                    .WithFlag(5, out PROTIMER_timeoutCounter[1].UnderflowInterruptEnable, name: "TOUT1IEN")
-                    .WithFlag(6, out PROTIMER_timeoutCounter[0].MatchInterruptEnable, name: "TOUT0MATCHIEN")
-                    .WithFlag(7, out PROTIMER_timeoutCounter[1].MatchInterruptEnable, name: "TOUT1MATCHIEN")
-                    .WithFlag(8, out PROTIMER_captureCompareChannel[0].InterruptEnable, name: "CC0IEN")
-                    .WithFlag(9, out PROTIMER_captureCompareChannel[1].InterruptEnable, name: "CC1IEN")
-                    .WithFlag(10, out PROTIMER_captureCompareChannel[2].InterruptEnable, name: "CC2IEN")
-                    .WithFlag(11, out PROTIMER_captureCompareChannel[3].InterruptEnable, name: "CC3IEN")
-                    .WithFlag(12, out PROTIMER_captureCompareChannel[4].InterruptEnable, name: "CC4IEN")
-                    .WithFlag(13, out PROTIMER_captureCompareChannel[5].InterruptEnable, name: "CC5IEN")
-                    .WithFlag(14, out PROTIMER_captureCompareChannel[6].InterruptEnable, name: "CC6IEN")
-                    .WithFlag(15, out PROTIMER_captureCompareChannel[7].InterruptEnable, name: "CC7IEN")
-                    .WithFlag(16, out PROTIMER_captureCompareChannel[0].OverflowInterruptEnable, name: "COF0IEN")
-                    .WithFlag(17, out PROTIMER_captureCompareChannel[1].OverflowInterruptEnable, name: "COF1IEN")
-                    .WithFlag(18, out PROTIMER_captureCompareChannel[2].OverflowInterruptEnable, name: "COF2IEN")
-                    .WithFlag(19, out PROTIMER_captureCompareChannel[3].OverflowInterruptEnable, name: "COF3IEN")
-                    .WithFlag(20, out PROTIMER_captureCompareChannel[4].OverflowInterruptEnable, name: "COF4IEN")
-                    .WithFlag(21, out PROTIMER_captureCompareChannel[5].OverflowInterruptEnable, name: "COF5IEN")
-                    .WithFlag(22, out PROTIMER_captureCompareChannel[6].OverflowInterruptEnable, name: "COF6IEN")
-                    .WithFlag(23, out PROTIMER_captureCompareChannel[7].OverflowInterruptEnable, name: "COF7IEN")
-                    .WithFlag(24, out PROTIMER_listenBeforeTalkSuccessInterruptEnable, name: "LBTSUCCESSIEN")
-                    .WithFlag(25, out PROTIMER_listenBeforeTalkFailureInterruptEnable, name: "LBTFAILUREIEN")
-                    .WithTaggedFlag("LBTPAUSEDIEN", 26)
-                    .WithFlag(27, out PROTIMER_listenBeforeTalkRetryInterruptEnable, name: "LBTRETRYIEN")
-                    .WithTaggedFlag("RTCCSYNCHEDIEN", 28)
-                    .WithFlag(29, out PROTIMER_listenBeforeTalkTimeoutCounterMatchInterruptEnable, name: "TOUT0MATCHLBTIEN")
-                    .WithReservedBits(30, 2)
-                    .WithChangeCallback((_, __) => UpdateInterrupts())
-                },
-                {(long)ProtocolTimerRegisters.SequencerInterruptFlags, new DoubleWordRegister(this)
-                    .WithFlag(0, out PROTIMER_seqPreCounterOverflowInterrupt, name: "PRECNTOFSEQIF")
-                    .WithFlag(1, out PROTIMER_seqBaseCounterOverflowInterrupt, name: "BASECNTOFSEQIF")
-                    .WithFlag(2, out PROTIMER_seqWrapCounterOverflowInterrupt, name: "WRAPCNTOFSEQIF")
-                    .WithReservedBits(3, 1)
-                    .WithFlag(4, out PROTIMER_timeoutCounter[0].SeqUnderflowInterrupt, name: "TOUT0SEQIF")
-                    .WithFlag(5, out PROTIMER_timeoutCounter[1].SeqUnderflowInterrupt, name: "TOUT1SEQIF")
-                    .WithFlag(6, out PROTIMER_timeoutCounter[0].SeqMatchInterrupt, name: "TOUT0MATCHSEQIF")
-                    .WithFlag(7, out PROTIMER_timeoutCounter[1].SeqMatchInterrupt, name: "TOUT1MATCHSEQIF")
-                    .WithFlag(8, out PROTIMER_captureCompareChannel[0].SeqInterruptField, name: "CC0SEQIF")
-                    .WithFlag(9, out PROTIMER_captureCompareChannel[1].SeqInterruptField, name: "CC1SEQIF")
-                    .WithFlag(10, out PROTIMER_captureCompareChannel[2].SeqInterruptField, name: "CC2SEQIF")
-                    .WithFlag(11, out PROTIMER_captureCompareChannel[3].SeqInterruptField, name: "CC3SEQIF")
-                    .WithFlag(12, out PROTIMER_captureCompareChannel[4].SeqInterruptField, name: "CC4SEQIF")
-                    .WithFlag(13, out PROTIMER_captureCompareChannel[5].SeqInterruptField, name: "CC5SEQIF")
-                    .WithFlag(14, out PROTIMER_captureCompareChannel[6].SeqInterruptField, name: "CC6SEQIF")
-                    .WithFlag(15, out PROTIMER_captureCompareChannel[7].SeqInterruptField, name: "CC7SEQIF")
-                    .WithFlag(16, out PROTIMER_captureCompareChannel[0].SeqOverflowInterrupt, name: "COF0SEQIF")
-                    .WithFlag(17, out PROTIMER_captureCompareChannel[1].SeqOverflowInterrupt, name: "COF1SEQIF")
-                    .WithFlag(18, out PROTIMER_captureCompareChannel[2].SeqOverflowInterrupt, name: "COF2SEQIF")
-                    .WithFlag(19, out PROTIMER_captureCompareChannel[3].SeqOverflowInterrupt, name: "COF3SEQIF")
-                    .WithFlag(20, out PROTIMER_captureCompareChannel[4].SeqOverflowInterrupt, name: "COF4SEQIF")
-                    .WithFlag(21, out PROTIMER_captureCompareChannel[5].SeqOverflowInterrupt, name: "COF5SEQIF")
-                    .WithFlag(22, out PROTIMER_captureCompareChannel[6].SeqOverflowInterrupt, name: "COF6SEQIF")
-                    .WithFlag(23, out PROTIMER_captureCompareChannel[7].SeqOverflowInterrupt, name: "COF7SEQIF")
-                    .WithFlag(24, out PROTIMER_seqListenBeforeTalkSuccessInterrupt, name: "LBTSUCCESSSEQIF")
-                    .WithFlag(25, out PROTIMER_seqListenBeforeTalkFailureInterrupt, name: "LBTFAILURESEQIF")
-                    .WithTaggedFlag("LBTPAUSEDIF", 26)
-                    .WithFlag(27, out PROTIMER_seqListenBeforeTalkRetryInterrupt, name: "LBTRETRYSEQIF")
-                    .WithTaggedFlag("RTCCSYNCHEDSEQIF", 28)
-                    .WithFlag(29, out PROTIMER_seqListenBeforeTalkTimeoutCounterMatchInterrupt, name: "TOUT0MATCHLBTSEQIF")
-                    .WithReservedBits(30, 2)
-                    .WithChangeCallback((_, __) => UpdateInterrupts())
-                },
-                {(long)ProtocolTimerRegisters.SequencerInterruptEnable, new DoubleWordRegister(this)
-                    .WithFlag(0, out PROTIMER_seqPreCounterOverflowInterruptEnable, name: "PRECNTOFSEQIEN")
-                    .WithFlag(1, out PROTIMER_seqBaseCounterOverflowInterruptEnable, name: "BASECNTOFSEQIEN")
-                    .WithFlag(2, out PROTIMER_seqWrapCounterOverflowInterruptEnable, name: "WRAPCNTOFSEQIEN")
-                    .WithReservedBits(3, 1)
-                    .WithFlag(4, out PROTIMER_timeoutCounter[0].SeqUnderflowInterruptEnable, name: "TOUT0SEQIEN")
-                    .WithFlag(5, out PROTIMER_timeoutCounter[1].SeqUnderflowInterruptEnable, name: "TOUT1SEQIEN")
-                    .WithFlag(6, out PROTIMER_timeoutCounter[0].SeqMatchInterruptEnable, name: "TOUT0MATCHSEQIEN")
-                    .WithFlag(7, out PROTIMER_timeoutCounter[1].SeqMatchInterruptEnable, name: "TOUT1MATCHSEQIEN")
-                    .WithFlag(8, out PROTIMER_captureCompareChannel[0].SeqInterruptEnable, name: "CC0SEQIEN")
-                    .WithFlag(9, out PROTIMER_captureCompareChannel[1].SeqInterruptEnable, name: "CC1SEQIEN")
-                    .WithFlag(10, out PROTIMER_captureCompareChannel[2].SeqInterruptEnable, name: "CC2SEQIEN")
-                    .WithFlag(11, out PROTIMER_captureCompareChannel[3].SeqInterruptEnable, name: "CC3SEQIEN")
-                    .WithFlag(12, out PROTIMER_captureCompareChannel[4].SeqInterruptEnable, name: "CC4SEQIEN")
-                    .WithFlag(13, out PROTIMER_captureCompareChannel[5].SeqInterruptEnable, name: "CC5SEQIEN")
-                    .WithFlag(14, out PROTIMER_captureCompareChannel[6].SeqInterruptEnable, name: "CC6SEQIEN")
-                    .WithFlag(15, out PROTIMER_captureCompareChannel[7].SeqInterruptEnable, name: "CC7SEQIEN")
-                    .WithFlag(16, out PROTIMER_captureCompareChannel[0].SeqOverflowInterruptEnable, name: "COF0SEQIEN")
-                    .WithFlag(17, out PROTIMER_captureCompareChannel[1].SeqOverflowInterruptEnable, name: "COF1SEQIEN")
-                    .WithFlag(18, out PROTIMER_captureCompareChannel[2].SeqOverflowInterruptEnable, name: "COF2SEQIEN")
-                    .WithFlag(19, out PROTIMER_captureCompareChannel[3].SeqOverflowInterruptEnable, name: "COF3SEQIEN")
-                    .WithFlag(20, out PROTIMER_captureCompareChannel[4].SeqOverflowInterruptEnable, name: "COF4SEQIEN")
-                    .WithFlag(21, out PROTIMER_captureCompareChannel[5].SeqOverflowInterruptEnable, name: "COF5SEQIEN")
-                    .WithFlag(22, out PROTIMER_captureCompareChannel[6].SeqOverflowInterruptEnable, name: "COF6SEQIEN")
-                    .WithFlag(23, out PROTIMER_captureCompareChannel[7].SeqOverflowInterruptEnable, name: "COF7SEQIEN")
-                    .WithFlag(24, out PROTIMER_seqListenBeforeTalkSuccessInterruptEnable, name: "LBTSUCCESSSEQIEN")
-                    .WithFlag(25, out PROTIMER_seqListenBeforeTalkFailureInterruptEnable, name: "LBTFAILURESEQIEN")
-                    .WithTaggedFlag("LBTPAUSEDIEN", 26)
-                    .WithFlag(27, out PROTIMER_seqListenBeforeTalkRetryInterruptEnable, name: "LBTRETRYSEQIEN")
-                    .WithTaggedFlag("RTCCSYNCHEDSEQIEN", 28)
-                    .WithFlag(29, out PROTIMER_seqListenBeforeTalkTimeoutCounterMatchInterruptEnable, name: "TOUT0MATCHLBTSEQIEN")
-                    .WithReservedBits(30, 2)
-                    .WithChangeCallback((_, __) => UpdateInterrupts())
-                },
-                {(long)ProtocolTimerRegisters.RxControl, new DoubleWordRegister(this)
-                    .WithEnumField<DoubleWordRegister, PROTIMER_Event>(0, 5, out PROTIMER_rxSetEvent1, name: "RXSETEVENT1")
-                    .WithReservedBits(5, 3)
-                    .WithEnumField<DoubleWordRegister, PROTIMER_Event>(8, 5, out PROTIMER_rxSetEvent2, name: "RXSETEVENT2")
-                    .WithReservedBits(13, 3)
-                    .WithEnumField<DoubleWordRegister, PROTIMER_Event>(16, 5, out PROTIMER_rxClearEvent1, name: "RXCLREVENT1")
-                    .WithReservedBits(21, 3)
-                    .WithEnumField<DoubleWordRegister, PROTIMER_Event>(24, 5, out PROTIMER_rxClearEvent2, name: "RXCLREVENT2")
-                    .WithReservedBits(29, 3)
-                    .WithChangeCallback((_, __) => PROTIMER_UpdateRxRequestState())
-                },
-                {(long)ProtocolTimerRegisters.TxControl, new DoubleWordRegister(this)
-                    .WithEnumField<DoubleWordRegister, PROTIMER_Event>(0, 5, out PROTIMER_txSetEvent1, name: "TXSETEVENT1")
-                    .WithReservedBits(5, 3)
-                    .WithEnumField<DoubleWordRegister, PROTIMER_Event>(8, 5, out PROTIMER_txSetEvent2, name: "TXSETEVENT2")
-                    .WithReservedBits(13, 19)
-                    .WithChangeCallback((_, __) => PROTIMER_UpdateTxRequestState())
-                },
-                {(long)ProtocolTimerRegisters.ListenBeforeTalkWaitControl, new DoubleWordRegister(this)
-                    .WithValueField(0, 4, out PROTIMER_listenBeforeTalkStartExponent, name: "STARTEXP")
-                    .WithValueField(4, 4, out PROTIMER_listenBeforeTalkMaxExponent, name: "MAXEXP")
-                    .WithValueField(8, 5, out PROTIMER_ccaDelay, name: "CCADELAY")
-                    .WithReservedBits(13, 3)
-                    .WithValueField(16, 4, out PROTIMER_ccaRepeat, name: "CCAREPEAT")
-                    .WithFlag(20, out PROTIMER_fixedBackoff, name: "FIXEDBACKOFF")
-                    .WithReservedBits(21, 3)
-                    .WithValueField(24, 4, out PROTIMER_retryLimit, name: "RETRYLIMIT")
-                    .WithReservedBits(28, 4)
-                },
-                {(long)ProtocolTimerRegisters.ListenBeforeTalkState, new DoubleWordRegister(this)
-                    .WithTag("TOUT0PCNT", 0, 16)
-                    .WithTag("TOUT0CNT", 16, 16)
-                },
-                {(long)ProtocolTimerRegisters.PseudoRandomGeneratorValue, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, valueProviderCallback: _ => {return (ushort)random.Next();}, name: "RANDOM")
-                    .WithReservedBits(16, 16)
-                },
-                {(long)ProtocolTimerRegisters.ListenBeforeTalkState1, new DoubleWordRegister(this)
-                    .WithValueField(0, 4, out PROTIMER_ccaCounter, name: "CCACNT")
-                    .WithValueField(4, 4, out PROTIMER_listenBeforeTalkExponent, name: "EXP")
-                    .WithValueField(8, 4, out PROTIMER_listenBeforeTalkRetryCounter, name: "RETRYCNT")
-                    .WithReservedBits(12, 20)
-                },
-            };
-
-            var startOffset = (long)ProtocolTimerRegisters.CaptureCompareChannel0Control;
-            var controlOffset = (long)ProtocolTimerRegisters.CaptureCompareChannel0Control - startOffset;
-            var preOffset = (long)ProtocolTimerRegisters.CaptureCompareChannel0PreValue - startOffset;
-            var baseOffset = (long)ProtocolTimerRegisters.CaptureCompareChannel0BaseValue - startOffset;
-            var wrapOffset = (long)ProtocolTimerRegisters.CaptureCompareChannel0WrapValue - startOffset;
-            var blockSize = (long)ProtocolTimerRegisters.CaptureCompareChannel1Control - (long)ProtocolTimerRegisters.CaptureCompareChannel0Control;
-            for(var index = 0; index < PROTIMER_NumberOfCaptureCompareChannels; index++)
-            {
-                var i = index;
-                // CaptureCompareChannel_n_Control
-                registerDictionary.Add(startOffset + blockSize * i + controlOffset,
-                    new DoubleWordRegister(this)
-                        .WithFlag(0, out PROTIMER_captureCompareChannel[i].Enable, name: "ENABLE")
-                        .WithEnumField<DoubleWordRegister, PROTIMER_CaptureCompareMode>(1, 1, out PROTIMER_captureCompareChannel[i].Mode, name: "CCMODE")
-                        .WithFlag(2, out PROTIMER_captureCompareChannel[i].PreMatchEnable, name: "PREMATCHEN")
-                        .WithFlag(3, out PROTIMER_captureCompareChannel[i].BaseMatchEnable, name: "BASEMATCHEN")
-                        .WithFlag(4, out PROTIMER_captureCompareChannel[i].WrapMatchEnable, name: "WRAPMATCHEN")
-                        .WithTaggedFlag("OIST", 5)
-                        .WithTaggedFlag("OUTINV", 6)
-                        .WithReservedBits(7, 1)
-                        .WithTag("MOA", 8, 2)
-                        .WithTag("OFOA", 10, 2)
-                        .WithTag("OFSEL", 12, 2)
-                        .WithTaggedFlag("PRSCONF", 14)
-                        .WithReservedBits(15, 6)
-                        .WithEnumField<DoubleWordRegister, PROTIMER_CaptureInputSource>(21, 4, out PROTIMER_captureCompareChannel[i].CaptureInputSource, name: "INSEL")
-                        .WithTag("ICEDGE", 25, 2)
-                        .WithReservedBits(27, 5)
-                        .WithWriteCallback((_, __) => PROTIMER_UpdateCompareTimer(i))
-                );
-                // CaptureCompareChannel_n_Pre
-                registerDictionary.Add(startOffset + blockSize * i + preOffset,
-                    new DoubleWordRegister(this)
-                        .WithValueField(0, 16, out PROTIMER_captureCompareChannel[i].PreValue,
-                            writeCallback: (_, __) =>
-                            {
-                                PROTIMER_captureCompareChannel[i].CaptureValid.Value = false;
-                                PROTIMER_UpdateCompareTimer(i);
-                            },
-                            valueProviderCallback: _ =>
-                            {
-                                PROTIMER_captureCompareChannel[i].CaptureValid.Value = false;
-                                return PROTIMER_captureCompareChannel[i].PreValue.Value;
-                            }, name: "PRE")
-                        .WithReservedBits(16, 16)
-                );
-                // CaptureCompareChannel_n_Base
-                registerDictionary.Add(startOffset + blockSize * i + baseOffset,
-                    new DoubleWordRegister(this)
-                        .WithValueField(0, 16, out PROTIMER_captureCompareChannel[i].BaseValue,
-                            writeCallback: (_, __) => { PROTIMER_captureCompareChannel[i].CaptureValid.Value = false; },
-                            valueProviderCallback: _ =>
-                            {
-                                PROTIMER_captureCompareChannel[i].CaptureValid.Value = false;
-                                return PROTIMER_captureCompareChannel[i].BaseValue.Value;
-                            }, name: "BASE")
-                        .WithReservedBits(16, 16)
-                );
-                // CaptureCompareChannel_n_Wrap
-                registerDictionary.Add(startOffset + blockSize * i + wrapOffset,
-                    new DoubleWordRegister(this)
-                        .WithValueField(0, 32, out PROTIMER_captureCompareChannel[i].WrapValue,
-                            writeCallback: (_, __) => { PROTIMER_captureCompareChannel[i].CaptureValid.Value = false; },
-                            valueProviderCallback: _ =>
-                            {
-                                PROTIMER_captureCompareChannel[i].CaptureValid.Value = false;
-                                return PROTIMER_captureCompareChannel[i].WrapValue.Value;
-                            }, name: "WRAP")
-                );
-            }
-
-            return new DoubleWordRegisterCollection(this, registerDictionary);
-        }
-
-        private TimeInterval GetTime() => machine.LocalTimeSource.ElapsedVirtualTime;
-
-        private DoubleWordRegisterCollection BuildFrameControllerRegistersCollection()
-        {
-            var registerDictionary = new Dictionary<long, DoubleWordRegister>
-            {
-                {(long)FrameControllerRegisters.Status, new DoubleWordRegister(this)
-                    .WithTag("SNIFFDCOUNT", 0, 5)
-                    .WithFlag(5, out FRC_activeTransmitFrameDescriptor, FieldMode.Read, name: "ACTIVETXFCD")
-                    .WithFlag(6, out FRC_activeReceiveFrameDescriptor, FieldMode.Read, name: "ACTIVERXFCD")
-                    .WithTaggedFlag("SNIFFDFRAME", 7)
-                    .WithFlag(8, out FRC_rxRawBlocked, FieldMode.Read, name: "RXRAWBLOCKED")
-                    .WithTaggedFlag("FRAMEOK", 9)
-                    .WithFlag(10, FieldMode.Read, valueProviderCallback: _ => false, name: "RXABORTINPROGRESS")
-                    .WithTaggedFlag("TXWORD", 11)
-                    .WithTaggedFlag("RXWORD", 12)
-                    .WithTaggedFlag("CONVPAUSED", 13)
-                    .WithTaggedFlag("TXSUBFRAMEPAUSED", 14)
-                    .WithTaggedFlag("INTERLEAVEREADPAUSED", 15)
-                    .WithTaggedFlag("INTERLEAVEWRITEPAUSED", 16)
-                    .WithTaggedFlag("FRAMEDETPAUSED", 17)
-                    .WithTaggedFlag("FRAMELENGTHERROR", 18)
-                    .WithTaggedFlag("DEMODERROR", 19)
-                    .WithValueField(20, 5, out FRC_fsmState, name: "FSMSTATE")
-                    .WithTaggedFlag("RXWCNTMATCHPAUSED", 25)
-                    .WithTaggedFlag("CRCERRORTOLERATED", 26)
-                    .WithReservedBits(27, 5)
-                },
-                {(long)FrameControllerRegisters.DynamicFrameLengthControl, new DoubleWordRegister(this)
-                    .WithEnumField<DoubleWordRegister, FRC_DynamicFrameLengthMode>(0, 3, out FRC_dynamicFrameLengthMode, name: "DFLMODE")
-                    .WithEnumField<DoubleWordRegister, FRC_DynamicFrameLengthBitOrder>(3, 1, out FRC_dynamicFrameLengthBitOrder, name: "DFLBITORDER")
-                    .WithValueField(4, 3, out FRC_dynamicFrameLengthBitShift, name: "DFLSHIFT")
-                    .WithReservedBits(7, 1)
-                    .WithValueField(8, 4, out FRC_dynamicFrameLengthOffset, name: "DFLOFFSET")
-                    .WithValueField(12, 4, out FRC_dynamicFrameLengthBits, name: "DFLBITS")
-                    .WithValueField(16, 4, out FRC_minDecodedLength, name: "MINLENGTH")
-                    .WithFlag(20, out FRC_dynamicFrameCrcIncluded, name: "DFLINCLUDECRC")
-                    .WithTag("DFLBOIOFFSET", 21, 4)
-                    .WithReservedBits(25, 7)
-                },
-                {(long)FrameControllerRegisters.MaximumFrameLength, new DoubleWordRegister(this)
-                    .WithValueField(0, 12, out FRC_maxDecodedLength, name: "MAXLENGTH")
-                    .WithValueField(12, 4, out FRC_initialDecodedFrameLength, name: "INILENGTH")
-                    .WithReservedBits(16, 16)
-                },
-                {(long)FrameControllerRegisters.AddressFilterControl, new DoubleWordRegister(this)
-                    .WithTaggedFlag("EN", 0)
-                    .WithTaggedFlag("BRDCST00EN", 1)
-                    .WithTaggedFlag("BRDCSTFFEN", 2)
-                    .WithReservedBits(3, 5)
-                    .WithTag("ADDRESS", 8, 8)
-                    .WithReservedBits(16, 16)
-                },
-                {(long)FrameControllerRegisters.FrameControllerDataBuffer, new DoubleWordRegister(this)
-                    .WithTag("DATABUFFER", 0, 8)
-                    .WithReservedBits(8, 24)
-                },
-                {(long)FrameControllerRegisters.WordCounter, new DoubleWordRegister(this)
-                    .WithValueField(0 ,12, out FRC_wordCounter, FieldMode.Read, name: "WCNT")
-                    .WithReservedBits(12, 20)
-                },
-                {(long)FrameControllerRegisters.WordCounterCompare0, new DoubleWordRegister(this)
-                    .WithValueField(0, 12, out FRC_frameLength, name: "FRAMELENGTH")
-                    .WithReservedBits(12, 20)
-                },
-                {(long)FrameControllerRegisters.WordCounterCompare1, new DoubleWordRegister(this)
-                    .WithValueField(0, 12, out FRC_lengthFieldLocation, name: "LENGTHFIELDLOC")
-                    .WithReservedBits(12, 20)
-                },
-                {(long)FrameControllerRegisters.WordCounterCompare2, new DoubleWordRegister(this)
-                    .WithTag("ADDRFIELDLOC", 0, 12)
-                    .WithReservedBits(12, 20)
-                },
-                {(long)FrameControllerRegisters.Command, new DoubleWordRegister(this)
-                    .WithFlag(0, FieldMode.Set, writeCallback: (_, value) => {if (value) FRC_RxAbortCommand(); }, name: "RXABORT")
-                    .WithTaggedFlag("FRAMEDETRESUME", 1)
-                    .WithTaggedFlag("INTERLEAVEWRITERESUME", 2)
-                    .WithTaggedFlag("INTERLEAVEREADRESUME", 3)
-                    .WithTaggedFlag("CONVRESUME", 4)
-                    .WithTaggedFlag("CONVTERMINATE", 5)
-                    .WithTaggedFlag("TXSUBFRAMERESUME", 6)
-                    .WithTaggedFlag("INTERLEAVEINIT", 7)
-                    .WithTaggedFlag("INTERLEAVECNTCLEAR", 8)
-                    .WithTaggedFlag("CONVINIT", 9)
-                    .WithTaggedFlag("BLOCKINIT", 10)
-                    .WithTaggedFlag("STATEINIT", 11)
-                    .WithFlag(12, FieldMode.Set, writeCallback: (_, value) =>
-                        {
-                            if(value)
-                            {
-                                FRC_rxRawBlocked.Value = false;
-                                FRC_UpdateRawMode();
-                            }
-                        }, name: "RXRAWUNBLOCK")
-                    .WithTaggedFlag("RXPAUSERESUME", 13)
-                    .WithReservedBits(14, 18)
-                },
-                {(long)FrameControllerRegisters.Control, new DoubleWordRegister(this)
-                    .WithTaggedFlag("RANDOMTX", 0)
-                    .WithTaggedFlag("UARTMODE", 1)
-                    .WithTaggedFlag("BITORDER", 2)
-                    .WithReservedBits(3, 1)
-                    .WithEnumField<DoubleWordRegister, FRC_FrameDescriptorMode>(4, 2, out FRC_txFrameDescriptorMode, name: "TXFCDMODE")
-                    .WithEnumField<DoubleWordRegister, FRC_FrameDescriptorMode>(6, 2, out FRC_rxFrameDescriptorMode, name: "RXFCDMODE")
-                    .WithTag("BITSPERWORD", 8, 3) // TODO: Assume 0x7 (first word in a frame is 8bit)
-                    .WithTag("RATESELECT", 11, 2)
-                    .WithTaggedFlag("TXPREFETCH", 13)
-                    .WithTaggedFlag("TXFETCHBLOCKING", 14)
-                    .WithReservedBits(15, 1)
-                    .WithTaggedFlag("SEQHANDSHAKE", 16)
-                    .WithTaggedFlag("PRBSTEST", 17)
-                    .WithTaggedFlag("LPMODEDIS", 18)
-                    .WithTaggedFlag("WAITEOFEN", 19)
-                    .WithTaggedFlag("RXABORTIGNOREDIS", 20)
-                    .WithReservedBits(21, 3)
-                    .WithTaggedFlag("SKIPTXTRAILDATAWHITEN", 24)
-                    .WithTaggedFlag("SKIPRXSUPSTATEWHITEN", 25)
-                    .WithTaggedFlag("HOLDTXTRAILDATAACTIVE", 26)
-                    .WithReservedBits(27, 5)
-                },
-                {(long)FrameControllerRegisters.RxControl, new DoubleWordRegister(this)
-                    .WithFlag(0, out FRC_rxStoreCrc, name: "STORECRC")
-                    .WithFlag(1, out FRC_rxAcceptCrcErrors, name: "ACCEPTCRCERRORS")
-                    .WithTaggedFlag("ACCEPTBLOCKERRORS", 2)
-                    .WithTaggedFlag("TRACKABFRAME", 3) /* TODO: RENODE-354 */
-                    .WithFlag(4, out FRC_rxBufferClear, name: "BUFCLEAR")
-                    .WithFlag(5, out FRC_rxBufferRestoreOnFrameError, name: "BUFRESTOREFRAMEERROR")
-                    .WithFlag(6, out FRC_rxBufferRestoreOnRxAborted, name: "BUFRESTORERXABORTED")
-                    .WithTag("RXFRAMEENDAHEADBYTES", 7, 4)
-                    .WithTaggedFlag("ACCEPTUARTERRORS", 11)
-                    .WithReservedBits(12, 20)
-                },
-                {(long)FrameControllerRegisters.TrailingRxData, new DoubleWordRegister(this)
-                    .WithFlag(0, out FRC_rxAppendRssi, name: "RSSI")
-                    .WithFlag(1, out FRC_rxAppendStatus, name: "CRCOK")
-                    .WithFlag(2, out FRC_rxAppendProtimerCc0base, name: "PROTIMERCC0BASE")
-                    .WithFlag(3, out FRC_rxAppendProtimerCc0LowWrap, name: "PROTIMERCC0WRAPL")
-                    .WithFlag(4, out FRC_rxAppendProtimerCc0HighWrap, name: "PROTIMERCC0WRAPH")
-                    .WithTaggedFlag("RTCSTAMP", 5)
-                    .WithReservedBits(6, 26)
-                },
-                {(long)FrameControllerRegisters.InterruptFlags, new DoubleWordRegister(this)
-                    .WithFlag(0, out FRC_txDoneInterrupt, name: "TXDONEIF")
-                    .WithFlag(1, out FRC_txAfterFrameDoneInterrupt, name: "TXAFTERFRAMEDONEIF")
-                    .WithTaggedFlag("TXABORTEDIF", 2)
-                    .WithFlag(3, out FRC_txUnderflowInterrupt, name: "TXUFIF")
-                    .WithFlag(4, out FRC_rxDoneInterrupt, name: "RXDONEIF")
-                    .WithFlag(5, out FRC_rxAbortedInterrupt, name: "RXABORTEDIF")
-                    .WithFlag(6, out FRC_frameErrorInterrupt, name: "FRAMEERRORIF")
-                    .WithTaggedFlag("BLOCKERRORIF", 7)
-                    .WithFlag(8, out FRC_rxOverflowInterrupt, name: "RXOFIF")
-                    .WithTaggedFlag("WCNTCMP0IF", 9)
-                    .WithTaggedFlag("WCNTCMP1IF", 10)
-                    .WithTaggedFlag("WCNTCMP2IF", 11)
-                    .WithTaggedFlag("ADDRERRORIF", 12)
-                    .WithTaggedFlag("BUSERRORIF", 13)
-                    .WithFlag(14, out FRC_rxRawEventInterrupt, name: "RXRAWEVENTIF")
-                    .WithFlag(15, out FRC_txRawEventInterrupt, name: "TXRAWEVENTIF")
-                    .WithTaggedFlag("SNIFFOFIF", 16)
-                    .WithTaggedFlag("WCNTCMP3IF", 17)
-                    .WithTaggedFlag("WCNTCMP4IF", 18)
-                    .WithTaggedFlag("BOISETIF", 19)
-                    .WithFlag(20, out FRC_packetBufferStartInterrupt, name: "PKTBUFSTARTIF")
-                    .WithFlag(21, out FRC_packetBufferThresholdInterrupt, name: "PKTBUFTHRESHOLDIF")
-                    .WithTaggedFlag("RXRAWOFIF", 22)
-                    .WithTaggedFlag("WCNTCMP5IF", 23)
-                    .WithTaggedFlag("FRAMEDETPAUSEDIF", 24)
-                    .WithTaggedFlag("INTERLEAVEWRITEPAUSEDIF", 25)
-                    .WithTaggedFlag("INTERLEAVEREADPAUSEDIF", 26)
-                    .WithTaggedFlag("TXSUBFRAMEPAUSEDIF", 27)
-                    .WithTaggedFlag("CONVPAUSEDIF", 28)
-                    .WithTaggedFlag("RXWORDIF", 29)
-                    .WithTaggedFlag("TXWORDIF", 30)
-                    .WithTaggedFlag("UARTERRORIF", 31)
-                    .WithChangeCallback((_, __) => UpdateInterrupts())
-                },
-                {(long)FrameControllerRegisters.InterruptEnable, new DoubleWordRegister(this)
-                    .WithFlag(0, out FRC_txDoneInterruptEnable, name: "TXDONEIEN")
-                    .WithFlag(1, out FRC_txAfterFrameDoneInterruptEnable, name: "TXAFTERFRAMEDONEIEN")
-                    .WithTaggedFlag("TXABORTEDIEN", 2)
-                    .WithFlag(3, out FRC_txUnderflowInterruptEnable, name: "TXUFIEN")
-                    .WithFlag(4, out FRC_rxDoneInterruptEnable, name: "RXDONEIEN")
-                    .WithFlag(5, out FRC_rxAbortedInterruptEnable, name: "RXABORTEDIEN")
-                    .WithFlag(6, out FRC_frameErrorInterruptEnable, name: "FRAMEERRORIEN")
-                    .WithTaggedFlag("BLOCKERRORIEN", 7)
-                    .WithFlag(8, out FRC_rxOverflowInterruptEnable, name: "RXOFIEN")
-                    .WithTaggedFlag("WCNTCMP0IEN", 9)
-                    .WithTaggedFlag("WCNTCMP1IEN", 10)
-                    .WithTaggedFlag("WCNTCMP2IEN", 11)
-                    .WithTaggedFlag("ADDRERRORIEN", 12)
-                    .WithTaggedFlag("BUSERRORIEN", 13)
-                    .WithFlag(14, out FRC_rxRawEventInterruptEnable, name: "RXRAWEVENTIEN")
-                    .WithFlag(15, out FRC_txRawEventInterruptEnable, name: "TXRAWEVENTIEN")
-                    .WithTaggedFlag("SNIFFOFIEN", 16)
-                    .WithTaggedFlag("WCNTCMP3IEN", 17)
-                    .WithTaggedFlag("WCNTCMP4IEN", 18)
-                    .WithTaggedFlag("BOISETIEN", 19)
-                    .WithFlag(20, out FRC_packetBufferStartInterruptEnable, name: "PKTBUFSTARTIEN")
-                    .WithFlag(21, out FRC_packetBufferThresholdInterruptEnable, name: "PKTBUFTHRESHOLDIEN")
-                    .WithTaggedFlag("RXRAWOFIEN", 22)
-                    .WithTaggedFlag("WCNTCMP5IEN", 23)
-                    .WithTaggedFlag("FRAMEDETPAUSEDIEN", 24)
-                    .WithTaggedFlag("INTERLEAVEWRITEPAUSEDIEN", 25)
-                    .WithTaggedFlag("INTERLEAVEREADPAUSEDIEN", 26)
-                    .WithTaggedFlag("TXSUBFRAMEPAUSEDIEN", 27)
-                    .WithTaggedFlag("CONVPAUSEDIEN", 28)
-                    .WithTaggedFlag("RXWORDIEN", 29)
-                    .WithTaggedFlag("TXWORDIEN", 30)
-                    .WithTaggedFlag("UARTERRORIEN", 31)
-                    .WithChangeCallback((_, __) => UpdateInterrupts())
-                },
-                {(long)FrameControllerRegisters.SequencerInterruptFlags, new DoubleWordRegister(this)
-                    .WithFlag(0, out FRC_seqTxDoneInterrupt, name: "TXDONESEQIF")
-                    .WithFlag(1, out FRC_seqTxAfterFrameDoneInterrupt, name: "TXAFTERFRAMEDONESEQIF")
-                    .WithTaggedFlag("TXABORTEDSEQIF", 2)
-                    .WithFlag(3, out FRC_seqTxUnderflowInterrupt, name: "TXUFSEQIF")
-                    .WithFlag(4, out FRC_seqRxDoneInterrupt, name: "RXDONESEQIF")
-                    .WithFlag(5, out FRC_seqRxAbortedInterrupt, name: "RXABORTEDSEQIF")
-                    .WithFlag(6, out FRC_seqFrameErrorInterrupt, name: "FRAMEERRORSEQIF")
-                    .WithTaggedFlag("BLOCKERRORSEQIF", 7)
-                    .WithFlag(8, out FRC_seqRxOverflowInterrupt, name: "RXOFSEQIF")
-                    .WithTaggedFlag("WCNTCMP0SEQIF", 9)
-                    .WithTaggedFlag("WCNTCMP1SEQIF", 10)
-                    .WithTaggedFlag("WCNTCMP2SEQIF", 11)
-                    .WithTaggedFlag("ADDRERRORSEQIF", 12)
-                    .WithTaggedFlag("BUSERRORSEQIF", 13)
-                    .WithFlag(14, out FRC_seqRxRawEventInterrupt, name: "RXRAWEVENTSEQIF")
-                    .WithFlag(15, out FRC_seqTxRawEventInterrupt, name: "TXRAWEVENTSEQIF")
-                    .WithTaggedFlag("SNIFFOFSEQIF", 16)
-                    .WithTaggedFlag("WCNTCMP3SEQIF", 17)
-                    .WithTaggedFlag("WCNTCMP4SEQIF", 18)
-                    .WithTaggedFlag("BOISETSEQIF", 19)
-                    .WithFlag(20, out FRC_seqPacketBufferStartInterrupt, name: "PKTBUFSTARTSEQIF")
-                    .WithFlag(21, out FRC_seqPacketBufferThresholdInterrupt, name: "PKTBUFTHRESHOLDSEQIF")
-                    .WithTaggedFlag("RXRAWOFSEQIF", 22)
-                    .WithTaggedFlag("WCNTCMP5SEQIF", 23)
-                    .WithTaggedFlag("FRAMEDETPAUSEDSEQIF", 24)
-                    .WithTaggedFlag("INTERLEAVEWRITEPAUSEDSEQIF", 25)
-                    .WithTaggedFlag("INTERLEAVEREADPAUSEDSEQIF", 26)
-                    .WithTaggedFlag("TXSUBFRAMEPAUSEDSEQIF", 27)
-                    .WithTaggedFlag("CONVPAUSEDSEQIF", 28)
-                    .WithTaggedFlag("RXWORDSEQIF", 29)
-                    .WithTaggedFlag("TXWORDSEQIF", 30)
-                    .WithTaggedFlag("UARTERRORSEQIF", 31)
-                    .WithChangeCallback((_, __) => UpdateInterrupts())
-                },
-                {(long)FrameControllerRegisters.SequencerInterruptEnable, new DoubleWordRegister(this)
-                    .WithFlag(0, out FRC_seqTxDoneInterruptEnable, name: "TXDONESEQIEN")
-                    .WithFlag(1, out FRC_seqTxAfterFrameDoneInterruptEnable, name: "TXAFTERFRAMEDONESEQIEN")
-                    .WithTaggedFlag("TXABORTEDSEQIEN", 2)
-                    .WithFlag(3, out FRC_seqTxUnderflowInterruptEnable, name: "TXUFSEQIEN")
-                    .WithFlag(4, out FRC_seqRxDoneInterruptEnable, name: "RXDONESEQIEN")
-                    .WithFlag(5, out FRC_seqRxAbortedInterruptEnable, name: "RXABORTEDSEQIEN")
-                    .WithFlag(6, out FRC_seqFrameErrorInterruptEnable, name: "FRAMEERRORSEQIEN")
-                    .WithTaggedFlag("BLOCKERRORSEQIEN", 7)
-                    .WithFlag(8, out FRC_seqRxOverflowInterruptEnable, name: "RXOFSEQIEN")
-                    .WithTaggedFlag("WCNTCMP0SEQIEN", 9)
-                    .WithTaggedFlag("WCNTCMP1SEQIEN", 10)
-                    .WithTaggedFlag("WCNTCMP2SEQIEN", 11)
-                    .WithTaggedFlag("ADDRERRORSEQIEN", 12)
-                    .WithTaggedFlag("BUSERRORSEQIEN", 13)
-                    .WithFlag(14, out FRC_seqRxRawEventInterruptEnable, name: "RXRAWEVENTSEQIEN")
-                    .WithFlag(15, out FRC_seqTxRawEventInterruptEnable, name: "TXRAWEVENTSEQIEN")
-                    .WithTaggedFlag("SNIFFOFSEQIEN", 16)
-                    .WithTaggedFlag("WCNTCMP3SEQIEN", 17)
-                    .WithTaggedFlag("WCNTCMP4SEQIEN", 18)
-                    .WithTaggedFlag("BOISETSEQIEN", 19)
-                    .WithFlag(20, out FRC_seqPacketBufferStartInterruptEnable, name: "PKTBUFSTARTSEQIEN")
-                    .WithFlag(21, out FRC_seqPacketBufferThresholdInterruptEnable, name: "PKTBUFTHRESHOLDSEQIEN")
-                    .WithTaggedFlag("RXRAWOFSEQIEN", 22)
-                    .WithTaggedFlag("WCNTCMP5SEQIEN", 23)
-                    .WithTaggedFlag("FRAMEDETPAUSEDSEQIEN", 24)
-                    .WithTaggedFlag("INTERLEAVEWRITEPAUSEDSEQIEN", 25)
-                    .WithTaggedFlag("INTERLEAVEREADPAUSEDSEQIEN", 26)
-                    .WithTaggedFlag("TXSUBFRAMEPAUSEDSEQIEN", 27)
-                    .WithTaggedFlag("CONVPAUSEDSEQIEN", 28)
-                    .WithTaggedFlag("RXWORDSEQIEN", 29)
-                    .WithTaggedFlag("TXWORDSEQIEN", 30)
-                    .WithTaggedFlag("UARTERRORSEQIEN", 31)
-                    .WithChangeCallback((_, __) => UpdateInterrupts())
-                },
-                {(long)FrameControllerRegisters.RawDataControl, new DoubleWordRegister(this)
-                    .WithTag("TXRAWMODE", 0, 2)
-                    .WithEnumField<DoubleWordRegister, FRC_RxRawDataMode>(2, 3, out FRC_rxRawDataSelect, writeCallback: (_, value) =>
-                        {
-                            switch(value)
-                            {
-                                case FRC_RxRawDataMode.Disable:
-                                    FRC_rxRawBlocked.Value = false;
-                                    break;
-                                case FRC_RxRawDataMode.SingleItem:
-                                    break;
-                                default:
-                                    this.Log(LogLevel.Error, "Unsupported RXRAWMODE value ({0}).", value);
-                                    break;
-                            }
-                        }, name: "RXRAWMODE")
-                    .WithFlag(5, out FRC_enableRawDataRandomNumberGenerator, name: "RXRAWRANDOM")
-                    .WithReservedBits(6, 1)
-                    .WithEnumField<DoubleWordRegister, FRC_RxRawDataTriggerMode>(7, 2, out FRC_rxRawDataTriggerSelect, writeCallback: (_, value) =>
-                        {
-                            switch(value)
-                            {
-                                case FRC_RxRawDataTriggerMode.Immediate:
-                                    break;
-                                default:
-                                    this.Log(LogLevel.Error, "Unsupported RXRAWTRIGGER value ({0}).", value);
-                                    break;
-                            }
-                        }, name: "RXRAWTRIGGER")
-                    .WithReservedBits(9, 4)
-                    .WithTaggedFlag("DEMODRAWDATAMUX", 13)
-                    .WithReservedBits(14, 18)
-                    .WithChangeCallback((_, __) => FRC_UpdateRawMode())
-                },
-                {(long)FrameControllerRegisters.RxRawData, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ =>
-                    {
-                        if(FRC_rxRawDataSelect.Value == FRC_RxRawDataMode.SingleItem)
-                        {
-                            FRC_rxRawBlocked.Value = false;
-                        }
-                        FRC_UpdateRawMode();
-                        return (uint)random.Next();
-                    }, name: "RXRAWDATA")
-                },
-                {(long)FrameControllerRegisters.PacketCaptureBufferControl, new DoubleWordRegister(this)
-                    .WithValueField(0, 12, out FRC_packetBufferStartAddress, name: "PKTBUFSTARTLOC")
-                    .WithValueField(12, 6, out FRC_packetBufferThreshold, writeCallback: (_, __) => { UpdateInterrupts(); }, name: "PKTBUFTHRESHOLD")
-                    .WithReservedBits(18, 6)
-                    .WithFlag(24, out FRC_packetBufferThresholdEnable, writeCallback: (_, __) => { UpdateInterrupts(); }, name: "PKTBUFTHRESHOLDEN")
-                    .WithFlag(25, out FRC_packetBufferStop, FieldMode.Write, name: "PKTBUFSTOP")
-                    .WithReservedBits(26, 6)
-                },
-                {(long)FrameControllerRegisters.PacketCaptureBufferStatus, new DoubleWordRegister(this)
-                    .WithValueField(0, 6, out FRC_packetBufferCount, FieldMode.Read, name: "PKTBUFCOUNT")
-                    .WithReservedBits(6, 24)
-                },
-            };
-
-            var startOffset = (long)FrameControllerRegisters.FrameControlDescriptor0;
-            var blockSize = (long)FrameControllerRegisters.FrameControlDescriptor1 - (long)FrameControllerRegisters.FrameControlDescriptor0;
-            for(var index = 0; index < FRC_NumberOfFrameDescriptors; index++)
-            {
-                var i = index;
-
-                registerDictionary.Add(startOffset + blockSize * i,
-                    new DoubleWordRegister(this)
-                        .WithValueField(0, 8, out FRC_frameDescriptor[i].WordsField, name: "WORDS")
-                        .WithValueField(8, 2, out FRC_frameDescriptor[i].Buffer, name: "BUFFER")
-                        .WithFlag(10, out FRC_frameDescriptor[i].IncludeCrc, name: "INCLUDECRC")
-                        .WithFlag(11, out FRC_frameDescriptor[i].CalculateCrc, name: "CALCCRC")
-                        .WithValueField(12, 2, out FRC_frameDescriptor[i].CrcSkipWords, name: "SKIPCRC")
-                        .WithFlag(14, out FRC_frameDescriptor[i].SkipWhitening, name: "SKIPWHITE")
-                        .WithFlag(15, out FRC_frameDescriptor[i].AddTrailData, name: "ADDTRAILTXDATA")
-                        .WithReservedBits(16, 16)
-                );
-            }
-
-            startOffset = (long)FrameControllerRegisters.PacketCaptureDataBuffer0;
-            blockSize = (long)FrameControllerRegisters.PacketCaptureDataBuffer1 - (long)FrameControllerRegisters.PacketCaptureDataBuffer0;
-            for(var index = 0; index < (FRC_PacketBufferCaptureSize / 4); index++)
-            {
-                var i = index;
-
-                registerDictionary.Add(startOffset + blockSize * i,
-                    new DoubleWordRegister(this)
-                        .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ => FRC_packetBufferCapture[i * 4], writeCallback: (_, value) => FRC_packetBufferCapture[i * 4] = (byte)value, name: $"PKTBUF{i * 4}")
-                        .WithValueField(8, 8, FieldMode.Read, valueProviderCallback: _ => FRC_packetBufferCapture[i * 4 + 1], writeCallback: (_, value) => FRC_packetBufferCapture[i * 4 + 1] = (byte)value, name: $"PKTBUF{i * 4 + 1}")
-                        .WithValueField(16, 8, FieldMode.Read, valueProviderCallback: _ => FRC_packetBufferCapture[i * 4 + 2], writeCallback: (_, value) => FRC_packetBufferCapture[i * 4 + 2] = (byte)value, name: $"PKTBUF{i * 4 + 2}")
-                        .WithValueField(24, 8, FieldMode.Read, valueProviderCallback: _ => FRC_packetBufferCapture[i * 4 + 3], writeCallback: (_, value) => FRC_packetBufferCapture[i * 4 + 3] = (byte)value, name: $"PKTBUF{i * 4 + 3}")
-                );
-            }
-
-            return new DoubleWordRegisterCollection(this, registerDictionary);
-        }
-
-        private DoubleWordRegisterCollection BuildBufferControllerRegistersCollection()
-        {
-            var registerDictionary = new Dictionary<long, DoubleWordRegister>
-            {
-                {(long)BufferControllerRegisters.InterruptFlags, new DoubleWordRegister(this)
-                    .WithFlag(0, out BUFC_buffer[0].Overflow, name: "BUF0OFIF")
-                    .WithFlag(1, out BUFC_buffer[0].Underflow, name: "BUF0UFIF")
-                    .WithFlag(2, out BUFC_buffer[0].ThresholdEvent, name: "BUF0THRIF")
-                    .WithFlag(3, out BUFC_buffer[0].Corrupt, name: "BUF0CORRIF")
-                    .WithFlag(4, out BUFC_buffer[0].NotWordAligned, name: "BUF0NWAIF")
-                    .WithReservedBits(5, 3)
-                    .WithFlag(8, out BUFC_buffer[1].Overflow, name: "BUF1OFIF")
-                    .WithFlag(9, out BUFC_buffer[1].Underflow, name: "BUF1UFIF")
-                    .WithFlag(10, out BUFC_buffer[1].ThresholdEvent, name: "BUF1THRIF")
-                    .WithFlag(11, out BUFC_buffer[1].Corrupt, name: "BUF1CORRIF")
-                    .WithFlag(12, out BUFC_buffer[1].NotWordAligned, name: "BUF1NWAIF")
-                    .WithReservedBits(13, 3)
-                    .WithFlag(16, out BUFC_buffer[2].Overflow, name: "BUF2OFIF")
-                    .WithFlag(17, out BUFC_buffer[2].Underflow, name: "BUF2UFIF")
-                    .WithFlag(18, out BUFC_buffer[2].ThresholdEvent, name: "BUF2THRIF")
-                    .WithFlag(19, out BUFC_buffer[2].Corrupt, name: "BUF2CORRIF")
-                    .WithFlag(20, out BUFC_buffer[2].NotWordAligned, name: "BUF2NWAIF")
-                    .WithReservedBits(21, 3)
-                    .WithFlag(24, out BUFC_buffer[3].Overflow, name: "BUF3OFIF")
-                    .WithFlag(25, out BUFC_buffer[3].Underflow, name: "BUF3UFIF")
-                    .WithFlag(26, out BUFC_buffer[3].ThresholdEvent, name: "BUF3THRIF")
-                    .WithFlag(27, out BUFC_buffer[3].Corrupt, name: "BUF3CORRIF")
-                    .WithFlag(28, out BUFC_buffer[3].NotWordAligned, name: "BUF3NWAIF")
-                    .WithReservedBits(29, 2)
-                    .WithTaggedFlag("BUSERRORIF", 31)
-                    .WithChangeCallback((_, __) => UpdateInterrupts())
-                },
-                {(long)BufferControllerRegisters.InterruptEnable, new DoubleWordRegister(this)
-                    .WithFlag(0, out BUFC_buffer[0].OverflowEnable, name: "BUF0OFIEN")
-                    .WithFlag(1, out BUFC_buffer[0].UnderflowEnable, name: "BUF0UFIEN")
-                    .WithFlag(2, out BUFC_buffer[0].ThresholdEventEnable, name: "BUF0THRIEN")
-                    .WithFlag(3, out BUFC_buffer[0].CorruptEnable, name: "BUF0CORRIEN")
-                    .WithFlag(4, out BUFC_buffer[0].NotWordAlignedEnable, name: "BUF0NWAIEN")
-                    .WithReservedBits(5, 3)
-                    .WithFlag(8, out BUFC_buffer[1].OverflowEnable, name: "BUF1OFIEN")
-                    .WithFlag(9, out BUFC_buffer[1].UnderflowEnable, name: "BUF1UFIEN")
-                    .WithFlag(10, out BUFC_buffer[1].ThresholdEventEnable, name: "BUF1THRIEN")
-                    .WithFlag(11, out BUFC_buffer[1].CorruptEnable, name: "BUF1CORRIEN")
-                    .WithFlag(12, out BUFC_buffer[1].NotWordAlignedEnable, name: "BUF1NWAIEN")
-                    .WithReservedBits(13, 3)
-                    .WithFlag(16, out BUFC_buffer[2].OverflowEnable, name: "BUF2OFIEN")
-                    .WithFlag(17, out BUFC_buffer[2].UnderflowEnable, name: "BUF2UFIEN")
-                    .WithFlag(18, out BUFC_buffer[2].ThresholdEventEnable, name: "BUF2THRIEN")
-                    .WithFlag(19, out BUFC_buffer[2].CorruptEnable, name: "BUF2CORRIEN")
-                    .WithFlag(20, out BUFC_buffer[2].NotWordAlignedEnable, name: "BUF2NWAIEN")
-                    .WithReservedBits(21, 3)
-                    .WithFlag(24, out BUFC_buffer[3].OverflowEnable, name: "BUF3OFIEN")
-                    .WithFlag(25, out BUFC_buffer[3].UnderflowEnable, name: "BUF3UFIEN")
-                    .WithFlag(26, out BUFC_buffer[3].ThresholdEventEnable, name: "BUF3THRIEN")
-                    .WithFlag(27, out BUFC_buffer[3].CorruptEnable, name: "BUF3CORRIEN")
-                    .WithFlag(28, out BUFC_buffer[3].NotWordAlignedEnable, name: "BUF3NWAIEN")
-                    .WithReservedBits(29, 2)
-                    .WithTaggedFlag("BUSERRORIEN", 31)
-                    .WithChangeCallback((_, __) => UpdateInterrupts())
-                },
-                {(long)BufferControllerRegisters.SequencerInterruptFlags, new DoubleWordRegister(this)
-                    .WithFlag(0, out BUFC_buffer[0].SeqOverflow, name: "BUF0OFSEQIF")
-                    .WithFlag(1, out BUFC_buffer[0].SeqUnderflow, name: "BUF0UFSEQIF")
-                    .WithFlag(2, out BUFC_buffer[0].SeqThresholdEvent, name: "BUF0THRSEQIF")
-                    .WithFlag(3, out BUFC_buffer[0].SeqCorrupt, name: "BUF0CORRSEQIF")
-                    .WithFlag(4, out BUFC_buffer[0].SeqNotWordAligned, name: "BUF0NWASEQIF")
-                    .WithReservedBits(5, 3)
-                    .WithFlag(8, out BUFC_buffer[1].SeqOverflow, name: "BUF1OFSEQIF")
-                    .WithFlag(9, out BUFC_buffer[1].SeqUnderflow, name: "BUF1UFSEQIF")
-                    .WithFlag(10, out BUFC_buffer[1].SeqThresholdEvent, name: "BUF1THRSEQIF")
-                    .WithFlag(11, out BUFC_buffer[1].SeqCorrupt, name: "BUF1CORRSEQIF")
-                    .WithFlag(12, out BUFC_buffer[1].SeqNotWordAligned, name: "BUF1NWASEQIF")
-                    .WithReservedBits(13, 3)
-                    .WithFlag(16, out BUFC_buffer[2].SeqOverflow, name: "BUF2OFSEQIF")
-                    .WithFlag(17, out BUFC_buffer[2].SeqUnderflow, name: "BUF2UFSEQIF")
-                    .WithFlag(18, out BUFC_buffer[2].SeqThresholdEvent, name: "BUF2THRSEQIF")
-                    .WithFlag(19, out BUFC_buffer[2].SeqCorrupt, name: "BUF2CORRSEQIF")
-                    .WithFlag(20, out BUFC_buffer[2].SeqNotWordAligned, name: "BUF2NWASEQIF")
-                    .WithReservedBits(21, 3)
-                    .WithFlag(24, out BUFC_buffer[3].SeqOverflow, name: "BUF3OFSEQIF")
-                    .WithFlag(25, out BUFC_buffer[3].SeqUnderflow, name: "BUF3UFSEQIF")
-                    .WithFlag(26, out BUFC_buffer[3].SeqThresholdEvent, name: "BUF3THRSEQIF")
-                    .WithFlag(27, out BUFC_buffer[3].SeqCorrupt, name: "BUF3CORRSEQIF")
-                    .WithFlag(28, out BUFC_buffer[3].SeqNotWordAligned, name: "BUF3NWASEQIF")
-                    .WithReservedBits(29, 2)
-                    .WithTaggedFlag("BUSERRORSEQIF", 31)
-                    .WithChangeCallback((_, __) => UpdateInterrupts())
-                },
-                {(long)BufferControllerRegisters.SequencerInterruptEnable, new DoubleWordRegister(this)
-                    .WithFlag(0, out BUFC_buffer[0].SeqOverflowEnable, name: "BUF0OFSEQIEN")
-                    .WithFlag(1, out BUFC_buffer[0].SeqUnderflowEnable, name: "BUF0UFSEQIEN")
-                    .WithFlag(2, out BUFC_buffer[0].SeqThresholdEventEnable, name: "BUF0THRSEQIEN")
-                    .WithFlag(3, out BUFC_buffer[0].SeqCorruptEnable, name: "BUF0CORRSEQIEN")
-                    .WithFlag(4, out BUFC_buffer[0].SeqNotWordAlignedEnable, name: "BUF0NWASEQIEN")
-                    .WithReservedBits(5, 3)
-                    .WithFlag(8, out BUFC_buffer[1].SeqOverflowEnable, name: "BUF1OFSEQIEN")
-                    .WithFlag(9, out BUFC_buffer[1].SeqUnderflowEnable, name: "BUF1UFSEQIEN")
-                    .WithFlag(10, out BUFC_buffer[1].SeqThresholdEventEnable, name: "BUF1THRSEQIEN")
-                    .WithFlag(11, out BUFC_buffer[1].SeqCorruptEnable, name: "BUF1CORRSEQIEN")
-                    .WithFlag(12, out BUFC_buffer[1].SeqNotWordAlignedEnable, name: "BUF1NWASEQIEN")
-                    .WithReservedBits(13, 3)
-                    .WithFlag(16, out BUFC_buffer[2].SeqOverflowEnable, name: "BUF2OFSEQIEN")
-                    .WithFlag(17, out BUFC_buffer[2].SeqUnderflowEnable, name: "BUF2UFSEQIEN")
-                    .WithFlag(18, out BUFC_buffer[2].SeqThresholdEventEnable, name: "BUF2THRSEQIEN")
-                    .WithFlag(19, out BUFC_buffer[2].SeqCorruptEnable, name: "BUF2CORRSEQIEN")
-                    .WithFlag(20, out BUFC_buffer[2].SeqNotWordAlignedEnable, name: "BUF2NWASEQIEN")
-                    .WithReservedBits(21, 3)
-                    .WithFlag(24, out BUFC_buffer[3].SeqOverflowEnable, name: "BUF3OFSEQIEN")
-                    .WithFlag(25, out BUFC_buffer[3].SeqUnderflowEnable, name: "BUF3UFSEQIEN")
-                    .WithFlag(26, out BUFC_buffer[3].SeqThresholdEventEnable, name: "BUF3THRSEQIEN")
-                    .WithFlag(27, out BUFC_buffer[3].SeqCorruptEnable, name: "BUF3CORRSEQIEN")
-                    .WithFlag(28, out BUFC_buffer[3].SeqNotWordAlignedEnable, name: "BUF3NWASEQIEN")
-                    .WithReservedBits(29, 2)
-                    .WithTaggedFlag("BUSERRORSEQIEN", 31)
-                    .WithChangeCallback((_, __) => UpdateInterrupts())
-                },
-            };
-
-            var startOffset = (long)BufferControllerRegisters.Buffer0Control;
-            var controlOffset = (long)BufferControllerRegisters.Buffer0Control - startOffset;
-            var addrOffset = (long)BufferControllerRegisters.Buffer0Address - startOffset;
-            var wOffOffset = (long)BufferControllerRegisters.Buffer0WriteOffset - startOffset;
-            var rOffOffset = (long)BufferControllerRegisters.Buffer0ReadOffset - startOffset;
-            var wStartOffset = (long)BufferControllerRegisters.Buffer0WriteStart - startOffset;
-            var rDataOffset = (long)BufferControllerRegisters.Buffer0ReadData - startOffset;
-            var wDataOffset = (long)BufferControllerRegisters.Buffer0WriteData - startOffset;
-            var xWriteOffset = (long)BufferControllerRegisters.Buffer0XorWrite - startOffset;
-            var statusOffset = (long)BufferControllerRegisters.Buffer0Status - startOffset;
-            var thresOffset = (long)BufferControllerRegisters.Buffer0ThresholdControl - startOffset;
-            var cmdOffset = (long)BufferControllerRegisters.Buffer0Command - startOffset;
-            var rData32Offset = (long)BufferControllerRegisters.Buffer0ReadData32 - startOffset;
-            var wData32Offset = (long)BufferControllerRegisters.Buffer0WriteData32 - startOffset;
-            var xWrite32Offset = (long)BufferControllerRegisters.Buffer0XorWrite32 - startOffset;
-            var blockSize = (long)BufferControllerRegisters.Buffer1Control - (long)BufferControllerRegisters.Buffer0Control;
-            for(var index = 0; index < BUFC_NumberOfBuffers; index++)
-            {
-                var i = index;
-                registerDictionary.Add(startOffset + blockSize * i + controlOffset,
-                    new DoubleWordRegister(this)
-                        .WithEnumField<DoubleWordRegister, BUFC_SizeMode>(0, 3, out BUFC_buffer[i].SizeMode, name: "SIZE")
-                        .WithReservedBits(3, 29));
-                registerDictionary.Add(startOffset + blockSize * i + addrOffset,
-                    new DoubleWordRegister(this, 0x8000000)
-                        .WithValueField(0, 32, out BUFC_buffer[i].Address, name: "ADDR"));
-                registerDictionary.Add(startOffset + blockSize * i + wOffOffset,
-                    new DoubleWordRegister(this)
-                        .WithValueField(0, 13, valueProviderCallback: _ => BUFC_buffer[i].WriteOffset, writeCallback: (_, value) => BUFC_buffer[i].WriteOffset = (uint)value, name: "WRITEOFFSET")
-                        .WithReservedBits(13, 19));
-                registerDictionary.Add(startOffset + blockSize * i + rOffOffset,
-                    new DoubleWordRegister(this)
-                        .WithValueField(0, 13, valueProviderCallback: _ => BUFC_buffer[i].ReadOffset, writeCallback: (_, value) => BUFC_buffer[i].ReadOffset = (uint)value, name: "READOFFSET")
-                        .WithReservedBits(13, 19));
-                registerDictionary.Add(startOffset + blockSize * i + wStartOffset,
-                    new DoubleWordRegister(this)
-                        .WithValueField(0, 13, out BUFC_buffer[i].WriteStartOffset, FieldMode.Read, name: "WRITESTART")
-                        .WithReservedBits(13, 19));
-                registerDictionary.Add(startOffset + blockSize * i + rDataOffset,
-                    new DoubleWordRegister(this)
-                        .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ => BUFC_buffer[i].ReadData, name: "READDATA")
-                        .WithReservedBits(8, 24));
-                registerDictionary.Add(startOffset + blockSize * i + wDataOffset,
-                    new DoubleWordRegister(this)
-                        .WithValueField(0, 8, FieldMode.Write, writeCallback: (_, value) => BUFC_buffer[i].WriteData = (uint)value, name: "WRITEDATA")
-                        .WithReservedBits(8, 24));
-                registerDictionary.Add(startOffset + blockSize * i + xWriteOffset,
-                    new DoubleWordRegister(this)
-                        .WithValueField(0, 8, FieldMode.Write, writeCallback: (_, value) => BUFC_buffer[i].XorWriteData = (uint)value, name: "XORWRITEDATA")
-                        .WithReservedBits(8, 24));
-                registerDictionary.Add(startOffset + blockSize * i + statusOffset,
-                    new DoubleWordRegister(this)
-                        .WithValueField(0, 13, FieldMode.Read, valueProviderCallback: _ => BUFC_buffer[i].BytesNumber, name: "BYTES")
-                        .WithReservedBits(13, 3)
-                        .WithFlag(16, FieldMode.Read, valueProviderCallback: _ => BUFC_buffer[i].ReadReady, name: "RDATARDY")
-                        .WithReservedBits(17, 3)
-                        .WithFlag(20, FieldMode.Read, valueProviderCallback: _ => BUFC_buffer[i].ThresholdFlag, name: "THRESHOLDFLAG")
-                        .WithReservedBits(21, 3)
-                        .WithFlag(24, FieldMode.Read, valueProviderCallback: _ => BUFC_buffer[i].Read32Ready, name: "RDATA32RDY")
-                        .WithReservedBits(25, 7));
-                registerDictionary.Add(startOffset + blockSize * i + thresOffset,
-                    new DoubleWordRegister(this)
-                        .WithValueField(0, 13, out BUFC_buffer[i].Threshold, name: "THRESHOLD")
-                        .WithEnumField<DoubleWordRegister, BUFC_ThresholdMode>(13, 1, out BUFC_buffer[i].ThresholdMode, name: "THRESHOLDMODE")
-                        .WithReservedBits(14, 18)
-                        .WithChangeCallback((_, __) => BUFC_buffer[i].UpdateThresholdFlag()));
-                registerDictionary.Add(startOffset + blockSize * i + cmdOffset,
-                    new DoubleWordRegister(this)
-                        .WithFlag(0, FieldMode.Set, writeCallback: (_, value) => { if(value) BUFC_buffer[i].Clear(); }, name: "CLEAR")
-                        .WithFlag(1, FieldMode.Set, writeCallback: (_, value) => { if(value) BUFC_buffer[i].Prefetch(); }, name: "PREFETCH")
-                        .WithFlag(2, FieldMode.Set, writeCallback: (_, value) => { if(value) BUFC_buffer[i].UpdateWriteStartOffset(); }, name: "UPDATEWRITESTART")
-                        .WithFlag(3, FieldMode.Set, writeCallback: (_, value) => { if(value) BUFC_buffer[i].RestoreWriteOffset(); }, name: "RESTOREWRITEOFFSET")
-                        .WithReservedBits(4, 28));
-                registerDictionary.Add(startOffset + blockSize * i + rData32Offset,
-                    new DoubleWordRegister(this)
-                        .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => BUFC_buffer[i].ReadData32, name: "READDATA32"));
-                registerDictionary.Add(startOffset + blockSize * i + wData32Offset,
-                    new DoubleWordRegister(this)
-                        .WithValueField(0, 32, FieldMode.Write, writeCallback: (_, value) => BUFC_buffer[i].WriteData32 = (uint)value, name: "WRITEDATA32"));
-                registerDictionary.Add(startOffset + blockSize * i + xWrite32Offset,
-                    new DoubleWordRegister(this)
-                        .WithValueField(0, 32, FieldMode.Write, writeCallback: (_, value) => BUFC_buffer[i].XorWriteData32 = (uint)value, name: "XORWRITEDATA32"));
-            }
-
-            return new DoubleWordRegisterCollection(this, registerDictionary);
-        }
-
-        private DoubleWordRegisterCollection BuildCyclicRedundancyCheckRegistersCollection()
-        {
-            var registerDictionary = new Dictionary<long, DoubleWordRegister>
-            {
-                {(long)CyclicRedundancyCheckRegisters.Control, new DoubleWordRegister(this)
-                    .WithTaggedFlag("INPUTINV", 0)
-                    .WithTaggedFlag("OUTPUTINV", 1)
-                    .WithEnumField<DoubleWordRegister, CRC_CrcWidthMode>(2, 2, out CRC_crcWidthMode, name: "CRCWIDTH")
-                    .WithReservedBits(4, 1)
-                    .WithTaggedFlag("INPUTBITORDER", 5)
-                    .WithFlag(6, out CRC_reverseCrcByteOrdering, name: "BYTEREVERSE")
-                    .WithTaggedFlag("BITREVERSE", 7)
-                    .WithValueField(8, 4, out CRC_crcBitsPerWord, name: "BITSPERWORD")
-                    .WithTaggedFlag("PADCRCINPUT", 12)
-                    .WithReservedBits(13, 19)
-                },
-            };
-
-            return new DoubleWordRegisterCollection(this, registerDictionary);
-        }
-
         private bool FRC_TrySetFrameLength(uint frameLength)
         {
             switch(FRC_dynamicFrameLengthMode.Value)
@@ -4052,7 +4796,11 @@ namespace Antmicro.Renode.Peripherals.Wireless
             }
             frameLength >>= (byte)FRC_dynamicFrameLengthBitShift.Value;
             frameLength &= (1u << (byte)FRC_dynamicFrameLengthBits.Value) - 1;
-            frameLength += (uint)FRC_dynamicFrameLengthOffset.Value; // TODO signed 2's complement
+            // Signed 2's complement
+            int offset = (FRC_dynamicFrameLengthOffset.Value & 0x8) != 0
+                ? (int)(FRC_dynamicFrameLengthOffset.Value | unchecked((uint)~0xF))
+                : (int)FRC_dynamicFrameLengthOffset.Value;
+            frameLength += (uint)offset;
             if(frameLength < FRC_minDecodedLength.Value || FRC_maxDecodedLength.Value < frameLength)
             {
                 FRC_frameErrorInterrupt.Value = true;
@@ -4063,6 +4811,66 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
             FRC_frameLength.Value = frameLength;
             return true;
+        }
+
+        private void FRC_SnifferReceiveFrame(byte[] frame)
+        {
+            PtiFrameStart?.Invoke(SiLabs_PacketTraceFrameType.Receive);
+            // NOTE the sync word makes up the first 4 bytes of the frame
+            int syncWordBytes = Math.Min((int) MODEM_SyncWordBytes, SNIFF_SYNCWORD_SERIAL_LEN);
+            var syncWord = frame.Take(syncWordBytes).ToArray();
+            // NOTE the rest of the frame is the actual data
+            var frameData = frame.Skip(syncWordBytes).ToArray();
+            if(FRC_ptiEmitState.Value)
+            {
+                PtiDataOut?.Invoke(new byte[] { (byte)PacketTraceFrameDelimiters.RxStart });
+            }
+            if(FRC_ptiEmitSyncWord.Value)
+            {
+                var syncWordPadded = new byte[SNIFF_SYNCWORD_SERIAL_LEN];
+                Array.Copy(syncWord, syncWordPadded, syncWord.Length);
+                PtiDataOut?.Invoke(syncWordPadded);
+            }
+            if(FRC_ptiEmitRx.Value)
+            {
+                PtiDataOut?.Invoke(frameData);
+            }
+            if(FRC_ptiEmitState.Value)
+            {
+                PtiDataOut?.Invoke(new byte[] { (byte)PacketTraceFrameDelimiters.RxEndSuccess });
+            }
+            if(FRC_ptiEmitRssi.Value)
+            {
+                PtiDataOut?.Invoke(new byte[] { (byte)AGC_FrameRssiIntegerPart });
+            }
+        }
+
+        private void FRC_SnifferTransmitFrame(byte[] frame)
+        {
+            PtiFrameStart?.Invoke(SiLabs_PacketTraceFrameType.Transmit);
+            // NOTE the sync word makes up the first 4 bytes of the frame
+            int syncWordBytes = Math.Min((int)MODEM_SyncWordBytes, SNIFF_SYNCWORD_SERIAL_LEN);
+            var syncWord = frame.Take(syncWordBytes).ToArray();
+            // NOTE the rest of the frame is the actual data
+            var frameData = frame.Skip(syncWordBytes).ToArray();
+            if(FRC_ptiEmitState.Value)
+            {
+                PtiDataOut?.Invoke(new byte[] { (byte)PacketTraceFrameDelimiters.TxStart });
+            }
+            if(FRC_ptiEmitSyncWord.Value)
+            {
+                var syncWordPadded = new byte[SNIFF_SYNCWORD_SERIAL_LEN];
+                Array.Copy(syncWord, syncWordPadded, syncWord.Length);
+                PtiDataOut?.Invoke(syncWordPadded);
+            }
+            if(FRC_ptiEmitTx.Value)
+            {
+                PtiDataOut?.Invoke(frameData);
+            }
+            if(FRC_ptiEmitState.Value)
+            {
+                PtiDataOut?.Invoke(new byte[] { (byte)PacketTraceFrameDelimiters.TxEndSuccess });
+            }
         }
 
         private bool FRC_CheckSyncWords(byte[] frame)
@@ -4094,30 +4902,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             }
             PROTIMER_TriggerEvent(PROTIMER_Event.Syncword0Or1Detected);
 
-            for(var i = 0; i < PROTIMER_NumberOfCaptureCompareChannels; ++i)
-            {
-                if(PROTIMER_captureCompareChannel[i].Enable.Value && PROTIMER_captureCompareChannel[i].Mode.Value == PROTIMER_CaptureCompareMode.Capture)
-                {
-                    var triggered = false;
-                    switch(PROTIMER_captureCompareChannel[i].CaptureInputSource.Value)
-                    {
-                    case PROTIMER_CaptureInputSource.DemodulatorFoundSyncWord0:
-                        triggered |= foundSyncWord0;
-                        break;
-                    case PROTIMER_CaptureInputSource.DemodulatorFoundSyncWord1:
-                        triggered |= foundSyncWord1;
-                        break;
-                    case PROTIMER_CaptureInputSource.DemodulatorFoundSyncWord0or1:
-                        triggered = true;
-                        break;
-                    }
-                    if(triggered)
-                    {
-                        PROTIMER_captureCompareChannel[i].Capture((ushort)PROTIMER_PreCounterValue, PROTIMER_BaseCounterValue, PROTIMER_WrapCounterValue);
-                        PROTIMER_TriggerEvent((PROTIMER_Event)((uint)PROTIMER_Event.CaptureCompareChannel0Event + i));
-                    }
-                }
-            }
+            PROTIMER_CaptureOnSyncWordsDetected(foundSyncWord0, foundSyncWord1, false, false);
 
             MODEM_rxFrameWithSyncWord0DetectedInterrupt.Value |= foundSyncWord0;
             MODEM_seqRxFrameWithSyncWord0DetectedInterrupt.Value = MODEM_rxFrameWithSyncWord0DetectedInterrupt.Value;
@@ -4129,291 +4914,219 @@ namespace Antmicro.Renode.Peripherals.Wireless
             return true;
         }
 
-        private DoubleWordRegisterCollection BuildRadioControllerRegistersCollection()
+        // Disassembles a slice of the received frame into the host buffer (BUFC) and the FRC packet-capture
+        // buffer. The slice is [startOffset, startOffset + numBytes) within currentFrame (offsets include
+        // the leading sync word). The method derives the frame boundaries from currentFrame itself:
+        //   - beginning of frame (startOffset at the first MAC byte, i.e. just past the sync word): parse
+        //     the dynamic frame length and reset the per-frame disassemble state (WCNT, subframe index);
+        //   - end of frame (the slice reaches currentFrame.Length): append the RX trailer and prepare the
+        //     descriptors for the next frame.
+        // Called once with the whole payload range it reproduces the original one-shot behaviour; called
+        // repeatedly with successive ranges it delivers the frame incrementally (BUFC, packet-capture
+        // buffer and WCNT advance in lockstep), mirroring how hardware fills the buffers as words arrive.
+        private void FRC_DisassembleCurrentFrame(bool forceCrcError, uint startOffset, uint numBytes)
         {
-            var registerDictionary = new Dictionary<long, DoubleWordRegister>
-            {
-                {(long)RadioControllerRegisters.RXENSourceEnable, new DoubleWordRegister(this)
-                    .WithValueField(0, 8, out RAC_softwareRxEnable, name: "SWRXEN")
-                    .WithTaggedFlag("CHANNELBUSYEN", 8)
-                    .WithTaggedFlag("TIMDETEN", 9)
-                    .WithTaggedFlag("PREDETEN", 10)
-                    .WithTaggedFlag("FRAMEDETEN", 11)
-                    .WithTaggedFlag("DEMODRXREQEN", 12)
-                    .WithTaggedFlag("PRSRXEN", 13)
-                    .WithReservedBits(14, 18)
-                    .WithWriteCallback((_, __) => RAC_UpdateRadioStateMachine())
-                },
-                {(long)RadioControllerRegisters.Status, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, FieldMode.Read, valueProviderCallback: _ => RAC_RxEnableMask, name: "RXMASK")
-                    .WithReservedBits(16, 3)
-                    .WithFlag(19, out RAC_forceStateActive, FieldMode.Read, name: "FORCESTATEACTIVE")
-                    .WithFlag(20, out RAC_txAfterFramePending, FieldMode.Read, name: "TXAFTERFRAMEPEND")
-                    .WithFlag(21, out RAC_txAfterFrameActive, FieldMode.Read, name: "TXAFTERFRAMEACTIVE")
-                    .WithFlag(22, out RAC_sequencerInSleeping, FieldMode.Read, name: "SEQSLEEPING")
-                    .WithFlag(23, out RAC_sequencerInDeepSleep, FieldMode.Read, name: "SEQSLEEPDEEP")
-                    .WithEnumField<DoubleWordRegister, RAC_RadioState>(24, 4, FieldMode.Read, valueProviderCallback: _ => RAC_currentRadioState, name: "STATE")
-                    .WithFlag(28, out RAC_sequencerActive, FieldMode.Read, name: "SEQACTIVE")
-                    .WithTaggedFlag("DEMODENS", 29)
-                    .WithFlag(30, FieldMode.Read, valueProviderCallback: _ => RAC_TxEnable, name: "TXENS")
-                    .WithFlag(31, FieldMode.Read, valueProviderCallback: _ => RAC_RxEnable, name: "RXENS")
-                },
-                {(long)RadioControllerRegisters.Status1, new DoubleWordRegister(this)
-                    .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ => RAC_TxEnableMask, name: "TXMASK")
-                    .WithReservedBits(8, 24)
-                },
-                {(long)RadioControllerRegisters.Status2, new DoubleWordRegister(this)
-                    .WithEnumField<DoubleWordRegister, RAC_RadioState>(0, 4, FieldMode.Read, valueProviderCallback: _ => RAC_previous1RadioState, name: "PREVSTATE1")
-                    .WithEnumField<DoubleWordRegister, RAC_RadioState>(4, 4, FieldMode.Read, valueProviderCallback: _ => RAC_previous2RadioState, name: "PREVSTATE2")
-                    .WithEnumField<DoubleWordRegister, RAC_RadioState>(8, 4, FieldMode.Read, valueProviderCallback: _ => RAC_previous3RadioState, name: "PREVSTATE3")
-                    .WithEnumField<DoubleWordRegister, RAC_RadioState>(12, 4, FieldMode.Read, valueProviderCallback: _ => RAC_currentRadioState, name: "CURRSTATE")
-                    .WithReservedBits(16, 16)
-                },
-                {(long)RadioControllerRegisters.Control, new DoubleWordRegister(this)
-                    .WithFlag(0, out RAC_forceDisable, writeCallback: (_, value) => { if (value) {RAC_UpdateRadioStateMachine();} }, name: "FORCEDISABLE")
-                    .WithTaggedFlag("PRSTXEN", 1)
-                    // Controls automatic
-                    .WithFlag(2, out RAC_txAfterRx, name: "TXAFTERRX")
-                    .WithTaggedFlag("PRSMODE", 3)
-                    .WithReservedBits(4, 1)
-                    .WithTaggedFlag("PRSCLR", 5)
-                    .WithTaggedFlag("TXPOSTPONE", 6)
-                    .WithTaggedFlag("ACTIVEPOL", 7)
-                    .WithTaggedFlag("PAENPOL", 8)
-                    .WithTaggedFlag("LNAENPOL", 9)
-                    .WithTaggedFlag("PRSRXDIS", 10)
-                    .WithReservedBits(11, 5)
-                    .WithFlag(16, out RAC_prsForceTx, name: "PRSFORCETX")
-                    .WithReservedBits(17, 7)
-                    .WithTaggedFlag("SEQRESET", 24)
-                    .WithFlag(25, out RAC_exitShutdownDisable, FieldMode.Read, name: "EXITSHUTDOWNDIS")
-                    .WithFlag(26, FieldMode.Set, writeCallback: (_, value) =>
-                        {
-                            if(value && sequencer.IsHalted)
-                            {
-                                sequencer.VectorTableOffset = SequencerMemoryBaseAddress;
-                                sequencer.SP = machine.SystemBus.ReadDoubleWord(SequencerMemoryBaseAddress);
-                                sequencer.PC = machine.SystemBus.ReadDoubleWord(SequencerMemoryBaseAddress + 0x4);
-                                RAC_SeqTimerStart();
-                                sequencer.IsHalted = false;
-                                sequencer.Resume();
-                                this.Log(LogLevel.Noisy, "Sequencer resumed, isHalted={0} VTOR={1:X} SP={2:X} PC={3:X}.", sequencer.IsHalted, sequencer.VectorTableOffset, sequencer.SP, sequencer.PC);
-                            }
-                        }, name: "CPUWAITDIS")
-                    .WithTaggedFlag("SEQCLKDIS", 27)
-                    .WithTaggedFlag("RXOFDIS", 28)
-                    .WithReservedBits(29, 3)
-                    .WithChangeCallback((_, __) => RAC_UpdateRadioStateMachine())
-                },
-                {(long)RadioControllerRegisters.Command, new DoubleWordRegister(this)
-                    .WithFlag(0, FieldMode.Set, writeCallback: (_, value) => { if (value) {RAC_TxEnable = true;} }, name: "TXEN")
-                    .WithFlag(1, FieldMode.Set, writeCallback: (_, value) => { if (value) {RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.ForceTx);} }, name: "FORCETX")
-                    .WithTaggedFlag("TXONCCA", 2)
-                    .WithFlag(3, FieldMode.Set, writeCallback: (_, value) => { if (value) {RAC_TxEnable = false;} }, name: "CLEARTXEN")
-                    .WithFlag(4, FieldMode.Set, writeCallback: (_, value) => { if (value) {RAC_HandleTxAfterFrameCommand();} }, name: "TXAFTERFRAME")
-                    .WithFlag(5, FieldMode.Set, writeCallback: (_, value) => { if(value) {RAC_TxEnable = false; RAC_txAfterFramePending.Value = false; RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.TxDisable);} }, name: "TXDIS")
-                    .WithFlag(6, FieldMode.Set, writeCallback: (_, value) => { if (value && !RAC_seqStateRxOverflowInterrupt.Value) {RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.ClearRxOverflow);} }, name: "CLEARRXOVERFLOW")
-                    .WithFlag(7, FieldMode.Set, writeCallback: (_, value) => { if (value) {RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.RxCalibration);} }, name: "RXCAL")
-                    .WithFlag(8, FieldMode.Set, writeCallback: (_, value) => { if (value) {RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.RxDisable);} }, name: "RXDIS")
-                    .WithReservedBits(9, 1)
-                    .WithTaggedFlag("FRCWR", 10)
-                    .WithTaggedFlag("FRCRD", 11)
-                    .WithTaggedFlag("PAENSET", 12)
-                    .WithTaggedFlag("PAENCLEAR", 13)
-                    .WithTaggedFlag("LNAENSET", 14)
-                    .WithTaggedFlag("LNAENCLEAR", 15)
-                    .WithReservedBits(16, 14)
-                    .WithTaggedFlag("DEMODENSET", 30)
-                    .WithTaggedFlag("DEMODENCLEAR", 31)
-                },
-                {(long)RadioControllerRegisters.ForceStateTransition, new DoubleWordRegister(this)
-                    .WithEnumField<DoubleWordRegister, RAC_RadioState>(0, 3, out RAC_forceStateTransition, writeCallback: (_, __) =>
-                        {
-                            RAC_forceStateActive.Value = true;
-                        }, name: "FORCESTATE")
-                    .WithReservedBits(4, 28)
-                    .WithChangeCallback((_, __) => RAC_UpdateRadioStateMachine())
-                },
-                {(long)RadioControllerRegisters.Em1pControlAndStatus, new DoubleWordRegister(this)
-                    .WithFlag(0, FieldMode.Set, writeCallback: (_, value) => { RAC_em1pAckPending = true; }, name: "RADIOEM1PMODE")
-                    .WithTaggedFlag("RADIOEM1PMODE", 1)
-                    .WithReservedBits(2, 2)
-                    .WithTaggedFlag("MCUEM1PMODE", 4)
-                    .WithTaggedFlag("MCUEM1PDISSWREQ", 5)
-                    .WithReservedBits(6, 10)
-                    .WithTaggedFlag("RADIOEM1PREQ", 16)
-                    .WithFlag(17, FieldMode.Read, valueProviderCallback: _ =>
-                        {
-                            var retValue = RAC_em1pAckPending;
-                            RAC_em1pAckPending = false;
-                            return retValue;
-                        }, name: "RADIOEM1PACK")
-                    //.WithTaggedFlag("RADIOEM1PACK", 17)
-                    .WithTaggedFlag("RADIOEM1PHWREQ", 18)
-                    .WithReservedBits(19, 13)
-                },
-                {(long)RadioControllerRegisters.InterruptFlags, new DoubleWordRegister(this)
-                    .WithFlag(0, out RAC_radioStateChangeInterrupt, name: "STATECHANGEIF")
-                    .WithFlag(1, out RAC_stimerCompareEventInterrupt, name: "STIMCMPEVIF")
-                    .WithTaggedFlag("SEQLOCKUPIF", 2)
-                    .WithTaggedFlag("SEQRESETREQIF", 3)
-                    .WithReservedBits(4, 12)
-                    .WithValueField(16, 8, out RAC_mainCoreSeqInterrupts, name: "SEQIF")
-                    .WithReservedBits(24, 8)
-                    .WithChangeCallback((_, __) => UpdateInterrupts())
-                },
-                {(long)RadioControllerRegisters.InterruptEnable, new DoubleWordRegister(this)
-                    .WithFlag(0, out RAC_radioStateChangeInterruptEnable, name: "STATECHANGEIEN")
-                    .WithFlag(1, out RAC_stimerCompareEventInterruptEnable, name: "STIMCMPEVIEN")
-                    .WithTaggedFlag("SEQLOCKUPIEN", 2)
-                    .WithTaggedFlag("SEQRESETREQIEN", 3)
-                    .WithReservedBits(4, 12)
-                    .WithValueField(16, 8, out RAC_mainCoreSeqInterruptsEnable, name: "SEQIEN")
-                    .WithReservedBits(24, 8)
-                    .WithChangeCallback((_, __) => UpdateInterrupts())
-                },
-                {(long)RadioControllerRegisters.SequencerInterruptFlags, new DoubleWordRegister(this)
-                    .WithFlag(0, out RAC_seqRadioStateChangeInterrupt, name: "STATECHANGESEQIF")
-                    .WithFlag(1, out RAC_seqStimerCompareEventInterrupt, name: "STIMCMPEVSEQIF")
-                    .WithFlag(2, out RAC_seqDemodRxRequestClearInterrupt, name: "DEMODRXREQCLRSEQIF")
-                    .WithFlag(3, out RAC_seqPrsEventInterrupt, name: "PRSEVENTSEQIF")
-                    .WithReservedBits(4, 12)
-                    .WithFlag(16, out RAC_seqStateOffInterrupt, name: "STATEOFFIF")
-                    .WithFlag(17, out RAC_seqStateRxWarmInterrupt, changeCallback: (_, value) => { if (!value) {RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.RxWarmIrqCleared); } }, name: "STATERXWARMIF")
-                    .WithFlag(18, out RAC_seqStateRxSearchInterrupt, changeCallback: (_, value) => { if (!value) {RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.RxSearchIrqCleared); } }, name: "STATERXSEARCHIF")
-                    .WithFlag(19, out RAC_seqStateRxFrameInterrupt, changeCallback: (_, value) => { if (!value) {RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.RxFrameIrqCleared); } }, name: "STATERXFRAMEIF")
-                    .WithFlag(20, out RAC_seqStateRxPoweringDownInterrupt, changeCallback: (_, value) => { if (!value) {RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.RxPowerDownIrqCleared); } }, name: "STATERXPDIF")
-                    .WithFlag(21, out RAC_seqStateRx2RxInterrupt, changeCallback: (_, value) => { if (!value) {RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.Rx2RxIrqCleared); } }, name: "STATERX2RXIF")
-                    .WithFlag(22, out RAC_seqStateRxOverflowInterrupt, name: "STATERXOVERFLOWIF")
-                    .WithFlag(23, out RAC_seqStateRx2TxInterrupt, changeCallback: (_, value) => { if (!value) {RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.Rx2TxIrqCleared); } }, name: "STATERX2TXIF")
-                    .WithFlag(24, out RAC_seqStateTxWarmInterrupt, changeCallback: (_, value) => { if (!value) {RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.TxWarmIrqCleared);} }, name: "STATETXWARMIF")
-                    .WithFlag(25, out RAC_seqStateTxInterrupt, changeCallback: (_, value) => { if (!value) {RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.TxIrqCleared); } }, name: "STATETXIF")
-                    .WithFlag(26, out RAC_seqStateTxPoweringDownInterrupt, changeCallback: (_, value) => { if (!value) {RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.TxPowerDownIrqCleared); } }, name: "STATETXPDIF")
-                    .WithFlag(27, out RAC_seqStateTx2RxInterrupt, changeCallback: (_, value) => { if (!value) {RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.Tx2RxIrqCleared); } }, name: "STATETX2RXIF")
-                    .WithFlag(28, out RAC_seqStateTx2TxInterrupt, changeCallback: (_, value) => { if (!value) {RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.Tx2TxIrqCleared); } }, name: "STATETX2TXIF")
-                    .WithFlag(29, out RAC_seqStateShutDownInterrupt, name: "STATESHUTDOWNIF")
-                    .WithReservedBits(30, 2)
-                    .WithChangeCallback((_, __) => UpdateInterrupts())
-                },
-                {(long)RadioControllerRegisters.SequencerInterruptEnable, new DoubleWordRegister(this)
-                    .WithFlag(0, out RAC_seqRadioStateChangeInterruptEnable, name: "STATECHANGESEQIEN")
-                    .WithFlag(1, out RAC_seqStimerCompareEventInterruptEnable, name: "STIMCMPEVSEQIEN")
-                    .WithFlag(2, out RAC_seqDemodRxRequestClearInterruptEnable, name: "DEMODRXREQCLRSEQIEN")
-                    .WithFlag(3, out RAC_seqPrsEventInterruptEnable, name: "PRSEVENTSEQIEN")
-                    .WithReservedBits(4, 12)
-                    .WithFlag(16, out RAC_seqStateOffInterruptEnable, name: "STATEOFFIEN")
-                    .WithFlag(17, out RAC_seqStateRxWarmInterruptEnable, name: "STATERXWARMIEN")
-                    .WithFlag(18, out RAC_seqStateRxSearchInterruptEnable, name: "STATERXSEARCHIEN")
-                    .WithFlag(19, out RAC_seqStateRxFrameInterruptEnable, name: "STATERXFRAMEIEN")
-                    .WithFlag(20, out RAC_seqStateRxPoweringDownInterruptEnable, name: "STATERXPDIEN")
-                    .WithFlag(21, out RAC_seqStateRx2RxInterruptEnable, name: "STATERX2RXIEN")
-                    .WithFlag(22, out RAC_seqStateRxOverflowInterruptEnable, name: "STATERXOVERFLOWIEN")
-                    .WithFlag(23, out RAC_seqStateRx2TxInterruptEnable, name: "STATERX2TXIEN")
-                    .WithFlag(24, out RAC_seqStateTxWarmInterruptEnable, name: "STATETXWARMIEN")
-                    .WithFlag(25, out RAC_seqStateTxInterruptEnable, name: "STATETXIEN")
-                    .WithFlag(26, out RAC_seqStateTxPoweringDownInterruptEnable, name: "STATETXPDIEN")
-                    .WithFlag(27, out RAC_seqStateTx2RxInterruptEnable, name: "STATETX2RXIEN")
-                    .WithFlag(28, out RAC_seqStateTx2TxInterruptEnable, name: "STATETX2TXIEN")
-                    .WithFlag(29, out RAC_seqStateShutDownInterruptEnable, name: "STATESHUTDOWNIEN")
-                    .WithReservedBits(30, 2)
-                    .WithChangeCallback((_, __) => UpdateInterrupts())
-                },
-                {(long)RadioControllerRegisters.SequencerControl, new DoubleWordRegister(this)
-                    .WithEnumField<DoubleWordRegister, RAC_SeqTimerCompareAction>(0, 1, out RAC_seqTimerCompareAction, name: "COMPACT")
-                    .WithEnumField<DoubleWordRegister, RAC_SeqTimerCompareInvalidMode>(1, 2, out RAC_seqTimerCompareInvalidMode, name: "COMPINVALMODE")
-                    .WithFlag(3, out RAC_seqTimerCompareRelative, name: "RELATIVE")
-                    .WithFlag(4, out RAC_seqTimerAlwaysRun, name: "STIMERALWAYSRUN")
-                    .WithTaggedFlag("STIMERDEBUGRUN", 5)
-                    .WithTaggedFlag("STATEDEBUGRUN", 6)
-                    .WithReservedBits(7, 17)
-                    .WithTaggedFlag("SWIRQ", 24)
-                    .WithTaggedFlag("SWIRQ", 25)
-                    .WithReservedBits(26, 6)
-                },
-                {(long)RadioControllerRegisters.SequencerTimerValue, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, FieldMode.Read, valueProviderCallback: _ => RAC_SeqTimerValue, name: "STIMER")
-                    .WithReservedBits(16, 16)
-                },
-                {(long)RadioControllerRegisters.SequencerTimerCompareValue, new DoubleWordRegister(this)
-                    .WithValueField(0, 15, out RAC_seqTimerCompareValue, writeCallback: (_, value) => { RAC_SeqTimerLimit = (ushort)value; }, name: "STIMERCOMP")
-                    .WithReservedBits(16, 16)
-                },
-                {(long)RadioControllerRegisters.SequencerPrescaler, new DoubleWordRegister(this, 0x7)
-                    .WithValueField(0, 7, out RAC_seqTimerPrescaler, name: "STIMERPRESC")
-                    .WithReservedBits(7, 25)
-                },
-                {(long)RadioControllerRegisters.Storage0, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out RAC_seqStorage[0], name: "SR0")
-                },
-                {(long)RadioControllerRegisters.Storage1, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out RAC_seqStorage[1], name: "SR1")
-                },
-                {(long)RadioControllerRegisters.Storage2, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out RAC_seqStorage[2], name: "SR2")
-                },
-                {(long)RadioControllerRegisters.Storage3, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out RAC_seqStorage[3], name: "SR3")
-                },
-                {(long)RadioControllerRegisters.RadioFrequencyStatus, new DoubleWordRegister(this)
-                    .WithFlag(0, out RAC_paRampingDone, FieldMode.Read, name: "MODRAMPUPDONE")
-                    .WithReservedBits(1, 31)
-                },
-                {(long)RadioControllerRegisters.PowerAmplifierEnableControl, new DoubleWordRegister(this)
-                    .WithReservedBits(0, 8)
-                    .WithFlag(8, valueProviderCallback: _ => { return RAC_PaOutputLevelRamping; }, writeCallback: (_, value) => { RAC_PaOutputLevelRamping = value; }, name: "PARAMP")
-                    .WithReservedBits(9, 7)
-                    .WithTaggedFlag("INVRAMPCLK", 16)
-                    .WithTaggedFlag("DIV2RAMPCLK", 17)
-                    .WithTaggedFlag("RSTDIV2RAMPCLK", 18)
-                    .WithReservedBits(19, 13)
-                },
-                {(long)RadioControllerRegisters.Scratch0, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out RAC_scratch[0], name: "SCRATCH0")
-                },
-                {(long)RadioControllerRegisters.Scratch1, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out RAC_scratch[1], name: "SCRATCH1")
-                },
-                {(long)RadioControllerRegisters.Scratch2, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out RAC_scratch[2], name: "SCRATCH2")
-                },
-                {(long)RadioControllerRegisters.Scratch3, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out RAC_scratch[3], name: "SCRATCH3")
-                },
-                {(long)RadioControllerRegisters.Scratch4, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out RAC_scratch[4], name: "SCRATCH4")
-                },
-                {(long)RadioControllerRegisters.Scratch5, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out RAC_scratch[5], name: "SCRATCH5")
-                },
-                {(long)RadioControllerRegisters.Scratch6, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out RAC_scratch[6], name: "SCRATCH6")
-                },
-                {(long)RadioControllerRegisters.Scratch7, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out RAC_scratch[7], name: "SCRATCH7")
-                },
-                {(long)RadioControllerRegisters.RadioFrequencyLock0, new DoubleWordRegister(this, 0x80000000)
-                    .WithTag("SYNTHLODIVFREQCTRL", 0, 10)
-                    .WithReservedBits(10, 6)
-                    .WithTaggedFlag("RACIFPGAEN", 16)
-                    .WithFlag(17, valueProviderCallback: _ => !RAC_0DbmSupport, writeCallback: (_, value) => {RAC_0DbmSupport = !value;}, name: "RACTX0DBM")
-                    .WithFlag(18, valueProviderCallback: _ => !RAC_10DbmSupport, writeCallback: (_, value) => {RAC_10DbmSupport = !value;}, name: "RACTX10DBM")
-                    .WithFlag(19, valueProviderCallback: _ => !RAC_20DbmSupport, writeCallback: (_, value) => {RAC_20DbmSupport = !value;}, name: "RACTX20DBM")
-                    .WithReservedBits(20, 1)
-                    .WithTaggedFlag("MODEMHADM", 21)
-                    .WithTaggedFlag("FRCCONVMODE", 22)
-                    .WithTaggedFlag("FRCPAUSING", 23)
-                    .WithTaggedFlag("MODEMANTSWENABLE", 24)
-                    .WithTaggedFlag("MODEMLRBLE", 25)
-                    .WithTaggedFlag("MODEMDSSS", 26)
-                    .WithTaggedFlag("MODEMDEC1", 27)
-                    .WithTaggedFlag("MODEMMODFORMAT", 28)
-                    .WithTaggedFlag("MODEMDUALSYNC", 29)
-                    .WithTaggedFlag("MODEMANTDIVMODE", 30)
-                    .WithFlag(31, out RAC_unlocked, name: "UNLOCKED")
-                },
-            };
+            var dynamicFrameLength = (FRC_dynamicFrameLengthMode.Value != FRC_DynamicFrameLengthMode.Disable);
+            var isFrameStart = (startOffset <= MODEM_SyncWordBytes);
+            var endOffset = Math.Min(startOffset + numBytes, (uint)currentFrame.Length);
+            var isFrameEnd = (endOffset >= (uint)currentFrame.Length);
 
-            return new DoubleWordRegisterCollection(this, registerDictionary);
+            if(isFrameStart)
+            {
+                var frameLength = 0u;
+                switch(FRC_dynamicFrameLengthMode.Value)
+                {
+                case FRC_DynamicFrameLengthMode.Disable:
+                    break;
+                case FRC_DynamicFrameLengthMode.SingleByte:
+                case FRC_DynamicFrameLengthMode.SingleByteMSB:
+                    frameLength = (uint)currentFrame[startOffset + FRC_lengthFieldLocation.Value];
+                    break;
+                case FRC_DynamicFrameLengthMode.DualByteLSBFirst:
+                case FRC_DynamicFrameLengthMode.DualByteMSBFirst:
+                    frameLength = (uint)currentFrame[startOffset + FRC_lengthFieldLocation.Value + 1] << 8
+                                  | (uint)currentFrame[startOffset + FRC_lengthFieldLocation.Value];
+                    break;
+                default:
+                    this.Log(LogLevel.Error, "Unimplemented DFL mode.");
+                    return;
+                }
+                if(dynamicFrameLength && !FRC_TrySetFrameLength(frameLength))
+                {
+                    this.Log(LogLevel.Error, "DisassembleFrame FRAMEERROR");
+                    return; // FRAMEERROR
+                }
+
+                FRC_ResetWordCounter();
+                currentDisassembleSubFrame = 0;
+                currentDisassembleSubFrameStartWord = 0;
+                currentDisassembleSubFrameBytes = 0;
+                currentFrameOffset = startOffset;
+
+                // The Demodulator has already stripped the sync word from the bytes handed to us, so a leading
+                // descriptor that only describes that sync word must not swallow the first payload bytes.
+                FRC_ResolveLeadingReceiveFrameDescriptor();
+            }
+
+            // Deliver the payload of this slice: from currentFrameOffset up to endOffset, or until the whole
+            // frame has been disassembled, whichever comes first. A slice may end in the middle of a subframe;
+            // in that case we keep our place (currentDisassembleSubFrameStartWord / currentDisassembleSubFrame
+            // persist) and resume on the next call.
+            while(FRC_wordCounter.Value < FRC_FrameLength && currentFrameOffset < endOffset)
+            {
+                var descriptor = FRC_frameDescriptor[FRC_ActiveReceiveFrameDescriptor];
+
+                // Disassemble subframe.
+                // The loop is symmetric with FRC_AssembleFrame() on the TX side: INCLUDECRC is the bit that
+                // places the CRC after this subframe's data and CALCCRC only feeds the CRC accumulator. A
+                // subframe is (WORDS+1) words excluding that CRC, so the CRC bytes are not part of the payload
+                // written into the host buffer -- they are read separately below -- and they are reserved out of
+                // the remaining FRAMELENGTH budget only when DFLINCLUDECRC says FRAMELENGTH counts them.
+                var crcLength = descriptor.IncludeCrc.Value ? CRC_CrcWidth : 0;
+                var crcCountsInFrameLength = (crcLength > 0) && dynamicFrameLength && FRC_dynamicFrameCrcIncluded.Value;
+                var remaining = FRC_FrameLength - currentDisassembleSubFrameStartWord;
+                if(crcCountsInFrameLength && remaining < crcLength)
+                {
+                    this.Log(LogLevel.Error, "frame too small to contain CRC");
+                    return;
+                }
+
+                var excludeFromWordCounter = FRC_SubframeExcludedFromWordCounter(descriptor, FRC_ActiveReceiveFrameDescriptor);
+                // An excluded subframe is sized by WORDS alone, since FRAMELENGTH does not account for its words.
+                var payloadTotal = excludeFromWordCounter
+                                   ? descriptor.Words
+                                   : Math.Min(crcCountsInFrameLength ? (remaining - crcLength) : remaining, descriptor.Words);
+                var bytesToWrite = (uint)Math.Min((long)(payloadTotal - currentDisassembleSubFrameBytes), (long)(endOffset - currentFrameOffset));
+                if(currentFrameOffset + bytesToWrite > (uint)currentFrame.Length)
+                {
+                    this.Log(LogLevel.Error, "frame too small, payload");
+                    return;
+                }
+
+                if(bytesToWrite > 0)
+                {
+                    var payload = currentFrame.Skip((int)currentFrameOffset).Take((int)bytesToWrite);
+                    var skipCount = (FRC_wordCounter.Value < FRC_packetBufferStartAddress.Value)
+                                    ? Math.Min(bytesToWrite, FRC_packetBufferStartAddress.Value - FRC_wordCounter.Value) : 0;
+                    var pktCaptureBuff = currentFrame.Skip((int)(currentFrameOffset + skipCount)).Take((int)(bytesToWrite - skipCount));
+                    // Position of these captured bytes within the capture window (WCNT - PKTBUFSTARTLOC),
+                    // computed before WCNT advances so chunked delivery lands at the right offset.
+                    var captureOffset = (FRC_wordCounter.Value + skipCount) - FRC_packetBufferStartAddress.Value;
+                    currentFrameOffset += bytesToWrite;
+                    if(!excludeFromWordCounter)
+                    {
+                        FRC_AdvanceWordCounter(bytesToWrite);
+                    }
+                    currentDisassembleSubFrameBytes += bytesToWrite;
+
+                    FRC_WritePacketCaptureBuffer(pktCaptureBuff.ToArray(), (uint)captureOffset);
+
+                    if(!bufferController.TryWriteBytes(descriptor.BufferIndex, payload.ToArray(), out var written))
+                    {
+                        this.Log(LogLevel.Error, "Written only {0} bytes from {1}", written, bytesToWrite);
+                        if(bufferController.Overflow(descriptor.BufferIndex))
+                        {
+                            FRC_rxOverflowInterrupt.Value = true;
+                            FRC_seqRxOverflowInterrupt.Value = true;
+                            UpdateInterrupts();
+                            RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.RxOverflow);
+                        }
+                    }
+                }
+
+                if(currentDisassembleSubFrameBytes < payloadTotal)
+                {
+                    // The slice ends inside this subframe: resume from here on the next call.
+                    break;
+                }
+
+                // The subframe payload is fully delivered: read (and optionally store) its CRC.
+                if(descriptor.IncludeCrc.Value)
+                {
+                    var crc = currentFrame.Skip((int)currentFrameOffset).Take((int)CRC_CrcWidth).ToArray();
+                    // TODO: Check CRC
+                    // FRC_frameErrorInterrupt.Value |= crc check failed
+                    currentFrameOffset += (uint)crc.Length;
+                    if(crc.Length != CRC_CrcWidth)
+                    {
+                        this.Log(LogLevel.Error, "frame too small, crc");
+                    }
+                    if(crcCountsInFrameLength)
+                    {
+                        FRC_AdvanceWordCounter((uint)crc.Length);
+                    }
+                    if(FRC_rxStoreCrc.Value)
+                    {
+                        if(!bufferController.TryWriteBytes(descriptor.BufferIndex, crc, out var written))
+                        {
+                            this.Log(LogLevel.Error, "Written only {0} bytes from {1}", written, crc.Length);
+                            if(bufferController.Overflow(descriptor.BufferIndex))
+                            {
+                                FRC_rxOverflowInterrupt.Value = true;
+                                FRC_seqRxOverflowInterrupt.Value = true;
+                                UpdateInterrupts();
+                                RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.RxOverflow);
+                            }
+                        }
+                    }
+                }
+
+                // Select next frame descriptor
+                var nextDescriptor = FRC_SequenceFrameDescriptor(FRC_rxFrameDescriptorMode.Value, FRC_FirstReceiveFrameDescriptor, currentDisassembleSubFrame + 1);
+                if(excludeFromWordCounter && nextDescriptor == FRC_ActiveReceiveFrameDescriptor)
+                {
+                    this.Log(LogLevel.Error, "FCD{0} is excluded from WCNT but the FCD mode never advances past it, aborting frame disassembly.",
+                             FRC_ActiveReceiveFrameDescriptor);
+                    return;
+                }
+                FRC_ActiveReceiveFrameDescriptor = nextDescriptor;
+                currentDisassembleSubFrame++;
+                currentDisassembleSubFrameStartWord = (uint)FRC_wordCounter.Value;
+                currentDisassembleSubFrameBytes = 0;
+            }
+
+            if(!isFrameEnd)
+            {
+                // More of the frame is still to come on a later call: the trailer and descriptor
+                // preparation happen only once, at the true end of frame.
+                return;
+            }
+
+            // RX TRAIL DATA
+            {
+                // Appended ascending order of field's bit index
+                var descriptor = FRC_frameDescriptor[FRC_ActiveReceiveFrameDescriptor];
+                if(FRC_rxAppendRssi.Value)
+                {
+                    // The RSSI appended to the frame is the frame RSSI latched at sync detection, i.e. the same
+                    // value AGC_FRAMERSSI.FRAMERSSIINT reports, as a signed two's complement dBm integer.
+                    bufferController.WriteData(descriptor.BufferIndex, (byte)AGC_FrameRssiIntegerPartAdjusted);
+                }
+                if(FRC_rxAppendStatus.Value)
+                {
+                    bufferController.WriteData(descriptor.BufferIndex, (forceCrcError) ? 0x00U : 0x80U);
+                }
+                if(FRC_rxAppendProtimerCc0base.Value)
+                {
+                    bufferController.WriteData(descriptor.BufferIndex, ((uint)PROTIMER_captureCompareChannel[0].BaseValue.Value & 0xFF));
+                    bufferController.WriteData(descriptor.BufferIndex, (((uint)PROTIMER_captureCompareChannel[0].BaseValue.Value >> 8) & 0xFF));
+                }
+                if(FRC_rxAppendProtimerCc0LowWrap.Value)
+                {
+                    bufferController.WriteData(descriptor.BufferIndex, ((uint)PROTIMER_captureCompareChannel[0].WrapValue.Value & 0xFF));
+                    bufferController.WriteData(descriptor.BufferIndex, (((uint)PROTIMER_captureCompareChannel[0].WrapValue.Value >> 8) & 0xFF));
+                }
+                if(FRC_rxAppendProtimerCc0HighWrap.Value)
+                {
+                    bufferController.WriteData(descriptor.BufferIndex, (((uint)PROTIMER_captureCompareChannel[0].WrapValue.Value >> 16) & 0xFF));
+                    bufferController.WriteData(descriptor.BufferIndex, (((uint)PROTIMER_captureCompareChannel[0].WrapValue.Value >> 24) & 0xFF));
+                }
+            }
+
+            // Prepare for next frame
+            FRC_ActiveReceiveFrameDescriptor = FRC_SequenceFrameDescriptor(FRC_rxFrameDescriptorMode.Value, FRC_FirstReceiveFrameDescriptor, 0);
+
+            this.Log(LogLevel.Noisy, "Frame disassembled, frame descriptor now is {0}", FRC_ActiveReceiveFrameDescriptor);
         }
 
         private void FRC_CheckPacketCaptureBufferThreshold()
@@ -4426,70 +5139,149 @@ namespace Antmicro.Renode.Peripherals.Wireless
             }
         }
 
+        // Writes data into the FRC packet-capture buffer starting at the given offset (the byte position
+        // within the capture window, i.e. WCNT - PKTBUFSTARTLOC). PKTBUFCOUNT tracks the highest captured
+        // position so that incremental (chunked) delivery fills the buffer at the correct location instead
+        // of always at the start.
+        private void FRC_WritePacketCaptureBuffer(byte[] data, uint offset)
+        {
+            var wroteAny = false;
+            for(var i = 0; i < data.Length; i++)
+            {
+                var position = offset + (uint)i;
+                if(position >= FRC_PacketBufferCaptureSize)
+                {
+                    break;
+                }
+
+                FRC_packetBufferCapture[position] = data[i];
+                if(position + 1 > FRC_packetBufferCount.Value)
+                {
+                    FRC_packetBufferCount.Value = position + 1;
+                }
+                wroteAny = true;
+
+                if(FRC_packetBufferCount.Value == 1)
+                {
+                    FRC_packetBufferStartInterrupt.Value = true;
+                    FRC_seqPacketBufferStartInterrupt.Value = true;
+                }
+            }
+
+            if(wroteAny)
+            {
+                // Re-evaluate interrupts as the capture buffer fills so PKTBUFSTART (first byte) and
+                // PKTBUFTHRESHOLD (PKTBUFCOUNT reached the configured threshold) are raised promptly,
+                // including when the frame is delivered incrementally. UpdateInterrupts() runs
+                // FRC_CheckPacketCaptureBufferThreshold(), which sets PKTBUFTHRESHOLDIF/SEQIF.
+                UpdateInterrupts();
+            }
+        }
+
+        private void FRC_RxAbortCommand()
+        {
+            // CMD_RXABORT takes effect when FRC is active. When RAC in RXWARM and RXSEARCH state, 
+            // since FRC is still in IDLE state this command doesn't do anything. 
+            if(RAC_currentRadioState != RAC_RadioState.RxFrame)
+            {
+                return;
+            }
+
+            // When set, the active receive BUFC buffer is restored for received frames that trigger the RXABORTED interrupt flag. This
+            // means that the WRITEOFFSET is restored to the value prior to receiving this frame. READOFFSET is not modified.
+            if(FRC_rxBufferRestoreOnRxAborted.Value)
+            {
+                FRC_RestoreActiveRxDescriptorBufferWriteOffset();
+            }
+
+            // RENODE-354
+            //if (TRACKABFRAME)
+            //{
+            // TODO
+            //}
+
+            FRC_rxAbortedInterrupt.Value = true;
+            FRC_seqRxAbortedInterrupt.Value = true;
+            RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.RxAbort);
+            UpdateInterrupts();
+        }
+
+        private void RAC_SeqTimerStart() => RAC_SeqTimerRestart(0, RAC_SeqTimerLimit);
+
         private void RAC_RxTimerLimitReached()
         {
             rxTimer.Enabled = false;
 
-            // We went through the preamble delay which was scheduled in ReceiveFrame().
+            // We went through the preamble delay which was scheduled in ReceiveFrame(). 
             // We can now check radio state and sync word.
             if(RAC_internalRxState == RAC_InternalRxState.PreambleAndSyncWord)
             {
                 if(RAC_currentRadioState != RAC_RadioState.RxSearch)
                 {
                     RAC_ClearOngoingRx();
-                    this.Log(LogBasicRadioActivityAsError ? LogLevel.Error : LogLevel.Info, "Dropping (not in RXSEARCH): at {0} (channel {1}): {2}", GetTime(), Channel, BitConverter.ToString(currentFrame));
+                    this.Log(LogBasicRadioActivityAsError ? LogLevel.Error : LogLevel.Info, "Dropping (not in RXSEARCH): at {0} (channel {1}) ({2}): {3}", GetTime(), LogicalChannel, SYNTH_GetRfFrequencyString(), BitConverter.ToString(currentFrame));
                     return;
                 }
 
                 if(RAC_ongoingRxCollided)
                 {
                     RAC_ClearOngoingRx();
-                    this.Log(LogBasicRadioActivityAsError ? LogLevel.Error : LogLevel.Info, "Dropping (PRE/SYNC COLLISION): at {0} (channel {1}): {2}", GetTime(), Channel, BitConverter.ToString(currentFrame));
+                    this.Log(LogBasicRadioActivityAsError ? LogLevel.Error : LogLevel.Info, "Dropping (PRE/SYNC COLLISION): at {0} (channel {1}) ({2}): {3}", GetTime(), LogicalChannel, SYNTH_GetRfFrequencyString(), BitConverter.ToString(currentFrame));
                     return;
                 }
 
                 if(!FRC_CheckSyncWords(currentFrame))
                 {
                     RAC_ClearOngoingRx();
-                    this.Log(LogBasicRadioActivityAsError ? LogLevel.Error : LogLevel.Info, "Dropping (SYNC MISMATCH): at {0} (channel {1}): {2}", GetTime(), Channel, BitConverter.ToString(currentFrame));
+                    this.Log(LogBasicRadioActivityAsError ? LogLevel.Error : LogLevel.Info, "Dropping (SYNC MISMATCH): at {0} (channel {1}) ({2}): {3}", GetTime(), LogicalChannel, SYNTH_GetRfFrequencyString(), BitConverter.ToString(currentFrame));
                     return;
                 }
-
-                RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.FrameDetected);
-                RAC_internalRxState = RAC_InternalRxState.Frame;
-                FRC_SaveRxDescriptorsBufferWriteOffset();
-                currentFrameOffset = MODEM_SyncWordBytes;
 
                 // After having transitioned to RX_FRAME as result of the "beginning" of a packet being
-                // received, we stay in RX_FRAME for the duration of the transmission.
-                // We don't include the preamble time and sync word time here since we already delayed for that
-                // (and possibly some extra time indicated in RAC_rxTimeAlreadyPassedUs).
-                // We add the rxDoneChainDelay here so we correctly delay the RXDONE signal.
-                double overTheAirFrameTimeUs = MODEM_GetFrameOverTheAirTimeUs(currentFrame, false, false);
-                double rxDoneDelayUs = MODEM_GetRxDoneDelayUs();
-                if(overTheAirFrameTimeUs + rxDoneDelayUs > RAC_rxTimeAlreadyPassedUs
-                    && PROTIMER_UsToPreCntOverflowTicks(overTheAirFrameTimeUs + rxDoneDelayUs - RAC_rxTimeAlreadyPassedUs) > 0)
+                // received, we stay in RX_FRAME for the duration of the transmission. We deliver the frame to
+                // BUFC + the FRC capture buffer in fixed-size fragments (FRC_RxFragmentLengthInBytes) spaced by
+                // their airtime, approximating the hardware delivering the frame byte-by-byte.
+                // The per-byte airtime is measured from the first payload byte: we don't include the preamble
+                // and sync word time since we already delayed for it in ReceiveFrame(). We also account for
+                // any extra quantum slack in currentFrameElapsedAirtimeUs).
+                RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.FrameDetected);
+                RAC_internalRxState = RAC_InternalRxState.Frame;
+                FRC_ClearRxDescriptorsBuffers();
+                FRC_SaveActiveRxDescriptorBufferWriteOffset();
+                currentFrameOffset = MODEM_SyncWordBytes;
+                currentFrameByteOverTheAirTimeUs = MODEM_GetByteOverTheAirTimeUs();
+
+                // Arm the timer for the first delivery boundary (the first fragment, or the end of the frame if
+                // it fits in a single fragment). Only if the quantum slack already covers the whole frame's
+                // airtime do we skip the else branches and fall through to the end-of-frame code below to
+                // finish RX immediately (delivering the entire frame at once).
+                if(RAC_TryArmRxDeliveryTimer())
                 {
-                    this.Log(LogLevel.Noisy, "scheduled rxTimer for FRAME: {0}us OTA={1} rxDoneDelay={2} rxTimeAlreadyPassed={3}",
-                             overTheAirFrameTimeUs + rxDoneDelayUs - RAC_rxTimeAlreadyPassedUs, overTheAirFrameTimeUs, rxDoneDelayUs, RAC_rxTimeAlreadyPassedUs);
-                    rxTimer.Frequency = PROTIMER_GetPreCntOverflowFrequency();
-                    rxTimer.Limit = PROTIMER_UsToPreCntOverflowTicks(overTheAirFrameTimeUs + rxDoneDelayUs - RAC_rxTimeAlreadyPassedUs);
-                    rxTimer.Enabled = true;
                     return;
                 }
-
-                // If the time we already spent in RX because of the quantum time already accounts
-                // for the whole frame, we fall through and process the end of RX immediately.
             }
-
-            // Packet is fully received now and we have already delayed for the RX done chain delay.
-
-            if(RAC_internalRxState != RAC_InternalRxState.Frame)
+            else if(RAC_internalRxState == RAC_InternalRxState.Frame)
+            {
+                // A delivery boundary elapsed. Unless this is the final fragment, deliver one fragment from the
+                // current read cursor and arm the timer for the next boundary.
+                // currentFrameOffset advances by the bytes consumed (payload plus any CRC bytes read at a
+                // subframe boundary); reaching the final fragment falls through to finish below.
+                if(((uint)currentFrame.Length - currentFrameOffset) > FRC_RxFragmentLengthInBytes)
+                {
+                    FRC_DisassembleCurrentFrame(RAC_ongoingRxCollided, currentFrameOffset, FRC_RxFragmentLengthInBytes);
+                }
+                if(RAC_TryArmRxDeliveryTimer())
+                {
+                    return;
+                }
+            }
+            else
             {
                 this.Log(LogLevel.Error, "RAC_RxTimerLimitReached: unexpected RX state");
                 return;
             }
 
+            // Packet is fully received now and we have already delayed for the RX done chain delay.
             RAC_internalRxState = RAC_InternalRxState.Idle;
 
             for(var i = 0; i < PROTIMER_NumberOfCaptureCompareChannels; ++i)
@@ -4501,7 +5293,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
                     case PROTIMER_CaptureInputSource.RxAtEndOfFrameFromDemodulator:
                     case PROTIMER_CaptureInputSource.RxDone:
                     case PROTIMER_CaptureInputSource.TxOrRxDone:
-                        PROTIMER_captureCompareChannel[i].Capture((ushort)PROTIMER_PreCounterValue, PROTIMER_BaseCounterValue, PROTIMER_WrapCounterValue);
+                        PROTIMER_captureCompareChannel[i].Capture(PROTIMER_BaseCounterValue, PROTIMER_WrapCounterValue);
                         PROTIMER_TriggerEvent((PROTIMER_Event)((uint)PROTIMER_Event.CaptureCompareChannel0Event + i));
                         break;
                     }
@@ -4520,20 +5312,24 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
                 if(FRC_rxBufferRestoreOnFrameError.Value & !FRC_rxAcceptCrcErrors.Value)
                 {
-                    FRC_RestoreRxDescriptorsBufferWriteOffset();
+                    FRC_RestoreActiveRxDescriptorBufferWriteOffset();
                 }
             }
 
-            // When a CRC error is detected, the FRAMEERROR interrupt flag is set. Normally, frames with CRC errors are discarded.
-            // However, by setting ACCEPTCRCERRORS in FRC_RXCTRL, frames with CRC errors are still accepted and a RXDONE interrupt
-            // is generated at the end of the frame reception, in addition to the FRAMERROR interrupt.
+            // When a CRC error is detected, the FRAMEERROR interrupt flag is set. Normally, frames with CRC errors are discarded. 
+            // However, by setting ACCEPTCRCERRORS in FRC_RXCTRL, frames with CRC errors are still accepted and a RXDONE interrupt 
+            // is generated at the end of the frame reception, in addition to the FRAMERROR interrupt. 
             if(!RAC_ongoingRxCollided || FRC_rxAcceptCrcErrors.Value)
             {
-                this.Log(LogBasicRadioActivityAsError ? LogLevel.Error : LogLevel.Info, "Received at {0} on channel {1} (RSSI={2}, collided={3}): {4}",
-                         GetTime(), Channel, AGC_FrameRssiIntegerPart, RAC_ongoingRxCollided, BitConverter.ToString(currentFrame));
+                this.Log(LogBasicRadioActivityAsError ? LogLevel.Error : LogLevel.Info, "Received at {0} on channel {1} ({2}) (RSSI={3}, collided={4}): {5}",
+                         GetTime(), LogicalChannel, SYNTH_GetRfFrequencyString(), AGC_FrameRssiIntegerPart, RAC_ongoingRxCollided, BitConverter.ToString(currentFrame));
 
-                // No collision detected or ACCEPTCRCERRORS is set: disassemble the incoming frame and raise the RXDONE interrupt.
-                FRC_DisassembleCurrentFrame(RAC_ongoingRxCollided);
+                // No collision detected or ACCEPTCRCERRORS is set: disassemble the remaining bytes of the
+                // frame and raise the RXDONE interrupt. Earlier slices were already delivered while chunking;
+                // currentFrameOffset points at the first byte not yet delivered (it equals MODEM_SyncWordBytes
+                // when chunking did not run, so the whole frame is delivered here). Reaching the end of
+                // currentFrame also appends the RX trailer, now that the RxDone PROTIMER captures above have run.
+                FRC_DisassembleCurrentFrame(RAC_ongoingRxCollided, currentFrameOffset, (uint)currentFrame.Length - currentFrameOffset);
 
                 FRC_rxDoneInterrupt.Value = true;
                 FRC_seqRxDoneInterrupt.Value = true;
@@ -4543,11 +5339,47 @@ namespace Antmicro.Renode.Peripherals.Wireless
             RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.RxDone);
         }
 
+        // Arms rxTimer for the next staggered RX delivery boundary, relative to the airtime already elapsed
+        // (currentFrameElapsedAirtimeUs). While more than one fragment of payload remains, that boundary is the end
+        // of the next fragment; for the final fragment it is the end of the frame, so RXDONE lands at
+        // OTA + rxDoneDelay. Returns false (timer not armed) when the target has already elapsed, i.e. RX
+        // should finish immediately.
+        private bool RAC_TryArmRxDeliveryTimer()
+        {
+            uint frameEnd = (uint)currentFrame.Length;
+            if((frameEnd - currentFrameOffset) > FRC_RxFragmentLengthInBytes)
+            {
+                double fragmentTargetUs = ((currentFrameOffset + FRC_RxFragmentLengthInBytes) - MODEM_SyncWordBytes) * currentFrameByteOverTheAirTimeUs;
+                if(RAC_TryArmRxTimerAt(fragmentTargetUs))
+                {
+                    return true;
+                }
+            }
+            double endOfFrameUs = MODEM_GetFrameOverTheAirTimeUs(currentFrame, false, false) + MODEM_GetRxDoneDelayUs();
+            return RAC_TryArmRxTimerAt(endOfFrameUs);
+        }
+
+        private bool RAC_TryArmRxTimerAt(double targetUs)
+        {
+            double delayUs = targetUs - currentFrameElapsedAirtimeUs;
+            if(delayUs > 0 && PROTIMER_UsToPreCntOverflowTicks(delayUs) > 0)
+            {
+                currentFrameElapsedAirtimeUs = targetUs;
+                rxTimer.Frequency = PROTIMER_GetPreCntOverflowFrequency();
+                rxTimer.Limit = PROTIMER_UsToPreCntOverflowTicks(delayUs);
+                rxTimer.Enabled = true;
+                return true;
+            }
+            return false;
+        }
+
         private void RAC_TxTimerLimitReached()
         {
             txTimer.Enabled = false;
 
-            RAC_ClearOngoingTx();
+            // Normal TX completion: the whole frame went on air. Retain the queue entry briefly (stale) so a
+            // receiver whose deferred ReceiveFrame runs just after we finished can still resolve us.
+            RAC_ClearOngoingTx(transmissionCompleted: true);
 
             MODEM_txFrameSentInterrupt.Value = true;
             MODEM_seqTxFrameSentInterrupt.Value = true;
@@ -4568,7 +5400,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
                     {
                     case PROTIMER_CaptureInputSource.TxDone:
                     case PROTIMER_CaptureInputSource.TxOrRxDone:
-                        PROTIMER_captureCompareChannel[i].Capture((ushort)PROTIMER_PreCounterValue, PROTIMER_BaseCounterValue, PROTIMER_WrapCounterValue);
+                        PROTIMER_captureCompareChannel[i].Capture(PROTIMER_BaseCounterValue, PROTIMER_WrapCounterValue);
                         PROTIMER_TriggerEvent((PROTIMER_Event)((uint)PROTIMER_Event.CaptureCompareChannel0Event + i));
                         break;
                     }
@@ -4588,13 +5420,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
             }
         }
 
-        private uint PROTIMER_GetPreCntOverflowFrequency()
-        {
-            // The PRECNTTOP value is 1 less than the intended value.
-            double frequency = (double)HfxoFrequency / (PROTIMER_preCounterTopInteger.Value + 1 + ((double)PROTIMER_preCounterTopFractional.Value / 65536));
-            return Convert.ToUInt32(frequency);
-        }
-
         private void RAC_PaRampingTimerHandleLimitReached()
         {
             paRampingTimer.Enabled = false;
@@ -4605,29 +5430,38 @@ namespace Antmicro.Renode.Peripherals.Wireless
             UpdateInterrupts();
         }
 
-        private void FRC_WritePacketCaptureBuffer(byte[] data)
+        private void RAC_SeqTimerHandleLimitReached()
         {
-            if(FRC_packetBufferCount.Value > FRC_PacketBufferCaptureSize)
+            // Handle 16-bit wrap around
+            if(seqTimer.Limit == 0xFFFF)
             {
-                this.Log(LogLevel.Error, "FRC_packetBufferCount exceeded max value!");
-            }
+                RAC_SeqTimerRestart(0, RAC_seqTimerLimit);
 
-            for(var i = 0; i < data.Length; i++)
-            {
-                if(FRC_packetBufferCount.Value == FRC_PacketBufferCaptureSize)
+                // We actually hit the compare value, fire the interrupt.
+                if(RAC_seqTimerLimit == 0 || RAC_seqTimerLimit == 0xFFFF)
                 {
-                    break;
-                }
-
-                FRC_packetBufferCapture[FRC_packetBufferCount.Value] = data[i];
-                FRC_packetBufferCount.Value++;
-
-                if(FRC_packetBufferCount.Value == 1)
-                {
-                    FRC_packetBufferStartInterrupt.Value = true;
-                    FRC_seqPacketBufferStartInterrupt.Value = true;
+                    RAC_seqStimerCompareEventInterrupt.Value = true;
                     UpdateInterrupts();
                 }
+            }
+            else
+            {
+                if(RAC_seqTimerCompareAction.Value == RAC_SeqTimerCompareAction.Continue)
+                {
+                    RAC_SeqTimerRestart((ushort)seqTimer.Limit, 0xFFFF);
+                }
+                else if(RAC_seqTimerCompareAction.Value == RAC_SeqTimerCompareAction.Wrap)
+                {
+                    RAC_SeqTimerRestart(0, RAC_seqTimerLimit);
+                }
+                else
+                {
+                    this.Log(LogLevel.Error, "RAC_SeqTimerHandleLimitReached(), invalid compare action mode {0}", RAC_seqTimerCompareAction.Value);
+                    return;
+                }
+
+                RAC_seqStimerCompareEventInterrupt.Value = true;
+                UpdateInterrupts();
             }
         }
 
@@ -4643,13 +5477,69 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
             seqTimer.Enabled = false;
 
+            seqTimer.Frequency = HfxoFrequency;
             seqTimer.Divider = RAC_seqTimerPrescaler.Value + 1;
             seqTimer.Limit = limit;
             seqTimer.Enabled = true;
             seqTimer.Value = startValue;
         }
 
-        private void RAC_SeqTimerStart() => RAC_SeqTimerRestart(0, RAC_SeqTimerLimit);
+        private void RAC_ClearOngoingTx(bool transmissionCompleted = false)
+        {
+            txTimer.Enabled = false;
+            if(RAC_internalTxState != RAC_InternalTxState.Idle)
+            {
+                InterferenceQueue.Remove(this, transmissionCompleted);
+            }
+            RAC_internalTxState = RAC_InternalTxState.Idle;
+        }
+
+        private void RAC_ChangeRadioState(RAC_RadioState newState)
+        {
+            if(newState != RAC_currentRadioState)
+            {
+                RAC_previous3RadioState = RAC_previous2RadioState;
+                RAC_previous2RadioState = RAC_previous1RadioState;
+                RAC_previous1RadioState = RAC_currentRadioState;
+                RAC_currentRadioState = newState;
+            }
+        }
+
+        private void RAC_ClearOngoingRx()
+        {
+            FRC_rxFrameIrqClearedPending = false;
+            FRC_rxDonePending = false;
+            rxTimer.Enabled = false;
+            RAC_ongoingRxCollided = false;
+            RAC_internalRxState = RAC_InternalRxState.Idle;
+        }
+
+        // Returns true while the current radio state is a sequencer-serviced transitional state
+        // whose STATExxxIF has not yet been cleared.
+        private bool RAC_TransitionalStateSeqIfPending()
+        {
+            switch(RAC_currentRadioState)
+            {
+            case RAC_RadioState.RxWarm:
+                return RAC_seqStateRxWarmInterrupt.Value;
+            case RAC_RadioState.Rx2Rx:
+                return RAC_seqStateRx2RxInterrupt.Value;
+            case RAC_RadioState.Rx2Tx:
+                return RAC_seqStateRx2TxInterrupt.Value;
+            case RAC_RadioState.RxPoweringDown:
+                return RAC_seqStateRxPoweringDownInterrupt.Value;
+            case RAC_RadioState.TxWarm:
+                return RAC_seqStateTxWarmInterrupt.Value;
+            case RAC_RadioState.Tx2Rx:
+                return RAC_seqStateTx2RxInterrupt.Value;
+            case RAC_RadioState.Tx2Tx:
+                return RAC_seqStateTx2TxInterrupt.Value;
+            case RAC_RadioState.TxPoweringDown:
+                return RAC_seqStateTxPoweringDownInterrupt.Value;
+            default:
+                return false;
+            }
+        }
 
         private void RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal signal = RAC_RadioStateMachineSignal.None)
         {
@@ -4668,7 +5558,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 if(signal == RAC_RadioStateMachineSignal.Reset)
                 {
                     RAC_ClearOngoingTxOrRx();
-                    RAC_ChangeRadioState(RAC_RadioState.Off);
+                    // This should go through PowerOnReset->Shutdown but there is really no difference in going to Shutdown directly.
+                    RAC_ChangeRadioState(RAC_RadioState.Shutdown);
                 }
                 //else if (sequencer breakpoint triggered)
                 //{
@@ -4687,12 +5578,18 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 }
                 else if(RAC_forceDisable.Value && RAC_currentRadioState != RAC_RadioState.Shutdown)
                 {
-                    RAC_ClearOngoingTxOrRx();
-                    RAC_ChangeRadioState(RAC_RadioState.Shutdown);
+                    // Like every normal state-exit in this RSM, the FORCEDISABLE-driven shutdown must
+                    // wait for the sequencer to clear a transitional state's handshake before tearing 
+                    // the radio down.
+                    if(!RAC_TransitionalStateSeqIfPending())
+                    {
+                        RAC_ClearOngoingTxOrRx();
+                        RAC_ChangeRadioState(RAC_RadioState.Shutdown);
+                    }
                 }
-                // FORCETX will make the RSM enter TX. If already in TX, TX is entered through TX2TX. For any other state,
-                // the transition goes through the TXWARM state. The FORCETX is active by issuing the FORCETX command in RAC_CMD
-                // or by triggering by Peripheral Reflex System (PRS). PRS triggering is configured by setting the PRSFORCETX
+                // FORCETX will make the RSM enter TX. If already in TX, TX is entered through TX2TX. For any other state, 
+                // the transition goes through the TXWARM state. The FORCETX is active by issuing the FORCETX command in RAC_CMD 
+                // or by triggering by Peripheral Reflex System (PRS). PRS triggering is configured by setting the PRSFORCETX 
                 // and setting the PRSFORCETXSEL, both in RAC_CTRL.
                 else if(signal == RAC_RadioStateMachineSignal.ForceTx /* TODO: || (PRSFORCETX && PRSFORCETXSEL)*/)
                 {
@@ -4712,7 +5609,10 @@ namespace Antmicro.Renode.Peripherals.Wireless
                     {
                     case RAC_RadioState.Shutdown:
                     {
-                        if(!RAC_exitShutdownDisable.Value)
+                        // Like every normal state-exit in this RSM, the Shutdown->Off transition must wait
+                        // for the sequencer to service (clear) its STATESHUTDOWN handshake.
+                        if(!RAC_exitShutdownDisable.Value
+                           && !(RAC_seqStateShutDownInterruptEnable.Value && RAC_seqStateShutDownInterrupt.Value))
                         {
                             RAC_ChangeRadioState(RAC_RadioState.Off);
                         }
@@ -4851,7 +5751,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
                         }
                         else
                         {
-                            if(!RAC_RxEnable)
+                            // RAC->CMD.RSDIS causes the RXEN signal to pulse low for a clock cycle
+                            if(!RAC_RxEnable || signal == RAC_RadioStateMachineSignal.RxDisable)
                             {
                                 RAC_ChangeRadioState(RAC_RadioState.RxPoweringDown);
                             }
@@ -4866,8 +5767,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
                             RAC_ChangeRadioState(RAC_RadioState.RxOverflow);
                         }
                         // Here we should just move to the next state when the FRC fully received a frame.
-                        // However, we have a race condition for which firing the RXFRAME_IrqHandler() with the radio state
-                        // already transitioned to the next state results in unexpected behavior from a software perspective
+                        // However, we have a race condition for which firing the RXFRAME_IrqHandler() with the radio state 
+                        // already transitioned to the next state results in unexpected behavior from a software perspective 
                         // (which results in the  RX_Complete() firing from RXFRAME_IrqHandler()).
                         // To cope with this we progress to the next state only if both the RXFRAME IRQ flag has been cleared
                         // and the FRC has completed RXing a frame.
@@ -4948,7 +5849,9 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 if(previousState != RAC_currentRadioState)
                 {
                     this.Log(LogBasicRadioActivityAsError ? LogLevel.Error : LogLevel.Info, "RSM Update at {0}, signal:{1} seqTimer={2} channel={3} ({4}), transition: {5}->{6} (TX={7} RX={8}) Lbt={9}",
-                             GetTime(), signal, seqTimer.Value, Channel, (MODEM_viterbiDemodulatorEnable.Value ? "BLE" : "802.15.4"), previousState, RAC_currentRadioState, RAC_internalTxState, RAC_internalRxState, PROTIMER_listenBeforeTalkState);
+                             GetTime(), signal, seqTimer.Value, LogicalChannel, MODEM_GetPhySignature(), previousState, RAC_currentRadioState, RAC_internalTxState, RAC_internalRxState, PROTIMER_listenBeforeTalkState);
+
+                    RAC_seqRadioStateChangeInterrupt.Value = true;
 
                     // On a state transition, the STimer is always restarted from 0
                     RAC_SeqTimerRestart(0, RAC_seqTimerLimit);
@@ -4989,8 +5892,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
                         break;
                     case RAC_RadioState.Tx:
                         RAC_seqStateTxInterrupt.Value = true;
-                        // We assemble and "transmit" the frame immediately so that receiver nodes
-                        // can transition from RX_SEARCH to RX_FRAME immediately.
+                        // We assemble and "transmit" the frame immediately so that receiver nodes 
+                        // can transition from RX_SEARCH to RX_FRAME immediately. 
                         // We use timers to properly time the completion of the transmission process.
                         var frame = FRC_AssembleFrame();
                         TransmitFrame(frame);
@@ -5037,156 +5940,78 @@ namespace Antmicro.Renode.Peripherals.Wireless
             });
         }
 
-        private void RAC_SeqTimerHandleLimitReached()
-        {
-            // Handle 16-bit wrap around
-            if(seqTimer.Limit == 0xFFFF)
-            {
-                RAC_SeqTimerRestart(0, RAC_seqTimerLimit);
-
-                // We actually hit the compare value, fire the interrupt.
-                if(RAC_seqTimerLimit == 0 || RAC_seqTimerLimit == 0xFFFF)
-                {
-                    RAC_seqStimerCompareEventInterrupt.Value = true;
-                    UpdateInterrupts();
-                }
-            }
-            else
-            {
-                if(RAC_seqTimerCompareAction.Value == RAC_SeqTimerCompareAction.Continue)
-                {
-                    RAC_SeqTimerRestart((ushort)seqTimer.Limit, 0xFFFF);
-                }
-                else if(RAC_seqTimerCompareAction.Value == RAC_SeqTimerCompareAction.Wrap)
-                {
-                    RAC_SeqTimerRestart(0, RAC_seqTimerLimit);
-                }
-                else
-                {
-                    this.Log(LogLevel.Error, "RAC_SeqTimerHandleLimitReached(), invalid compare action mode {0}", RAC_seqTimerCompareAction.Value);
-                    return;
-                }
-
-                RAC_seqStimerCompareEventInterrupt.Value = true;
-                UpdateInterrupts();
-            }
-        }
-
         private void RAC_ClearOngoingTxOrRx()
         {
             RAC_ClearOngoingRx();
             RAC_ClearOngoingTx();
         }
 
-        private void FRC_RxAbortCommand()
+        // SYNTH-tuned RF center frequency in Hz, quantized to the nearest 10 kHz
+        // or 0 if unprogrammed.
+        private ulong SYNTH_GetQuantizedRfFrequency()
         {
-            // CMD_RXABORT takes effect when FRC is active. When RAC in RXWARM and RXSEARCH state,
-            // since FRC is still in IDLE state this command doesn't do anything.
-            if(RAC_currentRadioState != RAC_RadioState.RxFrame)
+            var loDiv = SYNTH_DecodeLoDiv(SYNTH_loDivFreqCtrl.Value);
+            if(loDiv == 0)
             {
-                return;
+                return 0;
             }
-
-            // When set, the active receive BUFC buffer is restored for received frames that trigger the RXABORTED interrupt flag. This
-            // means that the WRITEOFFSET is restored to the value prior to receiving this frame. READOFFSET is not modified.
-            if(FRC_rxBufferRestoreOnRxAborted.Value)
-            {
-                FRC_RestoreRxDescriptorsBufferWriteOffset();
-            }
-
-            // RENODE-354
-            //if (TRACKABFRAME)
-            //{
-            // TODO
-            //}
-
-            FRC_rxAbortedInterrupt.Value = true;
-            FRC_seqRxAbortedInterrupt.Value = true;
-            RAC_UpdateRadioStateMachine(RAC_RadioStateMachineSignal.RxAbort);
-            UpdateInterrupts();
+            var frequency = SYNTH_frequency.Value * HfxoFrequency / (1UL << 19) / loDiv;
+            return (frequency + 5_000UL) / 10_000UL * 10_000UL;
         }
 
-        private void RAC_ClearOngoingTx()
+        private string SYNTH_GetRfFrequencyString()
         {
-            txTimer.Enabled = false;
-            if(RAC_internalTxState != RAC_InternalTxState.Idle)
-            {
-                InterferenceQueue.Remove(this);
-            }
-            RAC_internalTxState = RAC_InternalTxState.Idle;
+            return string.Format(CultureInfo.InvariantCulture, "{0:F2}MHz", SYNTH_GetQuantizedRfFrequency() / 1_000_000.0);
         }
 
-        private void RAC_ChangeRadioState(RAC_RadioState newState)
+        private uint SYNTH_DecodeLoDiv(SYNTH_LoDivFreqCtrl encoded)
         {
-            if(newState != RAC_currentRadioState)
+            switch(encoded)
             {
-                RAC_previous3RadioState = RAC_previous2RadioState;
-                RAC_previous2RadioState = RAC_previous1RadioState;
-                RAC_previous1RadioState = RAC_currentRadioState;
-                RAC_currentRadioState = newState;
+            case SYNTH_LoDivFreqCtrl.LoDiv1: return 1;
+            case SYNTH_LoDivFreqCtrl.LoDiv2: return 2;
+            case SYNTH_LoDivFreqCtrl.LoDiv3: return 3;
+            case SYNTH_LoDivFreqCtrl.LoDiv4: return 4;
+            case SYNTH_LoDivFreqCtrl.LoDiv5: return 5;
+            case SYNTH_LoDivFreqCtrl.LoDiv6: return 6;
+            case SYNTH_LoDivFreqCtrl.LoDiv7: return 7;
+            case SYNTH_LoDivFreqCtrl.LoDiv8: return 8;
+            case SYNTH_LoDivFreqCtrl.LoDiv9: return 9;
+            case SYNTH_LoDivFreqCtrl.LoDiv10: return 10;
+            case SYNTH_LoDivFreqCtrl.LoDiv12: return 12;
+            case SYNTH_LoDivFreqCtrl.LoDiv14: return 14;
+            case SYNTH_LoDivFreqCtrl.LoDiv15: return 15;
+            case SYNTH_LoDivFreqCtrl.LoDiv16: return 16;
+            case SYNTH_LoDivFreqCtrl.LoDiv18: return 18;
+            case SYNTH_LoDivFreqCtrl.LoDiv20: return 20;
+            case SYNTH_LoDivFreqCtrl.LoDiv24: return 24;
+            default: return 0; // unknown / not yet programmed
             }
         }
 
-        private void RAC_ClearOngoingRx()
+        private ulong HfxoFrequency
         {
-            FRC_rxFrameIrqClearedPending = false;
-            FRC_rxDonePending = false;
-            rxTimer.Enabled = false;
-            RAC_ongoingRxCollided = false;
-            RAC_internalRxState = RAC_InternalRxState.Idle;
+            get
+            {
+                if(Object.ReferenceEquals(cmu, null))
+                {
+                    foreach(var peripheral in machine.GetPeripheralsOfType<ISiLabs_CMU>())
+                    {
+                        cmu = peripheral;
+                        break;
+                    }
+                }
+
+                return cmu.HfxoFrequency;
+            }
         }
 
-        private bool TransmitFrame(byte[] frame)
-        {
-            // TransmitFrame() is invoked as soon as the radio state machine transitions to the TX state.
-
-            if(RAC_internalTxState != RAC_InternalTxState.Idle)
-            {
-                this.Log(LogLevel.Error, "TransmitFrame(): state not IDLE");
-                return false;
-            }
-
-            RAC_TxEnable = false;
-
-            if(frame.Length == 0)
-            {
-                return false;
-            }
-
-            // We schedule the TX timer to include the whole frame (including the preamble and SYNC word) plus the
-            // TxChainDelay and TxChainDoneDelay, so that when the timer expires, we can simply complete the TX process.
-            // Note, we subtract the TxDoneDelay since that signal occurs BEFORE the last bit of the frame actually went over the air.
-            var timerDelayUs = MODEM_GetFrameOverTheAirTimeUs(frame, true, true) + MODEM_GetTxChainDelayUs() - MODEM_GetTxChainDoneDelayUs();
-
-            this.Log(LogBasicRadioActivityAsError ? LogLevel.Error : LogLevel.Info, "Sending frame at {0} on channel {1} ({2}): {3}",
-                     GetTime(), Channel, MODEM_GetCurrentPhy(), BitConverter.ToString(frame));
-
-            this.Log(LogLevel.Noisy, "TX timer delay (us)={0} (PRECNT overflows={1}) (OTA frame time (us)={2})",
-                     timerDelayUs, PROTIMER_UsToPreCntOverflowTicks(timerDelayUs), MODEM_GetFrameOverTheAirTimeUs(frame, true, true));
-
-            InterferenceQueue.Add(this, MODEM_GetCurrentPhy(), Channel, 0 /*TODO: TxPower*/, frame);
-            FrameSent?.Invoke(this, frame);
-
-            MODEM_txPreambleSentInterrupt.Value = true;
-            MODEM_seqTxPreambleSentInterrupt.Value = true;
-            MODEM_txSyncSentInterrupt.Value |= !MODEM_syncData.Value;
-            MODEM_seqTxSyncSentInterrupt.Value = MODEM_txSyncSentInterrupt.Value;
-
-            UpdateInterrupts();
-
-            RAC_internalTxState = RAC_InternalTxState.Tx;
-            txTimer.Frequency = PROTIMER_GetPreCntOverflowFrequency();
-            txTimer.Limit = PROTIMER_UsToPreCntOverflowTicks(timerDelayUs);
-            txTimer.Enabled = true;
-
-            return true;
-        }
-
-        private uint MODEM_SyncWord1 => (uint)MODEM_syncWord1.Value & (uint)((1UL << (byte)MODEM_SyncWordLength) - 1);
+        // Last value RAIL wrote to SYNTH.CHSP. RAIL stores the protocol's logical channel
+        // index there (e.g. 11..26 for IEEE 802.15.4). Used only for human-readable log
+        // strings; routing equality goes through Channel.
+        private int LogicalChannel => (int)SYNTH_channelSpacing.Value;
 
         private uint CRC_CrcWidth => (uint)CRC_crcWidthMode.Value + 1;
-
-        private bool RAC_RxEnable => RAC_RxEnableMask != 0;
 
         // 0:13 correspond to RAC_RXENSRCEN[13:0]
         // Bit 14 indicates that the PROTIMER is requesting RXEN
@@ -5206,22 +6031,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
                                         */
                                         );
 
-        private uint RAC_TxEnableMask
-        {
-            get => 0;
-            set
-            {
-                // TODO
-            }
-        }
-
-        private uint MODEM_SyncWordLength => (uint)MODEM_syncBits.Value + 1;
-
-        private uint MODEM_SyncWordBytes => ((uint)MODEM_syncBits.Value >> 3) + 1;
-
-        private uint MODEM_TxSyncWord => (MODEM_dualSync.Value && MODEM_txSync.Value) ? (uint)MODEM_syncWord1.Value : (uint)MODEM_syncWord0.Value;
-
-        private uint MODEM_SyncWord0 => (uint)MODEM_syncWord0.Value & (uint)((1UL << (byte)MODEM_SyncWordLength) - 1);
+        private bool RAC_RxEnable => RAC_RxEnableMask != 0;
 
         private bool RAC_TxEnable
         {
@@ -5242,93 +6052,12 @@ namespace Antmicro.Renode.Peripherals.Wireless
             }
         }
 
-        private uint FRC_FrameLength => (uint)FRC_frameLength.Value + 1;
-
-        // TODOs:
-        // 1. The PROTIMER is started by either using the START command in the PROTIMER_CMD register or through
-        //    a PRS event on a selectable PRS channel.
-        // 2. PRECNTTOPADJ
-        // 3. RTCC sync for EM2 support
-        // 4. LBT/CSMA logic
-        // 5. TX/RX requests
-        // 6. Protocol timer Events
-        private bool PROTIMER_Enabled
+        private uint RAC_TxEnableMask
         {
-            get
-            {
-                return proTimer.Enabled;
-            }
-
+            get => 0;
             set
             {
-                if(value)
-                {
-                    // First stop the timer
-                    proTimer.Enabled = false;
-
-                    // TODO: If it is already running, do we need to update the BASECNT,WRAPCNT,etc?
-
-                    // The proTimer timer is configured so that each tick corresponds to a PRECNT overflow.
-                    // The PRECNTTOP value is 1 less than the intended value.
-                    double frequency = (double)HfxoFrequency / (PROTIMER_preCounterTopInteger.Value + 1 + ((double)PROTIMER_preCounterTopFractional.Value / 256));
-
-                    proTimer.Frequency = (uint)frequency;
-                    proTimer.Limit = PROTIMER_ComputeTimerLimit();
-                    proTimer.Value = 0;
-                }
-
-                proTimer.Enabled = value;
-            }
-        }
-
-        private uint AGC_RssiPeriodUs
-        {
-            get
-            {
-                // RSSI measure period is defined as 2^RSSIPERIOD sub-periods.
-                // SUBPERIOD controls if the subperiod is one baud-period or separately specified.
-                // If SUBPERIOD is set, the sub-period is defined by SUBINT + SUBNUM/SUBDEM (TODO: for now we only consider SUBINT).
-                // Otherwise subperiod is equal to 1 baud.
-                // If ENCCARSSIPERIOD is set, enable the use of a separate RSSI PERIOD (CCARSSIPERIOD) during CCA measurements.
-                //var rssiPeriod = (AGC_ccaRssiPeriodEnable.Value && PROTIMER_listenBeforeTalkState == PROTIMER_ListenBeforeTalkState.CcaDelay) ? AGC_ccaRssiPeriod.Value : AGC_rssiMeasurePeriod.Value;
-                //var subPeriod = AGC_subPeriod.Value ? AGC_subPeriodInteger.Value : 1;
-
-                // TODO: we assume 250kbps OQPSK PHY baud period for now.
-                //uint ret = (uint)(((1 << (int)rssiPeriod))*(double)subPeriod*AGC_OQPSK250KbpsPhyBaudPeriodUs);
-                //return ret;
-
-                // RENODE-371: Hard-coding RSSI measure period and CCA RSSI measure period until we get to the bottom of this.
-                if((AGC_ccaRssiPeriodEnable.Value && PROTIMER_listenBeforeTalkState == PROTIMER_ListenBeforeTalkState.CcaDelay))
-                {
-                    return AGC_OQPSK250KbpsPhyCcaRssiMeasurePeriodUs;
-                }
-                else if(AGC_rssiStartCommandOngoing)
-                {
-                    return AGC_OQPSK250KbpsPhyRssiMeasurePeriodUs;
-                }
-                else
-                {
-                    // For background RSSI sampling we use a longer period for performance reasons.
-                    return AGC_OQPSK250KbpsPhyBackgroundRssiMeasurePeriodUs;
-                }
-            }
-        }
-
-        private sbyte AGC_FrameRssiIntegerPartAdjusted => (sbyte)(AGC_FrameRssiIntegerPart + AGC_RssiWrapCompensationOffsetDbm);
-
-        private bool PROTIMER_RxEnable => (PROTIMER_rxRequestState == PROTIMER_TxRxRequestState.Set
-                                           || PROTIMER_rxRequestState == PROTIMER_TxRxRequestState.ClearEvent1);
-
-        private bool PROTIMER_TxEnable
-        {
-            get => PROTIMER_txEnable;
-            set
-            {
-                PROTIMER_txEnable = value;
-                if(PROTIMER_txEnable)
-                {
-                    RAC_TxEnable = true;
-                }
+                // TODO
             }
         }
 
@@ -5394,6 +6123,25 @@ namespace Antmicro.Renode.Peripherals.Wireless
             }
         }
 
+        private uint RAC_SeqTimerValue
+        {
+            get
+            {
+                TrySyncTime();
+                return (uint)seqTimer.Value;
+            }
+        }
+
+        private uint MODEM_SyncWordLength => (uint)MODEM_syncBits.Value + 1;
+
+        private uint MODEM_TxSyncWord => (MODEM_dualSync.Value && MODEM_txSync.Value) ? (uint)MODEM_syncWord1.Value : (uint)MODEM_syncWord0.Value;
+
+        private uint MODEM_SyncWord0 => (uint)MODEM_syncWord0.Value & (uint)((1UL << (byte)MODEM_SyncWordLength) - 1);
+
+        private uint MODEM_SyncWord1 => (uint)MODEM_syncWord1.Value & (uint)((1UL << (byte)MODEM_SyncWordLength) - 1);
+
+        private uint MODEM_SyncWordBytes => ((uint)MODEM_syncBits.Value >> 3) + 1;
+
         private bool MODEM_TxRampingDoneInterrupt
         {
             set
@@ -5407,36 +6155,26 @@ namespace Antmicro.Renode.Peripherals.Wireless
             }
         }
 
-        private uint RAC_SeqTimerValue
+        private uint FRC_FrameLength => (uint)FRC_frameLength.Value + 1;
+
+        private int FRC_ActiveReceiveFrameDescriptor
         {
+            // ACTIVERXFCD == 0 => FCD2
+            // ACTIVERXFCD == 1 => FCD3
             get
             {
-                TrySyncTime();
-                return (uint)seqTimer.Value;
-            }
-        }
-
-        private sbyte AGC_RssiIntegerPartAdjusted => (sbyte)(AGC_RssiIntegerPart + AGC_RssiWrapCompensationOffsetDbm);
-
-        private sbyte AGC_RssiIntegerPart
-        {
-            get
-            {
-                return AGC_rssiIntegerPart;
+                return FRC_activeReceiveFrameDescriptor.Value ? 3 : 2;
             }
 
             set
             {
-                AGC_rssiIntegerPart = value;
-            }
-        }
+                if(value != 2 && value != 3)
+                {
+                    this.Log(LogLevel.Error, "Setting illegal FRC_ActiveReceiveFrameDescriptor value.");
+                    return;
+                }
 
-        private byte AGC_RssiFractionalPart
-        {
-            get
-            {
-                // TODO: for now AGC fractional part is always 0
-                return 0;
+                FRC_activeReceiveFrameDescriptor.Value = (value == 3);
             }
         }
 
@@ -5461,14 +6199,40 @@ namespace Antmicro.Renode.Peripherals.Wireless
             }
         }
 
-        private byte AGC_FrameRssiFractionalPart
+        private uint AGC_RssiPeriodUs
         {
             get
             {
-                // TODO: for now Frame AGC fractional part is always 0
-                return 0;
+                // RSSI measure period is defined as 2^RSSIPERIOD sub-periods.
+                // SUBPERIOD controls if the subperiod is one baud-period or separately specified. 
+                // If SUBPERIOD is set, the sub-period is defined by SUBINT + SUBNUM/SUBDEM (TODO: for now we only consider SUBINT). 
+                // Otherwise subperiod is equal to 1 baud.
+                // If ENCCARSSIPERIOD is set, enable the use of a separate RSSI PERIOD (CCARSSIPERIOD) during CCA measurements.
+                //var rssiPeriod = (AGC_ccaRssiPeriodEnable.Value && PROTIMER_listenBeforeTalkState == PROTIMER_ListenBeforeTalkState.CcaDelay) ? AGC_ccaRssiPeriod.Value : AGC_rssiMeasurePeriod.Value;
+                //var subPeriod = AGC_subPeriod.Value ? AGC_subPeriodInteger.Value : 1;
+
+                // TODO: we assume 250kbps OQPSK PHY baud period for now.
+                //uint ret = (uint)(((1 << (int)rssiPeriod))*(double)subPeriod*AGC_OQPSK250KbpsPhyBaudPeriodUs);
+                //return ret;
+
+                // RENODE-371: Hard-coding RSSI measure period and CCA RSSI measure period until we get to the bottom of this.
+                if((AGC_ccaRssiPeriodEnable.Value && PROTIMER_listenBeforeTalkState == PROTIMER_ListenBeforeTalkState.CcaDelay))
+                {
+                    return AGC_OQPSK250KbpsPhyCcaRssiMeasurePeriodUs;
+                }
+                else if(AGC_rssiStartCommandOngoing)
+                {
+                    return AGC_OQPSK250KbpsPhyRssiMeasurePeriodUs;
+                }
+                else
+                {
+                    // For background RSSI sampling we use a longer period for performance reasons.
+                    return AGC_OQPSK250KbpsPhyBackgroundRssiMeasurePeriodUs;
+                }
             }
         }
+
+        private sbyte AGC_FrameRssiIntegerPartAdjusted => (sbyte)(AGC_FrameRssiIntegerPart + AGC_RssiWrapCompensationOffsetDbm);
 
         private sbyte AGC_FrameRssiIntegerPart
         {
@@ -5483,370 +6247,470 @@ namespace Antmicro.Renode.Peripherals.Wireless
             }
         }
 
-        private int FRC_ActiveReceiveFrameDescriptor
+        private sbyte AGC_RssiIntegerPartAdjusted => (sbyte)(AGC_RssiIntegerPart + AGC_RssiWrapCompensationOffsetDbm);
+
+        private sbyte AGC_RssiIntegerPart { get; set; }
+
+        private byte AGC_RssiFractionalPart
         {
-            // ACTIVERXFCD == 0 => FCD2
-            // ACTIVERXFCD == 1 => FCD3
             get
             {
-                return FRC_activeReceiveFrameDescriptor.Value ? 3 : 2;
+                // TODO: for now AGC fractional part is always 0
+                return 0;
+            }
+        }
+
+        private byte AGC_FrameRssiFractionalPart
+        {
+            get
+            {
+                // TODO: for now Frame AGC fractional part is always 0
+                return 0;
+            }
+        }
+
+        // TODOs: 
+        // 1. The PROTIMER is started by either using the START command in the PROTIMER_CMD register or through 
+        //    a PRS event on a selectable PRS channel. 
+        // 2. PRECNTTOPADJ
+        // 3. RTCC sync for EM2 support
+        // 4. LBT/CSMA logic
+        // 5. TX/RX requests
+        // 6. Protocol timer Events
+        private bool PROTIMER_Enabled
+        {
+            get
+            {
+                return proTimer.Enabled;
             }
 
             set
             {
-                if(value != 2 && value != 3)
+                if(value)
                 {
-                    this.Log(LogLevel.Error, "Setting illegal FRC_ActiveReceiveFrameDescriptor value.");
-                    return;
-                }
+                    // First stop the timer
+                    proTimer.Enabled = false;
 
-                FRC_activeReceiveFrameDescriptor.Value = (value == 3);
+                    // TODO: If it is already running, do we need to update the BASECNT,WRAPCNT,etc?
+
+                    // The proTimer timer is configured so that each tick corresponds to a PRECNT overflow.
+                    // The PRECNTTOP value is 1 less than the intended value.
+                    double frequency = (double)HfxoFrequency / (PROTIMER_preCounterTopInteger.Value + 1 + ((double)PROTIMER_preCounterTopFractional.Value / 256));
+
+                    proTimer.Frequency = (uint)frequency;
+                    proTimer.Limit = PROTIMER_ComputeTimerLimit();
+                    proTimer.Value = 0;
+                    proTimer.Enabled = true;
+                }
+                else
+                {
+                    if(proTimer.Enabled)
+                    {
+                        TrySyncTime();
+                        uint currentIncrement = (uint)proTimer.Value;
+                        proTimer.Enabled = false;
+
+                        // Handle the current increment
+                        if(currentIncrement > 0)
+                        {
+                            PROTIMER_HandlePreCntOverflows(currentIncrement);
+                        }
+                    }
+                    else
+                    {
+                        proTimer.Enabled = false;
+                    }
+                }
             }
         }
 
-        private IFlagRegisterField PROTIMER_seqListenBeforeTalkTimeoutCounterMatchInterrupt;
-        private IFlagRegisterField FRC_rxAppendProtimerCc0LowWrap;
-        private IFlagRegisterField FRC_rxAppendProtimerCc0HighWrap;
-        private IValueRegisterField FRC_packetBufferStartAddress;
-        private IValueRegisterField FRC_packetBufferThreshold;
-        private IFlagRegisterField FRC_packetBufferThresholdEnable;
-        private IValueRegisterField FRC_wordCounter;
-        private IValueRegisterField FRC_maxDecodedLength;
-        private IValueRegisterField FRC_packetBufferCount;
-        private IFlagRegisterField FRC_dynamicFrameCrcIncluded;
+        private bool PROTIMER_RxEnable => (PROTIMER_rxRequestState == PROTIMER_TxRxRequestState.Set
+                                           || PROTIMER_rxRequestState == PROTIMER_TxRxRequestState.ClearEvent1);
 
-        private bool FRC_rxDonePending = false;
-        private bool FRC_rxFrameIrqClearedPending = false;
-        private IFlagRegisterField FRC_activeTransmitFrameDescriptor;
-        private IFlagRegisterField FRC_activeReceiveFrameDescriptor;
-        private IFlagRegisterField FRC_rxRawBlocked;
-        private IValueRegisterField FRC_fsmState;
-        private IFlagRegisterField FRC_rxAppendProtimerCc0base;
-        private IFlagRegisterField FRC_enableRawDataRandomNumberGenerator;
-        private IFlagRegisterField FRC_rxAppendStatus;
-        private IFlagRegisterField FRC_rxBufferRestoreOnRxAborted;
-        private IFlagRegisterField RAC_seqStateRxOverflowInterruptEnable;
-        private IFlagRegisterField RAC_seqStateRx2TxInterruptEnable;
-        private IFlagRegisterField RAC_seqStateTxWarmInterruptEnable;
+        private bool PROTIMER_TxEnable
+        {
+            get => PROTIMER_txEnable;
+            set
+            {
+                PROTIMER_txEnable = value;
+                if(PROTIMER_txEnable)
+                {
+                    RAC_TxEnable = true;
+                }
+            }
+        }
 
-        private RAC_InternalTxState RAC_internalTxState = RAC_InternalTxState.Idle;
-        private IFlagRegisterField FRC_seqRxOverflowInterruptEnable;
-        private IFlagRegisterField FRC_seqPacketBufferStartInterruptEnable;
-        private IValueRegisterField FRC_initialDecodedFrameLength;
-        private IValueRegisterField FRC_frameLength;
-        private IValueRegisterField FRC_lengthFieldLocation;
-        private IEnumRegisterField<FRC_FrameDescriptorMode> FRC_txFrameDescriptorMode;
-        private IEnumRegisterField<FRC_FrameDescriptorMode> FRC_rxFrameDescriptorMode;
-        private IFlagRegisterField FRC_rxStoreCrc;
-        private IFlagRegisterField FRC_rxAcceptCrcErrors;
-        private IFlagRegisterField FRC_rxBufferClear;
-        private IFlagRegisterField FRC_rxBufferRestoreOnFrameError;
-        private IFlagRegisterField FRC_rxAppendRssi;
-        private IFlagRegisterField RAC_seqStateRx2RxInterruptEnable;
-        private IEnumRegisterField<FRC_RxRawDataMode> FRC_rxRawDataSelect;
-        private IEnumRegisterField<FRC_DynamicFrameLengthMode> FRC_dynamicFrameLengthMode;
-        private IFlagRegisterField FRC_seqTxAfterFrameDoneInterruptEnable;
-        private IFlagRegisterField FRC_seqTxUnderflowInterruptEnable;
-        private IFlagRegisterField FRC_seqRxDoneInterruptEnable;
-        private IFlagRegisterField FRC_seqRxAbortedInterruptEnable;
-        private IFlagRegisterField FRC_seqFrameErrorInterruptEnable;
-        private IEnumRegisterField<PROTIMER_PreCounterSource> PROTIMER_preCounterSource;
-        private IFlagRegisterField FRC_seqRxRawEventInterruptEnable;
-        private IFlagRegisterField FRC_seqTxAfterFrameDoneInterrupt;
-        private IFlagRegisterField FRC_packetBufferStartInterruptEnable;
-        private IFlagRegisterField FRC_txAfterFrameDoneInterrupt;
-        private IFlagRegisterField FRC_txRawEventInterruptEnable;
-        private IFlagRegisterField FRC_txUnderflowInterrupt;
-        private IFlagRegisterField FRC_rxDoneInterrupt;
-        private IFlagRegisterField FRC_rxAbortedInterrupt;
-        private IFlagRegisterField FRC_frameErrorInterrupt;
-        private IFlagRegisterField FRC_seqTxDoneInterruptEnable;
-        private IEnumRegisterField<FRC_RxRawDataTriggerMode> FRC_rxRawDataTriggerSelect;
-        private IFlagRegisterField FRC_seqPacketBufferThresholdInterrupt;
-        private IFlagRegisterField FRC_seqTxRawEventInterrupt;
-        private IEnumRegisterField<FRC_DynamicFrameLengthBitOrder> FRC_dynamicFrameLengthBitOrder;
-        private IValueRegisterField FRC_dynamicFrameLengthBitShift;
-        private IValueRegisterField FRC_dynamicFrameLengthOffset;
-        private IValueRegisterField FRC_dynamicFrameLengthBits;
-        private IValueRegisterField FRC_minDecodedLength;
-        private IFlagRegisterField FRC_packetBufferStop;
-        private IFlagRegisterField FRC_txDoneInterrupt;
-        private IFlagRegisterField FRC_seqTxRawEventInterruptEnable;
-        private IFlagRegisterField FRC_seqTxDoneInterrupt;
-        private IFlagRegisterField FRC_seqTxUnderflowInterrupt;
-        private IFlagRegisterField FRC_seqRxDoneInterrupt;
-        private IFlagRegisterField FRC_seqRxAbortedInterrupt;
-        private IFlagRegisterField FRC_seqFrameErrorInterrupt;
-        private IFlagRegisterField FRC_seqRxOverflowInterrupt;
-        private IFlagRegisterField FRC_seqRxRawEventInterrupt;
-        private IFlagRegisterField FRC_seqPacketBufferStartInterrupt;
-        private IFlagRegisterField FRC_rxOverflowInterrupt;
-        private IFlagRegisterField RAC_seqStateRxPoweringDownInterruptEnable;
-        private IFlagRegisterField RAC_seqStateRxSearchInterruptEnable;
-        private bool RAC_em1pAckPending;
-        private IFlagRegisterField RAC_forceDisable;
-        private IFlagRegisterField RAC_txAfterRx;
-        private IFlagRegisterField RAC_exitShutdownDisable;
-        private RAC_InternalRxState RAC_internalRxState = RAC_InternalRxState.Idle;
-        private double RAC_rxTimeAlreadyPassedUs = 0;
-        private bool RAC_ongoingRxCollided = false;
-        private RAC_RadioState RAC_currentRadioState = RAC_RadioState.Off;
-        private RAC_RadioState RAC_previous1RadioState = RAC_RadioState.Off;
-        private RAC_RadioState RAC_previous2RadioState = RAC_RadioState.Off;
-        private RAC_RadioState RAC_previous3RadioState = RAC_RadioState.Off;
-        private IValueRegisterField RAC_softwareRxEnable;
-        private IFlagRegisterField RAC_forceStateActive;
-        private IFlagRegisterField RAC_txAfterFramePending;
-        private IFlagRegisterField RAC_txAfterFrameActive;
-        private IFlagRegisterField RAC_seqStateRx2RxInterrupt;
-        private IFlagRegisterField RAC_sequencerInSleeping;
-        private IFlagRegisterField RAC_seqStateRxPoweringDownInterrupt;
-        private IFlagRegisterField RAC_seqStateRxSearchInterrupt;
+        // Last value software wrote to the PROTIMER RANDOM register. While FIXEDBACKOFF is set this is
+        // frozen (writes are ignored) to mirror hardware.
+        private uint PROTIMER_fixedBackoffRandomValue = 1;
+
         private byte[] currentFrame;
-        private IFlagRegisterField RAC_stimerCompareEventInterrupt;
-        private IFlagRegisterField RAC_radioStateChangeInterruptEnable;
-        private IValueRegisterField RAC_mainCoreSeqInterruptsEnable;
-        private IFlagRegisterField RAC_paRampingDone;
-        private IFlagRegisterField RAC_radioStateChangeInterrupt;
-        private IValueRegisterField RAC_mainCoreSeqInterrupts;
-        private bool RAC_paOutputLevelRamping = false;
-        // Sequencer Radio State Machine Interrupt Flag
-        private IFlagRegisterField RAC_seqRadioStateChangeInterrupt;
-        private IFlagRegisterField RAC_stimerCompareEventInterruptEnable;
-        private IFlagRegisterField RAC_seqStateOffInterrupt;
-        private IFlagRegisterField RAC_seqStimerCompareEventInterrupt;
-        private IFlagRegisterField RAC_seqDemodRxRequestClearInterrupt;
-        private IFlagRegisterField RAC_seqPrsEventInterrupt;
-        private IFlagRegisterField RAC_seqStateRxWarmInterrupt;
-        private IFlagRegisterField RAC_seqStateRxFrameInterrupt;
-        private IFlagRegisterField RAC_seqStateRxFrameInterruptEnable;
-        private IFlagRegisterField RAC_sequencerInDeepSleep;
-        private IEnumRegisterField<RAC_RadioState> RAC_forceStateTransition;
+        private uint currentFrameOffset = 0;
+        private double currentFrameByteOverTheAirTimeUs = 0;
+        private double currentFrameElapsedAirtimeUs = 0;
+        private uint currentFrameCodedSymbolsPerInfoBit = 0;
+        private int currentDisassembleSubFrame = 0;
+        private uint currentDisassembleSubFrameStartWord = 0;
+        // Payload bytes of the current RX subframe already delivered. Tracked separately from WCNT because a
+        // subframe excluded from the word counter would otherwise never appear to make progress.
+        private uint currentDisassembleSubFrameBytes = 0;
+        private ISiLabs_CMU cmu;
 
-        private uint PROTIMER_preCounterSourcedBitmask = 0;
-        private IFlagRegisterField RAC_seqStateTx2TxInterruptEnable;
-        private IFlagRegisterField RAC_seqStateTxPoweringDownInterruptEnable;
-        private IFlagRegisterField RAC_seqStateTxInterrupt;
-        private IFlagRegisterField RAC_seqStateTxInterruptEnable;
-        private IFlagRegisterField FRC_seqPacketBufferThresholdInterruptEnable;
-        private IFlagRegisterField RAC_seqStateTx2RxInterrupt;
-        private IFlagRegisterField RAC_seqStateTx2TxInterrupt;
-        private IFlagRegisterField RAC_seqStateShutDownInterrupt;
-        // Sequencer Radio State Machine Interrupt Enable
-        private IFlagRegisterField RAC_seqRadioStateChangeInterruptEnable;
-        private IFlagRegisterField RAC_seqStimerCompareEventInterruptEnable;
-        private IFlagRegisterField RAC_seqDemodRxRequestClearInterruptEnable;
-        private IFlagRegisterField RAC_seqPrsEventInterruptEnable;
-        private IFlagRegisterField RAC_seqStateOffInterruptEnable;
-        private IFlagRegisterField RAC_seqStateRxWarmInterruptEnable;
-        private bool RAC_txEnable;
-        private IFlagRegisterField RAC_sequencerActive;
-        private ushort RAC_seqTimerLimit = 0xFFFF;
-        private bool RAC_10DbmSupport = false;
-        private IFlagRegisterField RAC_prsForceTx;
-        private IFlagRegisterField RAC_seqStateRx2TxInterrupt;
-        private IFlagRegisterField RAC_seqStateRxOverflowInterrupt;
-        private IFlagRegisterField RAC_seqStateTxPoweringDownInterrupt;
-        private IFlagRegisterField RAC_seqStateTxWarmInterrupt;
-        private IFlagRegisterField RAC_seqStateTx2RxInterruptEnable;
-        private IFlagRegisterField RAC_seqStateShutDownInterruptEnable;
-        private IValueRegisterField RAC_seqTimerPrescaler;
-        private IValueRegisterField RAC_seqTimerCompareValue;
-        private IEnumRegisterField<RAC_SeqTimerCompareAction> RAC_seqTimerCompareAction;
-        private IEnumRegisterField<RAC_SeqTimerCompareInvalidMode> RAC_seqTimerCompareInvalidMode;
-        private IFlagRegisterField RAC_seqTimerCompareRelative;
-        private IFlagRegisterField RAC_seqTimerAlwaysRun;
-        private IFlagRegisterField RAC_unlocked;
-        private bool RAC_0DbmSupport = false;
-        private bool RAC_20DbmSupport = false;
-        private uint currentFrameOffset;
-        private IFlagRegisterField FRC_rxRawEventInterrupt;
-        private IFlagRegisterField FRC_packetBufferStartInterrupt;
-        private IValueRegisterField PROTIMER_ccaDelay;
-        private IValueRegisterField PROTIMER_ccaRepeat;
-        private IFlagRegisterField PROTIMER_fixedBackoff;
-        private IValueRegisterField PROTIMER_retryLimit;
-        private IValueRegisterField PROTIMER_ccaCounter;
-        // Interrupt fields
-        private IFlagRegisterField PROTIMER_preCounterOverflowInterruptEnable;
-        private IFlagRegisterField PROTIMER_baseCounterOverflowInterruptEnable;
-        private IFlagRegisterField PROTIMER_wrapCounterOverflowInterruptEnable;
-        private IFlagRegisterField PROTIMER_listenBeforeTalkSuccessInterruptEnable;
-        private IFlagRegisterField PROTIMER_listenBeforeTalkFailureInterruptEnable;
-        private IFlagRegisterField PROTIMER_listenBeforeTalkRetryInterruptEnable;
-        private IFlagRegisterField PROTIMER_listenBeforeTalkTimeoutCounterMatchInterruptEnable;
-        private IFlagRegisterField PROTIMER_preCounterOverflowInterrupt;
-        private IFlagRegisterField PROTIMER_baseCounterOverflowInterrupt;
-        private IValueRegisterField PROTIMER_listenBeforeTalkStartExponent;
-        private IValueRegisterField PROTIMER_listenBeforeTalkRetryCounter;
-        private IFlagRegisterField PROTIMER_listenBeforeTalkRunning;
-        private IValueRegisterField PROTIMER_listenBeforeTalkExponent;
-        private IFlagRegisterField PROTIMER_listenBeforeTalkPaused;
-        private IValueRegisterField AGC_rssiShift;
-        private IFlagRegisterField AGC_subPeriod;
-        private IValueRegisterField AGC_subPeriodInteger;
-        // Interrupt fields
-        private IFlagRegisterField AGC_rssiValidInterrupt;
-        private IFlagRegisterField AGC_ccaInterrupt;
-        private IFlagRegisterField AGC_rssiDoneInterrupt;
-        private IFlagRegisterField AGC_rssiHighInterrupt;
-        private IFlagRegisterField AGC_rssiLowInterrupt;
-        private IFlagRegisterField AGC_ccaNotDetectedInterrupt;
-        private IFlagRegisterField AGC_rssiValidInterruptEnable;
-        private IFlagRegisterField AGC_ccaInterruptEnable;
-        private IFlagRegisterField AGC_rssiDoneInterruptEnable;
-        private IFlagRegisterField MODEM_seqTxSyncSentInterrupt;
-        private IValueRegisterField MODEM_rampValue;
-        private IFlagRegisterField MODEM_rxPreambleLostInterruptEnable;
-        private IValueRegisterField PROTIMER_listenBeforeTalkMaxExponent;
-        private IValueRegisterField AGC_rssiLowThreshold;
-        private IFlagRegisterField PROTIMER_listenBeforeTalkSuccessInterrupt;
-        private ushort PROTIMER_baseCounterValue = 0;
-        private IFlagRegisterField MODEM_rxFrameWithSyncWord0DetectedInterrupt;
-        private IFlagRegisterField PROTIMER_listenBeforeTalkRetryInterrupt;
-        private bool MODEM_txRampingDoneInterrupt = true;
-        private IFlagRegisterField MODEM_txFrameSentInterrupt;
-        private IFlagRegisterField MODEM_txSyncSentInterrupt;
-        private IFlagRegisterField MODEM_txPreambleSentInterrupt;
-        private IFlagRegisterField MODEM_rxPreambleDetectedInterrupt;
-        private IFlagRegisterField MODEM_rxFrameWithSyncWord1DetectedInterrupt;
-        private IFlagRegisterField PROTIMER_seqListenBeforeTalkRetryInterrupt;
-        private IFlagRegisterField MODEM_rxPreambleLostInterrupt;
-        private IFlagRegisterField MODEM_txFrameSentInterruptEnable;
-        private IFlagRegisterField MODEM_txSyncSentInterruptEnable;
-        private IFlagRegisterField MODEM_txPreambleSentInterruptEnable;
-        private IFlagRegisterField MODEM_txRampingDoneInterruptEnable;
-        private IFlagRegisterField MODEM_rxPreambleDetectedInterruptEnable;
-        private IFlagRegisterField PROTIMER_listenBeforeTalkFailureInterrupt;
-        private IFlagRegisterField PROTIMER_listenBeforeTalkSync;
-        private IEnumRegisterField<PROTIMER_Event> PROTIMER_rxClearEvent2;
-        private bool PROTIMER_listenBeforeTalkPending = false;
-        private uint PROTIMER_wrapCounterValue = 0;
-        private IValueRegisterField PROTIMER_preCounterTopInteger;
-        private IValueRegisterField PROTIMER_preCounterTopFractional;
-        private IValueRegisterField PROTIMER_baseCounterTop;
-        private IValueRegisterField PROTIMER_wrapCounterTop;
-        private bool PROTIMER_txEnable = false;
-        private IEnumRegisterField<PROTIMER_Event> PROTIMER_rxSetEvent1;
-        private IEnumRegisterField<PROTIMER_Event> PROTIMER_rxSetEvent2;
-        private IEnumRegisterField<PROTIMER_Event> PROTIMER_rxClearEvent1;
-        private IFlagRegisterField MODEM_rxFrameWithSyncWord1DetectedInterruptEnable;
-        private IEnumRegisterField<PROTIMER_Event> PROTIMER_txSetEvent1;
-        private IEnumRegisterField<PROTIMER_Event> PROTIMER_txSetEvent2;
-        private PROTIMER_TxRxRequestState PROTIMER_txRequestState = PROTIMER_TxRxRequestState.Idle;
-        private PROTIMER_TxRxRequestState PROTIMER_rxRequestState = PROTIMER_TxRxRequestState.Idle;
-        private PROTIMER_ListenBeforeTalkState PROTIMER_listenBeforeTalkState = PROTIMER_ListenBeforeTalkState.Idle;
-        private IFlagRegisterField PROTIMER_wrapCounterOverflowInterrupt;
-        private IFlagRegisterField FRC_txRawEventInterrupt;
-        private IValueRegisterField AGC_rssiHighThreshold;
-        private IValueRegisterField AGC_ccaRssiPeriod;
-        private IEnumRegisterField<CRC_CrcWidthMode> CRC_crcWidthMode;
-        private IValueRegisterField CRC_crcBitsPerWord;
-        private IEnumRegisterField<AGC_CcaMode> AGC_ccaMode;
-        private bool AGC_rssiFirstRead = true;
-        private bool AGC_rssiStartCommandOngoing = false;
-        private bool AGC_rssiStartCommandFromProtimer = false;
-        private sbyte AGC_rssiIntegerPart;
-        private sbyte AGC_frameRssiIntegerPart;
-        private IFlagRegisterField AGC_cca;
-        private IValueRegisterField AGC_ccaThreshold;
-        private IValueRegisterField AGC_rssiMeasurePeriod;
-        private IValueRegisterField MODEM_syncWord1;
-        private IValueRegisterField MODEM_syncWord0;
-        private IFlagRegisterField MODEM_syncData;
-        private IFlagRegisterField MODEM_txSync;
-        private IEnumRegisterField<MODEM_DemodulatorState> MODEM_demodulatorState;
-        private IFlagRegisterField MODEM_seqTxPreambleSentInterrupt;
-        private IFlagRegisterField MODEM_viterbiDemodulatorEnable;
-        private IValueRegisterField MODEM_rampRate2;
-        private IFlagRegisterField FRC_packetBufferThresholdInterrupt;
-        private IFlagRegisterField FRC_txDoneInterruptEnable;
-        private IFlagRegisterField FRC_txAfterFrameDoneInterruptEnable;
-        private IFlagRegisterField FRC_txUnderflowInterruptEnable;
-        private IFlagRegisterField FRC_rxDoneInterruptEnable;
-        private IFlagRegisterField FRC_rxAbortedInterruptEnable;
-        private IFlagRegisterField FRC_frameErrorInterruptEnable;
-        private IFlagRegisterField FRC_rxOverflowInterruptEnable;
-        private IFlagRegisterField FRC_rxRawEventInterruptEnable;
-        private IFlagRegisterField FRC_packetBufferThresholdInterruptEnable;
-        private IEnumRegisterField<PROTIMER_BaseCounterSource> PROTIMER_baseCounterSource;
-        private IFlagRegisterField CRC_reverseCrcByteOrdering;
-        private IFlagRegisterField MODEM_frameDetectedId;
-        private IValueRegisterField MODEM_rampRate0;
-        private IValueRegisterField MODEM_rampRate1;
-        private IFlagRegisterField MODEM_rampDisable;
-        private IFlagRegisterField AGC_ccaRssiPeriodEnable;
-        private IFlagRegisterField MODEM_seqRxPreambleDetectedInterrupt;
-        private IFlagRegisterField MODEM_seqRxFrameWithSyncWord1DetectedInterrupt;
-        private IFlagRegisterField AGC_seqRssiHighInterrupt;
-        private IFlagRegisterField AGC_seqRssiLowInterrupt;
-        private IFlagRegisterField AGC_seqCcaNotDetectedInterrupt;
-        private IFlagRegisterField AGC_seqRssiValidInterruptEnable;
-        private IFlagRegisterField AGC_seqCcaInterruptEnable;
-        private IFlagRegisterField AGC_seqRssiDoneInterruptEnable;
-        private IFlagRegisterField AGC_seqRssiLowInterruptEnable;
-        private IEnumRegisterField<AGC_RssiState> AGC_rssiState;
-        private IFlagRegisterField AGC_seqCcaNotDetectedInterruptEnable;
-        private IEnumRegisterField<PROTIMER_WrapCounterSource> PROTIMER_wrapCounterSource;
-        private IFlagRegisterField AGC_seqRssiValidInterrupt;
-        private IFlagRegisterField AGC_ccaNotDetectedInterruptEnable;
-        private IFlagRegisterField AGC_rssiLowInterruptEnable;
-        private IFlagRegisterField AGC_rssiHighInterruptEnable;
-        private IFlagRegisterField AGC_ccaSoftwareControl;
-        private IFlagRegisterField AGC_seqRssiDoneInterrupt;
-        private IFlagRegisterField MODEM_seqRxFrameWithSyncWord0DetectedInterrupt;
-        private IFlagRegisterField AGC_seqCcaInterrupt;
-        private IFlagRegisterField MODEM_seqTxFrameSentInterrupt;
-        private IFlagRegisterField MODEM_seqRxPreambleLostInterrupt;
-        private IFlagRegisterField MODEM_seqTxFrameSentInterruptEnable;
-        private IFlagRegisterField MODEM_seqTxSyncSentInterruptEnable;
-        private IFlagRegisterField MODEM_seqTxPreambleSentInterruptEnable;
-        private IFlagRegisterField MODEM_seqTxRampingDoneInterruptEnable;
-        private IFlagRegisterField MODEM_seqRxPreambleDetectedInterruptEnable;
-        private IFlagRegisterField MODEM_seqRxFrameWithSyncWord0DetectedInterruptEnable;
-        private IFlagRegisterField MODEM_seqRxFrameWithSyncWord1DetectedInterruptEnable;
-        private IFlagRegisterField MODEM_seqRxPreambleLostInterruptEnable;
-
-        private IValueRegisterField MODEM_baseBits;
-        private IValueRegisterField MODEM_txBases;
-        private IValueRegisterField MODEM_syncBits;
-        private IFlagRegisterField MODEM_dualSync;
-        private IValueRegisterField AGC_powerMeasurePeriod;
-        private IEnumRegisterField<AGC_CcaMode3Logic> AGC_ccaMode3Logic;
-        private IFlagRegisterField AGC_seqRssiHighInterruptEnable;
-        private int currentChannel = 0;
-        private IFlagRegisterField MODEM_rxFrameWithSyncWord0DetectedInterruptEnable;
         private IFlagRegisterField PROTIMER_seqListenBeforeTalkSuccessInterrupt;
         private IFlagRegisterField PROTIMER_seqWrapCounterOverflowInterrupt;
         private IFlagRegisterField PROTIMER_seqBaseCounterOverflowInterrupt;
         private IFlagRegisterField PROTIMER_seqPreCounterOverflowInterrupt;
+        private IFlagRegisterField PROTIMER_seqRtccSynchedInterruptEnable;
         private IFlagRegisterField PROTIMER_seqListenBeforeTalkRetryInterruptEnable;
         private IFlagRegisterField PROTIMER_seqListenBeforeTalkFailureInterruptEnable;
         private IFlagRegisterField PROTIMER_seqListenBeforeTalkSuccessInterruptEnable;
         private IFlagRegisterField PROTIMER_seqWrapCounterOverflowInterruptEnable;
         private IFlagRegisterField PROTIMER_seqBaseCounterOverflowInterruptEnable;
         private IFlagRegisterField PROTIMER_seqPreCounterOverflowInterruptEnable;
-        private IFlagRegisterField PROTIMER_listenBeforeTalkTimeoutCounterMatchInterrupt;
+        private IFlagRegisterField PROTIMER_rtccSynchedInterrupt;
         private IFlagRegisterField PROTIMER_seqListenBeforeTalkTimeoutCounterMatchInterruptEnable;
         private IFlagRegisterField PROTIMER_seqListenBeforeTalkFailureInterrupt;
-        private readonly BUFC_Buffer[] BUFC_buffer;
-        private readonly IFlagRegisterField[] RFMAILBOX_messageInterruptEnable = new IFlagRegisterField[MailboxMessageNumber];
-        private readonly IFlagRegisterField[] RFMAILBOX_messageInterrupt = new IFlagRegisterField[MailboxMessageNumber];
+        private IFlagRegisterField PROTIMER_seqRtccSynchedInterrupt;
+        private IFlagRegisterField PROTIMER_seqListenBeforeTalkTimeoutCounterMatchInterrupt;
+        private IFlagRegisterField PROTIMER_listenBeforeTalkTimeoutCounterMatchInterrupt;
+        private IFlagRegisterField PROTIMER_seqListenBeforeTalkRetryInterrupt;
+        private IFlagRegisterField PROTIMER_listenBeforeTalkRetryInterrupt;
+        private IEnumRegisterField<PROTIMER_Event> PROTIMER_txSetEvent1;
+        private IFlagRegisterField PROTIMER_listenBeforeTalkSuccessInterrupt;
+        private IFlagRegisterField PROTIMER_listenBeforeTalkSync;
+        private bool PROTIMER_listenBeforeTalkPending = false;
+        private PROTIMER_ListenBeforeTalkState PROTIMER_listenBeforeTalkState = PROTIMER_ListenBeforeTalkState.Idle;
+        private PROTIMER_TxRxRequestState PROTIMER_rxRequestState = PROTIMER_TxRxRequestState.Idle;
+        private PROTIMER_TxRxRequestState PROTIMER_txRequestState = PROTIMER_TxRxRequestState.Idle;
+        private IEnumRegisterField<PROTIMER_Event> PROTIMER_txSetEvent2;
+        private IEnumRegisterField<PROTIMER_Event> PROTIMER_rxClearEvent2;
+        private IFlagRegisterField PROTIMER_listenBeforeTalkRunning;
+        private IEnumRegisterField<PROTIMER_Event> PROTIMER_rxClearEvent1;
+        private IEnumRegisterField<PROTIMER_Event> PROTIMER_rxSetEvent1;
+        private bool PROTIMER_txEnable = false;
+        private IValueRegisterField PROTIMER_wrapCounterTop;
+        private IValueRegisterField PROTIMER_baseCounterTop;
+        private IValueRegisterField PROTIMER_preCounterTopFractional;
+        private IValueRegisterField PROTIMER_preCounterTopInteger;
+        private bool PROTIMER_rtcWait = false;
+        private ushort PROTIMER_baseCounterValue = 0;
+        private uint PROTIMER_wrapCounterValue = 0;
+        private IEnumRegisterField<PROTIMER_Event> PROTIMER_rxSetEvent2;
+        private IFlagRegisterField PROTIMER_listenBeforeTalkFailureInterrupt;
+        private IFlagRegisterField PROTIMER_listenBeforeTalkPaused;
+        private IValueRegisterField PROTIMER_listenBeforeTalkMaxExponent;
+        private IFlagRegisterField PROTIMER_wrapCounterOverflowInterrupt;
+        private IFlagRegisterField PROTIMER_baseCounterOverflowInterrupt;
+        private IFlagRegisterField PROTIMER_preCounterOverflowInterrupt;
+        private IFlagRegisterField PROTIMER_rtccSynchedInterruptEnable;
+        private IFlagRegisterField PROTIMER_listenBeforeTalkTimeoutCounterMatchInterruptEnable;
+        private IFlagRegisterField PROTIMER_listenBeforeTalkRetryInterruptEnable;
+        private IFlagRegisterField PROTIMER_listenBeforeTalkFailureInterruptEnable;
+        private IFlagRegisterField PROTIMER_listenBeforeTalkSuccessInterruptEnable;
+        private IValueRegisterField PROTIMER_listenBeforeTalkStartExponent;
+        private IFlagRegisterField PROTIMER_wrapCounterOverflowInterruptEnable;
+        private IFlagRegisterField PROTIMER_preCounterOverflowInterruptEnable;
+        private IValueRegisterField PROTIMER_ccaCounter;
+        private IValueRegisterField PROTIMER_retryLimit;
+        private IFlagRegisterField PROTIMER_fixedBackoff;
+        private IValueRegisterField PROTIMER_ccaRepeat;
+        private IValueRegisterField PROTIMER_ccaDelay;
+        private IValueRegisterField PROTIMER_listenBeforeTalkRetryCounter;
+        private IValueRegisterField PROTIMER_listenBeforeTalkExponent;
+        private IFlagRegisterField PROTIMER_baseCounterOverflowInterruptEnable;
+        private IEnumRegisterField<PROTIMER_PreCounterSource> PROTIMER_preCounterSource;
+        private IEnumRegisterField<PROTIMER_BaseCounterSource> PROTIMER_baseCounterSource;
+        private IEnumRegisterField<PROTIMER_WrapCounterSource> PROTIMER_wrapCounterSource;
+        private IFlagRegisterField PROTIMER_rtccTriggerFromPrsEnable;
+        private IFlagRegisterField PROTIMER_listenBeforeTalkPrsStartEnable;
+        private IFlagRegisterField PROTIMER_listenBeforeTalkPrsPauseEnable;
+        private IFlagRegisterField PROTIMER_listenBeforeTalkPrsStopEnable;
+        private uint PROTIMER_preCounterSourcedBitmask = 0;
 
-        private readonly IValueRegisterField[] RFMAILBOX_messagePointer = new IValueRegisterField[MailboxMessageNumber];
-        private readonly IFlagRegisterField[] HOSTMAILBOX_messageInterruptEnable = new IFlagRegisterField[MailboxMessageNumber];
-        private readonly IFlagRegisterField[] HOSTMAILBOX_messageInterrupt = new IFlagRegisterField[MailboxMessageNumber];
+        private IFlagRegisterField MODEM_rxFrameWithSyncWord1DetectedInterruptEnable;
+        private IFlagRegisterField MODEM_rxPreambleDetectedInterruptEnable;
+        private IFlagRegisterField MODEM_txRampingDoneInterruptEnable;
+        private IFlagRegisterField MODEM_txPreambleSentInterruptEnable;
+        private IFlagRegisterField MODEM_txSyncSentInterruptEnable;
+        private IFlagRegisterField MODEM_txFrameSentInterruptEnable;
+        private IFlagRegisterField MODEM_rxPreambleLostInterrupt;
+        private IFlagRegisterField MODEM_rxFrameWithSyncWord1DetectedInterrupt;
+        private IFlagRegisterField MODEM_rxFrameWithSyncWord0DetectedInterrupt;
+        private IFlagRegisterField MODEM_rxPreambleDetectedInterrupt;
+        private IFlagRegisterField MODEM_txPreambleSentInterrupt;
+        private IFlagRegisterField MODEM_txSyncSentInterrupt;
+        private IFlagRegisterField MODEM_txFrameSentInterrupt;
+        private bool MODEM_txRampingDoneInterrupt = true;
+        private IFlagRegisterField MODEM_rxFrameWithSyncWord0DetectedInterruptEnable;
+        private IFlagRegisterField MODEM_rxPreambleLostInterruptEnable;
+        private IFlagRegisterField MODEM_seqTxFrameSentInterrupt;
+        private IEnumRegisterField<MODEM_DemodulatorState> MODEM_demodulatorState;
+        private IFlagRegisterField MODEM_seqTxPreambleSentInterrupt;
+        private IFlagRegisterField MODEM_syncData;
+        private IFlagRegisterField MODEM_txSync;
+        private IFlagRegisterField MODEM_dualSync;
+        private IValueRegisterField MODEM_syncBits;
+        private IValueRegisterField MODEM_txBases;
+        private IValueRegisterField MODEM_baseBits;
+        private IFlagRegisterField MODEM_seqRxPreambleLostInterruptEnable;
+        private IFlagRegisterField MODEM_seqRxFrameWithSyncWord1DetectedInterruptEnable;
+        private IValueRegisterField MODEM_syncWord0;
+        private IFlagRegisterField MODEM_seqRxFrameWithSyncWord0DetectedInterruptEnable;
+        private IFlagRegisterField MODEM_seqTxRampingDoneInterruptEnable;
+        private IFlagRegisterField MODEM_seqTxPreambleSentInterruptEnable;
+        private IFlagRegisterField MODEM_seqTxSyncSentInterruptEnable;
+        private IFlagRegisterField MODEM_seqTxFrameSentInterruptEnable;
+        private IFlagRegisterField MODEM_seqRxPreambleLostInterrupt;
+        private IFlagRegisterField MODEM_seqRxFrameWithSyncWord1DetectedInterrupt;
+        private IFlagRegisterField MODEM_seqRxFrameWithSyncWord0DetectedInterrupt;
+        private IFlagRegisterField MODEM_seqRxPreambleDetectedInterrupt;
+        private IFlagRegisterField MODEM_seqRxPreambleDetectedInterruptEnable;
+        private IValueRegisterField MODEM_syncWord1;
+        private IFlagRegisterField MODEM_frameDetectedId;
+        private IValueRegisterField MODEM_rampRate0;
+        private IEnumRegisterField<MODEM_DsssDoublingMode> MODEM_dsssDoublingMode;
+        private IEnumRegisterField<MODEM_SymbolCoding> MODEM_symbolCoding;
+        private IEnumRegisterField<MODEM_ModulationFormat> MODEM_modulationFormat;
+        private IValueRegisterField MODEM_dsssShifts;
+        private IValueRegisterField MODEM_dsssLength;
+        private IValueRegisterField MODEM_baudrateDivisionFactorB;
+        private IEnumRegisterField<MODEM_RateSelectMode> MODEM_rateSelectMode;
+        private IValueRegisterField MODEM_baudrateDivisionFactorA;
+        private IValueRegisterField MODEM_txBaudrateDenominator;
+        private IValueRegisterField MODEM_txBaudrateNumerator;
+        private IFlagRegisterField MODEM_viterbiDemodulatorEnable;
+        private IValueRegisterField MODEM_rampValue;
+        private IFlagRegisterField MODEM_rampDisable;
+        private IValueRegisterField MODEM_rampRate2;
+        private IValueRegisterField MODEM_rampRate1;
+        private IFlagRegisterField MODEM_seqTxSyncSentInterrupt;
 
-        private readonly IValueRegisterField[] HOSTMAILBOX_messagePointer = new IValueRegisterField[MailboxMessageNumber];
-        private readonly PROTIMER_CaptureCompareChannel[] PROTIMER_captureCompareChannel;
-        private readonly FRC_FrameDescriptor[] FRC_frameDescriptor;
-        private readonly byte[] FRC_packetBufferCapture;
-        private readonly PROTIMER_TimeoutCounter[] PROTIMER_timeoutCounter;
-        private readonly IValueRegisterField[] RAC_scratch = new IValueRegisterField[RAC_NumberOfScratchRegisters];
-        private readonly IValueRegisterField[] RAC_seqStorage = new IValueRegisterField[RAC_NumberOfSequencerStorageRegisters];
+        private IFlagRegisterField AGC_rssiDoneInterrupt;
+        private IFlagRegisterField AGC_ccaInterrupt;
+        private IFlagRegisterField AGC_rssiValidInterrupt;
+        private IValueRegisterField AGC_subPeriodInteger;
+        private IFlagRegisterField AGC_subPeriod;
+        private IValueRegisterField AGC_rssiShift;
+        private IValueRegisterField AGC_rssiLowThreshold;
+        private IValueRegisterField AGC_rssiHighThreshold;
+        private IFlagRegisterField AGC_rssiHighInterrupt;
+        private IFlagRegisterField AGC_ccaRssiPeriodEnable;
+        private IFlagRegisterField AGC_ccaSoftwareControl;
+        private IEnumRegisterField<AGC_RssiState> AGC_rssiState;
+        private IEnumRegisterField<AGC_CcaMode3Logic> AGC_ccaMode3Logic;
+        private IEnumRegisterField<AGC_CcaMode> AGC_ccaMode;
+        private IValueRegisterField AGC_powerMeasurePeriod;
+        private IValueRegisterField AGC_rssiMeasurePeriod;
+        private IValueRegisterField AGC_ccaThreshold;
+        private IFlagRegisterField AGC_cca;
+        private IValueRegisterField AGC_ccaRssiPeriod;
+        private sbyte AGC_frameRssiIntegerPart;
+        private IFlagRegisterField AGC_rssiLowInterrupt;
+        private IFlagRegisterField AGC_rssiValidInterruptEnable;
+        private IFlagRegisterField AGC_seqCcaNotDetectedInterruptEnable;
+        private IFlagRegisterField AGC_seqRssiLowInterruptEnable;
+        private IFlagRegisterField AGC_seqRssiHighInterruptEnable;
+        private IFlagRegisterField AGC_seqRssiDoneInterruptEnable;
+        private IFlagRegisterField AGC_seqCcaInterruptEnable;
+        private IFlagRegisterField AGC_seqRssiValidInterruptEnable;
+        private IFlagRegisterField AGC_seqCcaNotDetectedInterrupt;
+        private IFlagRegisterField AGC_ccaNotDetectedInterrupt;
+        private IFlagRegisterField AGC_seqRssiLowInterrupt;
+        private IFlagRegisterField AGC_seqRssiDoneInterrupt;
+        private IFlagRegisterField AGC_seqCcaInterrupt;
+        private IFlagRegisterField AGC_seqRssiValidInterrupt;
+        private IFlagRegisterField AGC_ccaNotDetectedInterruptEnable;
+        private IFlagRegisterField AGC_rssiLowInterruptEnable;
+        private IFlagRegisterField AGC_rssiHighInterruptEnable;
+        private IFlagRegisterField AGC_rssiDoneInterruptEnable;
+        private IFlagRegisterField AGC_ccaInterruptEnable;
+        private IFlagRegisterField AGC_seqRssiHighInterrupt;
+        private bool AGC_rssiStartCommandFromProtimer = false;
+        private bool AGC_rssiStartCommandOngoing = false;
+        private bool AGC_rssiFirstRead = true;
+
+        private IValueRegisterField CRC_crcBitsPerWord;
+        private IFlagRegisterField CRC_reverseCrcByteOrdering;
+        private IEnumRegisterField<CRC_CrcWidthMode> CRC_crcWidthMode;
+
+        private IFlagRegisterField FRC_seqPacketBufferStartInterrupt;
+        private IFlagRegisterField FRC_packetBufferThresholdInterruptEnable;
+        private IFlagRegisterField FRC_packetBufferStartInterruptEnable;
+        private IFlagRegisterField FRC_txRawEventInterruptEnable;
+        private IFlagRegisterField FRC_rxRawEventInterruptEnable;
+        private IFlagRegisterField FRC_rxOverflowInterruptEnable;
+        private IFlagRegisterField FRC_frameErrorInterruptEnable;
+        private IFlagRegisterField FRC_rxAbortedInterruptEnable;
+        private IFlagRegisterField FRC_rxDoneInterruptEnable;
+        private IFlagRegisterField FRC_txUnderflowInterruptEnable;
+        private IFlagRegisterField FRC_txAfterFrameDoneInterruptEnable;
+        private IFlagRegisterField FRC_txDoneInterruptEnable;
+        private IFlagRegisterField FRC_packetBufferThresholdInterrupt;
+        private IFlagRegisterField FRC_packetBufferStartInterrupt;
+        private IFlagRegisterField FRC_txRawEventInterrupt;
+        private IFlagRegisterField FRC_rxRawEventInterrupt;
+        private IFlagRegisterField FRC_rxOverflowInterrupt;
+        private IFlagRegisterField FRC_frameErrorInterrupt;
+        private IFlagRegisterField FRC_seqTxDoneInterrupt;
+        private IFlagRegisterField FRC_seqTxAfterFrameDoneInterrupt;
+        private IFlagRegisterField FRC_seqTxUnderflowInterrupt;
+        private IFlagRegisterField FRC_seqRxDoneInterrupt;
+        private IFlagRegisterField FRC_ptiEmitRx;
+        private IFlagRegisterField FRC_seqPacketBufferThresholdInterruptEnable;
+        private IFlagRegisterField FRC_seqPacketBufferStartInterruptEnable;
+        private IFlagRegisterField FRC_seqRxRawEventInterruptEnable;
+        private IFlagRegisterField FRC_seqRxOverflowInterruptEnable;
+        private IFlagRegisterField FRC_seqFrameErrorInterruptEnable;
+        private IFlagRegisterField FRC_seqRxAbortedInterruptEnable;
+        private IFlagRegisterField FRC_rxAbortedInterrupt;
+        private IFlagRegisterField FRC_seqRxDoneInterruptEnable;
+        private IFlagRegisterField FRC_seqTxAfterFrameDoneInterruptEnable;
+        private IFlagRegisterField FRC_seqTxDoneInterruptEnable;
+        private IFlagRegisterField FRC_seqPacketBufferThresholdInterrupt;
+        private IFlagRegisterField FRC_seqTxRawEventInterrupt;
+        private IFlagRegisterField FRC_seqRxRawEventInterrupt;
+        private IFlagRegisterField FRC_seqRxOverflowInterrupt;
+        private IFlagRegisterField FRC_seqFrameErrorInterrupt;
+        private IFlagRegisterField FRC_seqRxAbortedInterrupt;
+        private IFlagRegisterField FRC_seqTxUnderflowInterruptEnable;
+        private IFlagRegisterField FRC_ptiEmitTx;
+        private IFlagRegisterField FRC_rxDoneInterrupt;
+        private IFlagRegisterField FRC_txAfterFrameDoneInterrupt;
+        private IValueRegisterField FRC_maxDecodedLength;
+        private IFlagRegisterField FRC_dynamicFrameCrcIncluded;
+        private IValueRegisterField FRC_minDecodedLength;
+        private IValueRegisterField FRC_dynamicFrameLengthBits;
+        private IValueRegisterField FRC_dynamicFrameLengthOffset;
+        private IValueRegisterField FRC_dynamicFrameLengthBitShift;
+        private IEnumRegisterField<FRC_DynamicFrameLengthBitOrder> FRC_dynamicFrameLengthBitOrder;
+        private IEnumRegisterField<FRC_DynamicFrameLengthMode> FRC_dynamicFrameLengthMode;
+        private IEnumRegisterField<FRC_RxRawDataTriggerMode> FRC_rxRawDataTriggerSelect;
+        private IEnumRegisterField<FRC_RxRawDataMode> FRC_rxRawDataSelect;
+        private IFlagRegisterField FRC_enableRawDataRandomNumberGenerator;
+        private IValueRegisterField FRC_fsmState;
+        private IFlagRegisterField FRC_rxRawBlocked;
+        private IFlagRegisterField FRC_activeReceiveFrameDescriptor;
+        private IFlagRegisterField FRC_activeTransmitFrameDescriptor;
+        private bool FRC_rxFrameIrqClearedPending = false;
+        private bool FRC_rxDonePending = false;
+        private IValueRegisterField FRC_initialDecodedFrameLength;
+        private IValueRegisterField FRC_wordCounter;
+        private IValueRegisterField FRC_frameLength;
+        private IValueRegisterField FRC_lengthFieldLocation;
+        private IValueRegisterField FRC_addressFieldLocation;
+        private IFlagRegisterField FRC_txDoneInterrupt;
+        private IValueRegisterField FRC_packetBufferCount;
+        private IFlagRegisterField FRC_packetBufferStop;
+        private IFlagRegisterField FRC_packetBufferThresholdEnable;
+        private IValueRegisterField FRC_packetBufferThreshold;
+        private IValueRegisterField FRC_packetBufferStartAddress;
+        private IFlagRegisterField FRC_rxAppendProtimerCc0HighWrap;
+        private IFlagRegisterField FRC_rxAppendProtimerCc0LowWrap;
+        private IFlagRegisterField FRC_txUnderflowInterrupt;
+        private IFlagRegisterField FRC_rxAppendProtimerCc0base;
+        private IFlagRegisterField FRC_rxAppendRssi;
+        private IFlagRegisterField FRC_rxBufferRestoreOnRxAborted;
+        private IFlagRegisterField FRC_rxBufferRestoreOnFrameError;
+        private IFlagRegisterField FRC_rxBufferClear;
+        private IFlagRegisterField FRC_rxAcceptCrcErrors;
+        private IFlagRegisterField FRC_rxStoreCrc;
+        private IEnumRegisterField<FRC_FrameDescriptorMode> FRC_rxFrameDescriptorMode;
+        private IEnumRegisterField<FRC_FrameDescriptorMode> FRC_txFrameDescriptorMode;
+        private IValueRegisterField FRC_rateSelect;
+        private IFlagRegisterField FRC_rxAppendStatus;
+        private IFlagRegisterField FRC_ptiEmitRssi;
+        private IFlagRegisterField FRC_seqTxRawEventInterruptEnable;
+        private IFlagRegisterField FRC_ptiEmitAux;
+
+        private IFlagRegisterField RAC_seqStateRx2RxInterruptEnable;
+        private IFlagRegisterField RAC_seqStateRxPoweringDownInterruptEnable;
+        private IFlagRegisterField RAC_seqStateRxFrameInterruptEnable;
+        private IFlagRegisterField RAC_seqStateRxSearchInterruptEnable;
+        private IFlagRegisterField RAC_seqStateRxWarmInterruptEnable;
+        private IFlagRegisterField RAC_seqStateOffInterruptEnable;
+        private IFlagRegisterField RAC_seqPrsEventInterruptEnable;
+        private IFlagRegisterField RAC_seqDemodRxRequestClearInterruptEnable;
+        private IFlagRegisterField RAC_seqStimerCompareEventInterruptEnable;
+        private IFlagRegisterField RAC_seqRadioStateChangeInterruptEnable;
+        private IFlagRegisterField RAC_seqStateShutDownInterrupt;
+        private IFlagRegisterField FRC_ptiEmitState;
+        private IFlagRegisterField RAC_seqStateTx2RxInterrupt;
+        private IFlagRegisterField RAC_seqStateTxPoweringDownInterrupt;
+        private IFlagRegisterField RAC_seqStateTxInterrupt;
+        private IFlagRegisterField RAC_seqStateTxWarmInterrupt;
+        private IFlagRegisterField RAC_seqStateRx2TxInterrupt;
+        private IFlagRegisterField RAC_seqStateRxOverflowInterruptEnable;
+        private IFlagRegisterField RAC_seqStateRxOverflowInterrupt;
+        private IFlagRegisterField RAC_seqStateRx2TxInterruptEnable;
+        private IFlagRegisterField RAC_seqStateTxInterruptEnable;
+        private bool RAC_txEnable;
+        private ushort RAC_seqTimerLimit = 0xFFFF;
+        private bool RAC_20DbmSupport = false;
+        private bool RAC_10DbmSupport = false;
+        private bool RAC_0DbmSupport = false;
+        private IFlagRegisterField RAC_unlocked;
+        private IFlagRegisterField RAC_seqTimerAlwaysRun;
+        private IFlagRegisterField RAC_seqTimerCompareRelative;
+        private IEnumRegisterField<RAC_SeqTimerCompareInvalidMode> RAC_seqTimerCompareInvalidMode;
+        private IEnumRegisterField<RAC_SeqTimerCompareAction> RAC_seqTimerCompareAction;
+        private IValueRegisterField RAC_seqTimerCompareValue;
+        private IValueRegisterField RAC_seqTimerPrescaler;
+        private IFlagRegisterField RAC_seqStateShutDownInterruptEnable;
+        private IFlagRegisterField RAC_seqStateTx2TxInterruptEnable;
+        private IFlagRegisterField RAC_seqStateTx2RxInterruptEnable;
+        private IFlagRegisterField RAC_seqStateTxPoweringDownInterruptEnable;
+        private IFlagRegisterField RAC_seqStateTxWarmInterruptEnable;
+        private IFlagRegisterField RAC_seqStateRx2RxInterrupt;
+        private IFlagRegisterField RAC_seqStateTx2TxInterrupt;
+        private IFlagRegisterField RAC_seqStateRxFrameInterrupt;
+        private IFlagRegisterField RAC_sequencerActive;
+        private IFlagRegisterField RAC_sequencerInDeepSleep;
+        private IFlagRegisterField RAC_sequencerInSleeping;
+        private IFlagRegisterField RAC_txAfterFrameActive;
+        private IFlagRegisterField RAC_seqStateRxPoweringDownInterrupt;
+        private IFlagRegisterField RAC_forceStateActive;
+        private IValueRegisterField RAC_softwareRxEnable;
+        private IEnumRegisterField<RAC_RadioState> RAC_forceStateTransition;
+        private RAC_RadioState RAC_previous3RadioState = RAC_RadioState.Off;
+        private RAC_RadioState RAC_previous1RadioState = RAC_RadioState.Off;
+        private RAC_RadioState RAC_currentRadioState = RAC_RadioState.Off;
+        private bool RAC_ongoingRxCollided = false;
+        private RAC_InternalRxState RAC_internalRxState = RAC_InternalRxState.Idle;
+        private RAC_InternalTxState RAC_internalTxState = RAC_InternalTxState.Idle;
+        private IFlagRegisterField FRC_ptiEmitSyncWord;
+        private RAC_RadioState RAC_previous2RadioState = RAC_RadioState.Off;
+        private IFlagRegisterField RAC_prsForceTx;
+        private IFlagRegisterField RAC_txAfterFramePending;
+        private IFlagRegisterField RAC_exitShutdownDisable;
+        private IFlagRegisterField RAC_seqStateRxSearchInterrupt;
+        private IFlagRegisterField RAC_seqStateRxWarmInterrupt;
+        private IFlagRegisterField RAC_seqStateOffInterrupt;
+        private IFlagRegisterField RAC_forceDisable;
+        private IFlagRegisterField RAC_seqDemodRxRequestClearInterrupt;
+        private IFlagRegisterField RAC_seqStimerCompareEventInterrupt;
+        private IFlagRegisterField RAC_seqRadioStateChangeInterrupt;
+        private IFlagRegisterField RAC_stimerCompareEventInterruptEnable;
+        private IFlagRegisterField RAC_radioStateChangeInterruptEnable;
+        private IFlagRegisterField RAC_seqPrsEventInterrupt;
+        private IFlagRegisterField RAC_stimerCompareEventInterrupt;
+        private IFlagRegisterField RAC_radioStateChangeInterrupt;
+        private IValueRegisterField RAC_mainCoreSeqInterrupts;
+        private bool RAC_paOutputLevelRamping = false;
+        private IFlagRegisterField RAC_paRampingDone;
+        private bool RAC_em1pAckPending;
+        private IFlagRegisterField RAC_txAfterRx;
+        private IValueRegisterField RAC_mainCoreSeqInterruptsEnable;
+        private IValueRegisterField RAC_softwareIrq;
+
+        private IValueRegisterField SYNTH_frequency;
+        private IEnumRegisterField<SYNTH_LoDivFreqCtrl> SYNTH_loDivFreqCtrl;
+        private IValueRegisterField SYNTH_channelSpacing;
+
         private readonly Machine machine;
         private readonly MappedMemory ram;
         private readonly CortexM sequencer;
+        private static readonly PseudorandomNumberGenerator random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
+        private readonly SiLabs_BUFC_4 bufferController;
         private readonly LimitTimer seqTimer;
         private readonly LimitTimer proTimer;
         private readonly LimitTimer paRampingTimer;
@@ -5854,7 +6718,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
         private readonly LimitTimer txTimer;
         private readonly LimitTimer rxTimer;
         private readonly DoubleWordRegisterCollection automaticGainControlRegistersCollection;
-        private readonly DoubleWordRegisterCollection bufferControllerRegistersCollection;
         private readonly DoubleWordRegisterCollection cyclicRedundancyCheckRegistersCollection;
         private readonly DoubleWordRegisterCollection frameControllerRegistersCollection;
         private readonly DoubleWordRegisterCollection modulatorAndDemodulatorRegistersCollection;
@@ -5863,16 +6726,40 @@ namespace Antmicro.Renode.Peripherals.Wireless
         private readonly DoubleWordRegisterCollection radioMailboxRegistersCollection;
         private readonly DoubleWordRegisterCollection hostMailboxRegistersCollection;
         private readonly DoubleWordRegisterCollection synthesizerRegistersCollection;
+        private readonly IValueRegisterField[] RAC_scratch = new IValueRegisterField[RAC_NumberOfScratchRegisters];
+        private readonly IValueRegisterField[] RAC_seqStorage = new IValueRegisterField[RAC_NumberOfSequencerStorageRegisters];
+        private readonly IFlagRegisterField[] RFMAILBOX_messageInterruptEnable = new IFlagRegisterField[MailboxMessageNumber];
+        private readonly IFlagRegisterField[] RFMAILBOX_messageInterrupt = new IFlagRegisterField[MailboxMessageNumber];
+        private readonly IValueRegisterField[] RFMAILBOX_messagePointer = new IValueRegisterField[MailboxMessageNumber];
+        private readonly IFlagRegisterField[] HOSTMAILBOX_messageInterruptEnable = new IFlagRegisterField[MailboxMessageNumber];
+        private readonly IFlagRegisterField[] HOSTMAILBOX_messageInterrupt = new IFlagRegisterField[MailboxMessageNumber];
+        private readonly IValueRegisterField[] HOSTMAILBOX_messagePointer = new IValueRegisterField[MailboxMessageNumber];
+        private readonly PROTIMER_TimeoutCounter[] PROTIMER_timeoutCounter;
+        private readonly PROTIMER_CaptureCompareChannel[] PROTIMER_captureCompareChannel;
+        private readonly byte[] FRC_packetBufferCapture;
+        private readonly FRC_FrameDescriptor[] FRC_frameDescriptor;
+        private readonly IFlagRegisterField[] FRC_wordCounterCompareInterrupt = new IFlagRegisterField[FRC_NumberOfWordCounterCompareChannels];
+        private readonly IFlagRegisterField[] FRC_wordCounterCompareInterruptEnable = new IFlagRegisterField[FRC_NumberOfWordCounterCompareChannels];
+        private readonly IFlagRegisterField[] FRC_seqWordCounterCompareInterrupt = new IFlagRegisterField[FRC_NumberOfWordCounterCompareChannels];
+        private readonly IFlagRegisterField[] FRC_seqWordCounterCompareInterruptEnable = new IFlagRegisterField[FRC_NumberOfWordCounterCompareChannels];
         private const uint SetRegisterOffset = 0x1000;
         private const uint ClearRegisterOffset = 0x2000;
         private const uint ToggleRegisterOffset = 0x3000;
         private const uint SequencerMemoryBaseAddress = 0xB0000000;
         private const uint MailboxMessageNumber = 4;
-        private const long HfxoFrequency = 39000000L;
-        private const long MicrosecondFrequency = 1000000L;
-        private const long HalfMicrosecondFrequency = 2000000L;
+        private const ulong MicrosecondFrequency = 1000000UL;
+        private const ulong HalfMicrosecondFrequency = 2000000UL;
+        const int SNIFF_SYNCWORD_SERIAL_LEN = 4;
         private const uint FRC_NumberOfFrameDescriptors = 4;
+        // FCD0/FCD1 form the transmit descriptor pair, FCD2/FCD3 the receive pair.
+        private const int FRC_FirstTransmitFrameDescriptor = 0;
+        private const int FRC_FirstReceiveFrameDescriptor = 2;
+        // Only the compare channels backed by a register in this model: WCNTCMP0/1/2.
+        private const int FRC_NumberOfWordCounterCompareChannels = 3;
         private const uint FRC_PacketBufferCaptureSize = 48;
+        private const uint FRC_RxFragmentLengthInBytes = 4;
+        // FRC.CTRL.RATESELECT value that selects the alternate convolutional coding (CODINGB => BLE S=2 / 500 kbps).
+        private const uint FRC_RateSelectCodingB = 2u;
         // RENODE-53
         // TODO: calculate the ramping time from registers
         private const uint RAC_PowerAmplifierRampingTimeUs = 5;
@@ -5882,22 +6769,19 @@ namespace Antmicro.Renode.Peripherals.Wireless
         private const uint PROTIMER_MinimumTimeoutCounterDelay = 2;
         private const uint PROTIMER_NumberOfTimeoutCounters = 2;
         private const uint PROTIMER_NumberOfCaptureCompareChannels = 8;
-
-        private const uint BUFC_NumberOfBuffers = 4;
-
-        private const uint MODEM_Ble1MbPhyDataRate = 1000000;
-        private const uint MODEM_Ble1MbPhyRxChainDelayNanoS = 50000;
-        private const uint MODEM_Ble1MbPhyRxDoneDelayNanoS = 11250;
-        private const uint MODEM_Ble1MbPhyTxChainDelayNanoS = 750;
+        private const uint PROTIMER_NumberOfCaptureCompareChannelPrsEvents = 5;
+        // LE Coded PHY preamble is a fixed 80us (sent at the 1 Msym/s base rate, independent of S=2/S=8).
+        private const double MODEM_BleCodedPhyPreambleOverTheAirTimeUs = 80.0;
+        private const uint MODEM_BlePhyRxChainDelayNanoS = 50000;
+        private const uint MODEM_BlePhyRxDoneDelayNanoS = 11250;
+        private const uint MODEM_BlePhyTxChainDelayNanoS = 750;
         // TODO: verify this
-        private const uint MODEM_Ble1MbPhyTxDoneChainDelayNanoS = 750;
-        private const uint MODEM_802154PhyDataRate = 250000;
+        private const uint MODEM_BlePhyTxDoneChainDelayNanoS = 750;
         private const uint MODEM_802154PhyRxChainDelayNanoS = 6625;
         private const uint MODEM_802154PhyRxDoneDelayNanoS = 6625;
         private const uint MODEM_802154PhyTxChainDelayNanoS = 600;
         // TODO: verify this
         private const uint MODEM_802154PhyTxDoneChainDelayNanoS = 0;
-
         // The PHYs are configured in a way that the produced RSSI values are shifted by this value.
         // This is to avoid some wrap issue with very small values.
         // RAIL then subtracts this offset to all RSSI values coming from the hardware.
@@ -5943,23 +6827,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
             InternalTrigger = 28,
         }
 
-        public enum BUFC_SizeMode
-        {
-            Size64 = 0x0,
-            Size128 = 0x1,
-            Size256 = 0x2,
-            Size512 = 0x3,
-            Size1024 = 0x4,
-            Size2048 = 0x5,
-            Size4096 = 0x6,
-        }
-
-        public enum BUFC_ThresholdMode
-        {
-            Larger = 0x0,
-            LessOrEqual = 0x1,
-        }
-
         public enum MODEM_DemodulatorState
         {
             Off = 0x0,
@@ -5970,387 +6837,59 @@ namespace Antmicro.Renode.Peripherals.Wireless
             TimingSearchWithSlidingWindow = 0x5,
         }
 
-        private class BUFC_Buffer
+        private class PROTIMER_CaptureCompareChannel
         {
-            public BUFC_Buffer(SiLabs_xG24_LPW parent, Machine machine, uint index)
+            public PROTIMER_CaptureCompareChannel(SiLabs_xG24_LPW parent, uint index)
             {
                 this.parent = parent;
-                this.machine = machine;
                 this.index = index;
             }
 
-            public uint Peek(uint index)
+            public void Capture(ushort baseVal, uint wrapVal)
             {
-                var offset = (ulong)(Address.Value + ((ReadOffset + index) % Size));
+                if(CaptureValid.Value)
+                {
+                    OverflowInterrupt.Value = true;
+                    SeqOverflowInterrupt.Value = true;
+                }
 
-                return machine.SystemBus.ReadByte(offset);
+                CaptureValid.Value = true;
+                InterruptField.Value = true;
+                SeqInterruptField.Value = true;
+
+                PreValue.Value = 0;
+                BaseValue.Value = baseVal;
+                WrapValue.Value = wrapVal;
+
+                parent.UpdateInterrupts();
             }
 
-            public bool TryReadBytes(uint length, out byte[] data)
-            {
-                bool savedUnderflowValue = Underflow.Value;
-                Underflow.Value = false;
-                bool retValue = true;
-                data = new byte[length];
-                var i = 0;
-                for(; i < data.Length; ++i)
-                {
-                    var value = (byte)ReadData;
-                    if(Underflow.Value)
-                    {
-                        retValue = false;
-                        break;
-                    }
-                    data[i] = value;
-                }
-                if(i != length)
-                {
-                    Array.Resize(ref data, i);
-                }
-                if(savedUnderflowValue)
-                {
-                    Underflow.Value = true;
-                }
-                return retValue;
-            }
+            public bool Interrupt => ((InterruptField.Value && InterruptEnable.Value)
+                                      || (OverflowInterrupt.Value && OverflowInterruptEnable.Value));
 
-            public bool TryWriteBytes(byte[] data, out uint i)
-            {
-                bool savedOverflowValue = Overflow.Value;
-                Overflow.Value = false;
-                bool retValue = true;
-                for(i = 0; i < data.Length; ++i)
-                {
-                    WriteData = data[i];
-                    if(Overflow.Value)
-                    {
-                        retValue = false;
-                        break;
-                    }
-                }
-                if(savedOverflowValue)
-                {
-                    Overflow.Value = true;
-                }
-                return retValue;
-            }
+            public bool SeqInterrupt => ((SeqInterruptField.Value && SeqInterruptEnable.Value)
+                                         || (SeqOverflowInterrupt.Value && SeqOverflowInterruptEnable.Value));
 
-            public void Clear()
-            {
-                parent.Log(LogLevel.Noisy, "Buffer #{0}: Clear", index);
-
-                // TODO: clear UF and OF interrupts?
-                readOffset = 0;
-                writeOffset = 0;
-                UpdateThresholdFlag();
-            }
-
-            public void Prefetch()
-            {
-                // Issuing the PREFETCH command in an empty buffer results in an underflow.
-                if(BytesNumber == 0)
-                {
-                    parent.Log(LogLevel.Noisy, "Buffer #{0}: Prefetch while BytesNumber==0, underflow", index);
-
-                    Underflow.Value = true;
-                    SeqUnderflow.Value = true;
-                    parent.UpdateInterrupts();
-                }
-            }
-
-            public void UpdateWriteStartOffset()
-            {
-                parent.Log(LogLevel.Noisy, "Buffer #{0}: Saving write offset {1}", index, writeOffset);
-                WriteStartOffset.Value = WriteOffset;
-            }
-
-            public void RestoreWriteOffset()
-            {
-                parent.Log(LogLevel.Noisy, "Buffer #{0}: Restoring write offset {1}", index, WriteStartOffset.Value);
-                WriteOffset = (uint)WriteStartOffset.Value;
-                UpdateThresholdFlag();
-            }
-
-            public void UpdateThresholdFlag()
-            {
-                parent.Log(LogLevel.Noisy, "Buffer #{0}: Updating Threshold flag", index);
-                if(ThresholdFlag)
-                {
-                    parent.Log(LogLevel.Noisy, "Buffer #{0}: Threshold flag set, bytes {1} threshold {2}", index, BytesNumber, Threshold.Value);
-                    ThresholdEvent.Value = true;
-                    SeqThresholdEvent.Value = true;
-
-                    parent.UpdateInterrupts();
-                }
-            }
-
-            public bool ReadReady => true;
-
-            public bool Read32Ready => true;
-
-            public uint Size => 64u << (int)SizeMode.Value;
-
-            public uint ReadOffset
-            {
-                get
-                {
-                    return readOffset;
-                }
-
-                set
-                {
-                    parent.Log(LogLevel.Noisy, "Buffer #{0}: Set ReadOffset={1}", index, value);
-                    readOffset = value;
-                    UpdateThresholdFlag();
-                }
-            }
-
-            public uint WriteOffset
-            {
-                get
-                {
-                    return writeOffset;
-                }
-
-                set
-                {
-                    parent.Log(LogLevel.Noisy, "Buffer #{0}: Set WriteOffset={1}", index, value);
-                    writeOffset = value;
-                    UpdateThresholdFlag();
-                }
-            }
-
-            public uint ReadData
-            {
-                get
-                {
-                    if(BytesNumber == 0)
-                    {
-                        Underflow.Value = true;
-                        SeqUnderflow.Value = true;
-                        parent.Log(LogLevel.Noisy, "Buffer #{0}: Reading underflow Size={1} writeOffset={2} readOffset={3}",
-                                   index, Size, WriteOffset, ReadOffset);
-                        parent.UpdateInterrupts();
-                        return 0;
-                    }
-
-                    var offset = (ulong)(Address.Value + (ReadOffset % Size));
-                    var value = machine.SystemBus.ReadByte(offset);
-                    var newOffset = (ReadOffset + 1) % (2 * Size);
-                    parent.Log(LogLevel.Noisy, "Buffer #{0}: Reading value 0x{1:X} at ram's offset 0x{2:X}, oldOffset={3} newOffset{4}",
-                               index, value, offset, ReadOffset, newOffset);
-                    ReadOffset = newOffset;
-                    return value;
-                }
-            }
-
-            public uint ReadData32
-            {
-                get
-                {
-                    var offset = (ulong)(Address.Value + (ReadOffset % Size));
-                    uint value = 0;
-
-                    // If we have less than 4 bytes available we still read the bytes we have.
-                    // ReadOffset does not advance.
-                    if(BytesNumber < 4)
-                    {
-                        Underflow.Value = true;
-                        SeqUnderflow.Value = true;
-                        var bytesRead = BytesNumber;
-                        for(uint i = 0; i < bytesRead; i++)
-                        {
-                            value = value | ((uint)machine.SystemBus.ReadByte(offset + i) << 8 * (int)i);
-                        }
-                        parent.Log(LogLevel.Noisy, "Buffer #{0} underflow: Reading value (32bit) (partial {1} bytes) 0x{2:X} at ram's offset 0x{2:X}",
-                                   index, bytesRead, value, offset);
-                        parent.UpdateInterrupts();
-                    }
-                    else
-                    {
-                        value = machine.SystemBus.ReadDoubleWord(offset);
-                        var newOffset = (ReadOffset + 4) % (2 * Size);
-                        parent.Log(LogLevel.Noisy, "Buffer #{0}: Reading value (32bit) 0x{1:X} at ram's offset 0x{2:X}, oldOffset={3} newOffset={4}",
-                                   index, value, offset, ReadOffset, newOffset);
-                        ReadOffset = newOffset;
-                    }
-
-                    return value;
-                }
-            }
-
-            public uint WriteData
-            {
-                set
-                {
-                    if(BytesNumber == Size)
-                    {
-                        Overflow.Value = true;
-                        SeqOverflow.Value = true;
-                        parent.Log(LogLevel.Noisy, "Buffer #{0}: Writing overflow Size={1} writeOffset={2} readOffset={3}",
-                                                   index, Size, WriteOffset, ReadOffset);
-                        parent.UpdateInterrupts();
-                        return;
-                    }
-
-                    var offset = (ulong)(Address.Value + (WriteOffset % Size));
-                    machine.SystemBus.WriteByte(offset, (byte)value);
-                    var newOffset = (WriteOffset + 1) % (2 * Size);
-                    parent.Log(LogLevel.Noisy, "Buffer #{0}: Writing value 0x{1:X} at ram's offset 0x{2:X}, oldOffset={3} newOffset={4}, readOffset={5}",
-                                               index, value, offset, WriteOffset, newOffset, ReadOffset);
-                    WriteOffset = newOffset;
-                }
-            }
-
-            public uint WriteData32
-            {
-                set
-                {
-                    if(BytesNumber > Size - 4)
-                    {
-                        Overflow.Value = true;
-                        SeqOverflow.Value = true;
-                        parent.Log(LogLevel.Noisy, "Buffer #{0}: Writing overflow (32bit) Size={1} writeOffset={2} readOffset={3}",
-                                                   index, Size, WriteOffset, ReadOffset);
-                        parent.UpdateInterrupts();
-                        return;
-                    }
-
-                    var offset = (ulong)(Address.Value + (WriteOffset % Size));
-                    machine.SystemBus.WriteDoubleWord(offset, value);
-                    var newOffset = (WriteOffset + 4) % (2 * Size);
-                    parent.Log(LogLevel.Noisy, "Buffer #{0}: Writing value (32bit) 0x{1:X} at ram's offset 0x{2:X}, oldOffset={3} newOffset={4} readOffset={5}",
-                                               index, value, offset, WriteOffset, newOffset, ReadOffset);
-                    WriteOffset = newOffset;
-                }
-            }
-
-            public uint XorWriteData
-            {
-                set
-                {
-                    if(BytesNumber == Size)
-                    {
-                        Overflow.Value = true;
-                        SeqOverflow.Value = true;
-                        parent.Log(LogLevel.Noisy, "Buffer #{0}: XOR Writing overflow Size={1} writeOffset={2} readOffset={3}",
-                                                   index, Size, WriteOffset, ReadOffset);
-                        parent.UpdateInterrupts();
-                        return;
-                    }
-
-                    var offset = (ulong)(Address.Value + (WriteOffset % Size));
-                    var oldData = machine.SystemBus.ReadByte(offset);
-                    var newData = (byte)(oldData ^ (byte)value);
-                    machine.SystemBus.WriteByte(offset, newData);
-                    var newOffset = (WriteOffset + 1) % (2* Size);
-                    parent.Log(LogLevel.Noisy, "Buffer #{0}: XOR Writing value 0x{1:X} (0x{2:X} ^ 0x{3:X}) at ram's offset 0x{4:X}, oldOffset={5} newOffset={6} readOffset={7}",
-                                               index, newData, oldData, value, offset, WriteOffset, newOffset, ReadOffset);
-                    WriteOffset = newOffset;
-                }
-            }
-
-            public uint XorWriteData32
-            {
-                set
-                {
-                    if(BytesNumber > (Size - 4))
-                    {
-                        Overflow.Value = true;
-                        SeqOverflow.Value = true;
-                        parent.Log(LogLevel.Noisy, "Buffer #{0}: XOR Writing overflow (32bit) Size={1} writeOffset={2} readOffset={3}",
-                                                   index, Size, WriteOffset, ReadOffset);
-                        parent.UpdateInterrupts();
-                        return;
-                    }
-
-                    var offset = (ulong)(Address.Value + (WriteOffset % Size));
-                    var oldData = machine.SystemBus.ReadDoubleWord(offset);
-                    var newData = oldData ^ value;
-                    machine.SystemBus.WriteDoubleWord(offset, newData);
-                    var newOffset = (WriteOffset + 4) % (2 * Size);
-                    parent.Log(LogLevel.Noisy, "Buffer #{0}: XOR Writing value (32bit) 0x{1:X} (0x{2:X} ^ 0x{3:X}) at ram's offset 0x{4:X}, oldOffset={5} newOffset={6} readOffset={7}",
-                                               index, newData, oldData, value, offset, WriteOffset, newOffset, ReadOffset);
-                    WriteOffset = newOffset;
-                }
-            }
-
-            public uint BytesNumber
-            {
-                get
-                {
-                    return (uint)((WriteOffset - ReadOffset) % (2 * Size));
-                }
-            }
-
-            public bool ThresholdFlag
-            {
-                get
-                {
-                    bool flag = false;
-
-                    switch(ThresholdMode.Value)
-                    {
-                    case BUFC_ThresholdMode.Larger:
-                        if(BytesNumber > Threshold.Value)
-                        {
-                            flag = true;
-                        }
-                        break;
-                    case BUFC_ThresholdMode.LessOrEqual:
-                        if(BytesNumber <= Threshold.Value)
-                        {
-                            flag = true;
-                        }
-                        break;
-                    }
-
-                    return flag;
-                }
-            }
-
-            public bool Interrupt => ((Corrupt.Value && CorruptEnable.Value)
-                                      || (ThresholdEvent.Value && ThresholdEventEnable.Value)
-                                      || (Underflow.Value && UnderflowEnable.Value)
-                                      || (Overflow.Value && OverflowEnable.Value)
-                                      || (NotWordAligned.Value && NotWordAlignedEnable.Value));
-
-            public bool SeqInterrupt => ((SeqCorrupt.Value && SeqCorruptEnable.Value)
-                                         || (SeqThresholdEvent.Value && SeqThresholdEventEnable.Value)
-                                         || (SeqUnderflow.Value && SeqUnderflowEnable.Value)
-                                         || (SeqOverflow.Value && SeqOverflowEnable.Value)
-                                         || (SeqNotWordAligned.Value && SeqNotWordAlignedEnable.Value));
-
-            public IFlagRegisterField Corrupt;
-            public IFlagRegisterField CorruptEnable;
-            public IFlagRegisterField ThresholdEvent;
-            public IFlagRegisterField ThresholdEventEnable;
-            public IFlagRegisterField Underflow;
-            public IFlagRegisterField UnderflowEnable;
-            public IFlagRegisterField Overflow;
-            public IFlagRegisterField OverflowEnable;
-            public IFlagRegisterField NotWordAligned;
-            public IFlagRegisterField NotWordAlignedEnable;
-            public IFlagRegisterField SeqCorrupt;
-            public IFlagRegisterField SeqCorruptEnable;
-            public IFlagRegisterField SeqThresholdEvent;
-            public IFlagRegisterField SeqThresholdEventEnable;
-            public IFlagRegisterField SeqUnderflow;
-            public IFlagRegisterField SeqUnderflowEnable;
-            public IFlagRegisterField SeqOverflow;
-            public IFlagRegisterField SeqOverflowEnable;
-            public IFlagRegisterField SeqNotWordAligned;
-            public IFlagRegisterField SeqNotWordAlignedEnable;
-            public IEnumRegisterField<BUFC_SizeMode> SizeMode;
-            public IValueRegisterField Address;
-            public IValueRegisterField WriteStartOffset;
-            public IEnumRegisterField<BUFC_ThresholdMode> ThresholdMode;
-            public IValueRegisterField Threshold;
-            private uint readOffset;
-            private uint writeOffset;
+            public IFlagRegisterField InterruptField;
+            public IValueRegisterField BaseValue;
+            public IValueRegisterField PreValue;
+            public IEnumRegisterField<PROTIMER_CaptureInputSource> CaptureInputSource;
+            public IFlagRegisterField WrapMatchEnable;
+            public IFlagRegisterField BaseMatchEnable;
+            public IFlagRegisterField PreMatchEnable;
+            public IEnumRegisterField<PROTIMER_CaptureCompareMode> Mode;
+            public IFlagRegisterField Enable;
+            public IFlagRegisterField SeqOverflowInterruptEnable;
+            public IFlagRegisterField SeqOverflowInterrupt;
+            public IFlagRegisterField OverflowInterruptEnable;
+            public IFlagRegisterField OverflowInterrupt;
+            public IFlagRegisterField SeqInterruptEnable;
+            public IFlagRegisterField SeqInterruptField;
+            public IFlagRegisterField InterruptEnable;
+            public IValueRegisterField WrapValue;
+            public IFlagRegisterField CaptureValid;
 
             private readonly SiLabs_xG24_LPW parent;
-            private readonly Machine machine;
             private readonly uint index;
         }
 
@@ -6373,7 +6912,11 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 {
                     Running.Value = true;
                     Synchronizing.Value = false;
-                    Counter.Value = CounterTop.Value;
+                    // Hardware underflows after exactly CounterTop precounter cycles. The Update()
+                    // logic below requires an extra full precounter cycle to detect Counter==0, so we
+                    // pre-decrement the loaded count by one to remove that spurious cycle while keeping
+                    // the match-at-(0,0) event firing one precounter cycle before the underflow.
+                    Counter.Value = CounterTop.Value > 0 ? CounterTop.Value - 1 : 0;
                     PreCounter.Value = PreCounterTop.Value;
                 }
                 parent.PROTIMER_HandleChangedParams();
@@ -6415,7 +6958,9 @@ namespace Antmicro.Renode.Peripherals.Wireless
                                 }
                                 else
                                 {
-                                    Counter.Value = CounterTop.Value;
+                                    // See note in Start(): pre-decrement to remove the spurious extra precounter cycle.
+                                    Counter.Value = CounterTop.Value > 0 ? CounterTop.Value - 1 : 0;
+                                    PreCounter.Value = PreCounterTop.Value;
                                 }
                                 parent.PROTIMER_TriggerEvent((PROTIMER_Event)((uint)PROTIMER_Event.TimeoutCounter0Underflow + this.index));
                                 Underflowed?.Invoke();
@@ -6430,7 +6975,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
                             PreCounter.Value -= 1;
                         }
 
-                        bool match = (Counter.Value == CounterCompare.Value && PreCounter.Value == PreCounterCompare.Value);
+                        var match = (Counter.Value == CounterCompare.Value && PreCounter.Value == PreCounterCompare.Value);
 
                         if(match)
                         {
@@ -6445,7 +6990,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
                     {
                         Synchronizing.Value = false;
                         Running.Value = true;
-                        Counter.Value = CounterTop.Value;
+                        // See note in Start(): pre-decrement to remove the spurious extra precounter cycle.
+                        Counter.Value = CounterTop.Value > 0 ? CounterTop.Value - 1 : 0;
                         PreCounter.Value = PreCounterTop.Value;
                         Synchronized?.Invoke();
                     }
@@ -6490,76 +7036,32 @@ namespace Antmicro.Renode.Peripherals.Wireless
             private readonly SiLabs_xG24_LPW parent;
         }
 
-        private class PROTIMER_CaptureCompareChannel
-        {
-            public PROTIMER_CaptureCompareChannel(SiLabs_xG24_LPW parent, uint index)
-            {
-                this.parent = parent;
-                this.index = index;
-            }
-
-            public void Capture(ushort preVal, ushort baseVal, uint wrapVal)
-            {
-                if(CaptureValid.Value)
-                {
-                    OverflowInterrupt.Value = true;
-                    SeqOverflowInterrupt.Value = true;
-                }
-
-                CaptureValid.Value = true;
-                InterruptFlag.Value = true;
-                SeqInterruptField.Value = true;
-
-                PreValue.Value = preVal;
-                BaseValue.Value = baseVal;
-                WrapValue.Value = wrapVal;
-
-                parent.UpdateInterrupts();
-            }
-
-            public bool Interrupt => ((InterruptFlag.Value && InterruptEnable.Value)
-                                      || (OverflowInterrupt.Value && OverflowInterruptEnable.Value));
-
-            public bool SeqInterrupt => ((SeqInterruptField.Value && SeqInterruptEnable.Value)
-                                         || (SeqOverflowInterrupt.Value && SeqOverflowInterruptEnable.Value));
-
-            public IFlagRegisterField InterruptFlag;
-            public IValueRegisterField BaseValue;
-            public IValueRegisterField PreValue;
-            public IEnumRegisterField<PROTIMER_CaptureInputSource> CaptureInputSource;
-            public IFlagRegisterField WrapMatchEnable;
-            public IFlagRegisterField BaseMatchEnable;
-            public IFlagRegisterField PreMatchEnable;
-            public IEnumRegisterField<PROTIMER_CaptureCompareMode> Mode;
-            public IFlagRegisterField Enable;
-            public IFlagRegisterField SeqOverflowInterruptEnable;
-            public IFlagRegisterField SeqOverflowInterrupt;
-            public IFlagRegisterField OverflowInterruptEnable;
-            public IFlagRegisterField OverflowInterrupt;
-            public IFlagRegisterField SeqInterruptEnable;
-            public IFlagRegisterField SeqInterruptField;
-            public IFlagRegisterField InterruptEnable;
-            public IValueRegisterField WrapValue;
-            public IFlagRegisterField CaptureValid;
-
-            private readonly SiLabs_xG24_LPW parent;
-            private readonly uint index;
-        }
-
         private class FRC_FrameDescriptor
         {
-            // Magic FCD Words value of 0xFF means subframe length is infinite
-            public uint? Words => WordsField.Value == 0xFF ? null : (uint?)(WordsField.Value + 1);
+            // Hardware semantics: WORDS is the number of words consumed by the subframe minus one
+            // (an 8-bit field on this part). The FRC sequencer clamps each subframe to (WORDS+1) and
+            // keeps iterating until WCNT reaches FRAMELENGTH, so the unlimited setting used by RAIL on
+            // the data subframe degenerates into "remaining frame words" via the Math.Min() in the
+            // assemble/disassemble loops.
+            public uint Words => (uint)(WordsField.Value + 1);
 
-            public uint BufferIndex => (uint)Buffer.Value;
+            // WORDS=0xFF selects an unlimited subframe: it runs to the end of the frame and the subframe
+            // counter is not used.
+            public bool UnlimitedWords => WordsField.Value == 0xFF;
+
+            public uint BufferIndex => (uint)BufferField.Value;
 
             public IValueRegisterField WordsField;
-            public IValueRegisterField Buffer;
+            public IValueRegisterField BufferField;
+            // INCLUDECRC inserts (TX) or extracts (RX) the CRC at the end of the subframe, while CALCCRC
+            // only selects whether the subframe's words feed the CRC accumulator. CALCCRC has no observable
+            // effect while CRC_CalculateCRC() is mocked.
             public IFlagRegisterField IncludeCrc;
             public IFlagRegisterField CalculateCrc;
             public IValueRegisterField CrcSkipWords;
             public IFlagRegisterField SkipWhitening;
             public IFlagRegisterField AddTrailData;
+            public IFlagRegisterField ExcludeSubframeFromWcnt;
         }
 
         private enum FRC_FSMState
@@ -6683,8 +7185,9 @@ namespace Antmicro.Renode.Peripherals.Wireless
             TxPowerDownIrqCleared   = 26,
             RxSearchIrqCleared      = 27,
             RxFrameIrqCleared       = 28,
-            ClearRxOverflow         = 29,
-            RxAbort                 = 30,
+            ShutdownIrqCleared      = 29,
+            ClearRxOverflow         = 30,
+            RxAbort                 = 31,
         }
 
         private enum RAC_RxEnableSource
@@ -6845,6 +7348,49 @@ namespace Antmicro.Renode.Peripherals.Wireless
             CaptureCompareChannel5 = 0x0200,
             CaptureCompareChannel6 = 0x0400,
             CaptureCompareChannel7 = 0x0800,
+        }
+
+        private enum MODEM_DsssShiftedSymbols
+        {
+            ShiftedSymbol0 = 0,
+            ShiftedSymbol1 = 1,
+            ShiftedSymbol3 = 3,
+            ShiftedSymbol7 = 7,
+        }
+
+        private enum MODEM_DsssDoublingMode
+        {
+            Disabled          = 0,
+            Inverted          = 1,
+            ComplexConjugated = 2,
+        }
+
+        private enum MODEM_ModulationFormat
+        {
+            FSK2     = 0,
+            FSK4     = 1,
+            BPSK     = 2,
+            DBPSK    = 3,
+            OQPSK    = 4,
+            MSK      = 5,
+            OOKASK   = 6,
+            MOOK     = 7,
+        }
+
+        private enum MODEM_SymbolCoding
+        {
+            Nrz        = 0,
+            Manchester = 1,
+            Dsss       = 2,
+            Linecode   = 3,
+        }
+
+        private enum MODEM_RateSelectMode
+        {
+            NOCHANGE = 0,
+            PAYLOAD = 1,
+            FRC = 2,
+            SYNC = 3,
         }
 
         private enum CRC_CrcWidthMode
@@ -7219,289 +7765,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
             InterleaverElementValue14_Tgl                                   = 0x3178,
             InterleaverElementValue15_Tgl                                   = 0x317C,
             AhbConfiguration_Tgl                                            = 0x3180,
-        }
-
-        [RegistersDescription("bufc", "bufc_ns")]
-        private enum BufferControllerRegisters : long
-        {
-            IpVersion                                                       = 0x0000,
-            Enable                                                          = 0x0004,
-            LowPowerMode                                                    = 0x0008,
-            Buffer0Control                                                  = 0x000C,
-            Buffer0Address                                                  = 0x0010,
-            Buffer0WriteOffset                                              = 0x0014,
-            Buffer0ReadOffset                                               = 0x0018,
-            Buffer0WriteStart                                               = 0x001C,
-            Buffer0ReadData                                                 = 0x0020,
-            Buffer0WriteData                                                = 0x0024,
-            Buffer0XorWrite                                                 = 0x0028,
-            Buffer0Status                                                   = 0x002C,
-            Buffer0ThresholdControl                                         = 0x0030,
-            Buffer0Command                                                  = 0x0034,
-            Buffer0FifoAsync                                                = 0x0038,
-            Buffer0ReadData32                                               = 0x003C,
-            Buffer0WriteData32                                              = 0x0040,
-            Buffer0XorWrite32                                               = 0x0044,
-            Buffer1Control                                                  = 0x004C,
-            Buffer1Address                                                  = 0x0050,
-            Buffer1WriteOffset                                              = 0x0054,
-            Buffer1ReadOffset                                               = 0x0058,
-            Buffer1WriteStart                                               = 0x005C,
-            Buffer1ReadData                                                 = 0x0060,
-            Buffer1WriteData                                                = 0x0064,
-            Buffer1XorWrite                                                 = 0x0068,
-            Buffer1Status                                                   = 0x006C,
-            Buffer1ThresholdControl                                         = 0x0070,
-            Buffer1Command                                                  = 0x0074,
-            Buffer1FifoAsync                                                = 0x0078,
-            Buffer1ReadData32                                               = 0x007C,
-            Buffer1WriteData32                                              = 0x0080,
-            Buffer1XorWrite32                                               = 0X0084,
-            Buffer2Control                                                  = 0x008C,
-            Buffer2Address                                                  = 0x0090,
-            Buffer2WriteOffset                                              = 0x0094,
-            Buffer2ReadOffset                                               = 0x0098,
-            Buffer2WriteStart                                               = 0x009C,
-            Buffer2ReadData                                                 = 0x00A0,
-            Buffer2WriteData                                                = 0x00A4,
-            Buffer2XorWrite                                                 = 0x00A8,
-            Buffer2Status                                                   = 0x00AC,
-            Buffer2ThresholdControl                                         = 0x00B0,
-            Buffer2Command                                                  = 0x00B4,
-            Buffer2FifoAsync                                                = 0x00B8,
-            Buffer2ReadData32                                               = 0x00BC,
-            Buffer2WriteData32                                              = 0x00C0,
-            Buffer2XorWrite32                                               = 0x00C4,
-            Buffer3Control                                                  = 0x00CC,
-            Buffer3Address                                                  = 0x00D0,
-            Buffer3WriteOffset                                              = 0x00D4,
-            Buffer3ReadOffset                                               = 0x00D8,
-            Buffer3WriteStart                                               = 0x00DC,
-            Buffer3ReadData                                                 = 0x00E0,
-            Buffer3WriteData                                                = 0x00E4,
-            Buffer3XorWrite                                                 = 0x00E8,
-            Buffer3Status                                                   = 0x00EC,
-            Buffer3ThresholdControl                                         = 0x00F0,
-            Buffer3Command                                                  = 0x00F4,
-            Buffer3FifoAsync                                                = 0x00F8,
-            Buffer3ReadData32                                               = 0x00FC,
-            Buffer3WriteData32                                              = 0x0100,
-            Buffer3XorWrite32                                               = 0x0104,
-            InterruptFlags                                                  = 0x0114,
-            InterruptEnable                                                 = 0x0118,
-            SequencerInterruptFlags                                         = 0x011C,
-            SequencerInterruptEnable                                        = 0x0120,
-            AhbConfiguration                                                = 0x0124,
-
-            // Set registers
-            IpVersion_Set                                                   = 0x1000,
-            Enable_Set                                                      = 0x1004,
-            LowPowerMode_Set                                                = 0x1008,
-            Buffer0Control_Set                                              = 0x100C,
-            Buffer0Address_Set                                              = 0x1010,
-            Buffer0WriteOffset_Set                                          = 0x1014,
-            Buffer0ReadOffset_Set                                           = 0x1018,
-            Buffer0WriteStart_Set                                           = 0x101C,
-            Buffer0ReadData_Set                                             = 0x1020,
-            Buffer0WriteData_Set                                            = 0x1024,
-            Buffer0XorWrite_Set                                             = 0x1028,
-            Buffer0Status_Set                                               = 0x102C,
-            Buffer0ThresholdControl_Set                                     = 0x1030,
-            Buffer0Command_Set                                              = 0x1034,
-            Buffer0FifoAsync_Set                                            = 0x1038,
-            Buffer0ReadData32_Set                                           = 0x103C,
-            Buffer0WriteData32_Set                                          = 0x1040,
-            Buffer0XorWrite32_Set                                           = 0x1044,
-            Buffer1Control_Set                                              = 0x104C,
-            Buffer1Address_Set                                              = 0x1050,
-            Buffer1WriteOffset_Set                                          = 0x1054,
-            Buffer1ReadOffset_Set                                           = 0x1058,
-            Buffer1WriteStart_Set                                           = 0x105C,
-            Buffer1ReadData_Set                                             = 0x1060,
-            Buffer1WriteData_Set                                            = 0x1064,
-            Buffer1XorWrite_Set                                             = 0x1068,
-            Buffer1Status_Set                                               = 0x106C,
-            Buffer1ThresholdControl_Set                                     = 0x1070,
-            Buffer1Command_Set                                              = 0x1074,
-            Buffer1FifoAsync_Set                                            = 0x1078,
-            Buffer1ReadData32_Set                                           = 0x107C,
-            Buffer1WriteData32_Set                                          = 0x1080,
-            Buffer1XorWrite32_Set                                           = 0X1084,
-            Buffer2Control_Set                                              = 0x108C,
-            Buffer2Address_Set                                              = 0x1090,
-            Buffer2WriteOffset_Set                                          = 0x1094,
-            Buffer2ReadOffset_Set                                           = 0x1098,
-            Buffer2WriteStart_Set                                           = 0x109C,
-            Buffer2ReadData_Set                                             = 0x10A0,
-            Buffer2WriteData_Set                                            = 0x10A4,
-            Buffer2XorWrite_Set                                             = 0x10A8,
-            Buffer2Status_Set                                               = 0x10AC,
-            Buffer2ThresholdControl_Set                                     = 0x10B0,
-            Buffer2Command_Set                                              = 0x10B4,
-            Buffer2FifoAsync_Set                                            = 0x10B8,
-            Buffer2ReadData32_Set                                           = 0x10BC,
-            Buffer2WriteData32_Set                                          = 0x10C0,
-            Buffer2XorWrite32_Set                                           = 0x10C4,
-            Buffer3Control_Set                                              = 0x10CC,
-            Buffer3Address_Set                                              = 0x10D0,
-            Buffer3WriteOffset_Set                                          = 0x10D4,
-            Buffer3ReadOffset_Set                                           = 0x10D8,
-            Buffer3WriteStart_Set                                           = 0x10DC,
-            Buffer3ReadData_Set                                             = 0x10E0,
-            Buffer3WriteData_Set                                            = 0x10E4,
-            Buffer3XorWrite_Set                                             = 0x10E8,
-            Buffer3Status_Set                                               = 0x10EC,
-            Buffer3ThresholdControl_Set                                     = 0x10F0,
-            Buffer3Command_Set                                              = 0x10F4,
-            Buffer3FifoAsync_Set                                            = 0x10F8,
-            Buffer3ReadData32_Set                                           = 0x10FC,
-            Buffer3WriteData32_Set                                          = 0x1100,
-            Buffer3XorWrite32_Set                                           = 0x1104,
-            InterruptFlags_Set                                              = 0x1114,
-            InterruptEnable_Set                                             = 0x1118,
-            SequencerInterruptFlags_Set                                     = 0x111C,
-            SequencerInterruptEnable_Set                                    = 0x1120,
-            AhbConfiguration_Set                                            = 0x1124,
-
-            // Clear registers
-            IpVersion_Clr                                                   = 0x2000,
-            Enable_Clr                                                      = 0x2004,
-            LowPowerMode_Clr                                                = 0x2008,
-            Buffer0Control_Clr                                              = 0x200C,
-            Buffer0Address_Clr                                              = 0x2010,
-            Buffer0WriteOffset_Clr                                          = 0x2014,
-            Buffer0ReadOffset_Clr                                           = 0x2018,
-            Buffer0WriteStart_Clr                                           = 0x201C,
-            Buffer0ReadData_Clr                                             = 0x2020,
-            Buffer0WriteData_Clr                                            = 0x2024,
-            Buffer0XorWrite_Clr                                             = 0x2028,
-            Buffer0Status_Clr                                               = 0x202C,
-            Buffer0ThresholdControl_Clr                                     = 0x2030,
-            Buffer0Command_Clr                                              = 0x2034,
-            Buffer0FifoAsync_Clr                                            = 0x2038,
-            Buffer0ReadData32_Clr                                           = 0x203C,
-            Buffer0WriteData32_Clr                                          = 0x2040,
-            Buffer0XorWrite32_Clr                                           = 0x2044,
-            Buffer1Control_Clr                                              = 0x204C,
-            Buffer1Address_Clr                                              = 0x2050,
-            Buffer1WriteOffset_Clr                                          = 0x2054,
-            Buffer1ReadOffset_Clr                                           = 0x2058,
-            Buffer1WriteStart_Clr                                           = 0x205C,
-            Buffer1ReadData_Clr                                             = 0x2060,
-            Buffer1WriteData_Clr                                            = 0x2064,
-            Buffer1XorWrite_Clr                                             = 0x2068,
-            Buffer1Status_Clr                                               = 0x206C,
-            Buffer1ThresholdControl_Clr                                     = 0x2070,
-            Buffer1Command_Clr                                              = 0x2074,
-            Buffer1FifoAsync_Clr                                            = 0x2078,
-            Buffer1ReadData32_Clr                                           = 0x207C,
-            Buffer1WriteData32_Clr                                          = 0x2080,
-            Buffer1XorWrite32_Clr                                           = 0X2084,
-            Buffer2Control_Clr                                              = 0x208C,
-            Buffer2Address_Clr                                              = 0x2090,
-            Buffer2WriteOffset_Clr                                          = 0x2094,
-            Buffer2ReadOffset_Clr                                           = 0x2098,
-            Buffer2WriteStart_Clr                                           = 0x209C,
-            Buffer2ReadData_Clr                                             = 0x20A0,
-            Buffer2WriteData_Clr                                            = 0x20A4,
-            Buffer2XorWrite_Clr                                             = 0x20A8,
-            Buffer2Status_Clr                                               = 0x20AC,
-            Buffer2ThresholdControl_Clr                                     = 0x20B0,
-            Buffer2Command_Clr                                              = 0x20B4,
-            Buffer2FifoAsync_Clr                                            = 0x20B8,
-            Buffer2ReadData32_Clr                                           = 0x20BC,
-            Buffer2WriteData32_Clr                                          = 0x20C0,
-            Buffer2XorWrite32_Clr                                           = 0x20C4,
-            Buffer3Control_Clr                                              = 0x20CC,
-            Buffer3Address_Clr                                              = 0x20D0,
-            Buffer3WriteOffset_Clr                                          = 0x20D4,
-            Buffer3ReadOffset_Clr                                           = 0x20D8,
-            Buffer3WriteStart_Clr                                           = 0x20DC,
-            Buffer3ReadData_Clr                                             = 0x20E0,
-            Buffer3WriteData_Clr                                            = 0x20E4,
-            Buffer3XorWrite_Clr                                             = 0x20E8,
-            Buffer3Status_Clr                                               = 0x20EC,
-            Buffer3ThresholdControl_Clr                                     = 0x20F0,
-            Buffer3Command_Clr                                              = 0x20F4,
-            Buffer3FifoAsync_Clr                                            = 0x20F8,
-            Buffer3ReadData32_Clr                                           = 0x20FC,
-            Buffer3WriteData32_Clr                                          = 0x2100,
-            Buffer3XorWrite32_Clr                                           = 0x2104,
-            InterruptFlags_Clr                                              = 0x2114,
-            InterruptEnable_Clr                                             = 0x2118,
-            SequencerInterruptFlags_Clr                                     = 0x211C,
-            SequencerInterruptEnable_Clr                                    = 0x2120,
-            AhbConfiguration_Clr                                            = 0x2124,
-
-            // Toggle registers
-            IpVersion_Tgl                                                   = 0x3000,
-            Enable_Tgl                                                      = 0x3004,
-            LowPowerMode_Tgl                                                = 0x3008,
-            Buffer0Control_Tgl                                              = 0x300C,
-            Buffer0Address_Tgl                                              = 0x3010,
-            Buffer0WriteOffset_Tgl                                          = 0x3014,
-            Buffer0ReadOffset_Tgl                                           = 0x3018,
-            Buffer0WriteStart_Tgl                                           = 0x301C,
-            Buffer0ReadData_Tgl                                             = 0x3020,
-            Buffer0WriteData_Tgl                                            = 0x3024,
-            Buffer0XorWrite_Tgl                                             = 0x3028,
-            Buffer0Status_Tgl                                               = 0x302C,
-            Buffer0ThresholdControl_Tgl                                     = 0x3030,
-            Buffer0Command_Tgl                                              = 0x3034,
-            Buffer0FifoAsync_Tgl                                            = 0x3038,
-            Buffer0ReadData32_Tgl                                           = 0x303C,
-            Buffer0WriteData32_Tgl                                          = 0x3040,
-            Buffer0XorWrite32_Tgl                                           = 0x3044,
-            Buffer1Control_Tgl                                              = 0x304C,
-            Buffer1Address_Tgl                                              = 0x3050,
-            Buffer1WriteOffset_Tgl                                          = 0x3054,
-            Buffer1ReadOffset_Tgl                                           = 0x3058,
-            Buffer1WriteStart_Tgl                                           = 0x305C,
-            Buffer1ReadData_Tgl                                             = 0x3060,
-            Buffer1WriteData_Tgl                                            = 0x3064,
-            Buffer1XorWrite_Tgl                                             = 0x3068,
-            Buffer1Status_Tgl                                               = 0x306C,
-            Buffer1ThresholdControl_Tgl                                     = 0x3070,
-            Buffer1Command_Tgl                                              = 0x3074,
-            Buffer1FifoAsync_Tgl                                            = 0x3078,
-            Buffer1ReadData32_Tgl                                           = 0x307C,
-            Buffer1WriteData32_Tgl                                          = 0x3080,
-            Buffer1XorWrite32_Tgl                                           = 0X3084,
-            Buffer2Control_Tgl                                              = 0x308C,
-            Buffer2Address_Tgl                                              = 0x3090,
-            Buffer2WriteOffset_Tgl                                          = 0x3094,
-            Buffer2ReadOffset_Tgl                                           = 0x3098,
-            Buffer2WriteStart_Tgl                                           = 0x309C,
-            Buffer2ReadData_Tgl                                             = 0x30A0,
-            Buffer2WriteData_Tgl                                            = 0x30A4,
-            Buffer2XorWrite_Tgl                                             = 0x30A8,
-            Buffer2Status_Tgl                                               = 0x30AC,
-            Buffer2ThresholdControl_Tgl                                     = 0x30B0,
-            Buffer2Command_Tgl                                              = 0x30B4,
-            Buffer2FifoAsync_Tgl                                            = 0x30B8,
-            Buffer2ReadData32_Tgl                                           = 0x30BC,
-            Buffer2WriteData32_Tgl                                          = 0x30C0,
-            Buffer2XorWrite32_Tgl                                           = 0x30C4,
-            Buffer3Control_Tgl                                              = 0x30CC,
-            Buffer3Address_Tgl                                              = 0x30D0,
-            Buffer3WriteOffset_Tgl                                          = 0x30D4,
-            Buffer3ReadOffset_Tgl                                           = 0x30D8,
-            Buffer3WriteStart_Tgl                                           = 0x30DC,
-            Buffer3ReadData_Tgl                                             = 0x30E0,
-            Buffer3WriteData_Tgl                                            = 0x30E4,
-            Buffer3XorWrite_Tgl                                             = 0x30E8,
-            Buffer3Status_Tgl                                               = 0x30EC,
-            Buffer3ThresholdControl_Tgl                                     = 0x30F0,
-            Buffer3Command_Tgl                                              = 0x30F4,
-            Buffer3FifoAsync_Tgl                                            = 0x30F8,
-            Buffer3ReadData32_Tgl                                           = 0x30FC,
-            Buffer3WriteData32_Tgl                                          = 0x3100,
-            Buffer3XorWrite32_Tgl                                           = 0x3104,
-            InterruptFlags_Tgl                                              = 0x3114,
-            InterruptEnable_Tgl                                             = 0x3118,
-            SequencerInterruptFlags_Tgl                                     = 0x311C,
-            SequencerInterruptEnable_Tgl                                    = 0x3120,
-            AhbConfiguration_Tgl                                            = 0x3124,
         }
 
         [RegistersDescription("modem", "modem_ns")]
@@ -8749,7 +9012,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             Enable                                                          = 0x0004,
             Control                                                         = 0x0008,
             Command                                                         = 0x000C,
-            PrescalerChannelSelection                                       = 0x0010,
+            PrsControl                                                      = 0x0010,
             Status                                                          = 0x0014,
             PreCounterValue                                                 = 0x0018,
             BaseCounterValue                                                = 0x001C,
@@ -8767,7 +9030,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             Timeout1CounterTop                                              = 0x004C,
             Timeout1Compare                                                 = 0x0050,
             ListenBeforeTalkWaitControl                                     = 0x0054,
-            ListenBeforeTalkPrescalerChannelSelection                       = 0x0058,
+            ListenBeforeTalkPrsControl                                      = 0x0058,
             ListenBeforeTalkState                                           = 0x005C,
             PseudoRandomGeneratorValue                                      = 0x0060,
             InterruptFlags                                                  = 0x0064,
@@ -8819,7 +9082,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             Enable_Set                                                      = 0x1004,
             Control_Set                                                     = 0x1008,
             Command_Set                                                     = 0x100C,
-            PrescalerChannelSelection_Set                                   = 0x1010,
+            PrsControl_Set                                                  = 0x1010,
             Status_Set                                                      = 0x1014,
             PreCounterValue_Set                                             = 0x1018,
             BaseCounterValue_Set                                            = 0x101C,
@@ -8837,7 +9100,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             Timeout1CounterTop_Set                                          = 0x104C,
             Timeout1Compare_Set                                             = 0x1050,
             ListenBeforeTalkWaitControl_Set                                 = 0x1054,
-            ListenBeforeTalkPrescalerChannelSelection_Set                   = 0x1058,
+            ListenBeforeTalkPrsControl_Set                                  = 0x1058,
             ListenBeforeTalkState_Set                                       = 0x105C,
             PseudoRandomGeneratorValue_Set                                  = 0x1060,
             InterruptFlags_Set                                              = 0x1064,
@@ -8889,7 +9152,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             Enable_Clr                                                      = 0x2004,
             Control_Clr                                                     = 0x2008,
             Command_Clr                                                     = 0x200C,
-            PrescalerChannelSelection_Clr                                   = 0x2010,
+            PrsControl_Clr                                                  = 0x2010,
             Status_Clr                                                      = 0x2014,
             PreCounterValue_Clr                                             = 0x2018,
             BaseCounterValue_Clr                                            = 0x201C,
@@ -8907,7 +9170,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             Timeout1CounterTop_Clr                                          = 0x204C,
             Timeout1Compare_Clr                                             = 0x2050,
             ListenBeforeTalkWaitControl_Clr                                 = 0x2054,
-            ListenBeforeTalkPrescalerChannelSelection_Clr                   = 0x2058,
+            ListenBeforeTalkPrsControl_Clr                                  = 0x2058,
             ListenBeforeTalkState_Clr                                       = 0x205C,
             PseudoRandomGeneratorValue_Clr                                  = 0x2060,
             InterruptFlags_Clr                                              = 0x2064,
@@ -8959,7 +9222,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             Enable_Tgl                                                      = 0x3004,
             Control_Tgl                                                     = 0x3008,
             Command_Tgl                                                     = 0x300C,
-            PrescalerChannelSelection_Tgl                                   = 0x3010,
+            PrsControl_Tgl                                                  = 0x3010,
             Status_Tgl                                                      = 0x3014,
             PreCounterValue_Tgl                                             = 0x3018,
             BaseCounterValue_Tgl                                            = 0x301C,
@@ -8977,7 +9240,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             Timeout1CounterTop_Tgl                                          = 0x304C,
             Timeout1Compare_Tgl                                             = 0x3050,
             ListenBeforeTalkWaitControl_Tgl                                 = 0x3054,
-            ListenBeforeTalkPrescalerChannelSelection_Tgl                   = 0x3058,
+            ListenBeforeTalkPrsControl_Tgl                                  = 0x3058,
             ListenBeforeTalkState_Tgl                                       = 0x305C,
             PseudoRandomGeneratorValue_Tgl                                  = 0x3060,
             InterruptFlags_Tgl                                              = 0x3064,
@@ -9466,6 +9729,27 @@ namespace Antmicro.Renode.Peripherals.Wireless
             DiagaAlternateBridgeControl_Tgl                                 = 0x37F4,
             RadioFrequencyLock0_Tgl                                         = 0x37F8,
             RadioFrequencyLock1_Tgl                                         = 0x37FC,
+        }
+
+        private enum SYNTH_LoDivFreqCtrl
+        {
+            LoDiv1  = 0x01,
+            LoDiv2  = 0x02,
+            LoDiv3  = 0x03,
+            LoDiv4  = 0x04,
+            LoDiv5  = 0x05,
+            LoDiv7  = 0x07,
+            LoDiv6  = 0x13,
+            LoDiv8  = 0x14,
+            LoDiv10 = 0x15,
+            LoDiv14 = 0x17,
+            LoDiv9  = 0x1B,
+            LoDiv12 = 0x1C,
+            LoDiv15 = 0x1D,
+            LoDiv16 = 0x24,
+            LoDiv20 = 0x25,
+            LoDiv18 = 0x9B,
+            LoDiv24 = 0x9C,
         }
 
         [RegistersDescription("synth", "synth_ns")]
