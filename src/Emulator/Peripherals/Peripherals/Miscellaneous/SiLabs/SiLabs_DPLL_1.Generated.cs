@@ -49,12 +49,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 {
     public partial class SiLabs_DPLL_1 : BasicDoubleWordPeripheral, IKnownSize
     {
-        public SiLabs_DPLL_1(Machine machine) : base(machine)
-        {
-            Define_Registers();
-            SiLabs_DPLL_1_Constructor();
-        }
-
         private void Define_Registers()
         {
             var registersMap = new Dictionary<long, DoubleWordRegister>
@@ -587,8 +581,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         partial void Lock_Write(uint a, uint b);
         partial void Lock_Read(uint a, uint b);
         partial void DPLL_Reset();
-
-        partial void SiLabs_DPLL_1_Constructor();
 
         public bool Enabled
         {

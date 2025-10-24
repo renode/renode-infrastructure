@@ -6,10 +6,25 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
+using Antmicro.Renode.Core;
+
 namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 {
-    public partial class SiLabs_DPLL_1
+    public partial class SiLabs_DPLL_1 : ISiLabs_DPLL
     {
+        public SiLabs_DPLL_1(Machine machine, uint instance = 0) : base(machine)
+        {
+            Define_Registers();
+            Instance = instance;
+        }
+
+        partial void DPLL_Reset()
+        {
+            moduleEnabled = false;
+
+            registers.Reset();
+        }
+
         partial void En_En_ValueProvider(bool a)
         {
             en_en_bit.Value = moduleEnabled;
@@ -61,6 +76,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         {
             cmu.Dpll_M = b + 1;
         }
+
+        public uint Instance { get; }
 
         private bool OscillatorEnabled
         {
