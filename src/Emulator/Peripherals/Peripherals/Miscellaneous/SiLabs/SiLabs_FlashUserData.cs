@@ -12,14 +12,11 @@ using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 {
-    public class SiLabs_FlashUserData : IBytePeripheral, IKnownSize
+    public class SiLabs_FlashUserData : IBytePeripheral, IWordPeripheral, IDoubleWordPeripheral, IKnownSize
     {
-        public static sbyte DefaultCcaThreshold = -75;
-
         public SiLabs_FlashUserData(Machine machine)
         {
             this.machine = machine;
-            this.uid = ++count;
         }
 
         public void Reset()
@@ -36,12 +33,27 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             {
                 return CcaThreshold(offset);
             }
+            else if(offset >= (long)ManufacturerToken.mfgAshConfig && offset < (long)ManufacturerToken.mfgAshConfig + (long)ManufacturerTokenLength.mfgAshConfigLength)
+            {
+                return AshConfig(offset);
+            }
             else
             {
-                this.Log(LogLevel.Error, "Unhandled read at offset 0x{0:X}", offset);
+                this.Log(LogLevel.Warning, "Unhandled read at offset 0x{0:X}", offset);
             }
 
-            return 0;
+            return 0xFF;
+        }
+
+        // Todo: verify endianness
+        public ushort ReadWord(long offset)
+        {
+            return (ushort)((ReadByte(offset) << 8) | ReadByte(offset + 1));
+        }
+
+        public uint ReadDoubleWord(long offset)
+        {
+            return (uint)((ReadWord(offset) << 16) | ReadWord(offset + 2));
         }
 
         public void WriteByte(long offset, byte value)
@@ -49,7 +61,22 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             this.Log(LogLevel.Error, "Writing manufacturer token space");
         }
 
-        public byte Eui64(long offset)
+        // Todo: verify endianness
+        public void WriteWord(long offset, ushort value)
+        {
+            WriteByte(offset, (byte)(value >> 8));
+            WriteByte(offset + 1, (byte)(value & 0xFF));
+        }
+
+        public void WriteDoubleWord(long offset, uint value)
+        {
+            WriteWord(offset, (ushort)(value >> 16));
+            WriteWord(offset + 2, (ushort)(value & 0xFFFF));
+        }
+
+        public long Size => 0xA;
+
+        private byte Eui64(long offset)
         {
             int byteIndex = (int)(offset - (long)ManufacturerToken.mfgCustomEui64);
 
@@ -62,12 +89,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             // Most significant bytes represent the company OUI
             if(byteIndex >= (Eui64Size - Eui64OUILength))
             {
-                return SiliconLabsEui64OUI[byteIndex - (Eui64Size - Eui64OUILength)];
+                return siliconLabsEui64OUI[byteIndex - (Eui64Size - Eui64OUILength)];
             }
             // Least significant 4 bytes are the UID
             else if(byteIndex < 4)
             {
-                return (byte)((uid >> byteIndex * 8) & 0xFF);
+                return (byte)((machine.UniqueObjectId >> byteIndex * 8) & 0xFF);
             }
             // We set the rest of the bytes to zeros
             else
@@ -87,7 +114,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         //   values 1..126 are negated to map to -1..-126 dBm, respectively.
         // ccaThreshold2p4Invalid indicates whether ccaThreshold2p4 is valid;
         // ccaThreshold2p4 is the actual signed 2's complement CCA threshold;
-        public byte CcaThreshold(long offset)
+        private byte CcaThreshold(long offset)
         {
             int byteIndex = (int)(offset - (long)ManufacturerToken.mfgCcaThreshold);
             if(byteIndex == 0)
@@ -100,14 +127,45 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             }
         }
 
-        public long Size => 0xA;
+        // The format of this token is (all 2-byte words):
+        // 0-1: baudRate:           ///< SerialBaudRate enum value
+        // 2-3: traceFlags:         ///< trace output control bit flags (see defs below)
+        // 4-5: unused0:            ///< (not used)
+        // 6-7: txK:                ///< max frames that can be sent w/o being ACKed (1-7)
+        // 8-9: randomize:          ///< enables randomizing DATA frame payloads
+        // 10-11: ackTimeInit:        ///< adaptive rec'd ACK timeout initial value
+        // 12-13: ackTimeMin:         ///<  "     "     "     "     "  minimum
+        // 14-15: ackTimeMax:         ///<  "     "     "     "     "  maximum
+        // 16-17: maxTimeouts:        ///< ACK timeouts needed to enter the ERROR state
+        // 18-19: unused1:            ///< (not used)
+        // 20-21: rebootDelay:        ///< reboot delay before sending RSTACK
+        // 22-23: unused2:            ///< (not used)
+        // 24-25: unused3:            ///< (not used)
+        // 26-27: unused4:            ///< (not used)
+        // 28-29: nrTime:             ///< time after which a rec'd nFlag expires
+        private byte AshConfig(long offset)
+        {
+            int byteIndex = (int)(offset - (long)ManufacturerToken.mfgAshConfig);
 
-        public const uint Eui64OUILength = 3;
-        private static uint count = 0;
-        private readonly uint uid;
+            // For now we hard-code the rebootDelay to 0 to speed up Zigbee HOST/NCP testing
+            // (default value when the token returns 0xFFFF is 1s).
+            if(byteIndex == 20 || byteIndex == 21)
+            {
+                return 0;
+            }
+
+            // The rest of the token for now returns 0xFF which causes firmware to use
+            // software-level default values.
+            return 0xFF;
+        }
+
         private readonly Machine machine;
+        private static readonly sbyte DefaultCcaThreshold = -75;
+
+        private static readonly byte[] siliconLabsEui64OUI = {0xCC, 0xCC, 0xCC};
+
+        private const uint Eui64OUILength = 3;
         private const uint Eui64Size = 8;
-        public static readonly byte[] SiliconLabsEui64OUI = {0xCC, 0xCC, 0xCC};
 
         private enum ManufacturerToken
         {
