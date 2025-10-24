@@ -41,7 +41,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
                 if(number < 0)
                 {
-                    this.Log(LogLevel.Warning, "Pin number not found for internal signal (source={0} signal={1})", signalSource, signalType);
+                    this.Log(LogLevel.Info, "Route not enabled for internal signal (source={0} signal={1})", signalSource, signalType);
                     return;
                 }
             }
@@ -74,32 +74,15 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             }
         }
 
+        public uint ReadDoubleWord(long offset)
+        {
+            return ReadRegister(offset);
+        }
+
         public void WriteDoubleWord(long offset, uint value)
         {
             // TODO: A subset of registers is lockable: if the lock is on (see LockStatus register), these registers should not be accessible.
             WriteRegister(offset, value);
-        }
-
-        public void InnerReset()
-        {
-            registersCollection.Reset();
-            configurationLocked = false;
-            EvenIRQ.Unset();
-            OddIRQ.Unset();
-            for(var i = 0; i < NumberOfExternalInterrupts; i++)
-            {
-                interruptTrigger[i] = (uint)InterruptTrigger.None;
-                previousState[i] = false;
-            }
-            for(var i = 0; i < NumberOfPins * NumberOfPorts; i++)
-            {
-                targetExternalPins[i] = 0;
-            }
-        }
-
-        public uint ReadDoubleWord(long offset)
-        {
-            return ReadRegister(offset);
         }
 
         public byte ReadByte(long offset)
@@ -116,14 +99,14 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         public GPIO EvenIRQ { get; }
 
-        private bool IsOutput(PinMode mode)
-        {
-            return mode >= PinMode.PushPull;
-        }
-
         private int GetPinNumber(Port port, uint pinSelect)
         {
             return (int)(((uint)port) * NumberOfPins + pinSelect);
+        }
+
+        private bool IsOutput(PinMode mode)
+        {
+            return mode >= PinMode.PushPull;
         }
 
         private void UpdateRouting()
@@ -296,6 +279,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             }
         }
 
+        // Although typically Renode uses tags for unimplemented fields, to minimize the amount of logs we switch to plain fields.
+        // Todo: verify which can be switched to silent tags
         private DoubleWordRegisterCollection BuildRegistersCollection()
         {
             var registerDictionary = new Dictionary<long, DoubleWordRegister>
@@ -408,18 +393,18 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithFlag(10, out externalInterrupt[10], name: "EXTIF10")
                     .WithFlag(11, out externalInterrupt[11], name: "EXTIF11")
                     .WithReservedBits(12, 4)
-                    .WithTaggedFlag("EM4WUIF0", 16)
-                    .WithTaggedFlag("EM4WUIF1", 17)
-                    .WithTaggedFlag("EM4WUIF2", 18)
-                    .WithTaggedFlag("EM4WUIF3", 19)
-                    .WithTaggedFlag("EM4WUIF4", 20)
-                    .WithTaggedFlag("EM4WUIF5", 21)
-                    .WithTaggedFlag("EM4WUIF6", 22)
-                    .WithTaggedFlag("EM4WUIF7", 23)
-                    .WithTaggedFlag("EM4WUIF8", 24)
-                    .WithTaggedFlag("EM4WUIF9", 25)
-                    .WithTaggedFlag("EM4WUIF10", 26)
-                    .WithTaggedFlag("EM4WUIF11", 27)
+                    .WithFlag(16, name: "EM4WUIF0")
+                    .WithFlag(17, name: "EM4WUIF1")
+                    .WithFlag(18, name: "EM4WUIF2")
+                    .WithFlag(19, name: "EM4WUIF3")
+                    .WithFlag(20, name: "EM4WUIF4")
+                    .WithFlag(21, name: "EM4WUIF5")
+                    .WithFlag(22, name: "EM4WUIF6")
+                    .WithFlag(23, name: "EM4WUIF7")
+                    .WithFlag(24, name: "EM4WUIF8")
+                    .WithFlag(25, name: "EM4WUIF9")
+                    .WithFlag(26, name: "EM4WUIF10")
+                    .WithFlag(27, name: "EM4WUIF11")
                     .WithReservedBits(28, 4)
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
@@ -437,18 +422,18 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithFlag(10, out externalInterruptEnable[10], name: "EXTIEN10")
                     .WithFlag(11, out externalInterruptEnable[11], name: "EXTIEN11")
                     .WithReservedBits(12, 4)
-                    .WithTaggedFlag("EM4WUIEN0", 16)
-                    .WithTaggedFlag("EM4WUIEN1", 17)
-                    .WithTaggedFlag("EM4WUIEN2", 18)
-                    .WithTaggedFlag("EM4WUIEN3", 19)
-                    .WithTaggedFlag("EM4WUIEN4", 20)
-                    .WithTaggedFlag("EM4WUIEN5", 21)
-                    .WithTaggedFlag("EM4WUIEN6", 22)
-                    .WithTaggedFlag("EM4WUIEN7", 23)
-                    .WithTaggedFlag("EM4WUIEN8", 24)
-                    .WithTaggedFlag("EM4WUIEN9", 25)
-                    .WithTaggedFlag("EM4WUIEN10", 26)
-                    .WithTaggedFlag("EM4WUIEN11", 27)
+                    .WithFlag(16, name: "EM4WUIEN0")
+                    .WithFlag(17, name: "EM4WUIEN1")
+                    .WithFlag(18, name: "EM4WUIEN2")
+                    .WithFlag(19, name: "EM4WUIEN3")
+                    .WithFlag(20, name: "EM4WUIEN4")
+                    .WithFlag(21, name: "EM4WUIEN5")
+                    .WithFlag(22, name: "EM4WUIEN6")
+                    .WithFlag(23, name: "EM4WUIEN7")
+                    .WithFlag(24, name: "EM4WUIEN8")
+                    .WithFlag(25, name: "EM4WUIEN9")
+                    .WithFlag(26, name: "EM4WUIEN10")
+                    .WithFlag(27, name: "EM4WUIEN11")
                     .WithReservedBits(28, 4)
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
@@ -498,6 +483,23 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithValueField(16, 4, out USART1_TxRoutePin, name: "PIN")
                     .WithReservedBits(20, 12)
                 },
+                {(long)Registers.LEUART_RouteEnable, new DoubleWordRegister(this)
+                    .WithFlag(0, out LEUART_RouteEnable_RtsPin, name: "RTSPEN")
+                    .WithFlag(1, out LEUART_RouteEnable_TxPin, name: "TXPEN")
+                    .WithReservedBits(2, 30)
+                },
+                {(long)Registers.LEUART_RX_Route, new DoubleWordRegister(this)
+                    .WithEnumField<DoubleWordRegister, Port>(0, 2, out LEUART_RxRoutePort, name: "PORT")
+                    .WithReservedBits(2, 14)
+                    .WithValueField(16, 4, out LEUART_RxRoutePin, name: "PIN")
+                    .WithReservedBits(20, 12)
+                },
+                {(long)Registers.LEUART_TX_Route, new DoubleWordRegister(this)
+                    .WithEnumField<DoubleWordRegister, Port>(0, 2, out LEUART_TxRoutePort, name: "PORT")
+                    .WithReservedBits(2, 14)
+                    .WithValueField(16, 4, out LEUART_TxRoutePin, name: "PIN")
+                    .WithReservedBits(20, 12)
+                },
             };
 
             for(var i = 0; i < NumberOfPorts; ++i)
@@ -515,13 +517,13 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
             regs.Add((long)Registers.PortAControl + regOffset, new DoubleWordRegister(this)
                      .WithReservedBits(0, 4)
-                     .WithTag("SLEWRATE", 4, 3)
+                     .WithValueField(4, 3, name: "SLEWRATE")
                      .WithReservedBits(7, 5)
-                     .WithTaggedFlag("DINDIS", 12)
+                     .WithFlag(12, name: "DINDIS")
                      .WithReservedBits(13, 7)
-                     .WithTag("SLEWRATEALT", 20, 3)
+                     .WithValueField(20, 3, name: "SLEWRATEALT")
                      .WithReservedBits(23, 5)
-                     .WithTaggedFlag("DINDISALT", 28)
+                     .WithFlag(28, name: "DINDISALT")
                      .WithReservedBits(29, 3)
                     );
             regs.Add((long)Registers.PortAModeLow + regOffset, new DoubleWordRegister(this)
@@ -574,47 +576,24 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     );
         }
 
-        private IFlagRegisterField USART1_RouteEnable_RxPin;
-        private IValueRegisterField USART1_TxRoutePin;
-        private IEnumRegisterField<Port> USART1_TxRoutePort;
-        private IValueRegisterField USART1_RxRoutePin;
-        private IEnumRegisterField<Port> USART1_RxRoutePort;
-        private IFlagRegisterField USART1_RouteEnable_CsPin;
-        private IFlagRegisterField USART1_RouteEnable_RtsPin;
-        private IFlagRegisterField USART1_RouteEnable_SclkPin;
-        // USART1
-        private IFlagRegisterField USART1_RouteEnable_TxPin;
-        private IValueRegisterField USART0_TxRoutePin;
-        private IEnumRegisterField<Port> USART0_RxRoutePort;
-        private IValueRegisterField USART0_RxRoutePin;
-        private IFlagRegisterField USART0_RouteEnable_CsPin;
-        private IFlagRegisterField USART0_RouteEnable_RtsPin;
-        private IFlagRegisterField USART0_RouteEnable_RxPin;
-        private IFlagRegisterField USART0_RouteEnable_SclkPin;
-        // USART0
-        private IFlagRegisterField USART0_RouteEnable_TxPin;
-        private bool configurationLocked;
-        private IEnumRegisterField<Port> USART0_TxRoutePort;
-        private readonly uint[] interruptTrigger = new uint[NumberOfExternalInterrupts];
-        private readonly bool[] previousState = new bool[NumberOfExternalInterrupts];
-        private readonly IFlagRegisterField[] externalInterruptEnable = new IFlagRegisterField[NumberOfExternalInterrupts];
-        private readonly IFlagRegisterField[] externalInterrupt = new IFlagRegisterField[NumberOfExternalInterrupts];
-        private readonly IEnumRegisterField<PinMode>[] pinMode = new IEnumRegisterField<PinMode>[NumberOfPins * NumberOfPorts];
-        private readonly IValueRegisterField[] externalInterruptPinSelect = new IValueRegisterField[NumberOfExternalInterrupts];
-        private readonly IEnumRegisterField<Port>[] externalInterruptPortSelect = new IEnumRegisterField<Port>[NumberOfExternalInterrupts];
-        private readonly uint[] targetExternalPins = new uint[NumberOfPins * NumberOfPorts];
-        private readonly DoubleWordRegisterCollection registersCollection;
-        private readonly object internalLock = new object();
-        private const uint SetRegisterOffset = 0x1000;
-        private const uint ClearRegisterOffset = 0x2000;
-        private const uint ToggleRegisterOffset = 0x3000;
-        private const int NumberOfPorts = 4;
-        private const int NumberOfPins = 16;
-        private const int NumberOfExternalInterrupts = 12;
-        private const int UnlockCode = 0xA534;
-        private const int PortOffset = 0x30;
+        private void InnerReset()
+        {
+            registersCollection.Reset();
+            configurationLocked = false;
+            EvenIRQ.Unset();
+            OddIRQ.Unset();
+            for(var i = 0; i < NumberOfExternalInterrupts; i++)
+            {
+                interruptTrigger[i] = (uint)InterruptTrigger.None;
+                previousState[i] = false;
+            }
+            for(var i = 0; i < NumberOfPins * NumberOfPorts; i++)
+            {
+                targetExternalPins[i] = 0;
+            }
+        }
 
-        int GetPinNumberFromInternalSignal(SignalSource signalSource, SignalType signalType)
+        private int GetPinNumberFromInternalSignal(SignalSource signalSource, SignalType signalType)
         {
             int pinNumber = -1;
 
@@ -656,6 +635,22 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 }
                 break;
             }
+            case SignalSource.LEUART:
+            {
+                switch(signalType)
+                {
+                case SignalType.LEUART_RX:
+                {
+                    // There is no bit for RX_ROUTE in the LEUART_ROUTEEN register
+                    pinNumber = GetPinNumber(LEUART_RxRoutePort.Value, (uint)LEUART_RxRoutePin.Value);
+                    break;
+                }
+                default:
+                    this.Log(LogLevel.Error, string.Format("GPIO Signal type {0} for LEUART not supported", signalType));
+                    return pinNumber;
+                }
+                break;
+            }
             default:
                 this.Log(LogLevel.Error, string.Format("GPIO Signal source {0} not supported", signalSource));
                 return pinNumber;
@@ -663,6 +658,53 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
             return pinNumber;
         }
+
+        // USART0
+        private IFlagRegisterField USART0_RouteEnable_TxPin;
+        private IFlagRegisterField USART0_RouteEnable_SclkPin;
+        private IFlagRegisterField USART0_RouteEnable_RxPin;
+        private IFlagRegisterField USART0_RouteEnable_RtsPin;
+        private IFlagRegisterField USART0_RouteEnable_CsPin;
+        private IEnumRegisterField<Port> USART0_RxRoutePort;
+        private IValueRegisterField USART0_RxRoutePin;
+        private IEnumRegisterField<Port> USART0_TxRoutePort;
+        private IValueRegisterField USART0_TxRoutePin;
+        // USART1
+        private IFlagRegisterField USART1_RouteEnable_TxPin;
+        private IFlagRegisterField USART1_RouteEnable_SclkPin;
+        private IFlagRegisterField USART1_RouteEnable_RxPin;
+        private IFlagRegisterField USART1_RouteEnable_RtsPin;
+        private IFlagRegisterField USART1_RouteEnable_CsPin;
+        private IEnumRegisterField<Port> USART1_RxRoutePort;
+        private IValueRegisterField USART1_RxRoutePin;
+        private IEnumRegisterField<Port> USART1_TxRoutePort;
+        private IValueRegisterField USART1_TxRoutePin;
+        // LEUART
+        private IFlagRegisterField LEUART_RouteEnable_TxPin;
+        private IFlagRegisterField LEUART_RouteEnable_RtsPin;
+        private IEnumRegisterField<Port> LEUART_RxRoutePort;
+        private IValueRegisterField LEUART_RxRoutePin;
+        private IEnumRegisterField<Port> LEUART_TxRoutePort;
+        private IValueRegisterField LEUART_TxRoutePin;
+        private bool configurationLocked;
+        private readonly bool[] previousState = new bool[NumberOfExternalInterrupts];
+        private readonly uint[] interruptTrigger = new uint[NumberOfExternalInterrupts];
+        private readonly uint[] targetExternalPins = new uint[NumberOfPins * NumberOfPorts];
+        private readonly IFlagRegisterField[] externalInterruptEnable = new IFlagRegisterField[NumberOfExternalInterrupts];
+        private readonly IFlagRegisterField[] externalInterrupt = new IFlagRegisterField[NumberOfExternalInterrupts];
+        private readonly IEnumRegisterField<PinMode>[] pinMode = new IEnumRegisterField<PinMode>[NumberOfPins * NumberOfPorts];
+        private readonly IValueRegisterField[] externalInterruptPinSelect = new IValueRegisterField[NumberOfExternalInterrupts];
+        private readonly IEnumRegisterField<Port>[] externalInterruptPortSelect = new IEnumRegisterField<Port>[NumberOfExternalInterrupts];
+        private readonly DoubleWordRegisterCollection registersCollection;
+        private readonly object internalLock = new object();
+        private const uint SetRegisterOffset = 0x1000;
+        private const uint ClearRegisterOffset = 0x2000;
+        private const uint ToggleRegisterOffset = 0x3000;
+        private const int NumberOfPorts = 4;
+        private const int NumberOfPins = 16;
+        private const int NumberOfExternalInterrupts = 12;
+        private const int UnlockCode = 0xA534;
+        private const int PortOffset = 0x30;
 
         private enum Port
         {
@@ -704,6 +746,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             None     = 0,
             USART0   = 1,
             USART1   = 2,
+            LEUART   = 3,
         }
 
         private enum SignalType
@@ -720,6 +763,12 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             USART1_RX               = 2,
             USART1_SCLK             = 3,
             USART1_TX               = 4,
+            // If SignalSource is LEUART
+            LEUART_CTS              = 0,
+            LEUART_RTS              = 1,
+            LEUART_RX               = 2,
+            LEUART_SCLK             = 3,
+            LEUART_TX               = 4,
         }
 
         private enum Registers
@@ -749,6 +798,18 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             ABusAllocation                          = 0x0320,
             BBusAllocation                          = 0x0324,
             CDBusAllocation                         = 0x0328,
+            AOdd0Switch                             = 0x0330,
+            AOdd1Switch                             = 0x0334,
+            AEven0Switch                            = 0x0338,
+            AEven1Switch                            = 0x033C,
+            BOdd0Switch                             = 0x0340,
+            BOdd1Switch                             = 0x0344,
+            BEven0Switch                            = 0x0348,
+            BEven1Switch                            = 0x033C,
+            CDOdd0Switch                            = 0x0350,
+            CDOdd1Switch                            = 0x0354,
+            CDEven0Switch                           = 0x0358,
+            CDEven1Switch                           = 0x035C,
             ExternalInterruptPortSelectLow          = 0x0400,
             ExternalInterruptPortSelectHigh         = 0x0404,
             ExternalInterruptPinSelectLow           = 0x0408,
@@ -767,6 +828,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             CMU_CLKOUT1_Route                       = 0x045C,
             CMU_CLKOUT2_Route                       = 0x0460,
             DCDC_RouteEnable                        = 0x046C,
+            DCDC_CoreHiddenPortPinSelect            = 0x0470,
+            DCDC_VcmpHiddenPortPinSelect            = 0x0474,
             FRC_RouteEnable                         = 0x047C,
             FRC_DCLK_Route                          = 0x0480,
             FRC_DFRAME_Route                        = 0x0484,
@@ -780,11 +843,11 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             LETIMER_RouteEnable                     = 0x04B0,
             LETIMER_OUT0_Route                      = 0x04B4,
             LETIMER_OUT1_Route                      = 0x04B8,
-            ESART0_RouteEnable                      = 0x04C0,
-            ESART0_CS_Route                         = 0x04C4,
-            ESART0_CTS_Route                        = 0x04C8,
-            ESART0_RTS_Route                        = 0x04CC,
-            ESART0_RX_Route                         = 0x04D0,
+            LEUART_RouteEnable                      = 0x04C0,
+            LEUART_CTS_Route                        = 0x04C4,
+            LEUART_RTS_Route                        = 0x04C8,
+            LEUART_RX_Route                         = 0x04CC,
+            LEUART_TX_Route                         = 0x04D0,
             MODEM_RouteEnable                       = 0x04D8,
             MODEM_ANT0_Route                        = 0x04DC,
             MODEM_ANT1_Route                        = 0x04E0,
@@ -898,6 +961,18 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             ABusAllocation_Set                      = 0x1320,
             BBusAllocation_Set                      = 0x1324,
             CDBusAllocation_Set                     = 0x1328,
+            AOdd0Switch_Set                         = 0x1330,
+            AOdd1Switch_Set                         = 0x1334,
+            AEven0Switch_Set                        = 0x1338,
+            AEven1Switch_Set                        = 0x133C,
+            BOdd0Switch_Set                         = 0x1340,
+            BOdd1Switch_Set                         = 0x1344,
+            BEven0Switch_Set                        = 0x1348,
+            BEven1Switch_Set                        = 0x133C,
+            CDOdd0Switch_Set                        = 0x1350,
+            CDOdd1Switch_Set                        = 0x1354,
+            CDEven0Switch_Set                       = 0x1358,
+            CDEven1Switch_Set                       = 0x135C,
             ExternalInterruptPortSelectLow_Set      = 0x1400,
             ExternalInterruptPortSelectHigh_Set     = 0x1404,
             ExternalInterruptPinSelectLow_Set       = 0x1408,
@@ -916,6 +991,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             CMU_CLKOUT1_Route_Set                   = 0x145C,
             CMU_CLKOUT2_Route_Set                   = 0x1460,
             DCDC_RouteEnable_Set                    = 0x146C,
+            DCDC_CoreHiddenPortPinSelect_Set        = 0x1470,
+            DCDC_VcmpHiddenPortPinSelect_Set        = 0x1474,
             FRC_RouteEnable_Set                     = 0x147C,
             FRC_DCLK_Route_Set                      = 0x1480,
             FRC_DFRAME_Route_Set                    = 0x1484,
@@ -929,11 +1006,11 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             LETIMER_RouteEnable_Set                 = 0x14B0,
             LETIMER_OUT0_Route_Set                  = 0x14B4,
             LETIMER_OUT1_Route_Set                  = 0x14B8,
-            ESART0_RouteEnable_Set                  = 0x14C0,
-            ESART0_CS_Route_Set                     = 0x14C4,
-            ESART0_CTS_Route_Set                    = 0x14C8,
-            ESART0_RTS_Route_Set                    = 0x14CC,
-            ESART0_RX_Route_Set                     = 0x14D0,
+            LEUART_RouteEnable_Set                  = 0x14C0,
+            LEUART_CTS_Route_Set                    = 0x14C4,
+            LEUART_RTS_Route_Set                    = 0x14C8,
+            LEUART_RX_Route_Set                     = 0x14CC,
+            LEUART_TX_Route_Set                     = 0x14D0,
             MODEM_RouteEnable_Set                   = 0x14D8,
             MODEM_ANT0_Route_Set                    = 0x14DC,
             MODEM_ANT1_Route_Set                    = 0x14E0,
@@ -1047,6 +1124,18 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             ABusAllocation_Clr                      = 0x2320,
             BBusAllocation_Clr                      = 0x2324,
             CDBusAllocation_Clr                     = 0x2328,
+            AOdd0Switch_Clr                         = 0x2330,
+            AOdd1Switch_Clr                         = 0x2334,
+            AEven0Switch_Clr                        = 0x2338,
+            AEven1Switch_Clr                        = 0x233C,
+            BOdd0Switch_Clr                         = 0x2340,
+            BOdd1Switch_Clr                         = 0x2344,
+            BEven0Switch_Clr                        = 0x2348,
+            BEven1Switch_Clr                        = 0x233C,
+            CDOdd0Switch_Clr                        = 0x2350,
+            CDOdd1Switch_Clr                        = 0x2354,
+            CDEven0Switch_Clr                       = 0x2358,
+            CDEven1Switch_Clr                       = 0x235C,
             ExternalInterruptPortSelectLow_Clr      = 0x2400,
             ExternalInterruptPortSelectHigh_Clr     = 0x2404,
             ExternalInterruptPinSelectLow_Clr       = 0x2408,
@@ -1065,6 +1154,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             CMU_CLKOUT1_Route_Clr                   = 0x245C,
             CMU_CLKOUT2_Route_Clr                   = 0x2460,
             DCDC_RouteEnable_Clr                    = 0x246C,
+            DCDC_CoreHiddenPortPinSelect_Clr        = 0x2470,
+            DCDC_VcmpHiddenPortPinSelect_Clr        = 0x2474,
             FRC_RouteEnable_Clr                     = 0x247C,
             FRC_DCLK_Route_Clr                      = 0x2480,
             FRC_DFRAME_Route_Clr                    = 0x2484,
@@ -1078,11 +1169,11 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             LETIMER_RouteEnable_Clr                 = 0x24B0,
             LETIMER_OUT0_Route_Clr                  = 0x24B4,
             LETIMER_OUT1_Route_Clr                  = 0x24B8,
-            ESART0_RouteEnable_Clr                  = 0x24C0,
-            ESART0_CS_Route_Clr                     = 0x24C4,
-            ESART0_CTS_Route_Clr                    = 0x24C8,
-            ESART0_RTS_Route_Clr                    = 0x24CC,
-            ESART0_RX_Route_Clr                     = 0x24D0,
+            LEUART_RouteEnable_Clr                  = 0x24C0,
+            LEUART_CTS_Route_Clr                    = 0x24C4,
+            LEUART_RTS_Route_Clr                    = 0x24C8,
+            LEUART_RX_Route_Clr                     = 0x24CC,
+            LEUART_TX_Route_Clr                     = 0x24D0,
             MODEM_RouteEnable_Clr                   = 0x24D8,
             MODEM_ANT0_Route_Clr                    = 0x24DC,
             MODEM_ANT1_Route_Clr                    = 0x24E0,
@@ -1196,6 +1287,18 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             ABusAllocation_Tgl                      = 0x3320,
             BBusAllocation_Tgl                      = 0x3324,
             CDBusAllocation_Tgl                     = 0x3328,
+            AOdd0Switch_Tgl                         = 0x3330,
+            AOdd1Switch_Tgl                         = 0x3334,
+            AEven0Switch_Tgl                        = 0x3338,
+            AEven1Switch_Tgl                        = 0x333C,
+            BOdd0Switch_Tgl                         = 0x3340,
+            BOdd1Switch_Tgl                         = 0x3344,
+            BEven0Switch_Tgl                        = 0x3348,
+            BEven1Switch_Tgl                        = 0x333C,
+            CDOdd0Switch_Tgl                        = 0x3350,
+            CDOdd1Switch_Tgl                        = 0x3354,
+            CDEven0Switch_Tgl                       = 0x3358,
+            CDEven1Switch_Tgl                       = 0x335C,
             ExternalInterruptPortSelectLow_Tgl      = 0x3400,
             ExternalInterruptPortSelectHigh_Tgl     = 0x3404,
             ExternalInterruptPinSelectLow_Tgl       = 0x3408,
@@ -1214,6 +1317,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             CMU_CLKOUT1_Route_Tgl                   = 0x345C,
             CMU_CLKOUT2_Route_Tgl                   = 0x3460,
             DCDC_RouteEnable_Tgl                    = 0x346C,
+            DCDC_CoreHiddenPortPinSelect_Tgl        = 0x3470,
+            DCDC_VcmpHiddenPortPinSelect_Tgl        = 0x3474,
             FRC_RouteEnable_Tgl                     = 0x347C,
             FRC_DCLK_Route_Tgl                      = 0x3480,
             FRC_DFRAME_Route_Tgl                    = 0x3484,
@@ -1227,11 +1332,11 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             LETIMER_RouteEnable_Tgl                 = 0x34B0,
             LETIMER_OUT0_Route_Tgl                  = 0x34B4,
             LETIMER_OUT1_Route_Tgl                  = 0x34B8,
-            ESART0_RouteEnable_Tgl                  = 0x34C0,
-            ESART0_CS_Route_Tgl                     = 0x34C4,
-            ESART0_CTS_Route_Tgl                    = 0x34C8,
-            ESART0_RTS_Route_Tgl                    = 0x34CC,
-            ESART0_RX_Route_Tgl                     = 0x34D0,
+            LEUART_RouteEnable_Tgl                  = 0x34C0,
+            LEUART_CTS_Route_Tgl                    = 0x34C4,
+            LEUART_RTS_Route_Tgl                    = 0x34C8,
+            LEUART_RX_Route_Tgl                     = 0x34CC,
+            LEUART_TX_Route_Tgl                     = 0x34D0,
             MODEM_RouteEnable_Tgl                   = 0x34D8,
             MODEM_ANT0_Route_Tgl                    = 0x34DC,
             MODEM_ANT1_Route_Tgl                    = 0x34E0,
