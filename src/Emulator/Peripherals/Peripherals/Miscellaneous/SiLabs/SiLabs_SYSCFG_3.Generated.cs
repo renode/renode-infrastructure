@@ -105,6 +105,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         public override void Reset()
         {
             base.Reset();
+            registers.Reset();
             SYSCFG_Reset();
         }
         
