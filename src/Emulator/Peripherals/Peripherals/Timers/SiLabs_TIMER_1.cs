@@ -17,17 +17,14 @@ namespace Antmicro.Renode.Peripherals.Timers
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public partial class SiLabs_TIMER_1
     {
-        public SiLabs_TIMER_1(Machine machine, uint frequency, int width) : this(machine)
+        public SiLabs_TIMER_1(Machine machine, int width) : this(machine)
         {
-            this.timerFrequency = frequency;
             this.timerLimit = (uint)(1 << width) - 1;   // setting timerLimit to max possible value of the given bit width
-            timer.Frequency = timerFrequency;
-            timer.Limit = timerLimit;
         }
 
         partial void SiLabs_TIMER_1_Constructor()
         {
-            // frequency and limit set to arbitrary values as the will be overwritten by the constructor defined above
+            // frequency and limit set to arbitrary values as they will be overwritten when the timer is started
             timer = new LimitTimer(machine.ClockSource, 1, this, "timer", 0xFFFFFFFFUL, direction: Direction.Ascending,
                                    enabled: false, workMode: WorkMode.OneShot, eventEnabled: true, autoUpdate: true);
             timer.LimitReached += OnTimerLimitReached;
@@ -37,8 +34,11 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         partial void TIMER_Reset()
         {
-            TimerIsRunning = false;
+            timerIsRunning = false;
             timer.Enabled = false;
+
+            registers.Reset();
+            UpdateInterrupts();
         }
 
         partial void Cmd_Start_Write(bool a, bool b)
@@ -94,7 +94,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             get
             {
-                if(TimerIsRunning)
+                if(timerIsRunning)
                 {
                     if(timer.Enabled)
                     {
@@ -118,8 +118,6 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public GPIO IRQ { get; private set; }
 
-        public bool TimerIsRunning = false;
-
         private void UpdateInterrupts()
         {
             machine.ClockSource.ExecuteInLock(delegate
@@ -132,13 +130,13 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private void StartCommand()
         {
-            TimerIsRunning = true;
+            timerIsRunning = true;
             RestartTimer(true);
         }
 
         private void StopCommand()
         {
-            TimerIsRunning = false;
+            timerIsRunning = false;
             timer.Enabled = false;
         }
 
@@ -163,7 +161,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private void RestartTimer(bool restartFromZero = false)
         {
-            if(!TimerIsRunning)
+            if(!timerIsRunning)
             {
                 return;
             }
@@ -183,6 +181,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             // Add remaining compare channels as needed
 
+            timer.Frequency = cmu.HfxoFrequency;
             timer.Limit = limit;
             this.Log(LogLevel.Noisy, "SET timer limit to {0}", timer.Limit);
             timer.Enabled = true;
@@ -200,7 +199,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
 
         private LimitTimer timer;
-        private readonly uint timerFrequency;
+        private bool timerIsRunning = false;
         private readonly uint timerLimit;
     }
 }
