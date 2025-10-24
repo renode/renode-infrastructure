@@ -12,19 +12,15 @@ using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 {
-    // Allows for the viewing of register contents when debugging
-    [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
-    public class SiLabs_HFXO_2 : ISiLabs_HFXO, IDoubleWordPeripheral, IKnownSize
+    public class SiLabs_HFXO_2 : SiLabsPeripheral, ISiLabs_HFXO
     {
-        public SiLabs_HFXO_2(Machine machine, uint startupDelayTicks)
+        public SiLabs_HFXO_2(Machine machine, uint startupDelayTicks) : base(machine, false)
         {
-            this.machine = machine;
             this.delayTicks = startupDelayTicks;
 
             timer = new LimitTimer(machine.ClockSource, 32768, this, "hfxodelay", 0xFFFFFFFFUL, direction: Direction.Ascending,
@@ -36,9 +32,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             registersCollection = BuildRegistersCollection();
         }
 
-        public void WriteDoubleWord(long offset, uint value)
+        public override void Reset()
         {
-            WriteRegister(offset, value);
+            base.Reset();
+
+            timer.Enabled = false;
+            wakeUpSource = WakeUpSource.None;
         }
 
         public void OnRequest(HFXO_REQUESTER req)
@@ -57,117 +56,22 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             this.Log(LogLevel.Error, "OnClksel not implemented");
         }
 
-        public void Reset()
-        {
-            timer.Enabled = false;
-        }
-
-        public uint ReadDoubleWord(long offset)
-        {
-            return ReadRegister(offset);
-        }
-
-        public long Size => 0x4000;
-
         public GPIO IRQ { get; }
 
         public event Action HfxoEnabled;
 
-        private uint ReadRegister(long offset, bool internal_read = false)
-        {
-            var result = 0U;
-            long internal_offset = offset;
-
-            // Set, Clear, Toggle registers should only be used for write operations. But just in case we convert here as well.
-            if(offset >= SetRegisterOffset && offset < ClearRegisterOffset)
-            {
-                // Set register
-                internal_offset = offset - SetRegisterOffset;
-                if(!internal_read)
-                {
-                    this.Log(LogLevel.Noisy, "SET Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}", (Registers)internal_offset, offset, internal_offset);
-                }
-            }
-            else if(offset >= ClearRegisterOffset && offset < ToggleRegisterOffset)
-            {
-                // Clear register
-                internal_offset = offset - ClearRegisterOffset;
-                if(!internal_read)
-                {
-                    this.Log(LogLevel.Noisy, "CLEAR Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}", (Registers)internal_offset, offset, internal_offset);
-                }
-            }
-            else if(offset >= ToggleRegisterOffset)
-            {
-                // Toggle register
-                internal_offset = offset - ToggleRegisterOffset;
-                if(!internal_read)
-                {
-                    this.Log(LogLevel.Noisy, "TOGGLE Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}", (Registers)internal_offset, offset, internal_offset);
-                }
-            }
-
-            if(!registersCollection.TryRead(internal_offset, out result))
-            {
-                if(!internal_read)
-                {
-                    this.Log(LogLevel.Noisy, "Unhandled read at offset 0x{0:X} ({1}).", internal_offset, (Registers)internal_offset);
-                }
-            }
-            else
-            {
-                if(!internal_read)
-                {
-                    this.Log(LogLevel.Noisy, "Read at offset 0x{0:X} ({1}), returned 0x{2:X}.", internal_offset, (Registers)internal_offset, result);
-                }
-            }
-
-            return result;
-        }
-
-        private void WriteRegister(long offset, uint value)
+        protected override void UpdateInterrupts()
         {
             machine.ClockSource.ExecuteInLock(delegate
             {
-                long internal_offset = offset;
-                uint internal_value = value;
-
-                if(offset >= SetRegisterOffset && offset < ClearRegisterOffset)
-                {
-                    // Set register
-                    internal_offset = offset - SetRegisterOffset;
-                    uint old_value = ReadRegister(internal_offset, true);
-                    internal_value = old_value | value;
-                    this.Log(LogLevel.Noisy, "SET Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}, SET_value=0x{3:X}, old_value=0x{4:X}, new_value=0x{5:X}", (Registers)internal_offset, offset, internal_offset, value, old_value, internal_value);
-                }
-                else if(offset >= ClearRegisterOffset && offset < ToggleRegisterOffset)
-                {
-                    // Clear register
-                    internal_offset = offset - ClearRegisterOffset;
-                    uint old_value = ReadRegister(internal_offset, true);
-                    internal_value = old_value & ~value;
-                    this.Log(LogLevel.Noisy, "CLEAR Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}, CLEAR_value=0x{3:X}, old_value=0x{4:X}, new_value=0x{5:X}", (Registers)internal_offset, offset, internal_offset, value, old_value, internal_value);
-                }
-                else if(offset >= ToggleRegisterOffset)
-                {
-                    // Toggle register
-                    internal_offset = offset - ToggleRegisterOffset;
-                    uint old_value = ReadRegister(internal_offset, true);
-                    internal_value = old_value ^ value;
-                    this.Log(LogLevel.Noisy, "TOGGLE Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}, TOGGLE_value=0x{3:X}, old_value=0x{4:X}, new_value=0x{5:X}", (Registers)internal_offset, offset, internal_offset, value, old_value, internal_value);
-                }
-
-                this.Log(LogLevel.Noisy, "Write at offset 0x{0:X} ({1}), value 0x{2:X}.", internal_offset, (Registers)internal_offset, internal_value);
-
-                if(!registersCollection.TryWrite(internal_offset, internal_value))
-                {
-                    this.Log(LogLevel.Noisy, "Unhandled write at offset 0x{0:X} ({1}), value 0x{2:X}.", internal_offset, (Registers)internal_offset, internal_value);
-                    return;
-                }
+                var irq = (readyInterruptEnable.Value && readyInterrupt.Value);
+                IRQ.Set(irq);
             });
         }
 
-        private DoubleWordRegisterCollection BuildRegistersCollection()
+        // Although typically Renode uses tags for unimplemented fields, to minimize the amount of logs we switch to plain fields.
+        // Todo: verify which can be switched to silent tags
+        protected override DoubleWordRegisterCollection BuildRegistersCollection()
         {
             var registerDictionary = new Dictionary<long, DoubleWordRegister>
             {
@@ -196,10 +100,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                             fsmLock.Value = true;
                         }
                     }, name: "DISONDEMAND")
-                    .WithTaggedFlag("KEEPWARM", 2)
+                    .WithFlag(2, name: "KEEPWARM")
                     .WithReservedBits(3, 1)
-                    .WithTaggedFlag("FORCEXI2GNDANA", 4)
-                    .WithTaggedFlag("FORCEXO2GNDANA", 5)
+                    .WithFlag(4, name: "FORCEXI2GNDANA")
+                    .WithFlag(5, name: "FORCEXO2GNDANA")
                     .WithReservedBits(6, 26)
                 },
                 {(long)Registers.Command, new DoubleWordRegister(this)
@@ -224,29 +128,29 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     .WithFlag(1, out coreBiasReady, FieldMode.Read, name: "COREBIASOPTRDY")
                     .WithReservedBits(2, 14)
                     .WithFlag(16, out enabled, FieldMode.Read, name: "ENS")
-                    .WithTaggedFlag("HWREQ", 17)
+                    .WithFlag(17, name: "HWREQ")
                     .WithReservedBits(18, 1)
-                    .WithTaggedFlag("ISWARM", 19)
+                    .WithFlag(19, name: "ISWARM")
                     .WithReservedBits(20, 10)
                     .WithFlag(30, out fsmLock, FieldMode.Read, name: "FSMLOCK")
                     .WithFlag(31, out locked, FieldMode.Read, name: "LOCK")
                 },
                 {(long)Registers.InterruptFlags, new DoubleWordRegister(this)
                     .WithFlag(0, out readyInterrupt, name: "RDY")
-                    .WithTaggedFlag("COREBIASOPTRDY", 1)
+                    .WithFlag(1, name: "COREBIASOPTRDY")
                     .WithReservedBits(2, 27)
-                    .WithTaggedFlag("DNSERR", 29)
+                    .WithFlag(29, name: "DNSERR")
                     .WithReservedBits(30, 1)
-                    .WithTaggedFlag("COREBIASOPTERR", 31)
+                    .WithFlag(31, name: "COREBIASOPTERR")
                     .WithChangeCallback((_, __) => UpdateInterrupts())
                 },
                 {(long)Registers.InterruptEnable, new DoubleWordRegister(this)
                     .WithFlag(0, out readyInterruptEnable, name: "RDY")
-                    .WithTaggedFlag("COREBIASOPTRDY", 1)
+                    .WithFlag(1, name: "COREBIASOPTRDY")
                     .WithReservedBits(2, 27)
-                    .WithTaggedFlag("DNSERR", 29)
+                    .WithFlag(29, name: "DNSERR")
                     .WithReservedBits(30, 1)
-                    .WithTaggedFlag("COREBIASOPTERR", 31)
+                    .WithFlag(31, name: "COREBIASOPTERR")
                     .WithChangeCallback((_, __) => UpdateInterrupts())
                 },
                 {(long)Registers.Lock, new DoubleWordRegister(this)
@@ -259,7 +163,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             return new DoubleWordRegisterCollection(this, registerDictionary);
         }
 
-        private TimeInterval GetTime() => machine.LocalTimeSource.ElapsedVirtualTime;
+        protected override Type RegistersType => typeof(Registers);
 
         private void StartDelayTimer()
         {
@@ -290,15 +194,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             UpdateInterrupts();
         }
 
-        private void UpdateInterrupts()
-        {
-            machine.ClockSource.ExecuteInLock(delegate
-            {
-                var irq = (readyInterruptEnable.Value && readyInterrupt.Value);
-                IRQ.Set(irq);
-            });
-        }
-
         private IFlagRegisterField ready;
         // Interrupts
         private IFlagRegisterField readyInterrupt;
@@ -312,12 +207,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         private IFlagRegisterField enabled;
         private readonly uint delayTicks;
         private readonly LimitTimer timer;
-        private readonly Machine machine;
-        private readonly DoubleWordRegisterCollection registersCollection;
         private const uint UnlockCode = 0x580E;
-        private const uint SetRegisterOffset = 0x1000;
-        private const uint ClearRegisterOffset = 0x2000;
-        private const uint ToggleRegisterOffset = 0x3000;
 
         private enum Registers
         {
