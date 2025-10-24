@@ -41,7 +41,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
                 if(number < 0)
                 {
-                    this.Log(LogLevel.Warning, "Pin number not found for internal signal (source={0} signal={1})", signalSource, signalType);
+                    this.Log(LogLevel.Info, "Route not enabled for internal signal (source={0} signal={1})", signalSource, signalType);
                     return;
                 }
             }
@@ -74,32 +74,15 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             }
         }
 
+        public uint ReadDoubleWord(long offset)
+        {
+            return ReadRegister(offset);
+        }
+
         public void WriteDoubleWord(long offset, uint value)
         {
             // TODO: A subset of registers is lockable: if the lock is on (see LockStatus register), these registers should not be accessible.
             WriteRegister(offset, value);
-        }
-
-        public void InnerReset()
-        {
-            registersCollection.Reset();
-            configurationLocked = false;
-            EvenIRQ.Unset();
-            OddIRQ.Unset();
-            for(var i = 0; i < NumberOfExternalInterrupts; i++)
-            {
-                interruptTrigger[i] = (uint)InterruptTrigger.None;
-                previousState[i] = false;
-            }
-            for(var i = 0; i < NumberOfPins * NumberOfPorts; i++)
-            {
-                targetExternalPins[i] = 0;
-            }
-        }
-
-        public uint ReadDoubleWord(long offset)
-        {
-            return ReadRegister(offset);
         }
 
         public byte ReadByte(long offset)
@@ -296,6 +279,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             }
         }
 
+        // Although typically Renode uses tags for unimplemented fields, to minimize the amount of logs we switch to plain fields.
+        // Todo: verify which can be switched to silent tags
         private DoubleWordRegisterCollection BuildRegistersCollection()
         {
             var registerDictionary = new Dictionary<long, DoubleWordRegister>
@@ -427,22 +412,22 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithFlag(13, out externalInterrupt[13], name: "EXTIF13")
                     .WithFlag(14, out externalInterrupt[14], name: "EXTIF14")
                     .WithFlag(15, out externalInterrupt[15], name: "EXTIF15")
-                    .WithTaggedFlag("EM4WUIF0", 16)
-                    .WithTaggedFlag("EM4WUIF1", 17)
-                    .WithTaggedFlag("EM4WUIF2", 18)
-                    .WithTaggedFlag("EM4WUIF3", 19)
-                    .WithTaggedFlag("EM4WUIF4", 20)
-                    .WithTaggedFlag("EM4WUIF5", 21)
-                    .WithTaggedFlag("EM4WUIF6", 22)
-                    .WithTaggedFlag("EM4WUIF7", 23)
-                    .WithTaggedFlag("EM4WUIF8", 24)
-                    .WithTaggedFlag("EM4WUIF9", 25)
-                    .WithTaggedFlag("EM4WUIF10", 26)
-                    .WithTaggedFlag("EM4WUIF11", 27)
-                    .WithTaggedFlag("EM4WUIF12", 28)
-                    .WithTaggedFlag("EM4WUIF13", 29)
-                    .WithTaggedFlag("EM4WUIF14", 30)
-                    .WithTaggedFlag("EM4WUIF15", 31)
+                    .WithFlag(16, name: "EM4WUIF0")
+                    .WithFlag(17, name: "EM4WUIF1")
+                    .WithFlag(18, name: "EM4WUIF2")
+                    .WithFlag(19, name: "EM4WUIF3")
+                    .WithFlag(20, name: "EM4WUIF4")
+                    .WithFlag(21, name: "EM4WUIF5")
+                    .WithFlag(22, name: "EM4WUIF6")
+                    .WithFlag(23, name: "EM4WUIF7")
+                    .WithFlag(24, name: "EM4WUIF8")
+                    .WithFlag(25, name: "EM4WUIF9")
+                    .WithFlag(26, name: "EM4WUIF10")
+                    .WithFlag(27, name: "EM4WUIF11")
+                    .WithFlag(28, name: "EM4WUIF12")
+                    .WithFlag(29, name: "EM4WUIF13")
+                    .WithFlag(30, name: "EM4WUIF14")
+                    .WithFlag(31, name: "EM4WUIF15")
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
                 {(long)Registers.InterruptEnable, new DoubleWordRegister(this)
@@ -462,22 +447,22 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithFlag(13, out externalInterruptEnable[13], name: "EXTIEN13")
                     .WithFlag(14, out externalInterruptEnable[14], name: "EXTIEN14")
                     .WithFlag(15, out externalInterruptEnable[15], name: "EXTIEN15")
-                    .WithTaggedFlag("EM4WUIEN0", 16)
-                    .WithTaggedFlag("EM4WUIEN1", 17)
-                    .WithTaggedFlag("EM4WUIEN2", 18)
-                    .WithTaggedFlag("EM4WUIEN3", 19)
-                    .WithTaggedFlag("EM4WUIEN4", 20)
-                    .WithTaggedFlag("EM4WUIEN5", 21)
-                    .WithTaggedFlag("EM4WUIEN6", 22)
-                    .WithTaggedFlag("EM4WUIEN7", 23)
-                    .WithTaggedFlag("EM4WUIEN8", 24)
-                    .WithTaggedFlag("EM4WUIEN9", 25)
-                    .WithTaggedFlag("EM4WUIEN10", 26)
-                    .WithTaggedFlag("EM4WUIEN11", 27)
-                    .WithTaggedFlag("EM4WUIEN12", 28)
-                    .WithTaggedFlag("EM4WUIEN13", 29)
-                    .WithTaggedFlag("EM4WUIEN14", 30)
-                    .WithTaggedFlag("EM4WUIEN15", 31)
+                    .WithFlag(16, name: "EM4WUIEN0")
+                    .WithFlag(17, name: "EM4WUIEN1")
+                    .WithFlag(18, name: "EM4WUIEN2")
+                    .WithFlag(19, name: "EM4WUIEN3")
+                    .WithFlag(20, name: "EM4WUIEN4")
+                    .WithFlag(21, name: "EM4WUIEN5")
+                    .WithFlag(22, name: "EM4WUIEN6")
+                    .WithFlag(23, name: "EM4WUIEN7")
+                    .WithFlag(24, name: "EM4WUIEN8")
+                    .WithFlag(25, name: "EM4WUIEN9")
+                    .WithFlag(26, name: "EM4WUIEN10")
+                    .WithFlag(27, name: "EM4WUIEN11")
+                    .WithFlag(28, name: "EM4WUIEN12")
+                    .WithFlag(29, name: "EM4WUIEN13")
+                    .WithFlag(30, name: "EM4WUIEN14")
+                    .WithFlag(31, name: "EM4WUIEN15")
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
                 {(long)Registers.Lock, new DoubleWordRegister(this)
@@ -562,13 +547,13 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
             regs.Add((long)Registers.PortAControl + regOffset, new DoubleWordRegister(this)
                      .WithReservedBits(0, 4)
-                     .WithTag("SLEWRATE", 4, 3)
+                     .WithValueField(4, 3, name: "SLEWRATE")
                      .WithReservedBits(7, 5)
-                     .WithTaggedFlag("DINDIS", 12)
+                     .WithFlag(12, name: "DINDIS")
                      .WithReservedBits(13, 7)
-                     .WithTag("SLEWRATEALT", 20, 3)
+                     .WithValueField(20, 3, name: "SLEWRATEALT")
                      .WithReservedBits(23, 5)
-                     .WithTaggedFlag("DINDISALT", 28)
+                     .WithFlag(28, name: "DINDISALT")
                      .WithReservedBits(29, 3)
                     );
             regs.Add((long)Registers.PortAModeLow + regOffset, new DoubleWordRegister(this)
@@ -621,57 +606,24 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     );
         }
 
-        private IValueRegisterField EUSART0_RxRoutePin;
-        private IValueRegisterField EUSART1_TxRoutePin;
-        private IEnumRegisterField<Port> EUSART1_TxRoutePort;
-        private IValueRegisterField EUSART1_RxRoutePin;
-        private IEnumRegisterField<Port> EUSART1_RxRoutePort;
-        private IFlagRegisterField EUSART1_RouteEnable_CsPin;
-        private IFlagRegisterField EUSART1_RouteEnable_RtsPin;
-        private IFlagRegisterField EUSART1_RouteEnable_RxPin;
-        private IFlagRegisterField EUSART1_RouteEnable_SclkPin;
-        // EUSART1
-        private IFlagRegisterField EUSART1_RouteEnable_TxPin;
-        private IValueRegisterField EUSART0_TxRoutePin;
-        private IEnumRegisterField<Port> EUSART0_TxRoutePort;
-        private IEnumRegisterField<Port> EUSART0_RxRoutePort;
-        private IFlagRegisterField EUSART0_RouteEnable_CsPin;
-        private IFlagRegisterField EUSART0_RouteEnable_SclkPin;
-        private IFlagRegisterField EUSART0_RouteEnable_RxPin;
-        private bool configurationLocked;
-        // USART0
-        private IFlagRegisterField USART0_RouteEnable_TxPin;
-        private IFlagRegisterField USART0_RouteEnable_SclkPin;
-        private IFlagRegisterField EUSART0_RouteEnable_RtsPin;
-        private IFlagRegisterField USART0_RouteEnable_RtsPin;
-        private IFlagRegisterField USART0_RouteEnable_CsPin;
-        private IFlagRegisterField USART0_RouteEnable_RxPin;
-        private IValueRegisterField USART0_RxRoutePin;
-        private IEnumRegisterField<Port> USART0_TxRoutePort;
-        private IValueRegisterField USART0_TxRoutePin;
-        // EUSART0
-        private IFlagRegisterField EUSART0_RouteEnable_TxPin;
-        private IEnumRegisterField<Port> USART0_RxRoutePort;
-        private readonly bool[] previousState = new bool[NumberOfExternalInterrupts];
-        private readonly uint[] interruptTrigger = new uint[NumberOfExternalInterrupts];
-        private readonly IFlagRegisterField[] externalInterruptEnable = new IFlagRegisterField[NumberOfExternalInterrupts];
-        private readonly IFlagRegisterField[] externalInterrupt = new IFlagRegisterField[NumberOfExternalInterrupts];
-        private readonly IEnumRegisterField<PinMode>[] pinMode = new IEnumRegisterField<PinMode>[NumberOfPins * NumberOfPorts];
-        private readonly IValueRegisterField[] externalInterruptPinSelect = new IValueRegisterField[NumberOfExternalInterrupts];
-        private readonly IEnumRegisterField<Port>[] externalInterruptPortSelect = new IEnumRegisterField<Port>[NumberOfExternalInterrupts];
-        private readonly uint[] targetExternalPins = new uint[NumberOfPins * NumberOfPorts];
-        private readonly DoubleWordRegisterCollection registersCollection;
-        private readonly object internalLock = new object();
-        private const uint SetRegisterOffset = 0x1000;
-        private const uint ClearRegisterOffset = 0x2000;
-        private const uint ToggleRegisterOffset = 0x3000;
-        private const int NumberOfPorts = 4;
-        private const int NumberOfPins = 16;
-        private const int NumberOfExternalInterrupts = 16;
-        private const int UnlockCode = 0xA534;
-        private const int PortOffset = 0x30;
+        private void InnerReset()
+        {
+            registersCollection.Reset();
+            configurationLocked = false;
+            EvenIRQ.Unset();
+            OddIRQ.Unset();
+            for(var i = 0; i < NumberOfExternalInterrupts; i++)
+            {
+                interruptTrigger[i] = (uint)InterruptTrigger.None;
+                previousState[i] = false;
+            }
+            for(var i = 0; i < NumberOfPins * NumberOfPorts; i++)
+            {
+                targetExternalPins[i] = 0;
+            }
+        }
 
-        int GetPinNumberFromInternalSignal(SignalSource signalSource, SignalType signalType)
+        private int GetPinNumberFromInternalSignal(SignalSource signalSource, SignalType signalType)
         {
             int pinNumber = -1;
 
@@ -738,6 +690,56 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
             return pinNumber;
         }
+
+        // USART0
+        private IFlagRegisterField USART0_RouteEnable_TxPin;
+        private IFlagRegisterField USART0_RouteEnable_SclkPin;
+        private IFlagRegisterField USART0_RouteEnable_RxPin;
+        private IFlagRegisterField USART0_RouteEnable_RtsPin;
+        private IFlagRegisterField USART0_RouteEnable_CsPin;
+        private IEnumRegisterField<Port> USART0_RxRoutePort;
+        private IValueRegisterField USART0_RxRoutePin;
+        private IEnumRegisterField<Port> USART0_TxRoutePort;
+        private IValueRegisterField USART0_TxRoutePin;
+        // EUSART0
+        private IFlagRegisterField EUSART0_RouteEnable_TxPin;
+        private IFlagRegisterField EUSART0_RouteEnable_SclkPin;
+        private IFlagRegisterField EUSART0_RouteEnable_RxPin;
+        private IFlagRegisterField EUSART0_RouteEnable_RtsPin;
+        private IFlagRegisterField EUSART0_RouteEnable_CsPin;
+        private IEnumRegisterField<Port> EUSART0_RxRoutePort;
+        private IValueRegisterField EUSART0_RxRoutePin;
+        private IEnumRegisterField<Port> EUSART0_TxRoutePort;
+        private IValueRegisterField EUSART0_TxRoutePin;
+        // EUSART1
+        private IFlagRegisterField EUSART1_RouteEnable_TxPin;
+        private IFlagRegisterField EUSART1_RouteEnable_SclkPin;
+        private IFlagRegisterField EUSART1_RouteEnable_RxPin;
+        private IFlagRegisterField EUSART1_RouteEnable_RtsPin;
+        private IFlagRegisterField EUSART1_RouteEnable_CsPin;
+        private IEnumRegisterField<Port> EUSART1_RxRoutePort;
+        private IValueRegisterField EUSART1_RxRoutePin;
+        private IEnumRegisterField<Port> EUSART1_TxRoutePort;
+        private IValueRegisterField EUSART1_TxRoutePin;
+        private bool configurationLocked;
+        private readonly bool[] previousState = new bool[NumberOfExternalInterrupts];
+        private readonly uint[] interruptTrigger = new uint[NumberOfExternalInterrupts];
+        private readonly uint[] targetExternalPins = new uint[NumberOfPins * NumberOfPorts];
+        private readonly IFlagRegisterField[] externalInterruptEnable = new IFlagRegisterField[NumberOfExternalInterrupts];
+        private readonly IFlagRegisterField[] externalInterrupt = new IFlagRegisterField[NumberOfExternalInterrupts];
+        private readonly IEnumRegisterField<PinMode>[] pinMode = new IEnumRegisterField<PinMode>[NumberOfPins * NumberOfPorts];
+        private readonly IValueRegisterField[] externalInterruptPinSelect = new IValueRegisterField[NumberOfExternalInterrupts];
+        private readonly IEnumRegisterField<Port>[] externalInterruptPortSelect = new IEnumRegisterField<Port>[NumberOfExternalInterrupts];
+        private readonly DoubleWordRegisterCollection registersCollection;
+        private readonly object internalLock = new object();
+        private const uint SetRegisterOffset = 0x1000;
+        private const uint ClearRegisterOffset = 0x2000;
+        private const uint ToggleRegisterOffset = 0x3000;
+        private const int NumberOfPorts = 4;
+        private const int NumberOfPins = 16;
+        private const int NumberOfExternalInterrupts = 16;
+        private const int UnlockCode = 0xA534;
+        private const int PortOffset = 0x30;
 
         private enum Port
         {
