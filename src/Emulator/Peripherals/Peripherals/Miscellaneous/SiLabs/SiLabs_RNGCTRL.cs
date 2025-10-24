@@ -22,6 +22,17 @@ using Org.BouncyCastle.Crypto.Parameters;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 {
+    /// <summary>
+    /// CRYPTOACC RNGCTRL peripheral (BA431-based TRNG with APT64/APT4096 extensions).
+    ///
+    /// The register map matches SE firmware and TRNG headers (P1Thres/P2Thres, APT64IF/APT4096IF),
+    /// not the vanilla Silex Insight BA431 datasheet which documents a single 1024-sample adaptive
+    /// proportion test at offset 0x28.
+    ///
+    /// Continuous health tests are only emulated for firmware bring-up: status flags, threshold
+    /// registers, IRQ wiring, and soft-reset clearing are modeled, but NIST SP 800-90B sample
+    /// counting is not.
+    /// </summary>
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class SiLabs_RNGCTRL : IBusPeripheral
     {
@@ -41,6 +52,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             SoftwareReset = false;
             SoftwareReset = true;
             SoftwareReset = false;
+
+            registersCollection.Reset();
+            repThreshold = DefaultRepThreshold;
+            propThreshold = DefaultPropThreshold;
+            testModeSampleCount = 0;
+            ClearHealthTestFailures();
+            UpdateInterrupts();
         }
 
         [ConnectionRegion("rngctrl_s")]
@@ -125,6 +143,15 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         private static readonly PseudorandomNumberGenerator random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
 
+        private void ProcessTestModeHealthTestSample()
+        {
+            testModeSampleCount++;
+            if(testModeSampleCount >= Apt64WindowSize && !apt64Fail.Value)
+            {
+                TriggerApt64Failure();
+            }
+        }
+
         private void FillQueue()
         {
             while(fifo.Count < FifoDepth)
@@ -143,6 +170,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
             uint ret = fifo.Dequeue();
             FillQueue();
+            ProcessHealthTestSample();
             return ret;
         }
 
@@ -192,36 +220,147 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         {
             machine.ClockSource.ExecuteInLock(delegate
             {
-                var irq = (fifoFullInterruptEnable.Value && fifoFullInterrupt.Value);
+                var irq = (fifoFullInterruptEnable.Value && fifoFullInterrupt.Value)
+                    || (repCountInterruptEnable.Value && repCountFail.Value)
+                    || (apt64InterruptEnable.Value && apt64Fail.Value)
+                    || (apt4096InterruptEnable.Value && apt4096Fail.Value)
+                    || (alarmInterruptEnable.Value && alarmFail.Value);
                 IRQ.Set(irq);
             });
         }
 
-        private TimeInterval GetTime() => machine.LocalTimeSource.ElapsedVirtualTime;
+        // Continuous-test emulation (APT64/APT4096 register layout). Not cycle-accurate BA431; see class summary.
 
+        private void ClearHealthTestFailures()
+        {
+            repCountFail.Value = false;
+            apt64Fail.Value = false;
+            apt4096Fail.Value = false;
+            alarmFail.Value = false;
+            apt64FailureScheduled = false;
+            healthTestSampleCount = 0;
+            testModeSampleCount = 0;
+        }
+
+        private void OnPropThresholdWritten(uint value)
+        {
+            propThreshold = value;
+            EvaluateHealthTests();
+        }
+
+        private void OnRepThresholdWritten(uint value)
+        {
+            repThreshold = value;
+            EvaluateHealthTests();
+        }
+
+        private void EvaluateHealthTests()
+        {
+            if(!enabled || testEnable.Value)
+            {
+                return;
+            }
+
+            if(repThreshold == 0)
+            {
+                TriggerRepCountFailure();
+                return;
+            }
+
+            // A cutoff of zero forces an immediate APT64 failure; firmware uses this in fault tests.
+            if(propThreshold == 0)
+            {
+                ScheduleApt64Failure();
+            }
+        }
+
+        private void ProcessHealthTestSample()
+        {
+            if(!enabled || testEnable.Value || propThreshold != 0)
+            {
+                return;
+            }
+
+            healthTestSampleCount++;
+            if(healthTestSampleCount >= Apt64WindowSize)
+            {
+                TriggerApt64Failure();
+            }
+            else
+            {
+                ScheduleApt64Failure();
+            }
+        }
+
+        private void ScheduleApt64Failure()
+        {
+            if(apt64FailureScheduled || apt64Fail.Value)
+            {
+                return;
+            }
+
+            apt64FailureScheduled = true;
+            machine.ScheduleAction(TimeInterval.FromMicroseconds(10), _ =>
+            {
+                apt64FailureScheduled = false;
+                if(propThreshold == 0 && enabled && !testEnable.Value)
+                {
+                    TriggerApt64Failure();
+                }
+            }, "trng-apt64-failure");
+        }
+
+        private void TriggerRepCountFailure()
+        {
+            if(repCountFail.Value)
+            {
+                return;
+            }
+
+            repCountFail.Value = true;
+            State = RngState.Error;
+            this.Log(LogLevel.Noisy, "Repetition count health test failed");
+            UpdateInterrupts();
+        }
+
+        private void TriggerApt64Failure()
+        {
+            if(apt64Fail.Value)
+            {
+                return;
+            }
+
+            apt64Fail.Value = true;
+            State = RngState.Error;
+            this.Log(LogLevel.Noisy, "APT64 health test failed");
+            UpdateInterrupts();
+        }
+
+        // Although typically Renode uses tags for unimplemented fields, to minimize the amount of logs we switch to plain fields.
+        // Todo: verify which can be switched to silent tags
         private DoubleWordRegisterCollection BuildRegistersCollection()
         {
             var registerDictionary = new Dictionary<long, DoubleWordRegister>
             {
                 {(long)Registers.RngControl, new DoubleWordRegister(this, 0x00040000)
                     .WithFlag(0, valueProviderCallback: _ => Enable, writeCallback: (_, value) => Enable = value, name: "ENABLE")
-                    .WithTaggedFlag("CONTROL", 1)
+                    .WithFlag(1, name: "CONTROL")
                     .WithFlag(2, out testEnable, name: "TESTEN")
-                    .WithTaggedFlag("CONDBYPASS", 3)
-                    .WithTaggedFlag("REPCOUNTIEN", 4)
-                    .WithTaggedFlag("APT64IEN", 5)
-                    .WithTaggedFlag("APT4096IEN", 6)
+                    .WithFlag(3, name: "CONDBYPASS")
+                    .WithFlag(4, out repCountInterruptEnable, name: "REPCOUNTIEN")
+                    .WithFlag(5, out apt64InterruptEnable, name: "APT64IEN")
+                    .WithFlag(6, out apt4096InterruptEnable, name: "APT4096IEN")
                     .WithFlag(7, out fifoFullInterruptEnable, name: "FULLIEN")
                     .WithFlag(8, valueProviderCallback: _ => SoftwareReset, writeCallback: (_, value) => SoftwareReset = value, name: "SOFTRESET")
-                    .WithTaggedFlag("PREIEN", 9)
-                    .WithTaggedFlag("ALMIEN", 10)
-                    .WithTaggedFlag("FORCERUN", 11)
-                    .WithTaggedFlag("BYPNIST", 12)
-                    .WithTaggedFlag("BYPAIS31", 13)
-                    .WithTaggedFlag("HEALTHTESTSEL", 14)
-                    .WithTaggedFlag("AIS31TESTSEL", 15)
+                    .WithFlag(9, name: "PREIEN")
+                    .WithFlag(10, out alarmInterruptEnable, name: "ALMIEN")
+                    .WithFlag(11, name: "FORCERUN")
+                    .WithFlag(12, name: "BYPNIST")
+                    .WithFlag(13, name: "BYPAIS31")
+                    .WithFlag(14, name: "HEALTHTESTSEL")
+                    .WithFlag(15, name: "AIS31TESTSEL")
                     .WithValueField(16, 4, valueProviderCallback: _ => CbcMacBlockNumber, writeCallback: (_, value) => CbcMacBlockNumber = (uint)value, name: "NB128BITBLOCKS")
-                    .WithTaggedFlag("FIFOWRSTARTUP", 20)
+                    .WithFlag(20, name: "FIFOWRSTARTUP")
                     .WithReservedBits(21, 11)
                     .WithChangeCallback((_, __) => UpdateInterrupts())
                 },
@@ -231,16 +370,23 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                 {(long)Registers.FifoDepth, new DoubleWordRegister(this, 0x40)
                     .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => FifoDepth, name: "FIFODEPTH")
                 },
+                {(long)Registers.RepThreshold, new DoubleWordRegister(this, DefaultRepThreshold)
+                    .WithValueField(0, 32, valueProviderCallback: _ => repThreshold, writeCallback: (_, value) => OnRepThresholdWritten((uint)value), name: "REPTHRES")
+                },
+                // P1ThresReg in firmware: APT64 (64-sample window) cutoff. Vanilla BA431 uses a single 1024-sample APT here.
+                {(long)Registers.PropThreshold, new DoubleWordRegister(this, DefaultPropThreshold)
+                    .WithValueField(0, 32, valueProviderCallback: _ => propThreshold, writeCallback: (_, value) => OnPropThresholdWritten((uint)value), name: "P1THRES")
+                },
                 {(long)Registers.RngStatus, new DoubleWordRegister(this)
-                    .WithTaggedFlag("TESTDATABUSY", 0)
+                    .WithFlag(0, name: "TESTDATABUSY")
                     .WithEnumField<DoubleWordRegister, RngState>(1, 3, FieldMode.Read, valueProviderCallback: _ => State, name: "RXSETEVENT1")
-                    .WithTaggedFlag("REPCOUNTIF", 4)
-                    .WithTaggedFlag("APT64IF", 5)
-                    .WithTaggedFlag("APT4096IF", 6)
+                    .WithFlag(4, out repCountFail, name: "REPCOUNTIF")
+                    .WithFlag(5, out apt64Fail, name: "APT64IF")
+                    .WithFlag(6, out apt4096Fail, name: "APT4096IF")
                     .WithFlag(7, out fifoFullInterrupt, name: "FULLIF")
-                    .WithTaggedFlag("PREIF", 8)
-                    .WithTaggedFlag("ALMIF", 9)
-                    .WithTaggedFlag("STARTUPPASS", 10)
+                    .WithFlag(8, name: "PREIF")
+                    .WithFlag(9, out alarmFail, name: "ALMIF")
+                    .WithFlag(10, name: "STARTUPPASS")
                     .WithReservedBits(11, 21)
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
@@ -293,13 +439,25 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
             set
             {
-                if(!softwareReset)
+                if(value && !softwareReset)
                 {
                     softwareReset = true;
+                    var wasEnabled = enabled;
                     State = RngState.Reset;
-                    enabled = false;
                     conditioningTestOngoing = false;
                     fifo.Clear();
+                    fifoFullInterrupt.Value = false;
+                    ClearHealthTestFailures();
+                    if(wasEnabled)
+                    {
+                        State = RngState.Running;
+                        FillQueue();
+                        State = RngState.FifoFullOff;
+                    }
+                }
+                else if(!value)
+                {
+                    softwareReset = false;
                 }
             }
         }
@@ -399,6 +557,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                         FifoEnqueue(val);
                     }
                 }
+
+                if(value == 0)
+                {
+                    ProcessTestModeHealthTestSample();
+                }
             }
         }
 
@@ -412,6 +575,19 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         private IFlagRegisterField fifoFullInterruptEnable;
         private IFlagRegisterField fifoFullInterrupt;
         private IFlagRegisterField testEnable;
+        private IFlagRegisterField alarmInterruptEnable;
+        private IFlagRegisterField repCountInterruptEnable;
+        private IFlagRegisterField apt64InterruptEnable;
+        private IFlagRegisterField apt4096InterruptEnable;
+        private IFlagRegisterField repCountFail;
+        private IFlagRegisterField apt64Fail;
+        private IFlagRegisterField apt4096Fail;
+        private IFlagRegisterField alarmFail;
+        private uint repThreshold = DefaultRepThreshold;
+        private uint propThreshold = DefaultPropThreshold;
+        private uint healthTestSampleCount;
+        private uint testModeSampleCount;
+        private bool apt64FailureScheduled;
         private readonly CbcBlockCipherMac cbcMacCipher;
         private readonly byte[] cbcMacBlock = new byte[16];
         private readonly byte[] key = new byte[16];
@@ -419,6 +595,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         private readonly Machine machine;
         private readonly DoubleWordRegisterCollection registersCollection;
         private const uint FifoDepth = 64;
+        // Defaults for the APT64/APT4096 register layout. Vanilla BA431 uses RepThresReg=0x29 and a single 1024-sample APT at 0x28.
+        private const uint DefaultRepThreshold = 31;
+        private const uint DefaultPropThreshold = 10;
+        private const uint Apt64WindowSize = 64;
 
         private enum RngState
         {
@@ -444,8 +624,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             Key2                                    = 0x018,
             Key3                                    = 0x01C,
             TestData                                = 0x020,
-            RepThreshold                            = 0x024,
-            PropThreshold                           = 0x028,
+            RepThreshold                            = 0x024, // RepThresReg / repetition-count cutoff
+            PropThreshold                           = 0x028, // P1ThresReg / APT64 cutoff (not BA431 1024-sample PropThresReg)
+            Apt4096Threshold                        = 0x02C, // P2ThresReg / APT4096 cutoff (reserved on vanilla BA431)
             RngStatus                               = 0x030,
             InitWaitCounter                         = 0x034,
             DisableOscillatorRings0                 = 0x038,
