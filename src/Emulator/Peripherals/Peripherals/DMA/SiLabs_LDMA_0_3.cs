@@ -23,9 +23,10 @@ namespace Antmicro.Renode.Peripherals.DMA
 {
     public class SiLabs_LDMA_0_3 : IBusPeripheral, IGPIOReceiver, IKnownSize
     {
-        public SiLabs_LDMA_0_3(Machine machine)
+        public SiLabs_LDMA_0_3(Machine machine, IPeripheral context = null)
         {
             this.machine = machine;
+            this.context = context;
             engine = new DmaEngine(machine.GetSystemBus(this));
             signals = new HashSet<int>();
             IRQ = new GPIO();
@@ -65,10 +66,17 @@ namespace Antmicro.Renode.Peripherals.DMA
         public void Reset()
         {
             signals.Clear();
+            syncTrigger = 0;
+            inSyncNotification = false;
+            syncNotificationPending = false;
             foreach(var channel in channels)
             {
                 channel.Reset();
             }
+
+            ldmaRegistersCollection.Reset();
+            ldmaXbarRegistersCollection.Reset();
+
             UpdateInterrupts();
         }
 
@@ -199,27 +207,62 @@ namespace Antmicro.Renode.Peripherals.DMA
             });
         }
 
+        // Although typically Renode uses tags for unimplemented fields, to minimize the amount of logs we switch to plain fields.
+        // Todo: verify which can be switched to silent tags
         private DoubleWordRegisterCollection BuildLdmaRegisters()
         {
             var c =  new DoubleWordRegisterCollection(this, new Dictionary<long, DoubleWordRegister>
             {
-                {(long)LdmaRegisters.CTRL, new DoubleWordRegister(this)
+                {(long)LdmaRegisters.CTRL, new DoubleWordRegister(this, 0x1E000000)
                     .WithReservedBits(0, 24)
-                    .WithTag("NUMFIXED", 24, 5)
+                    .WithValueField(24, 5, name: "NUMFIXED")
                     .WithReservedBits(29, 2)
-                    .WithTaggedFlag("CORERST", 31)
+                    .WithFlag(31, name: "CORERST")
                 },
                 {(long)LdmaRegisters.STATUS, new DoubleWordRegister(this)
-                    .WithTaggedFlag("ANYBUSY", 0)
-                    .WithTaggedFlag("ANYREQ", 1)
+                    .WithFlag(0, name: "ANYBUSY")
+                    .WithFlag(1, name: "ANYREQ")
                     .WithReservedBits(2, 1)
-                    .WithTag("CHGRANT", 3, 5)
-                    .WithTag("CHERROR", 8, 5)
+                    .WithValueField(3, 5, name: "CHGRANT")
+                    .WithValueField(8, 5, name: "CHERROR")
                     .WithReservedBits(13, 3)
-                    .WithTag("FIFOLEVEL", 16, 5)
+                    .WithValueField(16, 5, name: "FIFOLEVEL")
                     .WithReservedBits(21, 3)
-                    .WithTag("CHNUM", 24, 5)
+                    .WithValueField(24, 5, name: "CHNUM")
                     .WithReservedBits(29, 3)
+                },
+                {(long)LdmaRegisters.SYNCSWSET, new DoubleWordRegister(this)
+                    .WithValueField(0, 8, FieldMode.Write, writeCallback: (_, value) => UpdateSyncTrigger((byte)value, 0), name: "SYNCSWSET")
+                    .WithReservedBits(8, 24)
+                },
+                {(long)LdmaRegisters.SYNCSWCLR, new DoubleWordRegister(this)
+                    .WithValueField(0, 8, FieldMode.Write, writeCallback: (_, value) => UpdateSyncTrigger(0, (byte)value), name: "SYNCSWCLR")
+                    .WithReservedBits(8, 24)
+                },
+                {(long)LdmaRegisters.SYNCHWEN, new DoubleWordRegister(this)
+                    .WithValueField(0, 8, out syncSetEnable, name: "SYNCSETEN")
+                    .WithReservedBits(8, 8)
+                    .WithValueField(16, 8, out syncClearEnable, name: "SYNCCLREN")
+                    .WithReservedBits(24, 8)
+                    .WithWriteCallback((_, __) =>
+                    {
+                        if(syncSetEnable.Value != 0 || syncClearEnable.Value != 0)
+                        {
+                            // PRS is not routed to this peripheral, so hardware sync triggers never arrive.
+                            this.Log(LogLevel.Warning, "Hardware sync triggers enabled (set=0x{0:X}, clear=0x{1:X}) but PRS driven SYNCTRIG updates are not supported.",
+                                     syncSetEnable.Value, syncClearEnable.Value);
+                        }
+                    })
+                },
+                {(long)LdmaRegisters.SYNCHWSEL, new DoubleWordRegister(this)
+                    .WithValueField(0, 8, name: "SYNCSETEDGE")
+                    .WithReservedBits(8, 8)
+                    .WithValueField(16, 8, name: "SYNCCLREDGE")
+                    .WithReservedBits(24, 8)
+                },
+                {(long)LdmaRegisters.SYNCSTATUS, new DoubleWordRegister(this)
+                    .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ => syncTrigger, name: "SYNCTRIG")
+                    .WithReservedBits(8, 24)
                 },
                 {(long)LdmaRegisters.CHEN, new DoubleWordRegister(this)
                     .WithFlags(0, 31, writeCallback: (i, _, value) => { if (value) channels[i].Enabled = true; }, name: "CHEN")
@@ -242,7 +285,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     .WithReservedBits(31, 1)
                 },
                 {(long)LdmaRegisters.DBGHALT, new DoubleWordRegister(this)
-                    .WithTag("DBGHALT", 0, 31)
+                    .WithValueField(0, 31, name: "DBGHALT")
                     .WithReservedBits(31, 1)
                 },
                 {(long)LdmaRegisters.SWREQ, new DoubleWordRegister(this)
@@ -254,7 +297,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     .WithReservedBits(31, 1)
                 },
                 {(long)LdmaRegisters.REQPEND, new DoubleWordRegister(this)
-                    .WithTag("REQPEND", 0, 31)
+                    .WithValueField(0, 31, name: "REQPEND")
                     .WithReservedBits(31, 1)
                 },
                 {(long)LdmaRegisters.LINKLOAD, new DoubleWordRegister(this)
@@ -262,17 +305,17 @@ namespace Antmicro.Renode.Peripherals.DMA
                     .WithReservedBits(31, 1)
                 },
                 {(long)LdmaRegisters.REQCLEAR, new DoubleWordRegister(this)
-                    .WithTag("REQCLEAR", 0, 31)
+                    .WithValueField(0, 31, name: "REQCLEAR")
                     .WithReservedBits(31, 1)
                 },
                 {(long)LdmaRegisters.IF, new DoubleWordRegister(this)
                     .WithFlags(0, 31, writeCallback: (i, _, value) => channels[i].DoneInterrupt = value, valueProviderCallback: (i, _) => channels[i].DoneInterrupt, name: "IF")
-                    .WithTaggedFlag("ERROR", 31)
+                    .WithFlag(31, name: "ERROR")
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
                 {(long)LdmaRegisters.IEN, new DoubleWordRegister(this)
                     .WithFlags(0, 31, writeCallback: (i, _, value) => channels[i].DoneInterruptEnable = value, valueProviderCallback: (i, _) => channels[i].DoneInterruptEnable, name: "IEN")
-                    .WithTaggedFlag("ERROR", 31)
+                    .WithFlag(31, name: "ERROR")
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
             });
@@ -313,6 +356,48 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
         }
 
+        private void UpdateSyncTrigger(byte set, byte clear)
+        {
+            // Setting a bit always takes precedence over clearing it.
+            var newValue = (byte)((syncTrigger & ~clear) | set);
+            if(newValue == syncTrigger)
+            {
+                return;
+            }
+            this.Log(LogLevel.Debug, "SYNCTRIG changed from 0x{0:X} to 0x{1:X}", syncTrigger, newValue);
+            syncTrigger = newValue;
+            NotifySyncTriggerChanged();
+        }
+
+        private void NotifySyncTriggerChanged()
+        {
+            // A resumed channel may itself load a synchronization structure and change SYNCTRIG again,
+            // so nested updates are turned into another pass instead of a recursive call.
+            if(inSyncNotification)
+            {
+                syncNotificationPending = true;
+                return;
+            }
+
+            inSyncNotification = true;
+            try
+            {
+                do
+                {
+                    syncNotificationPending = false;
+                    foreach(var channel in channels)
+                    {
+                        channel.OnSyncTriggerChanged();
+                    }
+                }
+                while(syncNotificationPending);
+            }
+            finally
+            {
+                inSyncNotification = false;
+            }
+        }
+
         private void UpdateInterrupts()
         {
             this.Log(LogLevel.Debug, "Interrupt set for channels: {0}", String.Join(", ",
@@ -325,11 +410,18 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         private TimeInterval GetTime() => machine.LocalTimeSource.ElapsedVirtualTime;
 
+        private byte syncTrigger;
+        private bool inSyncNotification;
+        private bool syncNotificationPending;
+
+        private IValueRegisterField syncSetEnable;
+        private IValueRegisterField syncClearEnable;
+
         private readonly DoubleWordRegisterCollection ldmaRegistersCollection;
         private readonly DoubleWordRegisterCollection ldmaXbarRegistersCollection;
         private readonly Machine machine;
-
         private readonly DmaEngine engine;
+        private readonly IPeripheral context;
         private readonly HashSet<int> signals;
         private readonly Channel[] channels;
         private const uint SetRegisterOffset = 0x1000;
@@ -364,7 +456,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                     .WithReservedBits(8, 24)
                 ;
                 DescriptorControlWordRegister = new DoubleWordRegister(parent)
-                    .WithEnumField<DoubleWordRegister, StructureType>(0, 2, FieldMode.Read,
+                    .WithEnumField<DoubleWordRegister, StructureType>(0, 2,
+                        writeCallback: (_, value) => descriptor.StructureType = value,
                         valueProviderCallback: _ => descriptor.StructureType,
                         name: "STRUCTTYPE")
                     .WithReservedBits(2, 1)
@@ -441,7 +534,17 @@ namespace Antmicro.Renode.Peripherals.DMA
                         name: "LINK")
                     .WithValueField(2, 30,
                         writeCallback: (_, value) => descriptor.LinkAddress = (uint)value,
-                        valueProviderCallback: _ => descriptor.LinkAddress,
+                        valueProviderCallback: _ =>
+                        {
+                            if(descriptorAddress.HasValue && descriptor.LinkMode == AddressingMode.Relative)
+                            {
+                                return (descriptorAddress.Value + (ulong)unchecked((int)LinkStructureAddress)) >> 2;
+                            }
+                            else
+                            {
+                                return descriptor.LinkAddress;
+                            }
+                        },
                         name: "LINKADDR")
                 ;
 
@@ -470,10 +573,19 @@ namespace Antmicro.Renode.Peripherals.DMA
             public void LinkLoad()
             {
                 LoadDescriptor();
-                if(!RequestDisable && (descriptor.StructureTransferRequest || SignalIsOn))
+                if(!RequestDisable && (ExecutesOnLoad || SignalIsOn))
                 {
                     StartTransfer();
                 }
+            }
+
+            public void OnSyncTriggerChanged()
+            {
+                if(!waitingForSyncMatch || !SyncMatched)
+                {
+                    return;
+                }
+                StartTransferInner();
             }
 
             public void StartTransfer()
@@ -491,13 +603,15 @@ namespace Antmicro.Renode.Peripherals.DMA
             public void Reset()
             {
                 descriptor = default(Descriptor);
-                pullTimer.Reset();
+                pullTimer.Enabled = false;
                 DoneInterrupt = false;
                 DoneInterruptEnable = false;
                 descriptorAddress = null;
                 requestDisable = false;
                 enabled = false;
                 done = false;
+                waitingForSyncMatch = false;
+                syncPatternApplied = false;
             }
 
             public int Index { get; }
@@ -545,7 +659,13 @@ namespace Antmicro.Renode.Peripherals.DMA
                     if(enabled)
                     {
                         Done = false;
-                        StartTransfer();
+                        // Enabling a channel does not move data on its own. A transfer starts on
+                        // an unconditional STRUCTREQ or once a peripheral request asserts,
+                        // otherwise the channel stays idle until a SWREQ, LINKLOAD or signal.
+                        if(descriptor.StructureTransferRequest || SignalIsOn)
+                        {
+                            StartTransfer();
+                        }
                     }
                 }
             }
@@ -571,7 +691,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             {
                 get
                 {
-                    return isInProgress;
+                    return isInProgress || waitingForSyncMatch;
                 }
             }
 
@@ -612,6 +732,12 @@ namespace Antmicro.Renode.Peripherals.DMA
                 {
                     loaded = false;
                     Transfer();
+                    if(waitingForSyncMatch)
+                    {
+                        // The channel is paused on a synchronization structure and will be
+                        // resumed by OnSyncTriggerChanged once the match condition is fulfilled.
+                        break;
+                    }
                     if(Done && descriptor.Link)
                     {
                         loaded = true;
@@ -619,7 +745,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                         Done = false;
                     }
                 }
-                while((descriptor.StructureTransferRequest && loaded) || (!Done && SignalIsOn));
+                while((ExecutesOnLoad && loaded) || (!Done && SignalIsOn));
 
                 isInProgress = false;
                 if(Done)
@@ -633,7 +759,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 var address = LinkStructureAddress;
                 if(descriptorAddress.HasValue && descriptor.LinkMode == AddressingMode.Relative)
                 {
-                    address += descriptorAddress.Value;
+                    address = (descriptorAddress.Value + (ulong)unchecked((int)LinkStructureAddress));
                 }
                 var data = parent.machine.SystemBus.ReadBytes(address, DescriptorSize);
                 descriptorAddress = address;
@@ -659,11 +785,11 @@ namespace Antmicro.Renode.Peripherals.DMA
                             destinationIncrementStep: DestinationIncrement
                         );
                     parent.Log(LogLevel.Debug, "Channel #{0} Performing Transfer", Index);
-                    parent.engine.IssueCopy(request);
+                    parent.engine.IssueCopy(request, parent.context);
                     if(descriptor.RequestTransferModeSelect == RequestTransferMode.Block)
                     {
                         var blockSizeMultiplier = Math.Min(TransferCount, BlockSizeMultiplier);
-                        parent.Log(LogLevel.Debug, "Channel #{0} TransferCount={1} BlockSizeMultiplier={2}", Index, TransferCount, BlockSizeMultiplier);
+                        parent.Log(LogLevel.Debug, "Channel #{0} TransferCount={1} blockSizeMultiplier={2}", Index, TransferCount, blockSizeMultiplier);
                         if(blockSizeMultiplier == TransferCount)
                         {
                             Done = true;
@@ -682,10 +808,30 @@ namespace Antmicro.Renode.Peripherals.DMA
                     }
                     break;
                 case StructureType.Synchronize:
-                    parent.Log(LogLevel.Warning, "Channel #{0} Synchronize is not implemented.", Index);
+                    if(!syncPatternApplied)
+                    {
+                        syncPatternApplied = true;
+                        parent.Log(LogLevel.Debug, "Channel #{0} Performing Synchronize, set=0x{1:X} clear=0x{2:X} matchValue=0x{3:X} matchEnable=0x{4:X}",
+                                   Index, SyncSetPattern, SyncClearPattern, SyncMatchValue, SyncMatchEnable);
+                        parent.UpdateSyncTrigger(SyncSetPattern, SyncClearPattern);
+                    }
+                    if(SyncMatched)
+                    {
+                        waitingForSyncMatch = false;
+                        syncPatternApplied = false;
+                        Done = true;
+                    }
+                    else
+                    {
+                        waitingForSyncMatch = true;
+                        parent.Log(LogLevel.Debug, "Channel #{0} Waiting for SYNCTRIG (0x{1:X}) to match 0x{2:X} on 0x{3:X}",
+                                   Index, parent.syncTrigger, SyncMatchValue, SyncMatchEnable);
+                    }
                     break;
                 case StructureType.Write:
-                    parent.Log(LogLevel.Warning, "Channel #{0} Write is not implemented.", Index);
+                    parent.Log(LogLevel.Debug, "Channel #{0} Performing Write of 0x{1:X} to 0x{2:X}", Index, ImmediateValue, descriptor.DestinationAddress);
+                    parent.machine.GetSystemBus(parent).WriteDoubleWord(descriptor.DestinationAddress, ImmediateValue, parent.context);
+                    Done = true;
                     break;
                 default:
                     parent.Log(LogLevel.Error, "Channel #{0} Invalid structure type value. No action was performed.", Index);
@@ -840,6 +986,26 @@ namespace Antmicro.Renode.Peripherals.DMA
                 }
             }
 
+            // True for a structure that runs as soon as it is loaded, needing no peripheral
+            // request: STRUCTREQ is an unconditional software request carried in the descriptor,
+            // while synchronization and write structures transfer no data so no request applies.
+            private bool ExecutesOnLoad => descriptor.StructureTransferRequest || descriptor.StructureType != StructureType.Transfer;
+
+            // For non-transfer structures the source and destination descriptor words hold
+            // different fields: SYNCSET/SYNCCLR and MATCHVAL/MATCHEN for a synchronization
+            // structure, the immediate value and its destination for a write structure.
+            private byte SyncSetPattern => (byte)descriptor.SourceAddress;
+
+            private byte SyncClearPattern => (byte)(descriptor.SourceAddress >> 8);
+
+            private byte SyncMatchValue => (byte)descriptor.DestinationAddress;
+
+            private byte SyncMatchEnable => (byte)(descriptor.DestinationAddress >> 8);
+
+            private uint ImmediateValue => descriptor.SourceAddress;
+
+            private bool SyncMatched => (parent.syncTrigger & SyncMatchEnable) == (SyncMatchValue & SyncMatchEnable);
+
             private uint TransferCount => (uint)descriptor.TransferCount + 1;
 
             private ulong LinkStructureAddress => (ulong)descriptor.LinkAddress << 2;
@@ -858,6 +1024,11 @@ namespace Antmicro.Renode.Peripherals.DMA
             private bool enabled;
             private bool done;
 
+            // A synchronization structure applies its set/clear pattern only once, even if the
+            // channel has to wait for the match condition before the structure completes.
+            private bool waitingForSyncMatch;
+            private bool syncPatternApplied;
+
             // Accesses to sysubs may cause changes in signals, but we should ignore those during active transaction
             private bool isInProgress;
 
@@ -867,7 +1038,6 @@ namespace Antmicro.Renode.Peripherals.DMA
             private readonly IEnumRegisterField<Sign> sourceAddressIncrementSign;
             private readonly IEnumRegisterField<Sign> destinationAddressIncrementSign;
             private readonly IValueRegisterField loopCounter;
-
             private readonly SiLabs_LDMA_0_3 parent;
             private readonly LimitTimer pullTimer;
 
@@ -926,26 +1096,64 @@ namespace Antmicro.Renode.Peripherals.DMA
             [LeastSignificantByteFirst]
             private struct Descriptor
             {
-                public string PrettyString => $@"Descriptor {{
-    structureType: {StructureType},
-    structureTransferRequest: {StructureTransferRequest},
-    transferCount: {TransferCount + 1},
-    byteSwap: {ByteSwap},
-    blockSize: {BlockSize},
-    operationDoneInterruptFlagSetEnable: {OperationDoneInterruptFlagSetEnable},
-    requestTransferModeSelect: {RequestTransferModeSelect},
-    decrementLoopCount: {DecrementLoopCount},
-    ignoreSingleRequests: {IgnoreSingleRequests},
-    sourceIncrement: {SourceIncrement},
-    size: {Size},
-    destinationIncrement: {DestinationIncrement},
-    sourceAddressingMode: {SourceAddressingMode},
-    destinationAddressingMode: {DestinationAddressingMode},
-    sourceAddress: 0x{SourceAddress:X},
-    destinationAddress: 0x{DestinationAddress:X},
-    linkMode: {LinkMode},
-    link: {Link},
-    linkAddress: 0x{(LinkAddress << 2):X}
+                public string PrettyString
+                {
+                    get
+                    {
+                        switch(StructureType)
+                        {
+                        case StructureType.Synchronize:
+                            return SynchronizePrettyString;
+                        case StructureType.Write:
+                            return WritePrettyString;
+                        default:
+                            return TransferPrettyString;
+                        }
+                    }
+                }
+
+                private string SynchronizePrettyString => $@"Descriptor {{
+    StructureType: {StructureType},
+    OperationDoneInterruptFlagSetEnable: {OperationDoneInterruptFlagSetEnable},
+    SyncSet: 0x{(byte)SourceAddress:X},
+    SyncClear: 0x{(byte)(SourceAddress >> 8):X},
+    MatchValue: 0x{(byte)DestinationAddress:X},
+    MatchEnable: 0x{(byte)(DestinationAddress >> 8):X},
+    LinkMode: {LinkMode},
+    Link: {Link},
+    LinkAddress: 0x{(LinkAddress << 2):X}
+}}";
+
+                private string WritePrettyString => $@"Descriptor {{
+    StructureType: {StructureType},
+    OperationDoneInterruptFlagSetEnable: {OperationDoneInterruptFlagSetEnable},
+    ImmediateValue: 0x{SourceAddress:X},
+    DestinationAddress: 0x{DestinationAddress:X},
+    LinkMode: {LinkMode},
+    Link: {Link},
+    LinkAddress: 0x{(LinkAddress << 2):X}
+}}";
+
+                private string TransferPrettyString => $@"Descriptor {{
+    StructureType: {StructureType},
+    StructureTransferRequest: {StructureTransferRequest},
+    TransferCount: {TransferCount + 1},
+    ByteSwap: {ByteSwap},
+    BlockSize: {BlockSize},
+    OperationDoneInterruptFlagSetEnable: {OperationDoneInterruptFlagSetEnable},
+    RequestTransferModeSelect: {RequestTransferModeSelect},
+    DecrementLoopCount: {DecrementLoopCount},
+    IgnoreSingleRequests: {IgnoreSingleRequests},
+    SourceIncrement: {SourceIncrement},
+    Size: {Size},
+    DestinationIncrement: {DestinationIncrement},
+    SourceAddressingMode: {SourceAddressingMode},
+    DestinationAddressingMode: {DestinationAddressingMode},
+    SourceAddress: 0x{SourceAddress:X},
+    DestinationAddress: 0x{DestinationAddress:X},
+    LinkMode: {LinkMode},
+    Link: {Link},
+    LinkAddress: 0x{(LinkAddress << 2):X}
 }}";
 
                 // Some of this fields are read only via sysbus, but can be loaded from memory
