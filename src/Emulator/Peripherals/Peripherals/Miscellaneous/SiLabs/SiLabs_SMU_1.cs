@@ -14,6 +14,7 @@ using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Bus.Wrappers;
+using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
@@ -40,8 +41,30 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             nonSecureRegistersCollection = BuildNonSecureRegistersCollection();
         }
 
+        // the following constructor takes 1-3 additional args used to specify
+        // one or more CPUs whose IDAU interfaces are connected to this SMU
+        public SiLabs_SMU_1(Machine machine, CortexM cpu0, CortexM cpu1 = null, CortexM cpu2 = null) : this(machine)
+        {
+            IDAU_CallbackHandlers = new List<IDAU_CallbackHandler>() {
+                new IDAU_CallbackHandler(this, cpu0)
+            };
+
+            if(cpu1 != null)
+            {
+                IDAU_CallbackHandlers.Add(new IDAU_CallbackHandler(this, cpu1));
+            }
+
+            if(cpu2 != null)
+            {
+                IDAU_CallbackHandlers.Add(new IDAU_CallbackHandler(this, cpu2));
+            }
+        }
+
         public void Reset()
         {
+            secureRegistersCollection.Reset();
+            nonSecureRegistersCollection.Reset();
+            UpdateInterrupts();
         }
 
         [ConnectionRegion("smu_s")]
@@ -75,142 +98,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         public GPIO SecurePriviledgedIRQ { get; }
 
         public GPIO NonSecurePriviledgedIRQ { get; }
-
-        private void UpdateInterrupts()
-        {
-            /*
-            The SMU contains three external interrupt lines, privileged, secure, and ns_privileged.
-            The privileged interrupt is asserted when the PPUINSTIF or the PPUPRIVIF is high and
-            the corresponding IEN bit is high.
-            The secure interrupt is asserted when the BMPUSECIF or the PPUSECIF is high and
-            the corresponding IEN bit is high.
-            The ns_privileged interrupt is asserted when the PPUNSPRIVIF or the PPUNSINSTIF is high and
-            the corresponding NSIEN bit is high.
-            */
-            machine.ClockSource.ExecuteInLock(delegate
-            {
-                var irq = ((BMPU_SecurityInterruptEnable.Value && BMPU_SecurityInterrupt.Value)
-                           || PPU_SecurityInterruptEnable.Value && PPU_SecurityInterrupt.Value);
-                SecureIRQ.Set(irq);
-
-                irq = ((PPU_PrivilegeInterruptEnable.Value && PPU_PrivilegeInterrupt.Value)
-                       || (PPU_InstructionInterruptEnable.Value && PPU_InstructionInterrupt.Value));
-                SecurePriviledgedIRQ.Set(irq);
-
-                irq = ((PPUNS_PrivilegeInterruptEnable.Value && PPUNS_PrivilegeInterrupt.Value)
-                       || (PPUNS_InstructionInterruptEnable.Value && PPUNS_InstructionInterrupt.Value));
-                NonSecurePriviledgedIRQ.Set(irq);
-            });
-        }
-
-        private TimeInterval GetTime() => machine.LocalTimeSource.ElapsedVirtualTime;
-
-        /*
-         ESAU Memory Regions
-          Region Num. |  Base Address       |   Limit Address      |  Security Attribute
-          ------------+---------------------+----------------------+----------------------
-             0        |  0x00000000         |   0x00000000|mrb01   |  Secure
-             1        |  0x00000000|mrb01   |   0x00000000|mrb12   |  Non-Secure-Callable
-             2        |  0x00000000|mrb12   |   0x0FE00000         |  Non-Secure
-             3        |  0x0FE00000         |   0x10000000         |  Secure or Non-Secure
-             4        |  0x20000000         |   0x20000000|mrb45   |  Secure
-             5        |  0x20000000|mrb45   |   0x20000000|mrb56   |  Non-Secure-Callable
-             6        |  0x20000000|mrb56   |   0x30000000         |  Non-Secure
-             7        |  0x40000000         |   0x50000000         |  Secure
-             8        |  0x50000000         |   0x60000000         |  Non-Secure
-             9        |  0xA0000000         |   0xB0000000         |  Secure
-             10       |  0xB0000000         |   0xC0000000         |  Non-Secure
-             11       |  0xE0044000         |   0xE00FE000         |  Secure or Non-Secure
-             12       |  0xE00FE000         |   0xE00FF000         |  Exempt
-        */
-        private SecurityType GetMemoryAddressSecurityType(uint address)
-        {
-            // Region 0
-            if(address < (((uint)ESAU_MovableRegionBoundary0_1.Value) << 12))
-            {
-                return SecurityType.Secure;
-            }
-            // Region 1
-            else if((((uint)ESAU_MovableRegionBoundary0_1.Value) << 12) <= address
-                     && address < (((uint)ESAU_MovableRegionBoundary1_2.Value) << 12))
-            {
-                return SecurityType.NonSecureCallable;
-            }
-            // Region 2
-            else if((((uint)ESAU_MovableRegionBoundary1_2.Value) << 12) <= address
-                     && address < 0x0FE00000)
-            {
-                return SecurityType.NonSecure;
-            }
-            // Region 3
-            else if(0x0FE00000 <= address && address < 0x10000000)
-            {
-                return (ESAU_Region3NonSecureType.Value) ? SecurityType.NonSecure : SecurityType.Secure;
-            }
-            // Region 4
-            else if(0x20000000 <= address
-                     && address < (0x20000000 | (((uint)ESAU_MovableRegionBoundary4_5.Value) << 12)))
-            {
-                return SecurityType.Secure;
-            }
-            // Region 5
-            else if((0x20000000 | (((uint)ESAU_MovableRegionBoundary4_5.Value) << 12)) <= address
-                     && address < (0x20000000 | (((uint)ESAU_MovableRegionBoundary5_6.Value) << 12)))
-            {
-                return SecurityType.NonSecureCallable;
-            }
-            // Region 6
-            else if((0x20000000 | (((uint)ESAU_MovableRegionBoundary5_6.Value) << 12)) <= address
-                     && address < 0x30000000)
-            {
-                return SecurityType.NonSecure;
-            }
-            // Region 7
-            else if(0x40000000 <= address && address < 0x50000000)
-            {
-                return SecurityType.Secure;
-            }
-            // Region 8
-            else if(0x50000000 <= address && address < 0x60000000)
-            {
-                return SecurityType.NonSecure;
-            }
-            // Region 9
-            else if(0xA0000000 <= address && address < 0xB0000000)
-            {
-                return SecurityType.Secure;
-            }
-            // Region 10
-            else if(0xB0000000 <= address && address < 0xC0000000)
-            {
-                return SecurityType.NonSecure;
-            }
-            // Region 11
-            else if(0xE0044000 <= address && address < 0xE00FE000)
-            {
-                return (ESAU_Region11NonSecureType.Value) ? SecurityType.NonSecure : SecurityType.Secure;
-            }
-            // Region 12
-            else if(0xE00FE000 <= address && address < 0xE00FF000)
-            {
-                return SecurityType.Exempt;
-            }
-
-            this.Log(LogLevel.Error, "GetMemoryAddressSecurityType() invalid address");
-            return SecurityType.None;
-        }
-
-        private void CheckMovableRegions()
-        {
-            if(ESAU_MovableRegionBoundary0_1.Value > ESAU_MovableRegionBoundary1_2.Value
-                || ESAU_MovableRegionBoundary1_2.Value > 0x0FE00000
-                || ESAU_MovableRegionBoundary4_5.Value > ESAU_MovableRegionBoundary5_6.Value
-                || ((0x20000000 | (((uint)ESAU_MovableRegionBoundary5_6.Value) << 12))) >= 0x30000000)
-            {
-                // TODO: do we need to fire an interrupt or trigger a fault?
-                secureProgrammingError.Value = true;
-            }
-        }
 
         private uint Read<T>(DoubleWordRegisterCollection registersCollection, string regionName, long offset, bool internal_read = false)
         where T : struct, IComparable, IFormattable
@@ -310,6 +197,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             });
         }
 
+        // Although typically Renode uses tags for unimplemented fields, to minimize the amount of logs we switch to plain fields.
+        // Todo: verify which can be switched to silent tags
         private DoubleWordRegisterCollection BuildSecureRegistersCollection()
         {
             var registerDictionary = new Dictionary<long, DoubleWordRegister>
@@ -359,11 +248,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                 },
                 {(long)Registers.M33InitNsVector, new DoubleWordRegister(this)
                     .WithReservedBits(0, 7)
-                    .WithTag("TBLOFF", 7, 25)
+                    .WithValueField(7, 25, name: "TBLOFF")
                 },
                 {(long)Registers.M33InitSVector, new DoubleWordRegister(this)
                     .WithReservedBits(0, 7)
-                    .WithTag("TBLOFF", 7, 25)
+                    .WithValueField(7, 25, name: "TBLOFF")
                 },
                 {(long)Registers.PPU_PriviledgedAttribute0, new DoubleWordRegister(this, 0xFFFFFFFF)
                     .For((r, i) => r.WithFlag(i, out privilegedPeripheralAccess[i], name: $"PPUPATD{i}"), 0 , 32)
@@ -492,46 +381,88 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             return new DoubleWordRegisterCollection(this, registerDictionary);
         }
 
-        private IFlagRegisterField lockSecureMPU;
-        private IFlagRegisterField PPUNS_InstructionInterruptEnable;
-        private IFlagRegisterField PPUNS_PrivilegeInterruptEnable;
-        private IFlagRegisterField PPUNS_InstructionInterrupt;
-        // Non-Secure Interrupts
-        private IFlagRegisterField PPUNS_PrivilegeInterrupt;
-        private IFlagRegisterField BMPU_SecurityInterruptEnable;
-        private IFlagRegisterField PPU_SecurityInterruptEnable;
-        private IFlagRegisterField PPU_InstructionInterruptEnable;
-        private IFlagRegisterField PPU_PrivilegeInterruptEnable;
-        private IFlagRegisterField BMPU_SecurityInterrupt;
-        private IFlagRegisterField PPU_SecurityInterrupt;
-        private IFlagRegisterField PPU_InstructionInterrupt;
-        // Secure Interrupts
-        private IFlagRegisterField PPU_PrivilegeInterrupt;
-        private IFlagRegisterField lockSecureVTAIRCR;
-        private IFlagRegisterField lockNonSecureVTOR;
-        private IFlagRegisterField lockNonSecureMPU;
-        private IValueRegisterField BMPU_FaultStatus;
-        private IValueRegisterField BMPU_FaultStatusAddress;
+        private void UpdateInterrupts()
+        {
+            /*
+            The SMU contains three external interrupt lines, privileged, secure, and ns_privileged. 
+            The privileged interrupt is asserted when the PPUINSTIF or the PPUPRIVIF is high and 
+            the corresponding IEN bit is high. 
+            The secure interrupt is asserted when the BMPUSECIF or the PPUSECIF is high and 
+            the corresponding IEN bit is high. 
+            The ns_privileged interrupt is asserted when the PPUNSPRIVIF or the PPUNSINSTIF is high and 
+            the corresponding NSIEN bit is high.
+            */
+            machine.ClockSource.ExecuteInLock(delegate
+            {
+                var irq = ((BMPU_SecurityInterruptEnable.Value && BMPU_SecurityInterrupt.Value)
+                           || PPU_SecurityInterruptEnable.Value && PPU_SecurityInterrupt.Value);
+                SecureIRQ.Set(irq);
+
+                irq = ((PPU_PrivilegeInterruptEnable.Value && PPU_PrivilegeInterrupt.Value)
+                       || (PPU_InstructionInterruptEnable.Value && PPU_InstructionInterrupt.Value));
+                SecurePriviledgedIRQ.Set(irq);
+
+                irq = ((PPUNS_PrivilegeInterruptEnable.Value && PPUNS_PrivilegeInterrupt.Value)
+                       || (PPUNS_InstructionInterruptEnable.Value && PPUNS_InstructionInterrupt.Value));
+                NonSecurePriviledgedIRQ.Set(irq);
+            });
+        }
+
+        private void CheckMovableRegions()
+        {
+            if(ESAU_MovableRegionBoundary0_1.Value > ESAU_MovableRegionBoundary1_2.Value
+                || ESAU_MovableRegionBoundary1_2.Value > 0x0FE00000
+                || ESAU_MovableRegionBoundary4_5.Value > ESAU_MovableRegionBoundary5_6.Value
+                || ((0x20000000 | (((uint)ESAU_MovableRegionBoundary5_6.Value) << 12))) >= 0x30000000)
+            {
+                // TODO: do we need to fire an interrupt or trigger a fault?
+                secureProgrammingError.Value = true;
+            }
+        }
+
+        private TimeInterval GetTime() => machine.LocalTimeSource.ElapsedVirtualTime;
+
         private IValueRegisterField ESAU_MovableRegionBoundary0_1;
         private IValueRegisterField ESAU_MovableRegionBoundary1_2;
         private IValueRegisterField ESAU_MovableRegionBoundary4_5;
         private IValueRegisterField ESAU_MovableRegionBoundary5_6;
         private IFlagRegisterField ESAU_Region3NonSecureType;
-        // TODO: SAU, MPUs, VTOR, VTAIRCR access must be filtered by SMU.
-        private IFlagRegisterField lockSAU;
-        private IFlagRegisterField secureLock;
         private IFlagRegisterField ESAU_Region11NonSecureType;
+        private IFlagRegisterField secureLock;
+        private IFlagRegisterField nonSecureLock;
         private IFlagRegisterField secureProgrammingError;
         private IFlagRegisterField nonSecureProgrammingError;
         private IValueRegisterField PPU_FaultStatus;
         private IValueRegisterField PPU_NonSecureFaultStatus;
-        private IFlagRegisterField nonSecureLock;
+        private IValueRegisterField BMPU_FaultStatus;
+        private IValueRegisterField BMPU_FaultStatusAddress;
+        // TODO: SAU, MPUs, VTOR, VTAIRCR access must be filtered by SMU.
+        private IFlagRegisterField lockSAU;
+        private IFlagRegisterField lockNonSecureMPU;
+        private IFlagRegisterField lockSecureMPU;
+        private IFlagRegisterField lockNonSecureVTOR;
+        private IFlagRegisterField lockSecureVTAIRCR;
+        // Secure Interrupts
+        private IFlagRegisterField PPU_PrivilegeInterrupt;
+        private IFlagRegisterField PPU_InstructionInterrupt;
+        private IFlagRegisterField PPU_SecurityInterrupt;
+        private IFlagRegisterField BMPU_SecurityInterrupt;
+        private IFlagRegisterField PPU_PrivilegeInterruptEnable;
+        private IFlagRegisterField PPU_InstructionInterruptEnable;
+        private IFlagRegisterField PPU_SecurityInterruptEnable;
+        private IFlagRegisterField BMPU_SecurityInterruptEnable;
+        // Non-Secure Interrupts
+        private IFlagRegisterField PPUNS_PrivilegeInterrupt;
+        private IFlagRegisterField PPUNS_InstructionInterrupt;
+        private IFlagRegisterField PPUNS_PrivilegeInterruptEnable;
+        private IFlagRegisterField PPUNS_InstructionInterruptEnable;
+        private readonly List<IDAU_CallbackHandler> IDAU_CallbackHandlers;
+        private readonly IFlagRegisterField[] privilegedPeripheralAccess;
+        private readonly IFlagRegisterField[] nonSecurePrivilegedPeripheralAccess;
         private readonly IFlagRegisterField[] securePeripheralAccess;
         private readonly IFlagRegisterField[] disablePeripheralAccess;
-        private readonly IFlagRegisterField[] secureBusMusterAccess;
-        private readonly IFlagRegisterField[] nonSecurePrivilegedPeripheralAccess;
-        private readonly IFlagRegisterField[] privilegedPeripheralAccess;
         private readonly IFlagRegisterField[] privilegedBusMusterAccess;
+        private readonly IFlagRegisterField[] secureBusMusterAccess;
         private readonly Machine machine;
         private readonly DoubleWordRegisterCollection secureRegistersCollection;
         private readonly DoubleWordRegisterCollection nonSecureRegistersCollection;
@@ -543,13 +474,170 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         private const uint NumberOfPeripherals = 64;
         private const uint NumberOfBusMasters = 5;
 
-        private enum SecurityType
+        private class IDAU_CallbackHandler : CortexMImplementationDefinedAttributionUnit
         {
-            None              = 0,
-            Secure            = 1,
-            NonSecure         = 2,
-            NonSecureCallable = 3,
-            Exempt            = 4,
+            public IDAU_CallbackHandler(SiLabs_SMU_1 parent, CortexM cpu) : base(cpu)
+            {
+                this.parent = parent;
+
+                if(cpu.TrustZoneEnabled)
+                {
+                    cpu.IDAUEnabled = true;
+                }
+            }
+
+            /* 
+             ESAU Memory Regions
+              Region Num. |  Base Address       |   Limit Address      |  Security Attribute
+              ------------+---------------------+----------------------+----------------------
+                 0        |  0x00000000         |   0x00000000|mrb01   |  Secure
+                 1        |  0x00000000|mrb01   |   0x00000000|mrb12   |  Non-Secure-Callable
+                 2        |  0x00000000|mrb12   |   0x0FE00000         |  Non-Secure
+                 3        |  0x0FE00000         |   0x10000000         |  Secure or Non-Secure
+                 4        |  0x20000000         |   0x20000000|mrb45   |  Secure
+                 5        |  0x20000000|mrb45   |   0x20000000|mrb56   |  Non-Secure-Callable
+                 6        |  0x20000000|mrb56   |   0x30000000         |  Non-Secure
+                 7        |  0x40000000         |   0x50000000         |  Secure
+                 8        |  0x50000000         |   0x60000000         |  Non-Secure
+                 9        |  0xA0000000         |   0xB0000000         |  Secure
+                 10       |  0xB0000000         |   0xC0000000         |  Non-Secure
+                 11       |  0xE0044000         |   0xE00FE000         |  Secure or Non-Secure
+                 12       |  0xE00FE000         |   0xE00FF000         |  Exempt
+            */
+            public override bool AttributionCheckCallback(uint address, bool secure, AccessType type, int accessWidth, out int region, out SecurityAttribution attribution)
+            {
+                // the default return values below indicate an IDAU lookup
+                // failure.  these default return values will be overridden
+                // by region specific attributions
+                region = -1;
+                attribution = SecurityAttribution.Secure;
+                bool successfulAttribution = false; // "false" indicates no attribution defined by IDAU
+
+                // Region 0
+                if(address < (((uint)parent.ESAU_MovableRegionBoundary0_1.Value) << 12)
+                    && address + accessWidth - 1 < (((uint)parent.ESAU_MovableRegionBoundary0_1.Value) << 12))
+                {
+                    region = 0;
+                    attribution = SecurityAttribution.Secure;
+                    successfulAttribution = true;
+                }
+                // Region 1
+                else if((((uint)parent.ESAU_MovableRegionBoundary0_1.Value) << 12) <= address
+                         && address < (((uint)parent.ESAU_MovableRegionBoundary1_2.Value) << 12)
+                         && address + accessWidth - 1 < (((uint)parent.ESAU_MovableRegionBoundary1_2.Value) << 12))
+                {
+                    region = 1;
+                    attribution = SecurityAttribution.NonSecureCallable;
+                    successfulAttribution = true;
+                }
+                // Region 2
+                else if((((uint)parent.ESAU_MovableRegionBoundary1_2.Value) << 12) <= address
+                         && address < 0x0FE00000
+                         && address + accessWidth - 1 < 0x0FE00000)
+                {
+                    region = 2;
+                    attribution = SecurityAttribution.NonSecure;
+                    successfulAttribution = true;
+                }
+                // Region 3
+                else if(0x0FE00000 <= address
+                         && address < 0x10000000
+                         && address + accessWidth - 1 < 0x10000000)
+                {
+                    region = 3;
+                    attribution = (parent.ESAU_Region3NonSecureType.Value) ? SecurityAttribution.NonSecure : SecurityAttribution.Secure;
+                    successfulAttribution = true;
+                }
+                // Region 4
+                else if(0x20000000 <= address
+                         && address < (0x20000000 | (((uint)parent.ESAU_MovableRegionBoundary4_5.Value) << 12))
+                         && address + accessWidth - 1 < (0x20000000 | (((uint)parent.ESAU_MovableRegionBoundary4_5.Value) << 12)))
+                {
+                    region = 4;
+                    attribution = SecurityAttribution.Secure;
+                    successfulAttribution = true;
+                }
+                // Region 5
+                else if((0x20000000 | (((uint)parent.ESAU_MovableRegionBoundary4_5.Value) << 12)) <= address
+                         && address < (0x20000000 | (((uint)parent.ESAU_MovableRegionBoundary5_6.Value) << 12))
+                         && address + accessWidth - 1 < (0x20000000 | (((uint)parent.ESAU_MovableRegionBoundary5_6.Value) << 12)))
+                {
+                    region = 5;
+                    attribution = SecurityAttribution.NonSecureCallable;
+                    successfulAttribution = true;
+                }
+                // Region 6
+                else if((0x20000000 | (((uint)parent.ESAU_MovableRegionBoundary5_6.Value) << 12)) <= address
+                         && address < 0x30000000
+                         && address + accessWidth - 1 < 0x30000000)
+                {
+                    region = 6;
+                    attribution = SecurityAttribution.NonSecure;
+                    successfulAttribution = true;
+                }
+                // Region 7
+                else if(0x40000000 <= address
+                         && address < 0x50000000
+                         && address + accessWidth - 1 < 0x50000000)
+                {
+                    region = 7;
+                    attribution = SecurityAttribution.Secure;
+                    successfulAttribution = true;
+                }
+                // Region 8
+                else if(0x50000000 <= address
+                         && address < 0x60000000
+                         && address + accessWidth - 1 < 0x60000000)
+                {
+                    region = 8;
+                    attribution = SecurityAttribution.NonSecure;
+                    successfulAttribution = true;
+                }
+                // Region 9
+                else if(0xA0000000 <= address
+                         && address < 0xB0000000
+                         && address + accessWidth - 1 < 0xB0000000)
+                {
+                    region = 9;
+                    attribution = SecurityAttribution.Secure;
+                    successfulAttribution = true;
+                }
+                // Region 10
+                else if(0xB0000000 <= address
+                         && address < 0xC0000000
+                         && address + accessWidth - 1 < 0xC0000000)
+                {
+                    region = 10;
+                    attribution = SecurityAttribution.NonSecure;
+                    successfulAttribution = true;
+                }
+                // Region 11
+                else if(0xE0044000 <= address
+                         && address < 0xE00FE000
+                         && address + accessWidth - 1 < 0xE00FE000)
+                {
+                    region = 11;
+                    attribution = (parent.ESAU_Region11NonSecureType.Value) ? SecurityAttribution.NonSecure : SecurityAttribution.Secure;
+                    successfulAttribution = true;
+                }
+                // Region 12
+                else if(0xE00FE000 <= address
+                         && address < 0xE00FF000
+                         && address + accessWidth - 1 < 0xE00FF000)
+                {
+                    // this address range is marked exempt by ESAU, but the
+                    // renode IDAU API only models secure/nonsecure/NSC.
+                    // So treating region 12 as an undefined region for
+                    // renode simulation
+                    region = 12;
+                    successfulAttribution = false;
+                }
+
+                parent.Log(LogLevel.Noisy, "ESAU callback handler invoked with addr=0x{0:X} width={1}, returned region={2}, attribution={3}, successful={4}", address, accessWidth, region, attribution.ToString("G"), successfulAttribution);
+                return successfulAttribution;
+            }
+
+            private readonly SiLabs_SMU_1 parent;
         }
 
         private enum PeripheralIndex
