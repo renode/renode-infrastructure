@@ -10,6 +10,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 {
     public partial class SiLabs_DCDC_2
     {
+        partial void DCDC_Reset()
+        {
+            isEnabled = true;
+
+            registers.Reset();
+        }
+
         partial void Status_Bypsw_ValueProvider(bool a)
         {
             // Enable BYPASS switch.
@@ -22,6 +29,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             if_regulation_bit.Value = isEnabled;
         }
 
-        private readonly bool isEnabled = true;
+        private bool isEnabled = true;
     }
 }
