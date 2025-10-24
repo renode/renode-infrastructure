@@ -17,10 +17,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 {
     public partial class SiLabs_CMU_3 : ISiLabs_CMU
     {
-        public SiLabs_CMU_3(Machine machine, ISiLabs_HFXO hfxo, SiLabs_DPLL_1 dpll = null) : this(machine)
+        public SiLabs_CMU_3(Machine machine, ulong hfxoFrequency) : this(machine)
         {
-            this.dpll = dpll;
-            this.hfxo = hfxo;
+            HfxoFrequency = hfxoFrequency;
         }
 
         partial void SiLabs_CMU_3_Constructor()
@@ -35,6 +34,57 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             status_lock_bit.Value = STATUS_LOCK.UNLOCKED;
         }
 
+        public bool OscHfrcoRequested(uint instance)
+        {
+            if(instance != 0)
+            {
+                this.Log(LogLevel.Error, "{0} is an invalid instance for HFRCO", instance);
+                return false;
+            }
+            return exportclkctrl_clkoutsel0_field.Value == EXPORTCLKCTRL_CLKOUTSEL0.HFRCODPLL
+                || exportclkctrl_clkoutsel1_field.Value == EXPORTCLKCTRL_CLKOUTSEL1.HFRCODPLL
+                || exportclkctrl_clkoutsel2_field.Value == EXPORTCLKCTRL_CLKOUTSEL2.HFRCODPLL
+                || calctrl_upsel_field.Value == CALCTRL_UPSEL.HFRCODPLL
+                || calctrl_downsel_field.Value == CALCTRL_DOWNSEL.HFRCODPLL
+                || sysclkctrl_clksel_field.Value == SYSCLKCTRL_CLKSEL.HFRCODPLL
+                || (
+                    em01grpaclkctrl_clksel_field.Value == EM01GRPACLKCTRL_CLKSEL.HFRCODPLL
+                    && IsEm01GrpaClkEnabled()
+                )
+                || (
+                    em01grpcclkctrl_clksel_field.Value == EM01GRPCCLKCTRL_CLKSEL.HFRCODPLL
+                    && IsEm01GrpcClkEnabled()
+                );
+        }
+
+        public bool OscHfrcoEnabled(uint instance)
+        {
+            if(instance != 0)
+            {
+                this.Log(LogLevel.Error, "{0} is an invalid instance for HFRCO", instance);
+                return false;
+            }
+            return clken0_hfrco0_bit.Value;
+        }
+
+        public ulong WdogClockFrequency(uint instance)
+        {
+            SiLabs_WdogClksel clksel;
+            switch(instance)
+            {
+            case 0:
+                clksel = (SiLabs_WdogClksel)wdog0clkctrl_clksel_field.Value;
+                break;
+            case 1:
+                clksel = (SiLabs_WdogClksel)wdog1clkctrl_clksel_field.Value;
+                break;
+            default:
+                this.Log(LogLevel.Warning, "WdogClockFrequency: unknown WDOG instance {0}", instance);
+                return 0UL;
+            }
+            return SiLabs_CMU_Constants.WdogFrequencyFromClksel(clksel, HfxoFrequency);
+        }
+
         public bool OscPerpllEnabled(uint instance)
         {
             // PERPLL is not present on CMU_3
@@ -47,17 +97,51 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             return false;
         }
 
+        public bool OscPerpllRequested(uint instance)
+        {
+            // PERPLL is not present on CMU_3
+            return false;
+        }
+
         public bool OscSocpllRequested(uint instance)
         {
             // SOCPLL is not present on CMU_3
             return false;
         }
 
-        public bool OscPerpllRequested(uint instance)
+        // stub
+        public bool GetPeripheralClockEnable(IPeripheral peripheral)
         {
-            // PERPLL is not present on CMU_3
-            return false;
+            return true; // Default to true for peripherals not handled by this method
         }
+
+        public ISiLabs_HFXO Hfxo
+        {
+            get
+            {
+                if(Object.ReferenceEquals(hfxo, null))
+                {
+                    foreach(var peripheral in machine.GetPeripheralsOfType<ISiLabs_HFXO>())
+                    {
+                        hfxo = peripheral;
+                        break;
+                    }
+                }
+                return hfxo;
+            }
+
+            set
+            {
+                hfxo = value;
+            }
+        }
+
+        public ulong HfxoFrequency { get; }
+
+        // Temporary implementation to check if a peripheral is enabled as those peripherals are not used
+        public bool Burtc0Enabled { get; set; } = true;
+
+        public bool Eusart0Enabled { get; set; } = true;
 
         public bool Eusart1Enabled { get; set; } = true;
 
@@ -68,6 +152,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         public bool Pcnt0Enabled { get; set; } = true;
 
         public bool Sysrtc0Enabled { get; set; } = true;
+
+        public bool Timer0Enabled { get; set; } = true;
 
         public bool Timer1Enabled { get; set; } = true;
 
@@ -81,9 +167,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         public bool Vdac1Enabled { get; set; } = true;
 
-        public bool Timer0Enabled { get; set; } = true;
+        public bool Wdog0Enabled { get; set; } = true;
 
-        public bool Eusart0Enabled { get; set; } = true;
+        public bool Wdog1Enabled { get; set; } = true;
 
         public bool OscLfrcoRequested
         {
@@ -125,20 +211,86 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             }
         }
 
-        public bool Wdog0Enabled { get; set; } = true;
-
-        public ulong Dpll_M { get; set; } = 1;
-
-        public ulong Dpll_N { get; set; } = 1;
-
-        public bool OscDpllEnabled
+        public bool OscLfrcoEnabled
         {
-            get { return clken0_dpll0_bit.Value; }
+            get { return clken0_lfrco_bit.Value; }
         }
 
-        public bool OscLfxoEnabled
+        public bool OscHfrcoEM23Requested
         {
-            get { return clken0_lfxo_bit.Value; }
+            get
+            {
+                return exportclkctrl_clkoutsel0_field.Value == EXPORTCLKCTRL_CLKOUTSEL0.HFRCOEM23
+                    || exportclkctrl_clkoutsel1_field.Value == EXPORTCLKCTRL_CLKOUTSEL1.HFRCOEM23
+                    || exportclkctrl_clkoutsel2_field.Value == EXPORTCLKCTRL_CLKOUTSEL2.HFRCOEM23
+                    || calctrl_upsel_field.Value == CALCTRL_UPSEL.HFRCOEM23
+                    || calctrl_downsel_field.Value == CALCTRL_DOWNSEL.HFRCOEM23
+                    || traceclkctrl_clksel_field.Value == TRACECLKCTRL_CLKSEL.HFRCOEM23
+                    || (
+                        em01grpaclkctrl_clksel_field.Value == EM01GRPACLKCTRL_CLKSEL.HFRCOEM23
+                        && IsEm01GrpaClkEnabled()
+                    )
+                    || (
+                        em01grpcclkctrl_clksel_field.Value == EM01GRPCCLKCTRL_CLKSEL.HFRCOEM23
+                        && IsEm01GrpcClkEnabled()
+                    )
+                    || (
+                        Iadc0Enabled
+                        && clken0_iadc0_bit.Value
+                        && iadcclkctrl_clksel_field.Value == IADCCLKCTRL_CLKSEL.HFRCOEM23
+                    )
+                    || (
+                        Eusart0Enabled
+                        && clken1_eusart0_bit.Value
+                        && eusart0clkctrl_clksel_field.Value == EUSART0CLKCTRL_CLKSEL.HFRCOEM23
+                    )
+                    || (
+                        Vdac0Enabled
+                        && clken1_vdac0_bit.Value
+                        && vdac0clkctrl_clksel_field.Value == VDAC0CLKCTRL_CLKSEL.HFRCOEM23
+                    )
+                    || (
+                        Vdac1Enabled
+                        && clken1_vdac1_bit.Value
+                        && vdac1clkctrl_clksel_field.Value == VDAC1CLKCTRL_CLKSEL.HFRCOEM23
+                    );
+            }
+        }
+
+        public bool OscHfrcoEM23Enabled
+        {
+            get { return clken0_hfrcoem23_bit.Value; }
+        }
+
+        public bool OscHfxoRequested
+        {
+            get
+            {
+                return exportclkctrl_clkoutsel0_field.Value == EXPORTCLKCTRL_CLKOUTSEL0.HFXO
+                    || exportclkctrl_clkoutsel1_field.Value == EXPORTCLKCTRL_CLKOUTSEL1.HFXO
+                    || exportclkctrl_clkoutsel2_field.Value == EXPORTCLKCTRL_CLKOUTSEL2.HFXO
+                    || calctrl_upsel_field.Value == CALCTRL_UPSEL.HFXO
+                    || calctrl_downsel_field.Value == CALCTRL_DOWNSEL.HFXO
+                    || sysclkctrl_clksel_field.Value == SYSCLKCTRL_CLKSEL.HFXO
+                    || (
+                        Dpll0Enabled
+                        && clken0_dpll0_bit.Value
+                        && dpllrefclkctrl_clksel_field.Value == DPLLREFCLKCTRL_CLKSEL.HFXO
+                    )
+                    || (
+                        em01grpaclkctrl_clksel_field.Value == EM01GRPACLKCTRL_CLKSEL.HFXO
+                        && IsEm01GrpaClkEnabled()
+                    )
+                    || (
+                        em01grpcclkctrl_clksel_field.Value == EM01GRPCCLKCTRL_CLKSEL.HFXO
+                        && IsEm01GrpcClkEnabled()
+                    );
+            }
+        }
+
+        public bool OscHfxoEnabled
+        {
+            get { return clken0_hfxo0_bit.Value; }
         }
 
         public bool OscLfxoRequested
@@ -186,118 +338,19 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             }
         }
 
-        public bool OscHfxoEnabled
+        public bool OscLfxoEnabled
         {
-            get { return clken0_hfxo0_bit.Value; }
+            get { return clken0_lfxo_bit.Value; }
         }
 
-        public bool OscHfxoRequested
+        public bool OscDpllEnabled
         {
-            get
-            {
-                return exportclkctrl_clkoutsel0_field.Value == EXPORTCLKCTRL_CLKOUTSEL0.HFXO
-                    || exportclkctrl_clkoutsel1_field.Value == EXPORTCLKCTRL_CLKOUTSEL1.HFXO
-                    || exportclkctrl_clkoutsel2_field.Value == EXPORTCLKCTRL_CLKOUTSEL2.HFXO
-                    || calctrl_upsel_field.Value == CALCTRL_UPSEL.HFXO
-                    || calctrl_downsel_field.Value == CALCTRL_DOWNSEL.HFXO
-                    || sysclkctrl_clksel_field.Value == SYSCLKCTRL_CLKSEL.HFXO
-                    || (
-                        Dpll0Enabled
-                        && clken0_dpll0_bit.Value
-                        && dpllrefclkctrl_clksel_field.Value == DPLLREFCLKCTRL_CLKSEL.HFXO
-                    )
-                    || (
-                        em01grpaclkctrl_clksel_field.Value == EM01GRPACLKCTRL_CLKSEL.HFXO
-                        && IsEm01GrpaClkEnabled()
-                    )
-                    || (
-                        em01grpcclkctrl_clksel_field.Value == EM01GRPCCLKCTRL_CLKSEL.HFXO
-                        && IsEm01GrpcClkEnabled()
-                    );
-            }
+            get { return clken0_dpll0_bit.Value; }
         }
 
-        public bool OscHfrcoEM23Enabled
-        {
-            get { return clken0_hfrcoem23_bit.Value; }
-        }
+        public ulong Dpll_N { get; set; } = 1;
 
-        public bool OscHfrcoEM23Requested
-        {
-            get
-            {
-                return exportclkctrl_clkoutsel0_field.Value == EXPORTCLKCTRL_CLKOUTSEL0.HFRCOEM23
-                    || exportclkctrl_clkoutsel1_field.Value == EXPORTCLKCTRL_CLKOUTSEL1.HFRCOEM23
-                    || exportclkctrl_clkoutsel2_field.Value == EXPORTCLKCTRL_CLKOUTSEL2.HFRCOEM23
-                    || calctrl_upsel_field.Value == CALCTRL_UPSEL.HFRCOEM23
-                    || calctrl_downsel_field.Value == CALCTRL_DOWNSEL.HFRCOEM23
-                    || traceclkctrl_clksel_field.Value == TRACECLKCTRL_CLKSEL.HFRCOEM23
-                    || (
-                        em01grpaclkctrl_clksel_field.Value == EM01GRPACLKCTRL_CLKSEL.HFRCOEM23
-                        && IsEm01GrpaClkEnabled()
-                    )
-                    || (
-                        em01grpcclkctrl_clksel_field.Value == EM01GRPCCLKCTRL_CLKSEL.HFRCOEM23
-                        && IsEm01GrpcClkEnabled()
-                    )
-                    || (
-                        Iadc0Enabled
-                        && clken0_iadc0_bit.Value
-                        && iadcclkctrl_clksel_field.Value == IADCCLKCTRL_CLKSEL.HFRCOEM23
-                    )
-                    || (
-                        Eusart0Enabled
-                        && clken1_eusart0_bit.Value
-                        && eusart0clkctrl_clksel_field.Value == EUSART0CLKCTRL_CLKSEL.HFRCOEM23
-                    )
-                    || (
-                        Vdac0Enabled
-                        && clken1_vdac0_bit.Value
-                        && vdac0clkctrl_clksel_field.Value == VDAC0CLKCTRL_CLKSEL.HFRCOEM23
-                    )
-                    || (
-                        Vdac1Enabled
-                        && clken1_vdac1_bit.Value
-                        && vdac1clkctrl_clksel_field.Value == VDAC1CLKCTRL_CLKSEL.HFRCOEM23
-                    );
-            }
-        }
-
-        public bool OscHfrcoEnabled
-        {
-            get { return clken0_hfrco0_bit.Value; }
-        }
-
-        public bool OscHfrcoRequested
-        {
-            get
-            {
-                return exportclkctrl_clkoutsel0_field.Value == EXPORTCLKCTRL_CLKOUTSEL0.HFRCODPLL
-                    || exportclkctrl_clkoutsel1_field.Value == EXPORTCLKCTRL_CLKOUTSEL1.HFRCODPLL
-                    || exportclkctrl_clkoutsel2_field.Value == EXPORTCLKCTRL_CLKOUTSEL2.HFRCODPLL
-                    || calctrl_upsel_field.Value == CALCTRL_UPSEL.HFRCODPLL
-                    || calctrl_downsel_field.Value == CALCTRL_DOWNSEL.HFRCODPLL
-                    || sysclkctrl_clksel_field.Value == SYSCLKCTRL_CLKSEL.HFRCODPLL
-                    || (
-                        em01grpaclkctrl_clksel_field.Value == EM01GRPACLKCTRL_CLKSEL.HFRCODPLL
-                        && IsEm01GrpaClkEnabled()
-                    )
-                    || (
-                        em01grpcclkctrl_clksel_field.Value == EM01GRPCCLKCTRL_CLKSEL.HFRCODPLL
-                        && IsEm01GrpcClkEnabled()
-                    );
-            }
-        }
-
-        public bool OscLfrcoEnabled
-        {
-            get { return clken0_lfrco_bit.Value; }
-        }
-
-        // Temporary implementation to check if a peripheral is enabled as those peripherals are not used
-        public bool Burtc0Enabled { get; set; } = true;
-
-        public bool Wdog1Enabled { get; set; } = true;
+        public ulong Dpll_M { get; set; } = 1;
 
         private void BusFault(uint exception)
         {
@@ -315,7 +368,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         {
             if(status_lock_bit.Value == STATUS_LOCK.LOCKED)
             {
-                BusFault(ExcpPrefetchAbort);
+                BusFault(EXCP_PREFETCH_ABORT);
             }
         }
 
@@ -324,7 +377,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             if(b == SYSCLKCTRL_CLKSEL.HFXO)
             {
                 // Notify the Hfxo it has been selected as a source
-                hfxo.OnClksel();
+                Hfxo.OnClksel();
             }
         }
 
@@ -393,78 +446,102 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         private bool IsEm01GrpaClkEnabled()
         {
             // A dictionnary to get get the EM01GRPACLK Look Up Table of the selected clock source.
-            var em01GrpAClkLut = new Dictionary<uint, bool>();
-            em01GrpAClkLut[0] =
+            var temp = new Dictionary<uint, bool>();
+            temp[0] =
                 Iadc0Enabled
                 && clken0_iadc0_bit.Value
                 && iadcclkctrl_clksel_field.Value == IADCCLKCTRL_CLKSEL.EM01GRPACLK;
-            em01GrpAClkLut[1] =
+            temp[1] =
                 Vdac0Enabled
                 && clken1_vdac0_bit.Value
                 && vdac0clkctrl_clksel_field.Value == VDAC0CLKCTRL_CLKSEL.EM01GRPACLK;
-            em01GrpAClkLut[2] =
+            temp[2] =
                 Vdac1Enabled
                 && clken1_vdac1_bit.Value
                 && vdac1clkctrl_clksel_field.Value == VDAC1CLKCTRL_CLKSEL.EM01GRPACLK;
-            em01GrpAClkLut[3] = Timer0Enabled && clken0_timer0_bit.Value;
-            em01GrpAClkLut[4] = Timer1Enabled && clken0_timer1_bit.Value;
-            em01GrpAClkLut[5] = Timer2Enabled && clken0_timer2_bit.Value;
-            em01GrpAClkLut[6] = Timer3Enabled && clken0_timer3_bit.Value;
-            em01GrpAClkLut[7] = Timer4Enabled && clken0_timer4_bit.Value;
+            temp[3] = Timer0Enabled && clken0_timer0_bit.Value;
+            temp[4] = Timer1Enabled && clken0_timer1_bit.Value;
+            temp[5] = Timer2Enabled && clken0_timer2_bit.Value;
+            temp[6] = Timer3Enabled && clken0_timer3_bit.Value;
+            temp[7] = Timer4Enabled && clken0_timer4_bit.Value;
             // missing PD0B
             // missing KEYPAD
 
-            return em01GrpAClkLut.ContainsValue(true);
+            return temp.ContainsValue(true);
         }
 
         // Method used to check if this group is enabled
         private bool IsEm01GrpcClkEnabled()
         {
             // A dictionnary to get get the EM01GRPCCLK Look Up Table of the selected clock source.
-            var em01GrpCClkLut = new Dictionary<uint, bool>();
-            em01GrpCClkLut[0] =
+            var temp = new Dictionary<uint, bool>();
+            temp[0] =
                 Eusart0Enabled
                 && clken1_eusart0_bit.Value
                 && eusart0clkctrl_clksel_field.Value == EUSART0CLKCTRL_CLKSEL.EM01GRPCCLK;
-            em01GrpCClkLut[1] = Eusart1Enabled && clken1_eusart1_bit.Value;
+            temp[1] = Eusart1Enabled && clken1_eusart1_bit.Value;
             // missing EUSART2
             // missing PD0D
 
-            return em01GrpCClkLut.ContainsValue(true);
+            return temp.ContainsValue(true);
         }
 
         // Method used to check if this group is enabled
         private bool IsEm23GrpaClkEnabled()
         {
             // A dictionnary to get get the EM23GRPACLK Look Up Table of the selected clock source.
-            var em23GrpAClkLut = new Dictionary<uint, bool>();
-            em23GrpAClkLut[0] = Letimer0Enabled && clken0_letimer0_bit.Value;
-            em23GrpAClkLut[1] =
+            var temp = new Dictionary<uint, bool>();
+            temp[0] = Letimer0Enabled && clken0_letimer0_bit.Value;
+            temp[1] =
                 Pcnt0Enabled
                 && clken1_pcnt0_bit.Value
                 && pcnt0clkctrl_clksel_field.Value == PCNT0CLKCTRL_CLKSEL.EM23GRPACLK;
-            em23GrpAClkLut[2] =
+            temp[2] =
                 Vdac0Enabled
                 && clken1_vdac0_bit.Value
                 && vdac0clkctrl_clksel_field.Value == VDAC0CLKCTRL_CLKSEL.EM23GRPACLK;
-            em23GrpAClkLut[2] =
+            temp[2] =
                 Vdac1Enabled
                 && clken1_vdac1_bit.Value
                 && vdac1clkctrl_clksel_field.Value == VDAC1CLKCTRL_CLKSEL.EM23GRPACLK;
             // missing PD1
             // missing SYSTICK
 
-            return em23GrpAClkLut.ContainsValue(true);
+            return temp.ContainsValue(true);
         }
 
         // Method used to check if this group is enabled
         private bool IsEm4GrpaClkEnabled()
         {
             // A dictionnary to get get the EM4GRPACLK Look Up Table of the selected clock source.
-            var em4GrpAClkLut = new Dictionary<uint, bool>();
-            em4GrpAClkLut[0] = Burtc0Enabled && clken0_burtc_bit.Value;
+            var temp = new Dictionary<uint, bool>();
+            temp[0] = Burtc0Enabled && clken0_burtc_bit.Value;
 
-            return em4GrpAClkLut.ContainsValue(true);
+            return temp.ContainsValue(true);
+        }
+
+        private ISiLabs_DPLL Dpll0
+        {
+            get
+            {
+                if(dpll0 is null)
+                {
+                    foreach(var peripheral in machine.GetPeripheralsOfType<ISiLabs_DPLL>())
+                    {
+                        if(peripheral.Instance == 0)
+                        {
+                            dpll0 = peripheral;
+                            break;
+                        }
+                    }
+                }
+                return dpll0;
+            }
+
+            set
+            {
+                dpll0 = value;
+            }
         }
 
         // Implementation to check if a peripheral is enabled
@@ -472,20 +549,16 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         {
             get
             {
-                if(dpll == null)
-                {
-                    return false;
-                }
-                return dpll.Enabled;
+                return Dpll0.Enabled;
             }
         }
 
         // Reference to dpll to check if a peripheral is enabled
-        private readonly SiLabs_DPLL_1 dpll;
+        private ISiLabs_DPLL dpll0;
         // Reference to hfxo to be able to call events it defines
-        private readonly ISiLabs_HFXO hfxo;
+        private ISiLabs_HFXO hfxo;
 
         // See constant definitions in src/Infrastructure/src/Emulator/Cores/tlib/arch/arm/cpu.h
-        private const uint ExcpPrefetchAbort = 3;
+        private const uint EXCP_PREFETCH_ABORT = 3;
     }
 }

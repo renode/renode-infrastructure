@@ -49,12 +49,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 {
     public partial class SiLabs_HFRCO_2 : BasicDoubleWordPeripheral, IKnownSize
     {
-        public SiLabs_HFRCO_2(Machine machine) : base(machine)
-        {
-            Define_Registers();
-            SiLabs_HFRCO_2_Constructor();
-        }
-
         private void Define_Registers()
         {
             var registersMap = new Dictionary<long, DoubleWordRegister>

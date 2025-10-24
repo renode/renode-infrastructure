@@ -6,10 +6,28 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
+using Antmicro.Renode.Core;
+
 namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 {
     public partial class SiLabs_HFRCO_2
     {
+        public SiLabs_HFRCO_2(Machine machine, uint instance = 0) : base(machine)
+        {
+            Define_Registers();
+            localInstance = instance;
+            SiLabs_HFRCO_2_Constructor();
+        }
+
+        partial void HFRCO_Reset()
+        {
+            oscillatorEM23OnDemand = false;
+            oscillatorOnDemand = false;
+            oscillatorForce = false;
+
+            registers.Reset();
+        }
+
         partial void Ctrl_Forceen_Write(bool a, bool b)
         {
             oscillatorForce = (b == true);
@@ -57,17 +75,18 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             get
             {
                 return oscillatorForce
-                    || ((oscillatorOnDemand || oscillatorEM23OnDemand) || cmu.OscHfrcoRequested);
+                    || ((oscillatorOnDemand || oscillatorEM23OnDemand) || cmu.OscHfrcoRequested(localInstance));
             }
         }
 
         private bool IsEnabled
         {
-            get { return cmu.OscHfrcoEnabled; }
+            get { return cmu.OscHfrcoEnabled(localInstance); }
         }
 
         private bool oscillatorEM23OnDemand = false;
         private bool oscillatorOnDemand = false;
         private bool oscillatorForce = false;
+        private readonly uint localInstance = 0;
     }
 }
