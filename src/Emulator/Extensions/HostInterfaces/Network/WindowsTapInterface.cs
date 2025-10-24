@@ -29,7 +29,7 @@ using System.Security;
 
 namespace Antmicro.Renode.HostInterfaces.Network
 {
-    public sealed class WindowsTapInterface : ITapInterface, IHasOwnLife, IDisposable
+    public sealed class WindowsTapInterface : ITapInterface
     {
         public WindowsTapInterface(string name)
         {

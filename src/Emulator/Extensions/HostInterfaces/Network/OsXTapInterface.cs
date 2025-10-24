@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -25,7 +25,7 @@ using Antmicro.Migrant;
 
 namespace Antmicro.Renode.HostInterfaces.Network
 {
-    public sealed class OsXTapInterface : ITapInterface, IHasOwnLife, IDisposable
+    public sealed class OsXTapInterface : ITapInterface
     {
         public OsXTapInterface(string interfaceNameOrPath)
         {

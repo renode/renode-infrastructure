@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -21,7 +21,6 @@ using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Network;
-using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.TAPHelper;
 using Antmicro.Renode.Utilities;
 
@@ -29,7 +28,7 @@ using Mono.Unix;
 
 namespace Antmicro.Renode.HostInterfaces.Network
 {
-    public sealed class LinuxTapInterface : ITapInterface, IHasOwnLife, IDisposable
+    public sealed class LinuxTapInterface : ITapInterface
     {
         public LinuxTapInterface(string name, bool persistent)
         {
