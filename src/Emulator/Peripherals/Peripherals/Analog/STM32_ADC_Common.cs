@@ -25,7 +25,7 @@ namespace Antmicro.Renode.Peripherals.Analog
     //     watchdogCount ------ Specifies the number of analog watchdogs inside the peripheral between 1 and 3.
     //    *hasCalibration ----- Specifies whether the calibration factor and voltage regulator are available to the software.
     //                          ADCs without this feature will still have the ADCAL flag available to trigger the calibration procedure,
-    //                          but not the CALFACT register nor the ADVREGEN field.
+    //                          but not the CALFACT register.
     //     channelCount ------- Specifies the amount of available channels.
     //                          Includes both internal sources (like the temperature sensor) as well as external.
     //    *hasPrescaler ------- Specifies whether the ADC contains a prescaler for the external clock input.
@@ -416,7 +416,8 @@ namespace Antmicro.Renode.Peripherals.Analog
             {
                 isrRegister
                     .WithTaggedFlag("EOCAL", 11)
-                    .WithTaggedFlag("LDORDY", 12);
+                    // Simplified logic - hardware delays LDORDY until voltage regulator settles.
+                    .WithFlag(12, valueProviderCallback: _ => adcRegulatorEnable.Value, name: "LDORDY");
                 interruptEnableRegister
                     .WithTaggedFlag("EOCALIE", 11)
                     .WithTaggedFlag("LDORDYIE", 12);
@@ -573,7 +574,7 @@ namespace Antmicro.Renode.Peripherals.Analog
                             }
                         }, name: "ADSTP")
                     .WithReservedBits(5, 23)
-                    .WithFlag(28, name: "ADVREGEN") // no logic implemented, but software expects to read this flag back
+                    .WithFlag(28, out adcRegulatorEnable, name: "ADVREGEN")
                     .WithReservedBits(29, 2)
                     .WithTaggedFlag("ADCAL", 31)
                 },
@@ -679,6 +680,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         private IFlagRegisterField endOfConversionFlag;
         private IFlagRegisterField[] analogWatchdogFlags;
         private IFlagRegisterField adcReadyFlag;
+        private IFlagRegisterField adcRegulatorEnable;
 
         private IFlagRegisterField adcOverrunFlag;
         private IFlagRegisterField waitFlag;
