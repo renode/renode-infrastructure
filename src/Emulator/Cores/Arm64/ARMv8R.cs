@@ -321,7 +321,6 @@ namespace Antmicro.Renode.Peripherals.CPU
                 throw new ArgumentException("Invalid TlibCheckSystemRegisterAccess return value!");
             }
         }
-#pragma warning restore 649
 
         private ExceptionLevel exceptionLevel;
         private ARM_GenericTimer timer;
@@ -335,6 +334,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private readonly Action<uint, ulong, ulong> TlibRegisterTcmRegion;
+#pragma warning restore 649
 
         private readonly ARM_GenericInterruptController gic;
         private readonly ulong defaultHVBARValue;
