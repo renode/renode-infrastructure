@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Linq;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
@@ -13,6 +14,7 @@ using Antmicro.Renode.Peripherals.IRQControllers;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Utilities.Binding;
 
 using Endianess = ELFSharp.ELF.Endianess;
 
@@ -30,8 +32,43 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             RegisterCustomCSRs();
 
-            this.WfiAsNop = true;
+            // WFI is actually implemented as nop in this core, but because the tlib wfi state
+            // is used for the core specific pause and fw_halt states this needs to be false.
+            // To keep the correct behavior, wfi is overridden by a custom instruction with the same opcode that does nothing
+            this.WfiAsNop = false;
+            InstallCustomInstruction(pattern: WfiOpcodePattern,
+                    handler: opcode => this.DebugLog("wfi instruction hit, it's a nop on this platform"));
+
             AddHookAtInterruptBegin(UpdateSecondaryCauseRegister);
+
+            AddHookAtWfiStateChange(enteredWfi =>
+            {
+                if(!enteredWfi)
+                {
+                    // Leaving wfi
+                    isInFWHalt = false;
+                }
+            });
+
+            pauseTimer = new LimitTimer(machine.ClockSource, timerFrequency, this, localName: "PauseTimer", enabled: false, eventEnabled: true);
+            pauseTimer.LimitReached += delegate
+            {
+                this.Log(LogLevel.Debug, "Pause timer elapsed, resuming core");
+                // Clear the WFI state
+                pauseTimer.Enabled = false;
+                this.TlibCleanWfiProcState();
+            };
+        }
+
+        public override void OnGPIO(int number, bool value)
+        {
+            var sourceIsPIC = PIC.IRQ.Endpoints.Where(x => x.Receiver == this).Any(x => x.Number == number);
+            if(isInFWHalt && sourceIsPIC && !PIC.MaxPriorityIRQ.IsSet && value)
+            {
+                // Don't wake the core for non-highest priority PIC IRQ in fw_halt
+                return;
+            }
+            base.OnGPIO(number, value);
         }
 
         public virtual void RegisterPIC(VeeR_EL2_PIC pic)
@@ -41,6 +78,17 @@ namespace Antmicro.Renode.Peripherals.CPU
                 throw new RecoverableException($"Another {pic.GetType().Name} has been registered to the given CPU already, only one is allowed per CPU");
             }
             PIC = pic;
+
+            PIC.MaxPriorityIRQ.AddStateChangedHook(state =>
+            {
+                // We check for PIC.IRQ.IsSet to prevent OnGPIO from being called twice
+                // if PIC.MaxPriorityIRQ is set high before the regular IRQ
+                if(isInFWHalt && PIC.IRQ.IsSet && state)
+                {
+                    var picIrqNumber = PIC.IRQ.Endpoints.Where(x => x.Receiver == this).First().Number;
+                    OnGPIO(picIrqNumber, true);
+                }
+            });
         }
 
         public override void Reset()
@@ -49,6 +97,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             internalTimers.Reset();
             mscauseValue = 0;
             pendingSecondaryCause = 0;
+            haltInterruptEnable = true;
+            isInFWHalt = false;
         }
 
         public void RaiseExceptionWithSecondaryCause(uint exception, uint secondaryCause)
@@ -83,16 +133,65 @@ namespace Antmicro.Renode.Peripherals.CPU
             pendingSecondaryCause = 0;
         }
 
+        protected virtual void EnterFwHalt()
+        {
+            internalTimers.OnFwHalt();
+
+            if(haltInterruptEnable)
+            {
+                this.MSTATUS |= (uint)MstatusFieldOffsets.MIE;
+            }
+
+            isInFWHalt = true;
+
+            TlibEnterWfi();
+        }
+
+        protected virtual void EnterPauseState(uint maxWait)
+        {
+            // No point in switching states if we won't spend any cycles in it
+            if(maxWait > 0)
+            {
+                internalTimers.OnPause();
+                pauseTimer.Limit = maxWait;
+                pauseTimer.ResetValue();
+                pauseTimer.Enabled = true;
+                TlibEnterWfi();
+            }
+        }
+
         protected InternalTimerBlock internalTimers;
 
         protected uint mscauseValue, pendingSecondaryCause;
 
+        protected bool haltInterruptEnable; // Should mstatus.mie be set when entering the fwHalt state
+        protected bool isInFWHalt;
+
+        protected LimitTimer pauseTimer;
+
         private void RegisterCustomCSRs()
         {
             RegisterCSRStub(CustomCSR.RegionAccessControl, "mrac");
-            RegisterCSRStub(CustomCSR.CorePauseControl, "mcpc");
+            RegisterCSR((ushort)CustomCSR.CorePauseControl, name: "mcpc",
+                    readOperation: () => 0u, // Register is read 0
+                    writeOperation: value => EnterPauseState((uint)value));
             RegisterCSRStub(CustomCSR.MemorySynchronizationTrigger, "dmst");
-            RegisterCSRStub(CustomCSR.PowerManagementControl, "mpmc");
+            RegisterCSR((ushort)CustomCSR.PowerManagementControl, name: "mpmc",
+                    readOperation: () =>
+                    {
+                        ulong result = 0;
+                        BitHelper.SetBit(ref result, 1, haltInterruptEnable);
+                        return result;
+                    },
+                    writeOperation: value =>
+                    {
+                        haltInterruptEnable = BitHelper.IsBitSet(value, 1);
+                        if(BitHelper.IsBitSet(value, 0))
+                        {
+                            EnterFwHalt();
+                        }
+                    });
+
             RegisterCSRStub(CustomCSR.ICacheArrayWayIndexSelection, "dicawics");
             RegisterCSRStub(CustomCSR.ICacheArrayData0, "dicad0");
             RegisterCSRStub(CustomCSR.ICacheArrayData1, "dicad1");
@@ -115,6 +214,14 @@ namespace Antmicro.Renode.Peripherals.CPU
             RegisterCSRStub(CustomCSR.DBUSFirstErrorAddressCapture, "mdseac");
         }
 
+#pragma warning disable 649
+        // 649:  Field '...' is never assigned to, and will always have its default value null
+        [Import]
+        private readonly Action TlibEnterWfi;
+#pragma warning restore 649
+
+        private const string WfiOpcodePattern = "00010000010100000000000001110011";
+
         protected class InternalTimerBlock
         {
             public InternalTimerBlock(IMachine machine, VeeR_EL2 owner, long timerFrequency, uint interrupt0, uint interrupt1, ushort counter0CSR, ushort bound0CSR, ushort control0CSR, ushort counter1CSR, ushort bound1CSR, ushort control1CSR)
@@ -130,6 +237,17 @@ namespace Antmicro.Renode.Peripherals.CPU
                 Timer0 = new InternalTimer(machine, owner, this, false, timerFrequency, interrupt0, counter0CSR, bound0CSR, control0CSR);
                 Timer1 = new InternalTimer(machine, owner, this, true, timerFrequency, interrupt1, counter1CSR, bound1CSR, control1CSR);
 
+                // Restore timer state when leaving a paused or halted state
+                owner.AddHookAtWfiStateChange(enteredWfi =>
+                    {
+                        if(!enteredWfi)
+                        {
+                            // Leaving wfi
+                            Timer0.OnWfiLeave();
+                            Timer1.OnWfiLeave();
+                        }
+                    });
+
                 Reset();
             }
 
@@ -137,6 +255,24 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 Timer0.Reset();
                 Timer1.Reset();
+            }
+
+            /// <remarks>
+            /// Called by the cpu when entering pmu/fw-halt state (C3 sleeping)
+            /// </remarks>
+            public void OnFwHalt()
+            {
+                Timer0.OnFwHalt();
+                Timer1.OnFwHalt();
+            }
+
+            /// <remarks>
+            /// Called by the cpu when entering PAUSE state
+            /// </remarks>
+            public void OnPause()
+            {
+                Timer0.OnPause();
+                Timer1.OnPause();
             }
 
             public InternalTimer Timer0 { get; }
@@ -174,16 +310,16 @@ namespace Antmicro.Renode.Peripherals.CPU
                             {
                                 ulong res = 0;
                                 BitHelper.SetBit(ref res, 3, CascadeMode);
-                                BitHelper.SetBit(ref res, 2, pauseEnable);
-                                BitHelper.SetBit(ref res, 1, haltEnable);
+                                BitHelper.SetBit(ref res, 2, PauseEnable);
+                                BitHelper.SetBit(ref res, 1, HaltEnable);
                                 BitHelper.SetBit(ref res, 0, Enabled);
                                 return res;
                             },
                             writeOperation: value =>
                             {
                                 CascadeMode = BitHelper.IsBitSet(value, 3);
-                                pauseEnable = BitHelper.IsBitSet(value, 2);
-                                haltEnable = BitHelper.IsBitSet(value, 1);
+                                PauseEnable = BitHelper.IsBitSet(value, 2);
+                                HaltEnable = BitHelper.IsBitSet(value, 1);
                                 Enabled = BitHelper.IsBitSet(value, 0);
                             }
                     );
@@ -199,8 +335,34 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                     cascade = false;
                     enabledBit = true;
-                    haltEnable = false;
-                    pauseEnable = false;
+                    HaltEnable = false;
+                    PauseEnable = false;
+                    wasTimerEnabled = false;
+                }
+
+                public void OnFwHalt()
+                {
+                    wasTimerEnabled = Enabled;
+                    // if the timer is not set to be halt enabled it should be paused
+                    if(!HaltEnable && Enabled)
+                    {
+                        Enabled = false;
+                    }
+                }
+
+                public void OnPause()
+                {
+                    wasTimerEnabled = Enabled;
+                    // if the timer is not set to be pause enabled it should be paused
+                    if(!PauseEnable && Enabled)
+                    {
+                        Enabled = false;
+                    }
+                }
+
+                public void OnWfiLeave()
+                {
+                    Enabled = wasTimerEnabled;
                 }
 
                 public override bool Enabled
@@ -245,6 +407,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                     }
                 }
 
+                public bool HaltEnable { get; private set; }
+
+                public bool PauseEnable { get; private set; }
+
                 private void CascadeModeTick()
                 {
                     var timer1 = internalTimerBlock.Timer1;
@@ -285,8 +451,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     }
                 }
 
-                private bool haltEnable, pauseEnable;  // Don't do anything currently
-
+                private bool wasTimerEnabled;
                 private bool cascade;  // Only present in control CSR of Timer 1
                 private bool enabledBit;
 

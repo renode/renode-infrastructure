@@ -1418,6 +1418,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         protected readonly Action<ulong, ulong, uint> TlibEnableExternalPermissionHandlerForRange;
+
+        [Import]
+        protected readonly Action TlibCleanWfiProcState;
 #pragma warning restore 649
 
         /*
@@ -2103,9 +2106,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private readonly Action<ulong> TlibSetPageIoAccessed;
-
-        [Import]
-        private readonly Action TlibCleanWfiProcState;
 
         [Import]
         private readonly Action<int> TlibOnMemoryAccessEventEnabled;

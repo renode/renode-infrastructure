@@ -84,5 +84,22 @@ namespace Antmicro.Renode.Peripherals.CPU
             MIE = 3,
             SIE = 1,
         }
+
+        public enum SstatusFieldOffsets : byte
+        {
+            SD = 31,
+            SDT = 24,
+            SPELP = 23,
+            MXR = 19,
+            SUM = 18,
+            WPRV = 17,
+            XS = 15,
+            FS = 13,
+            VS = 9,
+            SPP = 8,
+            UBE = 6,
+            SPIE = 5,
+            SIE = 1,
+        }
     }
 }
