@@ -2108,7 +2108,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Transient]
         private NativeBinder binder;
-#pragma warning restore 649
 
         private bool logTranslatedBlocks;
         private bool isInterruptLoggingEnabled;
@@ -2352,6 +2351,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private readonly Action<ulong, ulong, ulong> TlibEnableReadCache;
+#pragma warning restore 649
 
         private readonly ConcurrentQueue<Action> actionsToExecuteOnCpuThread = new ConcurrentQueue<Action>();
 
