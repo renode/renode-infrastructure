@@ -16,12 +16,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     {
         public IMXRT700_MessagingUnit()
         {
+            sync = new object();
             aInstanceData = new InstanceData("aInstance");
             bInstanceData = new InstanceData("bInstance");
-            aRegionRegisters = DefineRegionRegisters(mySide: aInstanceData, otherSide: bInstanceData);
-            bRegionRegisters = DefineRegionRegisters(mySide: bInstanceData, otherSide: aInstanceData);
             AInstanceIRQ = new GPIO();
             BInstanceIRQ = new GPIO();
+            aRegionRegisters = DefineRegionRegisters(mySide: aInstanceData, otherSide: bInstanceData, myIRQ: AInstanceIRQ, otherIRQ: BInstanceIRQ);
+            bRegionRegisters = DefineRegionRegisters(mySide: bInstanceData, otherSide: aInstanceData, myIRQ: BInstanceIRQ, otherIRQ: AInstanceIRQ);
 
             Reset();
         }
@@ -38,35 +39,79 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         public uint ReadDoubleWordFromAInstance(long offset)
         {
             this.DebugLog("Reading value from aInstance region");
-            return aRegionRegisters.Read(offset);
+            if(RequiresLock(offset))
+            {
+                lock(sync)
+                {
+                    return aRegionRegisters.Read(offset);
+                }
+            }
+            else
+            {
+                return aRegionRegisters.Read(offset);
+            }
         }
 
         [ConnectionRegion("aInstance")]
         public void WriteDoubleWordFromAInstance(long offset, uint value)
         {
             this.DebugLog("Writing value to aInstance region");
-            aRegionRegisters.Write(offset, value);
+            if(RequiresLock(offset))
+            {
+                lock(sync)
+                {
+                    aRegionRegisters.Write(offset, value);
+                }
+            }
+            else
+            {
+                aRegionRegisters.Write(offset, value);
+            }
         }
 
         [ConnectionRegion("bInstance")]
         public uint ReadDoubleWordFromBInstance(long offset)
         {
             this.DebugLog("Reading value from bInstance region");
-            return bRegionRegisters.Read(offset);
+            if(RequiresLock(offset))
+            {
+                lock(sync)
+                {
+                    return bRegionRegisters.Read(offset);
+                }
+            }
+            else
+            {
+                return bRegionRegisters.Read(offset);
+            }
         }
 
         [ConnectionRegion("bInstance")]
         public void WriteDoubleWordFromBInstance(long offset, uint value)
         {
             this.DebugLog("Writing value to bInstance region");
-            bRegionRegisters.Write(offset, value);
+            if(RequiresLock(offset))
+            {
+                lock(sync)
+                {
+                    bRegionRegisters.Write(offset, value);
+                }
+            }
+            else
+            {
+                bRegionRegisters.Write(offset, value);
+            }
         }
 
         public GPIO AInstanceIRQ { get; }
 
         public GPIO BInstanceIRQ { get; }
 
-        private DoubleWordRegisterCollection DefineRegionRegisters(InstanceData mySide, InstanceData otherSide)
+        private static bool RequiresLock(long offset) =>
+            offset == (long)Registers.GeneralPurposeControl ||
+            offset == (long)Registers.GeneralPurposeStatus;
+
+        private DoubleWordRegisterCollection DefineRegionRegisters(InstanceData mySide, InstanceData otherSide, GPIO myIRQ, GPIO otherIRQ)
         {
             var collection = new DoubleWordRegisterCollection(this);
 
@@ -115,23 +160,40 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(FLAGS_COUNT, 29)
                 .WithFlags(0, FLAGS_COUNT, FieldMode.Read, valueProviderCallback: (idx, _) => otherSide.Flags[idx].Value, name: "Fn");
             Registers.GeneralPurposeInterruptEnable.Define(collection)
-                .WithReservedBits(4, 28)
-                .WithTaggedFlag("GIE3", 3)
-                .WithTaggedFlag("GIE2", 2)
-                .WithTaggedFlag("GIE1", 1)
-                .WithTaggedFlag("GIE0", 0);
+                .WithReservedBits(GP_FLAGS_COUNT, 28)
+                .WithFlags(0, GP_FLAGS_COUNT, out mySide.GeneralPurposeInterruptEnable, name: "GIEn");
             Registers.GeneralPurposeControl.Define(collection)
                 .WithReservedBits(4, 28)
-                .WithTaggedFlag("GIR3", 3)
-                .WithTaggedFlag("GIR2", 2)
-                .WithTaggedFlag("GIR1", 1)
-                .WithTaggedFlag("GIR0", 0);
+                .WithFlags(0, GP_FLAGS_COUNT, out mySide.GeneralPurposeControl,
+                    writeCallback: (index, _, value) =>
+                    {
+                        if(value)
+                        {
+                            mySide.GeneralPurposeControl[index].Value = true;
+                            otherSide.GeneralPurposeStatus[index].Value = true;
+                            // Trigger interrupt on other side iff other.GIER is set
+                            if(otherSide.GeneralPurposeInterruptEnable[index].Value)
+                            {
+                                otherIRQ.Set();
+                            }
+                        }
+                    },
+                    name: "GIRn"
+                );
             Registers.GeneralPurposeStatus.Define(collection)
                 .WithReservedBits(4, width: 28)
-                .WithTaggedFlag("GIP3", 3)
-                .WithTaggedFlag("GIP2", 2)
-                .WithTaggedFlag("GIP1", 1)
-                .WithTaggedFlag("GIP0", 0);
+                .WithFlags(0, GP_FLAGS_COUNT, out mySide.GeneralPurposeStatus,
+                    writeCallback: (index, _, value) =>
+                    {
+                        if(value)
+                        {
+                            mySide.GeneralPurposeStatus[index].Value = false;
+                            otherSide.GeneralPurposeControl[index].Value = false;
+                            myIRQ.Unset();
+                        }
+                    },
+                    name: "GIPn"
+                );
             Registers.TransmitControl.Define(collection)
                 .WithReservedBits(TXRX_WORDS_COUNT, 28)
                 .WithFlags(0, TXRX_WORDS_COUNT, out mySide.TransmitInterruptEnable, name: "TIEn")
@@ -189,9 +251,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private readonly InstanceData bInstanceData;
         private readonly DoubleWordRegisterCollection aRegionRegisters;
         private readonly DoubleWordRegisterCollection bRegionRegisters;
-
+        private readonly object sync;
         private const int FLAGS_COUNT = 3;
         private const int TXRX_WORDS_COUNT = 4;
+        private const int GP_FLAGS_COUNT = 4;
 
         private class InstanceData
         {
@@ -236,6 +299,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             public IValueRegisterField[] TransmitWords;
             public IFlagRegisterField[] TransmitEmptyStatus;
             public IFlagRegisterField[] ReceiveFullStatus;
+
+            public IFlagRegisterField[] GeneralPurposeControl;
+            public IFlagRegisterField[] GeneralPurposeStatus;
+            public IFlagRegisterField[] GeneralPurposeInterruptEnable;
         }
 
         private enum Registers
