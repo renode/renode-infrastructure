@@ -99,6 +99,29 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public void RemoveHooks(CpuAddressHook callback)
+        {
+            lock(hooks)
+            {
+                foreach(var kvp in hooks.ToList())
+                {
+                    var addr = kvp.Key;
+                    var hook = kvp.Value;
+
+                    RemoveCallback(hook, callback);
+                    if(!hook.Callbacks.Any())
+                    {
+                        hooks.Remove(addr);
+                    }
+                }
+                if(!hooks.Any(x => !x.Value.IsActive))
+                {
+                    isAnyInactive = false;
+                }
+                HookStateChangedCallback();
+            }
+        }
+
         public void RemoveAllHooks()
         {
             lock(hooks)

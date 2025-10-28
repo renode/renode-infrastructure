@@ -133,6 +133,14 @@ namespace Antmicro.Renode.Peripherals.CPU
             hooks.Clear();
         }
 
+        public void RemoveHooks(CpuAddressHook hookToRemove)
+        {
+            foreach(var hook in hooks.Values.Where(x => x.Contains(hookToRemove)))
+            {
+                hook.Remove(hookToRemove);
+            }
+        }
+
         public void SetRegister(int register, RegisterValue value)
         {
             SetRegisterValue((Registers)register, (uint)value.RawValue);

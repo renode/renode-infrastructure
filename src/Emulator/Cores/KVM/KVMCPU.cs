@@ -133,9 +133,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         public void AddHook(ulong addr, CpuAddressHook hook) => hooks.AddHook(addr, hook);
+
         public void RemoveHook(ulong addr, CpuAddressHook hook) => hooks.RemoveHook(addr, hook);
 
         public void RemoveHooksAt(ulong addr) => hooks.RemoveHooksAt(addr);
+
+        public void RemoveHooks(CpuAddressHook hook) => hooks.RemoveHooks(hook);
 
         public void RemoveAllHooks() => hooks.RemoveAllHooks();
 

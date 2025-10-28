@@ -765,6 +765,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void RemoveHooksAt(ulong addr) => hooks.RemoveHooksAt(addr);
 
+        public void RemoveHooks(CpuAddressHook hook) => hooks.RemoveHooks(hook);
+
         public new IEnumerator<TranslationCPU> GetEnumerator()
         {
             return Clustered.GetEnumerator();
