@@ -227,23 +227,22 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        protected void OnTcmMappingUpdate(int index, ulong newAddress)
+        protected void OnTcmMappingUpdate(int index, ulong newAddress, uint el01Enabled, uint el2Enabled)
         {
             using(ObtainGenericPauseGuard())
             {
-                var regionPeripheral = defaultTCMConfiguration
+                var tcmConfig = defaultTCMConfiguration
                     .Where(configuration => configuration.RegionIndex == index)
-                    .SingleOrDefault()
-                    ?.Memory;
+                    .SingleOrDefault();
 
-                if(regionPeripheral == null)
+                if(tcmConfig == null)
                 {
                     this.Log(LogLevel.Error, "Tried to remap non existing TCM region #{0}", index);
                     return;
                 }
 
                 var registrationPoint = machine.SystemBus
-                    .GetRegistrationPoints(regionPeripheral)
+                    .GetRegistrationPoints(tcmConfig.Memory)
                     .Where(x => x.Initiator == this)
                     .SingleOrDefault()
                 ;
@@ -255,8 +254,11 @@ namespace Antmicro.Renode.Peripherals.CPU
                 ;
 
                 machine.SystemBus
-                    .MoveRegistrationWithinContext(regionPeripheral, registrationPoint, this)
+                    .MoveRegistrationWithinContext(tcmConfig.Memory, registrationPoint, this)
                 ;
+
+                tcmConfig.El01Enabled = el01Enabled != 0;
+                tcmConfig.El2Enabled = el2Enabled != 0;
             }
         }
 

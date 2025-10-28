@@ -162,7 +162,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         public event Action<ExceptionLevel, SecurityState> ExecutionModeChanged;
 
         [Export]
-        protected void OnTcmMappingUpdate(int index, ulong newAddress)
+        protected void OnTcmMappingUpdate(int index, ulong newAddress, uint el01Enabled, uint el2Enabled)
         {
             throw new CpuAbortException($"TCM regions are not supported on {nameof(ARMv8A)}");
         }
