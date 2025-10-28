@@ -60,7 +60,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public void RegisterForEachContext(Action<BusMultiRegistration> register)
         {
-            RegisterForEachContextInner(register, cpu => new BusMultiRegistration(Range.StartAddress, Range.Size, ConnectionRegionName, stateMask: StateMask, cpu));
+            RegisterForEachContextInner(register, cpu => new BusMultiRegistration(Range.StartAddress, Range.Size, ConnectionRegionName, stateMask: StateMask, cpu, condition: Condition));
         }
 
         public string ConnectionRegionName { get; private set; }

@@ -53,7 +53,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public void RegisterForEachContext(Action<BusRangeRegistration> register)
         {
-            RegisterForEachContextInner(register, cpu => new BusRangeRegistration(Range, StateMask, Offset, cpu));
+            RegisterForEachContextInner(register, cpu => new BusRangeRegistration(Range, StateMask, Offset, cpu, condition: Condition));
         }
 
         public override bool Equals(object obj)
