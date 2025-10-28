@@ -816,6 +816,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             return Clustered.GetEnumerator();
         }
 
+        // This method is overriden only to add [Export] attribute
+        [Export]
+        public override uint CheckExternalPermissions(ulong address)
+        {
+            return 1;
+        }
+
         public abstract void SetRegister(int register, RegisterValue value);
 
         public abstract RegisterValue GetRegister(int register);
@@ -1450,6 +1457,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         protected Action<int> TlibRequestTranslationBlockInterrupt;
+
+        [Import]
+        protected readonly Action<ulong, ulong, uint> TlibEnableExternalPermissionHandlerForRange;
 #pragma warning restore 649
 
         /*

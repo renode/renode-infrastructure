@@ -79,3 +79,4 @@ EXTERNAL_AS(void, OnMassBroadcastDirty, tlib_mass_broadcast_dirty, voidptr, int3
 EXTERNAL_AS(voidptr, GetDirty, tlib_get_dirty_addresses_list, voidptr)
 EXTERNAL_AS(void, OnWfiStateChange, tlib_on_wfi_state_change, int32_t)
 EXTERNAL_AS(uint32_t, IsMemoryDisabled, tlib_is_memory_disabled, uint64_t, uint64_t)
+EXTERNAL_AS(uint32_t, CheckExternalPermissions, tlib_check_external_permissions, uint64_t)

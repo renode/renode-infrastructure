@@ -168,6 +168,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             return Clustered.GetEnumerator();
         }
 
+        public virtual uint CheckExternalPermissions(ulong address)
+        {
+            return 1;
+        }
+
         public abstract ExecutionResult ExecuteInstructions(ulong numberOfInstructionsToExecute, out ulong numberOfExecutedInstructions);
 
         public bool DebuggerConnected { get; set; }
