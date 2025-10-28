@@ -107,7 +107,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             machine.UnregisterAsAChildOf(this, peripheral);
         }
 
-        public ExceptionLevel ExceptionLevel => exceptionLevel;
+        public ExceptionLevel ExceptionLevel { get; private set; }
 
         // ARMv8R AArch32 cores always execute in NonSecure mode ("Arm Architecture Reference Manual Supplement Armv8, for the Armv8-R AArch32 architecture profile" - A1.3.1)
         // ARMv8R AArch64 cores always execute in Secure mode ("Arm Architecture Reference Manual Supplement Armv8, for R-profile AArch64 architecture" - C1.11 and A1.3)
@@ -296,7 +296,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         private void OnExecutionModeChanged(uint el, uint isSecure)
         {
-            exceptionLevel = (ExceptionLevel)el;
+            ExceptionLevel = (ExceptionLevel)el;
             // ARMv8R cores cannot change security state (Architecture Manual mandates it)
             DebugHelper.Assert((isSecure != 0 ? SecurityState.Secure : SecurityState.NonSecure) == SecurityState, $"{nameof(ARMv8R)} should not change its Security State.");
         }
@@ -322,7 +322,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        private ExceptionLevel exceptionLevel;
         private ARM_GenericTimer timer;
 
 #pragma warning disable 649
