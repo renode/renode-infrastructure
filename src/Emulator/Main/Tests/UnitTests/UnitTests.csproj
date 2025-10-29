@@ -106,6 +106,7 @@
     <Compile Include="AccessConditionParserTests.cs" />
     <Compile Include="DmaEngineTests.cs" />
     <Compile Include="DataStorageTests.cs" />
+    <Compile Include="Mocks\MockClockSource.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System" />
