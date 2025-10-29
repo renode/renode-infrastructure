@@ -48,6 +48,12 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     return;
                 }
+
+                if(Mode == WorkMode.OneShot)
+                {
+                    enableRequested = false;
+                }
+
                 Limit = autoReloadValue;
 
                 for(var i = 0; i < NumberOfCCChannels; ++i)
