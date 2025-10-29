@@ -107,6 +107,25 @@ namespace Antmicro.Renode.Peripherals.CPU
             machine.UnregisterAsAChildOf(this, peripheral);
         }
 
+        [Export]
+        public override uint CheckExternalPermissions(ulong address)
+        {
+            var target = machine.SystemBus.WhatIsAt(address, this);
+            foreach(var tcm in defaultTCMConfiguration)
+            {
+                if(target?.Peripheral == tcm.Memory)
+                {
+                    var accessGranted = ExceptionLevel == ExceptionLevel.EL3_MonitorMode ||
+                                        (ExceptionLevel == ExceptionLevel.EL2_HypervisorMode && tcm.El2Enabled) ||
+                                        ((int)ExceptionLevel < 2 && tcm.El01Enabled);
+
+                    return accessGranted ? 1U : 0U;
+                }
+            }
+
+            return 1U;
+        }
+
         public ExceptionLevel ExceptionLevel { get; private set; }
 
         // ARMv8R AArch32 cores always execute in NonSecure mode ("Arm Architecture Reference Manual Supplement Armv8, for the Armv8-R AArch32 architecture profile" - A1.3.1)
@@ -259,6 +278,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                 tcmConfig.El01Enabled = el01Enabled != 0;
                 tcmConfig.El2Enabled = el2Enabled != 0;
+
+                var areAllElEnabled = el01Enabled != 0 && el2Enabled != 0;
+                TlibEnableExternalPermissionHandlerForRange(newAddress, tcmConfig.Size, areAllElEnabled ? 0U : 1U);
             }
         }
 
