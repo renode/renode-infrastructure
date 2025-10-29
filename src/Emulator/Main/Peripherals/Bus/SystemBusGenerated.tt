@@ -26,6 +26,7 @@
 */
 
 using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
@@ -210,7 +211,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 #>
             if(type == typeof(<#=type#>))
             {
-                foreach(var peripherals in allPeripherals)
+                foreach(var peripherals in AllPeripherals)
                 {
                     peripherals.VisitAccessMethods(peripheral, pam =>
                     {
