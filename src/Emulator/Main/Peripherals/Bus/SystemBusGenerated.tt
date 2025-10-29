@@ -48,6 +48,16 @@ namespace Antmicro.Renode.Peripherals.Bus
         public <#= type #> Read<#= name #>(ulong address, IPeripheral context = null, ulong? cpuState = null)
         {
             var accessWidth = SysbusAccessWidth.<#=name#>;
+            if(context is BaseCPU cpu && cpu.CheckExternalPermissions(address) == 0)
+            {
+                this.WarningLog(
+                    "Tried to read {0} bytes at 0x{1:X}, with incorrect permissions, returning 0.",
+                    (uint)accessWidth,
+                    address
+                );
+                return 0;
+            }
+
             if(IsAddressRangeLocked(address.By((ulong)accessWidth), context))
             {
                 this.Log(LogLevel.Warning, "Tried to read {0} bytes at 0x{1:X} which is inside a locked address range, returning 0",
@@ -114,6 +124,16 @@ namespace Antmicro.Renode.Peripherals.Bus
         public void Write<#=name#>(ulong address, <#=type#> value, IPeripheral context = null, ulong? cpuState = null)
         {
             var accessWidth = SysbusAccessWidth.<#=name#>;
+            if(context is BaseCPU cpu && cpu.CheckExternalPermissions(address) == 0)
+            {
+                this.WarningLog(
+                    "Tried to write {0} bytes at 0x{1:X}, with incorrect permissions, write ignored.",
+                    (uint)accessWidth,
+                    address
+                );
+                return;
+            }
+
             if(IsAddressRangeLocked(address.By((ulong)accessWidth), context))
             {
                 this.Log(LogLevel.Warning, "Tried to write {0} bytes (0x{1:X}) at 0x{2:X} which is inside a locked address range, write ignored",

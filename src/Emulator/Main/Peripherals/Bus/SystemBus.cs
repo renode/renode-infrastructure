@@ -869,6 +869,16 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public void WriteBytes(byte[] bytes, ulong address, int startingIndex, long count, bool onlyMemory = false, IPeripheral context = null)
         {
+            if(context is BaseCPU cpu && cpu.CheckExternalPermissions(address) == 0)
+            {
+                this.WarningLog(
+                    "Tried to write {0} bytes at 0x{1:X}, with incorrect permissions, write ignored.",
+                    count,
+                    address
+                );
+                return;
+            }
+
             using(SetLocalContext(context))
             {
                 var targets = FindTargets(address, checked((ulong)count), context);
@@ -920,6 +930,16 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public void ReadBytes(ulong address, int count, byte[] destination, int startIndex, bool onlyMemory = false, IPeripheral context = null)
         {
+            if(context is BaseCPU cpu && cpu.CheckExternalPermissions(address) == 0)
+            {
+                this.WarningLog(
+                    "Tried to read {0} bytes at 0x{1:X}, with incorrect permissions, returning 0.",
+                    count,
+                    address
+                );
+                return;
+            }
+
             using(SetLocalContext(context))
             {
                 var targets = FindTargets(address, checked((ulong)count), context);
