@@ -102,13 +102,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             return table.ToArray();
         }
 
-        public byte ReadByte(long offset)
+        public virtual byte ReadByte(long offset)
         {
             RaiseLoadAccessFault(offset, SysbusAccessWidth.Byte);
             return 0x0;
         }
 
-        public ushort ReadWord(long offset)
+        public virtual ushort ReadWord(long offset)
         {
             RaiseLoadAccessFault(offset, SysbusAccessWidth.Word);
             return 0x0;
@@ -146,12 +146,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
-        public void WriteByte(long offset, byte value)
+        public virtual void WriteByte(long offset, byte value)
         {
             RaiseStoreAccessFault(offset, value, SysbusAccessWidth.Byte);
         }
 
-        public void WriteWord(long offset, ushort value)
+        public virtual void WriteWord(long offset, ushort value)
         {
             RaiseStoreAccessFault(offset, value, SysbusAccessWidth.Word);
         }
