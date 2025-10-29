@@ -674,25 +674,25 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
-        public void LogAllPeripheralsAccess(bool enable = true)
+        public void LogAllPeripheralsAccess(bool enable = true, bool silent = false)
         {
-            EnableAllPeripheralAccessWrappers(typeof(ReadLoggingWrapper<>), typeof(WriteLoggingWrapper<>), enable, "Logging");
+            EnableAllPeripheralAccessWrappers(typeof(ReadLoggingWrapper<>), typeof(WriteLoggingWrapper<>), enable, "Logging", silent);
         }
 
-        public void LogPeripheralAccess(IBusPeripheral busPeripheral, bool enable = true)
+        public void LogPeripheralAccess(IBusPeripheral busPeripheral, bool enable = true, bool silent = false)
         {
-            EnablePeripheralAccessWrappers(busPeripheral, typeof(ReadLoggingWrapper<>), typeof(WriteLoggingWrapper<>), enable, "Logging");
+            EnablePeripheralAccessWrappers(busPeripheral, typeof(ReadLoggingWrapper<>), typeof(WriteLoggingWrapper<>), enable, "Logging", silent);
         }
 
-        public void EnableAllPeripheralAccessWrappers(Type readWrapper, Type writeWrapper, bool enable = true, string name = null)
+        public void EnableAllPeripheralAccessWrappers(Type readWrapper, Type writeWrapper, bool enable = true, string name = null, bool silent = false)
         {
             foreach(var p in AllPeripherals.SelectMany(x => x.Peripherals))
             {
-                EnablePeripheralAccessWrappers(p.Peripheral, readWrapper, writeWrapper, enable, name);
+                EnablePeripheralAccessWrappers(p.Peripheral, readWrapper, writeWrapper, enable, name, silent);
             }
         }
 
-        public void EnablePeripheralAccessWrappers(IBusPeripheral busPeripheral, Type readWrapper, Type writeWrapper, bool enable = true, string name = null)
+        public void EnablePeripheralAccessWrappers(IBusPeripheral busPeripheral, Type readWrapper, Type writeWrapper, bool enable = true, string name = null, bool silent = false)
         {
             foreach(var peripherals in AllPeripherals)
             {
@@ -700,7 +700,10 @@ namespace Antmicro.Renode.Peripherals.Bus
                 {
                     if(enable == pam.HasWrappersOfType(readWrapper, writeWrapper))
                     {
-                        busPeripheral.Log(LogLevel.Info, "{0} is already {1}", name ?? $"The {readWrapper} wrapper", enable ? "enabled" : "disabled");
+                        if(!silent)
+                        {
+                            busPeripheral.Log(LogLevel.Info, "{0} is already {1}", name ?? $"The {readWrapper} wrapper", enable ? "enabled" : "disabled");
+                        }
                     }
                     else if(enable)
                     {
