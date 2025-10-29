@@ -252,14 +252,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         // "non-word sized/aligned loads cause a load access fault exception"
         protected void RaiseLoadAccessFault(long offset, SysbusAccessWidth width)
         {
-            this.ErrorLog("Attempted {0} read from 0x{1:X} isn't supported, raising access fault", width, offset);
+            this.WarningLog("Attempted {0} read from 0x{1:X} isn't supported, raising access fault", width, offset);
             cpu.RaiseExceptionWithSecondaryCause((uint)BaseRiscV.ExceptionCodes.LoadAccessFault, PICAccessErrorSecondaryCause);
         }
 
         // "non-word sized/aligned stores cause a store/AMO access fault exception"
         protected void RaiseStoreAccessFault(long offset, ushort value, SysbusAccessWidth width)
         {
-            this.ErrorLog("Attempted {0} write to 0x{1:X} (value: 0x{2:X}) isn't supported, raising access fault", width, offset, value);
+            this.WarningLog("Attempted {0} write to 0x{1:X} (value: 0x{2:X}) isn't supported, raising access fault", width, offset, value);
             cpu.RaiseExceptionWithSecondaryCause((uint)BaseRiscV.ExceptionCodes.StoreAccessFault, PICAccessErrorSecondaryCause);
         }
 
