@@ -65,6 +65,8 @@ namespace Antmicro.Renode.Peripherals.MTD
 
         public void TriggerDoubleEccError(int bankId) => TriggerError(bankId, Error.DoubleECC);
 
+        public void TriggerInconsistencyError(int bankId) => TriggerError(bankId, Error.Inconsistency);
+
         public GPIO IRQ { get; } = new GPIO();
 
         public long Size => 0x1000;
@@ -210,6 +212,7 @@ namespace Antmicro.Renode.Peripherals.MTD
             Operation,
             SingleECC,
             DoubleECC,
+            Inconsistency,
         }
 
         private class Bank
@@ -254,6 +257,9 @@ namespace Antmicro.Renode.Peripherals.MTD
                     break;
                 case Error.DoubleECC:
                     bankDoubleEccErrorStatus.Value = true;
+                    break;
+                case Error.Inconsistency:
+                    bankInconsistencyErrorStatus.Value = true;
                     break;
                 default:
                     parent.WarningLog("Invalid error type {0}. Ignoring operation.", error);
