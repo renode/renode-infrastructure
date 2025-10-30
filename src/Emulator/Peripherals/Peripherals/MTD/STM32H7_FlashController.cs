@@ -9,6 +9,7 @@ using System.Linq;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Logging.Profiling;
 using Antmicro.Renode.Peripherals.Bus;
@@ -55,6 +56,8 @@ namespace Antmicro.Renode.Peripherals.MTD
             }
             base.WriteDoubleWord(offset, value);
         }
+
+        public void TriggerProgrammingSequenceError(int bankId) => TriggerError(bankId, Error.ProgrammingSequence);
 
         public GPIO IRQ { get; } = new GPIO();
 
@@ -114,6 +117,16 @@ namespace Antmicro.Renode.Peripherals.MTD
             {
                 bank.DefineRegisters();
             }
+        }
+
+        private void TriggerError(int bankId, Error error)
+        {
+            if(bankId < 1 || bankId > NrOfBanks)
+            {
+                throw new RecoverableException($"Bank ID must be in range [1, {NrOfBanks}]. Ignoring operation.");
+            }
+
+            banks[bankId - 1].TriggerError(error);
         }
 
         private void UpdateInterrupts()
@@ -185,6 +198,11 @@ namespace Antmicro.Renode.Peripherals.MTD
 
         private const int NrOfBanks = 2;
 
+        public enum Error
+        {
+            ProgrammingSequence,
+        }
+
         private class Bank
         {
             public Bank(STM32H7_FlashController parent, int id, MappedMemory memory)
@@ -210,6 +228,20 @@ namespace Antmicro.Renode.Peripherals.MTD
             {
                 bankEraseRequest.Value = true;
                 BankErase();
+            }
+
+            public void TriggerError(Error error)
+            {
+                switch(error)
+                {
+                case Error.ProgrammingSequence:
+                    bankProgrammingErrorStatus.Value = true;
+                    break;
+                default:
+                    parent.WarningLog("Invalid error type {0}. Ignoring operation.", error);
+                    return;
+                }
+                parent.UpdateInterrupts();
             }
 
             public void HandleMemoryProgramWrite(IPeripheral writeTarget, ulong address, uint width)
