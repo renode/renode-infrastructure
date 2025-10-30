@@ -61,6 +61,8 @@ namespace Antmicro.Renode.Peripherals.MTD
 
         public void TriggerOperationError(int bankId) => TriggerError(bankId, Error.Operation);
 
+        public void TriggerSingleEccError(int bankId) => TriggerError(bankId, Error.SingleECC);
+
         public GPIO IRQ { get; } = new GPIO();
 
         public long Size => 0x1000;
@@ -204,6 +206,7 @@ namespace Antmicro.Renode.Peripherals.MTD
         {
             ProgrammingSequence,
             Operation,
+            SingleECC,
         }
 
         private class Bank
@@ -242,6 +245,9 @@ namespace Antmicro.Renode.Peripherals.MTD
                     break;
                 case Error.Operation:
                     bankOperationErrorStatus.Value = true;
+                    break;
+                case Error.SingleECC:
+                    bankSingleEccErrorStatus.Value = true;
                     break;
                 default:
                     parent.WarningLog("Invalid error type {0}. Ignoring operation.", error);
@@ -337,7 +343,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                     .WithFlag(22, out bankOperationErrorIrqEnable, name: $"OPERRIE{Id}")
                     .WithTaggedFlag($"RDPERRIE{Id}", 23)
                     .WithTaggedFlag($"RDSERRIE{Id}", 24)
-                    .WithTaggedFlag($"SNECCERRIE{Id}", 25)
+                    .WithFlag(25, out bankSingleEccErrorIrqEnable, name: $"SNECCERRIE{Id}")
                     .WithTaggedFlag($"DBECCERRIE{Id}", 26)
                     .WithTaggedFlag($"CRCENDIE{Id}", 27)
                     .WithTaggedFlag($"CRCRDERRIE{Id}", 28)
@@ -359,7 +365,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                     .WithFlag(22, out bankOperationErrorStatus, FieldMode.Read, name: $"OPERR{Id}")
                     .WithTaggedFlag($"RDPERR{Id}", 23)
                     .WithTaggedFlag($"RDSERR{Id}", 24)
-                    .WithTaggedFlag($"SNECCERR{Id}", 25)
+                    .WithFlag(25, out bankSingleEccErrorStatus, FieldMode.Read, name: $"SNECCERR{Id}")
                     .WithTaggedFlag($"DBECCERR{Id}", 26)
                     .WithTaggedFlag($"CRCEND{Id}", 27)
                     .WithReservedBits(28, 4);
@@ -379,7 +385,8 @@ namespace Antmicro.Renode.Peripherals.MTD
                         writeCallback: (_, val) => { if(val) bankOperationErrorStatus.Value = false; })
                     .WithTaggedFlag($"CLR_RDPERR{Id}", 23)
                     .WithTaggedFlag($"CLR_RDSERR{Id}", 24)
-                    .WithTaggedFlag($"CLR_SNECCERR{Id}", 25)
+                    .WithFlag(25, FieldMode.Set, name: $"CLR_SNECCERR{Id}",
+                        writeCallback: (_, val) => { if(val) bankSingleEccErrorStatus.Value = false; })
                     .WithTaggedFlag($"CLR_DBECCERR{Id}", 26)
                     .WithTaggedFlag($"CLR_CRCEND{Id}", 27)
                     .WithReservedBits(28, 4)
@@ -399,7 +406,8 @@ namespace Antmicro.Renode.Peripherals.MTD
             public bool IrqStatus => (bankEndOfProgramIrqEnabled.Value && bankEndOfProgramIrqStatus.Value) ||
                                      (bankInconsistencyErrorIrqEnable.Value && bankInconsistencyErrorStatus.Value) ||
                                      (bankProgrammingErrorIrqEnable.Value && bankProgrammingErrorStatus.Value) ||
-                                     (bankOperationErrorIrqEnable.Value && bankOperationErrorStatus.Value);
+                                     (bankOperationErrorIrqEnable.Value && bankOperationErrorStatus.Value) ||
+                                     (bankSingleEccErrorIrqEnable.Value && bankSingleEccErrorStatus.Value);
 
             public bool WriteEnabled => bankWriteEnabled.Value;
 
@@ -469,6 +477,8 @@ namespace Antmicro.Renode.Peripherals.MTD
             private IFlagRegisterField bankProgrammingErrorStatus;
             private IFlagRegisterField bankOperationErrorIrqEnable;
             private IFlagRegisterField bankOperationErrorStatus;
+            private IFlagRegisterField bankSingleEccErrorIrqEnable;
+            private IFlagRegisterField bankSingleEccErrorStatus;
 
             private byte bankWriteProtectionCurrentValue;
             private int bankWriteBufferCounter;
