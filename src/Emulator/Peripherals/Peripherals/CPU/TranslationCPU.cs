@@ -372,6 +372,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override void Dispose()
         {
+            // Prevent trying to release unmanaged resources if we have already disposed them
+            if(disposed)
+            {
+                return;
+            }
+            disposed = true;
             base.Dispose();
             profiler?.Dispose();
             localAtomicState?.Dispose();
@@ -2116,6 +2122,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Transient]
         private LLVMDisassembler disassembler;
+
+        [Transient]
+        private bool disposed;
 
         private string logFile;
         private bool isAnyInactiveHook;
