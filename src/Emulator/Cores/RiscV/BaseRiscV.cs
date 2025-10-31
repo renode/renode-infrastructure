@@ -783,29 +783,50 @@ namespace Antmicro.Renode.Peripherals.CPU
             PreStackAccessHook(address, width, isWrite > 0);
         }
 
+        // Similar logic to mtvec_stvec_write_handler from tlib/arch/riscv/op_helper.c
         private RegisterValue HandleMTVEC_STVECWrite(RegisterValue value, string registerName)
         {
+            var modifiedValue = value.RawValue;
+            var interruptModeBits = BitHelper.GetValue(value.RawValue, offset: 0, size: 2);
+
             switch(interruptMode)
             {
-            case InterruptMode.Direct:
-                if((value.RawValue & 0x3) != 0x0)
+            case InterruptMode.Auto:
+                if(interruptModeBits != 0x0)
                 {
-                    var originalValue = value;
-                    value = RegisterValue.Create(BitHelper.ReplaceBits(value.RawValue, 0x0, width: 2), value.Bits);
-                    this.Log(LogLevel.Warning, "CPU is configured in the Direct interrupt mode, modifying {2} to 0x{0:X} (tried to set 0x{1:X})", value.RawValue, originalValue.RawValue, registerName);
+                    switch(privilegedArchitecture)
+                    {
+                    case PrivilegedArchitecture.PrivUnratified:
+                        break;
+                    case PrivilegedArchitecture.Priv1_09:
+                        BitHelper.ClearBits(ref modifiedValue, position: 0, width: 2);
+                        break;
+                    default:
+                        BitHelper.ClearBits(ref modifiedValue, position: 1, width: 1);
+                        break;
+                    }
                 }
                 break;
-
-            case InterruptMode.Vectored:
-                if((value.RawValue & 0x3) != 0x1)
+            case InterruptMode.Direct:
+                if(interruptModeBits != 0x0)
                 {
-                    var originalValue = value;
-                    value = RegisterValue.Create(BitHelper.ReplaceBits(value.RawValue, 0x1, width: 2), value.Bits);
-                    this.Log(LogLevel.Warning, "CPU is configured in the Vectored interrupt mode, modifying {2}  to 0x{0:X} (tried to set 0x{1:X})", value.RawValue, originalValue.RawValue, registerName);
+                    BitHelper.ClearBits(ref modifiedValue, position: 0, width: 2);
+                }
+                break;
+            case InterruptMode.Vectored:
+                if(interruptModeBits != 0x1)
+                {
+                    modifiedValue = BitHelper.ReplaceBits(value.RawValue, 0x1, width: 2);
                 }
                 break;
             }
 
+            if(modifiedValue != value.RawValue)
+            {
+                this.Log(LogLevel.Warning, "CPU is configured in the {3} interrupt mode, modifying {2} to 0x{0:X} (tried to set 0x{1:X})",
+                        modifiedValue, value.RawValue, registerName, interruptMode);
+                value = RegisterValue.Create(modifiedValue, value.Bits);
+            }
             return value;
         }
 
