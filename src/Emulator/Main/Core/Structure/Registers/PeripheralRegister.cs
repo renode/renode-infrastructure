@@ -12,6 +12,7 @@ using System.Linq;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Utilities.Packets;
 
 namespace Antmicro.Renode.Core.Structure.Registers
 {
@@ -610,6 +611,48 @@ namespace Antmicro.Renode.Core.Structure.Registers
             ThrowIfRangeIllegal(position, width, name);
             ThrowIfZeroWidth(position, width, name);
             var field = new EnumRegisterField<TEnum>(this, position, width, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, name);
+            registerFields.Add(field);
+            if(!softResettable)
+            {
+                MarkNonResettable(position, width);
+            }
+            RecalculateFieldMask();
+            return field;
+        }
+
+        /// <summary>
+        /// Defines the packet field. Its value is interpreted as a Packet struct.
+        /// </summary>
+        /// <param name="position">Offset in the register.</param>
+        /// <param name="width">Maximum width of the value, in terms of binary representation.</param>
+        /// <param name="mode">Access modifiers of this field.</param>
+        /// <param name="readCallback">Method to be called whenever the containing register is read. The first parameter is the value of this field before read,
+        /// the second parameter is the value after read. Note that it will also be called for unreadable fields.</param>
+        /// <param name="writeCallback">Method to be called whenever the containing register is written to. The first parameter is the value of this field before write,
+        /// the second parameter is the value written (without any modification). Note that it will also be called for unwritable fields.</param>
+        /// <param name="changeCallback">Method to be called whenever this field's value is changed, either due to read or write. The first parameter is the value of this field before change,
+        /// the second parameter is the value after change. Note that it will also be called for unwritable fields.</param>
+        /// <param name="valueProviderCallback">Method to be called whenever this field is read. The value passed is the current field's value, that will be overwritten by
+        /// the value returned from it. This returned value is eventually passed as the first parameter of <paramref name="readCallback"/>.</param>
+        /// <param name="softResettable">Indicates whether the field should be cleared by soft reset.</param>
+        /// <param name="name">Ignored parameter, for convenience. Treat it as a comment.</param>
+        public IPacketRegisterField<TPacket> DefinePacketField<TPacket>(int position, int width, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<TPacket, TPacket> readCallback = null,
+            Action<TPacket, TPacket> writeCallback = null, Action<TPacket, TPacket> changeCallback = null, Func<TPacket, TPacket> valueProviderCallback = null, bool softResettable = true,
+            string name = null)
+            where TPacket : struct
+        {
+            ThrowIfRangeIllegal(position, width, name);
+            ThrowIfZeroWidth(position, width, name);
+            var pktBits = Packet.CalculateBitLength<TPacket>();
+            if(pktBits < 1 || pktBits > 64)
+            {
+                throw new ArgumentException($"Packet type {typeof(TPacket)} has length {pktBits} which is outside of the range [1; 64]");
+            }
+            if(width > pktBits)
+            {
+                throw new ArgumentException($"Field width ({width} bits) is larger than the packet {typeof(TPacket)} width ({pktBits} bits)");
+            }
+            var field = new PacketRegisterField<TPacket>(this, position, width, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, name);
             registerFields.Add(field);
             if(!softResettable)
             {

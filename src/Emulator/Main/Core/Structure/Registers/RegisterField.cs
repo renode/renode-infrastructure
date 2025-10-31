@@ -9,6 +9,7 @@ using System;
 
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Utilities.Packets;
 
 namespace Antmicro.Renode.Core.Structure.Registers
 {
@@ -72,6 +73,28 @@ namespace Antmicro.Renode.Core.Structure.Registers
             protected override ulong ToBinary(TEnum value)
             {
                 return EnumConverter<TEnum>.ToUInt64(value);
+            }
+        }
+
+        private sealed class PacketRegisterField<TPacket> : RegisterField<TPacket>, IPacketRegisterField<TPacket> where TPacket : struct
+        {
+            public PacketRegisterField(PeripheralRegister parent, int position, int width, FieldMode fieldMode, Action<TPacket, TPacket> readCallback,
+                Action<TPacket, TPacket> writeCallback, Action<TPacket, TPacket> changeCallback, Func<TPacket, TPacket> valueProviderCallback, string name)
+                : base(parent, position, width, fieldMode, readCallback, writeCallback, changeCallback, valueProviderCallback, name)
+            {
+            }
+
+            protected override TPacket FromBinary(ulong value)
+            {
+                return Packet.Decode<TPacket>(BitConverter.GetBytes(value));
+            }
+
+            protected override ulong ToBinary(TPacket value)
+            {
+                var bytes = Packet.Encode<TPacket>(value);
+                var padded = new byte[sizeof(ulong)];
+                bytes.CopyTo(padded, 0);
+                return BitConverter.ToUInt64(padded, 0);
             }
         }
 

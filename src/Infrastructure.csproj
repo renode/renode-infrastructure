@@ -1712,6 +1712,7 @@
     <Compile Include="Emulator/Main/Core/Structure/Registers/FieldMode.cs" />
     <Compile Include="Emulator/Main/Core/Structure/Registers/IEnumRegisterField.cs" />
     <Compile Include="Emulator/Main/Core/Structure/Registers/IFlagRegisterField.cs" />
+    <Compile Include="Emulator/Main/Core/Structure/Registers/IPacketRegisterField.cs" />
     <Compile Include="Emulator/Main/Core/Structure/Registers/IValueRegisterField.cs" />
     <Compile Include="Emulator/Main/Core/Structure/Registers/RegisterField.cs" />
     <Compile Include="Emulator/Main/Core/Structure/Registers/Tag.cs" />

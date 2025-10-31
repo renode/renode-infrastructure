@@ -273,6 +273,57 @@ namespace Antmicro.Renode.Core.Structure.Registers
         }
 
         /// <summary>
+        /// Fluent API for packet field creation. For parameters see <see cref="PeripheralRegister.DefinePacketField"/>.
+        /// This overload allows you to retrieve the created field via <c>packetField</c> parameter.
+        /// </summary>
+        /// <returns>This register with a defined packet field.</returns>
+        public static R WithPacketField<R, T>(this R register, int position, int width, out IPacketRegisterField<T> packetField, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<T, T> readCallback = null,
+            Action<T, T> writeCallback = null, Action<T, T> changeCallback = null, Func<T, T> valueProviderCallback = null, bool softResettable = true, string name = null) where R : PeripheralRegister
+            where T : struct
+        {
+            packetField = register.DefinePacketField<T>(position, width, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, softResettable, name);
+            return register;
+        }
+
+        /// <summary>
+        /// Fluent API for creation of set of packet fields. For parameters see the other overload of <see cref="PeripheralRegisterExtensions.WithPacketFields"/>.
+        /// </summary>
+        /// <returns>This register with defined packet fields.</returns>
+        public static R WithPacketFields<R, T>(this R register, int position, int width, int count, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<int, T, T> readCallback = null,
+            Action<int, T, T> writeCallback = null, Action<int, T, T> changeCallback = null, Func<int, T, T> valueProviderCallback = null, bool softResettable = true, string name = null)
+            where R : PeripheralRegister
+            where T : struct
+        {
+            return WithPacketFields<R, T>(register, position, width, count, out var _, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, softResettable, name);
+        }
+
+        /// <summary>
+        /// Fluent API for creation of set of packet fields. For parameters see the other overload of <see cref="PeripheralRegisterExtensions.WithPacketFields"/>.
+        /// This overload allows you to retrieve the created array of fields via <c>packetFields</c> parameter.
+        /// </summary>
+        /// <returns>This register with defined packet fields.</returns>
+        public static R WithPacketFields<R, T>(this R register, int position, int width, int count, out IPacketRegisterField<T>[] packetFields, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<int, T, T> readCallback = null,
+            Action<int, T, T> writeCallback = null, Action<int, T, T> changeCallback = null, Func<int, T, T> valueProviderCallback = null, bool softResettable = true, string name = null)
+            where R : PeripheralRegister
+            where T : struct
+        {
+            packetFields = new IPacketRegisterField<T>[count];
+            for(var i = 0; i < count; i++)
+            {
+                var j = i;
+
+                packetFields[j] = register.DefinePacketField<T>(position + (j * width), width, mode,
+                    readCallback == null ? null : (Action<T, T>)((x, y) => readCallback(j, x, y)),
+                    writeCallback == null ? null : (Action<T, T>)((x, y) => writeCallback(j, x, y)),
+                    changeCallback == null ? null : (Action<T, T>)((x, y) => changeCallback(j, x, y)),
+                    valueProviderCallback == null ? null : (Func<T, T>)((x) => valueProviderCallback(j, x)),
+                    softResettable,
+                    name == null ? null : $"{name}_{j}");
+            }
+            return register;
+        }
+
+        /// <summary>
         /// Fluent API for flag field creation. For parameters see <see cref="PeripheralRegister.DefineFlagField"/>.
         /// This overload allows you to retrieve the created field via <c>flagField</c> parameter.
         /// </summary>
