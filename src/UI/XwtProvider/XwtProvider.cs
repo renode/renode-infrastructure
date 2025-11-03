@@ -62,7 +62,7 @@ namespace Antmicro.Renode.UI
 
                 Application.Initialize(ToolkitType.Gtk3);
 #else
-                Application.Initialize(ToolkitType.Gtk);
+                Application.Initialize(ToolkitType.Gtk3);
 #endif
 #endif
                 return true;
