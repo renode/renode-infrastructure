@@ -657,8 +657,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             return base.GetExceptionDescription(exceptionIndex);
         }
 
-        [Export]
-        protected virtual ulong ReadCSR(ulong csr)
+        protected virtual ulong ReadCSRInner(ulong csr)
         {
             var readMethod = nonstandardCSR[csr].ReadOperation;
             if(readMethod == null)
@@ -669,8 +668,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             return readMethod();
         }
 
-        [Export]
-        protected virtual void WriteCSR(ulong csr, ulong value)
+        protected virtual void WriteCSRInner(ulong csr, ulong value)
         {
             var writeMethod = nonstandardCSR[csr].WriteOperation;
             if(writeMethod == null)
@@ -1121,6 +1119,18 @@ namespace Antmicro.Renode.Peripherals.CPU
                 return 0;
             }
             return externalPMP.IsAnyRegionLocked() ? 1 : 0;
+        }
+
+        [Export]
+        private ulong ReadCSR(ulong csr)
+        {
+            return ReadCSRInner(csr);
+        }
+
+        [Export]
+        private void WriteCSR(ulong csr, ulong value)
+        {
+            WriteCSRInner(csr, value);
         }
 
         private List<GDBFeatureDescriptor> gdbFeatures = new List<GDBFeatureDescriptor>();
