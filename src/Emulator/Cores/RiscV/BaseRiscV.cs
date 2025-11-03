@@ -489,6 +489,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public abstract RegisterValue VLEN { get; }
 
+        // Needs to be abstract because it uses MTVEC defined in RiscVxxRegisters.cs.
+        public abstract bool InClicMode { get; }
+
         public event Action<ulong> MipChanged;
 
         public event Action<ulong, uint, bool> PreStackAccess;
@@ -577,6 +580,17 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return indirectCsrPeripherals.Select(x => Registered.Create(x.Value, x.Key));
             }
+        }
+
+        /// <remarks>
+        /// Modifies value read using STVEC property, see Riscv(32|64)Registers for details.
+        /// </remarks>
+        protected RegisterValue AfterSTVECRead(RegisterValue value)
+        {
+            // Based on tlib/arch/riscv/op_helper.c:csr_read_helper:
+            //   case CSR_STVEC:
+            //       return env->stvec | (cpu_in_clic_mode(env) ? MTVEC_MODE_CLIC : 0);
+            return value.RawValue | (InClicMode ? 3u : 0u);
         }
 
         protected RegisterValue BeforeSTVECWrite(RegisterValue value)

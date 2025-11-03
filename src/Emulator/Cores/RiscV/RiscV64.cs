@@ -1,11 +1,12 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals.Timers;
+using Antmicro.Renode.Utilities;
 
 using Endianess = ELFSharp.ELF.Endianess;
 
@@ -35,6 +36,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         public override string Architecture { get { return "riscv64"; } }
 
         public override string GDBArchitecture { get { return "riscv:rv64"; } }
+
+        public override bool InClicMode => BitHelper.GetMaskedValue(MTVEC, 0, 2) == 3;
 
         public override RegisterValue VLEN => VLENB * 8u;
 

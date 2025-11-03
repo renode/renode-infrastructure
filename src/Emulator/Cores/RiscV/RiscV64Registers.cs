@@ -188,7 +188,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             get
             {
-                return GetRegisterValue64((int)RiscV64Registers.STVEC);
+                return AfterSTVECRead(GetRegisterValue64((int)RiscV64Registers.STVEC));
             }
 
             set
