@@ -220,6 +220,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             get
             {
 <#
+        var registerValueGetter = $"GetRegisterValue{register.Width}((int){CLASS_NAME}Registers.{register.Name})";
         if(BEFORE_READ_HOOKS.ContainsKey(register.Name))
         {
 #>
@@ -227,7 +228,18 @@ namespace Antmicro.Renode.Peripherals.CPU
 <#
         }
 #>
-                return GetRegisterValue<#=register.Width#>((int)<#=CLASS_NAME#>Registers.<#=register.Name#>);
+<#
+        if(AFTER_READ_HOOKS.ContainsKey(register.Name))
+        {
+#>
+                return <#=AFTER_READ_HOOKS[register.Name]#>(<#=registerValueGetter#>);
+<#
+        } else {
+#>
+                return <#=registerValueGetter#>;
+<#
+        }
+#>
             }
 
             set
