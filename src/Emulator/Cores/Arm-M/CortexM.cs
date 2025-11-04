@@ -111,13 +111,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return false;
             }
-            var cortexMStateObj = new ContextState
-            {
-                Privileged = (state & 1u) == 1u,
-                CpuSecure = (state & 2u) == 2u,
-                AttributionSecure = (state & 4u) == 4u
-            };
-            stateObj = cortexMStateObj;
+            stateObj = (ContextState)state.Value;
             return true;
         }
 
@@ -181,10 +175,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return false;
             }
-            state = 0u;
-            state |= (cortexMStateObj.Privileged ? 1u : 0) & 1u;
-            state |= (cortexMStateObj.CpuSecure ? 2u : 0) & 2u;
-            state |= (cortexMStateObj.AttributionSecure ? 4u : 0) & 4u;
+            state = cortexMStateObj;
             return true;
         }
 
@@ -1174,6 +1165,25 @@ namespace Antmicro.Renode.Peripherals.CPU
             public bool Privileged;
             public bool CpuSecure;
             public bool AttributionSecure;
+
+            public static implicit operator ulong(ContextState stateObj)
+            {
+                var state = 0u;
+                state |= (stateObj.Privileged ? 1u : 0) & 1u;
+                state |= (stateObj.CpuSecure ? 2u : 0) & 2u;
+                state |= (stateObj.AttributionSecure ? 4u : 0) & 4u;
+                return state;
+            }
+
+            public static implicit operator ContextState(ulong state)
+            {
+                return new ContextState
+                {
+                    Privileged = (state & 1u) == 1u,
+                    CpuSecure = (state & 2u) == 2u,
+                    AttributionSecure = (state & 4u) == 4u,
+                };
+            }
         }
 
         public struct IDAURegion
