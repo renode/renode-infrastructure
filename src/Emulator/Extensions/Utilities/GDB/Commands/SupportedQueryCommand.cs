@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
         {
             var command = new StringBuilder();
             // Trace32 extensions aren't supported by all CPUs but it shouldn't break anything.
-            command.Append(string.Format("PacketSize={0};qXfer:features:read+;swbreak+;hwbreak+;t32extensions+", 1024));
+            command.Append(string.Format("PacketSize={0};qXfer:features:read+;swbreak+;hwbreak+;t32extensions+;error-message+", 1024));
             if(manager.Machine.SystemBus.IsMultiCore)
             {
                 command.Append(";qXfer:threads:read+;vContSupported+");

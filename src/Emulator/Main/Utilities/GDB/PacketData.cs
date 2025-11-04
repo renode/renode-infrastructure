@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -25,6 +25,11 @@ namespace Antmicro.Renode.Utilities.GDB
         public static PacketData ErrorReply(Error err = Error.Unknown)
         {
             return new PacketData(string.Format("E{0}", (int)err));
+        }
+
+        public static PacketData ErrorReply(String errText)
+        {
+            return new PacketData(string.Format("E.{0}", errText));
         }
 
         public static PacketData AbortReply(int signal)
