@@ -118,6 +118,22 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 return null;
             }
             var ste = streamTable[streamId];
+            if(ste.Config == StreamConfiguration.Abort)
+            {
+                return null;
+            }
+            if(ste.Config == StreamConfiguration.Bypass)
+            {
+                var win = new MMUWindow(this)
+                {
+                    Start = ulong.MinValue,
+                    End = ulong.MaxValue,
+                    Offset = 0,
+                    Privileges = BusAccessPrivileges.Read | BusAccessPrivileges.Write | BusAccessPrivileges.Other,
+                };
+                win.AssertIsValid();
+                return win;
+            }
             var cd = ReadStruct<ContextDescriptor>(streamTable[streamId].S1ContextPtr);
             // TODO: treating UseIncoming as Privileged
             var privileged = streamTable[streamId].PRIVCFG != Privilege.Unprivileged;
