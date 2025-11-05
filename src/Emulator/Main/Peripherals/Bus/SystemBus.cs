@@ -1011,9 +1011,9 @@ namespace Antmicro.Renode.Peripherals.Bus
                 .Convert<IBusPeripheral, IMapped>();
         }
 
-        public bool IsMemory(ulong address, ICPU context = null)
+        public bool IsMemory(ulong address, ICPU context = null, ulong? initiatorState = null)
         {
-            return GetAccessiblePeripheralsForContext(context)
+            return GetAccessiblePeripheralsForContext(context, initiatorState)
                 .Any(x => x.Peripheral is IMemory && x.RegistrationPoint.Range.Contains(address));
         }
 

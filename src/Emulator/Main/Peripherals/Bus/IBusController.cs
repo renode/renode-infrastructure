@@ -132,7 +132,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         IBusRegistered<MappedMemory> FindMemory(ulong address, ICPU context = null);
 
-        bool IsMemory(ulong address, ICPU context = null);
+        bool IsMemory(ulong address, ICPU context = null, ulong? initiatorState = null);
 
         void Tag(Range range, string tag, ulong defaultValue = 0, bool pausing = false, bool silent = false, bool overridePeripheralAccesses = false);
 
