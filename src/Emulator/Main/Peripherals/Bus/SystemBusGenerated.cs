@@ -53,7 +53,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     return (byte)foundTag.DefaultValue;
                 }
 
-                if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress, cpuState))
+                if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress, out var offset, cpuState))
                 {
                     return (byte)ReportNonExistingRead(address, tag, accessWidth);
                 }
@@ -73,7 +73,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     {
                         accessMethods.SetAbsoluteAddress(address);
                     }
-                    return accessMethods.ReadByte(checked((long)(address - startAddress)));
+                    return accessMethods.ReadByte(checked((long)((address - startAddress) + offset)));
                 }
                 finally
                 {
@@ -129,7 +129,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     return;
                 }
 
-                if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress, cpuState))
+                if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress, out var offset, cpuState))
                 {
                     ReportNonExistingWrite(address, value, tag, accessWidth);
                     return;
@@ -154,7 +154,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     var invalidationCtx = delayedInvalidation ? context as IHasDelayedInvalidationContext : null;
                     using(var ctx = invalidationCtx?.EnterDelayedInvalidationContext())
                     {
-                        accessMethods.WriteByte(checked((long)(address - startAddress)), value);
+                        accessMethods.WriteByte(checked((long)((address - startAddress) + offset)), value);
                     }
                 }
                 finally
@@ -211,7 +211,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     return (ushort)foundTag.DefaultValue;
                 }
 
-                if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress, cpuState))
+                if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress, out var offset, cpuState))
                 {
                     return (ushort)ReportNonExistingRead(address, tag, accessWidth);
                 }
@@ -231,7 +231,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     {
                         accessMethods.SetAbsoluteAddress(address);
                     }
-                    return accessMethods.ReadWord(checked((long)(address - startAddress)));
+                    return accessMethods.ReadWord(checked((long)((address - startAddress) + offset)));
                 }
                 finally
                 {
@@ -287,7 +287,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     return;
                 }
 
-                if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress, cpuState))
+                if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress, out var offset, cpuState))
                 {
                     ReportNonExistingWrite(address, value, tag, accessWidth);
                     return;
@@ -312,7 +312,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     var invalidationCtx = delayedInvalidation ? context as IHasDelayedInvalidationContext : null;
                     using(var ctx = invalidationCtx?.EnterDelayedInvalidationContext())
                     {
-                        accessMethods.WriteWord(checked((long)(address - startAddress)), value);
+                        accessMethods.WriteWord(checked((long)((address - startAddress) + offset)), value);
                     }
                 }
                 finally
@@ -369,7 +369,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     return (uint)foundTag.DefaultValue;
                 }
 
-                if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress, cpuState))
+                if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress, out var offset, cpuState))
                 {
                     return (uint)ReportNonExistingRead(address, tag, accessWidth);
                 }
@@ -389,7 +389,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     {
                         accessMethods.SetAbsoluteAddress(address);
                     }
-                    return accessMethods.ReadDoubleWord(checked((long)(address - startAddress)));
+                    return accessMethods.ReadDoubleWord(checked((long)((address - startAddress) + offset)));
                 }
                 finally
                 {
@@ -445,7 +445,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     return;
                 }
 
-                if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress, cpuState))
+                if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress, out var offset, cpuState))
                 {
                     ReportNonExistingWrite(address, value, tag, accessWidth);
                     return;
@@ -470,7 +470,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     var invalidationCtx = delayedInvalidation ? context as IHasDelayedInvalidationContext : null;
                     using(var ctx = invalidationCtx?.EnterDelayedInvalidationContext())
                     {
-                        accessMethods.WriteDoubleWord(checked((long)(address - startAddress)), value);
+                        accessMethods.WriteDoubleWord(checked((long)((address - startAddress) + offset)), value);
                     }
                 }
                 finally
@@ -527,7 +527,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     return (ulong)foundTag.DefaultValue;
                 }
 
-                if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress, cpuState))
+                if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress, out var offset, cpuState))
                 {
                     return (ulong)ReportNonExistingRead(address, tag, accessWidth);
                 }
@@ -547,7 +547,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     {
                         accessMethods.SetAbsoluteAddress(address);
                     }
-                    return accessMethods.ReadQuadWord(checked((long)(address - startAddress)));
+                    return accessMethods.ReadQuadWord(checked((long)((address - startAddress) + offset)));
                 }
                 finally
                 {
@@ -603,7 +603,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     return;
                 }
 
-                if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress, cpuState))
+                if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress, out var offset, cpuState))
                 {
                     ReportNonExistingWrite(address, value, tag, accessWidth);
                     return;
@@ -628,7 +628,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     var invalidationCtx = delayedInvalidation ? context as IHasDelayedInvalidationContext : null;
                     using(var ctx = invalidationCtx?.EnterDelayedInvalidationContext())
                     {
-                        accessMethods.WriteQuadWord(checked((long)(address - startAddress)), value);
+                        accessMethods.WriteQuadWord(checked((long)((address - startAddress) + offset)), value);
                     }
                 }
                 finally
@@ -833,7 +833,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
-        private bool TryFindPeripheralAccessMethods(ulong address, IPeripheral context, out PeripheralAccessMethods accessMethods, out ulong startAddress, ulong? cpuState = null)
+        private bool TryFindPeripheralAccessMethods(ulong address, IPeripheral context, out PeripheralAccessMethods accessMethods, out ulong startAddress, out ulong offset, ulong? cpuState = null)
         {
             if(context == null)
             {
@@ -844,14 +844,14 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 if(peripheralsCollectionByContext.TryGetValue(context, cpuState, out var collection))
                 {
-                    accessMethods = collection.FindAccessMethods(address, out startAddress, out var _);
+                    accessMethods = collection.FindAccessMethods(address, out startAddress, out var _, out offset);
                     if(accessMethods != null)
                     {
                         return true;
                     }
                 }
             }
-            accessMethods = peripheralsCollectionByContext[null].FindAccessMethods(address, out startAddress, out _);
+            accessMethods = peripheralsCollectionByContext[null].FindAccessMethods(address, out startAddress, out _, out offset);
             return accessMethods != null;
         }
     }

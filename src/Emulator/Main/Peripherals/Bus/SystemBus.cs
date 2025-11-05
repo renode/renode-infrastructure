@@ -1404,7 +1404,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                         {
                             var registration = entry.RegistrationPoint;
                             var normalizedRegistration = registration.WithInitiatorAndStateMask(registration.Initiator, StateMask.AllAccess);
-                            var methods = collection.FindAccessMethods(registration.Range.StartAddress, out _, out _);
+                            var methods = collection.FindAccessMethods(registration.Range.StartAddress, out _, out _, out _);
                             if(match == null)
                             {
                                 match = new FoundRegistrationInfo(registration, collection, methods);
@@ -1948,6 +1948,14 @@ namespace Antmicro.Renode.Peripherals.Bus
                     );
                 }
 
+                if(peripheral is IKnownSize knownSizePeripheral && registrationPoint.Offset > 0)
+                {
+                    var size = (ulong)knownSizePeripheral.Size;
+                    if(registrationPoint.Offset >= size)
+                    {
+                        throw new RegistrationException($"Could not register {peripheral} with offset 0x{registrationPoint.Offset:X} as the offset is larger than the peripheral (0x{size:X})");
+                    }
+                }
                 var registeredPeripheral = new BusRegistered<IBusPeripheral>(peripheral, registrationPoint);
 
                 if(IsAddressRangeLocked(registrationPoint.Range, context))

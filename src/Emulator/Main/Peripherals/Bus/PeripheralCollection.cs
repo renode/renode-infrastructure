@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         {
             IEnumerable<IBusRegistered<IBusPeripheral>> Peripherals { get; }
 
-            PeripheralAccessMethods FindAccessMethods(ulong address, out ulong startAddress, out ulong endAddress);
+            PeripheralAccessMethods FindAccessMethods(ulong address, out ulong startAddress, out ulong endAddress, out ulong offset);
 
 #if DEBUG
             void ShowStatistics();
@@ -105,8 +105,8 @@ namespace Antmicro.Renode.Peripherals.Bus
                 {
                     // Don't add overlapping peripherals.
                     // We subtract 1 from the end address because it is actually one past the end.
-                    if(FindAccessMethods(block.Start, out _, out _) != null
-                        || FindAccessMethods(block.End - 1, out _, out _) != null)
+                    if(FindAccessMethods(block.Start, out _, out _, out _) != null
+                        || FindAccessMethods(block.End - 1, out _, out _, out _) != null)
                     {
                         return;
                     }
@@ -226,7 +226,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 }
             }
 
-            public PeripheralAccessMethods FindAccessMethods(ulong address, out ulong startAddress, out ulong endAddress)
+            public PeripheralAccessMethods FindAccessMethods(ulong address, out ulong startAddress, out ulong endAddress, out ulong offset)
             {
                 // no need to lock here yet, cause last block is in the thread local storage
                 var lastBlock = lastBlockStorage.Value;
@@ -241,6 +241,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 #endif
                     startAddress = lastBlock.Start;
                     endAddress = lastBlock.End;
+                    offset = lastBlock.Peripheral.RegistrationPoint.Offset;
                     return lastBlock.AccessMethods;
                 }
                 sync.EnterWriteLock();
@@ -256,6 +257,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                         {
                             startAddress = 0;
                             endAddress = 0;
+                            offset = 0;
                             return null;
                         }
 #if DEBUG
@@ -271,6 +273,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 #endif
                     startAddress = block.Start;
                     endAddress = block.End;
+                    offset = block.Peripheral.RegistrationPoint.Offset;
                     lastBlockStorage.Value = block;
                     return block.AccessMethods;
                 }
