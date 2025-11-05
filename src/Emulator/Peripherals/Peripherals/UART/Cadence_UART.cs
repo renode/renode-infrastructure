@@ -25,7 +25,7 @@ namespace Antmicro.Renode.Peripherals.UART
         public Cadence_UART(IMachine machine, bool clearInterruptStatusOnRead = false, ulong clockFrequency = 50000000, int fifoCapacity = 64) : base(machine)
         {
             this.fifoCapacity = fifoCapacity;
-            this.clearInterruptStatusOnRead = clearInterruptStatusOnRead;
+            ClearInterruptStatusOnRead = clearInterruptStatusOnRead;
             this.clockFrequency = clockFrequency;
 
             registers = new DoubleWordRegisterCollection(this, BuildRegisterMap());
@@ -118,6 +118,8 @@ namespace Antmicro.Renode.Peripherals.UART
         public override Parity ParityBit => ConvertInternalParity(parityField.Value);
 
         public override uint BaudRate => (uint)(clockFrequency / (clockSource.Value ? 8U : 1U) / baudGenerator.Value / (baudDivider.Value + 1));
+
+        public bool ClearInterruptStatusOnRead { get; set; }
 
         public long Size => 0x80;
 
@@ -259,7 +261,6 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private Dictionary<long, DoubleWordRegister> BuildRegisterMap()
         {
-            var interruptStatusFieldMode = FieldMode.Read | (clearInterruptStatusOnRead ? 0 : FieldMode.Write);
             return new Dictionary<long, DoubleWordRegister>
             {
                 {(long)Registers.Control, new DoubleWordRegister(this, 0x00000128)
@@ -436,66 +437,66 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithTaggedFlag("rxBreakDetectInterruptStatus", 13)
                     .WithFlag(12,
                         valueProviderCallback: (_) => txFifoOverflow.StickyStatus,
-                        readCallback: (_, __) => txFifoOverflow.ClearSticky(clearInterruptStatusOnRead),
-                        writeCallback: (_, val) => txFifoOverflow.ClearSticky(val && !clearInterruptStatusOnRead),
+                        readCallback: (_, __) => txFifoOverflow.ClearSticky(ClearInterruptStatusOnRead),
+                        writeCallback: (_, val) => txFifoOverflow.ClearSticky(val && !ClearInterruptStatusOnRead),
                         name: "txFifoOverflowInterruptStatus")
                     .WithFlag(11,
                         valueProviderCallback: (_) => txFifoNearlyFull.StickyStatus,
-                        readCallback: (_, __) => txFifoNearlyFull.ClearSticky(clearInterruptStatusOnRead),
-                        writeCallback: (_, val) => txFifoNearlyFull.ClearSticky(val && !clearInterruptStatusOnRead),
+                        readCallback: (_, __) => txFifoNearlyFull.ClearSticky(ClearInterruptStatusOnRead),
+                        writeCallback: (_, val) => txFifoNearlyFull.ClearSticky(val && !ClearInterruptStatusOnRead),
                         name: "txFifoNearlyFullInterruptStatus")
                     .WithFlag(10,
                         valueProviderCallback: (_) => txFifoTrigger.StickyStatus,
-                        readCallback: (_, __) => txFifoTrigger.ClearSticky(clearInterruptStatusOnRead),
-                        writeCallback: (_, val) => txFifoTrigger.ClearSticky(val && !clearInterruptStatusOnRead),
+                        readCallback: (_, __) => txFifoTrigger.ClearSticky(ClearInterruptStatusOnRead),
+                        writeCallback: (_, val) => txFifoTrigger.ClearSticky(val && !ClearInterruptStatusOnRead),
                         name: "txFifoTriggerInterruptStatus")
                     .WithTaggedFlag("deltaModemStatusInterruptStatus", 9)
-                    .WithFlag(8, interruptStatusFieldMode,
+                    .WithFlag(8,
                         valueProviderCallback: (_) => rxTimeoutError.StickyStatus,
-                        readCallback: (_, __) => rxTimeoutError.ClearSticky(clearInterruptStatusOnRead),
-                        writeCallback: (_, val) => rxTimeoutError.ClearSticky(val && !clearInterruptStatusOnRead),
+                        readCallback: (_, __) => rxTimeoutError.ClearSticky(ClearInterruptStatusOnRead),
+                        writeCallback: (_, val) => rxTimeoutError.ClearSticky(val && !ClearInterruptStatusOnRead),
                         name: "rxTimeoutErrorInterruptStatus"
                     )
                     .WithTaggedFlag("rxParityErrorInterruptStatus", 7)
                     .WithTaggedFlag("rxFramingErrorInterruptStatus", 6)
-                    .WithFlag(5, interruptStatusFieldMode,
+                    .WithFlag(5,
                         valueProviderCallback: (_) => rxFifoOverflow.StickyStatus,
-                        readCallback: (_, __) => rxFifoOverflow.ClearSticky(clearInterruptStatusOnRead),
-                        writeCallback: (_, val) => rxFifoOverflow.ClearSticky(val && !clearInterruptStatusOnRead),
+                        readCallback: (_, __) => rxFifoOverflow.ClearSticky(ClearInterruptStatusOnRead),
+                        writeCallback: (_, val) => rxFifoOverflow.ClearSticky(val && !ClearInterruptStatusOnRead),
                         name: "rxFifoOverflowInterruptStatus"
                     )
                     .WithFlag(4,
                         valueProviderCallback: (_) => txFifoFull.StickyStatus,
-                        readCallback: (_, __) => txFifoFull.ClearSticky(clearInterruptStatusOnRead),
-                        writeCallback: (_, val) => txFifoFull.ClearSticky(val && !clearInterruptStatusOnRead),
+                        readCallback: (_, __) => txFifoFull.ClearSticky(ClearInterruptStatusOnRead),
+                        writeCallback: (_, val) => txFifoFull.ClearSticky(val && !ClearInterruptStatusOnRead),
                         name: "txFifoFullInterruptStatus")
-                    .WithFlag(3, interruptStatusFieldMode,
+                    .WithFlag(3,
                         valueProviderCallback: (_) => txFifoEmpty.StickyStatus,
-                        readCallback: (_, __) => txFifoEmpty.ClearSticky(clearInterruptStatusOnRead),
-                        writeCallback: (_, val) => txFifoEmpty.ClearSticky(val && !clearInterruptStatusOnRead),
+                        readCallback: (_, __) => txFifoEmpty.ClearSticky(ClearInterruptStatusOnRead),
+                        writeCallback: (_, val) => txFifoEmpty.ClearSticky(val && !ClearInterruptStatusOnRead),
                         name: "txFifoEmptyInterruptStatus"
                     )
-                    .WithFlag(2, interruptStatusFieldMode,
+                    .WithFlag(2,
                         valueProviderCallback: (_) => rxFifoFull.StickyStatus,
-                        readCallback: (_, __) => rxFifoFull.ClearSticky(clearInterruptStatusOnRead),
-                        writeCallback: (_, val) => rxFifoFull.ClearSticky(val && !clearInterruptStatusOnRead),
+                        readCallback: (_, __) => rxFifoFull.ClearSticky(ClearInterruptStatusOnRead),
+                        writeCallback: (_, val) => rxFifoFull.ClearSticky(val && !ClearInterruptStatusOnRead),
                         name: "rxFifoFullInterruptStatus"
                     )
-                    .WithFlag(1, interruptStatusFieldMode,
+                    .WithFlag(1,
                         valueProviderCallback: (_) => rxFifoEmpty.StickyStatus,
-                        readCallback: (_, __) => rxFifoEmpty.ClearSticky(clearInterruptStatusOnRead),
-                        writeCallback: (_, val) => rxFifoEmpty.ClearSticky(val && !clearInterruptStatusOnRead),
+                        readCallback: (_, __) => rxFifoEmpty.ClearSticky(ClearInterruptStatusOnRead),
+                        writeCallback: (_, val) => rxFifoEmpty.ClearSticky(val && !ClearInterruptStatusOnRead),
                         name: "rxFifoEmptyInterruptMStatus"
                     )
-                    .WithFlag(0, interruptStatusFieldMode,
+                    .WithFlag(0,
                         valueProviderCallback: (_) => rxFifoTrigger.StickyStatus,
-                        readCallback: (_, __) => rxFifoTrigger.ClearSticky(clearInterruptStatusOnRead),
-                        writeCallback: (_, val) => rxFifoTrigger.ClearSticky(val && !clearInterruptStatusOnRead),
+                        readCallback: (_, __) => rxFifoTrigger.ClearSticky(ClearInterruptStatusOnRead),
+                        writeCallback: (_, val) => rxFifoTrigger.ClearSticky(val && !ClearInterruptStatusOnRead),
                         name: "rxFifoTriggerInterruptStatus"
                     )
                     .WithReadCallback((_, __) =>
                     {
-                        if(clearInterruptStatusOnRead)
+                        if(ClearInterruptStatusOnRead)
                         {
                             UpdateSticky();
                             UpdateInterrupts();
@@ -503,7 +504,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     })
                     .WithWriteCallback((_, __) =>
                     {
-                        if(!clearInterruptStatusOnRead)
+                        if(!ClearInterruptStatusOnRead)
                         {
                             UpdateSticky();
                             UpdateInterrupts();
@@ -658,7 +659,6 @@ namespace Antmicro.Renode.Peripherals.UART
         private readonly CadenceInterruptFlag txFifoEmpty;
 
         private readonly DoubleWordRegisterCollection registers;
-        private readonly bool clearInterruptStatusOnRead;
         private readonly ulong clockFrequency;
 
         private enum InternalStop
