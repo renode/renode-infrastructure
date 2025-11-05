@@ -515,7 +515,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             set
             {
                 vtorInitialized = true;
-                if(!machine.SystemBus.IsMemory(value, this))
+                if(!machine.SystemBus.IsMemory(value, this, secureState))
                 {
                     this.Log(LogLevel.Warning, "Tried to set VTOR address at 0x{0:X} which does not lay in memory. Aborted.", value);
                     return;
@@ -1266,6 +1266,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             public int AccessType;
             public int AccessWidth;
         }
+
+        private static readonly ContextState secureState = new ContextState { Privileged = true, CpuSecure = true, AttributionSecure = true };
 
         private static readonly IReadOnlyDictionary<string, int> stateBits = new Dictionary<string, int>
         {
