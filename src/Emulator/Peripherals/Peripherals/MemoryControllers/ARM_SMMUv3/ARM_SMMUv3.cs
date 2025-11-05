@@ -70,6 +70,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
 
         public override void Reset()
         {
+            Enabled = false;
         }
 
         public override void Register(IPeripheral peripheral, NumberRegistrationPoint<int> registrationPoint)
@@ -187,6 +188,23 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 }
             }
             throw new Exception("Unreachable");
+        }
+
+        public bool Enabled
+        {
+            get => enabled;
+            set
+            {
+                if(enabled == value)
+                {
+                    return;
+                }
+                enabled = value;
+                foreach(var controller in streamControllers.Values)
+                {
+                    controller.Enabled = value;
+                }
+            }
         }
 
         public long Size => 0x24000;
@@ -361,7 +379,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             ;
 
             Registers.SMMU_CR0.Define(this)
-                .WithFlag(0, out smmuEnable, name: "SMMUEN")
+                .WithFlag(0, out smmuEnable, changeCallback: (_, val) => Enabled = val, name: "SMMUEN")
                 .WithFlag(1, out pageRequestQueueEnable, name: "PRIQEN")
                 .WithFlag(2, out eventQueueEnable, name: "EVENTQEN")
                 .WithFlag(3, out commandQueueEnable, name: "CMDQEN")
@@ -866,6 +884,8 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         private int StreamTableSize => 1 << Math.Min((int)streamTableShift.Value, StreamIdBits);
 
         private ulong StreamTableAddress => streamTableAddress.Value << 6;
+
+        private bool enabled;
 
         private IFlagRegisterField smmuEnable;
         private IFlagRegisterField pageRequestQueueEnable;
