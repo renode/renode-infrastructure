@@ -780,6 +780,45 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             Registers.SMMU_PRIQ_CONS_Alias.Define(this)
                 .WithValueField(0, 32, valueProviderCallback: _ => this.ReadDoubleWord((long)Registers.SMMU_PRIQ_CONS))
             ;
+
+            // TODO: Proper Secure domain support
+            Registers.SMMU_S_CR0.Define(this)
+                .WithFlag(0, out var smmuEnableSecure, name: "SMMUEN")
+                .WithReservedBits(1, 1)
+                .WithFlag(2, out var eventQueueEnableSecure, name: "EVENTQEN")
+                .WithFlag(3, out var commandQueueEnableSecure, name: "CMDQEN")
+                .WithReservedBits(4, 1)
+                .WithTaggedFlag("SIF", 5)
+                .WithTag("VMW", 6, 3)
+                .WithTaggedFlag("NSSTALLD", 9)
+                .WithReservedBits(10, 22)
+            ;
+
+            Registers.SMMU_S_CR0ACK.Define(this)
+                .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => smmuEnableSecure.Value, name: "SMMUEN_ACK")
+                .WithReservedBits(1, 1)
+                .WithFlag(2, FieldMode.Read, valueProviderCallback: _ => eventQueueEnableSecure.Value, name: "EVENTQEN_ACK")
+                .WithFlag(3, FieldMode.Read, valueProviderCallback: _ => commandQueueEnableSecure.Value, name: "CMDQEN_ACK")
+                .WithReservedBits(4, 1)
+                .WithTaggedFlag("SIF", 5)
+                .WithTag("VMW", 6, 3)
+                .WithTaggedFlag("NSSTALLD", 9)
+                .WithReservedBits(10, 22)
+            ;
+
+            Registers.SMMU_S_IRQ_CTRL.Define(this)
+                .WithFlag(0, out var globalErrorInterruptEnableSecure, name: "GERROR_IRQEN")
+                .WithReservedBits(1, 1)
+                .WithFlag(2, out var eventQueueInterruptEnableSecure, name: "EVENTQ_IRQEN")
+                .WithReservedBits(3, 29)
+            ;
+
+            Registers.SMMU_S_IRQ_CTRLACK.Define(this)
+                .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => globalErrorInterruptEnableSecure.Value, name: "GERROR_IRQEN_ACK")
+                .WithReservedBits(1, 1)
+                .WithFlag(2, FieldMode.Read, valueProviderCallback: _ => eventQueueInterruptEnableSecure.Value, name: "EVENTQ_IRQEN_ACK")
+                .WithReservedBits(3, 29)
+            ;
         }
 
         private void ProcessCommandQueue()
