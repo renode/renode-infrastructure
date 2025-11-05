@@ -621,6 +621,10 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             public TranslationParams? GetTranslationParams(ulong va, int level, ulong? tableAddr = null)
             {
                 var use0 = (va & (1UL << 55)) == 0;
+                if((use0 && EPD0) || (!use0 && EPD1))
+                {
+                    return null;
+                }
                 var ttb = tableAddr ?? (use0 ? TTB0 : TTB1);
                 var tsz = use0 ? T0SZ : T1SZ;
                 var maybeSizeShift = use0 ? GetPageSizeShift(TG0) : GetPageSizeShift(TG1);
