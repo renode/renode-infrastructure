@@ -34,8 +34,15 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             }
         }
 
+        public bool Enabled { get; set; }
+
         protected override bool ValidateOperation(ref ulong address, BusAccessPrivileges accessType, IPeripheral context = null)
         {
+            if(!Enabled)
+            {
+                return true;
+            }
+
             if(!TryFindWindowIndex(address, out var index))
             {
                 var win = smmu.GetWindowFromPageTable(address, context);

@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
 {
     public sealed class ARM_SMMUv3ExternalMmu : ExternalMmuBase, ISMMUv3StreamController, IDisposable
     {
-        public ARM_SMMUv3ExternalMmu(ARM_SMMUv3 smmu, ICPUWithExternalMmu cpu) : base(cpu, windowsCount: 0, position: ExternalMmuPosition.AfterInternal)
+        public ARM_SMMUv3ExternalMmu(ARM_SMMUv3 smmu, ICPUWithExternalMmu cpu) : base(cpu, windowsCount: 0, position: ExternalMmuPosition.None)
         {
             this.smmu = smmu;
             this.cpu = cpu;
@@ -39,6 +39,21 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         public void Dispose()
         {
             cpu.RemoveHookOnMmuFault(MmuFaultHook);
+        }
+
+        public bool Enabled
+        {
+            get => enabled;
+            set
+            {
+                if(enabled == value)
+                {
+                    return;
+                }
+                enabled = value;
+                cpu.EnableExternalWindowMmu(value ? SmmuPosition : ExternalMmuPosition.None);
+                InvalidateTlb();
+            }
         }
 
         // These enums actually have the same representation, so this could just be a cast.
@@ -78,7 +93,11 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             return true;
         }
 
+        private bool enabled;
+
         private readonly ARM_SMMUv3 smmu;
         private readonly ICPUWithExternalMmu cpu;
+
+        private const ExternalMmuPosition SmmuPosition = ExternalMmuPosition.AfterInternal;
     }
 }
