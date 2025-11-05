@@ -15,6 +15,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
     {
         public ReverseExecutionCommand(CommandsManager manager) : base(manager)
         {
+            notPossible = PacketData.ErrorReply("Reverse execution not possible");
         }
 
         [Execute("bs")]
@@ -23,7 +24,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             if(!CheckIfPossible(out string message))
             {
                 Logger.LogAs(this, LogLevel.Warning, "Reverse execution not possible: {0}", message);
-                return PacketData.ErrorReply();
+                return notPossible;
             }
 
             try
@@ -43,7 +44,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             catch(RecoverableException e)
             {
                 Logger.LogAs(this, LogLevel.Warning, "Reverse execution not possible: {0}", e.Message);
-                return PacketData.ErrorReply();
+                return notPossible;
             }
         }
 
@@ -62,5 +63,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             message = null;
             return true;
         }
+
+        private readonly PacketData notPossible;
     }
 }

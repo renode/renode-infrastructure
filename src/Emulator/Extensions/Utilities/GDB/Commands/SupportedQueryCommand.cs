@@ -26,7 +26,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             }
             else
             {
-                command.Append(";ReverseStep+");
+                command.Append(";ReverseStep+;ReverseContinue+");
             }
 
             return new PacketData(command.ToString());
