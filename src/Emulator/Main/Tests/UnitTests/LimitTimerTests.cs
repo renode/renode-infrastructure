@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -15,7 +15,7 @@ using NUnit.Framework;
 namespace Antmicro.Renode.UnitTests
 {
     [TestFixture]
-    public class CoreTimerTest
+    public class LimitTimerTests
     {
         [Test]
         public void ShouldBeAscending()

@@ -38,7 +38,7 @@
     <Compile Include="WriteExtensionsTest.cs" />
     <Compile Include="GPIOTests.cs" />
     <Compile Include="SerializationTests.cs" />
-    <Compile Include="CoreTimerTest.cs" />
+    <Compile Include="LimitTimerTests.cs" />
     <Compile Include="SerializableMappedSegmentTests.cs" />
     <Compile Include="MultiCPUTests.cs" />
     <Compile Include="Mocks\MockCPU.cs" />
