@@ -140,7 +140,6 @@ static void cpu_init(CpuState *s)
 
     set_debug_flags(DEFAULT_DEBUG_FLAGS);
 
-    cpu->exit_requested = false;
     cpu->single_step = false;
     cpu->regs_state = cpu->sregs_state = CLEAR;
     cpu->is_executing = false;
@@ -162,9 +161,9 @@ static void kill_cpu_thread(int sig)
 
 static void sigalarm_handler(int sig)
 {
-    if (gettid() == cpu->tid) {
-        cpu->exit_requested = true;
-    } else {
+    cpu->kvm_run->immediate_exit = true;
+
+    if (gettid() != cpu->tid) {
         /* we are not the CPU thread, redirect signal */
         kill_cpu_thread(SIGALRM);
     }
@@ -368,7 +367,7 @@ static ExecutionResult kvm_run_loop()
     bool override_exception_capture = false;
 
     /* timer_expired flag will be set by the SIGALRM handler */
-    while(!cpu->exit_requested) {
+    while(true) {
         if (kvm_run()) {
             execution_result = OK;
             goto finalize;
@@ -435,8 +434,8 @@ finalize:
 /* Run KVM execution for time_in_us microseconds. */
 uint64_t kvm_execute(uint64_t time_in_us)
 {
-    cpu->exit_requested = false;
     cpu->single_step = false;
+    cpu->kvm_run->immediate_exit = false;
 
     execution_timer_set(time_in_us);
 
@@ -452,8 +451,8 @@ EXC_VALUE_1(uint64_t, kvm_execute, 0, uint64_t, time)
 /* Run KVM execution for single instruction. */
 uint64_t kvm_execute_single_step()
 {
-    cpu->exit_requested = false;
     cpu->single_step = true;
+    cpu->kvm_run->immediate_exit = false;
 
     set_debug_flags(SINGLE_STEP_DEBUG_FLAGS);
     ExecutionResult result = kvm_run_loop();
@@ -465,7 +464,7 @@ EXC_VALUE_0(uint64_t, kvm_execute_single_step, 0)
 void kvm_interrupt_execution()
 {
     execution_timer_disarm();
-    cpu->exit_requested = true;
+    cpu->kvm_run->immediate_exit = true;
     kill_cpu_thread(SIGALRM);
 }
 EXC_VOID_0(kvm_interrupt_execution)

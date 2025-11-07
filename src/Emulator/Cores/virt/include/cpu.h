@@ -61,9 +61,6 @@ typedef struct CpuState {
     /* struct containing KVM execution details */
     struct kvm_run *kvm_run;
 
-    /* Flag set when there is exit request from from C# or timer */
-    bool exit_requested;
-
     /* Flag set when KVM is set to single stepping mode */
     bool single_step;
 
