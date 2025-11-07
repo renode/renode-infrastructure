@@ -120,8 +120,8 @@ namespace Antmicro.Renode.Time
         {
             lock(innerLock)
             {
-                DebugHelper.Assert(TimeSource.ElapsedVirtualTime >= TotalElapsedTime, $"Trying to move time handle back in time from: {TotalElapsedTime} to {TimeSource.ElapsedVirtualTime}");
-                TotalElapsedTime = TimeSource.ElapsedVirtualTime;
+                DebugHelper.Assert(TimeSource.NearestSyncPoint >= TotalElapsedTime, $"Trying to move time handle back in time from: {TotalElapsedTime} to {TimeSource.NearestSyncPoint}");
+                TotalElapsedTime = TimeSource.NearestSyncPoint;
             }
         }
 
