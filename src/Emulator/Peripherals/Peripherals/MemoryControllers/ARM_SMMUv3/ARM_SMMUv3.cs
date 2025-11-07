@@ -10,6 +10,7 @@ using System.Linq;
 using System.Reflection;
 
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Extensions;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
@@ -50,12 +51,21 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
 
         public uint ReadDoubleWord(long offset)
         {
-            return RegistersCollection.Read(offset);
+            if(RegistersCollection.HasRegisterAtOffset(offset))
+            {
+                return RegistersCollection.Read(offset);
+            }
+            return this.ReadDoubleWordUsingQuadWord(offset);
         }
 
         public void WriteDoubleWord(long offset, uint value)
         {
-            RegistersCollection.Write(offset, value);
+            if(RegistersCollection.HasRegisterAtOffset(offset))
+            {
+                RegistersCollection.Write(offset, value);
+                return;
+            }
+            this.WriteDoubleWordUsingQuadWord(offset, value);
         }
 
         public ulong ReadQuadWord(long offset)
