@@ -6,7 +6,7 @@
 //
 namespace Antmicro.Renode.HostInterfaces.Network
 {
-    public interface ITapInterface : IInterface
+    public interface ITapInterface : IHostNetworkInterface
     {
         string InterfaceName { get; }
     }

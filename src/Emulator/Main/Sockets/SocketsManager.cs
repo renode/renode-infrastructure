@@ -90,6 +90,7 @@ namespace Antmicro.Renode.Sockets
                 {
                     if(asClient)
                     {
+#if NET
                         if(clientBind)
                         {
                             var sockPath = TemporaryFilesManager.Instance.GetUnusedFilePath(".sock");
@@ -97,6 +98,7 @@ namespace Antmicro.Renode.Sockets
                             AppDomain.CurrentDomain.ProcessExit += (_, __) => File.Delete(sockPath);
                         }
                         Socket.Connect(endpoint);
+#endif
                     }
                     else
                     {

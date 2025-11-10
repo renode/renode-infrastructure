@@ -468,7 +468,8 @@
     <Compile Include="Emulator/Extensions/Config/Devices/DeviceInfo.cs" />
     <Compile Include="Emulator/Extensions/Utilities/MonitorInfo.cs" />
     <Compile Include="Emulator/Extensions/Utilities/TypeExtensions.cs" />
-    <Compile Include="Emulator/Extensions/HostInterfaces/Network/TapExtensions.cs" />
+    <Compile Include="Emulator/Extensions/HostInterfaces/Network/IHostNetworkInterface.cs" />
+    <Compile Include="Emulator/Extensions/HostInterfaces/Network/HostNetworkInterfaceExtensions.cs" />
     <Compile Include="Emulator/Extensions/Utilities/MachineExtensions.cs" />
     <Compile Include="Emulator/Extensions/Utilities/UartExtensions.cs" />
     <Compile Include="Emulator/Extensions/Config/SimpleJson.cs" />

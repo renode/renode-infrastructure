@@ -12,7 +12,7 @@ using Antmicro.Renode.Peripherals.Network;
 
 namespace Antmicro.Renode.HostInterfaces.Network
 {
-    public interface IInterface : IMACInterface, IHostMachineElement, IDisposable, IHasOwnLife
+    public interface IHostNetworkInterface : IMACInterface, IHostMachineElement, IDisposable, IHasOwnLife
     {
     }
 }

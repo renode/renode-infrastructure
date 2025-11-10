@@ -4,18 +4,16 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-#if PLATFORM_OSX
+#if NET
 using System;
-using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
 using Antmicro.Migrant;
 using Antmicro.Migrant.Hooks;
-using Antmicro.Renode.Config;
+
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
@@ -25,60 +23,12 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.HostInterfaces.Network
 {
-    static class VmnetHelperInterface
-    {
-        public static async Task ConfigureInterface(SocketInterface socketInterface, bool autoConf)
-        {
-            // Dummy write to establish connection with vmnet-helper. First packet <64 bytes is ignored.
-            var txBuffer = new byte[1];
-            await socketInterface.DuplicatedSocket.SendAsync(txBuffer);
-
-            // Configure the socket interface and set MAC address
-            if(autoConf)
-            {
-                var rxbuffer = new byte[JsonLength];
-                var bytesRead = await socketInterface.DuplicatedSocket.ReceiveAsync(rxbuffer);
-                var interfaceDescriptionString = Encoding.UTF8.GetString(rxbuffer, 0, bytesRead);
-                object interfaceDescriptionJson;
-                try
-                {
-                    interfaceDescriptionJson = SimpleJson.DeserializeObject(interfaceDescriptionString);
-                }
-                catch
-                {
-                    throw new RecoverableException("Invalid interface configuration: failed to parse JSON.");
-                }
-
-                if(!(interfaceDescriptionJson is IDictionary<string, object> dict))
-                {
-                    throw new RecoverableException("Invalid interface configuration: unexpected response format.");
-                }
-
-                var macString = dict[MACKey];
-
-                if(!(macString is string))
-                {
-                    throw new RecoverableException("Invalid interface configuration: MAC value is not a string.");
-                }
-                if(!MACAddress.TryParse((string)macString, out var mac))
-                {
-                    throw new RecoverableException("Invalid interface configuration: failed to parse MAC address.");
-                }
-                socketInterface.MAC = mac;
-                socketInterface.InfoLog("MAC address set to {0}", mac);
-            }
-        }
-
-        private static readonly string MACKey = "vmnet_mac_address";
-
-        private static readonly int JsonLength = 1000;
-    }
-
-    public class SocketInterface : IInterface
+    public class SocketInterface : IHostNetworkInterface
     {
         public SocketInterface(string socketPath, Func<SocketInterface, Task> configureInterfaceCallback = null)
         {
             OriginalSocketPath = socketPath;
+            cts = new CancellationTokenSource();
             if(configureInterfaceCallback != null)
             {
                 ConfigureInterfaceCallback = configureInterfaceCallback;
@@ -118,6 +68,7 @@ namespace Antmicro.Renode.HostInterfaces.Network
             if(connectionEstablished)
             {
                 cts.Cancel();
+                cts = new CancellationTokenSource();
                 DuplicatedSocket.Close();
                 DuplicatedSocket = DuplicateSocket(OriginalSocket);
             }
@@ -162,19 +113,7 @@ namespace Antmicro.Renode.HostInterfaces.Network
         }
 
         [DllImport("libc")]
-        static extern IntPtr dup(IntPtr fd);
-
-        Socket DuplicateSocket(Socket socket)
-        {
-            var socketFd = socket.SafeHandle.DangerousGetHandle();
-            var duplicatedFd = dup(socketFd);
-            if(duplicatedFd == -1)
-            {
-                throw new RecoverableException("Cannot duplicate a socket");
-            }
-            var handle = new SafeSocketHandle(duplicatedFd, true);
-            return new Socket(handle);
-        }
+        static extern int dup(int fd);
 
         public MACAddress MAC { get; set; }
 
@@ -190,19 +129,17 @@ namespace Antmicro.Renode.HostInterfaces.Network
 
         public const int Mtu = 1522;
 
-        private bool running = false;
-        private bool connectionEstablished = false;
-        private bool _connectionEstablished = false;
-
-        [Transient]
-        private Task readerTask;
-
-        [Transient]
-        private CancellationTokenSource cts;
-
-        [Transient]
-        private Socket OriginalSocket;
-        private readonly object lockObject = new object();
+        private Socket DuplicateSocket(Socket socket)
+        {
+            var socketFd = socket.SafeHandle.DangerousGetHandle();
+            var duplicatedFd = dup((int)socketFd);
+            if(duplicatedFd == -1)
+            {
+                throw new RecoverableException("Cannot duplicate a socket");
+            }
+            var handle = new SafeSocketHandle(duplicatedFd, true);
+            return new Socket(handle);
+        }
 
         private void UpdateInterfaceState()
         {
@@ -247,7 +184,6 @@ namespace Antmicro.Renode.HostInterfaces.Network
             {
                 if(!IsPaused && connectionEstablished)
                 {
-                    cts = new CancellationTokenSource();
                     readerTask = Task.Run(async () => await ReadPacketAsync(cts.Token));
                     readerTask.ContinueWith(_ =>
                     {
