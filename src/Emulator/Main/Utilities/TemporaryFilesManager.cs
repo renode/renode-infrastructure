@@ -57,6 +57,19 @@ namespace Antmicro.Renode.Utilities
             }
         }
 
+        public string GetUnusedFilePath(string fileNameSuffix = null)
+        {
+            string path;
+            do
+            {
+                var fileName = string.Format(fileNameSuffix != null ? $"{Guid.NewGuid()}{fileNameSuffix}" : $"{Guid.NewGuid()}.tmp");
+                path = Path.Combine(emulatorTemporaryPath, fileName);
+                // this is guid, collision is very unlikely
+            }
+            while(File.Exists(path));
+            return path;
+        }
+
         public bool TryCreateFile(string fileName, out string path)
         {
             path = Path.Combine(emulatorTemporaryPath, fileName);
