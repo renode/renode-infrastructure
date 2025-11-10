@@ -25,6 +25,55 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.HostInterfaces.Network
 {
+    static class VmnetHelperInterface
+    {
+        public static async Task ConfigureInterface(SocketInterface socketInterface, bool autoConf)
+        {
+            // Dummy write to establish connection with vmnet-helper. First packet <64 bytes is ignored.
+            var txBuffer = new byte[1];
+            await socketInterface.DuplicatedSocket.SendAsync(txBuffer);
+
+            // Configure the socket interface and set MAC address
+            if(autoConf)
+            {
+                var rxbuffer = new byte[JsonLength];
+                var bytesRead = await socketInterface.DuplicatedSocket.ReceiveAsync(rxbuffer);
+                var interfaceDescriptionString = Encoding.UTF8.GetString(rxbuffer, 0, bytesRead);
+                object interfaceDescriptionJson;
+                try
+                {
+                    interfaceDescriptionJson = SimpleJson.DeserializeObject(interfaceDescriptionString);
+                }
+                catch
+                {
+                    throw new RecoverableException("Invalid interface configuration: failed to parse JSON.");
+                }
+
+                if(!(interfaceDescriptionJson is IDictionary<string, object> dict))
+                {
+                    throw new RecoverableException("Invalid interface configuration: unexpected response format.");
+                }
+
+                var macString = dict[MACKey];
+
+                if(!(macString is string))
+                {
+                    throw new RecoverableException("Invalid interface configuration: MAC value is not a string.");
+                }
+                if(!MACAddress.TryParse((string)macString, out var mac))
+                {
+                    throw new RecoverableException("Invalid interface configuration: failed to parse MAC address.");
+                }
+                socketInterface.MAC = mac;
+                socketInterface.InfoLog("MAC address set to {0}", mac);
+            }
+        }
+
+        private static readonly string MACKey = "vmnet_mac_address";
+
+        private static readonly int JsonLength = 1000;
+    }
+
     public class SocketInterface : IInterface
     {
         public SocketInterface(string socketPath, Func<SocketInterface, Task> configureInterfaceCallback = null)
