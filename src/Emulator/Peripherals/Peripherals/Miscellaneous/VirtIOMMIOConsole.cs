@@ -63,7 +63,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 ports[i].Parent = this;
                 ports[i].ProcessNewReceiveBuffer = ProcessReceiveQueueBuffer;
                 ports[i].ProcessNewTransmitBuffer = ProcessTransmitQueueBuffer;
-
             }
 
             // Create controlPorts
@@ -94,6 +93,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public void OpenPort(ushort portID, bool open)
         {
+            this.Log(LogLevel.Debug, "OpenPort {0} {1}", portID, open);
             if(!driverCanReceiveControlMessages)
             {
                 throw new RecoverableException("The driver can not yet receive control messages, OpenPort message not sent!");
@@ -155,6 +155,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public void ResizeConsole(ushort port, ushort cols, ushort rows)
         {
+            this.Log(LogLevel.Debug, "ResizeConsole {0} {1} {2}", port, cols, rows);
             if(!driverCanReceiveControlMessages)
             {
                 throw new RecoverableException("The driver can not yet receive control messages");
@@ -167,6 +168,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public void TagPort(ushort port, string name)
         {
+            this.Log(LogLevel.Debug, "TagPort {0} {1}", port, name);
             if(!driverCanReceiveControlMessages)
             {
                 throw new RecoverableException("The driver can not yet receive control messages");
@@ -319,25 +321,25 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private static bool ProcessReceiveQueueBuffer(Virtqueue virtq, ConsolePort<byte> port)
         {
             var parent = port.Parent;
-            var ReceiveQueue = port.ReceiveQueue;
-            var PortID = port.PortID;
-            var HostInput = port.HostInput;
+            var receiveQueue = port.ReceiveQueue;
+            var portID = port.PortID;
+            var hostInput = port.HostInput;
 
-            ReceiveQueue.ReadDescriptorMetadata();
-            var length = ReceiveQueue.Descriptor.Length;
+            receiveQueue.ReadDescriptorMetadata();
+            var length = receiveQueue.Descriptor.Length;
 
             var buf = new byte[length];
 
             // Queue already has some characters, request can immediately be served
-            if(HostInput.Count > 0)
+            if(hostInput.Count > 0)
             {
                 var countWritten = 0;
                 lock(parent.inputLock)
                 {
-                    while(HostInput.Count != 0 && countWritten < length)
+                    while(hostInput.Count != 0 && countWritten < length)
                     {
-                        parent.Log(LogLevel.Noisy, "Dequeuing on port {0}", port.PortID);
-                        buf[countWritten] = HostInput.Dequeue();
+                        parent.Log(LogLevel.Noisy, "Dequeuing on port {0}", port.portID);
+                        buf[countWritten] = hostInput.Dequeue();
                         countWritten++;
                     }
                 }
@@ -346,8 +348,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     // Fine for now because the driver only requests one byte each time, but the Spec does not say anything about requesting bigger chunks than 1 byte, so it should be possible
                     parent.Log(LogLevel.Warning, "Not Implemented: Less characters written ({0}) then requested ({1})", countWritten, length);
                 }
-                ReceiveQueue.TryWriteToBuffers(buf);
-                parent.Log(LogLevel.Noisy, "Port {0}: RV", port.PortID);
+                receiveQueue.TryWriteToBuffers(buf);
+                parent.Log(LogLevel.Noisy, "Port {0}: RV", port.portID);
 
                 return true;
             } // Nothing in queue to be immediately sent
@@ -518,15 +520,15 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 break;
             }
         }
-        private ushort selectedPort = 0;
-        private bool initialConsoleSet = false;
-        private ConsolePort<byte>[] ports;
-        private ConsolePort<ControlMessage> controlPort;
-        private object inputLock = new object();
 
         private bool driverCanReceiveControlMessages;
 
         private bool multiportFeature = true;
+        private ushort selectedPort = 0;
+        private bool initialConsoleSet = false;
+        private readonly ConsolePort<byte>[] ports;
+        private readonly ConsolePort<ControlMessage> controlPort;
+        private readonly object inputLock = new object();
 
         private class ConsolePort<T>
         {
