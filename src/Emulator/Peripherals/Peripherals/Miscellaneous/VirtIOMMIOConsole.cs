@@ -338,7 +338,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 {
                     while(hostInput.Count != 0 && countWritten < length)
                     {
-                        parent.Log(LogLevel.Noisy, "Dequeuing on port {0}", port.portID);
+                        parent.Log(LogLevel.Noisy, "Dequeuing on port {0}", portID);
                         buf[countWritten] = hostInput.Dequeue();
                         countWritten++;
                     }
@@ -349,7 +349,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     parent.Log(LogLevel.Warning, "Not Implemented: Less characters written ({0}) then requested ({1})", countWritten, length);
                 }
                 receiveQueue.TryWriteToBuffers(buf);
-                parent.Log(LogLevel.Noisy, "Port {0}: RV", port.portID);
+                parent.Log(LogLevel.Noisy, "Port {0}: RV", portID);
 
                 return true;
             } // Nothing in queue to be immediately sent
