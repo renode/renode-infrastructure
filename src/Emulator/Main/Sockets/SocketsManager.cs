@@ -6,6 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -47,9 +48,9 @@ namespace Antmicro.Renode.Sockets
             return table.ToArray();
         }
 
-        public Socket AcquireSocket(IEmulationElement owner, AddressFamily addressFamily, SocketType socketType, ProtocolType protocolType, EndPoint endpoint, string nameAppendix = "", int? listeningBacklog = null, bool asClient = false, bool noDelay = true)
+        public Socket AcquireSocket(IEmulationElement owner, AddressFamily addressFamily, SocketType socketType, ProtocolType protocolType, EndPoint endpoint, string nameAppendix = "", int? listeningBacklog = null, bool asClient = false, bool noDelay = true, bool clientBind = false)
         {
-            var s = new SocketInstance(owner, addressFamily, socketType, protocolType, endpoint, nameAppendix: nameAppendix, asClient: asClient, noDelay: noDelay, listeningBacklog: listeningBacklog);
+            var s = new SocketInstance(owner, addressFamily, socketType, protocolType, endpoint, nameAppendix: nameAppendix, asClient: asClient, noDelay: noDelay, listeningBacklog: listeningBacklog, clientBind: clientBind);
             sockets.Add(s);
             return s.Socket;
         }
@@ -71,7 +72,7 @@ namespace Antmicro.Renode.Sockets
 
         class SocketInstance : IDisposable
         {
-            public SocketInstance(IEmulationElement owner, AddressFamily addressFamily, SocketType socketType, ProtocolType protocolType, EndPoint endpoint, string nameAppendix = "", int? listeningBacklog = null, bool asClient = false, bool noDelay = true)
+            public SocketInstance(IEmulationElement owner, AddressFamily addressFamily, SocketType socketType, ProtocolType protocolType, EndPoint endpoint, string nameAppendix = "", int? listeningBacklog = null, bool asClient = false, bool noDelay = true, bool clientBind = false)
             {
                 string name;
                 if(!EmulationManager.Instance.CurrentEmulation.TryGetEmulationElementName((object)owner, out name))
@@ -89,6 +90,12 @@ namespace Antmicro.Renode.Sockets
                 {
                     if(asClient)
                     {
+                        if(clientBind)
+                        {
+                            var sockPath = TemporaryFilesManager.Instance.GetUnusedFilePath(".sock");
+                            Socket.Bind(new UnixDomainSocketEndPoint(sockPath));
+                            AppDomain.CurrentDomain.ProcessExit += (_, __) => File.Delete(sockPath);
+                        }
                         Socket.Connect(endpoint);
                     }
                     else
