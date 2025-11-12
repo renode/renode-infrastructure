@@ -62,6 +62,7 @@ namespace Antmicro.Renode.Analyzers
         public void DisconnectState()
         {
             (Backend as UARTBackend).UnbindAnalyzer(ioProvider);
+            Clear();
         }
 
         public int? Port => server?.Port;
@@ -72,7 +73,6 @@ namespace Antmicro.Renode.Analyzers
         {
             server = new SocketServerProvider(true, false, serverName: "UartSocketTerminalServer");
             server.DataReceived += WriteToUart;
-            server.ConnectionAccepted += _ => Clear();
 
             server.Start(0);
             this.Log(LogLevel.Info, "Opened socket UART terminal on port {0}", Port);
