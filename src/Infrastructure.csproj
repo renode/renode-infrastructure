@@ -1396,6 +1396,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/MemoryControllers/ARM_SMMUv3/ARM_SMMUv3.Domain.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/SPI/ISSI_IS25WP.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Timers/AndesATCPIT100.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Timers/AndesATCWDT200_Watchdog.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Emulator/Main/Utilities/Packets/Packet.cs" />
