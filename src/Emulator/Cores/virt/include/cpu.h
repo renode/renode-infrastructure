@@ -58,6 +58,8 @@ typedef struct CpuState {
     int kvm_fd;
     int vm_fd;
     int vcpu_fd;
+
+    int kvm_run_size;
     /* struct containing KVM execution details */
     struct kvm_run *kvm_run;
 

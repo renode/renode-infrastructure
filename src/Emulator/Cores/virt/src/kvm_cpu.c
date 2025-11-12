@@ -127,12 +127,12 @@ static void cpu_init(CpuState *s)
     kvm_set_cpuid(s);
 
     /* map the kvm_run structure */
-    int kvm_run_size = ioctl(s->kvm_fd, KVM_GET_VCPU_MMAP_SIZE, NULL);
-    if (kvm_run_size < 0) {
+    s->kvm_run_size = ioctl(s->kvm_fd, KVM_GET_VCPU_MMAP_SIZE, NULL);
+    if (s->kvm_run_size < 0) {
         kvm_abortf("KVM_GET_VCPU_MMAP_SIZE: %s", strerror(errno));
     }
 
-    s->kvm_run = mmap(NULL, kvm_run_size, PROT_READ | PROT_WRITE,
+    s->kvm_run = mmap(NULL, s->kvm_run_size, PROT_READ | PROT_WRITE,
                       MAP_SHARED, s->vcpu_fd, 0);
     if (!s->kvm_run) {
         kvm_abortf("mmap kvm_run: %s", strerror(errno));
@@ -473,6 +473,8 @@ void kvm_dispose()
 {
     /* Make sure we are not executing KVMCPU before disposing */
     kvm_interrupt_execution();
+
+    munmap(cpu->kvm_run, cpu->kvm_run_size);
 
     close(cpu->vcpu_fd);
     close(cpu->vm_fd);
