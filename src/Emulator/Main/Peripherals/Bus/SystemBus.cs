@@ -2601,37 +2601,46 @@ namespace Antmicro.Renode.Peripherals.Bus
             // Adding the context key happens on peripheral registration.
             public void AddContextKey(IPeripheral key)
             {
-                if(key == null)
+                lock(locker)
                 {
-                    throw new ArgumentNullException(nameof(key));
+                    if(key == null)
+                    {
+                        throw new ArgumentNullException(nameof(key));
+                    }
+                    if(cpuLocalValues.ContainsKey(key))
+                    {
+                        return;
+                    }
+                    cpuLocalValues[key] = new Dictionary<StateMask, TValue>();
+                    cpuAllAccess[key] = cpuLocalValues[key][StateMask.AllAccess] = defaultFactory();
                 }
-                if(cpuLocalValues.ContainsKey(key))
-                {
-                    return;
-                }
-                cpuLocalValues[key] = new Dictionary<StateMask, TValue>();
-                cpuAllAccess[key] = cpuLocalValues[key][StateMask.AllAccess] = defaultFactory();
             }
 
             public void RemoveContextKey(IPeripheral key)
             {
-                if(key == null)
+                lock(locker)
                 {
-                    throw new ArgumentNullException(nameof(key));
+                    if(key == null)
+                    {
+                        throw new ArgumentNullException(nameof(key));
+                    }
+                    cpuLocalValues.Remove(key);
+                    DropCaches(); // has the effect of dropping caches when a peripheral is unregistered
                 }
-                cpuLocalValues.Remove(key);
-                DropCaches(); // has the effect of dropping caches when a peripheral is unregistered
             }
 
             public TReadOnlyValue this[IPeripheral key] => GetValue(key);
 
             public TReadOnlyValue GetValue(IPeripheral key, ulong? initiatorState = null)
             {
-                if(!TryGetValue(key, initiatorState, out var value))
+                lock(locker)
                 {
-                    throw new RecoverableException($"{typeof(TValue).Name} not found for the given context: {key.GetName()} in state: {initiatorState}");
+                    if(!TryGetValue(key, initiatorState, out var value))
+                    {
+                        throw new RecoverableException($"{typeof(TValue).Name} not found for the given context: {key.GetName()} in state: {initiatorState}");
+                    }
+                    return value;
                 }
-                return value;
             }
 
             // Perform a mutation on the value collection for a specific initiator state and mask pair (for example to add a new peripheral)
@@ -2652,85 +2661,103 @@ namespace Antmicro.Renode.Peripherals.Bus
 
             public IEnumerable<TValue> GetAllDistinctValues()
             {
-                return cpuLocalValues.Values.SelectMany(v => v.Values).Concat(globalValue.Values).Distinct();
+                lock(locker)
+                {
+                    return cpuLocalValues.Values.SelectMany(v => v.Values).Concat(globalValue.Values).Distinct();
+                }
             }
 
             public IEnumerable<IPeripheral> GetAllContextKeys()
             {
-                return cpuLocalValues.Keys;
+                lock(locker)
+                {
+                    return cpuLocalValues.Keys;
+                }
             }
 
             public IEnumerable<StateMask> GetAllStateKeys(IPeripheral context)
             {
-                return (context == null ? globalValue : cpuLocalValues[context]).Keys;
+                lock(locker)
+                {
+                    return (context == null ? globalValue : cpuLocalValues[context]).Keys;
+                }
             }
 
             public bool TryGetValue(IPeripheral key, ulong? initiatorState, out TValue value)
             {
-                if(!initiatorState.HasValue)
+                lock(locker)
                 {
-                    if(key == null)
+                    if(!initiatorState.HasValue)
                     {
-                        value = globalAllAccess;
+                        if(key == null)
+                        {
+                            value = globalAllAccess;
+                            return true;
+                        }
+                        // Handle reads initiated by peripherals that are never used as a context and thus have no collections.
+                        // Then this will fail and it's up to the caller to fall back to the global collection.
+                        return cpuAllAccess.TryGetValue(key, out value);
+                    }
+                    if(key != null && !cpuInStateCache.ContainsKey(key))
+                    {
+                        cpuInStateCache[key] = new Dictionary<ulong, TValue>();
+                    }
+                    var cache = key == null ? globalCache : cpuInStateCache[key];
+                    if(cache.TryGetValue(initiatorState.Value, out var cachedValue))
+                    {
+                        value = cachedValue;
                         return true;
                     }
-                    // Handle reads initiated by peripherals that are never used as a context and thus have no collections.
-                    // Then this will fail and it's up to the caller to fall back to the global collection.
-                    return cpuAllAccess.TryGetValue(key, out value);
-                }
-                if(key != null && !cpuInStateCache.ContainsKey(key))
-                {
-                    cpuInStateCache[key] = new Dictionary<ulong, TValue>();
-                }
-                var cache = key == null ? globalCache : cpuInStateCache[key];
-                if(cache.TryGetValue(initiatorState.Value, out var cachedValue))
-                {
-                    value = cachedValue;
-                    return true;
-                }
-                else
-                {
-                    cache[initiatorState.Value] = cachedValue = defaultFactory();
-                    return TryGetValueForState(cachedValue, key, initiatorState, out value);
+                    else
+                    {
+                        cache[initiatorState.Value] = cachedValue = defaultFactory();
+                        return TryGetValueForState(cachedValue, key, initiatorState, out value);
+                    }
                 }
             }
 
             private bool TryGetValueForState(TValue cachedValue, IPeripheral key, ulong? initiatorState, out TValue value)
             {
-                // The core of the state filtering logic. Look up which elements fit the current initiator state.
-                // Then join all found state-specific collections of elements into the cached one for this state.
-                var collectionToSearch = globalValue.AsEnumerable();
-                if(key != null && cpuLocalValues.TryGetValue(key, out var thisCpuValues))
+                lock(locker)
                 {
-                    // Note that in order for the 'local peripheral overrides the global one' behavior to work as intended,
-                    // we must check the local peripherals first. That way they 'reserve' their spot in the cache. This function
-                    // also checks the global collection when called with a context argument, but it does it only after going
-                    // through the context-specific one to ensure this.
-                    collectionToSearch = thisCpuValues.Concat(collectionToSearch);
-                }
-                bool anyHit = false;
-                // Additionally, search the collections from the most to least specific (by number of set bits in the mask).
-                // This is mainly used so that if an conditionally-registered peripheral overlaps an unconditional one, the
-                // conditional peripheral will be prioritized.
-                foreach(var pair in collectionToSearch.OrderByDescending(pair => BitHelper.GetSetBitsCount(pair.Key.Mask)))
-                {
-                    var stateMask = pair.Key;
-                    if((initiatorState.Value & stateMask.Mask) == stateMask.State)
+                    // The core of the state filtering logic. Look up which elements fit the current initiator state.
+                    // Then join all found state-specific collections of elements into the cached one for this state.
+                    var collectionToSearch = globalValue.AsEnumerable();
+                    if(key != null && cpuLocalValues.TryGetValue(key, out var thisCpuValues))
                     {
-                        anyHit = true;
-                        /// <see cref="PeripheralCollection.Coalesce"> doesn't add overlapping peripherals. This means that for the 'local peripheral
-                        /// overrides the global one' behavior to work as intended we must check the local peripherals first, as we did above.
-                        cachedValue.Coalesce(pair.Value);
+                        // Note that in order for the 'local peripheral overrides the global one' behavior to work as intended,
+                        // we must check the local peripherals first. That way they 'reserve' their spot in the cache. This function
+                        // also checks the global collection when called with a context argument, but it does it only after going
+                        // through the context-specific one to ensure this.
+                        collectionToSearch = thisCpuValues.Concat(collectionToSearch);
                     }
+                    bool anyHit = false;
+                    // Additionally, search the collections from the most to least specific (by number of set bits in the mask).
+                    // This is mainly used so that if an conditionally-registered peripheral overlaps an unconditional one, the
+                    // conditional peripheral will be prioritized.
+                    foreach(var pair in collectionToSearch.OrderByDescending(pair => BitHelper.GetSetBitsCount(pair.Key.Mask)))
+                    {
+                        var stateMask = pair.Key;
+                        if((initiatorState.Value & stateMask.Mask) == stateMask.State)
+                        {
+                            anyHit = true;
+                            /// <see cref="PeripheralCollection.Coalesce"> doesn't add overlapping peripherals. This means that for the 'local peripheral
+                            /// overrides the global one' behavior to work as intended we must check the local peripherals first, as we did above.
+                            cachedValue.Coalesce(pair.Value);
+                        }
+                    }
+                    value = anyHit ? cachedValue : default(TValue);
+                    return anyHit;
                 }
-                value = anyHit ? cachedValue : default(TValue);
-                return anyHit;
             }
 
             private void DropCaches()
             {
-                cpuInStateCache.Clear();
-                globalCache.Clear();
+                lock(locker)
+                {
+                    cpuInStateCache.Clear();
+                    globalCache.Clear();
+                }
             }
 
             private readonly Dictionary<IPeripheral, Dictionary<StateMask, TValue>> cpuLocalValues = new Dictionary<IPeripheral, Dictionary<StateMask, TValue>>();
