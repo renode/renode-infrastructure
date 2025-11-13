@@ -757,6 +757,23 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 .WithReservedBits(1, 31))
             ;
 
+            Registers.SMMU_S_INIT.Define(this)
+                .WithFlag(0, name: "INV_ALL",
+                    valueProviderCallback: _ => false,
+                    writeCallback: (_, value) =>
+                    {
+                        if(value)
+                        {
+                            for(var i = 0; i < StreamTableSize; i++)
+                            {
+                                InvalidateSte((uint)i);
+                            }
+                            InvalidateTlb();
+                        }
+                    })
+                .WithReservedBits(1, 31)
+            ;
+
             Registers.SMMU_EVENTQ_PROD.Define(this)
                 .WithTag("WR", 0, 20)
                 .WithReservedBits(20, 11)
