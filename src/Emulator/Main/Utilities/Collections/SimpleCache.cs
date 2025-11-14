@@ -11,6 +11,9 @@ namespace Antmicro.Renode.Utilities.Collections
 {
     public class SimpleCache
     {
+
+        public int MaxEntries { get; set; } = 5000; // the Maximum bound I use
+
         public R Get<T1, R>(T1 parameter, Func<T1, R> generator)
         {
             if(generator == null)
@@ -20,13 +23,20 @@ namespace Antmicro.Renode.Utilities.Collections
             var obj = new CacheObject<T1, Object, Func<T1, R>>(generator, parameter);
             if(simpleCache.TryGetValue(obj, out var result))
             {
-                this.CacheHits = this.CacheHits + 1;
+                CacheHits++;
                 return (R)result;
             }
 
-            this.CacheMisses = this.CacheMisses + 1;
+            CacheMisses++;
             var generated = generator(parameter);
+            if(simpleCache.Count >= MaxEntries)
+            {
+                var oldestKey = insertionOrderQueue.Dequeue();
+                simpleCache.Remove(oldestKey);
+            }
+
             simpleCache[obj] = generated;
+            insertionOrderQueue.Enqueue(obj);
             return generated;
         }
 
@@ -39,12 +49,22 @@ namespace Antmicro.Renode.Utilities.Collections
             var obj = new CacheObject<T1, T2, Func<T1, T2, R>>(generator, parameterT1, parameterT2);
             if(simpleCache.TryGetValue(obj, out var result))
             {
-                this.CacheHits = this.CacheHits + 1;
+                CacheHits++;
+                
                 return (R)result;
             }
-            this.CacheMisses = this.CacheMisses + 1;
+
+            CacheMisses++;
             var generated = generator(parameterT1, parameterT2);
+
+            if(simpleCache.Count >= MaxEntries)
+            {
+                var oldestKey = insertionOrderQueue.Dequeue();
+                simpleCache.Remove(oldestKey);
+            }
+
             simpleCache[obj] = generated;
+            insertionOrderQueue.Enqueue(obj);
             return generated;
         }
 
@@ -53,6 +73,7 @@ namespace Antmicro.Renode.Utilities.Collections
             CacheMisses = 0;
             CacheHits = 0;
             simpleCache.Clear();
+            insertionOrderQueue.Clear();
         }
 
         public ulong CacheMisses { get; private set; }
@@ -62,6 +83,8 @@ namespace Antmicro.Renode.Utilities.Collections
         public int CacheSize { get { return simpleCache.Count; } }
 
         private readonly Dictionary<object, object> simpleCache = new Dictionary<object, object>();
+        
+        private readonly Queue<object> insertionOrderQueue = new Queue<object>();
 
         private struct CacheObject<T1, T2, R>
         {
