@@ -1312,6 +1312,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/Mocks/MockDoubleWordPeripheralWithOnlyRegionReadMethod.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/LPC_Clock0.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/LLVMArchitectureMapping.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Video/Allegro_E310.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/Assembler/IAssembler.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/Assembler/LLVMAssembler.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Analog/STM32F3_ADC.cs" />
