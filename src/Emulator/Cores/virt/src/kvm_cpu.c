@@ -140,6 +140,11 @@ static void cpu_init(CpuState *s)
 
     set_debug_flags(DEFAULT_DEBUG_FLAGS);
 
+    const int tsc_khz = ioctl_with_retry(s->kvm_fd, KVM_GET_TSC_KHZ);
+    if (tsc_khz == -EIO) {
+        kvm_logf(LOG_LEVEL_WARNING, "Host has unstable TSC");
+    }
+    
     cpu->restore_events = false;
     cpu->single_step = false;
     cpu->regs_state = cpu->sregs_state = CLEAR;
