@@ -29,6 +29,11 @@ namespace Antmicro.Renode.Storage
                 throw new ConstructionException("No image file provided.");
             }
 
+            if(!File.Exists(imageFile))
+            {
+                throw new ConstructionException("Image file doesn't exist.");
+            }
+
             if(persistent && compression != CompressionType.None)
             {
                 throw new RecoverableException("Creating persistent storage from compresssed file is not supported.");
