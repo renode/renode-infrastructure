@@ -1985,6 +1985,7 @@
     <Compile Include="Emulator/Main/Core/IHasPreservableState.cs" />
     <Compile Include="Emulator/Main/Core/IDisconnectableState.cs" />
     <Compile Include="Emulator/Main/Peripherals/UART/IDelayableUART.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/GPIOPort/AndesATCGPIO100.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Emulator/Main/Peripherals/Bus/SystemBusGenerated.tt">
