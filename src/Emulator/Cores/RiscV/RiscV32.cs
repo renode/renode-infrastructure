@@ -42,6 +42,18 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override RegisterValue VLEN => VLENB * 8u;
 
+        public override RegisterValue FFLAGSField
+        {
+            get => FFLAGS;
+            set => FFLAGS = value;
+        }
+
+        public override RegisterValue FRMField
+        {
+            get => FRM;
+            set => FRM = value;
+        }
+
         protected override byte MostSignificantBit => 31;
 
         private uint BeforePCWrite(uint value)

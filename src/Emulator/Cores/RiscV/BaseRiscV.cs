@@ -489,6 +489,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public abstract RegisterValue VLEN { get; }
 
+        // FFLAGS and FRM are accessible standalone as CSR1 and CSR2, but they can also be accessed at once via FCSR (CSR3).
+        // Only FFLAGS and FRM registers are mapped in tlib, so we emulate FCSR in C# as non-mapped register.
+        public abstract RegisterValue FFLAGSField { get; set; }
+
+        public abstract RegisterValue FRMField { get; set; }
+
         // Needs to be abstract because it uses MTVEC defined in RiscVxxRegisters.cs.
         public abstract bool InClicMode { get; }
 
@@ -628,6 +634,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                 registers = registers.Concat(Enumerable.Range((int)RiscVRegisterDescription.StartOfVRegisters, (int)RiscVRegisterDescription.NumberOfVRegisters)
                     .Select(index => new CPURegister(index, vlen, false, false)));
             }
+            if(SupportsInstructionSet(InstructionSet.F))
+            {
+                registers = registers.Append(new CPURegister((int)RiscVRegisterDescription.IndexOfFcsrRegister, 32, false, false));
+            }
             return registers;
         }
 
@@ -701,6 +711,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return TrySetVectorRegister((uint)register - RiscVRegisterDescription.StartOfVRegisters, value);
             }
+            else if(SupportsInstructionSet(InstructionSet.F) && register == (int)RiscVRegisterDescription.IndexOfFcsrRegister)
+            {
+                FFLAGSField = BitHelper.GetValue(value, 0, 5);
+                FRMField = BitHelper.GetValue(value, 5, 3);
+                return true;
+            }
             return TrySetCustomCSR(register, value);
         }
 
@@ -709,6 +725,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             if(SupportsInstructionSet(InstructionSet.V) && IsVectorRegisterNumber(register))
             {
                 return TryGetVectorRegister((uint)register - RiscVRegisterDescription.StartOfVRegisters, out value);
+            }
+            else if(SupportsInstructionSet(InstructionSet.F) && register == (int)RiscVRegisterDescription.IndexOfFcsrRegister)
+            {
+                var fflagsMasked = BitHelper.GetMaskedValue(FFLAGSField, 0, 5);
+                var frmMasked = BitHelper.GetMaskedValue(FRMField, 0, 3);
+                value = frmMasked << 5 | fflagsMasked;
+                return true;
             }
             return TryGetCustomCSR(register, out value);
         }

@@ -93,11 +93,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                 fpuGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.F0 + index, fWidth, $"f{index}", floatType, "float"));
             }
 
-            // fflags, frm and fcsr are not implemented but are required for architecture description
-            var fflagsIndex = (uint)RiscV32Registers.F0 + NumberOfFRegisters;
-            fpuGroup.Registers.Add(new GDBRegisterDescriptor(fflagsIndex, registerWidth, "fflags", "", "float"));
-            fpuGroup.Registers.Add(new GDBRegisterDescriptor(fflagsIndex + 1, registerWidth, "frm", "", "float"));
-            fpuGroup.Registers.Add(new GDBRegisterDescriptor(fflagsIndex + 2, registerWidth, "fcsr", "", "float"));
+            // Only FFLAGS and FRM registers are mapped in tlib and we emulate FCSR in C# as non-mapped register
+            fpuGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.FFLAGS, registerWidth, "fflags", "", "float"));
+            fpuGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.FRM, registerWidth, "frm", "", "float"));
+            fpuGroup.Registers.Add(new GDBRegisterDescriptor(IndexOfFcsrRegister, registerWidth, "fcsr", "", "float"));
             {
                 var fields = new List<GDBTypeBitField>();
                 fields.Add(new GDBTypeBitField("NX", 0, 0, "bool"));
@@ -509,6 +508,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         public const uint NumberOfXRegisters = 32;
         public const uint NumberOfFRegisters = 32;
         public const uint NumberOfAdditionalFRegisters = 3;
+        public const uint IndexOfFcsrRegister = (uint)RiscV32Registers.FRM + 1;
         public const uint StartOfVRegisters = 68;
         public const uint NumberOfVRegisters = 32;
     }
