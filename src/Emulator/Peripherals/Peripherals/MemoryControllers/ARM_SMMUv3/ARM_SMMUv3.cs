@@ -149,9 +149,19 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             var privileged = streamTable[streamId].PRIVCFG != Privilege.Unprivileged;
 
             ulong? tableAddr = null; // Start with TTB0/TTB1
-            for(var level = 0; level <= MaxPageTableLevel; ++level)
+            // For VMSAv8-32 LPAE (AA64 == 0) the virtual address size is 32-bits
+            // For VMSAv8-64 (AA64 == 1) the virtual address size is based on the value of the SMMU_IDR5.VAX register field
+            // TODO: It is possible that the virtual address size may be configured based on additional data
+            var vaBits = cd.AA64 ? 48 : 32;
+            if(!GetFirstPageTableLevel(vaBits, cd.GetPageSizeShiftForVa(address), out var firstLevel))
             {
-                var maybeTp = cd.GetTranslationParams(address, level, tableAddr);
+                this.WarningLog("Could not establish a page size shift for CD: {0}", cd.ToDebugString());
+                return null;
+            }
+
+            for(var level = firstLevel; level <= MaxPageTableLevel; ++level)
+            {
+                var maybeTp = cd.GetTranslationParams(address, vaBits, level, tableAddr);
                 if(!maybeTp.HasValue)
                 {
                     this.WarningLog("Translation failed for address 0x{0:x} at level {1}", address, level);
@@ -194,7 +204,12 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                         var blockSize = 1UL << tp.PageSizeShift;
                         var mask = ~(blockSize - 1);
                         var virt = address & mask;
-                        var phys = table.OutputAddress << tp.PageSizeShift;
+                        if(!(table.GetOutputAddress(vmsa32: !cd.AA64) is ulong phys))
+                        {
+                            // TODO: Implement the address size fault event
+                            return null;
+                        }
+                        phys = phys << tp.PageSizeShift;
                         var win = new MMUWindow(this)
                         {
                             Start = virt,
@@ -205,7 +220,13 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                         win.AssertIsValid();
                         return win;
                     }
-                    tableAddr = table.OutputAddress << tp.PageSizeShift;
+
+                    if(!(table.GetOutputAddress(vmsa32: !cd.AA64) is ulong nextTable))
+                    {
+                        // TODO: Implement the address size fault event
+                        return null;
+                    }
+                    tableAddr = nextTable << tp.PageSizeShift;
                 }
                 else
                 {
@@ -267,9 +288,29 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             return pageSizeShift - 3;
         }
 
+        private static int GetIndexBitsPerLevel(int vaBits, int level, int pageSizeShift)
+        {
+            var indexBits = GetIndexBitsPerLevel(pageSizeShift);
+            return ((vaBits - pageSizeShift) - indexBits * (MaxPageTableLevel - level)).Clamp(0, indexBits);
+        }
+
         private static int GetVaSizeShiftAtLevel(int level, int pageSizeShift)
         {
             return pageSizeShift + GetIndexBitsPerLevel(pageSizeShift) * (MaxPageTableLevel - level);
+        }
+
+        private bool GetFirstPageTableLevel(int vaBits, int? maybePageSizeShift, out int firstLevel)
+        {
+            if(!(maybePageSizeShift is int pageSizeShift))
+            {
+                firstLevel = 0;
+                return false;
+            }
+
+            var availableLevels = (vaBits - pageSizeShift).DivCeil(GetIndexBitsPerLevel(pageSizeShift));
+            // Subtract the number of levels from the maximum number of levels to get the first level (e.g 4 - 3 = 1 -> start from L1)
+            firstLevel = MaxPageTableLevel + 1 - availableLevels;
+            return true;
         }
 
         private static readonly IReadOnlyDictionary<Opcode, Type> registeredCommands;
@@ -287,7 +328,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             Registers.SMMU_IDR0.Define(this)
                 .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => false, name: "S2P")
                 .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => true, name: "S1P")
-                .WithEnumField<DoubleWordRegister, TranslationTableFormat>(2, 2, FieldMode.Read, valueProviderCallback: _ => TranslationTableFormat.AArch64, name: "TTF")
+                .WithEnumField<DoubleWordRegister, TranslationTableFormat>(2, 2, FieldMode.Read, valueProviderCallback: _ => TranslationTableFormat.AArch32_64, name: "TTF")
                 .WithFlag(4, FieldMode.Read, valueProviderCallback: _ => false, name: "COHACC")
                 .WithFlag(5, FieldMode.Read, valueProviderCallback: _ => false, name: "BTM")
                 .WithEnumField<DoubleWordRegister, HardwareTranslationTableUpdate>(6, 2, FieldMode.Read, valueProviderCallback: _ => HardwareTranslationTableUpdate.NoFlagUpdates, name: "HTTU")

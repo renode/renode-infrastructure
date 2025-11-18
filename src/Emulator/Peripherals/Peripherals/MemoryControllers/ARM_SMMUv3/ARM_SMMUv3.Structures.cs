@@ -242,7 +242,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             public bool MSI_NS;
         }
 
-        // VMSAv8-64
+        // VMSAv8-64/VMSAv8-32 LPAE
         [LeastSignificantByteFirst, Width(bytes: PageTableEntryLength)]
         public class PageTableEntry
         {
@@ -284,6 +284,8 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             public bool NSTable;
         }
 
+        // NOTE: This structure is used to represet both the VMSAv8-64
+        // and VMSAv8-32 LPAE translation table formats.
         public class TableDescriptor : PageTableEntry
         {
             public BusAccessPrivileges GetPrivileges(bool privilegedAccess)
@@ -302,6 +304,22 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                     allowed |= BusAccessPrivileges.Other;
                 }
                 return allowed;
+            }
+
+            public ulong? GetOutputAddress(bool vmsa32)
+            {
+                if(vmsa32)
+                {
+                    // For VMSAv8-32 LPAE OutputAddress is stored in bits 39:12 instead of 47:12
+                    // in VMSAv8-64. Having any of the extra bits set to 1 causes an address size fault.
+                    const ulong vmsa32Mask = (1UL << 28) - 1;
+                    if((vmsa32Mask & OutputAddress) == OutputAddress)
+                    {
+                        return OutputAddress;
+                    }
+                    return null;
+                }
+                return OutputAddress;
             }
 
             [PacketField, Offset(bits: 2), Width(3)]
@@ -323,15 +341,15 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             public bool nG;
 
             [PacketField, Offset(bits: 12), Width(36)]
-            public ulong OutputAddress;
+            public ulong OutputAddress; // On VMSAv8-32 LPAE the length is 28 bits
 
             // RES0 48-49
 
             [PacketField, Offset(bits: 50), Width(1)]
-            public bool GP;
+            public bool GP; // Reserved on VMSAv8-32 LPAE
 
             [PacketField, Offset(bits: 51), Width(1)]
-            public bool DBM;
+            public bool DBM; // Reserved on VMSAv8-32 LPAE
 
             [PacketField, Offset(bits: 52), Width(1)]
             public bool Contiguous;
@@ -340,7 +358,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             public bool PXN;
 
             [PacketField, Offset(bits: 54), Width(1)]
-            public bool UXN;
+            public bool UXN; // XN on VMSAv8-32 LPAE
 
             [PacketField, Offset(bits: 55), Width(4)]
             public int SoftwareReserved;
@@ -618,7 +636,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
 
             public ulong TTB1 => ttb1 << 4;
 
-            public TranslationParams? GetTranslationParams(ulong va, int level, ulong? tableAddr = null)
+            public TranslationParams? GetTranslationParams(ulong va, int vaBits, int level, ulong? tableAddr = null)
             {
                 var use0 = (va & (1UL << 55)) == 0;
                 if((use0 && EPD0) || (!use0 && EPD1))
@@ -627,7 +645,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 }
                 var ttb = tableAddr ?? (use0 ? TTB0 : TTB1);
                 var tsz = use0 ? T0SZ : T1SZ;
-                var maybeSizeShift = use0 ? GetPageSizeShift(TG0) : GetPageSizeShift(TG1);
+                var maybeSizeShift = use0 ? GetPageSizeShiftForGranule(TG0) : GetPageSizeShiftForGranule(TG1);
                 if(!maybeSizeShift.HasValue)
                 {
                     return null;
@@ -635,7 +653,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 var sizeShift = maybeSizeShift.Value;
 
                 var vaShift = GetVaSizeShiftAtLevel(level, sizeShift);
-                var indexBits = GetIndexBitsPerLevel(sizeShift);
+                var indexBits = GetIndexBitsPerLevel(vaBits, level, sizeShift);
                 var mask = (1UL << indexBits) - 1;
                 var tableOffset = (va >> vaShift) & mask;
                 var tableAddress = ttb + (tableOffset * PageTableEntryLength);
@@ -645,6 +663,21 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                     TSZ = tsz,
                     PageSizeShift = sizeShift,
                 };
+            }
+
+            public int? GetPageSizeShiftForVa(ulong va)
+            {
+                var use0 = (va & (1UL << 55)) == 0;
+                if((use0 && EPD0) || (!use0 && EPD1))
+                {
+                    return null;
+                }
+                var maybeSizeShift = use0 ? GetPageSizeShiftForGranule(TG0) : GetPageSizeShiftForGranule(TG1);
+                if(maybeSizeShift is int shift)
+                {
+                    return shift;
+                }
+                return null;
             }
 
             [PacketField, Offset(bits: 0), Width(6)]
@@ -830,7 +863,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
 
             // RES0 496-511
 
-            private static int? GetPageSizeShift(Stage1TranslationGranule granule)
+            private static int? GetPageSizeShiftForGranule(Stage1TranslationGranule granule)
             {
                 switch(granule)
                 {
@@ -841,7 +874,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 }
             }
 
-            private static int? GetPageSizeShift(Stage2TranslationGranule granule)
+            private static int? GetPageSizeShiftForGranule(Stage2TranslationGranule granule)
             {
                 switch(granule)
                 {
