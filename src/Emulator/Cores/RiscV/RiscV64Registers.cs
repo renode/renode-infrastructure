@@ -35,7 +35,17 @@ namespace Antmicro.Renode.Peripherals.CPU
                 throw new RecoverableException($"The '{(RiscV64Registers)register}' register is read-only.");
             }
 
-            SetRegisterValue64(r.Index, checked((ulong)value));
+            switch(r.Width)
+            {
+            case 32:
+                SetRegisterValue32(r.Index, checked((uint)value));
+                break;
+            case 64:
+                SetRegisterValue64(r.Index, checked((ulong)value));
+                break;
+            default:
+                throw new ArgumentException($"Unsupported register width: {r.Width}");
+            }
         }
 
         public override RegisterValue GetRegister(int register)
@@ -48,7 +58,15 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
                 throw new RecoverableException($"Wrong register index: {register}");
             }
-            return GetRegisterValue64(r.Index);
+            switch(r.Width)
+            {
+            case 32:
+                return GetRegisterValue32(r.Index);
+            case 64:
+                return GetRegisterValue64(r.Index);
+            default:
+                throw new ArgumentException($"Unsupported register width: {r.Width}");
+            }
         }
 
         public override IEnumerable<CPURegister> GetRegisters()
@@ -466,6 +484,34 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Register]
+        public RegisterValue FFLAGS
+        {
+            get
+            {
+                return GetRegisterValue32((int)RiscV64Registers.FFLAGS);
+            }
+
+            set
+            {
+                SetRegisterValue32((int)RiscV64Registers.FFLAGS, value);
+            }
+        }
+
+        [Register]
+        public RegisterValue FRM
+        {
+            get
+            {
+                return GetRegisterValue32((int)RiscV64Registers.FRM);
+            }
+
+            set
+            {
+                SetRegisterValue32((int)RiscV64Registers.FRM, value);
+            }
+        }
+
+        [Register]
         public RegisterValue VSTART
         {
             get
@@ -747,6 +793,15 @@ namespace Antmicro.Renode.Peripherals.CPU
         protected Func<int, ulong> GetRegisterValue64;
 #pragma warning restore 649
 
+#pragma warning disable 649
+        // 649:  Field '...' is never assigned to, and will always have its default value null
+        [Import(Name = "tlib_set_register_value_32")]
+        protected Action<int, uint> SetRegisterValue32;
+
+        [Import(Name = "tlib_get_register_value_32")]
+        protected Func<int, uint> GetRegisterValue32;
+#pragma warning restore 649
+
         private static readonly Dictionary<RiscV64Registers, CPURegister> mapping = new Dictionary<RiscV64Registers, CPURegister>
         {
             { RiscV64Registers.ZERO,  new CPURegister(0, 64, isGeneral: true, isReadonly: true, aliases: new [] { "ZERO", "X0" }) },
@@ -814,6 +869,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             { RiscV64Registers.F29,  new CPURegister(62, 64, isGeneral: false, isReadonly: false, aliases: new [] { "F29" }) },
             { RiscV64Registers.F30,  new CPURegister(63, 64, isGeneral: false, isReadonly: false, aliases: new [] { "F30" }) },
             { RiscV64Registers.F31,  new CPURegister(64, 64, isGeneral: false, isReadonly: false, aliases: new [] { "F31" }) },
+            { RiscV64Registers.FFLAGS,  new CPURegister(65, 32, isGeneral: false, isReadonly: false, aliases: new [] { "FFLAGS" }) },
+            { RiscV64Registers.FRM,  new CPURegister(66, 32, isGeneral: false, isReadonly: false, aliases: new [] { "FRM" }) },
             { RiscV64Registers.VSTART,  new CPURegister(101, 64, isGeneral: false, isReadonly: false, aliases: new [] { "VSTART" }) },
             { RiscV64Registers.VXSAT,  new CPURegister(102, 64, isGeneral: false, isReadonly: false, aliases: new [] { "VXSAT" }) },
             { RiscV64Registers.VXRM,  new CPURegister(103, 64, isGeneral: false, isReadonly: false, aliases: new [] { "VXRM" }) },
@@ -877,6 +934,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         MTVAL = 900,
         MIP = 901,
         PRIV = 4161,
+        FFLAGS = 65,
+        FRM = 66,
         VSTART = 101,
         VXSAT = 102,
         VXRM = 103,

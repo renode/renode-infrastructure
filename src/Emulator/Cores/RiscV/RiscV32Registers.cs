@@ -498,6 +498,34 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Register]
+        public RegisterValue FFLAGS
+        {
+            get
+            {
+                return GetRegisterValue32((int)RiscV32Registers.FFLAGS);
+            }
+
+            set
+            {
+                SetRegisterValue32((int)RiscV32Registers.FFLAGS, value);
+            }
+        }
+
+        [Register]
+        public RegisterValue FRM
+        {
+            get
+            {
+                return GetRegisterValue32((int)RiscV32Registers.FRM);
+            }
+
+            set
+            {
+                SetRegisterValue32((int)RiscV32Registers.FRM, value);
+            }
+        }
+
+        [Register]
         public RegisterValue VSTART
         {
             get
@@ -841,6 +869,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             { RiscV32Registers.F29,  new CPURegister(62, 64, isGeneral: false, isReadonly: false, aliases: new [] { "F29" }) },
             { RiscV32Registers.F30,  new CPURegister(63, 64, isGeneral: false, isReadonly: false, aliases: new [] { "F30" }) },
             { RiscV32Registers.F31,  new CPURegister(64, 64, isGeneral: false, isReadonly: false, aliases: new [] { "F31" }) },
+            { RiscV32Registers.FFLAGS,  new CPURegister(65, 32, isGeneral: false, isReadonly: false, aliases: new [] { "FFLAGS" }) },
+            { RiscV32Registers.FRM,  new CPURegister(66, 32, isGeneral: false, isReadonly: false, aliases: new [] { "FRM" }) },
             { RiscV32Registers.VSTART,  new CPURegister(101, 32, isGeneral: false, isReadonly: false, aliases: new [] { "VSTART" }) },
             { RiscV32Registers.VXSAT,  new CPURegister(102, 32, isGeneral: false, isReadonly: false, aliases: new [] { "VXSAT" }) },
             { RiscV32Registers.VXRM,  new CPURegister(103, 32, isGeneral: false, isReadonly: false, aliases: new [] { "VXRM" }) },
@@ -905,6 +935,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         MIP = 901,
         MSECCFG = 1863,
         PRIV = 4161,
+        FFLAGS = 65,
+        FRM = 66,
         VSTART = 101,
         VXSAT = 102,
         VXRM = 103,
