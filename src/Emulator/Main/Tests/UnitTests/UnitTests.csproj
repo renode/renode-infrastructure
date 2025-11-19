@@ -105,6 +105,7 @@
     <Compile Include="PacketTests.cs" />
     <Compile Include="AccessConditionParserTests.cs" />
     <Compile Include="DmaEngineTests.cs" />
+    <Compile Include="DataStorageTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System" />
