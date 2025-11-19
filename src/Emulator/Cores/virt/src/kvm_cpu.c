@@ -54,11 +54,11 @@ static void kvm_set_cpuid(CpuState *s)
     }
 
     kvm_cpuid->nent = CPUID_MAX_NUMBER_OF_ENTRIES;
-    if (ioctl(s->kvm_fd, KVM_GET_SUPPORTED_CPUID, kvm_cpuid) < 0) {
+    if (ioctl_with_retry(s->kvm_fd, KVM_GET_SUPPORTED_CPUID, kvm_cpuid) < 0) {
         kvm_abortf("KVM_GET_SUPPORTED_CPUID: %s", strerror(errno));
     }
 
-    if (ioctl(s->vcpu_fd, KVM_SET_CPUID2, kvm_cpuid) < 0) {
+    if (ioctl_with_retry(s->vcpu_fd, KVM_SET_CPUID2, kvm_cpuid) < 0) {
         kvm_abortf("KVM_SET_CPUID2: %s", strerror(errno));
     }
     free(kvm_cpuid);
@@ -71,7 +71,7 @@ static void set_debug_flags(uint32_t flags)
     struct kvm_guest_debug debug = {
         .control = flags,
     };
-    if (ioctl(cpu->vcpu_fd, KVM_SET_GUEST_DEBUG, &debug) < 0) {
+    if (ioctl_with_retry(cpu->vcpu_fd, KVM_SET_GUEST_DEBUG, &debug) < 0) {
         kvm_runtime_abortf("KVM_SET_GUEST_DEBUG: %s", strerror(errno));
     }
 }
@@ -86,7 +86,7 @@ static void cpu_init(CpuState *s)
     if (s->kvm_fd < 0) {
         kvm_abort("KVM not available");
     }
-    ret = ioctl(s->kvm_fd, KVM_GET_API_VERSION, 0);
+    ret = ioctl_with_retry(s->kvm_fd, KVM_GET_API_VERSION, 0);
     if (ret < 0) {
         kvm_abortf("KVM_GET_API_VERSION: %s", strerror(errno));
     }
@@ -94,32 +94,32 @@ static void cpu_init(CpuState *s)
         close(s->kvm_fd);
         kvm_abort("Only version 12 of KVM is currently supported");
     }
-    s->vm_fd = ioctl(s->kvm_fd, KVM_CREATE_VM, 0);
+    s->vm_fd = ioctl_with_retry(s->kvm_fd, KVM_CREATE_VM, 0);
     if (s->vm_fd < 0) {
         kvm_abortf("KVM_CREATE_VM: %s", strerror(errno));
     }
 
     /* just before the BIOS */
     base_addr = 0xfffbc000;
-    if (ioctl(s->vm_fd, KVM_SET_IDENTITY_MAP_ADDR, &base_addr) < 0) {
+    if (ioctl_with_retry(s->vm_fd, KVM_SET_IDENTITY_MAP_ADDR, &base_addr) < 0) {
         kvm_abortf("KVM_SET_IDENTITY_MAP_ADDR: %s", strerror(errno));
     }
 
-    if (ioctl(s->vm_fd, KVM_SET_TSS_ADDR, (long)(base_addr + 0x1000)) < 0) {
+    if (ioctl_with_retry(s->vm_fd, KVM_SET_TSS_ADDR, (long)(base_addr + 0x1000)) < 0) {
         kvm_abortf("KVM_SET_TSS_ADDR: %s", strerror(errno));
     }
 
-    if (ioctl(s->vm_fd, KVM_CREATE_IRQCHIP, 0) < 0) {
+    if (ioctl_with_retry(s->vm_fd, KVM_CREATE_IRQCHIP, 0) < 0) {
         kvm_abortf("KVM_CREATE_IRQCHIP: %s", strerror(errno));
     }
 
     memset(&pit_config, 0, sizeof(pit_config));
     pit_config.flags = KVM_PIT_SPEAKER_DUMMY;
-    if (ioctl(s->vm_fd, KVM_CREATE_PIT2, &pit_config)) {
+    if (ioctl_with_retry(s->vm_fd, KVM_CREATE_PIT2, &pit_config)) {
         kvm_abortf("KVM_CREATE_PIT2: %s", strerror(errno));
     }
 
-    s->vcpu_fd = ioctl(s->vm_fd, KVM_CREATE_VCPU, 0);
+    s->vcpu_fd = ioctl_with_retry(s->vm_fd, KVM_CREATE_VCPU, 0);
     if (s->vcpu_fd < 0) {
         kvm_abortf("KVM_CREATE_VCPU: %s", strerror(errno));
     }
@@ -127,7 +127,7 @@ static void cpu_init(CpuState *s)
     kvm_set_cpuid(s);
 
     /* map the kvm_run structure */
-    s->kvm_run_size = ioctl(s->kvm_fd, KVM_GET_VCPU_MMAP_SIZE, NULL);
+    s->kvm_run_size = ioctl_with_retry(s->kvm_fd, KVM_GET_VCPU_MMAP_SIZE, NULL);
     if (s->kvm_run_size < 0) {
         kvm_abortf("KVM_GET_VCPU_MMAP_SIZE: %s", strerror(errno));
     }
@@ -199,7 +199,7 @@ void kvm_set_irq(int level, int interrupt_number)
     struct kvm_irq_level irq_level;
     irq_level.irq = interrupt_number;
     irq_level.level = level;
-    if (ioctl(cpu->vm_fd, KVM_IRQ_LINE, &irq_level) < 0) {
+    if (ioctl_with_retry(cpu->vm_fd, KVM_IRQ_LINE, &irq_level) < 0) {
         kvm_runtime_abortf("KVM_IRQ_LINE");
     }
 }

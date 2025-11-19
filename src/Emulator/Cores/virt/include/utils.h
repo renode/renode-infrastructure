@@ -16,3 +16,8 @@ typedef enum {
 } LogLevel;
 
 void kvm_logf(LogLevel level, const char *fmt, ...);
+
+#define IOCTL_RETRY_LIMIT 10
+
+// Wrapper that will retry ioctl on EINTR a maximum of IOCTL_RETRY_LIMIT times.
+int ioctl_with_retry(int fd, unsigned long op, ...);
