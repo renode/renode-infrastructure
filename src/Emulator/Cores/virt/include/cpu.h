@@ -67,6 +67,12 @@ typedef struct CpuState {
     struct kvm_vcpu_events events;
     bool restore_events;
 
+    bool cpu_supports_tsc_offset;
+
+    /* TSC is 64bit so any overfow will work as expected */
+    uint64_t missed_tsc_ticks;
+    uint64_t exit_host_tsc;
+
     /* Flag set when KVM is set to single stepping mode */
     bool single_step;
 

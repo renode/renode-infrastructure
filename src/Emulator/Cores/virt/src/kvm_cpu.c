@@ -14,6 +14,7 @@
 #include "registers.h"
 #include "utils.h"
 #include "unwind.h"
+#include "x86intrin.h"
 #ifdef TARGET_X86KVM
 #include "x86_reports.h"
 #endif
@@ -41,6 +42,18 @@
 
 #define DEFAULT_DEBUG_FLAGS (KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_USE_SW_BP)
 #define SINGLE_STEP_DEBUG_FLAGS (KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_SINGLESTEP)
+
+/* KVM_VCPU_TSC_{CTRL/OFFSET} may not be defined on older systems.
+ * Defines allow for running the same binaries on newer systems where
+ * the presence of KVM_VCPU_TSC_OFFSET attribute will be detected at runtime.
+ *
+ * Values are guaranteed to be 0 because they are defined in linux UAPI. */
+#ifndef KVM_VCPU_TSC_CTRL
+#define KVM_VCPU_TSC_CTRL 0
+#endif
+#ifndef KVM_VCPU_TSC_OFFSET
+#define KVM_VCPU_TSC_OFFSET 0
+#endif
 
 CpuState *cpu;
 __thread struct unwind_state unwind_state;
@@ -124,6 +137,15 @@ static void cpu_init(CpuState *s)
         kvm_abortf("KVM_CREATE_VCPU: %s", strerror(errno));
     }
 
+    struct kvm_device_attr device_attr;
+    device_attr.group = KVM_VCPU_TSC_CTRL;
+    device_attr.attr = KVM_VCPU_TSC_OFFSET;
+    int result = ioctl_with_retry(cpu->vcpu_fd, KVM_HAS_DEVICE_ATTR, &device_attr);
+    cpu->cpu_supports_tsc_offset = (result == 0);
+    if (!cpu->cpu_supports_tsc_offset) {
+        kvm_logf(LOG_LEVEL_WARNING, "Host does not implement TSC offset management, guest TSC precission will be reduced");
+    }
+
     kvm_set_cpuid(s);
 
     /* map the kvm_run structure */
@@ -145,6 +167,8 @@ static void cpu_init(CpuState *s)
         kvm_logf(LOG_LEVEL_WARNING, "Host has unstable TSC");
     }
     
+    cpu->missed_tsc_ticks = 0;
+    cpu->exit_host_tsc = 0;
     cpu->restore_events = false;
     cpu->single_step = false;
     cpu->regs_state = cpu->sregs_state = CLEAR;
@@ -344,6 +368,17 @@ static void execution_timer_disarm()
         kvm_runtime_abortf("setitimer: %s", strerror(errno));
 }
 
+static void set_guest_tsc_offset(uint64_t tsc_offset)
+{
+    struct kvm_device_attr device_attr;
+    device_attr.group = KVM_VCPU_TSC_CTRL;
+    device_attr.attr = KVM_VCPU_TSC_OFFSET;
+    device_attr.addr = (__u64)&tsc_offset;
+    if (ioctl_with_retry(cpu->vcpu_fd, KVM_SET_DEVICE_ATTR, &device_attr)) {
+        kvm_runtime_abortf("KVM_SET_DEVICE_ATTR: %s", strerror(errno));
+    }
+}
+
 static void restore_cpu_events()
 {
     if (cpu->restore_events) {
@@ -367,8 +402,30 @@ static bool kvm_run()
 {
     restore_cpu_events();
 
-    const int result = ioctl(cpu->vcpu_fd, KVM_RUN, 0);
-    
+    /* KVM keeps the TSC (time stamp counter) running even when KVM thread is not being executed.
+     * In this implementation, where a lot of time is spent off the CPU, the jumps in TSC values
+     * are visible to the guest software and can result in some TSC stability checks failing.
+     * As of now TSC cannot be fully virtualized in host's userspace, because KVM does not provide
+     * sufficient API (although such capabilities are supported by both intel and amd
+     * virtualization platforms).
+     *
+     * To minimize the jumps in TSC values observable by guest software, host TSC values are
+     * measured before and after KVM_RUN to calculate 'missed ticks' between each run.
+     * Guest TSC offset is then set to compensate for the accumulated value of 'missed ticks'.
+     * Note that this does not make TSC completely stable as the 'missed ticks' will not include
+     * time spent in KVM_RUN, but before and after KVM thread execution. Also not taken into account
+     * will be the time not spent on CPU if scheduler decides to preempt KVM thread. */
+    if (cpu->cpu_supports_tsc_offset) {
+        const uint64_t entry_host_tsc = __rdtsc();
+        const uint64_t missed_host_ticks = entry_host_tsc - cpu->exit_host_tsc;
+        cpu->missed_tsc_ticks += missed_host_ticks;
+        set_guest_tsc_offset(-cpu->missed_tsc_ticks);
+    }
+
+    const int result = ioctl(cpu->vcpu_fd, KVM_RUN, NULL);
+
+    cpu->exit_host_tsc = __rdtsc();
+
     /* Check whether KVM_RUN execution finished early.
      * We expect interruption by a SIGALRM or from kvm_run::immediate_exit being true,
      * in those cases errno==EINTR and the quantum execution will finish.
