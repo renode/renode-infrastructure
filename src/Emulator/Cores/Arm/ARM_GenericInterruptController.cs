@@ -1744,22 +1744,15 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     writeCallback: (_, val) =>
                     {
                         var irqId = BitHelper.GetValue((uint)val, 0, 10);
-                        CPUEntry cpu = null;
                         var cpuId = BitHelper.GetValue((uint)val, 10, 3);
-                        if(useCPUIdentifier && !TryGetCPUEntry(cpuId, out cpu))
-                        {
-                            this.Log(LogLevel.Warning, "Trying to {0} the interrupt ({1}) for the non-existing CPU ({2}), write ignored.",
-                                isDeactivateRegister ? "deactivate" : "end", irqId, cpuId);
-                            return;
-                        }
                         var askingCPUEntry = GetAskingCPUEntry();
                         if(isDeactivateRegister)
                         {
-                            askingCPUEntry.InterruptDeactivate(new InterruptId(irqId), cpu);
+                            askingCPUEntry.InterruptDeactivate(new InterruptId(irqId), useCPUIdentifier, cpuId);
                         }
                         else
                         {
-                            askingCPUEntry.InterruptEnd(new InterruptId(irqId), groupTypeRegisterProvider(), cpu);
+                            askingCPUEntry.InterruptEnd(new InterruptId(irqId), groupTypeRegisterProvider(), useCPUIdentifier, cpuId);
                         }
                     }
                 );
@@ -2234,7 +2227,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 this.gic = gic;
                 this.cpu = cpu;
-                ProcessorNumber = GetProcessorNumber(cpu);
+                ProcessorNumber = gic.GetProcessorNumber(cpu);
                 TargetFieldFlag = ProcessorNumber <= CPUsCountLegacySupport ? 1U << (int)ProcessorNumber : 0;
                 Affinity = cpu.Affinity;
                 Name = $"cpu{Affinity}";
@@ -2346,7 +2339,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
 
             // Performs priority drop and, if independentEOIControls is false, IRQ deactivation.
-            public void InterruptEnd(InterruptId id, GroupTypeSecurityAgnostic groupTypeRegister, CPUEntry sgiRequestingCPU)
+            public void InterruptEnd(InterruptId id, GroupTypeSecurityAgnostic groupTypeRegister, bool useCPUIdentifier, uint sgiRequestingCPU)
             {
                 var groupType = GetGroupTypeForRegisterSecurityAgnostic(groupTypeRegister);
                 var isVirtualized = IsVirtualized(groupType);
@@ -2384,7 +2377,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     return;
                 }
 
-                if(!IsSoftwareGeneratedInterruptAccessValid(runningIrq, sgiRequestingCPU, "InterruptEnd"))
+                if(!IsSoftwareGeneratedInterruptAccessValid(runningIrq, sgiRequestingCPU, useCPUIdentifier, "InterruptEnd"))
                 {
                     return;
                 }
@@ -2400,7 +2393,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 }
             }
 
-            public void InterruptDeactivate(InterruptId id, CPUEntry sgiRequestingCPU)
+            public void InterruptDeactivate(InterruptId id, bool useCPUIdentifier, uint sgiRequestingCPU)
             {
                 Action<string> logFailure = failureReason => gic.Log(
                     LogLevel.Warning, "Trying to deactivate interrupt with id {0} {1}, write ignored.", (uint)id, failureReason
@@ -2433,7 +2426,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     }
                 }
 
-                if(!IsSoftwareGeneratedInterruptAccessValid(interrupt, sgiRequestingCPU, "InterruptDeactivate"))
+                if(!IsSoftwareGeneratedInterruptAccessValid(interrupt, sgiRequestingCPU, useCPUIdentifier, "InterruptDeactivate"))
                 {
                     return;
                 }
@@ -2696,15 +2689,27 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 }
             }
 
-            private bool IsSoftwareGeneratedInterruptAccessValid(Interrupt interrupt, CPUEntry accessingCPU, string registerTypeName)
+            private bool IsSoftwareGeneratedInterruptAccessValid(Interrupt interrupt, uint accessingCPUId, bool useCPUIdentifier, string registerTypeName)
             {
-                if(accessingCPU == null)
-                {
-                    return true;
-                }
-
                 if(interrupt is SoftwareGeneratedInterrupt sgi)
                 {
+                    if(!useCPUIdentifier)
+                    {
+                        // Some of interrupt End/Deactivate registers, don't require to be passed the cpuId field
+                        // e.g. the ones exposed through system registers (ICC_{IAR0,IAR1,DIR}). In that scenario, just short cut here
+                        return true;
+                    }
+
+                    if(!gic.TryGetCPUEntry(accessingCPUId, out var accessingCPU))
+                    {
+                        this.Log(LogLevel.Warning, "Trying to write to {0} for the interrupt ({1}) for the non-existing CPU ({2}), write ignored.",
+                            registerTypeName, interrupt.Identifier, accessingCPUId);
+                        // Per docs (https://developer.arm.com/documentation/ihi0048/b/Programmers--Model/CPU-interface-register-descriptions/End-of-Interrupt-Register--GICC-EOIR):
+                        // "On a multiprocessor implementation, if the write refers to an SGI, this field contains the CPUID value from the corresponding GICC_IAR access.
+                        // In all other cases this field SBZ."
+                        return false;
+                    }
+
                     if(sgi.Requester != null && sgi.Requester != accessingCPU && !gic.IsAffinityRoutingEnabled(sgi.Requester))
                     {
                         var logMessage = "{0}: Incorrect Processor Number {1} passed for SGI ({2}), expected to be {3}.";
@@ -2727,9 +2732,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         }
                     }
                 }
-                else if(accessingCPU.ProcessorNumber != 0)
+                else if(accessingCPUId != 0)
                 {
-                    gic.Log(LogLevel.Debug, "{0}: Processor Number ({1}) passed for non-SGI interrupt ({2}).", registerTypeName, accessingCPU.ProcessorNumber, interrupt.Identifier);
+                    gic.Log(LogLevel.Debug, "{0}: Processor Number ({1}) passed for non-SGI interrupt ({2}).", registerTypeName, accessingCPUId, interrupt.Identifier);
                 }
                 return true;
             }
