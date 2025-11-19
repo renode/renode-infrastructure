@@ -679,17 +679,15 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public event Action<IARMSingleSecurityStateCPU> CPUAttached;
 
-        private static uint GetProcessorNumber(ICPU cpu)
+        private uint GetProcessorNumber(ICPU cpu)
         {
-            switch(cpu.Model)
+            if(ArchitectureVersion == ARM_GenericInterruptControllerVersion.GICv1)
             {
-            // For armv8.2 core number is stored in affinity level 1.
-            // In older CPUs (i.e. Cortex-A53) it's stored in affinity level 0.
-            case "cortex-a55":
-            case "cortex-a78":
-                return BitHelper.GetValue(cpu.MultiprocessingId, 8, 8);
-            default:
                 return BitHelper.GetValue(cpu.MultiprocessingId, 0, 8);
+            }
+            else
+            {
+                return BitHelper.GetValue(cpu.MultiprocessingId, 0, 32);
             }
         }
 
