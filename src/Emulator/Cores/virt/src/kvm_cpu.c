@@ -140,6 +140,7 @@ static void cpu_init(CpuState *s)
 
     set_debug_flags(DEFAULT_DEBUG_FLAGS);
 
+    cpu->restore_events = false;
     cpu->single_step = false;
     cpu->regs_state = cpu->sregs_state = CLEAR;
     cpu->is_executing = false;
@@ -338,20 +339,42 @@ static void execution_timer_disarm()
         kvm_runtime_abortf("setitimer: %s", strerror(errno));
 }
 
-/* Run KVM. Returns true if run was interrupted by planned timer. */
+static void restore_cpu_events()
+{
+    if (cpu->restore_events) {
+        if (ioctl_with_retry(cpu->vcpu_fd, KVM_SET_VCPU_EVENTS, &cpu->events) == -1) {
+            kvm_runtime_abortf("KVM_SET_VCPU_EVENTS: %s", strerror(errno));
+        }
+        cpu->restore_events = false;
+    }
+}
+
+static void save_cpu_events()
+{
+    if (ioctl_with_retry(cpu->vcpu_fd, KVM_GET_VCPU_EVENTS, &cpu->events) == -1) {
+        kvm_runtime_abortf("KVM_GET_VCPU_EVENTS: %s", strerror(errno));
+    }
+    cpu->restore_events = true;
+}
+
+/* Run KVM. Returns true if run was interrupted. */
 static bool kvm_run()
 {
-    if (ioctl(cpu->vcpu_fd, KVM_RUN, 0) < 0) {
-        if (errno == EINTR) {
-            /* We were interrupted by the signal.
-             * If it was SIGALRM, cpu->timer_expired is set and we will finish the execution.
-             * Otherwise, signal is ignored. */
-            return true;
-        }
+    restore_cpu_events();
+
+    const int result = ioctl(cpu->vcpu_fd, KVM_RUN, 0);
+    
+    /* Check whether KVM_RUN execution finished early.
+     * We expect interruption by a SIGALRM or from kvm_run::immediate_exit being true,
+     * in those cases errno==EINTR and the quantum execution will finish.
+     * Other exit reasons are treated as errors. */
+    const bool early_exit = (result == -1);
+    if (early_exit && errno != EINTR) {
         kvm_runtime_abortf("KVM_RUN: %s", strerror(errno));
     }
 
-    return false;
+    save_cpu_events();
+    return early_exit;
 }
 
 static ExecutionResult kvm_run_loop()

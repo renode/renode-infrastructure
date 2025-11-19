@@ -63,6 +63,10 @@ typedef struct CpuState {
     /* struct containing KVM execution details */
     struct kvm_run *kvm_run;
 
+    /* struct containing events data */
+    struct kvm_vcpu_events events;
+    bool restore_events;
+
     /* Flag set when KVM is set to single stepping mode */
     bool single_step;
 
