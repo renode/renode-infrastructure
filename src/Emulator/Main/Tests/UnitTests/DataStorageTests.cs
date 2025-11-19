@@ -19,5 +19,11 @@ namespace Antmicro.Renode.UnitTests
         {
             Assert.Throws<ConstructionException>(() => DataStorage.CreateFromFile("/doesntexist"));
         }
+        [Test]
+        public void ShouldThrowConstructionExceptionOnEmptyPath()
+        {
+            Assert.Throws<ConstructionException>(() => DataStorage.CreateFromFile(null));
+            Assert.Throws<ConstructionException>(() => DataStorage.CreateFromFile(""));
+        }
     }
 }
