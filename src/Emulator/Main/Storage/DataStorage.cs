@@ -31,7 +31,7 @@ namespace Antmicro.Renode.Storage
 
             if(!File.Exists(imageFile))
             {
-                throw new ConstructionException("Image file doesn't exist.");
+                throw new ConstructionException(string.Format("Could not find image file '{0}'", imageFile));
             }
 
             if(persistent && compression != CompressionType.None)
