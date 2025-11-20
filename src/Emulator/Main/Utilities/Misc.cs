@@ -233,8 +233,11 @@ namespace Antmicro.Renode.Utilities
             var t = obj.GetType();
             return Misc.PrettyPrintCollection(t.GetProperties().Select(p => (MemberInfo)p).Concat(t.GetFields().Select(f => (MemberInfo)f)).Select(f =>
                 {
-                    var value = f is FieldInfo fi ? fi.GetValue(obj) : (f as PropertyInfo).GetValue(obj);
-                    var valueStr = ((value?.GetType()?.IsEnum ?? false) || value is bool || value as int? <= 9 || value as ulong? <= 9) ? value.ToString() : $"0x{value:x}";
+                    var fi = f as FieldInfo;
+                    var pi = f as PropertyInfo;
+                    var type = fi?.FieldType ?? pi.PropertyType;
+                    var value = fi?.GetValue(obj) ?? pi.GetValue(obj);
+                    var valueStr = (!type.IsPrimitive || value is bool || value as int? <= 9 || value as ulong? <= 9) ? value.ToString() : $"0x{value:x}";
                     return $"{f.Name} = {valueStr}";
                 }));
         }
