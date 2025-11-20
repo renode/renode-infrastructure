@@ -1435,6 +1435,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             ZVE64D = 13,
             ZACAS = 14,
             SSCOFPMF = 15,
+            ZCB = 16,
+            ZCMP = 17,
+            ZCMT = 18,
         }
 
         public enum InterruptMode
@@ -1645,6 +1648,12 @@ namespace Antmicro.Renode.Peripherals.CPU
                 case "ZVE64F": standardExtensions.Add(StandardInstructionSetExtensions.ZVE64F); break;
                 case "ZVE64D": standardExtensions.Add(StandardInstructionSetExtensions.ZVE64D); break;
                 case "ZACAS": standardExtensions.Add(StandardInstructionSetExtensions.ZACAS); break;
+                case "ZCA": 
+                    instructionSets.Add(InstructionSet.C); // ZCA maps to base C extension
+                    break;
+                case "ZCB": standardExtensions.Add(StandardInstructionSetExtensions.ZCB); break;
+                case "ZCMP": standardExtensions.Add(StandardInstructionSetExtensions.ZCMP); break;
+                case "ZCMT": standardExtensions.Add(StandardInstructionSetExtensions.ZCMT); break;                
                 default:
                     throw new ConstructionException($"Undefined instructions set extension: '{name}'");
                 }

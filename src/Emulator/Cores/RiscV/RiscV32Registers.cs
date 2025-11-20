@@ -174,6 +174,20 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Register]
+        public RegisterValue JVT
+        {
+            get
+            {
+                return GetRegisterValue32((int)RiscV32Registers.JVT);
+            }
+
+            set
+            {
+                SetRegisterValue32((int)RiscV32Registers.JVT, value);
+            }
+        }
+
+        [Register]
         public RegisterValue SSTATUS
         {
             get
@@ -871,6 +885,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             { RiscV32Registers.F31,  new CPURegister(64, 64, isGeneral: false, isReadonly: false, aliases: new [] { "F31" }) },
             { RiscV32Registers.FFLAGS,  new CPURegister(65, 32, isGeneral: false, isReadonly: false, aliases: new [] { "FFLAGS" }) },
             { RiscV32Registers.FRM,  new CPURegister(66, 32, isGeneral: false, isReadonly: false, aliases: new [] { "FRM" }) },
+            { RiscV32Registers.JVT,  new CPURegister(88, 32, isGeneral: false, isReadonly: false, aliases: new [] { "JVT" }) },
             { RiscV32Registers.VSTART,  new CPURegister(101, 32, isGeneral: false, isReadonly: false, aliases: new [] { "VSTART" }) },
             { RiscV32Registers.VXSAT,  new CPURegister(102, 32, isGeneral: false, isReadonly: false, aliases: new [] { "VXSAT" }) },
             { RiscV32Registers.VXRM,  new CPURegister(103, 32, isGeneral: false, isReadonly: false, aliases: new [] { "VXRM" }) },
@@ -912,6 +927,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         TP = 4,
         FP = 8,
         PC = 32,
+        JVT = 88,
         SSTATUS = 321,
         SIE = 325,
         STVEC = 326,
