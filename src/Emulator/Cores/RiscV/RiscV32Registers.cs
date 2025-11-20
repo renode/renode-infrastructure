@@ -217,6 +217,20 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Register]
+        public RegisterValue JVT
+        {
+            get
+            {
+                return GetRegisterValue32((int)RiscV32Registers.JVT);
+            }
+
+            set
+            {
+                SetRegisterValue32((int)RiscV32Registers.JVT, value);
+            }
+        }
+
+        [Register]
         public RegisterValue SSCRATCH
         {
             get
@@ -878,6 +892,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             { RiscV32Registers.SSTATUS,  new CPURegister(321, 32, isGeneral: false, isReadonly: false, aliases: new [] { "SSTATUS" }) },
             { RiscV32Registers.SIE,  new CPURegister(325, 32, isGeneral: false, isReadonly: false, aliases: new [] { "SIE" }) },
             { RiscV32Registers.STVEC,  new CPURegister(326, 32, isGeneral: false, isReadonly: false, aliases: new [] { "STVEC" }) },
+            { RiscV32Registers.JVT,  new CPURegister(344, 32, isGeneral: false, isReadonly: false, aliases: new [] { "JVT" }) },
             { RiscV32Registers.SSCRATCH,  new CPURegister(385, 32, isGeneral: false, isReadonly: false, aliases: new [] { "SSCRATCH" }) },
             { RiscV32Registers.SEPC,  new CPURegister(386, 32, isGeneral: false, isReadonly: false, aliases: new [] { "SEPC" }) },
             { RiscV32Registers.SCAUSE,  new CPURegister(387, 32, isGeneral: false, isReadonly: false, aliases: new [] { "SCAUSE" }) },
@@ -915,6 +930,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         SSTATUS = 321,
         SIE = 325,
         STVEC = 326,
+        JVT = 344,
         SSCRATCH = 385,
         SEPC = 386,
         SCAUSE = 387,
