@@ -73,7 +73,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                 if(triple == "riscv32" || triple == "riscv64")
                 {
                     // Cache is not only to improve performance but also to log unsupported extensions once.
-                    model = riscvModelsCache.Get<ICPU, string, string>(cpu, triple, GetRiscVCompatibleModel);
+                    lock(riscvModelsCache)
+                    {
+                        model = riscvModelsCache.Get<ICPU, string, string>(cpu, triple, GetRiscVCompatibleModel);
+                    }
                 }
                 else
                 {
