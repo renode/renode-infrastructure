@@ -41,7 +41,7 @@ namespace Antmicro.Renode.Core
             var serializerMode = ConfigurationManager.Instance.Get("general", "serialization-mode", Antmicro.Migrant.Customization.Method.Generated);
             
             var settings = new Antmicro.Migrant.Customization.Settings(serializerMode, serializerMode,
-                Antmicro.Migrant.Customization.VersionToleranceLevel.AllowGuidChange, disableTypeStamping: true);
+                Antmicro.Migrant.Customization.VersionToleranceLevel.AllowGuidChange, disableTypeStamping: false);
             serializer = new Serializer(settings);
             serializer.ForObject<PythonDictionary>().SetSurrogate(x => new PythonDictionarySurrogate(x));
             serializer.ForSurrogate<PythonDictionarySurrogate>().SetObject(x => x.Restore());
