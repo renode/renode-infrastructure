@@ -7,6 +7,7 @@
 //
 using System;
 using System.Collections.Generic;
+
 using Antmicro.Migrant;
 
 namespace Antmicro.Renode.Peripherals.UART
@@ -18,15 +19,44 @@ namespace Antmicro.Renode.Peripherals.UART
             Reset();
         }
 
-        [field: Transient]
-        public event Action<byte> CharReceived;
+        public void Reset()
+        {
+            readFifo = new Queue<uint>(ReceiveFifoSize);    // typed chars are stored here
+        }
 
-        public Bits StopBits 
-        { 
-                get 
-                { 
-                        return 0;
+        public void WriteChar(byte value) // char is typed
+        {
+            lock(UartLock)
+            {
+                readFifo.Enqueue(value);
+            }
+        }
+
+        public byte SemihostingGetByte()
+        {
+            lock(UartLock)
+            {
+                return readFifo.Count > 0 ? (byte)readFifo.Dequeue() : (byte)0;
+            }
+        }
+
+        public void SemihostingWriteString(string s)
+        {
+            lock(UartLock)
+            {
+                for(int i = 0; i < s.Length; i++)
+                {
+                    OnCharReceived(Convert.ToByte(s[i]));
                 }
+            }
+        }
+
+        public Bits StopBits
+        {
+            get
+            {
+                return 0;
+            }
         }
 
         public Parity ParityBit
@@ -45,33 +75,8 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
-        public void Reset()
-        {
-            readFifo = new Queue<uint>(receiveFifoSize);    // typed chars are stored here
-        }
-
-        public void WriteChar(byte value) // char is typed
-        {
-            lock(UartLock)
-            {
-                readFifo.Enqueue(value);
-            }
-        }
-
-	public byte SemihostingGetByte() {
-		lock(UartLock) {
-			return readFifo.Count > 0 ? (byte)readFifo.Dequeue() : (byte)0;
-		}
-	}
-
-        public void SemihostingWriteString(string s)
-        {
-            lock(UartLock) {
-	            for (int i = 0; i < s.Length; i++) {
-                        OnCharReceived(Convert.ToByte(s[i]));
-		    }
-	    }
-        }
+        [field: Transient]
+        public event Action<byte> CharReceived;
 
         private void OnCharReceived(byte b)
         {
@@ -80,12 +85,11 @@ namespace Antmicro.Renode.Peripherals.UART
             {
                 handler(b);
             }
-
         }
 
-        private object UartLock = new object();
         private Queue<uint> readFifo;
-        private const int receiveFifoSize = 16;
+
+        private readonly object UartLock = new object();
+        private const int ReceiveFifoSize = 16;
     }
 }
-

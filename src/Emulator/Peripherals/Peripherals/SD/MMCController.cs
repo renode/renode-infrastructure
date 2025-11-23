@@ -5,10 +5,11 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-﻿using System;
+using System;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Logging;
 using Antmicro.Renode.Core.Structure;
+using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.SD
 {
@@ -49,7 +50,7 @@ namespace Antmicro.Renode.Peripherals.SD
             {
                 return response;
             }
-            
+
             switch(command)
             {
             case Commands.GoIdleState:
@@ -108,7 +109,9 @@ namespace Antmicro.Renode.Peripherals.SD
         }
 
         protected abstract void SendSdConfigurationValue();
+
         protected abstract void TransferDataToCard(uint cardOffset, int bytes);
+
         protected abstract void TransferDataFromCard(uint cardOffset, int bytes);
 
         protected int BlockSize, ByteCount;

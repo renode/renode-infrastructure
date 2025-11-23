@@ -5,8 +5,9 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
@@ -138,9 +139,9 @@ namespace Antmicro.Renode.Peripherals.Network
                     // Handle functions with side effects
                     switch(modemFunction)
                     {
-                        case ModemConfigBC66.DeepSleepEvent:
-                            deepSleepEventEnabled = args[0] != 0;
-                            break;
+                    case ModemConfigBC66.DeepSleepEvent:
+                        deepSleepEventEnabled = args[0] != 0;
+                        break;
                     }
                 }
                 else
@@ -188,25 +189,25 @@ namespace Antmicro.Renode.Peripherals.Network
 
             switch(parameter)
             {
-                case "echomode":
-                    echoInDataMode = args[0] != 0;
-                    break;
-                case "dataformat":
-                    if(args.Length < 2)
-                    {
-                        return Error;
-                    }
-                    sendDataFormat = args[0] != 0 ? DataFormat.Hex : DataFormat.Text;
-                    receiveDataFormat = args[1] != 0 ? DataFormat.Hex : DataFormat.Text;
-                    break;
-                case "showlength":
-                    showLength = args[0] != 0;
-                    break;
-                case "viewmode":
-                    dataOutputSeparator = args[0] != 0 ? "," : CrLf;
-                    break;
-                default:
-                    return base.Qicfg(parameter, args);
+            case "echomode":
+                echoInDataMode = args[0] != 0;
+                break;
+            case "dataformat":
+                if(args.Length < 2)
+                {
+                    return Error;
+                }
+                sendDataFormat = args[0] != 0 ? DataFormat.Hex : DataFormat.Text;
+                receiveDataFormat = args[1] != 0 ? DataFormat.Hex : DataFormat.Text;
+                break;
+            case "showlength":
+                showLength = args[0] != 0;
+                break;
+            case "viewmode":
+                dataOutputSeparator = args[0] != 0 ? "," : CrLf;
+                break;
+            default:
+                return base.Qicfg(parameter, args);
             }
             return Ok;
         }
@@ -235,9 +236,13 @@ namespace Antmicro.Renode.Peripherals.Network
         }
 
         protected override string Vendor => "Quectel_Ltd";
+
         protected override string ModelName => "Quectel_BC66";
+
         protected override string Revision => "Revision: MTK_2625";
+
         protected override string ManufacturerRevision => "BC66NBR01A01";
+
         protected override string SoftwareRevision => "01.002.01.002";
 
         private readonly Dictionary<string, ModemConfigBC66> nameModemConfigDecoder;

@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
+
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Network
@@ -113,7 +114,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 // int[] or string[] as appropriate. arrayElements is always an object[].
                 var arrayArgument = Array.CreateInstance(arrayParameterType, arrayElements.Length);
                 Array.Copy(arrayElements, arrayArgument, arrayElements.Length);
-                parsedArguments = parsedArguments.Append(new [] { arrayArgument } );
+                parsedArguments = parsedArguments.Append(new[] { arrayArgument });
             }
             return parsedArguments.ToArray();
         }
@@ -142,6 +143,20 @@ namespace Antmicro.Renode.Peripherals.Network
 
         private class ParsedCommand
         {
+            public static bool TryParse(string command, out ParsedCommand parsed)
+            {
+                try
+                {
+                    parsed = new ParsedCommand(command);
+                    return true;
+                }
+                catch(Exception)
+                {
+                    parsed = default(ParsedCommand);
+                    return false;
+                }
+            }
+
             public ParsedCommand(string command)
             {
                 if(!command.StartsWith("AT", true, CultureInfo.InvariantCulture))
@@ -182,26 +197,14 @@ namespace Antmicro.Renode.Peripherals.Network
                 }
             }
 
-            public static bool TryParse(string command, out ParsedCommand parsed)
-            {
-                try
-                {
-                    parsed = new ParsedCommand(command);
-                    return true;
-                }
-                catch(Exception)
-                {
-                    parsed = default(ParsedCommand);
-                    return false;
-                }
-            }
-
             public string Command
             {
                 get => command;
                 private set => command = value.ToUpper();
             }
+
             public CommandType Type { get; }
+
             public string Arguments { get; } = "";
 
             private string command;

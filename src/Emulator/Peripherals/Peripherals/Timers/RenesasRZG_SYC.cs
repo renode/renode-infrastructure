@@ -5,9 +5,9 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Time;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -127,10 +127,11 @@ namespace Antmicro.Renode.Peripherals.Timers
                 .WithReservedBits(8, 24);
         }
 
-        private readonly LimitTimer timer;
         // Nullable uint is used, so that software has the ability to only override
         // the upper half of the counter's value
         private uint? timerValueLowerOverride;
+
+        private readonly LimitTimer timer;
 
         private enum Registers
         {

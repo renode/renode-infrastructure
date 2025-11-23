@@ -6,17 +6,10 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System;
-using System.IO;
-using System.Collections.Generic;
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Time;
-using Antmicro.Renode.Peripherals.Timers;
-using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -31,6 +24,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             timer.Frequency = timerFrequency;
             timer.Limit = timerLimit;
         }
+
         partial void EFR32xG2_TIMER_1_Constructor()
         {
             // frequency and limit set to arbitrary values as the will be overwritten by the constructor defined above
@@ -43,13 +37,13 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         partial void TIMER_Reset()
         {
-            timerIsRunning = false;
+            TimerIsRunning = false;
             timer.Enabled = false;
         }
 
         partial void Cmd_Start_Write(bool a, bool b)
         {
-            if (b)
+            if(b)
             {
                 StartCommand();
             }
@@ -57,7 +51,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         partial void Cmd_Stop_Write(bool a, bool b)
         {
-            if (b)
+            if(b)
             {
                 StopCommand();
             }
@@ -96,82 +90,13 @@ namespace Antmicro.Renode.Peripherals.Timers
             RestartTimer();
         }
 
-        private void UpdateInterrupts()
-        {
-            machine.ClockSource.ExecuteInLock(delegate {
-                var irq = ((ien_of_bit.Value && if_of_bit.Value)
-                            || (ien_cc0_bit.Value && if_cc0_bit.Value));
-                IRQ.Set(irq);
-            });
-        }
-
-        private void StartCommand()
-        {
-            timerIsRunning = true;
-            RestartTimer(true);
-        }
-
-        private void StopCommand()
-        {
-            timerIsRunning = false;
-            timer.Enabled = false;
-        }
-
-
-        private void OnTimerLimitReached()
-        {
-            this.Log(LogLevel.Debug, "Timer Limit Reached");
-            bool restartFromZero = false;
-
-            if (timer.Limit == timerLimit)
-            {
-                if_of_bit.Value = true;
-                restartFromZero = true;
-            }
-            if (timer.Limit == cc_oc_oc_field[0].Value + 1)
-            {
-                if_cc0_bit.Value = true;
-            }
-
-            UpdateInterrupts();
-            RestartTimer(restartFromZero);
-        }
-
-        private void RestartTimer(bool restartFromZero = false)
-        {
-            if (!timerIsRunning)
-            {
-                return;
-            }
-
-            uint currentValue = restartFromZero ? 0 : TimerCounter;
-
-            timer.Enabled = false;
-            uint limit = timerLimit;
-
-            // Check whether the limit should be set to a compare value
-            if (ien_cc0_bit.Value 
-                && currentValue < (cc_oc_oc_field[0].Value + 1)
-                && (cc_oc_oc_field[0].Value + 1) < limit)
-            {
-                limit = (uint)cc_oc_oc_field[0].Value + 1;
-            }
-
-            // Add remaining compare channels as needed
-            
-            timer.Limit = limit;
-            this.Log(LogLevel.Noisy, "SET timer limit to {0}", timer.Limit);
-            timer.Enabled = true;
-            timer.Value = currentValue;
-        }
-
         public uint TimerCounter
         {
             get
             {
-                if (timerIsRunning)
+                if(TimerIsRunning)
                 {
-                    if (timer.Enabled)
+                    if(timer.Enabled)
                     {
                         TrySyncTime();
                         return (uint)timer.Value;
@@ -183,12 +108,85 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
                 return 0;
             }
-            
+
             set
             {
                 timer.Value = value;
                 RestartTimer();
             }
+        }
+
+        public GPIO IRQ { get; private set; }
+
+        public bool TimerIsRunning = false;
+
+        private void UpdateInterrupts()
+        {
+            machine.ClockSource.ExecuteInLock(delegate
+            {
+                var irq = ((ien_of_bit.Value && if_of_bit.Value)
+                            || (ien_cc0_bit.Value && if_cc0_bit.Value));
+                IRQ.Set(irq);
+            });
+        }
+
+        private void StartCommand()
+        {
+            TimerIsRunning = true;
+            RestartTimer(true);
+        }
+
+        private void StopCommand()
+        {
+            TimerIsRunning = false;
+            timer.Enabled = false;
+        }
+
+        private void OnTimerLimitReached()
+        {
+            this.Log(LogLevel.Debug, "Timer Limit Reached");
+            bool restartFromZero = false;
+
+            if(timer.Limit == timerLimit)
+            {
+                if_of_bit.Value = true;
+                restartFromZero = true;
+            }
+            if(timer.Limit == cc_oc_oc_field[0].Value + 1)
+            {
+                if_cc0_bit.Value = true;
+            }
+
+            UpdateInterrupts();
+            RestartTimer(restartFromZero);
+        }
+
+        private void RestartTimer(bool restartFromZero = false)
+        {
+            if(!TimerIsRunning)
+            {
+                return;
+            }
+
+            uint currentValue = restartFromZero ? 0 : TimerCounter;
+
+            timer.Enabled = false;
+            uint limit = timerLimit;
+
+            // Check whether the limit should be set to a compare value
+            if(ien_cc0_bit.Value
+                && currentValue < (cc_oc_oc_field[0].Value + 1)
+                && (cc_oc_oc_field[0].Value + 1) < limit)
+            {
+                limit = (uint)cc_oc_oc_field[0].Value + 1;
+            }
+
+            // Add remaining compare channels as needed
+
+            timer.Limit = limit;
+            this.Log(LogLevel.Noisy, "SET timer limit to {0}", timer.Limit);
+            timer.Enabled = true;
+            timer.Value = currentValue;
         }
 
         private bool TrySyncTime()
@@ -201,10 +199,8 @@ namespace Antmicro.Renode.Peripherals.Timers
             return false;
         }
 
-        public GPIO IRQ { get; private set;}
         private LimitTimer timer;
-        private uint timerFrequency;
-        private uint timerLimit;
-        public bool timerIsRunning = false;
+        private readonly uint timerFrequency;
+        private readonly uint timerLimit;
     }
 }

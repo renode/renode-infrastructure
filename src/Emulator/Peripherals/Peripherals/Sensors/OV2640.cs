@@ -5,14 +5,10 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System;
-using System.IO;
-using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Sensor;
 using Antmicro.Renode.Peripherals.I2C;
-using Antmicro.Renode.Peripherals.SPI;
+using Antmicro.Renode.Peripherals.Sensor;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Sensors
@@ -50,16 +46,16 @@ namespace Antmicro.Renode.Peripherals.Sensors
             parent.NoisyLog("OV2640: Reading from the device in state {0}", state);
             switch(state)
             {
-                case State.Processing:
-                {
-                    var result = RegistersCollection.Read(address);
-                    parent.NoisyLog("OV2640: Read 0x{0:X} from register {1}", result, DecodeRegister(address));
-                    return new [] { result };
-                }
+            case State.Processing:
+            {
+                var result = RegistersCollection.Read(address);
+                parent.NoisyLog("OV2640: Read 0x{0:X} from register {1}", result, DecodeRegister(address));
+                return new[] { result };
+            }
 
-                default:
-                    parent.Log(LogLevel.Error, "OV2640: Reading in an unexpected state: {0}", state);
-                    return new byte[0];
+            default:
+                parent.Log(LogLevel.Error, "OV2640: Reading in an unexpected state: {0}", state);
+                return new byte[0];
             }
         }
 
@@ -98,25 +94,25 @@ namespace Antmicro.Renode.Peripherals.Sensors
             parent.NoisyLog("OV2640: Received byte 0x{0:X} in state {1}", b, state);
             switch(state)
             {
-                case State.Idle:
-                {
-                    address = b;
-                    state = State.Processing;
+            case State.Idle:
+            {
+                address = b;
+                state = State.Processing;
 
-                    parent.NoisyLog("OV2640: Selected register {0}", DecodeRegister(address));
-                    break;
-                }
+                parent.NoisyLog("OV2640: Selected register {0}", DecodeRegister(address));
+                break;
+            }
 
-                case State.Processing:
-                {
-                    parent.NoisyLog("OV2640: Writing 0x{0:X} to register {1}", b, DecodeRegister(address));
-                    RegistersCollection.Write(address, b);
-                    break;
-                }
+            case State.Processing:
+            {
+                parent.NoisyLog("OV2640: Writing 0x{0:X} to register {1}", b, DecodeRegister(address));
+                RegistersCollection.Write(address, b);
+                break;
+            }
 
-                default:
-                    parent.Log(LogLevel.Error, "OV2640: Writing byte in an unexpected state: {0}", state);
-                    break;
+            default:
+                parent.Log(LogLevel.Error, "OV2640: Writing byte in an unexpected state: {0}", state);
+                break;
             }
         }
 
@@ -159,15 +155,15 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithReservedBits(3, 1)
                 .WithEnumField<ByteRegister, ResolutionMode>(4, 3, out resolution, name: "Resolution selection",
                     writeCallback: (_, val) => parent.Log(LogLevel.Debug, "Resolution set to {0}", val))
-                .WithFlag(7, name: "SRST", writeCallback: (_, val) => 
-                { 
-                    if(!val) 
+                .WithFlag(7, name: "SRST", writeCallback: (_, val) =>
+                {
+                    if(!val)
                     {
                         return;
                     }
 
                     parent.NoisyLog("OV2640: Initiating system reset");
-                    Reset(); 
+                    Reset();
                 })
             ;
 
@@ -216,6 +212,14 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private readonly IPeripheral parent;
 
+        public enum OutputFormat
+        {
+            YUV422 = 0,
+            RAW10_DVP = 1,
+            RGB565 = 2,
+            Reserved = 3
+        }
+
         private enum State
         {
             Idle,
@@ -227,14 +231,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
             UXGA_1600_1200 = 0,
             CIF_352_288 = 2,
             SVGA_800_600 = 4
-        }
-
-        public enum OutputFormat
-        {
-            YUV422 = 0,
-            RAW10_DVP = 1,
-            RGB565 = 2,
-            Reserved = 3
         }
 
         private enum DSPRegister

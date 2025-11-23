@@ -7,13 +7,14 @@
 //
 using System;
 using System.IO;
-using Antmicro.Renode.Utilities;
-using Xwt;
-using System.Text;
 using System.Linq;
-using System.Threading;
+using System.Text;
 
-namespace Antmicro.Renode.UI 
+using Antmicro.Renode.Utilities;
+
+using Xwt;
+
+namespace Antmicro.Renode.UI
 {
     public class CrashHandler
     {
@@ -22,7 +23,7 @@ namespace Antmicro.Renode.UI
             var message = GetFullStackTrace(e);
             SaveErrorToFile(TemporaryFilesManager.Instance.EmulatorTemporaryPath + TemporaryFilesManager.CrashSuffix, message);
             ShowErrorInConsole(message);
-            try 
+            try
             {
                 ApplicationExtensions.InvokeInUIThreadAndWait(() => ShowErrorWindow(message));
             }
@@ -37,7 +38,7 @@ namespace Antmicro.Renode.UI
             var dialog = new Dialog();
             dialog.Title = "Fatal error";
             var markdown = new MarkdownView();
-            markdown.Markdown = message.Split(new [] { '\n' }).Select(x => "\t" + x).Aggregate((x, y) => x + "\n" + y);
+            markdown.Markdown = message.Split(new[] { '\n' }).Select(x => "\t" + x).Aggregate((x, y) => x + "\n" + y);
 
             var copyButton = new Button("Copy to clipboard");
             copyButton.Clicked += (sender, ev) => Clipboard.SetText(message);
@@ -91,4 +92,3 @@ namespace Antmicro.Renode.UI
         }
     }
 }
-

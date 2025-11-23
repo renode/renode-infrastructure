@@ -5,15 +5,14 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System.Collections.Generic;
-using ELFSharp.ELF.Sections;
-using Antmicro.Renode.Utilities.Collections;
 using System;
-using Antmicro.Renode.Utilities;
-using Antmicro.Migrant;
-using Antmicro.Renode.Logging;
+using System.Collections.Generic;
+
 using Antmicro.Renode.Peripherals.Bus;
-using CxxDemangler;
+using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Utilities.Collections;
+
+using ELFSharp.ELF.Sections;
 
 namespace Antmicro.Renode.Core
 {
@@ -267,15 +266,39 @@ namespace Antmicro.Renode.Core
         public SymbolAddress End { get; private set; }
 
         public SymbolAddress Length { get { return End - Start; } }
+
         public string Name { get; private set; }
+
         public SymbolType Type { get; private set; }
+
         public SymbolBinding Binding { get; private set; }
+
         public bool IsThumbSymbol { get; private set; }
 
         public bool IsLabel =>
             Type != SymbolType.Function &&
             (Binding == SymbolBinding.Local || Binding == SymbolBinding.Weak) &&
             Length == 0;
+
+        private static readonly IntervalComparer<SymbolAddress> intervalComparer = new IntervalComparer<SymbolAddress>();
+
+        private static readonly Dictionary<SymbolType, int> TypeImportance = new Dictionary<SymbolType, int>
+        {
+            { SymbolType.File, 0 },
+            { SymbolType.Object, 1 },
+            { SymbolType.Section, 2 },
+            { SymbolType.ProcessorSpecific, 3 },
+            { SymbolType.NotSpecified, 4 },
+            { SymbolType.Function, 5 }
+        };
+
+        private static readonly Dictionary<SymbolBinding, int> BindingImportance = new Dictionary<SymbolBinding, int>
+        {
+            { SymbolBinding.Weak, 0 },
+            { SymbolBinding.ProcessorSpecific, 1 },
+            { SymbolBinding.Local, 2 },
+            { SymbolBinding.Global, 3 }
+        };
 
         private void UpdateIsThumbSymbol()
         {
@@ -293,26 +316,6 @@ namespace Antmicro.Renode.Core
         {
             return new Symbol(start, end, Name, Type, Binding, thumbArchitecture);
         }
-
-        static private IntervalComparer<SymbolAddress> intervalComparer = new IntervalComparer<SymbolAddress>();
-
-        static private Dictionary<SymbolType, int> TypeImportance = new Dictionary<SymbolType, int>
-        {
-            { SymbolType.File, 0 },
-            { SymbolType.Object, 1 },
-            { SymbolType.Section, 2 },
-            { SymbolType.ProcessorSpecific, 3 },
-            { SymbolType.NotSpecified, 4 },
-            { SymbolType.Function, 5 }
-        };
-
-        static private Dictionary<SymbolBinding, int> BindingImportance = new Dictionary<SymbolBinding, int>
-        {
-            { SymbolBinding.Weak, 0 },
-            { SymbolBinding.ProcessorSpecific, 1 },
-            { SymbolBinding.Local, 2 },
-            { SymbolBinding.Global, 3 }
-        };
 
         private readonly bool thumbArchitecture;
     }

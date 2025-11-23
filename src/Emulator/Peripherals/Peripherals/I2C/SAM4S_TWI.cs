@@ -8,6 +8,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -39,16 +40,14 @@ namespace Antmicro.Renode.Peripherals.I2C
         }
 
         public byte? DmaByteRead() => ReadByteFromBuffer();
+
         public void DmaByteWrite(byte data) => WriteByteToBuffer(data);
 
         public byte[] DmaBlockByteRead(int count) => ReadBuffer(count);
 
         public void DmaBlockByteWrite(byte[] data)
         {
-            if(state == State.WriteFinished)
-            {
-                state = State.Write;
-            }
+            state = State.DmaWrite;
             WriteBuffer(data);
         }
 
@@ -71,13 +70,13 @@ namespace Antmicro.Renode.Peripherals.I2C
         public long Size => 0x128;
 
         public TransferType DmaReadAccessWidth => TransferType.Byte;
+
         public TransferType DmaWriteAccessWidth => TransferType.Byte;
 
         private void DefineRegisters()
         {
             Registers.Control.Define(this)
-                .WithFlag(0, out var start, FieldMode.Write, name: "START",
-                    changeCallback: (_, value) => { if(value) SendInternalAddress(); })
+                .WithFlag(0, out var start, FieldMode.Write, name: "START")
                 .WithFlag(1, out var stop, FieldMode.Write, name: "STOP")
                 .WithFlag(2, out masterEnabled, FieldMode.Set, name: "MSEN - Master Mode Enabled")
                 .WithFlag(3, FieldMode.WriteOneToClear, name: "MSDIS - Master Mode Disabled",
@@ -121,8 +120,6 @@ namespace Antmicro.Renode.Peripherals.I2C
                     switch(readDirection.Value)
                     {
                     case ReadDirection.MasterWrite:
-                        state = State.Write;
-                        break;
                     case ReadDirection.MasterRead:
                         state = State.Idle;
                         break;
@@ -264,13 +261,14 @@ namespace Antmicro.Renode.Peripherals.I2C
                 .WithValueField(0, 8, FieldMode.Write, name: "TXDATA",
                     writeCallback: (_, value) =>
                     {
-                        WriteByteToBuffer((byte)value, dmaAccess: false);
+                        WriteByteToBuffer((byte)value);
                         if(state == State.WriteLast)
                         {
-                            state = State.WriteFinished;
-                            FinalizeWrite();
-                            txCompleted.Value = true;
-                            selectedPeripheral?.FinishTransmission();
+                            FinishWrite();
+                        }
+                        else
+                        {
+                            state = State.Idle;
                         }
                         UpdateInterrupts();
                     })
@@ -346,33 +344,34 @@ namespace Antmicro.Renode.Peripherals.I2C
             return data;
         }
 
-        private void WriteByteToBuffer(byte value, bool dmaAccess = true)
+        private void WriteByteToBuffer(byte value)
         {
-            WriteBuffer(new byte[] { value }, dmaAccess);
+            WriteBuffer(new byte[] { value });
         }
 
-        private void WriteBuffer(byte[] data, bool dmaAccess = true)
+        private void WriteBuffer(byte[] data)
         {
-            if(!WriteMode)
-            {
-                this.WarningLog("Attempted to perform write{0}, but it's not enabled", dmaAccess ? " via dma" : "");
-                return;
-            }
-
             if(selectedPeripheral == null)
             {
                 notAcknowledged.Value = true;
                 return;
             }
 
-            if(dmaAccess && txBuffer.Count == 0)
+            if(txBuffer.Count == 0)
             {
-                // This is a first write initiated by PDC,
-                // so the internal address is sent as it's start of a new frame
+                // The internal address is sent as it's start of a new frame
                 SendInternalAddress();
             }
 
             txBuffer.EnqueueRange(data);
+        }
+
+        private void FinishWrite()
+        {
+            state = State.Idle;
+            FinalizeWrite();
+            txCompleted.Value = true;
+            selectedPeripheral?.FinishTransmission();
         }
 
         private void FinalizeWrite()
@@ -454,9 +453,27 @@ namespace Antmicro.Renode.Peripherals.I2C
             switch(readDirection.Value)
             {
             case ReadDirection.MasterWrite:
-                state = stop ? State.WriteLast : State.Write;
+                if(stop)
+                {
+                    if(state == State.DmaWrite)
+                    {
+                        state = State.WriteLast;
+                    }
+                    else
+                    {
+                        FinishWrite();
+                    }
+                }
                 break;
             case ReadDirection.MasterRead:
+                if(start)
+                {
+                    // We don't check if a transaction is finished
+                    // thus address is always sent on start
+                    // It's assumed that SW is responsible for managing transmissions
+                    SendInternalAddress();
+                }
+
                 if(start && stop)
                 {
                     state = State.ReadLast;
@@ -494,8 +511,11 @@ namespace Antmicro.Renode.Peripherals.I2C
         }
 
         private bool EndOfRxBuffer => pdc?.EndOfRxBuffer ?? false;
+
         private bool EndOfTxBuffer => pdc?.EndOfTxBuffer ?? false;
+
         private bool RxBufferFull => pdc?.RxBufferFull ?? false;
+
         private bool TxBufferEmpty => pdc?.TxBufferEmpty ?? false;
 
         private bool RxReady
@@ -515,21 +535,6 @@ namespace Antmicro.Renode.Peripherals.I2C
         }
 
         private bool ReadMode => RxReady;
-
-        private bool WriteMode
-        {
-            get
-            {
-                switch(state)
-                {
-                case State.Write:
-                case State.WriteLast:
-                    return true;
-                default:
-                    return false;
-                }
-            }
-        }
 
         private State state;
         private bool delayRxReady;
@@ -563,18 +568,6 @@ namespace Antmicro.Renode.Peripherals.I2C
         private readonly SAM_PDC pdc;
 
         private const ulong _10BitAddressingPrefix = 0x1e;
-
-        private enum State
-        {
-            Idle,
-            Read,
-            ReadLastButOne,
-            ReadLast,
-            ReadFinished,
-            Write,
-            WriteLast,
-            WriteFinished,
-        }
 
         public enum InternalAddressSize
         {
@@ -615,6 +608,17 @@ namespace Antmicro.Renode.Peripherals.I2C
             PdcTransmitNextCounter = 0x11C,
             PdcTransferControl = 0x120,
             PdcTransferStatus = 0x124,
+        }
+
+        private enum State
+        {
+            Idle,
+            Read,
+            ReadLastButOne,
+            ReadLast,
+            ReadFinished,
+            DmaWrite,
+            WriteLast,
         }
     }
 }

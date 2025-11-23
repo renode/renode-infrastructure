@@ -6,10 +6,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Collections.Generic;
 using System.Collections;
-using Antmicro.Migrant;
+using System.Collections.Generic;
 using System.Linq;
+
+using Antmicro.Migrant;
 using Antmicro.Migrant.Hooks;
 
 namespace Antmicro.Renode.Utilities.Collections
@@ -20,6 +21,74 @@ namespace Antmicro.Renode.Utilities.Collections
         {
             sync = new object();
             Clear();
+        }
+
+        public void Add(KeyValuePair<TKey, TValue> item)
+        {
+            Add(item.Key, item.Value);
+        }
+
+        public void Clear()
+        {
+            lock(sync)
+            {
+                keys = new List<WeakReference>();
+                values = new List<WeakReference>();
+            }
+        }
+
+        public bool Contains(KeyValuePair<TKey, TValue> item)
+        {
+            lock(sync)
+            {
+                List<TKey> currentKeys;
+                List<TValue> currentValues;
+                ObtainKeysAndValues(out currentKeys, out currentValues);
+                var index = currentKeys.IndexOf(item.Key);
+                if(index == -1)
+                {
+                    return false;
+                }
+                return currentValues[index].Equals(item.Value);
+            }
+        }
+
+        public void CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool Remove(KeyValuePair<TKey, TValue> item)
+        {
+            throw new NotImplementedException();
+        }
+
+        public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
+        {
+            List<TKey> currentKeys;
+            List<TValue> currentValues;
+            ObtainKeysAndValues(out currentKeys, out currentValues);
+            for(var i = 0; i < currentKeys.Count; i++)
+            {
+                yield return new KeyValuePair<TKey, TValue>(currentKeys[i], currentValues[i]);
+            }
+        }
+
+        public TValue GetOrCreateValue(TKey key, TValue value)
+        {
+            lock(sync)
+            {
+                List<TKey> currentKeys;
+                List<TValue> currentValues;
+                ObtainKeysAndValues(out currentKeys, out currentValues);
+                var index = currentKeys.IndexOf(key);
+                if(index == -1)
+                {
+                    Add(key, value);
+                    return value;
+                }
+                return currentValues[index];
+            }
         }
 
         public void Add(TKey key, TValue value)
@@ -93,6 +162,7 @@ namespace Antmicro.Renode.Utilities.Collections
                 }
                 return value;
             }
+
             set
             {
                 lock(sync)
@@ -133,46 +203,6 @@ namespace Antmicro.Renode.Utilities.Collections
             }
         }
 
-        public void Add(KeyValuePair<TKey, TValue> item)
-        {
-            Add(item.Key, item.Value);
-        }
-
-        public void Clear()
-        {
-            lock(sync)
-            {
-                keys = new List<WeakReference>();
-                values = new List<WeakReference>();
-            }
-        }
-
-        public bool Contains(KeyValuePair<TKey, TValue> item)
-        {
-            lock(sync)
-            {
-                List<TKey> currentKeys;
-                List<TValue> currentValues;
-                ObtainKeysAndValues(out currentKeys, out currentValues);
-                var index = currentKeys.IndexOf(item.Key);
-                if(index == -1)
-                {
-                    return false;
-                }
-                return currentValues[index].Equals(item.Value);
-            }
-        }
-
-        public void CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex)
-        {
-            throw new NotImplementedException();
-        }
-
-        public bool Remove(KeyValuePair<TKey, TValue> item)
-        {
-            throw new NotImplementedException();
-        }
-
         public int Count
         {
             get
@@ -192,39 +222,9 @@ namespace Antmicro.Renode.Utilities.Collections
             }
         }
 
-
-        public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
-        {
-            List<TKey> currentKeys;
-            List<TValue> currentValues;
-            ObtainKeysAndValues(out currentKeys, out currentValues);
-            for(var i = 0; i < currentKeys.Count; i++)
-            {
-                yield return new KeyValuePair<TKey, TValue>(currentKeys[i], currentValues[i]);
-            }
-        }
-
-
         IEnumerator IEnumerable.GetEnumerator()
         {
             return GetEnumerator();
-        }
-
-        public TValue GetOrCreateValue(TKey key, TValue value)
-        {
-            lock(sync)
-            {
-                List<TKey> currentKeys;
-                List<TValue> currentValues;
-                ObtainKeysAndValues(out currentKeys, out currentValues);
-                var index = currentKeys.IndexOf(key);
-                if(index == -1)
-                {
-                    Add(key, value);
-                    return value;
-                }
-                return currentValues[index];
-            }
         }
 
         private void ObtainKeysAndValues(out List<TKey> currentKeys, out List<TValue> currentValues)
@@ -272,8 +272,6 @@ namespace Antmicro.Renode.Utilities.Collections
             AfterSerialization();
         }
 
-        private object sync;
-
         [Transient]
         private List<WeakReference> keys;
 
@@ -282,6 +280,7 @@ namespace Antmicro.Renode.Utilities.Collections
 
         private List<TKey> serializedKeys;
         private List<TValue> serializedValues;
+
+        private readonly object sync;
     }
 }
-

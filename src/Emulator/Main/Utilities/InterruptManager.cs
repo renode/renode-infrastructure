@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -156,7 +157,7 @@ namespace Antmicro.Renode.Utilities
             {
                 var local = interruptType;
                 result.DefineFlagField((int)(object)interruptType, FieldMode.Read, name: interruptType.ToString(),
-                                       valueProviderCallback: _ => IsSet(local)  && IsEnabled(local));
+                                       valueProviderCallback: _ => IsSet(local) && IsEnabled(local));
             }
             return result;
         }
@@ -363,6 +364,7 @@ namespace Antmicro.Renode.Utilities
         }
 
         public string Name { get; private set; }
+
         public int SubvectorId { get; private set; }
     }
 

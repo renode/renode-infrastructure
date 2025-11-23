@@ -6,9 +6,10 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
+using Antmicro.Migrant;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
-using Antmicro.Migrant;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
@@ -36,11 +37,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             state = inverted;
         }
 
-        [field: Transient]
-        public event Action<ILed, bool> StateChanged;
-
-        public bool State 
-        { 
+        public bool State
+        {
             get => state;
 
             private set
@@ -59,10 +57,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
         }
 
+        [field: Transient]
+        public event Action<ILed, bool> StateChanged;
+
         private bool state;
 
         private readonly bool inverted;
         private readonly object sync;
     }
 }
-

@@ -5,11 +5,13 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Time;
+
 using TimeDirection = Antmicro.Renode.Time.Direction;
 
 namespace Antmicro.Renode.Peripherals.Timers
@@ -58,8 +60,11 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
 
         public GPIO IRQ { get; }
+
         public long Size => 0x400;
+
         public DoubleWordRegisterCollection RegistersCollection { get; }
+
         public bool ForceStop
         {
             get => forceStop;
@@ -69,7 +74,9 @@ namespace Antmicro.Renode.Peripherals.Timers
                 UpdateTimerStatus();
             }
         }
+
         public bool SystemResetEnabled { get; set; } = false;
+
         public bool GeneratedReset
         {
             get => generatedReset;

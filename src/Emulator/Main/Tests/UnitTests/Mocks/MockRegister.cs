@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Peripherals;
@@ -54,13 +55,13 @@ namespace Antmicro.Renode.UnitTests.Mocks
 
         public long Size
         {
-            get 
+            get
             {
                 return 0x4;
             }
         }
 
         private bool isRegistered;
-        private IMachine machine;
+        private readonly IMachine machine;
     }
 }

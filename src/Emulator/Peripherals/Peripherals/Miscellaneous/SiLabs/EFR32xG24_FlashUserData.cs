@@ -6,21 +6,16 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System.Collections.Generic;
-using System.IO;
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.Timers;
-using Antmicro.Renode.Time;
-using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 {
     public class EFR32xG24_FlashUserData : IBytePeripheral, IKnownSize
     {
+        public static sbyte DefaultCcaThreshold = -75;
+
         public EFR32xG24_FlashUserData(Machine machine)
         {
             this.machine = machine;
@@ -33,11 +28,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         public byte ReadByte(long offset)
         {
-            if (offset >= (long)ManufacturerToken.mfgCustomEui64 && offset < (long)ManufacturerToken.mfgCustomEui64 + (long)ManufacturerTokenLength.mfgCustomEui64Length)
+            if(offset >= (long)ManufacturerToken.mfgCustomEui64 && offset < (long)ManufacturerToken.mfgCustomEui64 + (long)ManufacturerTokenLength.mfgCustomEui64Length)
             {
                 return Eui64(offset);
             }
-            else if (offset >= (long)ManufacturerToken.mfgCcaThreshold && offset < (long)ManufacturerToken.mfgCcaThreshold + (long)ManufacturerTokenLength.mfgCcaThresholdLength)
+            else if(offset >= (long)ManufacturerToken.mfgCcaThreshold && offset < (long)ManufacturerToken.mfgCcaThreshold + (long)ManufacturerTokenLength.mfgCcaThresholdLength)
             {
                 return CcaThreshold(offset);
             }
@@ -58,20 +53,21 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         {
             int byteIndex = (int)(offset - (long)ManufacturerToken.mfgCustomEui64);
 
-            if (byteIndex >=  Eui64Size)
+            if(byteIndex >= Eui64Size)
             {
                 this.Log(LogLevel.Error, "EUI64 index out of bounds {0}", byteIndex);
                 return 0;
             }
 
             // Most significant bytes represent the company OUI
-            if (byteIndex >= (Eui64Size - Eui64OUILength)) {
+            if(byteIndex >= (Eui64Size - Eui64OUILength))
+            {
                 return SiliconLabsEui64OUI[byteIndex - (Eui64Size - Eui64OUILength)];
             }
             // Least significant 4 bytes are the UID
-            else if (byteIndex < 4)
+            else if(byteIndex < 4)
             {
-                return (byte)((uid >> byteIndex*8) & 0xFF);
+                return (byte)((uid >> byteIndex * 8) & 0xFF);
             }
             // We set the rest of the bytes to zeros
             else
@@ -94,9 +90,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         public byte CcaThreshold(long offset)
         {
             int byteIndex = (int)(offset - (long)ManufacturerToken.mfgCcaThreshold);
-            if (byteIndex == 0)
+            if(byteIndex == 0)
             {
-                return (byte)ccaThreshold;
+                return (byte)DefaultCcaThreshold;
             }
             else
             {
@@ -105,13 +101,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         }
 
         public long Size => 0xA;
-        private const uint Eui64Size = 8;
+
         public const uint Eui64OUILength = 3;
-        private uint uid;
-        private readonly Machine machine;
         private static uint count = 0;
+        private readonly uint uid;
+        private readonly Machine machine;
+        private const uint Eui64Size = 8;
         public static readonly byte[] SiliconLabsEui64OUI = {0xCC, 0xCC, 0xCC};
-        public static sbyte ccaThreshold = -75;
+
         private enum ManufacturerToken
         {
             mfgCustomEui64           = 0x002,

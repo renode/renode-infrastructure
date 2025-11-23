@@ -18,4 +18,3 @@ namespace Antmicro.Renode.Hooks
         }
     }
 }
-

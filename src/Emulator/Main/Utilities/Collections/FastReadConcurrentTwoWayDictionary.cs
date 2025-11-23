@@ -11,7 +11,7 @@ using System.Linq;
 
 namespace Antmicro.Renode.Utilities.Collections
 {
-    public class FastReadConcurrentTwoWayDictionary<TLeft, TRight>: IDisposable
+    public class FastReadConcurrentTwoWayDictionary<TLeft, TRight> : IDisposable
     {
         public FastReadConcurrentTwoWayDictionary()
         {
@@ -23,7 +23,7 @@ namespace Antmicro.Renode.Utilities.Collections
             Lefts = new TLeft[0];
             Rights = new TRight[0];
         }
-        
+
         public void Dispose()
         {
             Clear();
@@ -179,13 +179,18 @@ namespace Antmicro.Renode.Utilities.Collections
             return copy.TryGetValue(right, out left);
         }
 
-        public event Action<TLeft, TRight> ItemAdded;
-
-        public event Action<TLeft, TRight> ItemRemoved;
-
         public TLeft[] Lefts { get; private set; }
 
         public TRight[] Rights { get; private set; }
+
+        public int Count
+        {
+            get { return lefts.Count; }
+        }
+
+        public event Action<TLeft, TRight> ItemAdded;
+
+        public event Action<TLeft, TRight> ItemRemoved;
 
         public TLeft this[TRight index]
         {
@@ -205,11 +210,6 @@ namespace Antmicro.Renode.Utilities.Collections
             }
         }
 
-        public int Count
-        {
-            get { return lefts.Count; }
-        }
-
         private void OnItemRemoved(TLeft left, TRight right)
         {
             var itemRemoved = ItemRemoved;
@@ -219,9 +219,9 @@ namespace Antmicro.Renode.Utilities.Collections
             }
         }
 
-        private readonly object locker;
         private Dictionary<TLeft, TRight> lefts;
         private Dictionary<TRight, TLeft> rights;
+
+        private readonly object locker;
     }
 }
-

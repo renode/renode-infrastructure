@@ -5,10 +5,10 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
-using System.Threading;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.ExceptionServices;
+using System.Threading;
 
 namespace Antmicro.Renode.Utilities.Binding
 {

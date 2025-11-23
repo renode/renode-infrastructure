@@ -7,11 +7,14 @@
 
 using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
+#pragma warning disable IDE0005
 using Antmicro.Renode.Utilities;
+#pragma warning restore IDE0005
 
 namespace Antmicro.Renode.Peripherals.Analog
 {
@@ -51,6 +54,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         }
 
         public long Size => 0x1C;
+
         public GPIO IRQ { get; }
 
         private void DefineRegisters()
@@ -131,20 +135,20 @@ namespace Antmicro.Renode.Peripherals.Analog
 
             switch((PsXadcCommand)cmd)
             {
-                case PsXadcCommand.NoOperation:
-                    DataFifoSend(readDataValue);
-                    readDataValue = 0;
-                    break;
-                case PsXadcCommand.DrpRead:
-                    DataFifoSend(0);
-                    readDataValue = HandleDrpRead(drpAddress);
-                    break;
-                case PsXadcCommand.DrpWrite:
-                    DataFifoSend(HandleDrpWrite(drpAddress, drpData));
-                    break;
-                default:
-                    this.Log(LogLevel.Warning, $"Unknown DRP command 0x{cmd:x}");
-                    break;
+            case PsXadcCommand.NoOperation:
+                DataFifoSend(readDataValue);
+                readDataValue = 0;
+                break;
+            case PsXadcCommand.DrpRead:
+                DataFifoSend(0);
+                readDataValue = HandleDrpRead(drpAddress);
+                break;
+            case PsXadcCommand.DrpWrite:
+                DataFifoSend(HandleDrpWrite(drpAddress, drpData));
+                break;
+            default:
+                this.Log(LogLevel.Warning, $"Unknown DRP command 0x{cmd:x}");
+                break;
             }
         }
 
@@ -230,6 +234,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         private const int NUMBER_OF_CHANNELS = 1 +
             (int)DrpRegister.VccBram - (int)DrpRegister.Temperature +
             (int)DrpRegister.VauxpVauxn15 - (int)DrpRegister.VccPint;
+
         private const int DATA_FIFO_CAPACITY = 15;
 
         private enum PsXadcCommand
@@ -239,7 +244,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             DrpWrite    = 0x2,
         }
 
-        private enum Register: long
+        private enum Register : long
         {
             Configuration   = 0x00, // XADCIF_CFG
             InterruptStatus = 0x04, // XADCIF_INT_STS
@@ -250,7 +255,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             MiscControl     = 0x18, // XADCIF_MCTL
         }
 
-        private enum DrpRegister: ushort
+        private enum DrpRegister : ushort
         {
             /* ADC conversion result registers. Each of these is a 12-bit value MSB-justified to 16 bits. */
             Temperature           = 0x00,

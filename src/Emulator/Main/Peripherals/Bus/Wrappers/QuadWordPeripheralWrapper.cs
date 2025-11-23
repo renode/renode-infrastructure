@@ -32,4 +32,3 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
         private readonly BusAccess.QuadWordWriteMethod write;
     }
 }
-

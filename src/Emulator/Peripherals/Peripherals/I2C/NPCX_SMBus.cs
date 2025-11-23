@@ -61,49 +61,49 @@ namespace Antmicro.Renode.Peripherals.I2C
         {
             switch(CurrentState)
             {
-                case State.Idle:
-                    this.Log(LogLevel.Warning, "Tried writing to SMB_DAT while in idle state");
-                    break;
+            case State.Idle:
+                this.Log(LogLevel.Warning, "Tried writing to SMB_DAT while in idle state");
+                break;
 
-                case State.Start:
-                    // NOTE: On Repeated Start we have to first send all the data
-                    HandleStop();
+            case State.Start:
+                // NOTE: On Repeated Start we have to first send all the data
+                HandleStop();
 
-                    var address = value >> 1;
-                    var read = (value & 1) > 0;
+                var address = value >> 1;
+                var read = (value & 1) > 0;
 
-                    if(!TryGetByAddress(address, out activePeripheral))
-                    {
-                        this.Log(LogLevel.Warning, "No I2C device with address {0} is connected", address);
-                        negativeAcknowledge.Value = true;
-                        CurrentState = State.Idle;
-                        UpdateInterrupts();
-                        break;
-                    }
-
-                    CurrentState = read ? State.Reading : State.Writing;
-                    if(CurrentState == State.Reading)
-                    {
-                        TryReadFromPeripheral();
-                    }
-                    else
-                    {
-                        readyForTransaction.Value = true;
-                        UpdateInterrupts();
-                    }
-                    break;
-
-                case State.Writing:
-                    txQueue.Enqueue(value);
-
-                    readyForTransaction.Value |= true;
-                    rxFullTxEmptyStatus.Value |= true;
+                if(!TryGetByAddress(address, out activePeripheral))
+                {
+                    this.Log(LogLevel.Warning, "No I2C device with address {0} is connected", address);
+                    negativeAcknowledge.Value = true;
+                    CurrentState = State.Idle;
                     UpdateInterrupts();
                     break;
+                }
 
-                default:
-                    this.Log(LogLevel.Warning, "Trying to write data in wrong state: {0}, ignoring", CurrentState);
-                    return;
+                CurrentState = read ? State.Reading : State.Writing;
+                if(CurrentState == State.Reading)
+                {
+                    TryReadFromPeripheral();
+                }
+                else
+                {
+                    readyForTransaction.Value = true;
+                    UpdateInterrupts();
+                }
+                break;
+
+            case State.Writing:
+                txQueue.Enqueue(value);
+
+                readyForTransaction.Value |= true;
+                rxFullTxEmptyStatus.Value |= true;
+                UpdateInterrupts();
+                break;
+
+            default:
+                this.Log(LogLevel.Warning, "Trying to write data in wrong state: {0}, ignoring", CurrentState);
+                return;
             }
         }
 
@@ -409,6 +409,7 @@ namespace Antmicro.Renode.Peripherals.I2C
         }
 
         private bool FirstBankSelected => !fifoMode.Value || !bankSelect.Value;
+
         private State CurrentState
         {
             get => currentState;
@@ -423,9 +424,6 @@ namespace Antmicro.Renode.Peripherals.I2C
                 currentState = value;
             }
         }
-
-        private readonly Queue<byte> txQueue;
-        private readonly Queue<byte> rxQueue;
 
         private State currentState;
         private II2CPeripheral activePeripheral;
@@ -444,6 +442,9 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         private IValueRegisterField rxFIFOThreshold;
         private IFlagRegisterField readyForTransaction;
+
+        private readonly Queue<byte> txQueue;
+        private readonly Queue<byte> rxQueue;
         private const long CommonRegisterSize = 0x10;
         private const long FIFOLength = 32;
 

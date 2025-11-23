@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals;
@@ -16,6 +17,7 @@ using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Peripherals.SPI;
 using Antmicro.Renode.Utilities;
+
 using ELFSharp.ELF.Segments;
 
 namespace Antmicro.Renode.Core.Extensions
@@ -34,7 +36,7 @@ namespace Antmicro.Renode.Core.Extensions
                 Logger.LogAs(loader, LogLevel.Warning, $"Provided '{nameof(size)}' is zero for {fileName}, skipping load");
                 return;
             }
-            
+
             try
             {
                 using(var reader = new FileStream(fileName, FileMode.Open, FileAccess.Read))
@@ -126,65 +128,65 @@ namespace Antmicro.Renode.Core.Extensions
 
                         switch((HexRecordType)type)
                         {
-                            case HexRecordType.Data:
-                                var targetAddr = (extendedTargetAddress << 16) | (extendedSegmentAddress << 4) | address;
-                                var pos = 9;
-                                var buffer = new byte[length];
-                                for(var i = 0; i < length; i++, pos += 2)
+                        case HexRecordType.Data:
+                            var targetAddr = (extendedTargetAddress << 16) | (extendedSegmentAddress << 4) | address;
+                            var pos = 9;
+                            var buffer = new byte[length];
+                            for(var i = 0; i < length; i++, pos += 2)
+                            {
+                                if(!byte.TryParse(line.Substring(pos, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out buffer[i]))
                                 {
-                                    if(!byte.TryParse(line.Substring(pos, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out buffer[i]))
-                                    {
-                                        throw new RecoverableException($"Parsing error at line #{lineNum}: {line}. Could not parse bytes");
-                                    }
+                                    throw new RecoverableException($"Parsing error at line #{lineNum}: {line}. Could not parse bytes");
                                 }
-                                chunks.Add(new FileChunk() { Data = buffer, OffsetToLoad = targetAddr });
-                                break;
+                            }
+                            chunks.Add(new FileChunk() { Data = buffer, OffsetToLoad = targetAddr });
+                            break;
 
-                            case HexRecordType.ExtendedLinearAddress:
-                                if(!ulong.TryParse(line.Substring(9, 4), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out extendedTargetAddress))
-                                {
-                                    throw new RecoverableException($"Parsing error at line #{lineNum}: {line}. Could not parse extended linear address");
-                                }
-                                break;
+                        case HexRecordType.ExtendedLinearAddress:
+                            if(!ulong.TryParse(line.Substring(9, 4), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out extendedTargetAddress))
+                            {
+                                throw new RecoverableException($"Parsing error at line #{lineNum}: {line}. Could not parse extended linear address");
+                            }
+                            break;
 
-                            case HexRecordType.StartLinearAddress:
-                                if(!ulong.TryParse(line.Substring(9, 8), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var startingAddress))
-                                {
-                                    throw new RecoverableException($"Parsing error at line #{lineNum}: {line}. Could not parse starting address");
-                                }
+                        case HexRecordType.StartLinearAddress:
+                            if(!ulong.TryParse(line.Substring(9, 8), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var startingAddress))
+                            {
+                                throw new RecoverableException($"Parsing error at line #{lineNum}: {line}. Could not parse starting address");
+                            }
 
-                                if(cpu != null)
-                                {
-                                    cpu.PC = startingAddress;
-                                }
-                                break;
+                            if(cpu != null)
+                            {
+                                cpu.PC = startingAddress;
+                            }
+                            break;
 
-                            case HexRecordType.ExtendedSegmentAddress:
-                                if(!ulong.TryParse(line.Substring(9, 4), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out extendedSegmentAddress))
-                                {
-                                    throw new RecoverableException($"Parsing error at line #{lineNum}: {line}. Could not parse extended segment address");
-                                }
-                                break;
+                        case HexRecordType.ExtendedSegmentAddress:
+                            if(!ulong.TryParse(line.Substring(9, 4), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out extendedSegmentAddress))
+                            {
+                                throw new RecoverableException($"Parsing error at line #{lineNum}: {line}. Could not parse extended segment address");
+                            }
+                            break;
 
-                            case HexRecordType.StartSegmentAddress:
-                                if(!ulong.TryParse(line.Substring(9, 4), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var startingSegment)
-                                   || !ulong.TryParse(line.Substring(13, 4), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var startingSegmentAddress))
-                                {
-                                    throw new RecoverableException($"Parsing error at line #{lineNum}: {line}. Could not parse starting segment/address");
-                                }
+                        case HexRecordType.StartSegmentAddress:
+                            if(!ulong.TryParse(line.Substring(9, 4), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var startingSegment)
+                               || !ulong.TryParse(line.Substring(13, 4), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var startingSegmentAddress))
+                            {
+                                throw new RecoverableException($"Parsing error at line #{lineNum}: {line}. Could not parse starting segment/address");
+                            }
 
-                                if(cpu != null)
-                                {
-                                    cpu.PC = (startingSegment << 4) + startingSegmentAddress;
-                                }
-                                break;
+                            if(cpu != null)
+                            {
+                                cpu.PC = (startingSegment << 4) + startingSegmentAddress;
+                            }
+                            break;
 
-                            case HexRecordType.EndOfFile:
-                                endOfFileReached = true;
-                                break;
+                        case HexRecordType.EndOfFile:
+                            endOfFileReached = true;
+                            break;
 
-                            default:
-                                break;
+                        default:
+                            break;
                         }
                         lineNum++;
                     }
@@ -251,42 +253,42 @@ namespace Antmicro.Renode.Core.Extensions
                         var addressLength = 4;
                         switch((SRecType)line[SRecTypeIndex])
                         {
-                            case SRecType.Header:
-                                type = SRecPurpose.Header;
-                                break;
-                            case SRecType.Data16BitAddress:
-                                type = SRecPurpose.Data;
-                                break;
-                            case SRecType.Data24BitAddress:
-                                addressLength = 6;
-                                type = SRecPurpose.Data;
-                                break;
-                            case SRecType.Data32BitAddress:
-                                addressLength = 8;
-                                type = SRecPurpose.Data;
-                                break;
-                            case SRecType.Reserved:
-                                throw new RecoverableException($"Reserved record type at line #{lineNum}:\n\"{line}\"");
-                            case SRecType.Count16Bit:
-                                type = SRecPurpose.Count;
-                                break;
-                            case SRecType.Count24Bit:
-                                addressLength = 6;
-                                type = SRecPurpose.Count;
-                                break;
-                            case SRecType.Termination32BitAddress:
-                                addressLength = 8;
-                                type = SRecPurpose.Termination;
-                                break;
-                            case SRecType.Termination24BitAddress:
-                                addressLength = 6;
-                                type = SRecPurpose.Termination;
-                                break;
-                            case SRecType.Termination16BitAddress:
-                                type = SRecPurpose.Termination;
-                                break;
-                            default:
-                                throw new RecoverableException($"Invalid record type at line #{lineNum}:\n\"{line}\"");
+                        case SRecType.Header:
+                            type = SRecPurpose.Header;
+                            break;
+                        case SRecType.Data16BitAddress:
+                            type = SRecPurpose.Data;
+                            break;
+                        case SRecType.Data24BitAddress:
+                            addressLength = 6;
+                            type = SRecPurpose.Data;
+                            break;
+                        case SRecType.Data32BitAddress:
+                            addressLength = 8;
+                            type = SRecPurpose.Data;
+                            break;
+                        case SRecType.Reserved:
+                            throw new RecoverableException($"Reserved record type at line #{lineNum}:\n\"{line}\"");
+                        case SRecType.Count16Bit:
+                            type = SRecPurpose.Count;
+                            break;
+                        case SRecType.Count24Bit:
+                            addressLength = 6;
+                            type = SRecPurpose.Count;
+                            break;
+                        case SRecType.Termination32BitAddress:
+                            addressLength = 8;
+                            type = SRecPurpose.Termination;
+                            break;
+                        case SRecType.Termination24BitAddress:
+                            addressLength = 6;
+                            type = SRecPurpose.Termination;
+                            break;
+                        case SRecType.Termination16BitAddress:
+                            type = SRecPurpose.Termination;
+                            break;
+                        default:
+                            throw new RecoverableException($"Invalid record type at line #{lineNum}:\n\"{line}\"");
                         }
 
                         // bytes count needs to allow for at least address and checksum bytes
@@ -316,62 +318,62 @@ namespace Antmicro.Renode.Core.Extensions
 
                         switch(type)
                         {
-                            case SRecPurpose.Header:
-                                if(address != 0)
-                                {
-                                    throw new RecoverableException($"Invalid Header record at line #{lineNum}:\n\"{line}\"");
-                                }
-                                break;
-                            case SRecPurpose.Data:
-                                if(!currentSegmentInfo.HasValue)
-                                {
-                                    currentSegmentInfo = address.By(dataLength);
-                                }
-                                else if(currentSegmentInfo.Value.EndAddress + 1 == address)
-                                {
-                                    currentSegmentInfo = currentSegmentInfo.Value.StartAddress.By(currentSegmentInfo.Value.Size + dataLength);
-                                }
-                                else
-                                {
-                                    currentSegmentInfo = address.By(dataLength);
-                                }
-                                chunks.Add(new FileChunk() { Data = data.ToArray(), OffsetToLoad = address });
-                                break;
-                            case SRecPurpose.Count:
-                                if(dataLength != 0)
-                                {
-                                    throw new RecoverableException($"Unexpected data in a count record error at line #{lineNum}:\n\"{line}\"");
-                                }
-                                if(chunks.Count != (int)address)
-                                {
-                                    throw new RecoverableException($"Data record count mismatch error (calculated: {chunks.Count}, given: {address}) at line #{lineNum}:\n\"{line}\"");
-                                }
-                                break;
-                            case SRecPurpose.Termination:
-                                if(dataLength != 0)
-                                {
-                                    throw new RecoverableException($"Unexpected data in a termination record error at line #{lineNum}:\n\"{line}\"");
-                                }
-                                if(cpu != null)
+                        case SRecPurpose.Header:
+                            if(address != 0)
+                            {
+                                throw new RecoverableException($"Invalid Header record at line #{lineNum}:\n\"{line}\"");
+                            }
+                            break;
+                        case SRecPurpose.Data:
+                            if(!currentSegmentInfo.HasValue)
+                            {
+                                currentSegmentInfo = address.By(dataLength);
+                            }
+                            else if(currentSegmentInfo.Value.EndAddress + 1 == address)
+                            {
+                                currentSegmentInfo = currentSegmentInfo.Value.StartAddress.By(currentSegmentInfo.Value.Size + dataLength);
+                            }
+                            else
+                            {
+                                currentSegmentInfo = address.By(dataLength);
+                            }
+                            chunks.Add(new FileChunk() { Data = data.ToArray(), OffsetToLoad = address });
+                            break;
+                        case SRecPurpose.Count:
+                            if(dataLength != 0)
+                            {
+                                throw new RecoverableException($"Unexpected data in a count record error at line #{lineNum}:\n\"{line}\"");
+                            }
+                            if(chunks.Count != (int)address)
+                            {
+                                throw new RecoverableException($"Data record count mismatch error (calculated: {chunks.Count}, given: {address}) at line #{lineNum}:\n\"{line}\"");
+                            }
+                            break;
+                        case SRecPurpose.Termination:
+                            if(dataLength != 0)
+                            {
+                                throw new RecoverableException($"Unexpected data in a termination record error at line #{lineNum}:\n\"{line}\"");
+                            }
+                            if(cpu != null)
+                            {
+                                cpu.Log(LogLevel.Info, "Setting PC value to 0x{0:X}", address);
+                                cpu.PC = address;
+                            }
+                            else if(loader is IBusController bus)
+                            {
+                                foreach(var core in bus.GetCPUs())
                                 {
                                     cpu.Log(LogLevel.Info, "Setting PC value to 0x{0:X}", address);
-                                    cpu.PC = address;
+                                    core.PC = address;
                                 }
-                                else if(loader is IBusController bus)
-                                {
-                                    foreach(var core in bus.GetCPUs())
-                                    {
-                                        cpu.Log(LogLevel.Info, "Setting PC value to 0x{0:X}", address);
-                                        core.PC = address;
-                                    }
-                                }
-                                else
-                                {
-                                    Logger.Log(LogLevel.Warning, "S-record loader: Found start addres: 0x{0:X}, but no cpu is selected to set it for", address);
-                                }
-                                break;
-                            default:
-                                throw new Exception("Unreachable");
+                            }
+                            else
+                            {
+                                Logger.Log(LogLevel.Warning, "S-record loader: Found start addres: 0x{0:X}, but no cpu is selected to set it for", address);
+                            }
+                            break;
+                        default:
+                            throw new Exception("Unreachable");
                         }
 
                         lineNum++;
@@ -411,7 +413,7 @@ namespace Antmicro.Renode.Core.Extensions
         }
 
         // Name of the last parameter is kept as 'cpu' for backward compatibility.
-        public static void LoadELF(this IBusController loader, ReadFilePath fileName, bool useVirtualAddress = false, bool allowLoadsOnlyToMemory = true, IPeripheral cpu = null)
+        public static void LoadELF(this IBusController loader, ReadFilePath fileName, bool useVirtualAddress = false, IPeripheral cpu = null)
         {
             if(!loader.Machine.IsPaused)
             {
@@ -432,7 +434,7 @@ namespace Antmicro.Renode.Core.Extensions
                 {
                     var contents = s.GetContents();
                     var loadAddress = useVirtualAddress ? s.GetSegmentAddress() : s.GetSegmentPhysicalAddress();
-                    chunks.Add(new FileChunk() { Data = contents, OffsetToLoad = loadAddress});
+                    chunks.Add(new FileChunk() { Data = contents, OffsetToLoad = loadAddress });
                 }
 
                 // If cluster is passed as parameter, we setup ELF locally so it only affects cpus in cluster.

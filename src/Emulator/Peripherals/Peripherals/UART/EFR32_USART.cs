@@ -5,8 +5,8 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.UART.Silabs;
@@ -93,6 +93,8 @@ namespace Antmicro.Renode.Peripherals.UART
             base.Reset();
         }
 
+        private readonly DoubleWordRegisterCollection registers;
+
         private enum Registers
         {
             Control = 0x0,
@@ -128,7 +130,5 @@ namespace Antmicro.Renode.Peripherals.UART
             IORoutingLocation1 = 0x7C,
             Test = 0x80,
         }
-
-        private readonly DoubleWordRegisterCollection registers;
     }
 }

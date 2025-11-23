@@ -1,10 +1,11 @@
 ﻿//
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
@@ -144,7 +145,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             Register.Capture0.DefineMany(this, (uint)numberOfEvents, setup: (register, idx) =>
             {
                 register
-                    .WithFlag(0, FieldMode.Write, name: "TASKS_CAPTURE", writeCallback: (_,__) =>
+                    .WithFlag(0, FieldMode.Write, name: "TASKS_CAPTURE", writeCallback: (_, __) =>
                     {
                         SetCompare(idx, innerTimers[idx].Value);
                     })
@@ -154,7 +155,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             Register.Compare0EventPending.DefineMany(this, (uint)numberOfEvents, setup: (register, idx) =>
             {
                 register
-                    .WithFlag(0, out eventCompareEnabled[idx], name: $"EVENTS_COMPARE[{idx}]", writeCallback: (_,__) =>
+                    .WithFlag(0, out eventCompareEnabled[idx], name: $"EVENTS_COMPARE[{idx}]", writeCallback: (_, __) =>
                     {
                         UpdateInterrupts();
                     })
@@ -235,11 +236,12 @@ namespace Antmicro.Renode.Peripherals.Timers
             IRQ.Set(flag);
         }
 
-        private IFlagRegisterField[] eventCompareEnabled;
         private IFlagRegisterField[] eventCompareInterruptEnabled;
         private IValueRegisterField prescaler;
         private IEnumRegisterField<Mode> mode;
         private bool timerRunning;
+
+        private readonly IFlagRegisterField[] eventCompareEnabled;
 
         private readonly ComparingTimer[] innerTimers;
 

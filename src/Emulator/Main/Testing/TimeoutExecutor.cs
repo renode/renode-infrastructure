@@ -29,13 +29,13 @@ namespace Antmicro.Renode.Testing
             };
             thread.Start();
             var finished = thread.Join(timeout);
-            if (!finished)
+            if(!finished)
             {
-            #if NET
+#if NET
                 thread.Interrupt();
-            #else
+#else
                 thread.Abort();
-            #endif
+#endif
             }
             result = res;
             return finished;
@@ -47,4 +47,3 @@ namespace Antmicro.Renode.Testing
         }
     }
 }
-

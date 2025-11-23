@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -166,6 +167,19 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public GPIO Interrupt { get; private set; }
 
+        private static void IncrementCounter(byte[] buffer, int counterWidth)
+        {
+            // This is just a manual increment of integer value stored in `counterWidth` LSB bytes of a buffer.
+            // It must be ensured that in case of an overflow the rest of a buffer is not modified.
+            for(int i = 0; i < (counterWidth + 1) * 4; i++)
+            {
+                if(unchecked(++buffer[buffer.Length - i - 1]) != 0)
+                {
+                    break;
+                }
+            }
+        }
+
         private void RefreshInterrupts()
         {
             var value = (resultInterruptEnabled.Value && resultInterrupt) || (dmaDoneInterruptEnabled.Value && dmaDoneInterrupt) || keyStoreWriteErrorInterrupt;
@@ -322,7 +336,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 return false; // the real crypto operation will start on output transfer
             }
             else if(!cbcEnabled.Value && !ctrEnabled.Value && (counterWidth.Value == 0) && !cbcMacEnabled.Value && (gcmEnabled.Value == 0) && !ccmEnabled.Value && (ccmLengthField.Value == 0) && (ccmLengthOfAuthenticationField.Value == 0))
-
             {
                 // ECB mode is selected only if bits [28:5] in AesControl register are set to 0.
                 return false;
@@ -389,19 +402,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 ProcessDataInMemory((uint)dmaInputAddress.Value, null, length, aes.EncryptBlockInSitu);
                 aes.LastBlock.CopyTo(tag);
-            }
-        }
-
-        private static void IncrementCounter(byte[] buffer, int counterWidth)
-        {
-            // This is just a manual increment of integer value stored in `counterWidth` LSB bytes of a buffer.
-            // It must be ensured that in case of an overflow the rest of a buffer is not modified.
-            for(int i = 0; i < (counterWidth + 1) * 4; i++)
-            {
-                if(unchecked(++buffer[buffer.Length - i - 1]) != 0)
-                {
-                    break;
-                }
             }
         }
 
@@ -670,6 +670,54 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private const int KeyEntrySizeInBytes = 16;
         private const int AesBlockSizeInBytes = 16;
 
+        private class SysbusReader : SysbusReaderWriterBase
+        {
+            public SysbusReader(IBusController bus, ulong startAddress, int length) : base(bus, startAddress, length)
+            {
+            }
+
+            public int Read(Block destination)
+            {
+                var bytesToRead = Math.Min(bytesLeft, destination.SpaceLeft);
+                bus.ReadBytes(currentAddress, bytesToRead, destination.Buffer, destination.Index);
+                destination.Index += bytesToRead;
+                currentAddress += (ulong)bytesToRead;
+                bytesLeft -= bytesToRead;
+                return bytesToRead;
+            }
+        }
+
+        private class SysbusWriter : SysbusReaderWriterBase
+        {
+            public SysbusWriter(IBusController bus, ulong startAddress, int length) : base(bus, startAddress, length)
+            {
+            }
+
+            public void Write(byte[] bytes)
+            {
+                var length = Math.Min(bytesLeft, bytes.Length);
+                bus.WriteBytes(bytes, currentAddress, length);
+                currentAddress += (ulong)length;
+                bytesLeft -= length;
+            }
+        }
+
+        private abstract class SysbusReaderWriterBase
+        {
+            public bool IsFinished { get { return bytesLeft == 0; } }
+
+            protected SysbusReaderWriterBase(IBusController bus, ulong startAddress, int length)
+            {
+                this.bus = bus;
+                currentAddress = startAddress;
+                bytesLeft = length;
+            }
+
+            protected ulong currentAddress;
+            protected int bytesLeft;
+            protected readonly IBusController bus;
+        }
+
         private enum Registers : uint
         {
             DmaChannel0Control = 0x0, // DMAC_CH0_CTRL
@@ -721,54 +769,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Bits64,
             Bits96,
             Bits128
-        }
-
-        private abstract class SysbusReaderWriterBase
-        {
-            protected SysbusReaderWriterBase(IBusController bus, ulong startAddress, int length)
-            {
-                this.bus = bus;
-                currentAddress = startAddress;
-                bytesLeft = length;
-            }
-
-            public bool IsFinished { get { return bytesLeft == 0; } }
-
-            protected ulong currentAddress;
-            protected int bytesLeft;
-            protected readonly IBusController bus;
-        }
-
-        private class SysbusReader : SysbusReaderWriterBase
-        {
-            public SysbusReader(IBusController bus, ulong startAddress, int length) : base(bus, startAddress, length)
-            {
-            }
-
-            public int Read(Block destination)
-            {
-                var bytesToRead = Math.Min(bytesLeft, destination.SpaceLeft);
-                bus.ReadBytes(currentAddress, bytesToRead, destination.Buffer, destination.Index);
-                destination.Index += bytesToRead;
-                currentAddress += (ulong)bytesToRead;
-                bytesLeft -= bytesToRead;
-                return bytesToRead;
-            }
-        }
-
-        private class SysbusWriter : SysbusReaderWriterBase
-        {
-            public SysbusWriter(IBusController bus, ulong startAddress, int length) : base(bus, startAddress, length)
-            {
-            }
-
-            public void Write(byte[] bytes)
-            {
-                var length = Math.Min(bytesLeft, bytes.Length);
-                bus.WriteBytes(bytes, currentAddress, length);
-                currentAddress += (ulong)length;
-                bytesLeft -= length;
-            }
         }
     }
 }

@@ -17,8 +17,6 @@ namespace Antmicro.Renode.UnitTests.Mocks
             Irq = new GPIO();
         }
 
-        public GPIO Irq { get; set; }
-
         public void Reset()
         {
         }
@@ -32,6 +30,7 @@ namespace Antmicro.Renode.UnitTests.Mocks
         {
             throw new System.NotImplementedException();
         }
+
+        public GPIO Irq { get; set; }
     }
 }
-

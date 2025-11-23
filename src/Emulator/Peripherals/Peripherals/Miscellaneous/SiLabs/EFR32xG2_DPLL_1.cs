@@ -6,16 +6,6 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System;
-using System.IO;
-using System.Collections.Generic;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Peripherals.CPU;
-using Antmicro.Renode.Peripherals.Bus;
-
 namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 {
     public partial class EFR32xG2_DPLL_1
@@ -42,7 +32,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Lock_Lockkey_Write(ulong a, ulong b)
         {
-            if (b == 0x7102)
+            if(b == 0x7102)
             {
                 status_lock_bit.Value = STATUS_LOCK.UNLOCKED;
             }
@@ -72,7 +62,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             cmu.Dpll_M = b + 1;
         }
 
-        private bool oscillatorEnabled
+        private bool OscillatorEnabled
         {
             get { return cmu.OscDpllEnabled; }
         }

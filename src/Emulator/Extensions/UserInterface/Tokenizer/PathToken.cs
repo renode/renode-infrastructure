@@ -5,10 +5,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-
 namespace Antmicro.Renode.UserInterface.Tokenizer
 {
     public class PathToken : StringToken
@@ -29,4 +25,3 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
         }
     }
 }
-

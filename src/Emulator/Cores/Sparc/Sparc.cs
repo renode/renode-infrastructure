@@ -6,14 +6,13 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Utilities.Binding;
 using System.Collections.Generic;
-using Antmicro.Renode.Time;
+
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.IRQControllers;
+using Antmicro.Renode.Utilities.Binding;
+
 using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.CPU
@@ -23,31 +22,11 @@ namespace Antmicro.Renode.Peripherals.CPU
     [GPIO(NumberOfInputs = 3)]
     public partial class Sparc : TranslationCPU
     {
-        public Sparc(string cpuType, IMachine machine, Endianess endianness = Endianess.BigEndian): base(cpuType, machine, endianness)
+        public Sparc(string cpuType, IMachine machine, Endianess endianness = Endianess.BigEndian) : base(cpuType, machine, endianness)
         {
             Init();
         }
 
-        public override string Architecture { get { return "sparc"; } }
-
-        public override string GDBArchitecture { get { return Architecture; } }
-
-        public override List<GDBFeatureDescriptor> GDBFeatures { get { return new List<GDBFeatureDescriptor>(); } }
-
-        public bool ShutdownAsNop
-        { 
-            get => neverWaitForInterrupt; 
-            set
-            {
-                neverWaitForInterrupt = value;
-            }
-        }
-
-        private void Init()
-        {
-
-        }
-            
         public override void Start()
         {
             InitCPUId();
@@ -94,30 +73,22 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        protected override void InitFrameProfilerIgnoredSymbols()
-        {
-            // Guest profiler frame information is based on save and restore instructions.
-            // These are used to create stack frames, but also during window overflow/underflow, which
-            // generates false stack creation/removal events in the frame profiler.
-            // We ignore these events to avoid corrupted profiling output.
+        public override string Architecture { get { return "sparc"; } }
 
-            // Zephyr
-            FrameProfilerIgnoredSymbols.Add("__sparc_trap_window_overflow");
-            FrameProfilerIgnoredSymbols.Add("__sparc_trap_window_underflow");
-        }
+        public override string GDBArchitecture { get { return Architecture; } }
 
-        private GaislerMIC connectedMIC;
+        public override List<GDBFeatureDescriptor> GDBFeatures { get { return new List<GDBFeatureDescriptor>(); } }
 
         public GaislerMIC ConnectedMIC
         {
-            get 
+            get
             {
-                if (connectedMIC == null) 
+                if(connectedMIC == null)
                 {
                     var gaislerMics = machine.GetPeripheralsOfType<GaislerMIC>();
-                    foreach (var mic in gaislerMics) 
+                    foreach(var mic in gaislerMics)
                     {
-                        for(var micIndex=0; micIndex < mic.GetNumberOfProcessors(); micIndex++)
+                        for(var micIndex = 0; micIndex < mic.GetNumberOfProcessors(); micIndex++)
                         {
                             var endpoints = mic.GetCurrentCpuIrq(micIndex).Endpoints;
                             for(var i = 0; i < endpoints.Count; ++i)
@@ -133,6 +104,29 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
                 return connectedMIC;
             }
+        }
+
+        public uint EntryPoint { get; private set; }
+
+        public bool ShutdownAsNop
+        {
+            get => neverWaitForInterrupt;
+            set
+            {
+                neverWaitForInterrupt = value;
+            }
+        }
+
+        protected override void InitFrameProfilerIgnoredSymbols()
+        {
+            // Guest profiler frame information is based on save and restore instructions.
+            // These are used to create stack frames, but also during window overflow/underflow, which
+            // generates false stack creation/removal events in the frame profiler.
+            // We ignore these events to avoid corrupted profiling output.
+
+            // Zephyr
+            FrameProfilerIgnoredSymbols.Add("__sparc_trap_window_overflow");
+            FrameProfilerIgnoredSymbols.Add("__sparc_trap_window_underflow");
         }
 
         protected override Interrupt DecodeInterrupt(int number)
@@ -157,12 +151,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                 : base.GetExceptionDescription(exceptionIndex);
         }
 
-        public uint EntryPoint { get; private set; }
-
         [Export]
         private int FindBestInterrupt()
         {
-            if( ConnectedMIC != null )
+            if(ConnectedMIC != null)
             {
                 if(machine.SystemBus.TryGetCurrentCPU(out var cpu))
                 {
@@ -175,11 +167,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             return 0;
         }
-        
+
         [Export]
         private void AcknowledgeInterrupt(int interruptNumber)
         {
-            if( ConnectedMIC != null )
+            if(ConnectedMIC != null)
             {
                 if(machine.SystemBus.TryGetCurrentCPU(out var cpu))
                 {
@@ -241,26 +233,30 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        private void Init()
+        {
+        }
+
+        private GaislerMIC connectedMIC;
+
         private bool cpuIdinitialized = false;
         private bool entryPointInitialized;
         private bool isPowerDown;
 
+#pragma warning disable 649
         // 649:  Field '...' is never assigned to, and will always have its default value null
-        #pragma warning disable 649
+        [Import]
+        private readonly Action<int> TlibSetSlot;
 
         [Import]
-        private Action<int> TlibSetSlot;
+        private readonly Action<uint> TlibSetEntryPoint;
 
         [Import]
-        private Action<uint> TlibSetEntryPoint;
+        private readonly Action TlibClearWfi;
 
         [Import]
-        private Action TlibClearWfi;
-
-        [Import]
-        private Action TlibSetWfi;
-
-        #pragma warning restore 649
+        private readonly Action TlibSetWfi;
+#pragma warning restore 649
 
         private readonly Dictionary<ulong, string> ExceptionDescriptionsMap = new Dictionary<ulong, string>
         {
@@ -288,4 +284,3 @@ namespace Antmicro.Renode.Peripherals.CPU
         };
     }
 }
-

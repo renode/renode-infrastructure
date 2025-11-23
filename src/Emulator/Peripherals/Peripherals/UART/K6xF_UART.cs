@@ -1,11 +1,11 @@
 ﻿//
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -184,6 +184,17 @@ namespace Antmicro.Renode.Peripherals.UART
             registers.Write(offset, value);
         }
 
+        public long Size => 0x1000;
+
+        public GPIO IRQ { get; private set; }
+
+        //TODO should be calculated based upon UART clock
+        public override uint BaudRate => 115200;
+
+        public override Bits StopBits => Bits.One;
+
+        public override Parity ParityBit => Parity.Even;
+
         protected override void CharWritten()
         {
             UpdateInterrupts();
@@ -193,15 +204,6 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             // do nothing
         }
-
-        public long Size => 0x1000;
-        
-        public GPIO IRQ { get; private set; }
-
-        //TODO should be calculated based upon UART clock
-        public override uint BaudRate => 115200;
-        public override Bits StopBits => Bits.One;
-        public override Parity ParityBit => Parity.Even;
 
         private void TransmitData()
         {
@@ -219,7 +221,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private void UpdateInterrupts()
         {
-            IRQ.Set((transmitterEnabled.Value && transmitterIRQEnabled.Value) || 
+            IRQ.Set((transmitterEnabled.Value && transmitterIRQEnabled.Value) ||
                     (receiverEnabled.Value && receiverIRQEnabled.Value && Count >= receiverWatermark));
         }
 

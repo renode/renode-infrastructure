@@ -5,19 +5,15 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-
 namespace Antmicro.Renode.UserInterface.Tokenizer
 {
     public class CommentToken : Token
     {
-        public CommentToken(string value):base(value)
+        public CommentToken(string value) : base(value)
         {
             Value = value.TrimStart('#');
         }
 
-        public string Value { get; private set; }
-       
         public override object GetObjectValue()
         {
             return Value;
@@ -27,7 +23,7 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
         {
             return string.Format("[CommentToken: Value={0}]", Value);
         }
+
+        public string Value { get; private set; }
     }
-
 }
-

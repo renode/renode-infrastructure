@@ -9,13 +9,14 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.I2C;
 using Antmicro.Renode.Peripherals.Sensor;
 using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Peripherals.Sensors
 {
@@ -66,7 +67,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
-        public void FinishTransmission(){}
+        public void FinishTransmission() { }
 
         public void Reset()
         {
@@ -145,7 +146,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             get => accelarationX;
             set
             {
-                if (!IsAccelerationOutOfRange(value))
+                if(!IsAccelerationOutOfRange(value))
                 {
                     accelarationX = value;
                     this.Log(LogLevel.Noisy, "AccelerationX set to {0}", accelarationX);
@@ -158,7 +159,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             get => accelarationY;
             set
             {
-                if (!IsAccelerationOutOfRange(value))
+                if(!IsAccelerationOutOfRange(value))
                 {
                     accelarationY = value;
                     this.Log(LogLevel.Noisy, "AccelerationY set to {0}", accelarationY);
@@ -171,7 +172,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             get => accelarationZ;
             set
             {
-                if (!IsAccelerationOutOfRange(value))
+                if(!IsAccelerationOutOfRange(value))
                 {
                     accelarationZ = value;
                     this.Log(LogLevel.Noisy, "AccelerationZ set to {0}", accelarationZ);
@@ -182,6 +183,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         public decimal Temperature { get; set; }
 
         public GPIO IRQ { get; }
+
         public ByteRegisterCollection RegistersCollection { get; }
 
         private void DefineRegisters()
@@ -268,21 +270,21 @@ namespace Antmicro.Renode.Peripherals.Sensors
             decimal gain = SensorSensitivity;
             switch(fullScale.Value)
             {
-                case (uint)FullScaleSelect.fullScale2g:
-                    gain = SensorSensitivity;
-                    break;
-                case (uint)FullScaleSelect.fullScale16g:
-                    gain = 8 * SensorSensitivity;
-                    break;
-                case (uint)FullScaleSelect.fullScale4g:
-                    gain = 2 * SensorSensitivity;
-                    break;
-                case (uint)FullScaleSelect.fullScale8g:
-                    gain = 4 * SensorSensitivity;
-                    break;
-                default:
-                    gain = SensorSensitivity;
-                    break;
+            case (uint)FullScaleSelect.fullScale2g:
+                gain = SensorSensitivity;
+                break;
+            case (uint)FullScaleSelect.fullScale16g:
+                gain = 8 * SensorSensitivity;
+                break;
+            case (uint)FullScaleSelect.fullScale4g:
+                gain = 2 * SensorSensitivity;
+                break;
+            case (uint)FullScaleSelect.fullScale8g:
+                gain = 4 * SensorSensitivity;
+                break;
+            default:
+                gain = SensorSensitivity;
+                break;
             }
             return gain;
         }
@@ -290,7 +292,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private bool IsAccelerationOutOfRange(decimal acceleration)
         {
             // This range protects from the overflow of the short variables in the 'Convert' function.
-            if (acceleration < MinAcceleration || acceleration > MaxAcceleration)
+            if(acceleration < MinAcceleration || acceleration > MaxAcceleration)
             {
                 this.Log(LogLevel.Warning, "Acceleration is out of range, use value from the range <-19.5;19.5>");
                 return true;

@@ -6,11 +6,12 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Generic;
+
+using Antmicro.Migrant;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using System.Collections.Generic;
-using Antmicro.Migrant;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -22,8 +23,6 @@ namespace Antmicro.Renode.Peripherals.UART
             IRQ = new GPIO();
             Reset();
         }
-
-        public GPIO IRQ { get; private set; }
 
         public uint ReadDoubleWord(long offset)
         {
@@ -97,6 +96,44 @@ namespace Antmicro.Renode.Peripherals.UART
             UpdateInterrupts();
         }
 
+        public Bits StopBits
+        {
+            get
+            {
+                return (controlRegister & (uint)Control.StopBits) != 0 ? Bits.Two : Bits.One;
+            }
+        }
+
+        public Parity ParityBit
+        {
+            get
+            {
+                var bits = ((controlRegister & (uint)(Control.ParityH | Control.ParityL)) >> 2);
+                switch(bits)
+                {
+                case 0:
+                    return Parity.None;
+                case 2:
+                    return Parity.Even;
+                case 3:
+                    return Parity.Odd;
+                default:
+                    throw new ArgumentException("Wrong parity bits register value");
+                }
+            }
+        }
+
+        public uint BaudRate
+        {
+            get
+            {
+                // divisor cannot be 0, so there is no need to check it
+                return UARTClockFrequency / (1 + clockControl / 256);
+            }
+        }
+
+        public GPIO IRQ { get; private set; }
+
         [field: Transient]
         public event Action<byte> CharReceived;
 
@@ -152,6 +189,8 @@ namespace Antmicro.Renode.Peripherals.UART
         private Queue<byte> waitingChars;
         private readonly object queueLock;
 
+        private const uint UARTClockFrequency = 0;
+
         [Flags]
         private enum InterruptFlag
         {
@@ -196,44 +235,5 @@ namespace Antmicro.Renode.Peripherals.UART
             SyncBusy           = 0x044,
             ClockControl       = 0x00C
         }
-
-        public Bits StopBits
-        {
-            get
-            {
-                return (controlRegister & (uint)Control.StopBits) != 0 ? Bits.Two : Bits.One;
-            }
-        }
-
-        public Parity ParityBit
-        {
-            get
-            {
-                var bits = ((controlRegister & (uint)(Control.ParityH | Control.ParityL)) >> 2);
-                switch(bits)
-                {
-                case 0:
-                    return Parity.None;
-                case 2:
-                    return Parity.Even;
-                case 3: 
-                    return Parity.Odd;
-                default:
-                    throw new ArgumentException("Wrong parity bits register value");
-                }
-            }
-        }
-
-        public uint BaudRate
-        {
-            get
-            {
-                // divisor cannot be 0, so there is no need to check it
-                return UARTClockFrequency / (1 + clockControl/256);
-            }
-        }
-
-        private const uint UARTClockFrequency = 0;
     }
 }
-

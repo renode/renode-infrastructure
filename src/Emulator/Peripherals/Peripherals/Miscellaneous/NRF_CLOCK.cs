@@ -1,17 +1,13 @@
 //
 // Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System;
-using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.Timers;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
@@ -99,12 +95,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     Update();
                 }, name: "TASK_LFCLKSTART")
                 .WithReservedBits(1, 31);
-            
+
             Registers.StartHfClock192M.Define(this)
                 .WithFlag(0, FieldMode.Write, writeCallback: (_, value) =>
                 {
-                        hfclk192mStarted = true;
-                        Update();
+                    hfclk192mStarted = true;
+                    Update();
                 }, name: "TASKS_HFCLK192MSTART")
                 .WithReservedBits(1, 31);
 
@@ -137,7 +133,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(1, 31);
 
             Registers.PowerUSBDetectedEvent.Define(this)
-                .WithFlag(0, 
+                .WithFlag(0,
                     valueProviderCallback: _ => true, name: "EVENTS_USBREMOVED")
                 .WithReservedBits(1, 31);
 
@@ -169,7 +165,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithWriteCallback((_, __) => Update());
 
             Registers.DisableInterrupt.Define(this)
-                .WithFlag(0, 
+                .WithFlag(0,
                     writeCallback: (_, value) => hfclkStartedEventEnabled.Value &= !value,
                     valueProviderCallback: _ => hfclkStartedEventEnabled.Value, name: "HFCLKSTARTED")
                 .WithFlag(1,

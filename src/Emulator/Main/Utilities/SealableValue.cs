@@ -9,7 +9,7 @@ using Antmicro.Renode.Debugging;
 
 namespace Antmicro.Renode.Utilities
 {
-    public class SealableValue<T> where T: struct
+    public class SealableValue<T> where T : struct
     {
         public DisposableWrapper Seal()
         {

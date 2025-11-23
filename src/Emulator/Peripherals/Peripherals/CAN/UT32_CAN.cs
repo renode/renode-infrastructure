@@ -1,18 +1,19 @@
 //
 // Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.CAN;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace Antmicro.Renode.Peripherals.CAN
 {
@@ -72,7 +73,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                 .WithConditionallyWritableFlag(2, out selfTestMode, () => resetMode, this, name: "STM")
                 .WithConditionallyWritableFlag(3, out singleAcceptanceFilter, () => resetMode, this, name: "AFM")
                 .WithTaggedFlag("SM", 4) // Sleep mode, SJA1000 only
-                // Keep last to delay its action by relying on callback ordering
+                                         // Keep last to delay its action by relying on callback ordering
                 .WithFlag(0, changeCallback: (_, value) => resetMode = value, valueProviderCallback: _ => resetMode, name: "RM")
                 .WithReservedBits(5, 3);
 
@@ -244,6 +245,47 @@ namespace Antmicro.Renode.Peripherals.CAN
                 .WithFlag(7, FieldMode.Read, name: "PeliCAN", valueProviderCallback: _ => true);
         }
 
+        // Convert the ID of a CAN message to values for use in the ID1..2 (or 1..4) registers according to the specified format
+        private static byte GetRxIdByte(CANMessageFrame frame, int pos, bool extendedFormat)
+        {
+            if(frame == null)
+            {
+                return 0;
+            }
+
+            if(extendedFormat)
+            {
+                switch(pos)
+                {
+                case 0:
+                    return (byte)(frame.Id >> 21);
+                case 1:
+                    return (byte)(frame.Id >> 13);
+                case 2:
+                    return (byte)(frame.Id >> 5);
+                case 3:
+                    return (byte)((frame.Id << 3) | (frame.RemoteFrame ? 1u << 2 : 0));
+                }
+            }
+
+            switch(pos)
+            {
+            case 0:
+                return (byte)(frame.Id >> 3);
+            case 1:
+                return (byte)((frame.Id << 5) | (frame.RemoteFrame ? 1u << 4 : 0));
+            }
+
+            return 0;
+        }
+
+        private static int MessageFifoByteCount(CANMessageFrame message)
+        {
+            // Frame information always takes 1 byte; ID takes 4 bytes in EFF, 2 bytes in SFF
+            int overhead = 1 + (message.ExtendedFormat ? EffIdLength : SffIdLength);
+            return message.Data.Length + overhead;
+        }
+
         private void UpdateInterrupt()
         {
             var state = false;
@@ -279,47 +321,6 @@ namespace Antmicro.Renode.Peripherals.CAN
 
             transmitCompleteFlag.Value |= transmitCompleteInterruptEnable.Value;
             UpdateInterrupt();
-        }
-
-        // Convert the ID of a CAN message to values for use in the ID1..2 (or 1..4) registers according to the specified format
-        private static byte GetRxIdByte(CANMessageFrame frame, int pos, bool extendedFormat)
-        {
-            if(frame == null)
-            {
-                return 0;
-            }
-
-            if(extendedFormat)
-            {
-                switch(pos)
-                {
-                    case 0:
-                        return (byte)(frame.Id >> 21);
-                    case 1:
-                        return (byte)(frame.Id >> 13);
-                    case 2:
-                        return (byte)(frame.Id >> 5);
-                    case 3:
-                        return (byte)((frame.Id << 3) | (frame.RemoteFrame ? 1u << 2 : 0));
-                }
-            }
-
-            switch(pos)
-            {
-                case 0:
-                    return (byte)(frame.Id >> 3);
-                case 1:
-                    return (byte)((frame.Id << 5) | (frame.RemoteFrame ? 1u << 4 : 0));
-            }
-
-            return 0;
-        }
-
-        private static int MessageFifoByteCount(CANMessageFrame message)
-        {
-            // Frame information always takes 1 byte; ID takes 4 bytes in EFF, 2 bytes in SFF
-            int overhead = 1 + (message.ExtendedFormat ? EffIdLength : SffIdLength);
-            return message.Data.Length + overhead;
         }
 
         private bool FilterFrame(CANMessageFrame message)
@@ -424,15 +425,6 @@ namespace Antmicro.Renode.Peripherals.CAN
 
         private CANMessageFrame RxFrame => receiveFifo.FirstOrDefault();
 
-        private IFlagRegisterField listenOnlyMode;
-        private IFlagRegisterField selfTestMode;
-        private IFlagRegisterField singleAcceptanceFilter;
-        private IFlagRegisterField extendedFrameFormat;
-        private IValueRegisterField dataLengthCode;
-        private IValueRegisterField[] acceptanceCode = new IValueRegisterField[AcceptanceCodeLength];
-        private IValueRegisterField[] acceptanceMask = new IValueRegisterField[AcceptanceCodeLength];
-        private IValueRegisterField[] id = new IValueRegisterField[EffIdLength];
-        private IValueRegisterField[] data = new IValueRegisterField[MaxDataLength];
         private IFlagRegisterField remoteTransmissionRequest;
         private IFlagRegisterField dataOverrunStatus;
         private IFlagRegisterField receiveCompleteFlag;
@@ -445,6 +437,16 @@ namespace Antmicro.Renode.Peripherals.CAN
         private bool overrunPending;
         private bool resetMode;
         private int fifoUsedBytes;
+
+        private IFlagRegisterField listenOnlyMode;
+        private IFlagRegisterField selfTestMode;
+        private IFlagRegisterField singleAcceptanceFilter;
+        private IFlagRegisterField extendedFrameFormat;
+        private IValueRegisterField dataLengthCode;
+        private readonly IValueRegisterField[] acceptanceCode = new IValueRegisterField[AcceptanceCodeLength];
+        private readonly IValueRegisterField[] acceptanceMask = new IValueRegisterField[AcceptanceCodeLength];
+        private readonly IValueRegisterField[] id = new IValueRegisterField[EffIdLength];
+        private readonly IValueRegisterField[] data = new IValueRegisterField[MaxDataLength];
 
         private readonly Queue<CANMessageFrame> receiveFifo = new Queue<CANMessageFrame>();
 

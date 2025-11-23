@@ -6,8 +6,8 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Collections.Generic;
 using System.Collections;
+using System.Collections.Generic;
 
 namespace Antmicro.Renode.Utilities.Collections
 {
@@ -122,26 +122,21 @@ namespace Antmicro.Renode.Utilities.Collections
             {
                 return buffer[i];
             }
+
             set
             {
                 buffer[i] = value;
             }
         }
 
-        private int LastPosition { get; set; }
-        private int FirstPosition { get; set; }
-        private bool IsEmpty { get; set; }
         public bool IsWrapped { get; set; }
+
         public int Capacity => buffer.Length;
+
         public int Count => IsEmpty ? 0
             : (IsWrapped
                 ? LastPosition + buffer.Length + 1 - FirstPosition
                 : LastPosition + 1 - FirstPosition);
-
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return GetEnumerator();
-        }
 
         private void UpdateIndex()
         {
@@ -156,6 +151,7 @@ namespace Antmicro.Renode.Utilities.Collections
                 FirstPosition = 0;
             }
         }
+
         private void MoveLast()
         {
             LastPosition++;
@@ -164,6 +160,17 @@ namespace Antmicro.Renode.Utilities.Collections
                 IsWrapped = !IsEmpty; // usually we should isWrapped=true here, unless there is nothing in the collection. Then lastPosition should jump to 0, but there is no wrapping
                 LastPosition = 0;
             }
+        }
+
+        private int LastPosition { get; set; }
+
+        private int FirstPosition { get; set; }
+
+        private bool IsEmpty { get; set; }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
         }
 
         private readonly T[] buffer;

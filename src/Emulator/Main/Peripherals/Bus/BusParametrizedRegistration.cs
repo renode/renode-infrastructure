@@ -5,14 +5,14 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Exceptions;
+
 using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Peripherals.Bus
 {
     public abstract class BusParametrizedRegistration : BusRangeRegistration
     {
-        public BusParametrizedRegistration(ulong address, ulong size, ICPU cpu, ICluster<ICPU> cluster = null)
+        public BusParametrizedRegistration(ulong address, ulong size, IPeripheral cpu, ICluster<ICPU> cluster = null)
             : base(address, size, 0, cpu, cluster)
         {
         }
@@ -66,12 +66,19 @@ namespace Antmicro.Renode.Peripherals.Bus
         // That's also the reason why `FillAccessMethods` is internal - its visibility can only be as high as
         // visibility of `PeripheralAccessMethods`, which is also marked `internal`.
         public virtual Func<long, ulong> GetReadQuadWordMethod(IBusPeripheral _) => null;
+
         public virtual Action<long, ulong> GetWriteQuadWordMethod(IBusPeripheral _) => null;
+
         public virtual Func<long, uint> GetReadDoubleWordMethod(IBusPeripheral _) => null;
+
         public virtual Action<long, uint> GetWriteDoubleWordMethod(IBusPeripheral _) => null;
+
         public virtual Func<long, ushort> GetReadWordMethod(IBusPeripheral _) => null;
+
         public virtual Action<long, ushort> GetWriteWordMethod(IBusPeripheral _) => null;
+
         public virtual Func<long, byte> GetReadByteMethod(IBusPeripheral _) => null;
+
         public virtual Action<long, byte> GetWriteByteMethod(IBusPeripheral _) => null;
 
         public virtual void RegisterForEachContext(Action<BusParametrizedRegistration> register) { }

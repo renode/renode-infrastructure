@@ -5,9 +5,10 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Core.Structure;
 using System.Collections.Generic;
 using System.Linq;
+
+using Antmicro.Renode.Core.Structure;
 
 namespace Antmicro.Renode.Peripherals.Bus
 {
@@ -29,4 +30,3 @@ namespace Antmicro.Renode.Peripherals.Bus
         }
     }
 }
-

@@ -1,11 +1,11 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -249,7 +249,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                 .WithValueField(0, 16, FieldMode.Read, valueProviderCallback: _ => (uint)(underlyingFlash.Size / 1024), name: "F_SIZE");
         }
 
-        private void EraseMemoryAccessHook(ulong pc, MemoryOperation operation, ulong virtualAddress, ulong physicalAddress, ulong value)
+        private void EraseMemoryAccessHook(ulong pc, MemoryOperation operation, ulong virtualAddress, ulong physicalAddress, uint _, ulong value)
         {
             // Only write accesses can be used to erase
             if(operation != MemoryOperation.MemoryWrite && operation != MemoryOperation.MemoryIOWrite)
@@ -310,12 +310,8 @@ namespace Antmicro.Renode.Peripherals.MTD
                 return;
             }
 
-            Action<ulong, MemoryOperation, ulong, ulong, ulong> hook = EraseMemoryAccessHook;
-            cpu.SetHookAtMemoryAccess(enabled ? hook : null);
+            cpu.SetHookAtMemoryAccess(enabled ? (MemoryAccessHook)EraseMemoryAccessHook : null);
         }
-
-        private readonly MappedMemory underlyingFlash;
-        private readonly MappedMemory underlyingEeprom;
 
         private DoubleWordRegister programEraseControl;
         private IFlagRegisterField prefetchEnabled;
@@ -323,6 +319,9 @@ namespace Antmicro.Renode.Peripherals.MTD
         private IFlagRegisterField prereadEnabled;
         private IFlagRegisterField disableBuffer;
         private IFlagRegisterField programMemorySelect;
+
+        private readonly MappedMemory underlyingFlash;
+        private readonly MappedMemory underlyingEeprom;
         private readonly LockRegister powerDownLock;
         private readonly LockRegister programEraseControlLock;
         private readonly LockRegister programEraseLock;

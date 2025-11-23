@@ -24,10 +24,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private void DefineRegisters()
         {
             Register.ClockHints.Define(this, 0xF)
-                .WithFlag(0, out aesHint,name: "CLK_MAIN_AES_HINT")
-                .WithFlag(1, out hmacHint,name: "CLK_MAIN_HMAC_HINT")
-                .WithFlag(2, out kmacHint,name: "CLK_MAIN_KMAC_HINT")
-                .WithFlag(3, out otbnHint,name: "CLK_MAIN_OTBN_HINT")
+                .WithFlag(0, out aesHint, name: "CLK_MAIN_AES_HINT")
+                .WithFlag(1, out hmacHint, name: "CLK_MAIN_HMAC_HINT")
+                .WithFlag(2, out kmacHint, name: "CLK_MAIN_KMAC_HINT")
+                .WithFlag(3, out otbnHint, name: "CLK_MAIN_OTBN_HINT")
                 .WithReservedBits(4, 28)
             ;
 

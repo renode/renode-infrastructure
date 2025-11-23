@@ -1,16 +1,16 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 
 using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
@@ -267,18 +267,19 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
         }
 
-        private bool initialized; // should not be reset - used for delayed configuration after the machine is created
-
-        private readonly Action<uint>[] eventCallbacks = new Action<uint>[Channels]; //todo reset
-        private uint[] eventEndpoint = new uint[Channels];
-        private uint[] taskEndpoint = new uint[Channels];
-        private uint[] forkEndpoint = new uint[Channels];
-        private bool[] channelGroupEnabled = new bool[ChannelGroups];
-
-        private IFlagRegisterField[][] channelGroups = new IFlagRegisterField[ChannelGroups][];
         private IFlagRegisterField[] channelEnabled = new IFlagRegisterField[Channels];
 
-        private HashSet<EventEntry> registeredEventSenders = new HashSet<EventEntry>();
+        private bool initialized; // should not be reset - used for delayed configuration after the machine is created
+        private readonly uint[] eventEndpoint = new uint[Channels];
+        private readonly uint[] taskEndpoint = new uint[Channels];
+        private readonly uint[] forkEndpoint = new uint[Channels];
+        private readonly bool[] channelGroupEnabled = new bool[ChannelGroups];
+
+        private readonly IFlagRegisterField[][] channelGroups = new IFlagRegisterField[ChannelGroups][];
+
+        private readonly HashSet<EventEntry> registeredEventSenders = new HashSet<EventEntry>();
+
+        private readonly Action<uint>[] eventCallbacks = new Action<uint>[Channels]; //todo reset
 
         private const int EventOffsetMask = 0xFFF;
         private const int ChannelGroups = 6;
@@ -289,8 +290,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             public static EventEntry Create(INRFEventProvider provider, int channel)
             {
-               return new EventEntry { Provider = provider, Channel = channel };
+                return new EventEntry { Provider = provider, Channel = channel };
             }
+
             public INRFEventProvider Provider;
             public int Channel;
         }

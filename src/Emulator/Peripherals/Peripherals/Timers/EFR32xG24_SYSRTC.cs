@@ -6,9 +6,9 @@
 //
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Time;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Time;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -36,22 +36,6 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             DefineRegisters();
         }
-
-        public override void Reset()
-        {
-            base.Reset();
-            limitTimer.Reset();
-            compare0Timer.Reset();
-            compare1Timer.Reset();
-            capture0Timer.Reset();
-            interruptManager.Reset();
-            AppIRQ.Unset();
-        }
-
-        public long Size => 0x4000;
-
-        [IrqProvider]
-        public GPIO AppIRQ { get; }
 
         public override uint ReadDoubleWord(long offset)
         {
@@ -100,6 +84,22 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             base.WriteDoubleWord(regOffset, value);
         }
+
+        public override void Reset()
+        {
+            base.Reset();
+            limitTimer.Reset();
+            compare0Timer.Reset();
+            compare1Timer.Reset();
+            capture0Timer.Reset();
+            interruptManager.Reset();
+            AppIRQ.Unset();
+        }
+
+        public long Size => 0x4000;
+
+        [IrqProvider]
+        public GPIO AppIRQ { get; }
 
         private void DefineRegisters()
         {
@@ -221,18 +221,18 @@ namespace Antmicro.Renode.Peripherals.Timers
             RegistersCollection.AddRegister((long)Register.Group0InterruptEnable, interruptManager.GetInterruptEnableRegister<DoubleWordRegister>());
         }
 
-        private readonly InterruptManager<Interrupt> interruptManager;
-        private readonly LimitTimer limitTimer;
-        private readonly ComparingTimer compare0Timer;
-        private readonly ComparingTimer compare1Timer;
-        private readonly ComparingTimer capture0Timer;
-
         private IFlagRegisterField group0Compare0Enable;
         private IFlagRegisterField group0Compare1Enable;
         private IFlagRegisterField group0Capture0Enable;
         private IValueRegisterField group0Compare0Value;
         private IValueRegisterField group0Compare1Value;
         private IValueRegisterField group0Capture0Value;
+
+        private readonly InterruptManager<Interrupt> interruptManager;
+        private readonly LimitTimer limitTimer;
+        private readonly ComparingTimer compare0Timer;
+        private readonly ComparingTimer compare1Timer;
+        private readonly ComparingTimer capture0Timer;
 
         private const long RegionSize = 0x1000;
         private const long NumOfRegions = 4;

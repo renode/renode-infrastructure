@@ -6,13 +6,9 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using Antmicro.Renode.Network;
-using Antmicro.Renode.UserInterface;
-
 namespace Antmicro.Renode.Peripherals.Network
 {
     public interface INetworkInterface : IAnalyzable
-	{
-	}
+    {
+    }
 }
-

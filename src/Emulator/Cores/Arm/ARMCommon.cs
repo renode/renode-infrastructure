@@ -6,9 +6,9 @@
 //
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using Antmicro.Renode.Utilities;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -17,10 +17,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         ExceptionLevel ExceptionLevel { get; }
 
         Affinity Affinity { get; }
+
         // This kind of CPU is always in a specific Security State and it can't be changed
         SecurityState SecurityState { get; }
 
         bool FIQMaskOverride { get; }
+
         bool IRQMaskOverride { get; }
     }
 
@@ -40,9 +42,11 @@ namespace Antmicro.Renode.Peripherals.CPU
     public interface IARMCPUsConnectionsProvider
     {
         void AttachCPU(IARMSingleSecurityStateCPU cpu);
+
         // AttachedCPUs and CPUAttached provide information for GPIO handling purposes.
         // Depending on the declaration order in repl file, some CPUs can be attached before or after peripheral's creation.
         IEnumerable<IARMSingleSecurityStateCPU> AttachedCPUs { get; }
+
         event Action<IARMSingleSecurityStateCPU> CPUAttached;
     }
 
@@ -52,12 +56,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         EL1_SystemMode = 1,
         EL2_HypervisorMode = 2,
         EL3_MonitorMode = 3
-    }
-
-    public enum ExecutionState
-    {
-        AArch32,
-        AArch64
     }
 
     // GIC exposes a GPIO line with `<cpu.MultiprocessingId>*4 + I` ID for every interrupt type
@@ -96,17 +94,17 @@ namespace Antmicro.Renode.Peripherals.CPU
             UpdateLevels();
         }
 
+        public override string ToString()
+        {
+            return String.Join(".", levels);
+        }
+
         public byte GetLevel(int levelIndex)
         {
             return levels[levelIndex];
         }
 
         public uint AllLevels => allLevels;
-
-        public override string ToString()
-        {
-            return String.Join(".", levels);
-        }
 
         // NOTE: UpdateLevels needs to be called whenever any value inside of `levels` is updated.
         protected void UpdateLevels()

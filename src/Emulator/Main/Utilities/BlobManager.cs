@@ -5,10 +5,10 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using Antmicro.Migrant;
 using System.Collections.Generic;
 using System.IO;
+
+using Antmicro.Migrant;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Utilities
 
         public void Load(Stream stream, string streamName)
         {
-            using (var reader = new PrimitiveReader(stream, false))
+            using(var reader = new PrimitiveReader(stream, false))
             {
                 foreach(var provider in providers)
                 {
@@ -70,4 +70,3 @@ namespace Antmicro.Renode.Utilities
         private readonly List<IBlobProvider> providers;
     }
 }
-

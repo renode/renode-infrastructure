@@ -5,15 +5,14 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-
 namespace Antmicro.Renode.Peripherals.I2C
 {
     public interface II2CPeripheral : IPeripheral
     {
         void Write(byte[] data);
+
         byte[] Read(int count = 1);
+
         void FinishTransmission();
     }
 }
-

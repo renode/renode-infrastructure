@@ -9,7 +9,6 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.Miscellaneous;
 
 namespace Antmicro.Renode.Peripherals.Input
@@ -25,19 +24,6 @@ namespace Antmicro.Renode.Peripherals.Input
             Reset();
         }
 
-        public long Size
-        {
-            get
-            {
-                return size;
-            }
-        }
-
-        public void Notify()
-        {
-            IRQ.Set();
-        }
-
         public override void Register(IPS2Peripheral peripheral, NullRegistrationPoint registrationPoint)
         {
             base.Register(peripheral, registrationPoint);
@@ -50,7 +36,18 @@ namespace Antmicro.Renode.Peripherals.Input
             peripheral.Controller = null;
         }
 
-        public GPIO IRQ { get; private set; }
+        public override void Reset()
+        {
+            dataRegister = 0;
+            controlRegister = 0;
+            clkDivRegister = 0;
+            IRQ.Unset();
+        }
+
+        public void Notify()
+        {
+            IRQ.Set();
+        }
 
         public uint ReadDoubleWord(long offset)
         {
@@ -76,14 +73,6 @@ namespace Antmicro.Renode.Peripherals.Input
             }
         }
 
-        public override void Reset()
-        {
-            dataRegister = 0;
-            controlRegister = 0;
-            clkDivRegister = 0;
-            IRQ.Unset();
-        }
-
         public void WriteDoubleWord(long offset, uint value)
         {
             switch((Registers)offset)
@@ -106,6 +95,16 @@ namespace Antmicro.Renode.Peripherals.Input
             }
         }
 
+        public long Size
+        {
+            get
+            {
+                return size;
+            }
+        }
+
+        public GPIO IRQ { get; private set; }
+
         private uint HandleStatusRegister()
         {
             var value = (uint)States.TransmitEmpty;
@@ -121,11 +120,12 @@ namespace Antmicro.Renode.Peripherals.Input
             return value;
         }
 
-        private readonly PrimeCellIDHelper idHelper;
-        private readonly int size;
         private uint controlRegister;
         private uint dataRegister;
         private uint clkDivRegister;
+
+        private readonly PrimeCellIDHelper idHelper;
+        private readonly int size;
 
         private enum Registers
         {
@@ -144,4 +144,3 @@ namespace Antmicro.Renode.Peripherals.Input
         }
     }
 }
-

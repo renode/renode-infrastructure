@@ -10,6 +10,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
+
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities.Collections;
@@ -167,7 +168,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             { "i386",   "i386"      },
             { "x86_64", "x86_64"    },
             { "msp430", "msp430"    },
-            { "msp430x","msp430"    }
+            { "msp430x","msp430"    },
+            { "xtensa", "xtensa"    }
         };
 
         private static readonly Dictionary<string, string> ModelTranslations = new Dictionary<string, string>
@@ -180,7 +182,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             { "cortex-m4f", "cortex-m4"  },
             { "cortex-r5f", "cortex-r5"  },
             { "e200z6"    , "ppc32"      },
-            { "gr716"     , "leon3"      }
+            { "gr716"     , "leon3"      },
+            // TODO: In the current version of LLVM (20.1.7), there is only experimental support for Xtensa,
+            // with only the "generic" CPU available. The only supported Xtensa feature is `FeatureDensity`.
+            // After the LLVM update, update `mocked_sample_controller` accordingly in renode-llvm-disas repo, based on:
+            // https://github.com/antmicro/tlib/blob/78bcb71570e72d24c641c444db00c2dab4cda85e/arch/xtensa/core-sample_controller/core-isa.h
+            { "sample_controller" , "mocked-sample-controller"}
         };
 
         [DllImport("libllvm-disas")]

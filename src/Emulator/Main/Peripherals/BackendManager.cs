@@ -7,18 +7,20 @@
 //
 using System;
 using System.Collections.Generic;
-using Antmicro.Renode.Utilities;
 using System.Linq;
+
 using Antmicro.Migrant;
 using Antmicro.Migrant.Hooks;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Utilities.Collections;
-using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.UserInterface;
+using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Utilities.Collections;
 
 namespace Antmicro.Renode.Peripherals
 {
-    public class BackendManager : IDisposable
+    public class BackendManager : IDisposable, IHasPreservableState, IDisconnectableState
     {
         public BackendManager()
         {
@@ -28,6 +30,7 @@ namespace Antmicro.Renode.Peripherals
 
         public void Dispose()
         {
+            EmulationManager.PreservableManager.UnregisterPreservable(this);
             foreach(var analyzer in activeAnalyzers.OfType<IDisposable>())
             {
                 analyzer.Dispose();
@@ -37,7 +40,7 @@ namespace Antmicro.Renode.Peripherals
 
         public IEnumerable<string> GetAvailableAnalyzersFor(IAnalyzableBackend backend)
         {
-            if (!analyzers.ContainsKey(backend.GetType()))
+            if(!analyzers.ContainsKey(backend.GetType()))
             {
                 return new string[0];
             }
@@ -119,7 +122,7 @@ namespace Antmicro.Renode.Peripherals
 
         public bool TryCreateAnalyzerForBackend<T>(T backend, string analyzerTypeName, out IAnalyzableBackendAnalyzer analyzer) where T : IAnalyzableBackend
         {
-            if (!analyzers.ContainsKey(backend.GetType()))
+            if(!analyzers.ContainsKey(backend.GetType()))
             {
                 analyzer = null;
                 return false;
@@ -170,6 +173,74 @@ namespace Antmicro.Renode.Peripherals
             }
         }
 
+        public object ExtractPreservedState()
+        {
+            var analyzersTargets = new Dictionary<IAnalyzableBackendAnalyzer, Tuple<string, string>>();
+            foreach(var analyzer in activeAnalyzers)
+            {
+                if(!(analyzer.Backend.AnalyzableElement is IPeripheral peripheral))
+                {
+                    throw new RecoverableException($"Error while exporting preservable state for {analyzer.GetType()}");
+                }
+                EmulationManager.Instance.CurrentEmulation.TryGetEmulationElementName(peripheral, out string peripheralName, out string machineName);
+                if(!(analyzer is IPreservable))
+                {
+                    Logger.LogAs(this, LogLevel.Warning, "{0} does not support preserving state.", analyzer.GetType());
+                }
+                analyzersTargets.Add(analyzer, Tuple.Create(machineName, peripheralName));
+            }
+
+            return analyzersTargets;
+        }
+
+        public void DisconnectState()
+        {
+            activeAnalyzers.Clear();
+        }
+
+        public void LoadPreservedState(object state)
+        {
+            if(!(state is Dictionary<IAnalyzableBackendAnalyzer, Tuple<string, string>> analyzersTargets))
+            {
+                throw new RecoverableException("Unexpected state received while loading preserved state");
+            }
+
+            foreach(KeyValuePair<IAnalyzableBackendAnalyzer, Tuple<string, string>> analyzerToTarget in analyzersTargets)
+            {
+                var analyzer = analyzerToTarget.Key;
+                analyzer.Clear();
+                var machineName = analyzerToTarget.Value.Item1;
+                var peripheralName = analyzerToTarget.Value.Item2;
+                if(!EmulationManager.Instance.CurrentEmulation.TryGetMachineByName(machineName, out IMachine machine))
+                {
+                    throw new RecoverableException($"Could not find machine {machineName} in Emulation!");
+                }
+
+                if(!EmulationManager.Instance.CurrentEmulation.TryGetEmulationElementByName(peripheralName, machine, out IEmulationElement emulationElement))
+                {
+                    throw new RecoverableException($"Could not find peripheral {peripheralName} in {machineName}!");
+                }
+
+                if(!(emulationElement is IAnalyzable analyzable))
+                {
+                    throw new RecoverableException("Unexpected state received while loading preserved state");
+                }
+
+                if(!TryGetBackendFor(analyzable, out IAnalyzableBackend backendFromSnapshot))
+                {
+                    throw new RecoverableException($"No backend found for {peripheralName}");
+                }
+                backendFromSnapshot.Detach();
+
+                // We use dynamics here because we don't have generic `IAnalyzable` nor `IAnalyzableBackend`
+                ((dynamic)backendFromSnapshot).Attach((dynamic)analyzable);
+                ((dynamic)analyzer).AttachTo((dynamic)backendFromSnapshot);
+                activeAnalyzers.Add(analyzer);
+            }
+        }
+
+        public string PreservableName => "BackendManager";
+
         [field: Transient]
         public event Action<IAnalyzableBackendAnalyzer> PeripheralBackendAnalyzerCreated;
 
@@ -177,7 +248,7 @@ namespace Antmicro.Renode.Peripherals
         {
             dynamic danalyzer = Activator.CreateInstance(analyzerType);
             danalyzer.AttachTo((dynamic)backend);
-            return (IAnalyzableBackendAnalyzer) danalyzer;
+            return (IAnalyzableBackendAnalyzer)danalyzer;
         }
 
         private bool TryCreateAndAttach(Type analyzerType, object backend, Func<IAnalyzableBackendAnalyzer, bool> condition, out IAnalyzableBackendAnalyzer analyzer)
@@ -251,7 +322,7 @@ namespace Antmicro.Renode.Peripherals
                 {
                     preferredAnalyzer.Add(Type.GetType(pas.Key), Type.GetType(pas.Value));
                 }
-                catch (Exception)
+                catch(Exception)
                 {
                     Logger.LogAs(this, LogLevel.Warning, "Could not restore preferred analyzer for {0}: {1}. Error while loading types", pas.Key, pas.Value);
                 }
@@ -270,9 +341,10 @@ namespace Antmicro.Renode.Peripherals
 
             RestorePreferredAnalyzers();
             TypeManager.Instance.AutoLoadedType += HandleAutoLoadTypeFound;
+
+            EmulationManager.PreservableManager.RegisterPreservable(this, livesThroughEmulationChange: false);
         }
 
-        private SerializableWeakKeyDictionary<IAnalyzable, IAnalyzableBackend> map;
         [Transient]
         private Dictionary<Type, List<Tuple<Type, bool>>> analyzers;
         [Transient]
@@ -284,6 +356,7 @@ namespace Antmicro.Renode.Peripherals
 
         [Transient]
         private List<IAnalyzableBackendAnalyzer> activeAnalyzers;
+
+        private readonly SerializableWeakKeyDictionary<IAnalyzable, IAnalyzableBackend> map;
     }
 }
-

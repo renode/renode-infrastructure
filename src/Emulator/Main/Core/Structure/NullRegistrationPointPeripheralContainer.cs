@@ -5,10 +5,11 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Peripherals;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Peripherals;
 
 namespace Antmicro.Renode.Core.Structure
 {
@@ -17,14 +18,6 @@ namespace Antmicro.Renode.Core.Structure
         IPeripheral
         where TPeripheral : class, IPeripheral
     {
-        public abstract void Reset();
-
-        protected NullRegistrationPointPeripheralContainer(IMachine machine)
-        {
-            Machine = machine;
-            container = new NullRegistrationPointContainerHelper<TPeripheral>(machine, this);
-        }
-
         public virtual void Register(TPeripheral peripheral, NullRegistrationPoint registrationPoint)
         {
             container.Register(peripheral, registrationPoint);
@@ -40,7 +33,15 @@ namespace Antmicro.Renode.Core.Structure
             return container.GetRegistrationPoints(peripheral);
         }
 
+        public abstract void Reset();
+
         public IEnumerable<IRegistered<TPeripheral, NullRegistrationPoint>> Children => container.Children;
+
+        protected NullRegistrationPointPeripheralContainer(IMachine machine)
+        {
+            Machine = machine;
+            container = new NullRegistrationPointContainerHelper<TPeripheral>(machine, this);
+        }
 
         protected TPeripheral RegisteredPeripheral => container.RegisteredPeripheral;
 
@@ -81,7 +82,7 @@ namespace Antmicro.Renode.Core.Structure
         public IEnumerable<NullRegistrationPoint> GetRegistrationPoints(TPeripheral peripheral)
         {
             return RegisteredPeripheral != null ?
-                new [] { NullRegistrationPoint.Instance } :
+                new[] { NullRegistrationPoint.Instance } :
                 Enumerable.Empty<NullRegistrationPoint>();
         }
 
@@ -90,7 +91,7 @@ namespace Antmicro.Renode.Core.Structure
             get
             {
                 return RegisteredPeripheral != null ?
-                    new [] { Registered.Create(RegisteredPeripheral, NullRegistrationPoint.Instance) } :
+                    new[] { Registered.Create(RegisteredPeripheral, NullRegistrationPoint.Instance) } :
                     Enumerable.Empty<IRegistered<TPeripheral, NullRegistrationPoint>>();
             }
         }

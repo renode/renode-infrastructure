@@ -5,11 +5,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System.Text;
 using System.Linq;
+
+using Antmicro.Renode.Core.ACPI;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU;
-using Antmicro.Renode.Core.ACPI;
 using Antmicro.Renode.Utilities.Packets;
 
 namespace Antmicro.Renode.Core.Extensions

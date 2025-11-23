@@ -12,7 +12,5 @@ namespace Antmicro.Renode.Utilities
     [AttributeUsage(AttributeTargets.Method)]
     public class ExtensionOnObjectAttribute : Attribute
     {
-
     }
 }
-

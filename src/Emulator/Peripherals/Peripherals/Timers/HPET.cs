@@ -5,11 +5,12 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Core.Structure.Registers;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Timers
@@ -21,7 +22,8 @@ namespace Antmicro.Renode.Peripherals.Timers
         public HPET(IMachine machine, long frequency = 100000000)
             : base(machine.ClockSource, frequency, direction: Direction.Ascending, limit: uint.MaxValue)
         {
-            if(frequency < MinimumFrequency) {
+            if(frequency < MinimumFrequency)
+            {
                 throw new ConstructionException($"Provided frequency = {frequency}, but it should be at least {MinimumFrequency}");
             }
 

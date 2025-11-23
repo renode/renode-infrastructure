@@ -6,13 +6,14 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Generic;
 using System.IO;
+
 using Antmicro.Migrant;
 using Antmicro.Migrant.Customization;
-using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
-using System.Collections.Generic;
+using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.EventRecording
@@ -50,7 +51,7 @@ namespace Antmicro.Renode.EventRecording
             var recordEntry = new RecordEntry<T1, T2>(name, value1, value2, GetNullifiedHandler<Action<T1, T2>>(handler), timestamp);
             RecordInner(recordEntry, domainExternal);
         }
-            
+
         public void Dispose()
         {
             stream.Dispose();
@@ -102,4 +103,3 @@ namespace Antmicro.Renode.EventRecording
         private readonly IMachine machine;
     }
 }
-

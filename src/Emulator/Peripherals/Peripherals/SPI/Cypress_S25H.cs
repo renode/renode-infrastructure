@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
+
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.Memory;
 using Antmicro.Renode.Utilities;
@@ -50,10 +51,10 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             switch(command)
             {
-                case Commands.ReadSerialFlashDiscoveryParameter:
-                    return 1;
-                default:
-                    return base.GetDummyBytes(command);
+            case Commands.ReadSerialFlashDiscoveryParameter:
+                return 1;
+            default:
+                return base.GetDummyBytes(command);
             }
         }
 

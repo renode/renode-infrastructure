@@ -7,25 +7,21 @@
 //
 
 using System;
+using System.Collections.Generic;
+
+using Antmicro.Migrant;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals.Bus;
-using System.Collections.Generic;
-using Antmicro.Migrant;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
-    public class STM32W_UART :  IDoubleWordPeripheral, IUART
+    public class STM32W_UART : IDoubleWordPeripheral, IUART
     {
         public STM32W_UART()
         {
             IRQ = new GPIO();
             charFifo = new Queue<byte>();
         }
-
-        [field: Transient]
-        public event Action<byte> CharReceived;
-
-        public GPIO IRQ { get; private set; }
 
         public void WriteChar(byte value)
         {
@@ -37,13 +33,12 @@ namespace Antmicro.Renode.Peripherals.UART
         }
 
         [ConnectionRegion("irq")]
-        public void WriteDoubleWordIRQ(long address, uint value)
+        public void WriteDoubleWordIRQ(long _, uint __)
         {
-
         }
 
         public void WriteDoubleWord(long address, uint value)
-        {	
+        {
             if(address == 0x3C)
             {
                 var handler = CharReceived;
@@ -102,31 +97,7 @@ namespace Antmicro.Renode.Peripherals.UART
             // TODO!
         }
 
-        private void Update()
-        {
-            IRQ.Set(/*txInterruptEnabled ||*/ charFifo.Count > 0);
-        }
-
-        private uint controlRegister;
-        private uint baudRate1;
-        private uint baudRate2;
-        private readonly Queue<byte> charFifo;
-
-        [Flags]
-        private enum Control : uint
-        {
-            Stop            = 1 << 2,
-            ParityEnabled   = 1 << 3,
-            ParitySelection = 1 << 4
-        }
-
-        private enum Register : long
-        {
-            // TODO: I don't know if the offset should be 0xC85C or Ox5C - check it!
-            Control    = 0xC85C, // SC1_UARTCR
-            BaudRate1  = 0xC868, // SC1_UARTBRR1
-            BaudRate2  = 0xC86C  // SC1_UARTBRR2
-        }
+        public GPIO IRQ { get; private set; }
 
         public Bits StopBits
         {
@@ -140,7 +111,7 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             get
             {
-                if ((controlRegister & (uint)Control.ParityEnabled) == 0)
+                if((controlRegister & (uint)Control.ParityEnabled) == 0)
                 {
                     return Parity.None;
                 }
@@ -160,7 +131,35 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
+        [field: Transient]
+        public event Action<byte> CharReceived;
+
+        private void Update()
+        {
+            IRQ.Set(/*txInterruptEnabled ||*/ charFifo.Count > 0);
+        }
+
+        private uint controlRegister;
+        private uint baudRate1;
+        private uint baudRate2;
+        private readonly Queue<byte> charFifo;
+
         private const uint UARTClockFrequency = 24000000; // 24Mhz
+
+        [Flags]
+        private enum Control : uint
+        {
+            Stop            = 1 << 2,
+            ParityEnabled   = 1 << 3,
+            ParitySelection = 1 << 4
+        }
+
+        private enum Register : long
+        {
+            // TODO: I don't know if the offset should be 0xC85C or Ox5C - check it!
+            Control    = 0xC85C, // SC1_UARTCR
+            BaudRate1  = 0xC868, // SC1_UARTBRR1
+            BaudRate2  = 0xC86C  // SC1_UARTBRR2
+        }
     }
 }
-

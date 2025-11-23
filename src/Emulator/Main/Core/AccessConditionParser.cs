@@ -8,7 +8,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+
 using Antmicro.Renode.Exceptions;
+
 using Sprache;
 
 namespace Antmicro.Renode.Core
@@ -137,11 +139,6 @@ namespace Antmicro.Renode.Core
             from initiator in GenericToken
             select new InitiatorConditionNode(initiator);
 
-        public abstract class AstNode
-        {
-            public abstract AstNode ToDnf();
-        }
-
         public class AndNode : AstNode
         {
             public AndNode(AstNode left, AstNode right)
@@ -235,6 +232,7 @@ namespace Antmicro.Renode.Core
             public override AstNode ToDnf() => this;
 
             public override string ToString() => $"{(Negated ? "!" : "")}{Condition}";
+
             public ConditionNode Negation => new ConditionNode(Condition, !Negated);
 
             public readonly string Condition;
@@ -265,17 +263,21 @@ namespace Antmicro.Renode.Core
 
         public class DnfFormula
         {
-            public DnfFormula(IReadOnlyList<DnfTerm> terms)
-            {
-                Terms = terms;
-            }
-
             public static DnfFormula FromDnfTree(AstNode root)
             {
                 var terms = new List<DnfTerm>();
                 GatherDnfTerms(root, terms);
                 return new DnfFormula(terms);
             }
+
+            public DnfFormula(IReadOnlyList<DnfTerm> terms)
+            {
+                Terms = terms;
+            }
+
+            public override string ToString() => $"{string.Join(" || ", Terms)}";
+
+            public readonly IReadOnlyList<DnfTerm> Terms;
 
             private static void GatherDnfTerms(AstNode node, List<DnfTerm> terms)
             {
@@ -316,10 +318,11 @@ namespace Antmicro.Renode.Core
                     throw new InvalidOperationException($"Unexpected node type: {node.GetType().FullName}");
                 }
             }
+        }
 
-            public override string ToString() => $"{string.Join(" || ", Terms)}";
-
-            public readonly IReadOnlyList<DnfTerm> Terms;
+        public abstract class AstNode
+        {
+            public abstract AstNode ToDnf();
         }
     }
 }

@@ -8,14 +8,12 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.Timers;
-using Antmicro.Renode.Time;
+
 using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Engines;
 using Org.BouncyCastle.Crypto.Modes;
@@ -59,6 +57,133 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                 this.Log(LogLevel.Noisy, "Unhandled write at offset 0x{0:X} ({1}), value 0x{2:X}.", offset, (Registers)offset, value);
                 return;
             }
+        }
+
+        public long Size => 0x4000;
+
+        public GPIO IRQ { get; }
+
+        private void UpdateInterrupts()
+        {
+            machine.ClockSource.ExecuteInLock(delegate
+            {
+                var irq = ((fetcherEndOfBlockInterruptEnable.Value && fetcherEndOfBlockInterrupt.Value)
+                           || (fetcherStoppedInterruptEnable.Value || fetcherStoppedInterrupt.Value)
+                           || (fetcherErrorInterruptEnable.Value || fetcherErrorInterrupt.Value)
+                           || (pusherEndOfBlockInterruptEnable.Value && pusherEndOfBlockInterrupt.Value)
+                           || (pusherStoppedInterruptEnable.Value || pusherStoppedInterrupt.Value)
+                           || (pusherErrorInterruptEnable.Value || pusherErrorInterrupt.Value));
+                IRQ.Set(irq);
+            });
+        }
+
+        private List<DmaDescriptor> ParseDescriptors(bool parseFetcher)
+        {
+            List<DmaDescriptor> list = new List<DmaDescriptor>();
+            uint currentDescriptorAddress = (uint)((parseFetcher) ? fetcherAddress.Value : pusherAddress.Value);
+            bool moreDescriptors = true;
+            uint descriptorIndex = 0;
+
+            while(moreDescriptors)
+            {
+                DmaDescriptor descriptor = new DmaDescriptor();
+                descriptor.FirstDataAddress = machine.SystemBus.ReadDoubleWord(currentDescriptorAddress);
+                descriptor.NextDescriptorAddress = machine.SystemBus.ReadDoubleWord(currentDescriptorAddress + 0x4);
+                descriptor.LastDescriptor = ((descriptor.NextDescriptorAddress & 0x1) > 0);
+                descriptor.NextDescriptorAddress &= ~0x3U;
+                descriptor.Length = machine.SystemBus.ReadDoubleWord(currentDescriptorAddress + 0x8);
+                descriptor.ConstantAddress = ((descriptor.Length & 0x10000000) > 0);
+                descriptor.Realign = ((descriptor.Length & 0x20000000) > 0);
+                if(parseFetcher)
+                {
+                    descriptor.ZeroPadding = ((descriptor.Length & 0x40000000) > 0);
+                }
+                else
+                {
+                    descriptor.Discard = ((descriptor.Length & 0x40000000) > 0);
+                }
+                descriptor.InterruptEnable = ((descriptor.Length & 0x80000000) > 0);
+                descriptor.Length &= 0x0FFFFFFF;
+                descriptor.Tag = (parseFetcher) ? machine.SystemBus.ReadDoubleWord(currentDescriptorAddress + 0xC) : 0;
+                descriptor.Data = new byte[descriptor.Length];
+                for(uint i = 0; i < descriptor.Length; i++)
+                {
+                    // When the zero-padding bit is set, the fetcher generates zeroes instead of reading data from memory.
+                    // For pusher, we always zero the data.
+                    descriptor.Data[i] = (byte)((descriptor.ZeroPadding || !parseFetcher) ? 0 : machine.SystemBus.ReadByte(descriptor.FirstDataAddress + i));
+                }
+                list.Add(descriptor);
+
+                this.Log(LogLevel.Noisy, "DESCRIPTOR {0}: Tag:{1:X} Length:{2} Last:{3} Const:{4} Realign:{5} ZeroPad:{6} IE:{7} Data:[{8}]",
+                         descriptorIndex, descriptor.Tag, descriptor.Length, descriptor.LastDescriptor, descriptor.ConstantAddress,
+                         descriptor.Realign, descriptor.ZeroPadding, descriptor.InterruptEnable, BitConverter.ToString(descriptor.Data));
+                this.Log(LogLevel.Noisy, "COMMON: Engine:{0}, Last:{1}", descriptor.EngineSelect, descriptor.IsLastDataOrConfig);
+                if(parseFetcher)
+                {
+                    if(descriptor.IsData)
+                    {
+                        this.Log(LogLevel.Noisy, "DATA: Type:{0}, Invalid Bytes/Bits:{1}", descriptor.DataType, descriptor.InvalidBytesOrBits);
+                    }
+                    else
+                    {
+                        this.Log(LogLevel.Noisy, "CONFIG: Offset:{0}", descriptor.OffsetStartAddress);
+                    }
+                }
+
+                moreDescriptors = !descriptor.LastDescriptor;
+                // TODO: handle the realign bit set here
+                currentDescriptorAddress = descriptor.NextDescriptorAddress;
+                descriptorIndex++;
+
+                // In scatter/gather node, the hardware updates the fetchAddress after each processed descriptor
+                // unless the constant address flag is set.
+                if(parseFetcher && fetcherScatterGather.Value && moreDescriptors && !descriptor.ConstantAddress)
+                {
+                    fetcherAddress.Value = currentDescriptorAddress;
+                }
+            }
+            return list;
+        }
+
+        private void StartPusher()
+        {
+            // Nothing to do here, the StartFetcher command already grabs the pusher descriptors and writes them.
+        }
+
+        // Commmands
+        private void StartFetcher()
+        {
+            // TODO: for now we support only Scatter/Gather mode for both fetcher and pusher
+            if(!fetcherScatterGather.Value || !pusherScatterGather.Value)
+            {
+                this.Log(LogLevel.Error, "START_FETCHER: direct mode not supported");
+                return;
+            }
+
+            fetcherBusy.Value = true;
+            pusherBusy.Value = true;
+
+            this.Log(LogLevel.Noisy, "FETCHER Descriptor(s):");
+            List<DmaDescriptor> fetcherDescriptorList = ParseDescriptors(true);
+            this.Log(LogLevel.Noisy, "PUSHER Descriptor(s):");
+            List<DmaDescriptor> pusherDescriptorList = ParseDescriptors(false);
+
+            switch(fetcherDescriptorList[0].EngineSelect)
+            {
+            case CryptoEngine.Aes:
+                RunAesEngine(fetcherDescriptorList, pusherDescriptorList);
+                break;
+            default:
+                this.Log(LogLevel.Error, "START_FETCHER: crypto engine not supported");
+                return;
+            }
+
+            fetcherBusy.Value = false;
+            pusherBusy.Value = false;
+
+            // TODO: we might need to set some interrupt flags here. However, sl_radioaes driver does not make use of them.
+
+            UpdateInterrupts();
         }
 
         private DoubleWordRegisterCollection BuildRegistersCollection()
@@ -175,203 +300,76 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             return new DoubleWordRegisterCollection(this, registerDictionary);
         }
 
-        public long Size => 0x4000;
-        public GPIO IRQ { get; }
-        private readonly Machine machine;
-        private readonly DoubleWordRegisterCollection registersCollection;
-#region register fields
-        // Direct mode: written by SW (address of the first data)
-        // Scatter/gather mode: Written by SW (address of first descriptor). Afterwards, it is updated 
-        //                      by the hardware after each processed descriptor.
-        private IValueRegisterField fetcherAddress;
+        // Triggered when an error response is received from AXI
+        private IFlagRegisterField pusherErrorInterrupt;
+        // Triggered when reaching a block with Stop=1 (or end of direct transfer)
+        private IFlagRegisterField pusherStoppedInterrupt;
+        // Triggered at the end of each block (if enabled in the descriptor - scatter-gather only)
+        private IFlagRegisterField pusherEndOfBlockInterrupt;
+
+        // Interrupt flags
+        private IFlagRegisterField fetcherEndOfBlockInterruptEnable;
+        // Triggered when reaching a block with Stop=1 (or end of direct transfer)
+        private IFlagRegisterField fetcherStoppedInterrupt;
+        // Triggered at the end of each block (if enabled in the descriptor - scatter-gather only)
+        private IFlagRegisterField fetcherEndOfBlockInterrupt;
+        private IFlagRegisterField pusherErrorInterruptEnable;
+        private IFlagRegisterField pusherStoppedInterruptEnable;
+        private IFlagRegisterField pusherEndOfBlockInterruptEnable;
+        private IFlagRegisterField fetcherErrorInterruptEnable;
+        private IFlagRegisterField fetcherStoppedInterruptEnable;
+        // Triggered when an error response is received from AXI
+        private IFlagRegisterField fetcherErrorInterrupt;
+        // This bit is high as long as the pusher is busy
+        private IFlagRegisterField pusherBusy;
+        // When this bit is high, the pusher will stop at the end of the current block
+        // (even if the STOP bit in the descriptor is low).
+        private IFlagRegisterField  pusherStopAtEndOfBlock;
         // Direct mode: written by SW
         // Scatter/gather mode: not used
-        private IValueRegisterField fetcherLength;
-        // Direct mode: written by SW
-        // Scatter/gather mode: not used
-        private IFlagRegisterField  fetcherConstantAddress;
-        // Direct mode: written by SW
-        // Scatter/gather mode: not used
-        private IFlagRegisterField  fetcherRealignLength;
-        // Direct mode: written by SW
-        // Scatter/gather mode: not used
-        private IValueRegisterField fetcherTag;
-        // When this bit is high, the fetcher will stop at the end of the current block 
-        // (even if the STOP bit in the descriptor is low).        
-        private IFlagRegisterField  fetcherStopAtEndOfBlock;
-        // When this bit is zero, the fetcher runs in direct mode. 
-        // When this bit is one, the fetcher runs in scatter-gather mode.
-        private IFlagRegisterField  fetcherScatterGather;
-        // This bit is high as long as the fetcher is busy
-        private IFlagRegisterField fetcherBusy;
-        // Direct mode: written by SW (address of the first data)
-        // Scatter/gather mode: Written by SW (address of first descriptor). Afterwards, it is updated 
-        //                      by the hardware after each processed descriptor.
-        private IValueRegisterField pusherAddress;
-        // Direct mode: written by SW
-        // Scatter/gather mode: not used
-        private IValueRegisterField pusherLength;
-        // Direct mode: written by SW
-        // Scatter/gather mode: not used
-        private IFlagRegisterField  pusherConstantAddress;
+        private IFlagRegisterField  pusherDiscardData;
         // Direct mode: written by SW
         // Scatter/gather mode: not used
         private IFlagRegisterField  pusherRealignLength;
         // Direct mode: written by SW
         // Scatter/gather mode: not used
-        private IFlagRegisterField  pusherDiscardData;
-        // When this bit is high, the pusher will stop at the end of the current block 
+        private IFlagRegisterField  pusherConstantAddress;
+        // Direct mode: written by SW
+        // Scatter/gather mode: not used
+        private IValueRegisterField pusherLength;
+        // Direct mode: written by SW (address of the first data)
+        // Scatter/gather mode: Written by SW (address of first descriptor). Afterwards, it is updated
+        //                      by the hardware after each processed descriptor.
+        private IValueRegisterField pusherAddress;
+        // This bit is high as long as the fetcher is busy
+        private IFlagRegisterField fetcherBusy;
+        // When this bit is zero, the fetcher runs in direct mode.
+        // When this bit is one, the fetcher runs in scatter-gather mode.
+        private IFlagRegisterField  fetcherScatterGather;
+        // When this bit is high, the fetcher will stop at the end of the current block
         // (even if the STOP bit in the descriptor is low).
-        private IFlagRegisterField  pusherStopAtEndOfBlock;
-        // When this bit is zero, the pusher runs in direct mode. 
+        private IFlagRegisterField  fetcherStopAtEndOfBlock;
+        // Direct mode: written by SW
+        // Scatter/gather mode: not used
+        private IValueRegisterField fetcherTag;
+        // Direct mode: written by SW
+        // Scatter/gather mode: not used
+        private IFlagRegisterField  fetcherRealignLength;
+        // Direct mode: written by SW
+        // Scatter/gather mode: not used
+        private IFlagRegisterField  fetcherConstantAddress;
+        // Direct mode: written by SW
+        // Scatter/gather mode: not used
+        private IValueRegisterField fetcherLength;
+        // Direct mode: written by SW (address of the first data)
+        // Scatter/gather mode: Written by SW (address of first descriptor). Afterwards, it is updated
+        //                      by the hardware after each processed descriptor.
+        private IValueRegisterField fetcherAddress;
+        // When this bit is zero, the pusher runs in direct mode.
         // When this bit is one, the pusher runs in scatter-gather mode.
         private IFlagRegisterField  pusherScatterGather;
-        // This bit is high as long as the pusher is busy
-        private IFlagRegisterField pusherBusy;
-
-        // Interrupt flags
-        private IFlagRegisterField fetcherEndOfBlockInterruptEnable;
-        private IFlagRegisterField fetcherStoppedInterruptEnable;
-        private IFlagRegisterField fetcherErrorInterruptEnable;
-        private IFlagRegisterField pusherEndOfBlockInterruptEnable;
-        private IFlagRegisterField pusherStoppedInterruptEnable;
-        private IFlagRegisterField pusherErrorInterruptEnable;
-        // Triggered at the end of each block (if enabled in the descriptor - scatter-gather only)
-        private IFlagRegisterField fetcherEndOfBlockInterrupt;
-        // Triggered when reaching a block with Stop=1 (or end of direct transfer)
-        private IFlagRegisterField fetcherStoppedInterrupt;
-        // Triggered when an error response is received from AXI
-        private IFlagRegisterField fetcherErrorInterrupt;
-        // Triggered at the end of each block (if enabled in the descriptor - scatter-gather only)
-        private IFlagRegisterField pusherEndOfBlockInterrupt;
-        // Triggered when reaching a block with Stop=1 (or end of direct transfer)
-        private IFlagRegisterField pusherStoppedInterrupt;
-        // Triggered when an error response is received from AXI
-        private IFlagRegisterField pusherErrorInterrupt;
-#endregion
-
-#region methods
-        private void UpdateInterrupts()
-        {
-            machine.ClockSource.ExecuteInLock(delegate {
-                var irq = ((fetcherEndOfBlockInterruptEnable.Value && fetcherEndOfBlockInterrupt.Value)
-                           || (fetcherStoppedInterruptEnable.Value || fetcherStoppedInterrupt.Value)
-                           || (fetcherErrorInterruptEnable.Value || fetcherErrorInterrupt.Value)
-                           || (pusherEndOfBlockInterruptEnable.Value && pusherEndOfBlockInterrupt.Value)
-                           || (pusherStoppedInterruptEnable.Value || pusherStoppedInterrupt.Value)
-                           || (pusherErrorInterruptEnable.Value || pusherErrorInterrupt.Value));
-                IRQ.Set(irq);
-            });
-        }
-
-        // Commmands
-        private void StartFetcher()
-        {
-            // TODO: for now we support only Scatter/Gather mode for both fetcher and pusher
-            if (!fetcherScatterGather.Value || !pusherScatterGather.Value)
-            {
-                this.Log(LogLevel.Error, "START_FETCHER: direct mode not supported");
-                return;
-            }
-
-            fetcherBusy.Value = true;
-            pusherBusy.Value = true;
-
-            this.Log(LogLevel.Noisy, "FETCHER Descriptor(s):");
-            List<DmaDescriptor> fetcherDescriptorList = ParseDescriptors(true);
-            this.Log(LogLevel.Noisy, "PUSHER Descriptor(s):");
-            List<DmaDescriptor> pusherDescriptorList = ParseDescriptors(false);
-
-            switch(fetcherDescriptorList[0].EngineSelect)
-            {
-                case CryptoEngine.Aes:
-                    RunAesEngine(fetcherDescriptorList, pusherDescriptorList);
-                break;
-                default:
-                    this.Log(LogLevel.Error, "START_FETCHER: crypto engine not supported");
-                    return;
-            }
-
-            fetcherBusy.Value = false;
-            pusherBusy.Value = false;
-
-            // TODO: we might need to set some interrupt flags here. However, sl_radioaes driver does not make use of them.
-
-            UpdateInterrupts();
-        }
-        
-        private void StartPusher()
-        {
-            // Nothing to do here, the StartFetcher command already grabs the pusher descriptors and writes them.
-        }
-
-        private List<DmaDescriptor> ParseDescriptors(bool parseFetcher)
-        {
-            List<DmaDescriptor> list = new List<DmaDescriptor>();
-            uint currentDescriptorAddress = (uint)((parseFetcher) ? fetcherAddress.Value : pusherAddress.Value); 
-            bool moreDescriptors = true;
-            uint descriptorIndex = 0;
-
-            while(moreDescriptors)
-            {
-                DmaDescriptor descriptor = new DmaDescriptor();
-                descriptor.FirstDataAddress = machine.SystemBus.ReadDoubleWord(currentDescriptorAddress);
-                descriptor.NextDescriptorAddress = machine.SystemBus.ReadDoubleWord(currentDescriptorAddress + 0x4);
-                descriptor.LastDescriptor = ((descriptor.NextDescriptorAddress & 0x1) > 0);
-                descriptor.NextDescriptorAddress &= ~0x3U;
-                descriptor.Length = machine.SystemBus.ReadDoubleWord(currentDescriptorAddress + 0x8);
-                descriptor.ConstantAddress = ((descriptor.Length & 0x10000000) > 0);
-                descriptor.Realign = ((descriptor.Length & 0x20000000) > 0);
-                if (parseFetcher)
-                {
-                    descriptor.ZeroPadding = ((descriptor.Length & 0x40000000) > 0);
-                }
-                else
-                {
-                    descriptor.Discard = ((descriptor.Length & 0x40000000) > 0);
-                }
-                descriptor.InterruptEnable = ((descriptor.Length & 0x80000000) > 0);
-                descriptor.Length &= 0x0FFFFFFF;
-                descriptor.Tag = (parseFetcher) ? machine.SystemBus.ReadDoubleWord(currentDescriptorAddress + 0xC) : 0;
-                descriptor.Data = new byte[descriptor.Length];
-                for(uint i=0; i<descriptor.Length; i++)
-                {
-                    // When the zero-padding bit is set, the fetcher generates zeroes instead of reading data from memory.
-                    // For pusher, we always zero the data.
-                    descriptor.Data[i] = (byte)((descriptor.ZeroPadding || !parseFetcher) ? 0 : machine.SystemBus.ReadByte(descriptor.FirstDataAddress + i));
-                }
-                list.Add(descriptor);
-
-                this.Log(LogLevel.Noisy, "DESCRIPTOR {0}: Tag:{1:X} Length:{2} Last:{3} Const:{4} Realign:{5} ZeroPad:{6} IE:{7} Data:[{8}]",
-                         descriptorIndex, descriptor.Tag, descriptor.Length, descriptor.LastDescriptor, descriptor.ConstantAddress, 
-                         descriptor.Realign, descriptor.ZeroPadding, descriptor.InterruptEnable, BitConverter.ToString(descriptor.Data));
-                this.Log(LogLevel.Noisy, "COMMON: Engine:{0}, Last:{1}", descriptor.EngineSelect, descriptor.IsLastDataOrConfig);
-                if (parseFetcher)
-                {
-                    if (descriptor.IsData)
-                    {
-                        this.Log(LogLevel.Noisy, "DATA: Type:{0}, Invalid Bytes/Bits:{1}", descriptor.DataType, descriptor.InvalidBytesOrBits);
-                    }
-                    else
-                    {
-                        this.Log(LogLevel.Noisy, "CONFIG: Offset:{0}", descriptor.OffsetStartAddress);
-                    }
-                }
-
-                moreDescriptors = !descriptor.LastDescriptor;
-                // TODO: handle the realign bit set here
-                currentDescriptorAddress = descriptor.NextDescriptorAddress;
-                descriptorIndex++;
-
-                // In scatter/gather node, the hardware updates the fetchAddress after each processed descriptor
-                // unless the constant address flag is set.
-                if (parseFetcher && fetcherScatterGather.Value && moreDescriptors && !descriptor.ConstantAddress)
-                {
-                    fetcherAddress.Value = currentDescriptorAddress;
-                }
-            }
-            return list;
-        }
+        private readonly Machine machine;
+        private readonly DoubleWordRegisterCollection registersCollection;
 
         void RunAesEngine(List<DmaDescriptor> fetcherDescriptorList, List<DmaDescriptor> pusherDescriptorList)
         {
@@ -381,38 +379,38 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             int inputTextDescriptorIndex = -1;
             int ivDescriptorIndex = -1;
             int iv2DescriptorIndex = -1;
-            for(int i=0; i<fetcherDescriptorList.Count; i++)
+            for(int i = 0; i < fetcherDescriptorList.Count; i++)
             {
-                if (fetcherDescriptorList[i].IsData && fetcherDescriptorList[i].DataType == CryptoDataType.Payload)
+                if(fetcherDescriptorList[i].IsData && fetcherDescriptorList[i].DataType == CryptoDataType.Payload)
                 {
                     inputTextDescriptorIndex = i;
                 }
-                else if (fetcherDescriptorList[i].IsConfig && fetcherDescriptorList[i].OffsetStartAddress == 0x8)
+                else if(fetcherDescriptorList[i].IsConfig && fetcherDescriptorList[i].OffsetStartAddress == 0x8)
                 {
                     keyDescriptorIndex = i;
                 }
-                else if (fetcherDescriptorList[i].IsConfig && fetcherDescriptorList[i].OffsetStartAddress == 0x0)
+                else if(fetcherDescriptorList[i].IsConfig && fetcherDescriptorList[i].OffsetStartAddress == 0x0)
                 {
                     configDescriptorIndex = i;
                 }
-                else if (fetcherDescriptorList[i].IsConfig && fetcherDescriptorList[i].OffsetStartAddress == 0x28)
+                else if(fetcherDescriptorList[i].IsConfig && fetcherDescriptorList[i].OffsetStartAddress == 0x28)
                 {
                     ivDescriptorIndex = i;
                 }
-                else if (fetcherDescriptorList[i].IsConfig && fetcherDescriptorList[i].OffsetStartAddress == 0x38)
+                else if(fetcherDescriptorList[i].IsConfig && fetcherDescriptorList[i].OffsetStartAddress == 0x38)
                 {
                     iv2DescriptorIndex = i;
                 }
-                else if (fetcherDescriptorList[i].IsConfig && fetcherDescriptorList[i].OffsetStartAddress == 0x48)
+                else if(fetcherDescriptorList[i].IsConfig && fetcherDescriptorList[i].OffsetStartAddress == 0x48)
                 {
                     key2DescriptorIndex = i;
                 }
             }
-            
-            this.Log(LogLevel.Noisy, "RunAesEngine(): config_index={0} key_index={1} key2_index={2} iv_index={3} iv2_index={4} plaintextIndex={5}", 
-                     configDescriptorIndex, keyDescriptorIndex, key2DescriptorIndex, ivDescriptorIndex, iv2DescriptorIndex, inputTextDescriptorIndex);    
 
-            if (keyDescriptorIndex < 0 || configDescriptorIndex < 0 || inputTextDescriptorIndex < 0)
+            this.Log(LogLevel.Noisy, "RunAesEngine(): config_index={0} key_index={1} key2_index={2} iv_index={3} iv2_index={4} plaintextIndex={5}",
+                     configDescriptorIndex, keyDescriptorIndex, key2DescriptorIndex, ivDescriptorIndex, iv2DescriptorIndex, inputTextDescriptorIndex);
+
+            if(keyDescriptorIndex < 0 || configDescriptorIndex < 0 || inputTextDescriptorIndex < 0)
             {
                 this.Log(LogLevel.Error, "RunAesEngine(): one or more expected descriptors is missing");
                 return;
@@ -425,23 +423,23 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             this.Log(LogLevel.Noisy, "RunAesEngine(): key:[{0}]", BitConverter.ToString(fetcherDescriptorList[keyDescriptorIndex].Data));
 
             ParametersWithIV parametersWithIV = null;
-            if (ivDescriptorIndex >= 0)
+            if(ivDescriptorIndex >= 0)
             {
                 parametersWithIV = new ParametersWithIV(keyParameter, fetcherDescriptorList[ivDescriptorIndex].Data);
                 this.Log(LogLevel.Noisy, "RunAesEngine(): IV:[{0}]", BitConverter.ToString(fetcherDescriptorList[ivDescriptorIndex].Data));
             }
 
             this.Log(LogLevel.Noisy, "RunAesEngine(): Input Data:[{0}]", BitConverter.ToString(fetcherDescriptorList[inputTextDescriptorIndex].Data));
-            
+
             // Bit 0: encryption or decryption operation
             // 0: encryption operation
             // 1: decryption operation
             bool encrypt = ((fetcherDescriptorList[configDescriptorIndex].Data[0] & 0x1) == 0);
-            // Bit 4: Cx_Load: 
+            // Bit 4: Cx_Load:
             // 0: AES operation is initial; no contet is given as input
             // 1: AES operation is not initial; the context must be provided as input
             bool cxLoad = ((fetcherDescriptorList[configDescriptorIndex].Data[0] & (0x1 << 4)) > 0);
-            // Bit 5: Cx_Save: 
+            // Bit 5: Cx_Save:
             // 0: AES operation is final; the engine will not return the context
             // 1: AES operation is not final; the engine will return the context
             bool cxSave = ((fetcherDescriptorList[configDescriptorIndex].Data[0] & (0x1 << 4)) > 0);
@@ -454,22 +452,22 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
             switch(mode)
             {
-                case AesMode.Ecb:
-                    cipher = new AesEngine();
-                    // The output IV length is always 0 when using ECB
-                    cipher.Init(encrypt, keyParameter);                
-                    // In ECB mode we expect a single pusher descriptor which stores the ouput text
-                    outputTextDescriptorIndex = 0;
+            case AesMode.Ecb:
+                cipher = new AesEngine();
+                // The output IV length is always 0 when using ECB
+                cipher.Init(encrypt, keyParameter);
+                // In ECB mode we expect a single pusher descriptor which stores the ouput text
+                outputTextDescriptorIndex = 0;
                 break;
-                case AesMode.Ctr:
-                    cipher = new SicBlockCipher(new AesEngine());
-                    cipher.Init(encrypt, parametersWithIV);
-                    outputTextDescriptorIndex = 0;
-                    outputIvDescriptorIndex = 1;
+            case AesMode.Ctr:
+                cipher = new SicBlockCipher(new AesEngine());
+                cipher.Init(encrypt, parametersWithIV);
+                outputTextDescriptorIndex = 0;
+                outputIvDescriptorIndex = 1;
                 break;
-                default:
-                    this.Log(LogLevel.Error, "RunAesEngine(): AES mode not supported");
-                    return;
+            default:
+                this.Log(LogLevel.Error, "RunAesEngine(): AES mode not supported");
+                return;
             }
 
             for(int i = 0; i < fetcherDescriptorList[inputTextDescriptorIndex].Length; i += 16)
@@ -477,7 +475,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                 cipher.ProcessBlock(fetcherDescriptorList[inputTextDescriptorIndex].Data, i, pusherDescriptorList[outputTextDescriptorIndex].Data, i);
             }
 
-            for (uint i=0; i<pusherDescriptorList[outputTextDescriptorIndex].Length; i++)
+            for(uint i = 0; i < pusherDescriptorList[outputTextDescriptorIndex].Length; i++)
             {
                 machine.SystemBus.WriteByte(pusherDescriptorList[outputTextDescriptorIndex].FirstDataAddress + i, pusherDescriptorList[outputTextDescriptorIndex].Data[i]);
             }
@@ -486,9 +484,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
             // TODO: RENODE-51: The crypto mode classes do not expose the IV (for example the SicBlockCipher class).
             // We should write the output IV here, for now we just do a +1 on each byte of the input IV.
-            if (cxSave)
+            if(cxSave)
             {
-                for (uint i=0; i<pusherDescriptorList[outputIvDescriptorIndex].Length; i++)
+                for(uint i = 0; i < pusherDescriptorList[outputIvDescriptorIndex].Length; i++)
                 {
                     pusherDescriptorList[outputIvDescriptorIndex].Data[i] = (byte)(fetcherDescriptorList[ivDescriptorIndex].Data[i] + 1);
                     machine.SystemBus.WriteByte(pusherDescriptorList[outputIvDescriptorIndex].FirstDataAddress + i, pusherDescriptorList[outputIvDescriptorIndex].Data[i]);
@@ -496,9 +494,124 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                 this.Log(LogLevel.Noisy, "RunAesEngine(): Output IV:[{0}]", BitConverter.ToString(pusherDescriptorList[outputIvDescriptorIndex].Data));
             }
         }
-#endregion
 
-#region enums
+        private class DmaDescriptor
+        {
+            public DmaDescriptor()
+            {
+            }
+
+            public CryptoEngine EngineSelect
+            {
+                get => (CryptoEngine)(this.Tag & 0xF);
+            }
+
+            public bool IsData
+            {
+                get => ((this.Tag & 0x10) == 0);
+            }
+
+            public bool IsConfig
+            {
+                get => !this.IsData;
+            }
+
+            public bool IsLastDataOrConfig
+            {
+                get => ((this.Tag & 0x20) > 0);
+            }
+
+            public uint InvalidBytesOrBits
+            {
+                // Bits 13:8
+                get => IsData ? ((this.Tag & 0xCF00) >> 8) : 0;
+            }
+
+            public uint OffsetStartAddress
+            {
+                // Bits 15:8
+                get => IsData ? 0 : ((this.Tag & 0xFF00) >> 8);
+            }
+
+            public CryptoDataType DataType
+            {
+                get
+                {
+                    if(!IsData)
+                    {
+                        return CryptoDataType.Unused;
+                    }
+
+                    // Bits 7:6
+                    uint dataType = ((this.Tag & 0xC0) >> 6);
+                    switch(this.EngineSelect)
+                    {
+                    case CryptoEngine.Aes:
+                    case CryptoEngine.Sm4:
+                    case CryptoEngine.Aria:
+                        switch(dataType)
+                        {
+                        case 0:
+                            return CryptoDataType.Payload;
+                        case 1:
+                            return CryptoDataType.Header;
+                        }
+                        break;
+                    case CryptoEngine.Hash:
+                    case CryptoEngine.Sha3:
+                        switch(dataType)
+                        {
+                        case 0:
+                            return CryptoDataType.Message;
+                        case 1:
+                            return CryptoDataType.InitializationData;
+                        case 2:
+                            return CryptoDataType.HMAC_Key;
+                        case 3:
+                            return CryptoDataType.ReferenceHash;
+                        }
+                        break;
+                    case CryptoEngine.AesGcm:
+                        switch(dataType)
+                        {
+                        case 0:
+                            return CryptoDataType.Payload;
+                        case 1:
+                            return CryptoDataType.Header;
+                        case 3:
+                            return CryptoDataType.ReferenceTag;
+                        }
+                        break;
+                    case CryptoEngine.ChaChaPoly:
+                    case CryptoEngine.HpChaChaPoly:
+                        switch(dataType)
+                        {
+                        case 0:
+                            return CryptoDataType.Payload;
+                        case 1:
+                            return CryptoDataType.Header;
+                        case 3:
+                            return CryptoDataType.ReferenceDigest;
+                        }
+                        break;
+                    }
+                    return CryptoDataType.Unused;
+                }
+            }
+
+            public uint FirstDataAddress;
+            public bool LastDescriptor;
+            public uint NextDescriptorAddress;
+            public uint Length;
+            public bool ConstantAddress;
+            public bool Realign;
+            public bool Discard;
+            public bool ZeroPadding;
+            public bool InterruptEnable;
+            public uint Tag;
+            public byte[] Data;
+        }
+
         private enum AesMode
         {
             Ecb           = 0x001,
@@ -511,6 +624,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             Xts           = 0x080,
             Cmac          = 0x100,
         }
+
         private enum Registers
         {
             FetcherAddress              = 0x000,
@@ -560,123 +674,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             ReferenceHash,
             ReferenceTag,
             ReferenceDigest,
-        }
-#endregion
-
-        private class DmaDescriptor
-        {
-            public DmaDescriptor()
-            {
-            }
-
-            public CryptoEngine EngineSelect 
-            {
-                get => (CryptoEngine)(this.Tag & 0xF);
-            }
-
-            public bool IsData
-            {
-                get => ((this.Tag & 0x10) == 0);
-            }
-
-            public bool IsConfig
-            {
-                get => !this.IsData;
-            }
-
-            public bool IsLastDataOrConfig
-            {
-                get => ((this.Tag & 0x20) > 0);
-            }
-            public uint InvalidBytesOrBits
-            {
-                // Bits 13:8
-                get => IsData ? ((this.Tag & 0xCF00) >> 8) : 0;
-            }
-
-            public uint OffsetStartAddress
-            {
-                // Bits 15:8
-                get => IsData ? 0 : ((this.Tag & 0xFF00) >> 8);
-            }
-
-            public CryptoDataType DataType
-            {
-                get
-                {
-                    if (!IsData)
-                    {
-                        return CryptoDataType.Unused;
-                    }
-
-                    // Bits 7:6
-                    uint dataType = ((this.Tag & 0xC0) >> 6);
-                    switch(this.EngineSelect)
-                    {
-                        case CryptoEngine.Aes:
-                        case CryptoEngine.Sm4:
-                        case CryptoEngine.Aria:
-                            switch(dataType)
-                            {
-                                case 0:
-                                    return CryptoDataType.Payload;
-                                case 1:
-                                    return CryptoDataType.Header;
-                            }
-                        break;
-                        case CryptoEngine.Hash:
-                        case CryptoEngine.Sha3:
-                            switch(dataType)
-                            {
-                                case 0:
-                                    return CryptoDataType.Message;
-                                case 1:
-                                    return CryptoDataType.InitializationData;
-                                case 2:
-                                    return CryptoDataType.HMAC_Key;
-                                case 3:
-                                    return CryptoDataType.ReferenceHash;
-                            }
-                        break;
-                        case CryptoEngine.AesGcm:
-                            switch(dataType)
-                            {
-                                case 0:
-                                    return CryptoDataType.Payload;
-                                case 1:
-                                    return CryptoDataType.Header;
-                                case 3:
-                                    return CryptoDataType.ReferenceTag;
-                            }
-                        break;
-                        case CryptoEngine.ChaChaPoly:
-                        case CryptoEngine.HpChaChaPoly:
-                            switch(dataType)
-                            {
-                                case 0:
-                                    return CryptoDataType.Payload;
-                                case 1:
-                                    return CryptoDataType.Header;
-                                case 3:
-                                    return CryptoDataType.ReferenceDigest;
-                            }
-                        break;
-                    }
-                    return CryptoDataType.Unused;
-                }
-            }
-
-            public uint FirstDataAddress;
-            public bool LastDescriptor;
-            public uint NextDescriptorAddress;
-            public uint Length;
-            public bool ConstantAddress;
-            public bool Realign;
-            public bool Discard;
-            public bool ZeroPadding;
-            public bool InterruptEnable;
-            public uint Tag;
-            public byte[] Data;
         }
     }
 }

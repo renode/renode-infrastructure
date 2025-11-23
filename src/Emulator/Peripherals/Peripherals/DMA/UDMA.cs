@@ -6,11 +6,12 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Peripherals.Bus;
+using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
-using System.Linq;
 
 namespace Antmicro.Renode.Peripherals.DMA
 {
@@ -23,24 +24,6 @@ namespace Antmicro.Renode.Peripherals.DMA
             channels = new Channel[numberOfChannels];
             IRQ = new GPIO();
             Reset();
-        }
-
-        public void Reset()
-        {
-            basePointer = 0;
-            busErrorStatus = 0;
-            for(var i = 0; i < channels.Length; ++i)
-            {
-                channels[i] = new Channel(this, i);
-            }
-        }
-
-        public long Size
-        {
-            get
-            {
-                return 0x1000;
-            }
         }
 
         public uint ReadDoubleWord(long offset)
@@ -138,7 +121,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 }
                 break;
             case Registers.Assignment:
-                ActionOnChannels((x,y) => x.SecondaryChannelAssignment = y, value);
+                ActionOnChannels((x, y) => x.SecondaryChannelAssignment = y, value);
                 break;
             case Registers.InterruptStatus:
                 ActionOnChannels(x => x.InterruptStatus = false, value);
@@ -159,6 +142,24 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
             channels[channel].UseBurst = isBurst;
             channels[channel].InitTransfer();
+        }
+
+        public void Reset()
+        {
+            basePointer = 0;
+            busErrorStatus = 0;
+            for(var i = 0; i < channels.Length; ++i)
+            {
+                channels[i] = new Channel(this, i);
+            }
+        }
+
+        public long Size
+        {
+            get
+            {
+                return 0x1000;
+            }
         }
 
         public GPIO IRQ { get; private set; }
@@ -226,18 +227,26 @@ namespace Antmicro.Renode.Peripherals.DMA
                 ChannelEnabled = false;
                 InterruptStatus = true;
                 parent.IRQ.Set();
-
             }
 
-            public bool WaitingOnRequest{ get; private set; }
-            public bool InterruptStatus{ get; set; }
-            public bool SecondaryChannelAssignment{ get; set; }
-            public bool HighPriority{ get; set; }
-            public bool UseAlternateControlData{ get; set; }
-            public bool ChannelEnabled{ get; set; }
-            public bool UseBurst{ get; set; }
-            public bool RequestMask{ get; set; }
-            public uint ChannelMapping{ get; set; }
+            public bool WaitingOnRequest { get; private set; }
+
+            public bool InterruptStatus { get; set; }
+
+            public bool SecondaryChannelAssignment { get; set; }
+
+            public bool HighPriority { get; set; }
+
+            public bool UseAlternateControlData { get; set; }
+
+            public bool ChannelEnabled { get; set; }
+
+            public bool UseBurst { get; set; }
+
+            public bool RequestMask { get; set; }
+
+            public uint ChannelMapping { get; set; }
+
             private readonly UDMA parent;
             private readonly int channelNumber;
 
@@ -259,12 +268,18 @@ namespace Antmicro.Renode.Peripherals.DMA
                 }
 
                 public uint DestinationIncrement { get { return IncrementHelper(ControlWord >> 30); } } //bits 31-30
+
                 public uint SourceIncrement { get { return IncrementHelper((ControlWord >> 26) & 0x3); } } //bits 27-26
+
                 public uint DestinationSize { get { return (uint)Math.Pow(2, (ControlWord >> 28) & 0x3); } }
+
                 public uint SourceSize { get { return (uint)Math.Pow(2, (ControlWord >> 24) & 0x3); } }
+
                 public uint TransferSize { get { return ((ControlWord >> 4) & 0x3FF) + 1; } } //Bits 13-4 of control word
+
                 public uint SourcePointer { get { return SourceIncrement != 0 ? SourceEndPointer - TransferSize + 1 : SourceEndPointer; } }
-                public uint DestinationPointer{ get { return DestinationIncrement != 0 ? DestinationEndPointer - TransferSize + 1 : DestinationEndPointer; } }
+
+                public uint DestinationPointer { get { return DestinationIncrement != 0 ? DestinationEndPointer - TransferSize + 1 : DestinationEndPointer; } }
 
                 //burst mode and transfer mode not implemented
                 public uint SourceEndPointer;

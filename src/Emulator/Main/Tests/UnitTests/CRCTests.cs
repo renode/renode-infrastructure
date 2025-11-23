@@ -1,12 +1,13 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
-// license text is available in 'licenses/MIT.txt'.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 
-using NUnit.Framework;
 using System;
+
+using NUnit.Framework;
 
 namespace Antmicro.Renode.Utilities
 {

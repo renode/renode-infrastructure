@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Utilities
 {
     public class AdHocCompiler
     {
-        public string Compile(string sourcePath)
+        public string Compile(string[] sourcePaths)
         {
             var outputFileName = TemporaryFilesManager.Instance.GetTemporaryFile();
             var parameters = new List<string>();
@@ -45,7 +45,10 @@ namespace Antmicro.Renode.Utilities
             parameters.Add("/noconfig");
 
             parameters.Add("--");
-            parameters.Add(sourcePath);
+            foreach (var sourcePath in sourcePaths)
+            {
+                parameters.Add(sourcePath);
+            }
 
             var result = false;
             var errorOutput = new StringWriter();

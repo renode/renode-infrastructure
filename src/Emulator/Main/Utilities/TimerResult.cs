@@ -22,6 +22,6 @@ namespace Antmicro.Renode.Utilities
 
         public DateTime Timestamp { get; set; }
 
-        public String EventName { get;set; }
+        public String EventName { get; set; }
     }
 }

@@ -1,18 +1,19 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
+using Antmicro.Migrant;
+using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.CPU;
-using Antmicro.Renode.Exceptions;
+
 using Microsoft.Scripting.Hosting;
-using Antmicro.Migrant.Hooks;
-using Antmicro.Migrant;
 
 namespace Antmicro.Renode.Hooks
 {
@@ -46,6 +47,10 @@ namespace Antmicro.Renode.Hooks
             };
         }
 
+        public CpuAddressHook Hook { get; private set; }
+
+        public Action<ulong, uint> HookWithSize { get; private set; }
+
         [PostDeserialization]
         private void InnerInit()
         {
@@ -55,10 +60,6 @@ namespace Antmicro.Renode.Hooks
             var source = Engine.CreateScriptSourceFromString(Script);
             code = Compile(source);
         }
-
-        public Action<ICpuSupportingGdb, ulong> Hook { get; private set; }
-
-        public Action<ulong, uint> HookWithSize { get; private set; }
 
         [Transient]
         private CompiledCode code;

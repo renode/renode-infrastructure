@@ -8,7 +8,7 @@ using Antmicro.Renode.Utilities.Packets;
 
 namespace Antmicro.Renode.Peripherals.Storage
 {
-#pragma warning disable 649, 169
+#pragma warning disable 649, 169, IDE0044
     public struct ConfigurationDescriptorHeader
     {
         [PacketField, Offset(bytes: 0x00)]
@@ -121,13 +121,13 @@ namespace Antmicro.Renode.Peripherals.Storage
         public byte PSAStateTimeout;
         [PacketField, Offset(bytes: 0x2a)]
         public byte ProductRevisionLevel;
-        [PacketField, Offset(bytes: 0x2b), Width(5)]
+        [PacketField, Offset(bytes: 0x2b), Width(bytes: 5)]
         private byte[] Reserved0;
-        [PacketField, Offset(bytes: 0x30), Width(16)]
+        [PacketField, Offset(bytes: 0x30), Width(bytes: 16)]
         private byte[] ReservedUnifiedMemoryExtension;
-        [PacketField, Offset(bytes: 0x40), Width(3)]
+        [PacketField, Offset(bytes: 0x40), Width(bytes: 3)]
         private byte[] ReservedHostPerformanceBooster;
-        [PacketField, Offset(bytes: 0x43), Width(12)]
+        [PacketField, Offset(bytes: 0x43), Width(bytes: 12)]
         private byte[] Reserved1;
         [PacketField, Offset(bytes: 0x4f)]
         public uint ExtendedUFSFeaturesSupport;
@@ -151,7 +151,7 @@ namespace Antmicro.Renode.Peripherals.Storage
         public byte DeviceLifeTimeEstA;
         [PacketField, Offset(bytes: 0x04)]
         public byte DeviceLifeTimeEstB;
-        [PacketField, Offset(bytes: 0x05), Width(32)]
+        [PacketField, Offset(bytes: 0x05), Width(bytes: 32)]
         public byte[] VendorPropInfo;
         [PacketField, Offset(bytes: 0x25)]
         public uint RefreshTotalCount;
@@ -229,7 +229,7 @@ namespace Antmicro.Renode.Peripherals.Storage
         public ushort Enhanced4CapAdjFac;
         [PacketField, Offset(bytes: 0x44)]
         public uint OptimalLogicalBlockSize;
-        [PacketField, Offset(bytes: 0x48), Width(5)]
+        [PacketField, Offset(bytes: 0x48), Width(bytes: 5)]
         private byte[] ReservedHostPerformanceBooster;
         [PacketField, Offset(bytes: 0x4d)]
         private ushort Reserved1;
@@ -263,11 +263,11 @@ namespace Antmicro.Renode.Peripherals.Storage
         public byte Length;
         [PacketField, Offset(bytes: 0x01)]
         public byte DescriptorIDN;
-        [PacketField, Offset(bytes: 0x02), Width(32)]
+        [PacketField, Offset(bytes: 0x02), Width(bytes: 32)]
         public byte[] ActiveICCLevelsVCC; // 16 ushort fields
-        [PacketField, Offset(bytes: 0x22), Width(32)]
+        [PacketField, Offset(bytes: 0x22), Width(bytes: 32)]
         public byte[] ActiveICCLevelsVCCQ; // 16 ushort fields
-        [PacketField, Offset(bytes: 0x42), Width(32)]
+        [PacketField, Offset(bytes: 0x42), Width(bytes: 32)]
         public byte[] ActiveICCLevelsVCCQ2; // 16 ushort fields
     }
 
@@ -309,7 +309,7 @@ namespace Antmicro.Renode.Peripherals.Storage
         public byte ProvisioningType;
         [PacketField, Offset(bytes: 0x18)]
         public ulong PhyMemResourceCount;
-        [PacketField, Offset(bytes: 0x20), Width(3)]
+        [PacketField, Offset(bytes: 0x20), Width(bytes: 3)]
         private byte[] Reserved;
     }
 
@@ -349,10 +349,10 @@ namespace Antmicro.Renode.Peripherals.Storage
         public ushort ContextCapabilities;
         [PacketField, Offset(bytes: 0x22)]
         public byte LargeUnitGranularity_M1;
-        [PacketField, Offset(bytes: 0x23), Width(6)]
+        [PacketField, Offset(bytes: 0x23), Width(bytes: 6)]
         private byte[] ReservedHostPerformanceBooster;
         [PacketField, Offset(bytes: 0x29)]
         public uint LUNumWriteBoosterBufferAllocUnits;
     }
-#pragma warning restore 649, 169
+#pragma warning restore 649, 169, IDE0044
 }

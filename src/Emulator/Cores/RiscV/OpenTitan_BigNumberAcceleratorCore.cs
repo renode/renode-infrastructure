@@ -6,25 +6,25 @@
 //
 
 using System;
-using System.Linq;
-using Antmicro.Renode.Logging;
-using System.Numerics;
 using System.Collections.Generic;
+using System.Linq;
+using System.Numerics;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Peripherals.Memory;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Miscellaneous;
 using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Utilities.Binding;
-using Antmicro.Renode.Peripherals.Bus;
+
 using ELFSharp.ELF;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
     public class OpenTitan_BigNumberAcceleratorCore : RiscV32, IOpenTitan_BigNumberAcceleratorCore
     {
-        public OpenTitan_BigNumberAcceleratorCore(OpenTitan_BigNumberAccelerator parent, OpenTitan_ScrambledMemory instructionsMemory, OpenTitan_ScrambledMemory dataMemory)
-            : base(timeProvider: null, cpuType: "rv32im_zicsr", machine: null, hartId: 0, privilegedArchitecture: PrivilegedArchitecture.Priv1_10, endianness: Endianess.LittleEndian)
+        public OpenTitan_BigNumberAcceleratorCore(OpenTitan_BigNumberAccelerator parent, OpenTitan_ScrambledMemory instructionsMemory, OpenTitan_ScrambledMemory dataMemory, IMachine machine)
+            : base(timeProvider: null, cpuType: "rv32im_zicsr", machine: machine, hartId: 0, privilegedArchitecture: PrivilegedArchitecture.Priv1_10, endianness: Endianess.LittleEndian, useMachineAtomicState: false)
         {
             this.parent = parent;
             this.instructionsMemory = instructionsMemory;
@@ -39,11 +39,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
 
             this.EnableExternalWindowMmu(true);
-            var insnFetchWindow = (uint)this.AcquireExternalMmuWindow((int)ExternalMmuBase.Privilege.Execute); //Insn fetch only
+            var insnFetchWindow = (uint)this.AcquireExternalMmuWindow(ExternalMmuBase.Privilege.Execute); //Insn fetch only
             this.SetMmuWindowStart(insnFetchWindow, 0x0);
             this.SetMmuWindowEnd(insnFetchWindow, (ulong)instructionsMemory.Size);
             this.SetMmuWindowAddend(insnFetchWindow, 0);
-            this.SetMmuWindowPrivileges(insnFetchWindow, (int)ExternalMmuBase.Privilege.Execute);
+            this.SetMmuWindowPrivileges(insnFetchWindow, ExternalMmuBase.Privilege.Execute);
             this.AddHookAtInterruptBegin(HandleException);
 
             foreach(var segment in dataMemory.MappedSegments)
@@ -52,11 +52,11 @@ namespace Antmicro.Renode.Peripherals.CPU
                 this.MapMemory(wrappedSegment);
             }
 
-            var dataWindow = (uint)this.AcquireExternalMmuWindow((int)ExternalMmuBase.Privilege.ReadAndWrite); // Data read and write
+            var dataWindow = (uint)this.AcquireExternalMmuWindow(ExternalMmuBase.Privilege.ReadAndWrite); // Data read and write
             this.SetMmuWindowStart(dataWindow, 0x0);
             this.SetMmuWindowEnd(dataWindow, (ulong)dataMemory.Size);
             this.SetMmuWindowAddend(dataWindow, VirtualDataOffset);
-            this.SetMmuWindowPrivileges(dataWindow, (int)ExternalMmuBase.Privilege.ReadAndWrite);
+            this.SetMmuWindowPrivileges(dataWindow, ExternalMmuBase.Privilege.ReadAndWrite);
 
             // Add the X1 register handling
             this.EnablePostGprAccessHooks(1);
@@ -83,6 +83,32 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             RegisterCustomCSRs();
             RegisterCustomOpcodes();
+        }
+
+        public ExecutionResult ExecuteInstructions(int numberOfInstructionsToExecute, out ulong numberOfExecutedInstructions)
+        {
+            Log(LogLevel.Debug, string.Format("Executing #{0} instruction(s) at {1}", numberOfInstructionsToExecute, PC));
+            LastError = CoreError.None;
+            executionFinished = false;
+
+            if(loopStack.Count != 0)
+            {
+                ExecuteLoop(out numberOfExecutedInstructions);
+            }
+            else
+            {
+                // normal execution
+                base.ExecuteInstructions((ulong)numberOfInstructionsToExecute, out numberOfExecutedInstructions);
+            }
+
+            if(LastError != CoreError.None)
+            {
+                return ExecutionResult.Aborted;
+            }
+
+            return executionFinished
+                ? ExecutionResult.Interrupted
+                : ExecutionResult.Ok;
         }
 
         public override void Reset()
@@ -199,29 +225,29 @@ namespace Antmicro.Renode.Peripherals.CPU
             Log(LogLevel.Debug, $"Handling exception of type 0x{exceptionType:X}");
             switch(exceptionType)
             {
-                case 0x0: // RISCV_EXCP_INST_ADDR_MIS
-                case 0x1: // RISCV_EXCP_INST_ACCESS_FAULT
-                case 0xc: // RISCV_EXCP_INST_PAGE_FAULT          /* since: priv-1.10.0 */
-                    ThrowError(CoreError.BadInstructionAddress, false);
-                    break;
-                case 0x2: // RISCV_EXCP_ILLEGAL_INST
-                    ThrowError(CoreError.IllegalInstruction, false);
-                    break;
-                case 0x4: // RISCV_EXCP_LOAD_ADDR_MIS
-                case 0x5: // RISCV_EXCP_LOAD_ACCESS_FAULT
-                case 0x6: // RISCV_EXCP_STORE_AMO_ADDR_MIS
-                case 0x7: // RISCV_EXCP_STORE_AMO_ACCESS_FAULT
-                case 0xd: // RISCV_EXCP_LOAD_PAGE_FAULT          /* since: priv-1.10.0 */
-                case 0xf: // RISCV_EXCP_STORE_PAGE_FAULT         /* since: priv-1.10.0 */
-                    ThrowError(CoreError.BadDataAddress, false);
-                    break;
-                case 0x3: // RISCV_EXCP_BREAKPOINT
-                case 0x8: // RISCV_EXCP_U_ECALL
-                case 0x9: // RISCV_EXCP_S_ECALL
-                case 0xa: // RISCV_EXCP_H_ECALL
-                case 0xb: // RISCV_EXCP_M_ECALL
-                    // just ignore
-                    break;
+            case 0x0: // RISCV_EXCP_INST_ADDR_MIS
+            case 0x1: // RISCV_EXCP_INST_ACCESS_FAULT
+            case 0xc: // RISCV_EXCP_INST_PAGE_FAULT          /* since: priv-1.10.0 */
+                ThrowError(CoreError.BadInstructionAddress, false);
+                break;
+            case 0x2: // RISCV_EXCP_ILLEGAL_INST
+                ThrowError(CoreError.IllegalInstruction, false);
+                break;
+            case 0x4: // RISCV_EXCP_LOAD_ADDR_MIS
+            case 0x5: // RISCV_EXCP_LOAD_ACCESS_FAULT
+            case 0x6: // RISCV_EXCP_STORE_AMO_ADDR_MIS
+            case 0x7: // RISCV_EXCP_STORE_AMO_ACCESS_FAULT
+            case 0xd: // RISCV_EXCP_LOAD_PAGE_FAULT          /* since: priv-1.10.0 */
+            case 0xf: // RISCV_EXCP_STORE_PAGE_FAULT         /* since: priv-1.10.0 */
+                ThrowError(CoreError.BadDataAddress, false);
+                break;
+            case 0x3: // RISCV_EXCP_BREAKPOINT
+            case 0x8: // RISCV_EXCP_U_ECALL
+            case 0x9: // RISCV_EXCP_S_ECALL
+            case 0xa: // RISCV_EXCP_H_ECALL
+            case 0xb: // RISCV_EXCP_M_ECALL
+                      // just ignore
+                break;
             }
         }
 
@@ -232,42 +258,42 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private void RegisterCustomCSRs()
         {
-            RegisterCSR((ulong)CustomCSR.FlagGroup0,
+            RegisterCSR((ushort)CustomCSR.FlagGroup0,
                         () => (ulong)flagsGroup[0],
                         val => { flagsGroup[0] = (CustomFlags)val; },
                         name: "FG0");
 
-            RegisterCSR((ulong)CustomCSR.FlagGroup1,
+            RegisterCSR((ushort)CustomCSR.FlagGroup1,
                         () => (ulong)flagsGroup[1],
                         val => { flagsGroup[1] = (CustomFlags)val; },
                         name: "FG1");
 
-            RegisterCSR((ulong)CustomCSR.Flags,
+            RegisterCSR((ushort)CustomCSR.Flags,
                         () => (ulong)((uint)flagsGroup[0] | ((uint)flagsGroup[1] << 4)),
                         val => { flagsGroup[0] = (CustomFlags)(val & 0xF); flagsGroup[1] = (CustomFlags)(val >> 4); },
                         name: "FLAGS");
 
-            for(var x = 0; x < 8; x++)
+            for(ushort x = 0; x < 8; x++)
             {
                 var index = x;
-                RegisterCSR((ulong)(CustomCSR.Mod0 + index),
+                RegisterCSR((ushort)(CustomCSR.Mod0 + index),
                             () => (ulong)(wideSpecialPurposeRegisters[(int)WideSPR.Mod].PartialGet(index * sizeof(uint), sizeof(uint))),
                             val => { wideSpecialPurposeRegisters[(int)WideSPR.Mod].PartialSet(new BigInteger(val), index * sizeof(uint), 4); },
                             name: $"MOD{index}");
             }
 
-            RegisterCSR((ulong)CustomCSR.RndPrefetch,
+            RegisterCSR((ushort)CustomCSR.RndPrefetch,
                         () => 0,
                         val => { }, // there is no need for any prefetch action in the simulation
                         name: "RND_PREFETCH");
 
             // both RND and URND are implemented the same way in the simulation
-            RegisterCSR((ulong)CustomCSR.Rnd,
+            RegisterCSR((ushort)CustomCSR.Rnd,
                         () => GetPseudoRandom(),
                         val => { },
                         name: "RND");
 
-            RegisterCSR((ulong)CustomCSR.URnd,
+            RegisterCSR((ushort)CustomCSR.URnd,
                         () => GetPseudoRandom(),
                         val => { },
                         name: "URND");
@@ -340,32 +366,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             InstallCustomInstruction(LoopPattern, LoopHandler, name: "LOOP");
             InstallCustomInstruction(LoopiPattern, LoopiHandler, name: "LOOPI");
-        }
-
-        public ExecutionResult ExecuteInstructions(int numberOfInstructionsToExecute, out ulong numberOfExecutedInstructions)
-        {
-            Log(LogLevel.Debug, string.Format("Executing #{0} instruction(s) at {1}", numberOfInstructionsToExecute, PC));
-            LastError = CoreError.None;
-            executionFinished = false;
-
-            if(loopStack.Count != 0)
-            {
-                ExecuteLoop(out numberOfExecutedInstructions);
-            }
-            else
-            {
-                // normal execution
-                base.ExecuteInstructions((ulong)numberOfInstructionsToExecute, out numberOfExecutedInstructions);
-            }
-
-            if(LastError != CoreError.None)
-            {
-                return ExecutionResult.Aborted;
-            }
-
-            return executionFinished
-                ? ExecutionResult.Interrupted
-                : ExecutionResult.Ok;
         }
 
         private void ExecuteLoop(out ulong numberOfExecutedInstructions)
@@ -747,7 +747,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private void BnImmHandler(ulong opcode)
         {
-            ParseRTypeFields(opcode, out var f3, out var wrd, out var wrs1, out var _, out var  __, out var ___, out var flagGroup);
+            ParseRTypeFields(opcode, out var f3, out var wrd, out var wrs1, out var _, out var __, out var ___, out var flagGroup);
             var imm = (int)BitHelper.GetValue(opcode, 20, 10);
             var isAdd = !BitHelper.IsBitSet(opcode, 30);
             var rs = wideDataRegisters[wrs1].AsBigInteger;
@@ -832,21 +832,21 @@ namespace Antmicro.Renode.Peripherals.CPU
             BigInteger result;
             switch(f3)
             {
-                case 0b100:
-                    result = rs1 | rs2;
-                    break;
-                case 0b010:
-                    result = rs1 & rs2;
-                    break;
-                case 0b110:
-                    result = rs1 ^ rs2;
-                    break;
-                case 0b101:
-                    result = ~rs2;
-                    break;
-                default:
-                    ThrowError(CoreError.IllegalInstruction, false);
-                    return;
+            case 0b100:
+                result = rs1 | rs2;
+                break;
+            case 0b010:
+                result = rs1 & rs2;
+                break;
+            case 0b110:
+                result = rs1 ^ rs2;
+                break;
+            case 0b101:
+                result = ~rs2;
+                break;
+            default:
+                ThrowError(CoreError.IllegalInstruction, false);
+                return;
             }
             wideDataRegisters[wrd].SetTo(result);
             flagsGroup[flagGroup] = GetFlags(result);
@@ -863,6 +863,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 rs2 &= WideRegister.MaxValueMask;
             }
         }
+
         private void ParseRTypeFields(ulong opcode, out ulong f3, out int wrd, out int wrs1, out int wrs2, out int shiftBits, out bool shiftRight, out int flagGroup)
         {
             f3 = BitHelper.GetValue(opcode, 12, 3);
@@ -965,56 +966,18 @@ namespace Antmicro.Renode.Peripherals.CPU
         private const int MaximumStackCapacity = 8;
         private const int MaxLoopStackHeight = 8;
 
-        private enum CustomCSR
-        {
-            FlagGroup0 = 0x7c0,
-            FlagGroup1 = 0x7c1,
-            Flags = 0x7c8,
-            Mod0 = 0x7d0,
-            Mod1 = 0x7d1,
-            Mod2 = 0x7d2,
-            Mod3 = 0x7d3,
-            Mod4 = 0x7d4,
-            Mod5 = 0x7d5,
-            Mod6 = 0x7d6,
-            Mod7 = 0x7d7,
-            RndPrefetch = 0x7d8,
-            Rnd = 0xfc0,
-            URnd = 0xfc1,
-        }
-
-        private enum WideSPR
-        {
-            Mod = 0x0,
-            Rnd = 0x1,
-            URnd = 0x2,
-            Acc = 0x3,
-            KeyShare0Low = 0x4,
-            KeyShare0High = 0x5,
-            KeyShare1Low = 0x6,
-            KeyShare1High = 0x7,
-        }
-
-        [Flags]
-        private enum CustomFlags
-        {
-            Empty = 0x0,
-            Carry = 0x1,
-            Msb = 0x2,
-            Lsb = 0x4,
-            Zero = 0x8,
-        }
-
         private class LoopContext
         {
-            public uint StartPC { get; set; }
-            public uint EndPC { get; set; }
-            public uint NumberOfIterations { get; set; }
-
             public override string ToString()
             {
                 return $"StartPC = 0x{StartPC:X}, EndPC = 0x{EndPC:X}, NumberOfIterations = {NumberOfIterations}";
             }
+
+            public uint StartPC { get; set; }
+
+            public uint EndPC { get; set; }
+
+            public uint NumberOfIterations { get; set; }
         }
 
         private class WideRegister
@@ -1025,6 +988,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 underlyingValue = 0;
                 ReadOnly = readOnly;
+            }
+
+            public override string ToString()
+            {
+                return underlyingValue.ToLongString(ByteArrayLength);
             }
 
             public void Clear()
@@ -1064,14 +1032,49 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             public byte[] AsByteArray => underlyingValue.ToByteArray(ByteArrayLength);
 
-            public override string ToString()
-            {
-                return underlyingValue.ToLongString(ByteArrayLength);
-            }
-
             private BigInteger underlyingValue;
 
             private readonly int ByteArrayLength = 32;
+        }
+
+        private enum CustomCSR : ushort
+        {
+            FlagGroup0 = 0x7c0,
+            FlagGroup1 = 0x7c1,
+            Flags = 0x7c8,
+            Mod0 = 0x7d0,
+            Mod1 = 0x7d1,
+            Mod2 = 0x7d2,
+            Mod3 = 0x7d3,
+            Mod4 = 0x7d4,
+            Mod5 = 0x7d5,
+            Mod6 = 0x7d6,
+            Mod7 = 0x7d7,
+            RndPrefetch = 0x7d8,
+            Rnd = 0xfc0,
+            URnd = 0xfc1,
+        }
+
+        private enum WideSPR
+        {
+            Mod = 0x0,
+            Rnd = 0x1,
+            URnd = 0x2,
+            Acc = 0x3,
+            KeyShare0Low = 0x4,
+            KeyShare0High = 0x5,
+            KeyShare1Low = 0x6,
+            KeyShare1High = 0x7,
+        }
+
+        [Flags]
+        private enum CustomFlags
+        {
+            Empty = 0x0,
+            Carry = 0x1,
+            Msb = 0x2,
+            Lsb = 0x4,
+            Zero = 0x8,
         }
     }
 }

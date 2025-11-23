@@ -90,6 +90,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
 
         public GPIO IRQ { get; private set; }
+
         public long Size => 0x1000;
 
         private void UpdateInterrupt(bool value)

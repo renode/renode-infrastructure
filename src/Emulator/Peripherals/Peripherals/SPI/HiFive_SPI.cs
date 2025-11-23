@@ -4,8 +4,8 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -57,12 +57,10 @@ namespace Antmicro.Renode.Peripherals.SPI
                         }
                     })
                 },
-
                 {(long)Registers.ChipSelectDefault, new DoubleWordRegister(this, (1u << numberOfSupportedSlaves) - 1)
                     // this field's width and reset value depend on a constructor parameter `numberOfSupportedSlaves`
                     .WithValueField(0, numberOfSupportedSlaves, name: "csdef")
                 },
-
                 {(long)Registers.ChipSelectMode, new DoubleWordRegister(this)
                     .WithEnumField<DoubleWordRegister, ChipSelectMode>(0, 2, name: "csmode",
                         writeCallback: (_, val) =>
@@ -74,7 +72,6 @@ namespace Antmicro.Renode.Peripherals.SPI
                             }
                         })
                 },
-
                 {(long)Registers.FrameFormat, new DoubleWordRegister(this, 0x80000)
                     .WithValueField(0, 2, out spiProtocol, name: "proto", writeCallback: (oldValue, value) =>
                     {
@@ -111,13 +108,11 @@ namespace Antmicro.Renode.Peripherals.SPI
                     })
                     .WithReservedBits(20, 12)
                 },
-
                 {(long)Registers.TxFifoData, new DoubleWordRegister(this, 0x0)
                     .WithValueField(0, 8, FieldMode.Write, writeCallback: (_, value) => HandleFifoWrite((byte)value), name: "data")
                     .WithReservedBits(8, 23)
                     .WithFlag(31, FieldMode.Read, valueProviderCallback: _ => false, name: "full")
                 },
-
                 {(long)Registers.RxFifoData, new DoubleWordRegister(this, 0x0)
                     // According to the documentation this registers is divided into two fields and a reserved block.
                     // I decided not to split it because the value of both fields must be evaluated IN PROPER ORDER
@@ -132,23 +127,19 @@ namespace Antmicro.Renode.Peripherals.SPI
                         return result;
                     })
                 },
-
                 {(long)Registers.TxFifoWatermark, new DoubleWordRegister(this, isFlashEnabled ? 0x1 : 0x0u)
                     .WithValueField(0, 3, out transmitWatermark, writeCallback: (_, __) => UpdateInterrupts(), name: "txmark")
                     .WithReservedBits(3, 29)
                 },
-
                 {(long)Registers.RxFifoWatermark, new DoubleWordRegister(this, 0x0)
                     .WithValueField(0, 3, out receiveWatermark, writeCallback: (_, __) => UpdateInterrupts(), name: "rxmark")
                     .WithReservedBits(3, 29)
                 },
-
                 {(long)Registers.InterruptEnable, new DoubleWordRegister(this, 0x0)
                     .WithFlag(0, out transmitWatermarkInterruptEnable, writeCallback: (_, __) => UpdateInterrupts(), name: "txwm")
                     .WithFlag(1, out receiveWatermarkInterruptEnable, writeCallback: (_, __) => UpdateInterrupts(), name: "rxwm")
                     .WithReservedBits(2, 30)
                 },
-
                 {(long)Registers.InterruptPending, new DoubleWordRegister(this, 0x0)
                     .WithFlag(0, out transmitWatermarkPending, FieldMode.Read, name: "txwm")
                     .WithFlag(1, out receiveWatermarkPending, FieldMode.Read, name: "rxwm")

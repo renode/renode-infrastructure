@@ -4,10 +4,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using System.Linq;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Utilities.GDB.Commands
@@ -23,8 +19,8 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
 
         [Execute("qCRC:")]
         public PacketData Execute(
-            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]ulong address,
-            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)]uint length)
+            [Argument(Separator = ',', Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)] ulong address,
+            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)] uint length)
         {
             var accesses = GetTranslatedAccesses(address, length, write: false);
 

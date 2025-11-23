@@ -4,16 +4,12 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using Antmicro.Renode.Core;
+
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Peripherals.IRQControllers.PLIC;
 
 namespace Antmicro.Renode.Peripherals.IRQControllers
@@ -74,6 +70,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             return number != 0 && base.IsIrqSourceAvailable(number);
         }
 
+        private const long ContextEnablesWidth = Registers.Context1Enables - Registers.Context0Enables;
+        private const long ContextClaimWidth = Registers.Context1ClaimComplete - Registers.Context0ClaimComplete;
+        private const uint MaxSources = (uint)(ContextEnablesWidth / 4) * 32;
+
         private enum Registers : long
         {
             Source0Priority = 0x0, //this is a fake register, as there is no source 0, but the software writes to it anyway.
@@ -101,9 +101,5 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             Context4ClaimComplete = 0x204004,
             // ...
         }
-
-        private const long ContextEnablesWidth = Registers.Context1Enables - Registers.Context0Enables;
-        private const long ContextClaimWidth = Registers.Context1ClaimComplete - Registers.Context0ClaimComplete;
-        private const uint MaxSources = (uint)(ContextEnablesWidth / 4) * 32;
     }
 }

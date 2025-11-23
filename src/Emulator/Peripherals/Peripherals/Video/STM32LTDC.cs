@@ -6,15 +6,16 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using Antmicro.Renode.Backends.Display;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Core.Structure.Registers;
 using System.Collections.Generic;
-using Antmicro.Renode.Peripherals.DMA;
-using Antmicro.Renode.Logging;
+
 using Antmicro.Migrant;
 using Antmicro.Migrant.Hooks;
+using Antmicro.Renode.Backends.Display;
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.DMA;
 
 namespace Antmicro.Renode.Peripherals.Video
 {
@@ -46,13 +47,13 @@ namespace Antmicro.Renode.Peripherals.Video
             lineInterruptEnableFlag = interruptEnableRegister.DefineFlagField(0, name: "LIE");
 
             var interruptClearRegister = new DoubleWordRegister(this);
-            interruptClearRegister.DefineFlagField(0, FieldMode.Write, name: "CLIF", writeCallback: (_, @new) => 
-            { 
+            interruptClearRegister.DefineFlagField(0, FieldMode.Write, name: "CLIF", writeCallback: (_, @new) =>
+            {
                 if(!@new) return;
-                lineInterruptFlag.Value = false; 
-                UpdateInterrupts(); 
+                lineInterruptFlag.Value = false;
+                UpdateInterrupts();
             });
-            
+
             var interruptStatusRegister = new DoubleWordRegister(this);
             lineInterruptFlag = interruptStatusRegister.DefineFlagField(0, FieldMode.Read, name: "LIF");
 
@@ -91,9 +92,10 @@ namespace Antmicro.Renode.Peripherals.Video
             HandlePixelFormatChange();
         }
 
-        public GPIO IRQ { get; private set; }
-
-        public long Size { get { return 0xC00; } }
+        public override void Reset()
+        {
+            registers.Reset();
+        }
 
         public void WriteDoubleWord(long address, uint value)
         {
@@ -105,10 +107,9 @@ namespace Antmicro.Renode.Peripherals.Video
             return registers.Read(offset);
         }
 
-        public override void Reset()
-        {
-            registers.Reset();
-        }
+        public GPIO IRQ { get; private set; }
+
+        public long Size { get { return 0xC00; } }
 
         protected override void Repaint()
         {
@@ -136,16 +137,14 @@ namespace Antmicro.Renode.Peripherals.Video
                     ref buffer,
                     backgroundColor,
                     (byte)layer[0].ConstantAlphaConfigurationRegister.Value,
-                    layer[1].blendingFactor2.Value == BlendingFactor2.Multiply ? PixelBlendingMode.Multiply : PixelBlendingMode.NoModification,
+                    layer[1].BlendingFactor2.Value == BlendingFactor2.Multiply ? PixelBlendingMode.Multiply : PixelBlendingMode.NoModification,
                     (byte)layer[1].ConstantAlphaConfigurationRegister.Value,
-                    layer[1].blendingFactor1.Value == BlendingFactor1.Multiply ? PixelBlendingMode.Multiply : PixelBlendingMode.NoModification);
+                    layer[1].BlendingFactor1.Value == BlendingFactor1.Multiply ? PixelBlendingMode.Multiply : PixelBlendingMode.NoModification);
 
                 lineInterruptFlag.Value = true;
                 UpdateInterrupts();
             }
         }
-
-        private readonly byte[][] localLayerBuffer;
 
         private void HandleBackgroundColorChange()
         {
@@ -188,6 +187,12 @@ namespace Antmicro.Renode.Peripherals.Video
             IRQ.Set(lineInterruptEnableFlag.Value && lineInterruptFlag.Value);
         }
 
+        [Transient]
+        private IPixelBlender blender;
+        private Pixel backgroundColor;
+
+        private readonly byte[][] localLayerBuffer;
+
         private readonly IValueRegisterField accumulatedVerticalBackPorchField;
         private readonly IValueRegisterField accumulatedHorizontalBackPorchField;
         private readonly IValueRegisterField accumulatedActiveHeightField;
@@ -203,33 +208,6 @@ namespace Antmicro.Renode.Peripherals.Video
 
         private readonly object internalLock;
         private readonly IBusController sysbus;
-
-        [Transient]
-        private IPixelBlender blender;
-        private Pixel backgroundColor;
-
-        private enum BlendingFactor1
-        {
-            Constant = 0x100,
-            Multiply = 0x110
-        }
-
-        private enum BlendingFactor2
-        {
-            Constant = 0x101,
-            Multiply = 0x111
-        }
-
-        private enum Register : long
-        {
-            BackPorchConfigurationRegister = 0x0C,
-            ActiveWidthConfigurationRegister = 0x10,
-            BackgroundColorConfigurationRegister = 0x2C,
-            InterruptEnableRegister = 0x34,
-            InterruptStatusRegister = 0x38,
-            InterruptClearRegister = 0x3C,
-            LineInterruptPositionConfigurationRegister = 0x40,
-        }
 
         private class Layer
         {
@@ -252,8 +230,8 @@ namespace Antmicro.Renode.Peripherals.Video
                 ConstantAlphaConfigurationRegister = new DoubleWordRegister(video, 0xFF).WithValueField(0, 8, name: "CONSTA");
 
                 BlendingFactorConfigurationRegister = new DoubleWordRegister(video, 0x0607);
-                blendingFactor1 = BlendingFactorConfigurationRegister.DefineEnumField<BlendingFactor1>(8, 3, name: "BF1", writeCallback: (_, __) => RestoreBuffers());
-                blendingFactor2 = BlendingFactorConfigurationRegister.DefineEnumField<BlendingFactor2>(0, 3, name: "BF2", writeCallback: (_, __) => RestoreBuffers());
+                BlendingFactor1 = BlendingFactorConfigurationRegister.DefineEnumField<BlendingFactor1>(8, 3, name: "BF1", writeCallback: (_, __) => RestoreBuffers());
+                BlendingFactor2 = BlendingFactorConfigurationRegister.DefineEnumField<BlendingFactor2>(0, 3, name: "BF2", writeCallback: (_, __) => RestoreBuffers());
 
                 ColorFrameBufferAddressRegister = new DoubleWordRegister(video).WithValueField(0, 32, name: "CFBADD", writeCallback: (_, __) => WarnAboutWrongBufferConfiguration());
 
@@ -279,6 +257,36 @@ namespace Antmicro.Renode.Peripherals.Video
                     HandleLayerBackgroundColorChange();
                 }
             }
+
+            public DoubleWordRegister ControlRegister;
+            public IValueRegisterField DefaultColorAlphaField;
+            public IValueRegisterField DefaultColorRedField;
+            public IValueRegisterField DefaultColorGreenField;
+            public IValueRegisterField DefaultColorBlueField;
+
+            public DoubleWordRegister DefaultColorConfigurationRegister;
+            public IValueRegisterField WindowVerticalStartPositionField;
+            public IValueRegisterField WindowVerticalStopPositionField;
+
+            public DoubleWordRegister WindowVerticalPositionConfigurationRegister;
+            public IValueRegisterField WindowHorizontalStartPositionField;
+            public IValueRegisterField WindowHorizontalStopPositionField;
+
+            public DoubleWordRegister WindowHorizontalPositionConfigurationRegister;
+
+            public DoubleWordRegister ColorFrameBufferAddressRegister;
+            public IEnumRegisterField<BlendingFactor2> BlendingFactor2;
+            public IEnumRegisterField<BlendingFactor1> BlendingFactor1;
+            public DoubleWordRegister BlendingFactorConfigurationRegister;
+
+            public DoubleWordRegister ConstantAlphaConfigurationRegister;
+            public IEnumRegisterField<Dma2DColorMode> PixelFormatField;
+
+            public DoubleWordRegister PixelFormatConfigurationRegister;
+            public IFlagRegisterField LayerEnableFlag;
+
+            public byte[] LayerBuffer;
+            public byte[] LayerBackgroundBuffer;
 
             private void WarnAboutWrongBufferConfiguration()
             {
@@ -328,39 +336,32 @@ namespace Antmicro.Renode.Peripherals.Video
                     .Convert(colorBuffer, ref LayerBackgroundBuffer);
             }
 
-            public DoubleWordRegister ControlRegister;
-            public IFlagRegisterField LayerEnableFlag;
-
-            public DoubleWordRegister PixelFormatConfigurationRegister;
-            public IEnumRegisterField<Dma2DColorMode> PixelFormatField;
-
-            public DoubleWordRegister ConstantAlphaConfigurationRegister;
-            public DoubleWordRegister BlendingFactorConfigurationRegister;
-            public IEnumRegisterField<BlendingFactor1> blendingFactor1;
-            public IEnumRegisterField<BlendingFactor2> blendingFactor2;
-
-            public DoubleWordRegister ColorFrameBufferAddressRegister;
-
-            public DoubleWordRegister WindowHorizontalPositionConfigurationRegister;
-            public IValueRegisterField WindowHorizontalStopPositionField;
-            public IValueRegisterField WindowHorizontalStartPositionField;
-
-            public DoubleWordRegister WindowVerticalPositionConfigurationRegister;
-            public IValueRegisterField WindowVerticalStopPositionField;
-            public IValueRegisterField WindowVerticalStartPositionField;
-
-            public DoubleWordRegister DefaultColorConfigurationRegister;
-            public IValueRegisterField DefaultColorBlueField;
-            public IValueRegisterField DefaultColorGreenField;
-            public IValueRegisterField DefaultColorRedField;
-            public IValueRegisterField DefaultColorAlphaField;
-
-            public byte[] LayerBuffer;
-            public byte[] LayerBackgroundBuffer;
-
             private bool warningAlreadyIssued;
             private readonly int layerId;
             private readonly STM32LTDC video;
+        }
+
+        private enum BlendingFactor1
+        {
+            Constant = 0x100,
+            Multiply = 0x110
+        }
+
+        private enum BlendingFactor2
+        {
+            Constant = 0x101,
+            Multiply = 0x111
+        }
+
+        private enum Register : long
+        {
+            BackPorchConfigurationRegister = 0x0C,
+            ActiveWidthConfigurationRegister = 0x10,
+            BackgroundColorConfigurationRegister = 0x2C,
+            InterruptEnableRegister = 0x34,
+            InterruptStatusRegister = 0x38,
+            InterruptClearRegister = 0x3C,
+            LineInterruptPositionConfigurationRegister = 0x40,
         }
     }
 }

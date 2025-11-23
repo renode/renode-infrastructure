@@ -1,15 +1,15 @@
 ﻿//
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -138,7 +138,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public IReadOnlyDictionary<int, IGPIO> Connections { get; }
 
-        private ComparingTimer[] timers;
+        private readonly ComparingTimer[] timers;
         private readonly IFlagRegisterField[] interruptEnable;
         private readonly IFlagRegisterField[] oneShot;
         private readonly IFlagRegisterField[] cycleMode;

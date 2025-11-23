@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 {
     public class STM32WBA_EXTI : BasicDoubleWordPeripheral, IKnownSize, ILocalGPIOReceiver, INumberedGPIOOutput
     {
-        public STM32WBA_EXTI(IMachine machine, int numberOfOutputLines): base(machine)
+        public STM32WBA_EXTI(IMachine machine, int numberOfOutputLines) : base(machine)
         {
             this.numberOfLines = numberOfOutputLines;
             core = new STM32_EXTICore(this, lineConfigurableMask: 0x1FFFF, separateConfigs: true);
@@ -173,7 +173,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             private readonly STM32WBA_EXTI parent;
             private readonly int portNumber;
         }
-
 
         private enum Registers
         {

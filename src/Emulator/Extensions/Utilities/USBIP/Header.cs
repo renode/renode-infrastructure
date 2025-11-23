@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
         }
     }
 
-    public enum Command: ushort
+    public enum Command : ushort
     {
         ListDevices = 0x8005,
         ListDevicesReply = 0x5,

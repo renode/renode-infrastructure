@@ -4,6 +4,7 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -47,6 +48,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         public long Size => 0x400;
 
         public GPIO IRQ { get; }
+
         public GPIO WakeUpIRQ { get; }
 
         private void UpdatePinOutput(int idx, bool value)
@@ -77,26 +79,26 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             var interruptPending = false;
             switch(interruptPolarity[idx].Value)
             {
-                case InterruptPolarity.LowFalling:
-                    if(interruptMode[idx].Value == InterruptMode.EdgeTriggered)
-                    {
-                        interruptPending = !current && (previous != current);
-                    }
-                    if(interruptMode[idx].Value == InterruptMode.LevelTriggered)
-                    {
-                        interruptPending = !current;
-                    }
-                    break;
-                case InterruptPolarity.HighRising:
-                    if(interruptMode[idx].Value == InterruptMode.EdgeTriggered)
-                    {
-                        interruptPending = current && (previous != current);
-                    }
-                    if(interruptMode[idx].Value == InterruptMode.LevelTriggered)
-                    {
-                        interruptPending = current;
-                    }
-                    break;
+            case InterruptPolarity.LowFalling:
+                if(interruptMode[idx].Value == InterruptMode.EdgeTriggered)
+                {
+                    interruptPending = !current && (previous != current);
+                }
+                if(interruptMode[idx].Value == InterruptMode.LevelTriggered)
+                {
+                    interruptPending = !current;
+                }
+                break;
+            case InterruptPolarity.HighRising:
+                if(interruptMode[idx].Value == InterruptMode.EdgeTriggered)
+                {
+                    interruptPending = current && (previous != current);
+                }
+                if(interruptMode[idx].Value == InterruptMode.LevelTriggered)
+                {
+                    interruptPending = current;
+                }
+                break;
             }
 
             interruptStatus[idx].Value |= interruptPending;

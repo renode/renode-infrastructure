@@ -1,12 +1,13 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
 
@@ -41,11 +42,52 @@ namespace Antmicro.Renode.Core.USB
                 {
                     throw new ArgumentException("Reading from this descriptor is not supported");
                 }
-                dataWritten += value;
+                DataWrittenInner += value;
             }
+
             remove
             {
-                dataWritten -= value;
+                DataWrittenInner -= value;
+            }
+        }
+
+        public void HandlePacket(ICollection<byte> data)
+        {
+            lock(buffer)
+            {
+                device.Log(LogLevel.Noisy, "Handling data packet of size: {0}", data.Count);
+#if DEBUG_PACKETS
+                device.Log(LogLevel.Noisy, Misc.PrettyPrintCollectionHex(data));
+#endif
+
+                // split packet into chunks of size not exceeding `MaximumPacketSize`
+                var offset = 0;
+                while(offset < data.Count)
+                {
+                    var toTake = Math.Min(MaximumPacketSize, data.Count - offset);
+                    var chunk = data.Skip(offset).Take(toTake);
+                    offset += toTake;
+                    buffer.Enqueue(chunk);
+#if DEBUG_PACKETS
+                    device.Log(LogLevel.Noisy, "Enqueuing chunk of {0} bytes: {1}", chunk.Count(), Misc.PrettyPrintCollectionHex(chunk));
+#endif
+
+                    if(offset == data.Count && toTake == MaximumPacketSize)
+                    {
+                        // in order to indicate the end of a packet
+                        // the chunk should be shorter than `MaximumPacketSize`;
+                        // in case there is no data to send, empty chunk
+                        // is generated
+                        buffer.Enqueue(new byte[0]);
+                        device.Log(LogLevel.Noisy, "Enqueuing end of packet marker");
+                    }
+                }
+
+                if(dataCallback != null)
+                {
+                    dataCallback(this, buffer.Dequeue());
+                    dataCallback = null;
+                }
             }
         }
 
@@ -70,7 +112,7 @@ namespace Antmicro.Renode.Core.USB
             device.Log(LogLevel.Noisy, Misc.PrettyPrintCollectionHex(packet));
 #endif
 
-            var dw = dataWritten;
+            var dw = DataWrittenInner;
             if(dw == null)
             {
                 device.Log(LogLevel.Warning, "There is no data handler currently registered. Ignoring the written data!");
@@ -157,9 +199,13 @@ namespace Antmicro.Renode.Core.USB
         }
 
         public byte Identifier { get; }
+
         public Direction Direction { get; }
+
         public EndpointTransferType TransferType { get; }
+
         public short MaximumPacketSize { get; }
+
         public byte Interval { get; }
 
         public bool NonBlocking { get; set; }
@@ -174,47 +220,8 @@ namespace Antmicro.Renode.Core.USB
                 .Append(Interval);
         }
 
-        public void HandlePacket(ICollection<byte> data)
-        {
-            lock(buffer)
-            {
-                device.Log(LogLevel.Noisy, "Handling data packet of size: {0}", data.Count);
-#if DEBUG_PACKETS
-                device.Log(LogLevel.Noisy, Misc.PrettyPrintCollectionHex(data));
-#endif
+        private event Action<byte[]> DataWrittenInner;
 
-                // split packet into chunks of size not exceeding `MaximumPacketSize`
-                var offset = 0;
-                while(offset < data.Count)
-                {
-                    var toTake = Math.Min(MaximumPacketSize, data.Count - offset);
-                    var chunk = data.Skip(offset).Take(toTake);
-                    offset += toTake;
-                    buffer.Enqueue(chunk);
-#if DEBUG_PACKETS
-                    device.Log(LogLevel.Noisy, "Enqueuing chunk of {0} bytes: {1}", chunk.Count(), Misc.PrettyPrintCollectionHex(chunk));
-#endif
-
-                    if(offset == data.Count && toTake == MaximumPacketSize)
-                    {
-                        // in order to indicate the end of a packet
-                        // the chunk should be shorter than `MaximumPacketSize`;
-                        // in case there is no data to send, empty chunk
-                        // is generated
-                        buffer.Enqueue(new byte[0]);
-                        device.Log(LogLevel.Noisy, "Enqueuing end of packet marker");
-                    }
-                }
-
-                if(dataCallback != null)
-                {
-                    dataCallback(this, buffer.Dequeue());
-                    dataCallback = null;
-                }
-            }
-        }
-
-        private event Action<byte[]> dataWritten;
         private Action<USBEndpoint, IEnumerable<byte>> dataCallback;
 
         private readonly Queue<IEnumerable<byte>> buffer;

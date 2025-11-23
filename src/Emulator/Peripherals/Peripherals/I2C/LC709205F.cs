@@ -6,6 +6,7 @@
 //
 using System;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -47,7 +48,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             if(!registerAddress.HasValue)
             {
                 this.Log(LogLevel.Error, "Trying to read without setting address");
-                return new byte[] {};
+                return new byte[] { };
             }
 
             var result = new byte[count];
@@ -70,8 +71,11 @@ namespace Antmicro.Renode.Peripherals.I2C
         }
 
         public uint TimeToEmpty { get; set; }
+
         public uint TimeToFull { get; set; }
+
         public uint CellVoltage { get; set; }
+
         public uint CycleCount { get; set; }
 
         public decimal CellTemperature
@@ -115,16 +119,16 @@ namespace Antmicro.Renode.Peripherals.I2C
             var step = (TransactionStep)(offset % 3);
             switch(step)
             {
-                // First two bytes are the actual value
-                case TransactionStep.LSB:
-                case TransactionStep.MSB:
-                    return step == TransactionStep.MSB ? (byte)(result >> 8) : (byte)result;
-                // Third byte is CRC of the value
-                case TransactionStep.CRC:
-                    var crc = CalculateCrc8(new byte[] {(byte)(SlaveAddress << 1), (byte)register, (byte)((SlaveAddress << 1) + 1), (byte)result, (byte)(result >> 8)});
-                    return (byte)crc;
-                default:
-                    throw new Exception("unreachable state");
+            // First two bytes are the actual value
+            case TransactionStep.LSB:
+            case TransactionStep.MSB:
+                return step == TransactionStep.MSB ? (byte)(result >> 8) : (byte)result;
+            // Third byte is CRC of the value
+            case TransactionStep.CRC:
+                var crc = CalculateCrc8(new byte[] {(byte)(SlaveAddress << 1), (byte)register, (byte)((SlaveAddress << 1) + 1), (byte)result, (byte)(result >> 8)});
+                return (byte)crc;
+            default:
+                throw new Exception("unreachable state");
             }
         }
 
@@ -276,13 +280,6 @@ namespace Antmicro.Renode.Peripherals.I2C
             }
         }
 
-        private const decimal CelciusToKelvin = 273.15m;
-        private const decimal CapacitySensitivity = 0.1m;
-        private const decimal TemperatureSensitivity = 0.1m;
-        private const int DefaultSlaveAddress = 0x0B;
-
-        private readonly IMachine machine;
-
         private Registers? registerAddress;
 
         private int? slaveAddress;
@@ -292,6 +289,13 @@ namespace Antmicro.Renode.Peripherals.I2C
         private uint remainingCapacity;
         private uint cellTemperature;
         private uint ambientTemperature;
+
+        private readonly IMachine machine;
+
+        private const decimal CelciusToKelvin = 273.15m;
+        private const decimal CapacitySensitivity = 0.1m;
+        private const decimal TemperatureSensitivity = 0.1m;
+        private const int DefaultSlaveAddress = 0x0B;
 
         private enum TransactionStep
         {

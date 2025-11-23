@@ -6,11 +6,12 @@
 //
 using System;
 using System.Collections.Generic;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Core.Structure.Registers;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
 
@@ -49,7 +50,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 ));
             }
             else // unbuffered
-            {    
+            {
                 if(flushDelayNs.HasValue)
                 {
                     throw new ConstructionException($"'{nameof(flushDelayNs)}' must not be specified when '{nameof(txFifoCapacity)}' is zero");
@@ -146,7 +147,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => Count == 0)
                     .WithReservedBits(1, 31)
                 },
-                {(long)Registers.EventPending, new DoubleWordRegister(this)
+                {(long)Registers.EventPending, new DoubleWordRegister(this, resetValue: 1 /* txEventPending */)
                     .WithFlag(0, out txEventPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "txEventPending")
                     .WithFlag(1, out rxEventPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "rxEventPending")
                     .WithReservedBits(2, 30)
@@ -163,6 +164,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         protected override void CharWritten()
         {
+            rxEventPending.Value = (Count != 0);
             UpdateInterrupts();
         }
 
@@ -186,6 +188,7 @@ namespace Antmicro.Renode.Peripherals.UART
             }
 
             txFifo.Enqueue((byte)value);
+            txEventPending.Value = txFifo.Count < txFifoCapacity;
 
             if(txFifo.Count < txFifoCapacity)
             {
@@ -196,7 +199,6 @@ namespace Antmicro.Renode.Peripherals.UART
             }
             else
             {
-                txEventPending.Value = false;
                 Machine.ClockSource.ExchangeClockEntryWith(
                     FlushTransmissionBuffer,
                     oldClock => oldClock.With(enabled: true, period: flushDelayTicks)
@@ -217,23 +219,20 @@ namespace Antmicro.Renode.Peripherals.UART
 
         protected void UpdateInterrupts()
         {
-            // rxEventPending is latched
-            rxEventPending.Value = (Count != 0);
-
             var eventPending = (rxEventEnabled.Value && rxEventPending.Value)
                 || (txEventEnabled.Value && txEventPending.Value);
             IRQ.Set(eventPending);
         }
 
-        protected readonly ulong timeoutTicks;
-        protected readonly ulong flushDelayTicks;
-        protected readonly uint txFifoCapacity;
-        protected readonly Queue<byte> txFifo;
-
         protected IFlagRegisterField txEventEnabled;
         protected IFlagRegisterField rxEventEnabled;
         protected IFlagRegisterField txEventPending;
         protected IFlagRegisterField rxEventPending;
+
+        protected readonly ulong timeoutTicks;
+        protected readonly ulong flushDelayTicks;
+        protected readonly uint txFifoCapacity;
+        protected readonly Queue<byte> txFifo;
 
         protected const uint DefaultTxFifoCapacity = 8;
         protected const ulong DefaultFlushDelayNs = 100;

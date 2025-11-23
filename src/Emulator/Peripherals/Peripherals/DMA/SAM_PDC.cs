@@ -7,10 +7,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
 
@@ -19,36 +19,42 @@ namespace Antmicro.Renode.Peripherals.DMA
     public interface ISamPdcPeripheral : IProvidesRegisterCollection<DoubleWordRegisterCollection>, IBusPeripheral
     {
         TransferType DmaReadAccessWidth { get; }
+
         TransferType DmaWriteAccessWidth { get; }
     }
 
     public interface ISamPdcBytePeripheral : ISamPdcPeripheral
     {
         byte? DmaByteRead();
+
         void DmaByteWrite(byte data);
     }
 
     public interface ISamPdcBlockBytePeripheral : ISamPdcPeripheral
     {
         byte[] DmaBlockByteRead(int count);
+
         void DmaBlockByteWrite(byte[] data);
     }
 
     public interface ISamPdcWordPeripheral : ISamPdcPeripheral
     {
         ushort? DmaWordRead();
+
         void DmaWordWrite(ushort data);
     }
 
     public interface ISamPdcDoubleWordPeripheral : ISamPdcPeripheral
     {
         uint? DmaDoubleWordRead();
+
         void DmaDoubleWordWrite(uint data);
     }
 
     public interface ISamPdcQuadWordPeripheral : ISamPdcPeripheral
     {
         ulong? DmaQuadWordRead();
+
         void DmaQuadWordWrite(ulong data);
     }
 
@@ -271,6 +277,8 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
         }
 
+        public bool LogTransfers { get; set; }
+
         private void FinalizeReceiverTransfer()
         {
             if(receiverBuffer.Count == 0)
@@ -286,6 +294,10 @@ namespace Antmicro.Renode.Peripherals.DMA
                 transferType,
                 transferType
             );
+            if(LogTransfers)
+            {
+                parent.DebugLog("DMA Read: {0}", receiverBuffer.ToArray().ToHexString());
+            }
 
             parent.DebugLog("Executing receiver transfer to 0x{0:X} of {1} bytes", receivePointer.Value, receiverBuffer.Count);
             engine.IssueCopy(request);
@@ -349,6 +361,10 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             parent.DebugLog("Executing transmitter transfer from 0x{0:X} of {1} bytes", transmitPointer.Value, transmitterBuffer.Length);
             engine.IssueCopy(request);
+            if(LogTransfers)
+            {
+                parent.DebugLog("DMA Write: {0}", transmitterBuffer.ToHexString());
+            }
         }
 
         private void TriggerReceiverInner()

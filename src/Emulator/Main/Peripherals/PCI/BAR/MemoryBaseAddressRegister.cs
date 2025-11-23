@@ -4,8 +4,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Core.Structure.Registers;
-
 namespace Antmicro.Renode.Peripherals.PCI.BAR
 {
     public class MemoryBaseAddressRegister : BaseAddressRegister
@@ -22,13 +20,14 @@ namespace Antmicro.Renode.Peripherals.PCI.BAR
             {
                 return baseAddress | ((prefetchable ? 1u : 0u) << 3) | ((uint)barType << 1);
             }
+
             set
             {
                 BaseAddress = value;
             }
         }
 
-        protected override uint addressMask => ~0xFu;
+        protected override uint AddressMask => ~0xFu;
 
         private readonly bool prefetchable;
         private readonly BarType barType;

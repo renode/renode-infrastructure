@@ -5,10 +5,9 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Peripherals.SPI;
-﻿using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core;
-using System;
+using Antmicro.Renode.Core.Structure;
+using Antmicro.Renode.Peripherals.SPI;
 
 namespace Antmicro.Renode.Peripherals.SD
 {
@@ -50,4 +49,3 @@ namespace Antmicro.Renode.Peripherals.SD
         }
     }
 }
-

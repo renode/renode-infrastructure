@@ -1,11 +1,12 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -16,7 +17,7 @@ using Antmicro.Renode.Utilities;
 namespace Antmicro.Renode.Peripherals.SPI
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
-    public class OpenTitan_SpiHost: SimpleContainer<ISPIPeripheral>, IWordPeripheral, IBytePeripheral, IDoubleWordPeripheral, IKnownSize
+    public class OpenTitan_SpiHost : SimpleContainer<ISPIPeripheral>, IWordPeripheral, IBytePeripheral, IDoubleWordPeripheral, IKnownSize
     {
         public OpenTitan_SpiHost(IMachine machine, int numberOfCSLines) : base(machine)
         {
@@ -93,6 +94,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         // Common Interrupt Offsets
         public GPIO Error { get; }
+
         public GPIO SpiEvent { get; }
 
         // Alerts
@@ -132,7 +134,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithFlag(29, out outputEnabled, name: "OUTPUT_EN")
                 .WithFlag(30, writeCallback: (_, val) => { if(val) Reset(); }, name: "SW_RST")
                 .WithFlag(31, out enabled, name: "SPIEN")
-                .WithChangeCallback((_, __) => 
+                .WithChangeCallback((_, __) =>
                 {
                     this.DebugLog("Control set to 'enabled': {0}, 'outputEnabled': {1}, rxWatermark = {2}[doublewords], txWatermark = {3}[doublewords]", enabled.Value, outputEnabled.Value, rxWatermarkInDoublewords.Value, txWatermarkInDoublewords.Value);
                     if(enabled.Value && outputEnabled.Value)
@@ -142,9 +144,9 @@ namespace Antmicro.Renode.Peripherals.SPI
                 })
             },
             {(long)Registers.Status, new DoubleWordRegister(this)
-                .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ => txCountInDoubleWords, name: "TXQD")
-                .WithValueField(8, 8, FieldMode.Read, valueProviderCallback: _ => rxCountInDoubleWords, name: "RXQD")
-                .WithValueField(16, 4, FieldMode.Read, valueProviderCallback: _ => cmdCountInDoubleWords, name: "CMDQD")
+                .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ => TxCountInDoubleWords, name: "TXQD")
+                .WithValueField(8, 8, FieldMode.Read, valueProviderCallback: _ => RxCountInDoubleWords, name: "RXQD")
+                .WithValueField(16, 4, FieldMode.Read, valueProviderCallback: _ => CmdCountInDoubleWords, name: "CMDQD")
                 .WithFlag(20, out rxWatermarkEventTriggered, FieldMode.Read, name: "RXWM")
                 .WithReservedBits(21, 1)
                 .WithTaggedFlag("BYTEORDER", 22)
@@ -240,15 +242,15 @@ namespace Antmicro.Renode.Peripherals.SPI
             Error.Set(errorInterruptEnabled.Value & errorInterruptTriggered.Value);
             SpiEvent.Set(spiEventInterruptEnabled.Value & spiEventInterruptTriggered.Value);
         }
-        
+
         private void UpdateEvents()
         {
-            spiEventInterruptTriggered.Value = 
-                (rxFullEventTriggered.Value && rxFullEventEnabled.Value) || 
-                (txEmptyEventTriggered.Value && txEmptyEventEnabled.Value) || 
-                (txWatermarkEventTriggered.Value && txWatermarkEventEnabled.Value) || 
-                (rxWatermarkEventTriggered.Value && rxWatermarkEventEnabled.Value) || 
-                (readyFlag.Value && readyEventEnabled.Value) || 
+            spiEventInterruptTriggered.Value =
+                (rxFullEventTriggered.Value && rxFullEventEnabled.Value) ||
+                (txEmptyEventTriggered.Value && txEmptyEventEnabled.Value) ||
+                (txWatermarkEventTriggered.Value && txWatermarkEventEnabled.Value) ||
+                (rxWatermarkEventTriggered.Value && rxWatermarkEventEnabled.Value) ||
+                (readyFlag.Value && readyEventEnabled.Value) ||
                 (!active.Value && idleEventEnabled.Value);
 
             UpdateInterrupts();
@@ -257,15 +259,15 @@ namespace Antmicro.Renode.Peripherals.SPI
         private void UpdateErrors()
         {
             // There should be also an CMDBUSY error, but there is no need as our peripheral will never be busy
-            errorInterruptTriggered.Value = 
-                (txOverflowErrorTriggered.Value && txOverflowErrorEnabled.Value) || 
-                (rxUnderflowErrorTriggred.Value && rxUnderflowErrorEnabled.Value) || 
-                (commandInvalidErrorTriggered.Value && commandInvalidErrorEnabled.Value) || 
+            errorInterruptTriggered.Value =
+                (txOverflowErrorTriggered.Value && txOverflowErrorEnabled.Value) ||
+                (rxUnderflowErrorTriggred.Value && rxUnderflowErrorEnabled.Value) ||
+                (commandInvalidErrorTriggered.Value && commandInvalidErrorEnabled.Value) ||
                 (csIdInvalidErrorTriggered.Value && csIdInvalidErrorEnabled.Value);
 
             UpdateInterrupts();
         }
-        
+
         private void ExecuteCommands()
         {
             this.NoisyLog("Executing queued commands");
@@ -294,7 +296,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 ExecuteCommands();
             }
         }
-        
+
         private void EnqueueTx(uint val, int accessSize)
         {
             var asBytes = Misc.AsBytes(new uint[] { val });
@@ -310,9 +312,9 @@ namespace Antmicro.Renode.Peripherals.SPI
                     break;
                 }
             }
-            this.Log(LogLevel.Noisy, "Enqueued {0} Tx bytes, current fifo depth in words: {1}", accessSize, txCountInWords);
+            this.Log(LogLevel.Noisy, "Enqueued {0} Tx bytes, current fifo depth in words: {1}", accessSize, TxCountInWords);
 
-            txWatermarkEventTriggered.Value = (txCountInDoubleWords < txWatermarkInDoublewords.Value);
+            txWatermarkEventTriggered.Value = (TxCountInDoubleWords < txWatermarkInDoublewords.Value);
             UpdateEvents();
         }
 
@@ -327,8 +329,8 @@ namespace Antmicro.Renode.Peripherals.SPI
                 rxFullEventTriggered.Value = true;
             }
 
-            rxWatermarkEventTriggered.Value = (rxCountInDoubleWords >= rxWatermarkInDoublewords.Value);
-            
+            rxWatermarkEventTriggered.Value = (RxCountInDoubleWords >= rxWatermarkInDoublewords.Value);
+
             UpdateEvents();
         }
 
@@ -345,13 +347,19 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private void HandleCommand(CommandDefinition command)
         {
+            // Number of bytes (or dummy cycles) to transfer is equal to `COMMAND.LEN + 1`
+            var commandLength = command.Length + 1;
             if(command.Direction == CommandDirection.Dummy)
             {
-                return;
+                var rounded = (commandLength + 7) / 8;
+                if(commandLength % 8 != 0)
+                {
+                    this.WarningLog("Rounding up the amount of cycles from {0} to {1} as in Renode the SPI interface allows only byte transactions", commandLength, rounded * 8);
+                }
+                commandLength = rounded;
             }
 
-            // number of bytes to transfer is equal to `COMMAND.LEN + 1`
-            for(var i = 0; i <= command.Length; i++)
+            for(var i = 0; i < commandLength; i++)
             {
                 var byteToTransfer = (byte)0;
                 if(command.Direction == CommandDirection.TxOnly || command.Direction == CommandDirection.TxRx)
@@ -381,13 +389,25 @@ namespace Antmicro.Renode.Peripherals.SPI
                     EnqueueRx(response);
                 }
             }
-            
+
             if(!command.KeepChipSelect)
             {
-                this.Log(LogLevel.Debug, "Finished the transmission. Current fifo depth in words: {0}", rxCountInWords);
+                this.Log(LogLevel.Debug, "Finished the transmission. Current fifo depth in words: {0}", RxCountInWords);
                 selectedSlave?.FinishTransmission();
             }
         }
+
+        private uint TxCountInWords => (uint)txFifo.Count / 2;
+
+        private uint RxCountInWords => (uint)rxFifo.Count / 2;
+
+        private uint CmdCountInWords => (uint)cmdFifo.Count / 2;
+
+        private uint TxCountInDoubleWords => (uint)txFifo.Count / 4;
+
+        private uint RxCountInDoubleWords => (uint)rxFifo.Count / 4;
+
+        private uint CmdCountInDoubleWords => (uint)cmdFifo.Count / 4;
 
         private IFlagRegisterField errorInterruptEnabled;
         private IFlagRegisterField spiEventInterruptEnabled;
@@ -422,7 +442,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private IFlagRegisterField rxUnderflowErrorEnabled;
         private IFlagRegisterField commandInvalidErrorEnabled;
         private IFlagRegisterField csIdInvalidErrorEnabled;
-        
+
         private readonly Queue<CommandDefinition> cmdFifo;
         private readonly Queue<byte> txFifo;
         private readonly Queue<byte> rxFifo;
@@ -436,30 +456,6 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         // The size of the Cmd FIFO (one segment descriptor per entry)
         private const uint SpiHostCmdDepth = 4;
-
-        private uint txCountInWords => (uint)txFifo.Count / 2;
-        private uint rxCountInWords => (uint)rxFifo.Count / 2;
-        private uint cmdCountInWords => (uint)cmdFifo.Count / 2;
-
-        private uint txCountInDoubleWords => (uint)txFifo.Count / 4;
-        private uint rxCountInDoubleWords => (uint)rxFifo.Count / 4;
-        private uint cmdCountInDoubleWords => (uint)cmdFifo.Count / 4;
-
-        private enum CommandDirection
-        {
-            Dummy = 0,
-            RxOnly = 1,
-            TxOnly = 2,
-            TxRx = 3,
-        }
-        
-        private enum CommandSpeed
-        {
-            Standard = 0,
-            Dual = 1, 
-            Quad = 2,
-            Reserved = 3,
-        }
 
         public enum Registers
         {
@@ -478,7 +474,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             ErrorStatus = 0x30,
             EventEnable = 0x34,
         }
-        
+
         private struct CommandDefinition
         {
             public CommandDefinition(uint length, CommandDirection direction, bool keepChipSelect)
@@ -487,10 +483,28 @@ namespace Antmicro.Renode.Peripherals.SPI
                 this.Direction = direction;
                 this.KeepChipSelect = keepChipSelect;
             }
-            
+
             public uint Length { get; }
+
             public CommandDirection Direction { get; }
+
             public bool KeepChipSelect { get; }
+        }
+
+        private enum CommandDirection
+        {
+            Dummy = 0,
+            RxOnly = 1,
+            TxOnly = 2,
+            TxRx = 3,
+        }
+
+        private enum CommandSpeed
+        {
+            Standard = 0,
+            Dual = 1,
+            Quad = 2,
+            Reserved = 3,
         }
     } // End class OpenTitan_SpiHost
 } // End of namespace

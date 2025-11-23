@@ -1,14 +1,15 @@
 ﻿//
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Sockets;
 using System.Threading;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
@@ -16,6 +17,7 @@ using Antmicro.Renode.Peripherals.I2C;
 using Antmicro.Renode.Sockets;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
+
 #if !PLATFORM_WINDOWS
 using Mono.Unix;
 #endif
@@ -36,7 +38,94 @@ namespace Antmicro.Renode.Extensions.Mocks
         {
             currentSlave = device;
         }
-        
+
+        public void StartSocketServer(TimeInterval timeInterval)
+        {
+#if PLATFORM_WINDOWS
+            throw new RecoverableException("This method is not supported on Windows");
+#else
+            string path = "/tmp/i2c.sock";
+            if(File.Exists(path))
+            {
+                File.Delete(path);
+            }
+            this.Log(LogLevel.Info, "Server starting at{0}", path);
+            var socket = SocketsManager.Instance.AcquireSocket(this, AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified, new UnixEndPoint(path));
+            this.Log(LogLevel.Info, "Connection established");
+
+            currentSlave.Read(0);
+            var connection = socket.Accept();
+
+            var commandBuffer = new byte[(int)NumberOfBytes.MessageType];
+            var prevWrite = false;
+            var length = 0;
+
+            while(SocketConnected(connection))
+            {
+                PollForRegisterBit(RegisterBitName.OA1EN);
+                try
+                {
+                    PollForSocketData(connection, commandBuffer);
+                }
+                catch(Exception e)
+                {
+                    this.Log(LogLevel.Error, "{0} Exception caught.", e);
+                    return;
+                }
+                switch((SocketI2CMessageType)commandBuffer[0])
+                {
+                case SocketI2CMessageType.Stop:
+                    currentSlave.FinishTransmission();
+                    break;
+                // Parse read command
+                case SocketI2CMessageType.Read:
+                    prevWrite = false;
+                    length = GetLength(connection);
+
+                    byte[] dataToSend = GetLongBytes(length, timeInterval);
+                    try
+                    {
+                        PollForSocketData(connection, dataToSend, true);
+                    }
+                    catch(Exception e)
+                    {
+                        this.Log(LogLevel.Error, "{0} Exception caught.", e);
+                        return;
+                    }
+                    break;
+                // Parse write command
+                case SocketI2CMessageType.Write:
+                    // Seems that the slave needs a read operation
+                    // to flush out the bits written
+                    if(prevWrite)
+                    {
+                        currentSlave.Read(0);
+                        PollForRegisterBit(RegisterBitName.RXNE);
+                    }
+                    prevWrite = true;
+                    length = GetLength(connection);
+                    byte[] data = new byte[length];
+                    try
+                    {
+                        PollForSocketData(connection, data);
+                    }
+                    catch(Exception e)
+                    {
+                        this.Log(LogLevel.Error, "{0} Exception caught.", e);
+                        return;
+                    }
+                    if(data.Length == 1 && data[0] == 0x86)
+                    {
+                        PollForError(timeInterval);
+                        Thread.Sleep(10);
+                    }
+                    IssueCommand(data);
+                    break;
+                }
+            }
+#endif
+        }
+
         public void FlashMCU(ReadFilePath path)
         {
             var address = 0;
@@ -153,7 +242,7 @@ namespace Antmicro.Renode.Extensions.Mocks
         // Register 0:
         public byte[] ReadMagicNumber(TimeInterval timeInterval)
         {
-            IssueCommand(new byte[] { ((byte)Commands.RegisterAccess << 6) | (byte)RegisterAccessType.MagicNumber});
+            IssueCommand(new byte[] { ((byte)Commands.RegisterAccess << 6) | (byte)RegisterAccessType.MagicNumber });
             return GetBytesFromSlave(2, timeInterval);
         }
 
@@ -350,14 +439,14 @@ namespace Antmicro.Renode.Extensions.Mocks
             Func<bool> registerAccess;
             switch(bitName)
             {
-                case RegisterBitName.OA1EN:
-                    registerAccess = OA1ENEnabled;
-                    break;
-                case RegisterBitName.RXNE:
-                    registerAccess = RXNECleared;
-                    break;
-                default:
-                    throw new RecoverableException("Register bit name does not exist.");
+            case RegisterBitName.OA1EN:
+                registerAccess = OA1ENEnabled;
+                break;
+            case RegisterBitName.RXNE:
+                registerAccess = RXNECleared;
+                break;
+            default:
+                throw new RecoverableException("Register bit name does not exist.");
             }
             while(!registerAccess() && i < 8)
             {
@@ -391,93 +480,6 @@ namespace Antmicro.Renode.Extensions.Mocks
                 Array.Copy(GetBytesFromSlave(toRead, timeInterval), 0, result, i * ReadChunkSize, toRead);
             }
             return result;
-        }
-
-        public void StartSocketServer(TimeInterval timeInterval)
-        {
-#if PLATFORM_WINDOWS
-            throw new RecoverableException("This method is not supported on Windows");
-#else
-            string path = "/tmp/i2c.sock";
-            if(File.Exists(path))
-            {
-                File.Delete(path);
-            }
-            this.Log(LogLevel.Info, "Server starting at{0}", path);
-            var socket = SocketsManager.Instance.AcquireSocket(this, AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified, new UnixEndPoint(path));
-            this.Log(LogLevel.Info, "Connection established");
-
-            currentSlave.Read(0);
-            var connection = socket.Accept();
-
-            var commandBuffer = new byte[(int)NumberOfBytes.MessageType];
-            var prevWrite = false;
-            var length = 0;
-
-            while(SocketConnected(connection))
-            {
-                PollForRegisterBit(RegisterBitName.OA1EN);
-                try
-                {
-                    PollForSocketData(connection, commandBuffer);
-                }
-                catch(Exception e)
-                {
-                    this.Log(LogLevel.Error, "{0} Exception caught.", e);
-                    return;
-                }
-                switch((SocketI2CMessageType)commandBuffer[0])
-                {
-                    case SocketI2CMessageType.Stop:
-                        currentSlave.FinishTransmission();
-                        break;
-                    // Parse read command
-                    case SocketI2CMessageType.Read:
-                        prevWrite = false;
-                        length = GetLength(connection);
-
-                        byte[] dataToSend = GetLongBytes(length, timeInterval);
-                        try
-                        {
-                            PollForSocketData(connection, dataToSend, true);
-                        }
-                        catch(Exception e)
-                        {
-                            this.Log(LogLevel.Error, "{0} Exception caught.", e);
-                            return;
-                        }
-                        break;
-                    // Parse write command
-                    case SocketI2CMessageType.Write:
-                        // Seems that the slave needs a read operation
-                        // to flush out the bits written
-                        if(prevWrite)
-                        {
-                            currentSlave.Read(0);
-                            PollForRegisterBit(RegisterBitName.RXNE);
-                        }
-                        prevWrite = true;
-                        length = GetLength(connection);
-                        byte[] data = new byte[length];
-                        try
-                        {
-                            PollForSocketData(connection, data);
-                        }
-                        catch(Exception e)
-                        {
-                            this.Log(LogLevel.Error, "{0} Exception caught.", e);
-                            return;
-                        }
-                        if(data.Length == 1 && data[0] == 0x86)
-                        {
-                            PollForError(timeInterval);
-                            Thread.Sleep(10);
-                        }
-                        IssueCommand(data);
-                        break;
-                }
-            }
-#endif
         }
 
         private int GetLength(Socket connection)
@@ -647,7 +649,7 @@ namespace Antmicro.Renode.Extensions.Mocks
             return table.ToArray();
         }
 
-        private STM32F7_I2C currentSlave;
+        private readonly STM32F7_I2C currentSlave;
 
         private const int ReadChunkSize = 255;
 

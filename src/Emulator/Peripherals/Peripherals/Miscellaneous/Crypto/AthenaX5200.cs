@@ -1,15 +1,16 @@
 ﻿//
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
+using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using System;
-using System.Collections.Generic;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
 {
@@ -117,6 +118,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
         }
 
         public long Size => 0x1000000;
+
         public DoubleWordRegisterCollection RegistersCollection { get; }
 
         private void EmptyHandler()
@@ -167,7 +169,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
         private readonly AESServiceProvider aesServiceProvider;
         private readonly MessageAuthenticationServiceProvider msgAuthServiceProvider;
         private readonly DSAServiceProvider dsaServiceProvider;
-        
+
         private enum JumpTable
         {
             // gaps in addressing - only a few commands are implemented

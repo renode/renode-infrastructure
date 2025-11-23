@@ -7,13 +7,14 @@
 //
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Collections.Generic;
+
 using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.CPU.Disassembler
 {
@@ -71,6 +72,8 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
             return sofar;
         }
 
+        private static bool xtensaSupportWarningIssued = false;
+
         private IDisassembler GetDisassembler(uint flags)
         {
             LLVMArchitectureMapping.GetTripleAndModelKey(cpu, ref flags, out var triple, out var model);
@@ -78,6 +81,12 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
             if(!cache.ContainsKey(key))
             {
                 IDisassembler disas = new LLVMDisasWrapper(model, triple, flags);
+                Logger.Info($"Created new disassembler for triple {triple}, cpu {model}, with flags {flags}");
+                if(!xtensaSupportWarningIssued && triple == "xtensa")
+                {
+                    Logger.Log(LogLevel.Warning, "The disassembler for Xtensa is currently an experimental feature in Renode");
+                    xtensaSupportWarningIssued = true;
+                }
                 if(cpu.Architecture == "arm-m")
                 {
                     disas = new CortexMDisassemblerWrapper(disas);
@@ -126,6 +135,7 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
                 case "sparc":
                 case "i386":
                 case "x86_64":
+                case "xtensa":
                     HexFormatter = FormatHexForx86;
                     break;
                 case "riscv64":
@@ -197,6 +207,19 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
                 return true;
             }
 
+            [DllImport("libllvm-disas")]
+            private static extern int llvm_disasm_instruction(IntPtr dc, IntPtr bytes, UInt64 bytesSize, IntPtr outString, UInt32 outStringSize);
+
+            [DllImport("libllvm-disas")]
+            private static extern IntPtr llvm_create_disasm_cpu_with_flags(string tripleName, string cpu, uint flags);
+
+            // Fallback in case a new version of Renode is used with an old version of libllvm-disas
+            [DllImport("libllvm-disas")]
+            private static extern IntPtr llvm_create_disasm_cpu(string tripleName, string cpu);
+
+            [DllImport("libllvm-disas")]
+            private static extern void llvm_disasm_dispose(IntPtr disasm);
+
             private bool FormatHexForx86(StringBuilder strBldr, int bytes, int position, byte[] data)
             {
                 int i;
@@ -253,19 +276,6 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
             private readonly Func<StringBuilder, int, int, byte[], bool> HexFormatter;
 
             private readonly bool isThumb;
-
-            [DllImport("libllvm-disas")]
-            private static extern int llvm_disasm_instruction(IntPtr dc, IntPtr bytes, UInt64 bytesSize, IntPtr outString, UInt32 outStringSize);
-
-            [DllImport("libllvm-disas")]
-            private static extern IntPtr llvm_create_disasm_cpu_with_flags(string tripleName, string cpu, uint flags);
-
-            // Fallback in case a new version of Renode is used with an old version of libllvm-disas
-            [DllImport("libllvm-disas")]
-            private static extern IntPtr llvm_create_disasm_cpu(string tripleName, string cpu);
-
-            [DllImport("libllvm-disas")]
-            private static extern void llvm_disasm_dispose(IntPtr disasm);
 
             private readonly IntPtr context;
         }

@@ -1,17 +1,18 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Peripherals;
+
 using Xwt;
 
 namespace Antmicro.Renode.UI
 {
-    public abstract class GUIPeripheralBackendAnalyzer<T> : BasicPeripheralBackendAnalyzer<T>, IHasWidget where T: IAnalyzableBackend 
+    public abstract class GUIPeripheralBackendAnalyzer<T> : BasicPeripheralBackendAnalyzer<T>, IHasWidget where T : IAnalyzableBackend
     {
         public override void Show()
         {
@@ -29,11 +30,17 @@ namespace Antmicro.Renode.UI
             ApplicationExtensions.InvokeInUIThreadAndWait(() => Emulator.UserInterfaceProvider.HideAnalyser(this));
         }
 
+        public override void Clear()
+        {
+        }
+
         public override void AttachTo(T backend)
         {
             base.AttachTo(backend);
             ApplicationExtensions.InvokeInUIThreadAndWait(() => OnAttach(backend));
         }
+
+        public abstract Widget Widget { get; }
 
         /// <summary>
         /// This method is called when backend analyzer is attached to a peripheral.
@@ -41,8 +48,5 @@ namespace Antmicro.Renode.UI
         /// </summary>
         /// <param name="backend">Backend.</param>
         protected abstract void OnAttach(T backend);
-
-        public abstract Widget Widget { get; }
     }
 }
-

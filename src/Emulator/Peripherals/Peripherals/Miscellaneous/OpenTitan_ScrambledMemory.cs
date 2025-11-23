@@ -6,6 +6,7 @@
 //
 
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Peripherals.Memory;
@@ -28,7 +29,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public uint ReadDoubleWord(long offset)
         {
-            if(!CheckAccess(offset, 4))
+            if(!CheckAccess(offset))
             {
                 return 0;
             }
@@ -49,7 +50,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public void ReadBytes(long offset, int count, byte[] destination, int startIndex)
         {
-            if(!CheckAccess(offset , count))
+            if(!CheckAccess(offset))
             {
                 return;
             }
@@ -75,7 +76,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
         }
 
-        private bool CheckAccess(long offset, int size = 1)
+        private bool CheckAccess(long offset)
         {
             if(wasCleared && !writtenOffsets.Contains(offset))
             {

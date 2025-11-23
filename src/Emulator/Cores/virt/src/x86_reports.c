@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2010-2025 Antmicro
+ *
+ * This file is licensed under the MIT License.
+ */
+
 #ifdef TARGET_X86KVM
 
 #include "x86_reports.h"

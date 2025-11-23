@@ -5,6 +5,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Extensions;
 using Antmicro.Renode.Exceptions;
@@ -12,12 +17,10 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Memory;
 using Antmicro.Renode.Utilities;
-using System;
-using System.Linq;
-using System.Collections.Generic;
-using Endianess = ELFSharp.ELF.Endianess;
+
 using static Antmicro.Renode.Utilities.BitHelper;
-using System.IO;
+
+using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.MTD
 {
@@ -142,10 +145,10 @@ namespace Antmicro.Renode.Peripherals.MTD
             {
                 var offset = fileOffset.Key;
                 var file = fileOffset.Value;
-                this.DebugLog("Saving {0} bytes at 0x{1:x} to {2}", file.size, offset, file.path);
+                this.DebugLog("Saving {0} bytes at 0x{1:x} to {2}", file.Size, offset, file.Path);
                 try
                 {
-                    File.WriteAllBytes(file.path, underlyingMemory.ReadBytes(offset, file.size));
+                    File.WriteAllBytes(file.Path, underlyingMemory.ReadBytes(offset, file.Size));
                 }
                 catch(Exception e)
                 {
@@ -211,37 +214,37 @@ namespace Antmicro.Renode.Peripherals.MTD
             this.DebugLog("Handling command {0} (0x{1:x})", (Command)value, value);
             switch((Command)value)
             {
-                case Command.ReadQuery:
-                    state = State.ReadQuery;
-                    break;
-                case Command.ReadAutoselect:
-                    state = State.ReadAutoselect;
-                    break;
-                case Command.Reset:
-                case Command.ReadArray:
-                    state = State.ReadArray;
-                    break;
-                case Command.UnlockCycle1:
-                    unlockCycle = unlockCycle == 0 ? 1 : 0;
-                    break;
-                case Command.UnlockCycle2:
-                    unlockCycle = unlockCycle == 1 ? 2 : 0;
-                    break;
-                case Command.ProgramWord:
-                    state = Unlocked ? State.ProgramWord : State.ReadArray;
-                    break;
-                case Command.SectorEraseSetup:
-                    // To allow setting up an erase operation, the device needs to be unlocked,
-                    if(Unlocked)
-                    {
-                        state = State.SectorEraseSetup;
-                        // and another unlock sequence will be required to actually perform the erase.
-                        unlockCycle = 0;
-                    }
-                    break;
-                default:
-                    this.WarningLog("Unknown command 0x{0:x}", value);
-                    break;
+            case Command.ReadQuery:
+                state = State.ReadQuery;
+                break;
+            case Command.ReadAutoselect:
+                state = State.ReadAutoselect;
+                break;
+            case Command.Reset:
+            case Command.ReadArray:
+                state = State.ReadArray;
+                break;
+            case Command.UnlockCycle1:
+                unlockCycle = unlockCycle == 0 ? 1 : 0;
+                break;
+            case Command.UnlockCycle2:
+                unlockCycle = unlockCycle == 1 ? 2 : 0;
+                break;
+            case Command.ProgramWord:
+                state = Unlocked ? State.ProgramWord : State.ReadArray;
+                break;
+            case Command.SectorEraseSetup:
+                // To allow setting up an erase operation, the device needs to be unlocked,
+                if(Unlocked)
+                {
+                    state = State.SectorEraseSetup;
+                    // and another unlock sequence will be required to actually perform the erase.
+                    unlockCycle = 0;
+                }
+                break;
+            default:
+                this.WarningLog("Unknown command 0x{0:x}", value);
+                break;
             }
         }
 
@@ -315,14 +318,14 @@ namespace Antmicro.Renode.Peripherals.MTD
                 .DefineFragment(0x28 * 8, 8, 0x0002, name: "Flash Device Interface Code description")
                 .DefineFragment(0x2A * 8, 16, 0x0000, name: "Base-2 logarithm of the maximum number of bytes in a multi-byte program")
                 .DefineFragment(0x2C * 8, 8, (ulong)sectorRegions.Length, name: "Number of erase sector regions within device")
-                .DefineFragment(0x2D * 8, 16, (sectorRegions.ElementAtOrDefault(0)?.count ?? 1) - 1, name: "Number of sectors in region 1")
-                .DefineFragment(0x2F * 8, 16, (sectorRegions.ElementAtOrDefault(0)?.size ?? 0UL) / 256, name: "Size of sector in region 1")
-                .DefineFragment(0x31 * 8, 16, (sectorRegions.ElementAtOrDefault(1)?.count ?? 1) - 1, name: "Number of sectors in region 2")
-                .DefineFragment(0x33 * 8, 16, (sectorRegions.ElementAtOrDefault(1)?.size ?? 0UL) / 256, name: "Size of sector in region 2")
-                .DefineFragment(0x35 * 8, 16, (sectorRegions.ElementAtOrDefault(2)?.count ?? 1) - 1, name: "Number of sectors in region 3")
-                .DefineFragment(0x37 * 8, 16, (sectorRegions.ElementAtOrDefault(2)?.size ?? 0UL) / 256, name: "Size of sector in region 3")
-                .DefineFragment(0x39 * 8, 16, (sectorRegions.ElementAtOrDefault(3)?.count ?? 1) - 1, name: "Number of sectors in region 4")
-                .DefineFragment(0x3B * 8, 16, (sectorRegions.ElementAtOrDefault(3)?.size ?? 0UL) / 256, name: "Size of sector in region 4")
+                .DefineFragment(0x2D * 8, 16, (sectorRegions.ElementAtOrDefault(0)?.Count ?? 1) - 1, name: "Number of sectors in region 1")
+                .DefineFragment(0x2F * 8, 16, (sectorRegions.ElementAtOrDefault(0)?.Size ?? 0UL) / 256, name: "Size of sector in region 1")
+                .DefineFragment(0x31 * 8, 16, (sectorRegions.ElementAtOrDefault(1)?.Count ?? 1) - 1, name: "Number of sectors in region 2")
+                .DefineFragment(0x33 * 8, 16, (sectorRegions.ElementAtOrDefault(1)?.Size ?? 0UL) / 256, name: "Size of sector in region 2")
+                .DefineFragment(0x35 * 8, 16, (sectorRegions.ElementAtOrDefault(2)?.Count ?? 1) - 1, name: "Number of sectors in region 3")
+                .DefineFragment(0x37 * 8, 16, (sectorRegions.ElementAtOrDefault(2)?.Size ?? 0UL) / 256, name: "Size of sector in region 3")
+                .DefineFragment(0x39 * 8, 16, (sectorRegions.ElementAtOrDefault(3)?.Count ?? 1) - 1, name: "Number of sectors in region 4")
+                .DefineFragment(0x3B * 8, 16, (sectorRegions.ElementAtOrDefault(3)?.Size ?? 0UL) / 256, name: "Size of sector in region 4")
                 .DefineFragment(0x40 * 8, 8, (byte)'P')
                 .DefineFragment(0x41 * 8, 8, (byte)'R')
                 .DefineFragment(0x42 * 8, 8, (byte)'I')
@@ -384,15 +387,15 @@ namespace Antmicro.Renode.Peripherals.MTD
         private void RecalculateSizes()
         {
             sectorSizes = bankSectorSizes.SelectMany(bankSizes => bankSizes.Select(s => s * interleave)).ToArray();
-            sectorStarts = Enumerable.Concat(new [] { 0L }, Misc.Prefix(sectorSizes, (a, b) => a + b)).ToArray();
+            sectorStarts = Enumerable.Concat(new[] { 0L }, Misc.Prefix(sectorSizes, (a, b) => a + b)).ToArray();
             // A sector region is a run of contiguous sectors with the same size, including across banks.
             // We divide the sizes in here by the number of chips in parallel as they are used in CFI data, and that of
             // course needs to contain the block size for *one* chip.
             sectorRegions = sectorSizes.Aggregate(new List<SectorRegion>(), (regions, size) =>
             {
-                if(regions.LastOrDefault()?.size == (ulong)(size / interleave))
+                if(regions.LastOrDefault()?.Size == (ulong)(size / interleave))
                 {
-                    regions.Last().count++;
+                    regions.Last().Count++;
                 }
                 else
                 {
@@ -433,24 +436,25 @@ namespace Antmicro.Renode.Peripherals.MTD
         {
             public SectorRegion(ulong size, ulong count)
             {
-                this.size = size;
-                this.count = count;
+                this.Size = size;
+                this.Count = count;
             }
 
-            public readonly ulong size;
-            public ulong count;
+            public ulong Count;
+
+            public readonly ulong Size;
         }
 
         private class BackingFile
         {
             public BackingFile(int size, FilePath path)
             {
-                this.size = size;
-                this.path = path;
+                this.Size = size;
+                this.Path = path;
             }
 
-            public readonly int size;
-            public readonly FilePath path;
+            public readonly int Size;
+            public readonly FilePath Path;
         }
 
         private enum Command : byte
@@ -483,4 +487,3 @@ namespace Antmicro.Renode.Peripherals.MTD
         }
     }
 }
-

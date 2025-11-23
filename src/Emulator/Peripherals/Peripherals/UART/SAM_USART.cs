@@ -1,29 +1,31 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.DMA;
+using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
     public class SAM_USART : UARTBase, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize,
-        ISamPdcBytePeripheral
+        ISamPdcBytePeripheral, IDelayableUART
     {
-        public SAM_USART(IMachine machine, bool uartOnlyMode = false, bool enablePdc = false) : base(machine)
+        public SAM_USART(IMachine machine, ulong clockFrequency = 20000000, bool uartOnlyMode = false, bool enablePdc = false) : base(machine)
         {
             RegistersCollection = new DoubleWordRegisterCollection(this);
             IRQ = new GPIO();
             DefineRegisters(uartOnlyMode);
             pdc = enablePdc ? new SAM_PDC(machine, this, (long)Registers.PdcReceivePointer, UpdateInterrupts) : null;
             Size = enablePdc ? 0x128 : 0x100;
+            this.clockFrequency = clockFrequency;
             Reset();
         }
 
@@ -32,6 +34,7 @@ namespace Antmicro.Renode.Peripherals.UART
             base.Reset();
             RegistersCollection.Reset();
             pdc?.Reset();
+            UpdateBaudrate();
             UpdateInterrupts();
         }
 
@@ -52,21 +55,29 @@ namespace Antmicro.Renode.Peripherals.UART
         }
 
         public byte? DmaByteRead() => ReadBuffer();
+
         public void DmaByteWrite(byte data) => Transmit(data);
 
         public long Size { get; }
+
         public GPIO IRQ { get; }
+
         public DoubleWordRegisterCollection RegistersCollection { get; }
 
         public TransferType DmaReadAccessWidth => TransferType.Byte;
+
         public TransferType DmaWriteAccessWidth => TransferType.Byte;
 
-        public override uint BaudRate => 115200;
+        public override uint BaudRate => baudrate;
 
         public override Bits StopBits
         {
             get
             {
+                if(numberOfStopBits == null)
+                {
+                    return Bits.One;
+                }
                 switch(numberOfStopBits.Value)
                 {
                 case NumberOfStopBitsValues.One:
@@ -108,9 +119,53 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
+        public uint CharacterLength => 5 + (uint)characterLength.Value;
+
+        public TimeInterval CharacterTransmissionDelay { get; set; } = TimeInterval.Empty;
+
+        public bool AutoUpdateDelay
+        {
+            get => autoUpdateDelay;
+            set
+            {
+                autoUpdateDelay = value;
+                if(AutoUpdateDelay)
+                {
+                    UpdateDelay();
+                }
+            }
+        }
+
+        public double DelayMultiplier
+        {
+            get => delayMultiplier;
+            set
+            {
+                delayMultiplier = value;
+                if(AutoUpdateDelay)
+                {
+                    UpdateDelay();
+                }
+            }
+        }
+
+        public bool LogTransfers
+        {
+            get => logTransfers;
+            set
+            {
+                logTransfers = value;
+                if(pdc != null)
+                {
+                    pdc.LogTransfers = value;
+                }
+            }
+        }
+
         protected override void CharWritten()
         {
             receiverReady.Value = true;
+            pdc?.TriggerReceiver();
             UpdateInterrupts();
         }
 
@@ -203,16 +258,34 @@ namespace Antmicro.Renode.Peripherals.UART
                             }
                         }, name: "USART_MODE")
                         .WithTag("USCLKS", 4, 2)
-                        .WithEnumField<DoubleWordRegister, CharacterLength>(6, 2, name: "CHRL")
+                        .WithEnumField(6, 2, out characterLength, changeCallback: (_, __) =>
+                        {
+                            if(AutoUpdateDelay)
+                            {
+                                UpdateDelay();
+                            }
+                        }, name: "CHRL")
                         .WithTaggedFlag("SYNC", 8)
                     )
-                .WithEnumField(9, 3, out parityType, name: "PAR")
+                .WithEnumField(9, 3, out parityType, changeCallback: (_, __) =>
+                {
+                    if(AutoUpdateDelay)
+                    {
+                        UpdateDelay();
+                    }
+                }, name: "PAR")
                 .If(uartOnlyMode)
                     .Then(reg => reg
                         .WithReservedBits(12, 2)
                     )
                     .Else(reg => reg
-                        .WithEnumField(12, 2, out numberOfStopBits, name: "NBSTOP")
+                        .WithEnumField(12, 2, out numberOfStopBits, changeCallback: (_, __) =>
+                        {
+                            if(AutoUpdateDelay)
+                            {
+                                UpdateDelay();
+                            }
+                        }, name: "NBSTOP")
                     )
                 .WithTag("CHMODE", 14, 2)
                 .If(uartOnlyMode)
@@ -442,7 +515,15 @@ namespace Antmicro.Renode.Peripherals.UART
             ;
 
             Registers.ReceiveHolding.Define(this)
-                .WithValueField(0, 9, FieldMode.Read, valueProviderCallback: _ => ReadBuffer(true) ?? 0x0, name: "RXCHR")
+                .WithValueField(0, 9, FieldMode.Read, valueProviderCallback: _ =>
+                {
+                    var value = ReadBuffer(true) ?? 0x0;
+                    if(LogTransfers)
+                    {
+                        this.DebugLog("Read: {0:X2}", value);
+                    }
+                    return value;
+                }, name: "RXCHR")
                 .WithReservedBits(9, 6)
                 .If(uartOnlyMode)
                     .Then(reg => reg
@@ -455,7 +536,14 @@ namespace Antmicro.Renode.Peripherals.UART
             ;
 
             Registers.TransmitHolding.Define(this)
-                .WithValueField(0, 9, FieldMode.Write, writeCallback: (_, b) => Transmit((byte)b), name: "TXCHR")
+                .WithValueField(0, 9, FieldMode.Write, writeCallback: (_, b) =>
+                {
+                    if(LogTransfers)
+                    {
+                        this.DebugLog("Write: {0:X2}", b);
+                    }
+                    Transmit((byte)b);
+                }, name: "TXCHR")
                 .WithReservedBits(9, 6)
                 .If(uartOnlyMode)
                     .Then(reg => reg
@@ -468,7 +556,7 @@ namespace Antmicro.Renode.Peripherals.UART
             ;
 
             Registers.BaudRateGenerator.Define(this)
-                .WithValueField(0, 16, name: "CD")
+                .WithValueField(0, 16, out clockDivider, name: "CD")
                 .If(uartOnlyMode)
                     .Then(reg => reg
                         .WithReservedBits(16, 3)
@@ -477,6 +565,10 @@ namespace Antmicro.Renode.Peripherals.UART
                         .WithTag("FP", 16, 3)
                     )
                 .WithReservedBits(19, 13)
+                .WithWriteCallback((_, __) =>
+                {
+                    UpdateBaudrate();
+                })
             ;
 
             if(uartOnlyMode)
@@ -546,6 +638,11 @@ namespace Antmicro.Renode.Peripherals.UART
             {
                 return;
             }
+            if(clockDivider.Value == 0)
+            {
+                this.Log(LogLevel.Warning, "Trying to write data (0x{0:X2}), but baud rate clock is disabled", data);
+                return;
+            }
 
             this.TransmitCharacter((byte)data);
             UpdateInterrupts();
@@ -574,6 +671,35 @@ namespace Antmicro.Renode.Peripherals.UART
             return character;
         }
 
+        private void UpdateDelay()
+        {
+            if(baudrate == 0)
+            {
+                CharacterTransmissionDelay = TimeInterval.Empty;
+                return;
+            }
+
+            CharacterTransmissionDelay = TimeInterval.FromNanoseconds(
+                (ulong)(this.GetActualTransmissionDuration(CharacterLength).TotalNanoseconds * DelayMultiplier));
+        }
+
+        private void UpdateBaudrate()
+        {
+            if(clockDivider.Value != 0)
+            {
+                baudrate = (uint)(clockFrequency / 16 / clockDivider.Value);
+            }
+            else
+            {
+                baudrate = 0;
+            }
+
+            if(AutoUpdateDelay)
+            {
+                UpdateDelay();
+            }
+        }
+
         private void UpdateInterrupts()
         {
             var state = false;
@@ -597,13 +723,20 @@ namespace Antmicro.Renode.Peripherals.UART
         private IFlagRegisterField txBufferEmptyIrqEnabled;
         private IFlagRegisterField rxBufferFullIrqEnabled;
         private IFlagRegisterField txEmptyEnabled;
+        private IValueRegisterField clockDivider;
 
         private IEnumRegisterField<ParityTypeValues> parityType;
+        private IEnumRegisterField<CharacterLengthValues> characterLength;
         private IEnumRegisterField<NumberOfStopBitsValues> numberOfStopBits;
 
         private bool receiverEnabled;
         private bool transmitterEnabled;
+        private bool logTransfers;
+        private bool autoUpdateDelay;
+        private double delayMultiplier = 1;
+        private uint baudrate;
 
+        private readonly ulong clockFrequency;
         private readonly SAM_PDC pdc;
 
         private enum ParityTypeValues
@@ -625,7 +758,7 @@ namespace Antmicro.Renode.Peripherals.UART
             OneAndAHalf = 3
         }
 
-        private enum CharacterLength
+        private enum CharacterLengthValues
         {
             FiveBits = 0,
             SixBits = 1,

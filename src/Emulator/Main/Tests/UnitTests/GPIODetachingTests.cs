@@ -5,13 +5,14 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
-using NUnit.Framework;
-using System.Collections.Generic;
-using System.Linq;
-using Antmicro.Renode.UnitTests.Mocks;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.UnitTests.Mocks;
+
+using NUnit.Framework;
 
 namespace Antmicro.Renode.UnitTests
 {
@@ -63,7 +64,6 @@ namespace Antmicro.Renode.UnitTests
             Assert.IsEmpty(connections[0].Endpoints);
         }
 
-
         [Test]
         public void ShouldDetachOnlyOneConnectionFromGPIOByNumberConnection()
         {
@@ -89,7 +89,6 @@ namespace Antmicro.Renode.UnitTests
             Assert.IsEmpty(connections[0].Endpoints);
             Assert.IsNotEmpty(connections[1].Endpoints);
             Assert.IsNotEmpty(connections[2].Endpoints);
-
         }
 
         [Test]
@@ -116,61 +115,61 @@ namespace Antmicro.Renode.UnitTests
             //B is disconnected
 
             //init
-            var A = new MockGPIOByNumberConnectorPeripheral(2);
-            var B = new MockGPIOByNumberConnectorPeripheral(2);
-            var C = new MockReceiver();
-            var D = new MockReceiver();
+            var a = new MockGPIOByNumberConnectorPeripheral(2);
+            var b = new MockGPIOByNumberConnectorPeripheral(2);
+            var c = new MockReceiver();
+            var d = new MockReceiver();
 
-            machine.SystemBus.Register(A, new BusRangeRegistration(0x0, 0x10));
-            machine.SystemBus.Register(B, new BusRangeRegistration(0x10, 0x10));
-            machine.SystemBus.Register(C, new BusRangeRegistration(0x20, 0x10));
-            machine.SystemBus.Register(D, new BusRangeRegistration(0x30, 0x10));
+            machine.SystemBus.Register(a, new BusRangeRegistration(0x0, 0x10));
+            machine.SystemBus.Register(b, new BusRangeRegistration(0x10, 0x10));
+            machine.SystemBus.Register(c, new BusRangeRegistration(0x20, 0x10));
+            machine.SystemBus.Register(d, new BusRangeRegistration(0x30, 0x10));
 
-            A.Connections[0].Connect(B, 1);
-            B.Connections[0].Connect(C, 1);
-            B.Connections[1].Connect(D, 1);
-            A.Connections[1].Connect(C, 2);
+            a.Connections[0].Connect(b, 1);
+            b.Connections[0].Connect(c, 1);
+            b.Connections[1].Connect(d, 1);
+            a.Connections[1].Connect(c, 2);
 
             //act
-            ((IPeripheralRegister<IBusPeripheral, BusRangeRegistration>)machine.SystemBus).Unregister(B);
-            var AConnections = A.Connections;
-            var BConnections = B.Connections;
+            ((IPeripheralRegister<IBusPeripheral, BusRangeRegistration>)machine.SystemBus).Unregister(b);
+            var aConnections = a.Connections;
+            var bConnections = b.Connections;
 
             //assert
-            Assert.IsEmpty(AConnections[0].Endpoints);
-            Assert.IsEmpty(BConnections[0].Endpoints);
-            Assert.IsEmpty(BConnections[1].Endpoints);
-            Assert.IsNotEmpty(AConnections[1].Endpoints);
+            Assert.IsEmpty(aConnections[0].Endpoints);
+            Assert.IsEmpty(bConnections[0].Endpoints);
+            Assert.IsEmpty(bConnections[1].Endpoints);
+            Assert.IsNotEmpty(aConnections[1].Endpoints);
         }
 
         [Test]
         public void ShouldDisconnectEndpointOfUnregisteredPeripheral()
         {
             // init
-            var A = new MockGPIOByNumberConnectorPeripheral(1);
-            var B = new MockGPIOByNumberConnectorPeripheral(1);
-            var C = new MockReceiver();
+            var a = new MockGPIOByNumberConnectorPeripheral(1);
+            var b = new MockGPIOByNumberConnectorPeripheral(1);
+            var c = new MockReceiver();
 
-            machine.SystemBus.Register(A, new BusRangeRegistration(0x0, 0x10));
-            machine.SystemBus.Register(B, new BusRangeRegistration(0x10, 0x10));
-            machine.SystemBus.Register(C, new BusRangeRegistration(0x20, 0x10));
+            machine.SystemBus.Register(a, new BusRangeRegistration(0x0, 0x10));
+            machine.SystemBus.Register(b, new BusRangeRegistration(0x10, 0x10));
+            machine.SystemBus.Register(c, new BusRangeRegistration(0x20, 0x10));
 
             // act
-            A.Connections[0].Connect(B, 1);
-            A.Connections[0].Connect(C, 1);
-            B.Connections[0].Connect(C, 1);
-            Assert.True(A.Connections[0].Endpoints.Count == 2);
-            Assert.True(B.Connections[0].Endpoints.Count == 1);
+            a.Connections[0].Connect(b, 1);
+            a.Connections[0].Connect(c, 1);
+            b.Connections[0].Connect(c, 1);
+            Assert.True(a.Connections[0].Endpoints.Count == 2);
+            Assert.True(b.Connections[0].Endpoints.Count == 1);
 
             // try to connect the same endpoint as before
-            A.Connections[0].Connect(C, 1);
-            Assert.True(A.Connections[0].Endpoints.Count(x => x.Receiver == C && x.Number == 1) == 1);
+            a.Connections[0].Connect(c, 1);
+            Assert.True(a.Connections[0].Endpoints.Count(x => x.Receiver == c && x.Number == 1) == 1);
 
-            ((IPeripheralRegister<IBusPeripheral, BusRangeRegistration>)machine.SystemBus).Unregister(C);
+            ((IPeripheralRegister<IBusPeripheral, BusRangeRegistration>)machine.SystemBus).Unregister(c);
 
-            Assert.True(A.Connections[0].Endpoints.Count == 1);
-            Assert.True(A.Connections[0].Endpoints[0].Receiver == B);
-            Assert.IsEmpty(B.Connections[0].Endpoints);
+            Assert.True(a.Connections[0].Endpoints.Count == 1);
+            Assert.True(a.Connections[0].Endpoints[0].Receiver == b);
+            Assert.IsEmpty(b.Connections[0].Endpoints);
         }
 
         [Test]

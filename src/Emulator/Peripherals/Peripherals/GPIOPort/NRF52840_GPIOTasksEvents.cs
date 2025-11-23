@@ -4,11 +4,9 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 
-using System;
-using System.Linq;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 
@@ -21,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             IRQ = new GPIO();
             DefineRegisters();
 
-            ports = new [] { port0, port1 };
+            ports = new[] { port0, port1 };
             if(port0 != null)
             {
                 port0.PinChanged += OnPinChanged;
@@ -59,28 +57,32 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         private void DefineRegisters()
         {
-            Registers.TasksOut.DefineMany(this, NumberOfChannels, (register, idx) => {
+            Registers.TasksOut.DefineMany(this, NumberOfChannels, (register, idx) =>
+            {
                 register
                     .WithFlag(0, FieldMode.Write, name: "TASKS_OUT",
-                        writeCallback: (_, val) => channels[idx].WritePin(val))
+                        writeCallback: (_, val) => channels[idx].WritePin())
                     .WithReservedBits(1, 31);
             });
 
-            Registers.TasksSet.DefineMany(this, NumberOfChannels, (register, idx) => {
+            Registers.TasksSet.DefineMany(this, NumberOfChannels, (register, idx) =>
+            {
                 register
                     .WithFlag(0, FieldMode.Write, name: "TASKS_SET",
                         writeCallback: (_, val) => { if(val) channels[idx].SetPin(); })
                     .WithReservedBits(1, 31);
             });
 
-            Registers.TasksClear.DefineMany(this, NumberOfChannels, (register, idx) => {
+            Registers.TasksClear.DefineMany(this, NumberOfChannels, (register, idx) =>
+            {
                 register
                     .WithFlag(0, FieldMode.Write, name: "TASKS_CLR",
                         writeCallback: (_, val) => { if(val) channels[idx].ClearPin(); })
                     .WithReservedBits(1, 31);
             });
 
-            Registers.EventsIn.DefineMany(this, NumberOfChannels, (register, idx) => {
+            Registers.EventsIn.DefineMany(this, NumberOfChannels, (register, idx) =>
+            {
                 register
                     .WithFlag(0, name: "EVENTS_IN",
                         valueProviderCallback: _ => channels[idx].EventPending,
@@ -115,9 +117,10 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 .WithWriteCallback((_, __) => UpdateInterrupt())
             ;
 
-            Registers.Configuration.DefineMany(this, NumberOfChannels, (register, idx) => {
+            Registers.Configuration.DefineMany(this, NumberOfChannels, (register, idx) =>
+            {
                 register
-                    .WithEnumField<DoubleWordRegister,Mode>(0, 2, name: "MODE",
+                    .WithEnumField<DoubleWordRegister, Mode>(0, 2, name: "MODE",
                         valueProviderCallback: _ => channels[idx].Mode,
                         writeCallback: (_, val) => channels[idx].Mode = val)
                     .WithReservedBits(2, 6)
@@ -181,21 +184,21 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
             switch(channel.Polarity)
             {
-                case Polarity.None:
-                    channel.EventPending = false;
-                    break;
+            case Polarity.None:
+                channel.EventPending = false;
+                break;
 
-                case Polarity.LoToHi:
-                    channel.EventPending = !channel.CurrentState && value;
-                    break;
+            case Polarity.LoToHi:
+                channel.EventPending = !channel.CurrentState && value;
+                break;
 
-                case Polarity.HiToLo:
-                    channel.EventPending = channel.CurrentState && !value;
-                    break;
+            case Polarity.HiToLo:
+                channel.EventPending = channel.CurrentState && !value;
+                break;
 
-                case Polarity.Toggle:
-                    channel.EventPending = channel.CurrentState != value;
-                    break;
+            case Polarity.Toggle:
+                channel.EventPending = channel.CurrentState != value;
+                break;
             }
 
             channel.CurrentState = value;
@@ -223,10 +226,10 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             IRQ.Set(flag);
         }
 
-        private readonly uint NumberOfChannels = 8;
-
         private IFlagRegisterField portInterruptPending;
         private IFlagRegisterField portInterruptEnabled;
+
+        private readonly uint NumberOfChannels = 8;
 
         private readonly Dictionary<NRF52840_GPIO.Pin, Channel> pinToChannelMapping;
         private readonly Channel[] channels;
@@ -240,24 +243,24 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 this.parent = parent;
             }
 
-            public void WritePin(bool value)
+            public void WritePin()
             {
                 switch(Polarity)
                 {
-                    case Polarity.None:
-                        break;
+                case Polarity.None:
+                    break;
 
-                    case Polarity.LoToHi:
-                        WritePinInner(true);
-                        break;
+                case Polarity.LoToHi:
+                    WritePinInner(true);
+                    break;
 
-                    case Polarity.HiToLo:
-                        WritePinInner(false);
-                        break;
+                case Polarity.HiToLo:
+                    WritePinInner(false);
+                    break;
 
-                    case Polarity.Toggle:
-                        WritePinInner(toggle: true);
-                        break;
+                case Polarity.Toggle:
+                    WritePinInner(toggle: true);
+                    break;
                 }
             }
 
@@ -282,6 +285,20 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 EventEnabled = false;
                 EventPending = false;
             }
+
+            public Mode Mode { get; set; }
+
+            public uint SelectedPin { get; set; }
+
+            public uint SelectedPort { get; set; }
+
+            public Polarity Polarity { get; set; }
+
+            public bool CurrentState { get; set; }
+
+            public bool EventPending { get; set; }
+
+            public bool EventEnabled { get; set; }
 
             private bool TryGetPin(out NRF52840_GPIO.Pin pin)
             {
@@ -323,18 +340,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     : value;
             }
 
-            public Mode Mode { get; set; }
-
-            public uint SelectedPin { get; set; }
-            public uint SelectedPort { get; set; }
-
-            public Polarity Polarity { get; set; }
-
-            public bool CurrentState { get; set; }
-
-            public bool EventPending { get; set; }
-            public bool EventEnabled { get; set; }
-
             private readonly int id;
             private readonly NRF52840_GPIOTasksEvents parent;
         }
@@ -351,7 +356,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             None = 0,
             LoToHi = 1,
             HiToLo = 2,
-            Toggle = 3 
+            Toggle = 3
         }
 
         private enum Registers

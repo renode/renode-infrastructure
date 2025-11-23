@@ -6,6 +6,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Xwt;
 #if !PLATFORM_WINDOWS && !GUI_DISABLED
 using Xwt.GtkBackend;
@@ -14,6 +15,7 @@ using System.Reflection;
 using System.IO;
 #endif
 using System.Threading;
+
 using Antmicro.Renode.UserInterface;
 
 namespace Antmicro.Renode.UI
@@ -39,6 +41,8 @@ namespace Antmicro.Renode.UI
 #endif
         }
 
+        public static int UiThreadId { get; private set; }
+
         public void Dispose()
         {
             StopXwtThread();
@@ -58,7 +62,7 @@ namespace Antmicro.Renode.UI
 
                 Application.Initialize(ToolkitType.Gtk3);
 #else
-                Application.Initialize(ToolkitType.Gtk);
+                Application.Initialize(ToolkitType.Gtk3);
 #endif
 #endif
                 return true;
@@ -95,7 +99,7 @@ namespace Antmicro.Renode.UI
             }
         }
 
-        public static int UiThreadId { get; private set; }
+        private static readonly object internalLock;
 
         private XwtProvider()
         {
@@ -132,8 +136,5 @@ namespace Antmicro.Renode.UI
                 ApplicationExtensions.InvokeInUIThread(Application.Exit);
             }
         }
-
-        private static object internalLock;
     }
 }
-

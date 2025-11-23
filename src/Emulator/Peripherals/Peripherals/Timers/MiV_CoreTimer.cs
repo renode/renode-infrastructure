@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.Bus;
@@ -38,7 +39,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                         valueProviderCallback: (_) => checked((uint)Limit)
                     )
                 },
-
                 {(long)Registers.Value, new DoubleWordRegister(this, 0xFFFFFFFF)
                     .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => {
                         if(machine.SystemBus.TryGetCurrentCPU(out var cpu))
@@ -47,13 +47,11 @@ namespace Antmicro.Renode.Peripherals.Timers
                         }
                         return checked((uint)Value);
                     }, name: "CurrentValue")},
-
                 {(long)Registers.Control, new DoubleWordRegister(this)
                     .WithFlag(0, writeCallback: (_, val) => Enabled = val, valueProviderCallback: _ => Enabled, name: "TimerEnable")
                     .WithFlag(1, writeCallback: (_, val) => EventEnabled = val, valueProviderCallback: _ => EventEnabled, name: "InterruptEnable")
                     .WithValueField(2, 1, writeCallback: (_, val) => Mode = val == 0 ? WorkMode.Periodic : WorkMode.OneShot, valueProviderCallback: _ => Mode == WorkMode.OneShot ? 1 : 0u, name: "TimerMode")},
                     // bits 31:3 not used according to the documentation
-
                 {(long)Registers.ClockPrescale, new DoubleWordRegister(this)
                     .WithValueField(0, 4, name: "Prescale", writeCallback: (_, val) =>
                         {
@@ -69,13 +67,10 @@ namespace Antmicro.Renode.Peripherals.Timers
                             }
                             return result;
                         })},
-
                 {(long)Registers.InterruptClear, new DoubleWordRegister(this)
                     .WithValueField(0, 32, FieldMode.Write, writeCallback: (_, __) => { IRQ.Set(false); this.ClearInterrupt(); })},
-
                 {(long)Registers.RawInterruptStatus, new DoubleWordRegister(this)
                     .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => this.RawInterrupt)},
-
                 {(long)Registers.MaskedInterruptStatus, new DoubleWordRegister(this)
                     .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => this.Interrupt)}
             };

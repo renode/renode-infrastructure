@@ -4,12 +4,10 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
@@ -142,10 +140,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Registers.DMACount.Define(this)
                 .WithValueField(0, 32, out dmaDataLength, name: "DMA_CNT.addr")
                 .WithWriteCallback((_, __) => CalculateCrc32());
-                // According to documentation and HAL implementation, the CRC
-                // value is calculated after DMA transaction is done. As writing
-                // to this register starts DMA transaction, we can use it
-                // as trigger to calculate CRC value.
+            // According to documentation and HAL implementation, the CRC
+            // value is calculated after DMA transaction is done. As writing
+            // to this register starts DMA transaction, we can use it
+            // as trigger to calculate CRC value.
             ;
 
             Registers.CRCPolynomial.Define(this, DefaultCRCPolynomial)
@@ -243,4 +241,3 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
     }
 }
-

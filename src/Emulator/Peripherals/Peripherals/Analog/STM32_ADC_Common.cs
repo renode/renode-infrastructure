@@ -6,13 +6,13 @@
 //
 
 using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.DMA;
 using Antmicro.Renode.Peripherals.Sensors;
@@ -25,7 +25,7 @@ namespace Antmicro.Renode.Peripherals.Analog
     //     watchdogCount ------ Specifies the number of analog watchdogs inside the peripheral between 1 and 3.
     //    *hasCalibration ----- Specifies whether the calibration factor and voltage regulator are available to the software.
     //                          ADCs without this feature will still have the ADCAL flag available to trigger the calibration procedure,
-    //                          but not the CALFACT register nor the ADVREGEN field.
+    //                          but not the CALFACT register.
     //     channelCount ------- Specifies the amount of available channels.
     //                          Includes both internal sources (like the temperature sensor) as well as external.
     //    *hasPrescaler ------- Specifies whether the ADC contains a prescaler for the external clock input.
@@ -175,14 +175,16 @@ namespace Antmicro.Renode.Peripherals.Analog
         }
 
         public DoubleWordRegisterCollection RegistersCollection { get => registers; }
+
         public long Size => 0x400;
+
         public GPIO IRQ { get; }
 
         private void ValidateChannel(int channel)
         {
             if(channel >= ChannelCount || channel < 0)
             {
-                throw new RecoverableException($"Invalid argument value: {channel}. This peripheral implements only channels in range 0-{ChannelCount-1}");
+                throw new RecoverableException($"Invalid argument value: {channel}. This peripheral implements only channels in range 0-{ChannelCount - 1}");
             }
         }
 
@@ -312,7 +314,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             this.Log(LogLevel.Debug, "No more channels enabled");
             endOfSequenceFlag.Value = true;
             sequenceInProgress = false;
-            sequenceCounter  = 0;
+            sequenceCounter = 0;
             UpdateInterrupts();
             startFlag.Value = false;
 
@@ -353,20 +355,20 @@ namespace Antmicro.Renode.Peripherals.Analog
             ushort resolutionInBits;
             switch(resolution.Value)
             {
-                case Resolution.Bits6:
-                    resolutionInBits = 6;
-                    break;
-                case Resolution.Bits8:
-                    resolutionInBits = 8;
-                    break;
-                case Resolution.Bits10:
-                    resolutionInBits = 10;
-                    break;
-                case Resolution.Bits12:
-                    resolutionInBits = 12;
-                    break;
-                default:
-                    throw new Exception("This should never have happend!");
+            case Resolution.Bits6:
+                resolutionInBits = 6;
+                break;
+            case Resolution.Bits8:
+                resolutionInBits = 8;
+                break;
+            case Resolution.Bits10:
+                resolutionInBits = 10;
+                break;
+            case Resolution.Bits12:
+                resolutionInBits = 12;
+                break;
+            default:
+                throw new Exception("This should never have happend!");
             }
 
             uint referencedValue = (uint)Math.Round((sampleInMilivolts / (referenceVoltage * 1000)) * ((1 << resolutionInBits) - 1));
@@ -414,7 +416,8 @@ namespace Antmicro.Renode.Peripherals.Analog
             {
                 isrRegister
                     .WithTaggedFlag("EOCAL", 11)
-                    .WithTaggedFlag("LDORDY", 12);
+                    // Simplified logic - hardware delays LDORDY until voltage regulator settles.
+                    .WithFlag(12, valueProviderCallback: _ => adcRegulatorEnable.Value, name: "LDORDY");
                 interruptEnableRegister
                     .WithTaggedFlag("EOCALIE", 11)
                     .WithTaggedFlag("LDORDYIE", 12);
@@ -571,7 +574,7 @@ namespace Antmicro.Renode.Peripherals.Analog
                             }
                         }, name: "ADSTP")
                     .WithReservedBits(5, 23)
-                    .WithFlag(28, name: "ADVREGEN") // no logic implemented, but software expects to read this flag back
+                    .WithFlag(28, out adcRegulatorEnable, name: "ADVREGEN")
                     .WithReservedBits(29, 2)
                     .WithTaggedFlag("ADCAL", 31)
                 },
@@ -658,48 +661,49 @@ namespace Antmicro.Renode.Peripherals.Analog
             return registers;
         }
 
+        private IEnumRegisterField<Align> align;
+        // While watchdogs 2 and 3 use bitfields for selecting channels to watch
+        private IFlagRegisterField[] analogWatchdog2SelectedChannels;
+        // Watchdog 1 either watches all channels or a single channel
+        private IValueRegisterField analogWatchdogChannel;
+
+        private IValueRegisterField data;
+        private IFlagRegisterField analogWatchdogSingleChannel;
+        private IFlagRegisterField endOfSequenceInterruptEnable;
+        private IFlagRegisterField endOfSamplingInterruptEnable;
+        private IFlagRegisterField endOfConversionInterruptEnable;
+        private IFlagRegisterField[] analogWatchdogsInterruptEnable;
+        private IFlagRegisterField adcReadyInterruptEnable;
+        private IFlagRegisterField adcOverrunInterruptEnable;
+        private IFlagRegisterField[] analogWatchdog3SelectedChannels;
+        private IFlagRegisterField endOfSequenceFlag;
+        private IFlagRegisterField endOfConversionFlag;
+        private IFlagRegisterField[] analogWatchdogFlags;
+        private IFlagRegisterField adcReadyFlag;
+        private IFlagRegisterField adcRegulatorEnable;
+
+        private IFlagRegisterField adcOverrunFlag;
+        private IFlagRegisterField waitFlag;
+        private IFlagRegisterField startFlag;
+        private IFlagRegisterField analogWatchdogEnable;
+
+        private IFlagRegisterField dmaEnabled;
+        private IEnumRegisterField<ScanDirection> scanDirection;
+        private IEnumRegisterField<Resolution> resolution;
+        private IFlagRegisterField endOfSamplingFlag;
+
+        private IValueRegisterField regularSequenceLength;
+
         private int currentChannel;
         private int sequenceCounter;
         private bool enabled;
         private bool externalTrigger;
         private bool sequenceInProgress;
         private bool awaitingConversion;
-        private bool[] channelSelected;
-
-        private IEnumRegisterField<Align> align;
-        private IEnumRegisterField<Resolution> resolution;
-        private IEnumRegisterField<ScanDirection> scanDirection;
-
-        private IFlagRegisterField dmaEnabled;
-        private IFlagRegisterField analogWatchdogEnable;
-        private IFlagRegisterField startFlag;
-        private IFlagRegisterField waitFlag;
-
-        private IFlagRegisterField adcOverrunFlag;
-        private IFlagRegisterField adcReadyFlag;
-        private IFlagRegisterField[] analogWatchdogFlags;
-        private IFlagRegisterField endOfConversionFlag;
-        private IFlagRegisterField endOfSamplingFlag;
-        private IFlagRegisterField endOfSequenceFlag;
-        private IFlagRegisterField adcOverrunInterruptEnable;
-        private IFlagRegisterField adcReadyInterruptEnable;
-        private IFlagRegisterField[] analogWatchdogsInterruptEnable;
-        private IFlagRegisterField endOfConversionInterruptEnable;
-        private IFlagRegisterField endOfSamplingInterruptEnable;
-        private IFlagRegisterField endOfSequenceInterruptEnable;
-        private IFlagRegisterField analogWatchdogSingleChannel;
-
-        private IValueRegisterField data;
-        // Watchdog 1 either watches all channels or a single channel
-        private IValueRegisterField analogWatchdogChannel;
-        // While watchdogs 2 and 3 use bitfields for selecting channels to watch
-        private IFlagRegisterField[] analogWatchdog2SelectedChannels;
-        private IFlagRegisterField[] analogWatchdog3SelectedChannels;
-        private IValueRegisterField[] analogWatchdogHighValues;
-        private IValueRegisterField[] analogWatchdogLowValues;
-
-        private IValueRegisterField regularSequenceLength;
-        private IValueRegisterField[] regularSequence = new IValueRegisterField[MaximumSequenceLength];
+        private readonly bool[] channelSelected;
+        private readonly IValueRegisterField[] analogWatchdogHighValues;
+        private readonly IValueRegisterField[] analogWatchdogLowValues;
+        private readonly IValueRegisterField[] regularSequence = new IValueRegisterField[MaximumSequenceLength];
 
         private readonly IDMA dma;
         private readonly int dmaChannel;

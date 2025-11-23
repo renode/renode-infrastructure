@@ -6,7 +6,6 @@
 //
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Peripherals.CPU;
-using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.UnitTests.Mocks
 {

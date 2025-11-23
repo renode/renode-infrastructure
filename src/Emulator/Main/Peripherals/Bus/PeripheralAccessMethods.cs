@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -7,14 +7,15 @@
 //
 
 using System;
-using System.Threading;
-using Antmicro.Migrant;
+using System.Collections.Generic;
 using System.Reflection;
-using Antmicro.Renode.Peripherals.Bus.Wrappers;
+using System.Threading;
+
+using Antmicro.Migrant;
 using Antmicro.Renode.Core.Extensions;
 using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Exceptions;
-using System.Collections.Generic;
+using Antmicro.Renode.Peripherals.Bus.Wrappers;
 
 using Endianess = ELFSharp.ELF.Endianess;
 
@@ -22,20 +23,6 @@ namespace Antmicro.Renode.Peripherals.Bus
 {
     public class PeripheralAccessMethods
     {
-        public BusAccess.ByteReadMethod ReadByte;
-        public BusAccess.ByteWriteMethod WriteByte;
-        public BusAccess.WordReadMethod ReadWord;
-        public BusAccess.WordWriteMethod WriteWord;
-        public BusAccess.DoubleWordReadMethod ReadDoubleWord;
-        public BusAccess.DoubleWordWriteMethod WriteDoubleWord;
-        public BusAccess.QuadWordReadMethod ReadQuadWord;
-        public BusAccess.QuadWordWriteMethod WriteQuadWord;
-        public Action<ulong> SetAbsoluteAddress;
-        public IBusPeripheral Peripheral;
-        public string Tag;
-        [Constructor(true)]
-        public SpinLock Lock;
-
         public static PeripheralAccessMethods CreateWithLock()
         {
             // Thread ownership tracking should be enabled. We use the IsHeldByCurrentThread
@@ -86,7 +73,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
 
             if(enable)
-            { 
+            {
                 BuildMissingAccesses(endianess);
             }
             else
@@ -102,133 +89,6 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
 
             AllTranslationsEnabled = enable;
-        }
-
-        private void BuildMissingAccesses(Endianess endianess)
-        {
-            DebugHelper.Assert(!(ReadByte.Target is HookWrapper));
-
-            var accssMethods = new dynamic []
-            {
-                Tuple.Create(ReadByte, WriteByte, (BusAccess.ByteReadMethod)Peripheral.ReadByteNotTranslated),
-                Tuple.Create(ReadWord, WriteWord, (BusAccess.WordReadMethod)Peripheral.ReadWordNotTranslated),
-                Tuple.Create(ReadDoubleWord, WriteDoubleWord, (BusAccess.DoubleWordReadMethod)Peripheral.ReadDoubleWordNotTranslated),
-                Tuple.Create(ReadQuadWord, WriteQuadWord, (BusAccess.QuadWordReadMethod)Peripheral.ReadQuadWordNotTranslated),
-            };
-
-            // find implemented access methods
-            dynamic read = null;
-            dynamic write = null;
-
-            foreach(var methods in accssMethods)
-            {
-                var readMethod = methods.Item1;
-                var writeMethod = methods.Item2;
-                var notTranslated = methods.Item3;
-
-                if(readMethod != notTranslated)
-                {
-                    read = readMethod;
-                    write = writeMethod;
-                    break;
-                }
-            }
-
-            if(read == null)
-            {
-                throw new RecoverableException($"Peripheral {Peripheral} does not implement any memory mapped access methods");
-            }
-
-            if(ReadByte == Peripheral.ReadByteNotTranslated)
-            {
-                byteAccessTranslationEnabledDynamically = true;
-                if(endianess == Endianess.LittleEndian)
-                {
-                    ReadByte = ReadWriteExtensions.BuildByteReadUsing(read);
-                    WriteByte = ReadWriteExtensions.BuildByteWriteUsing(read, write);
-                }
-                else
-                {
-                    ReadByte = ReadWriteExtensions.BuildByteReadBigEndianUsing(read);
-                    WriteByte = ReadWriteExtensions.BuildByteWriteBigEndianUsing(read, write);
-                }
-            }
-
-            if(ReadWord == Peripheral.ReadWordNotTranslated)
-            {
-                wordAccessTranslationEnabledDynamically = true;
-                if(endianess == Endianess.LittleEndian)
-                {
-                    ReadWord = ReadWriteExtensions.BuildWordReadUsing(read);
-                    WriteWord = ReadWriteExtensions.BuildWordWriteUsing(read, write);
-                }
-                else
-                {
-                    ReadWord = ReadWriteExtensions.BuildWordReadBigEndianUsing(read);
-                    WriteWord = ReadWriteExtensions.BuildWordWriteBigEndianUsing(read, write);
-                }
-            }
-            if(ReadDoubleWord == Peripheral.ReadDoubleWordNotTranslated)
-            {
-                doubleWordAccessTranslationEnabledDynamically = true;
-                if(endianess == Endianess.LittleEndian)
-                {
-                    ReadDoubleWord = ReadWriteExtensions.BuildDoubleWordReadUsing(read);
-                    WriteDoubleWord = ReadWriteExtensions.BuildDoubleWordWriteUsing(read, write);
-                }
-                else
-                {
-                    ReadDoubleWord = ReadWriteExtensions.BuildDoubleWordReadBigEndianUsing(read);
-                    WriteDoubleWord = ReadWriteExtensions.BuildDoubleWordWriteBigEndianUsing(read, write);
-                }
-            }
-            if(ReadQuadWord == Peripheral.ReadQuadWordNotTranslated)
-            {
-                quadWordAccessTranslationEnabledDynamically = true;
-                if(endianess == Endianess.LittleEndian)
-                {
-                    ReadQuadWord = ReadWriteExtensions.BuildQuadWordReadUsing(read);
-                    WriteQuadWord = ReadWriteExtensions.BuildQuadWordWriteUsing(read, write);
-                }
-                else
-                {
-                    ReadQuadWord = ReadWriteExtensions.BuildQuadWordReadBigEndianUsing(read);
-                    WriteQuadWord = ReadWriteExtensions.BuildQuadWordWriteBigEndianUsing(read, write);
-                }
-            }
-        }
-
-        void DisableTranslatedAccesses()
-        {
-            DebugHelper.Assert(!(ReadByte.Target is HookWrapper));
-
-            if(byteAccessTranslationEnabledDynamically)
-            {
-                byteAccessTranslationEnabledDynamically = false;
-                ReadByte = Peripheral.ReadByteNotTranslated;
-                WriteByte = Peripheral.WriteByteNotTranslated;
-            }
-
-            if(wordAccessTranslationEnabledDynamically)
-            {
-                wordAccessTranslationEnabledDynamically = false;
-                ReadWord = Peripheral.ReadWordNotTranslated;
-                WriteWord = Peripheral.WriteWordNotTranslated;
-            }
-
-            if(doubleWordAccessTranslationEnabledDynamically)
-            {
-                doubleWordAccessTranslationEnabledDynamically = false;
-                ReadDoubleWord = Peripheral.ReadDoubleWordNotTranslated;
-                WriteDoubleWord = Peripheral.WriteDoubleWordNotTranslated;
-            }
-
-            if(quadWordAccessTranslationEnabledDynamically)
-            {
-                quadWordAccessTranslationEnabledDynamically = false;
-                ReadQuadWord = Peripheral.ReadQuadWordNotTranslated;
-                WriteQuadWord = Peripheral.WriteQuadWordNotTranslated;
-            }
         }
 
         public void WrapMethods(Type readWrapperType, Type writeWrapperType)
@@ -312,7 +172,40 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
+        public bool HasWrappersOfType(Type readWrapperType, Type writeWrapperType)
+        {
+            var readByte = ReadByte.Target as ReadHookWrapper<byte>;
+            var writeByte = WriteByte.Target as WriteHookWrapper<byte>;
+
+            while(readByte != null && writeByte != null)
+            {
+                if(readWrapperType == readByte.GetType().GetGenericTypeDefinition()
+                    && writeWrapperType == writeByte.GetType().GetGenericTypeDefinition())
+                {
+                    return true;
+                }
+
+                readByte = readByte.OriginalMethod.Target as ReadHookWrapper<byte>;
+                writeByte = writeByte.OriginalMethod.Target as WriteHookWrapper<byte>;
+            }
+            return false;
+        }
+
         public bool AllTranslationsEnabled { get; private set; }
+
+        public BusAccess.ByteReadMethod ReadByte;
+        public BusAccess.ByteWriteMethod WriteByte;
+        public BusAccess.WordReadMethod ReadWord;
+        public BusAccess.WordWriteMethod WriteWord;
+        public BusAccess.DoubleWordReadMethod ReadDoubleWord;
+        public BusAccess.DoubleWordWriteMethod WriteDoubleWord;
+        public BusAccess.QuadWordReadMethod ReadQuadWord;
+        public BusAccess.QuadWordWriteMethod WriteQuadWord;
+        public Action<ulong> SetAbsoluteAddress;
+        public IBusPeripheral Peripheral;
+        public string Tag;
+        [Constructor(true)]
+        public SpinLock Lock;
 
         private static void SetReadOrWriteMethod<TR, TW>(MethodInfo i, object obj, BusAccess.Operation operation, ref TR readMethod, ref TW writeMethod)
         {
@@ -329,10 +222,136 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
+        private void BuildMissingAccesses(Endianess endianess)
+        {
+            DebugHelper.Assert(!(ReadByte.Target is HookWrapper));
+
+            var accessMethods = new dynamic []
+            {
+                Tuple.Create(ReadByte, WriteByte, (BusAccess.ByteReadMethod)Peripheral.ReadByteNotTranslated),
+                Tuple.Create(ReadWord, WriteWord, (BusAccess.WordReadMethod)Peripheral.ReadWordNotTranslated),
+                Tuple.Create(ReadDoubleWord, WriteDoubleWord, (BusAccess.DoubleWordReadMethod)Peripheral.ReadDoubleWordNotTranslated),
+                Tuple.Create(ReadQuadWord, WriteQuadWord, (BusAccess.QuadWordReadMethod)Peripheral.ReadQuadWordNotTranslated),
+            };
+
+            // find implemented access methods
+            dynamic read = null;
+            dynamic write = null;
+
+            foreach(var methods in accessMethods)
+            {
+                var readMethod = methods.Item1;
+                var writeMethod = methods.Item2;
+                var notTranslated = methods.Item3;
+
+                if(readMethod != notTranslated)
+                {
+                    read = readMethod;
+                    write = writeMethod;
+                    break;
+                }
+            }
+
+            if(read == null)
+            {
+                throw new RecoverableException($"Peripheral {Peripheral} does not implement any memory mapped access methods");
+            }
+
+            if(ReadByte == Peripheral.ReadByteNotTranslated)
+            {
+                byteAccessTranslationEnabledDynamically = true;
+                if(endianess == Endianess.LittleEndian)
+                {
+                    ReadByte = ReadWriteExtensions.BuildByteReadUsing(read);
+                    WriteByte = ReadWriteExtensions.BuildByteWriteUsing(read, write);
+                }
+                else
+                {
+                    ReadByte = ReadWriteExtensions.BuildByteReadBigEndianUsing(read);
+                    WriteByte = ReadWriteExtensions.BuildByteWriteBigEndianUsing(read, write);
+                }
+            }
+
+            if(ReadWord == Peripheral.ReadWordNotTranslated)
+            {
+                wordAccessTranslationEnabledDynamically = true;
+                if(endianess == Endianess.LittleEndian)
+                {
+                    ReadWord = ReadWriteExtensions.BuildWordReadUsing(read);
+                    WriteWord = ReadWriteExtensions.BuildWordWriteUsing(read, write);
+                }
+                else
+                {
+                    ReadWord = ReadWriteExtensions.BuildWordReadBigEndianUsing(read);
+                    WriteWord = ReadWriteExtensions.BuildWordWriteBigEndianUsing(read, write);
+                }
+            }
+            if(ReadDoubleWord == Peripheral.ReadDoubleWordNotTranslated)
+            {
+                doubleWordAccessTranslationEnabledDynamically = true;
+                if(endianess == Endianess.LittleEndian)
+                {
+                    ReadDoubleWord = ReadWriteExtensions.BuildDoubleWordReadUsing(read);
+                    WriteDoubleWord = ReadWriteExtensions.BuildDoubleWordWriteUsing(read, write);
+                }
+                else
+                {
+                    ReadDoubleWord = ReadWriteExtensions.BuildDoubleWordReadBigEndianUsing(read);
+                    WriteDoubleWord = ReadWriteExtensions.BuildDoubleWordWriteBigEndianUsing(read, write);
+                }
+            }
+            if(ReadQuadWord == Peripheral.ReadQuadWordNotTranslated)
+            {
+                quadWordAccessTranslationEnabledDynamically = true;
+                if(endianess == Endianess.LittleEndian)
+                {
+                    ReadQuadWord = ReadWriteExtensions.BuildQuadWordReadUsing(read);
+                    WriteQuadWord = ReadWriteExtensions.BuildQuadWordWriteUsing(read, write);
+                }
+                else
+                {
+                    ReadQuadWord = ReadWriteExtensions.BuildQuadWordReadBigEndianUsing(read);
+                    WriteQuadWord = ReadWriteExtensions.BuildQuadWordWriteBigEndianUsing(read, write);
+                }
+            }
+        }
+
+        private void DisableTranslatedAccesses()
+        {
+            DebugHelper.Assert(!(ReadByte.Target is HookWrapper));
+
+            if(byteAccessTranslationEnabledDynamically)
+            {
+                byteAccessTranslationEnabledDynamically = false;
+                ReadByte = Peripheral.ReadByteNotTranslated;
+                WriteByte = Peripheral.WriteByteNotTranslated;
+            }
+
+            if(wordAccessTranslationEnabledDynamically)
+            {
+                wordAccessTranslationEnabledDynamically = false;
+                ReadWord = Peripheral.ReadWordNotTranslated;
+                WriteWord = Peripheral.WriteWordNotTranslated;
+            }
+
+            if(doubleWordAccessTranslationEnabledDynamically)
+            {
+                doubleWordAccessTranslationEnabledDynamically = false;
+                ReadDoubleWord = Peripheral.ReadDoubleWordNotTranslated;
+                WriteDoubleWord = Peripheral.WriteDoubleWordNotTranslated;
+            }
+
+            if(quadWordAccessTranslationEnabledDynamically)
+            {
+                quadWordAccessTranslationEnabledDynamically = false;
+                ReadQuadWord = Peripheral.ReadQuadWordNotTranslated;
+                WriteQuadWord = Peripheral.WriteQuadWordNotTranslated;
+            }
+        }
+
         private bool byteAccessTranslationEnabledDynamically;
         private bool wordAccessTranslationEnabledDynamically;
         private bool doubleWordAccessTranslationEnabledDynamically;
         private bool quadWordAccessTranslationEnabledDynamically;
     }
 }
-

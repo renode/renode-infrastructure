@@ -68,14 +68,6 @@ namespace Antmicro.Renode.Utilities.GDB
         private const byte PacketStopSymbol = (byte)'#';
         private const byte InterruptSymbol = 0x03;
 
-        private enum State
-        {
-            NoPacket,
-            Data,
-            Checksum1,
-            Checksum2
-        }
-
         public class Result
         {
             public Result(Packet packet = null, bool corruptedPacket = false, bool interrupt = false)
@@ -86,9 +78,18 @@ namespace Antmicro.Renode.Utilities.GDB
             }
 
             public Packet Packet { get; private set; }
+
             public bool Interrupt { get; private set; }
+
             public bool CorruptedPacket { get; private set; }
+        }
+
+        private enum State
+        {
+            NoPacket,
+            Data,
+            Checksum1,
+            Checksum2
         }
     }
 }
-

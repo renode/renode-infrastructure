@@ -25,12 +25,13 @@ using Range = Antmicro.Renode.Core.Range;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public abstract class X86KVMBase : BaseCPU, IGPIOReceiver, ICPUWithRegisters, IControllableCPU, ICPUWithMappedMemory
+    public abstract class KVMCPU : BaseCPU, IGPIOReceiver, ICPUWithRegisters, IControllableCPU, ICPUWithMappedMemory, ICPUWithMMU, ICpuSupportingGdb
     {
-        public X86KVMBase(string cpuType, IMachine machine, CpuBitness cpuBitness, uint cpuId = 0)
-            : base(cpuId, cpuType, machine, Endianess.LittleEndian, cpuBitness)
+        public KVMCPU(string cpuType, IMachine machine, Endianess endianess, CpuBitness cpuBitness, uint cpuId = 0)
+            : base(cpuId, cpuType, machine, endianess, cpuBitness)
         {
             currentMappings = new List<SegmentMappingWithSlotNumber>();
+            hooks = new HookDescriptor(this);
             InitBinding();
             Init();
             machine.PeripheralsChanged += OnMachinePeripheralsChanged;
@@ -98,10 +99,53 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public ulong TranslateAddress(ulong logicalAddress, MpuAccess accessType)
+        {
+            if(TryTranslateAddress(logicalAddress, accessType, out var physicalAddress))
+            {
+                return physicalAddress;
+            }
+            else
+            {
+                throw new RecoverableException($"Failed to translate address: 0x{logicalAddress:X}");
+            }
+        }
+
+        public bool TryTranslateAddress(ulong logicalAddress, MpuAccess accessType, out ulong physicalAddress)
+        {
+            physicalAddress = KvmTranslateGuestVirtualAddress(logicalAddress);
+            return physicalAddress != ulong.MaxValue;
+        }
+
+        public void AddHookAtInterruptBegin(Action<ulong> hook)
+        {
+            throw new RecoverableException("AddHookAtInterruptBegin is not implemented");
+        }
+
+        public void AddHookAtInterruptEnd(Action<ulong> hook)
+        {
+            throw new RecoverableException("AddHookAtInterruptEnd is not implemented");
+        }
+
+        public void AddHookAtWfiStateChange(Action<bool> hook)
+        {
+            throw new RecoverableException("AddHookAtWfiStateChange is not implemented");
+        }
+
+        public void AddHook(ulong addr, CpuAddressHook hook) => hooks.AddHook(addr, hook);
+
+        public void RemoveHook(ulong addr, CpuAddressHook hook) => hooks.RemoveHook(addr, hook);
+
+        public void RemoveHooksAt(ulong addr) => hooks.RemoveHooksAt(addr);
+
+        public void RemoveHooks(CpuAddressHook hook) => hooks.RemoveHooks(hook);
+
+        public void RemoveAllHooks() => hooks.RemoveAllHooks();
+
         public void RegisterAccessFlags(ulong startAddress, ulong size, bool isIoMemory = false)
         {
             // all ArrayMemory is set as executable by default
-            throw new ConstructionException($"Use of ArrayMemory with {nameof(X86KVMBase)} core is not supported: Execution via IO accesses is not implemented");
+            throw new ConstructionException($"Use of ArrayMemory with {nameof(KVMCPU)} core is not supported: Execution via IO accesses is not implemented");
         }
 
         public void SetPageAccessViaIo(ulong address)
@@ -121,21 +165,46 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override ExecutionResult ExecuteInstructions(ulong numberOfInstructionsToExecute, out ulong numberOfExecutedInstructions)
         {
-            if(ExecutionMode == ExecutionMode.SingleStep)
-            {
-                numberOfExecutedInstructions = 1;
-                return (ExecutionResult)KvmExecuteSingleStep();
-            }
-            else
-            {
-                // Current implementation doesn't allow to running exact number of instructions, we just allow it to run for some time
-                // that is proportional to expected instructions count.
-                // Due to intricacies of modern CPUs this will also be non-deterministic between runs.
-                var time = TimeInterval.FromCPUCycles(numberOfInstructionsToExecute, PerformanceInMips, out var cyclesResiduum).TotalMicroseconds;
+            hooks.ActivateNewHooks();
 
-                numberOfExecutedInstructions = numberOfInstructionsToExecute;
-                return (ExecutionResult)KvmExecute((ulong)time);
+            if(ExecutionMode == ExecutionMode.SingleStep || singleStepAfterHook)
+            {
+                var result = (ExecutionResult)KvmExecuteSingleStep();
+
+                // Hooks are disabled after being hit. They can be reactivated after executing covered instruction.
+                if(singleStepAfterHook)
+                {
+                    hooks.Reactivate();
+                    singleStepAfterHook = false;
+                }
+
+                var shouldContinue = ExecutionMode == ExecutionMode.Continuous && result == ExecutionResult.Ok;
+                if(!shouldContinue)
+                {
+                    numberOfExecutedInstructions = 1;
+                    return result;
+                }
             }
+
+            // Current implementation doesn't allow to running exact number of instructions, we just allow it to run for some time
+            // that is proportional to expected instructions count.
+            // Due to intricacies of modern CPUs this will also be non-deterministic between runs.
+            var time = TimeInterval.FromCPUCycles(numberOfInstructionsToExecute, PerformanceInMips, out var cyclesResiduum).TotalMicroseconds;
+
+            numberOfExecutedInstructions = numberOfInstructionsToExecute;
+            return (ExecutionResult)KvmExecute((ulong)time);
+        }
+
+        public void EnterSingleStepModeSafely(HaltArguments args)
+        {
+            // this method should only be called from CPU thread,
+            // but we should check it anyway
+            CheckCpuThreadId();
+
+            ExecutionMode = ExecutionMode.SingleStep;
+
+            UpdateHaltedState();
+            InvokeHalted(args);
         }
 
         public void RequestReturn()
@@ -143,35 +212,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             if(this.IsStarted)
             {
                 KvmInterruptExecution();
-            }
-        }
-
-        // field in the 'flags' variable are defined in
-        // Intel(R) 64 and IA-32 Architectures Software Developer’s Manual - Volume 3 (3.4.5)
-        public void SetDescriptor(SegmentDescriptor descriptor, ushort selector, ulong baseAddress, uint limit, uint flags)
-        {
-            switch(descriptor)
-            {
-            case SegmentDescriptor.CS:
-                KvmSetCsDescriptor(baseAddress, limit, selector, flags);
-                break;
-            case SegmentDescriptor.DS:
-                KvmSetDsDescriptor(baseAddress, limit, selector, flags);
-                break;
-            case SegmentDescriptor.ES:
-                KvmSetEsDescriptor(baseAddress, limit, selector, flags);
-                break;
-            case SegmentDescriptor.SS:
-                KvmSetSsDescriptor(baseAddress, limit, selector, flags);
-                break;
-            case SegmentDescriptor.FS:
-                KvmSetFsDescriptor(baseAddress, limit, selector, flags);
-                break;
-            case SegmentDescriptor.GS:
-                KvmSetGsDescriptor(baseAddress, limit, selector, flags);
-                break;
-            default:
-                throw new RecoverableException($"Setting the {descriptor} descriptor is not implemented, ignoring");
             }
         }
 
@@ -188,6 +228,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override ulong ExecutedInstructions => throw new RecoverableException("ExecutedInstructions property is not implemented");
 
+        public virtual uint PageSize => 4096;
+
+        public abstract string GDBArchitecture { get; }
+
+        public abstract List<GDBFeatureDescriptor> GDBFeatures { get; }
+
         protected virtual void InitializeRegisters()
         {
         }
@@ -195,6 +241,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         protected override void DisposeInner(bool silent = false)
         {
             base.DisposeInner(silent);
+            RemoveAllHooks();
             KvmDispose();
             TimeHandle.Dispose();
             binder.Dispose();
@@ -215,6 +262,15 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         protected override bool ExecutionFinished(ExecutionResult result)
         {
+            if(result == ExecutionResult.StoppedAtBreakpoint)
+            {
+                this.Trace();
+                hooks.Execute(PC);
+                // Disable hooks so they will not be hit again on re-entering the CPU.
+                singleStepAfterHook = true;
+                hooks.DeactivateHooks(PC);
+                return true;
+            }
             return false;
         }
 
@@ -342,7 +398,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             WriteDoubleWordToBus(IoPortBaseAddress + address, (uint)value);
         }
 
-// 649:  Field '...' is never assigned to, and will always have its default value null
+        // 649:  Field '...' is never assigned to, and will always have its default value null
 #pragma warning disable 649
 
         [Import]
@@ -367,24 +423,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         protected Action<int> KvmUnmapRange;
 
         [Import]
-        protected Action<ulong, uint, ushort, uint> KvmSetCsDescriptor;
-
-        [Import]
-        protected Action<ulong, uint, ushort, uint> KvmSetDsDescriptor;
-
-        [Import]
-        protected Action<ulong, uint, ushort, uint> KvmSetEsDescriptor;
-
-        [Import]
-        protected Action<ulong, uint, ushort, uint> KvmSetSsDescriptor;
-
-        [Import]
-        protected Action<ulong, uint, ushort, uint> KvmSetFsDescriptor;
-
-        [Import]
-        protected Action<ulong, uint, ushort, uint> KvmSetGsDescriptor;
-
-        [Import]
         protected Action<int, int> KvmSetIrq;
 
 #pragma warning restore 649
@@ -404,11 +442,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         protected const int MaxRedirectionTableEntries = 24;
 
         /*
-            Increments each time a new translation library resource is created.
-            This counter marks each new instance of a kvm library with a new number, which is used in file names to avoid collisions.
-            It has to survive emulation reset, so the file names remain unique.
+        Increments each time a new translation library resource is created.
+        This counter marks each new instance of a kvm library with a new number, which is used in file names to avoid collisions.
+        It has to survive emulation reset, so the file names remain unique.
         */
         private static int CpuCounter = 0;
+
         private void InitBinding()
         {
             var libraryResource = $"Antmicro.Renode.kvm-{Architecture}.so";
@@ -430,15 +469,22 @@ namespace Antmicro.Renode.Peripherals.CPU
             binder = new NativeBinder(this, libraryFile);
         }
 
-        public enum SegmentDescriptor
-        {
-            CS,
-            SS,
-            DS,
-            ES,
-            FS,
-            GS
-        }
+        private bool singleStepAfterHook;
+
+#pragma warning disable 649
+
+        [Import]
+        private readonly Func<ulong, ulong> KvmTranslateGuestVirtualAddress;
+
+        [Import]
+        private readonly Action<ulong> KvmAddBreakpoint;
+
+        [Import]
+        private readonly Action<ulong>  KvmRemoveBreakpoint;
+
+#pragma warning restore 649
+
+        private readonly HookDescriptor hooks;
 
         protected class SegmentMappingWithSlotNumber : SegmentMapping
         {
@@ -446,7 +492,19 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 SlotNumber = slotNumber;
             }
+
             public int SlotNumber { get; set; }
+        }
+
+        private class HookDescriptor : HookDescriptorBase
+        {
+            public HookDescriptor(ICpuSupportingGdb cpu) : base(cpu)
+            {
+            }
+
+            protected override void AddBreakpoint(ulong address) => (cpu as KVMCPU).KvmAddBreakpoint(address);
+
+            protected override void RemoveBreakpoint(ulong address) => (cpu as KVMCPU).KvmRemoveBreakpoint(address);
         }
     }
 }

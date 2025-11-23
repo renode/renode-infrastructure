@@ -1,16 +1,17 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Migrant;
 using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.CPU;
-using Antmicro.Renode.Exceptions;
+
 using Microsoft.Scripting.Hosting;
 
 namespace Antmicro.Renode.Hooks
@@ -36,6 +37,8 @@ namespace Antmicro.Renode.Hooks
             };
         }
 
+        public Action<bool> HookWithWfiEnterExit { get; }
+
         [PostDeserialization]
         private void InnerInit()
         {
@@ -44,8 +47,6 @@ namespace Antmicro.Renode.Hooks
             var source = Engine.CreateScriptSourceFromString(script);
             code = Compile(source);
         }
-
-        public Action<bool> HookWithWfiEnterExit { get; }
 
         [Transient]
         private CompiledCode code;

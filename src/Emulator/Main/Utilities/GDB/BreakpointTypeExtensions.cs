@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Utilities.GDB
@@ -13,7 +14,7 @@ namespace Antmicro.Renode.Utilities.GDB
     {
         public static string GetStopReason(this BreakpointType type)
         {
-            switch (type) 
+            switch(type)
             {
             case BreakpointType.AccessWatchpoint:
                 return "awatch";
@@ -31,4 +32,3 @@ namespace Antmicro.Renode.Utilities.GDB
         }
     }
 }
-

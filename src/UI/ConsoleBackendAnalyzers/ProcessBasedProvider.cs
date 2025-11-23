@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -9,9 +9,11 @@ using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Threading;
-using AntShell.Terminal;
+
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
+
+using AntShell.Terminal;
 
 namespace Antmicro.Renode.UI
 {
@@ -65,9 +67,11 @@ namespace Antmicro.Renode.UI
             process = null;
         }
 
-        public event Action OnClose;
+        public void Clear()
+        {
+        }
 
-        protected abstract Process CreateProcess(string consoleName, string command);
+        public event Action OnClose;
 
         protected void LogError(string source, string arguments, int exitCode)
         {
@@ -78,6 +82,8 @@ namespace Antmicro.Renode.UI
         {
             OnClose?.Invoke();
         }
+
+        protected abstract Process CreateProcess(string consoleName, string command);
 
         private bool RunProcess(Process p)
         {

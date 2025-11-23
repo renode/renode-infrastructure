@@ -6,6 +6,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Miscellaneous;
@@ -15,8 +16,11 @@ namespace Antmicro.Renode.Peripherals.Bus
     public interface IGaislerAPB : IBusPeripheral
     {
         uint GetVendorID();
+
         uint GetDeviceID();
+
         uint GetInterruptNumber();
+
         GaislerAPBPlugAndPlayRecord.SpaceType GetSpaceType();
     }
 
@@ -45,4 +49,3 @@ namespace Antmicro.Renode.Peripherals.Bus
         }
     }
 }
-

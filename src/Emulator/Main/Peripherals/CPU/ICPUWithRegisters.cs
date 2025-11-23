@@ -6,21 +6,20 @@
 //
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Time;
+
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Utilities;
-using System.Collections.Generic;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
     public interface ICPUWithRegisters : ICPU
     {
         void SetRegister(int register, RegisterValue value);
+
         RegisterValue GetRegister(int register);
+
         IEnumerable<CPURegister> GetRegisters();
     }
 
@@ -51,7 +50,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             // for dynamically added registers (e.g., V ones for RISC-V) it's possible for `Alias` to be null;
             // this needs to be investigated, but for now let's just filter such situations out
-            var reg = cpu.GetRegisters().FirstOrDefault(x => x.Aliases != null && x.Aliases.Contains(register));
+            var reg = cpu.GetRegisters().FirstOrDefault(x => x.Aliases != null && x.Aliases.Any(alias => string.Equals(alias, register, StringComparison.InvariantCultureIgnoreCase)));
             // `reg` is a struct so it'll never be `null`
             if(reg.Aliases == null)
             {
@@ -64,7 +63,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             // for dynamically added registers (e.g., V ones for RISC-V) it's possible for `Alias` to be null;
             // this needs to be investigated, but for now let's just filter such situations out
-            var reg = cpu.GetRegisters().FirstOrDefault(x => x.Aliases != null && x.Aliases.Contains(register));
+            var reg = cpu.GetRegisters().FirstOrDefault(x => x.Aliases != null && x.Aliases.Any(alias => string.Equals(alias, register, StringComparison.InvariantCultureIgnoreCase)));
             // `reg` is a struct, so it'll never be `null`
             if(reg.Aliases == null)
             {
@@ -88,4 +87,3 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
     }
 }
-

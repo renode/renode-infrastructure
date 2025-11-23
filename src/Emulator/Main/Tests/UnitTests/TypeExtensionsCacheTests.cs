@@ -1,15 +1,17 @@
 ﻿//
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using NUnit.Framework;
-using System.Reflection;
-using Antmicro.Renode.Utilities.Collections;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+
+using Antmicro.Renode.Utilities.Collections;
+
+using NUnit.Framework;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -37,10 +39,17 @@ namespace Antmicro.Renode.Utilities
         }
 
         [Test]
+        public void GetEnumerableElementTypeTest()
+        {
+            Assert.AreEqual(typeof(int), typeof(List<int>).GetEnumerableElementType());
+            Assert.AreEqual(typeof(Dictionary<object, double>), typeof(IEnumerable<Dictionary<object, double>>).GetEnumerableElementType());
+        }
+
+        [Test]
         public void AreAllPublicMethodTested()
         {
             var methodsCounts = typeof(TypeExtensions).GetMethods(BindingFlags.Public | BindingFlags.Static).Count();
-            Assert.AreEqual(methodsCounts, testCases.Count);
+            Assert.AreEqual(methodsCounts, testCases.Count + 1); // GetEnumerableElementType is tested above
         }
 
         private static readonly List<Tuple<int, Action>> testCases = new List<Tuple<int, Action>>
@@ -56,10 +65,9 @@ namespace Antmicro.Renode.Utilities
             new Tuple<int, Action>(1, () => methodInfo.IsExtension()),
         };
 
-        private static MethodInfo methodInfo = typeof(String).GetMethods().First(x => x.Name == "Equals");
-        private static PropertyInfo propertyInfo = typeof(String).GetProperties().First(x => x.Name == "Length");
-        private static FieldInfo fieldInfo = typeof(String).GetFields().First(x => x.Name == "Empty");
+        private static readonly MethodInfo methodInfo = typeof(String).GetMethods().First(x => x.Name == "Equals");
+        private static readonly PropertyInfo propertyInfo = typeof(String).GetProperties().First(x => x.Name == "Length");
+        private static readonly FieldInfo fieldInfo = typeof(String).GetFields().First(x => x.Name == "Empty");
         private static SimpleCache Cache;
     }
 }
-

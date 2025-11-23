@@ -6,13 +6,14 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Microsoft.Scripting.Hosting;
+
 using Antmicro.Migrant;
 using Antmicro.Migrant.Hooks;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Peripherals.Bus;
+
+using Microsoft.Scripting.Hosting;
 
 namespace Antmicro.Renode.Hooks
 {
@@ -27,7 +28,7 @@ namespace Antmicro.Renode.Hooks
 
             InnerInit();
 
-            if (WriteScript != null)
+            if(WriteScript != null)
             {
                 WriteHook = new Func<ulong, long, ulong>((valueToWrite, offset) =>
                     {
@@ -41,7 +42,7 @@ namespace Antmicro.Renode.Hooks
                     });
             }
 
-            if (ReadScript != null)
+            if(ReadScript != null)
             {
                 ReadHook = new Func<ulong, long, ulong>((readValue, offset) =>
                     {
@@ -55,6 +56,10 @@ namespace Antmicro.Renode.Hooks
                     });
             }
         }
+
+        public Func<ulong, long, ulong> WriteHook { get; private set; }
+
+        public Func<ulong, long, ulong> ReadHook { get; private set; }
 
         [PostDeserialization]
         private void InnerInit()
@@ -75,9 +80,6 @@ namespace Antmicro.Renode.Hooks
             }
         }
 
-        public Func<ulong, long, ulong> WriteHook { get; private set; }
-        public Func<ulong, long, ulong> ReadHook { get; private set; }
-
         [Transient]
         private CompiledCode readCode;
         [Transient]
@@ -89,4 +91,3 @@ namespace Antmicro.Renode.Hooks
         private readonly IBusController Sysbus;
     }
 }
-

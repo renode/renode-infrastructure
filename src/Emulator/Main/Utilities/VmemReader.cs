@@ -10,6 +10,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+
 using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Utilities
@@ -32,7 +33,7 @@ namespace Antmicro.Renode.Utilities
                     return l;
                 }
                 else
-                {    
+                {
                     throw new RecoverableException($"Invalid hexstring \"{data}\" at line {lineNumber}");
                 }
             });

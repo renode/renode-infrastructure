@@ -1,14 +1,16 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
 using System.IO;
+using System.IO.Compression;
+
 using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Storage
 {
@@ -20,11 +22,16 @@ namespace Antmicro.Renode.Storage
             return CreateFromFile(imageFile, size, persistent, paddingByte);
         }
 
-        public static Stream CreateFromFile(string imageFile, long? size = null, bool persistent = false, byte paddingByte = 0)
+        public static Stream CreateFromFile(string imageFile, long? size = null, bool persistent = false, byte paddingByte = 0, CompressionType compression = CompressionType.None)
         {
             if(string.IsNullOrEmpty(imageFile))
             {
                 throw new ConstructionException("No image file provided.");
+            }
+
+            if(persistent && compression != CompressionType.None)
+            {
+                throw new RecoverableException("Creating persistent storage from compresssed file is not supported.");
             }
 
             if(!persistent)
@@ -34,7 +41,7 @@ namespace Antmicro.Renode.Storage
                 imageFile = tempFileName;
             }
 
-            return new SerializableStreamView(new FileStream(imageFile, FileMode.OpenOrCreate), size, paddingByte: paddingByte);
+            return new SerializableStreamView(GetUnderlyingStream(imageFile, compression), size, paddingByte: paddingByte);
         }
 
         public static Stream Create(long size, byte paddingByte = 0)
@@ -53,5 +60,38 @@ namespace Antmicro.Renode.Storage
             var mem = new byte[size];
             return new SerializableStreamView(new MemoryStream(mem), size, paddingByte);
         }
+
+        private static Stream GetUnderlyingStream(string filepath, CompressionType compression)
+        {
+            if(compression == CompressionType.None)
+            {
+                return new FileStream(filepath, FileMode.OpenOrCreate);
+            }
+
+            var tempFilepath = TemporaryFilesManager.Instance.GetTemporaryFile();
+            using(var decompressedFile = File.OpenWrite(tempFilepath))
+            using(var compressedFile = GetDecompressedStream(filepath, compression))
+            {
+                compressedFile.CopyTo(decompressedFile);
+            }
+            return new FileStream(tempFilepath, FileMode.OpenOrCreate);
+        }
+
+        private static Stream GetDecompressedStream(string filepath, CompressionType compression)
+        {
+            switch(compression)
+            {
+            case CompressionType.GZip:
+                return new GZipStream(File.OpenRead(filepath), CompressionMode.Decompress);
+            default:
+                throw new RecoverableException($"Unrecognized compression type {compression}");
+            }
+        }
+    }
+
+    public enum CompressionType
+    {
+        None,
+        GZip,
     }
 }

@@ -12,7 +12,6 @@ using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Time;
-using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -41,7 +40,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 UpdateInterrupts();
             };
 
-            captureTimer1.LimitReached +=  () =>
+            captureTimer1.LimitReached += () =>
             {
                 interruptChannel1Pending.Value = true;
                 UpdateInterrupts();
@@ -257,16 +256,16 @@ namespace Antmicro.Renode.Peripherals.Timers
                     {
                         switch(value)
                         {
-                            case Command.Retrigger:
-                                Enabled = true;
-                                ReconfigureCounter();
-                                StartChannels();
-                                break;
-                            case Command.Stop:
-                                Enabled = false;
-                                break;
-                            default:
-                                break;
+                        case Command.Retrigger:
+                            Enabled = true;
+                            ReconfigureCounter();
+                            StartChannels();
+                            break;
+                        case Command.Stop:
+                            Enabled = false;
+                            break;
+                        default:
+                            break;
                         }
                     })
             ;
@@ -341,24 +340,24 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             switch(prescaler)
             {
-                case Prescaler.Div1:
-                    return 1;
-                case Prescaler.Div2:
-                    return 2;
-                case Prescaler.Div4:
-                    return 4;
-                case Prescaler.Div8:
-                    return 8;
-                case Prescaler.Div16:
-                    return 16;
-                case Prescaler.Div64:
-                    return 64;
-                case Prescaler.Div256:
-                    return 256;
-                case Prescaler.Div1024:
-                    return 1024;
-                default:
-                    throw new Exception("unreachable");
+            case Prescaler.Div1:
+                return 1;
+            case Prescaler.Div2:
+                return 2;
+            case Prescaler.Div4:
+                return 4;
+            case Prescaler.Div8:
+                return 8;
+            case Prescaler.Div16:
+                return 16;
+            case Prescaler.Div64:
+                return 64;
+            case Prescaler.Div256:
+                return 256;
+            case Prescaler.Div1024:
+                return 1024;
+            default:
+                throw new Exception("unreachable");
             }
         }
 
@@ -368,13 +367,13 @@ namespace Antmicro.Renode.Peripherals.Timers
             {
                 switch(counterMode.Value)
                 {
-                    case CounterMode.Count8:
-                        return 1;
-                    case CounterMode.Count32:
-                        return 4;
-                    case CounterMode.Count16:
-                    default:
-                        return 2;
+                case CounterMode.Count8:
+                    return 1;
+                case CounterMode.Count32:
+                    return 4;
+                case CounterMode.Count16:
+                default:
+                    return 2;
                 }
             }
         }
@@ -392,20 +391,16 @@ namespace Antmicro.Renode.Peripherals.Timers
 
                 switch(counterMode.Value)
                 {
-                    case CounterMode.Count8:
-                        return 0xFF;
-                    case CounterMode.Count32:
-                        return 0xFFFFFFFF;
-                    case CounterMode.Count16:
-                    default:
-                        return 0xFFFF;
+                case CounterMode.Count8:
+                    return 0xFF;
+                case CounterMode.Count32:
+                    return 0xFFFFFFFF;
+                case CounterMode.Count16:
+                default:
+                    return 0xFFFF;
                 }
             }
         }
-
-        private readonly LimitTimer mainTimer;
-        private readonly LimitTimer captureTimer0;
-        private readonly LimitTimer captureTimer1;
 
         private bool interruptOverflowEnabled;
         private bool interruptChannel0Enabled;
@@ -420,6 +415,10 @@ namespace Antmicro.Renode.Peripherals.Timers
         private IFlagRegisterField interruptOverflowPending;
         private IFlagRegisterField interruptChannel0Pending;
         private IFlagRegisterField interruptChannel1Pending;
+
+        private readonly LimitTimer mainTimer;
+        private readonly LimitTimer captureTimer0;
+        private readonly LimitTimer captureTimer1;
 
         private enum Command
         {

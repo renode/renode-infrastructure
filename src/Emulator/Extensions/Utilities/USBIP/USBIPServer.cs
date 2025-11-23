@@ -14,6 +14,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.USB;
@@ -26,9 +27,9 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
 {
     public static class USBIPServerExtensions
     {
-        public static void CreateUSBIPServer(this Emulation emulation, int port = 3240, string address = "127.0.0.1", string name = "usb")
+        public static void CreateUSBIPServer(this Emulation emulation, int port = 3240, string name = "usb")
         {
-            var server = new USBIPServer(address, port);
+            var server = new USBIPServer(port);
             server.Run();
 
             emulation.HostMachine.AddHostMachineElement(server, name);
@@ -50,7 +51,7 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
 
     public class USBIPServer : SimpleContainerBase<IUSBDevice>, IHostMachineElement, IDisposable
     {
-        public USBIPServer(string address, int port)
+        public USBIPServer(int port)
         {
             this.port = port;
 
@@ -119,179 +120,179 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
 
             switch(state)
             {
-                case State.WaitForCommand:
+            case State.WaitForCommand:
+            {
+                DebugHelper.Assert(buffer.Count <= Packet.CalculateLength<USBIP.Header>());
+                if(buffer.Count == Packet.CalculateLength<USBIP.Header>())
                 {
-                    DebugHelper.Assert(buffer.Count <= Packet.CalculateLength<USBIP.Header>());
-                    if(buffer.Count == Packet.CalculateLength<USBIP.Header>())
+                    var header = Packet.Decode<USBIP.Header>(buffer);
+                    buffer.Clear();
+                    this.Log(LogLevel.Debug, "Received USB/IP header: {0}", header.ToString());
+
+                    switch(header.Command)
                     {
-                        var header = Packet.Decode<USBIP.Header>(buffer);
-                        buffer.Clear();
-                        this.Log(LogLevel.Debug, "Received USB/IP header: {0}", header.ToString());
-
-                        switch(header.Command)
-                        {
-                            case USBIP.Command.ListDevices:
-                            {
-                                SendResponse(HandleListDevicesCommand());
-
-                                state = State.WaitForCommand;
-                                break;
-                            }
-
-                            case USBIP.Command.AttachDevice:
-                            {
-                                state = State.WaitForBusId;
-                                break;
-                            }
-
-                            default:
-                            {
-                                this.Log(LogLevel.Error, "Unexpected packet command: 0x{0:X}", header.Command);
-                                Shutdown();
-                                break;
-                            }
-                        }
-                    }
-                    break;
-                }
-
-                case State.WaitForBusId:
-                {
-                    DebugHelper.Assert(buffer.Count <= Packet.CalculateLength<USBIP.AttachDeviceCommandDescriptor>());
-                    if(buffer.Count == Packet.CalculateLength<USBIP.AttachDeviceCommandDescriptor>())
+                    case USBIP.Command.ListDevices:
                     {
-                        var busId = System.Text.Encoding.ASCII.GetString(buffer.ToArray());
-                        buffer.Clear();
+                        SendResponse(HandleListDevicesCommand());
 
-                        state = TryHandleDeviceAttachCommand(busId, out var response)
-                            ? State.WaitForURBHeader
-                            : State.WaitForCommand;
-
-                        SendResponse(response);
-                    }
-                    break;
-                }
-
-                case State.WaitForURBHeader:
-                {
-                    DebugHelper.Assert(buffer.Count <= Packet.CalculateLength<URBHeader>());
-                    if(buffer.Count == Packet.CalculateLength<URBHeader>())
-                    {
-                        urbHeader = Packet.Decode<URBHeader>(buffer);
-                        this.Log(LogLevel.Debug, "Received URB header: {0}", urbHeader.ToString());
-                        buffer.Clear();
-
-                        switch(urbHeader.Command)
-                        {
-                            case URBCommand.URBRequest:
-                                state = State.WaitForURBRequest;
-                                break;
-                            case URBCommand.Unlink:
-                                state = State.HandleUnlinkCommand;
-                                break;
-                            default:
-                                this.Log(LogLevel.Error, "Unexpected URB command: 0x{0:X}", urbHeader.Command);
-                                Shutdown();
-                                break;
-                        }
-                    }
-                    break;
-                }
-
-                case State.WaitForURBRequest:
-                {
-                    if(buffer.Count < Packet.CalculateLength<URBRequest>() + additionalDataCount)
-                    {
+                        state = State.WaitForCommand;
                         break;
                     }
 
-                    var packet = Packet.Decode<URBRequest>(buffer);
-                    if(additionalDataCount == 0)
+                    case USBIP.Command.AttachDevice:
                     {
-                        this.Log(LogLevel.Debug, "Received URB request: {0}", packet.ToString());
-
-                        if(urbHeader.Direction == URBDirection.Out && packet.TransferBufferLength > 0)
-                        {
-                            additionalDataCount = (int)packet.TransferBufferLength;
-                            this.Log(LogLevel.Debug, "Packet comes with {0} bytes of additional data. Waiting for it", additionalDataCount);
-                            break;
-                        }
-                    }
-                    else
-                    {
-                        if(urbHeader.Direction == URBDirection.Out && packet.TransferBufferLength > 0)
-                        {
-                            this.Log(LogLevel.Debug, "Collected {0} bytes of additional data - moving forward", additionalDataCount);
-                        }
+                        state = State.WaitForBusId;
+                        break;
                     }
 
-                    if(urbHeader.BusId != ExportedBusId)
+                    default:
                     {
-                        this.Log(LogLevel.Warning, "URB command directed to a non-existing bus 0x{0:X}", urbHeader.BusId);
+                        this.Log(LogLevel.Error, "Unexpected packet command: 0x{0:X}", header.Command);
+                        Shutdown();
+                        break;
                     }
-                    else if(!TryGetByAddress((int)urbHeader.DeviceId, out var device))
-                    {
-                        this.Log(LogLevel.Warning, "URB command directed to a non-existing device 0x{0:X}", urbHeader.DeviceId);
                     }
-                    else if(urbHeader.EndpointNumber == 0)
+                }
+                break;
+            }
+
+            case State.WaitForBusId:
+            {
+                DebugHelper.Assert(buffer.Count <= Packet.CalculateLength<USBIP.AttachDeviceCommandDescriptor>());
+                if(buffer.Count == Packet.CalculateLength<USBIP.AttachDeviceCommandDescriptor>())
+                {
+                    var busId = System.Text.Encoding.ASCII.GetString(buffer.ToArray());
+                    buffer.Clear();
+
+                    state = TryHandleDeviceAttachCommand(busId, out var response)
+                        ? State.WaitForURBHeader
+                        : State.WaitForCommand;
+
+                    SendResponse(response);
+                }
+                break;
+            }
+
+            case State.WaitForURBHeader:
+            {
+                DebugHelper.Assert(buffer.Count <= Packet.CalculateLength<URBHeader>());
+                if(buffer.Count == Packet.CalculateLength<URBHeader>())
+                {
+                    urbHeader = Packet.Decode<URBHeader>(buffer);
+                    this.Log(LogLevel.Debug, "Received URB header: {0}", urbHeader.ToString());
+                    buffer.Clear();
+
+                    switch(urbHeader.Command)
                     {
-                        // setup packet is passed in URB Request in a single `ulong` field
-                        var setupPacket = Packet.Decode<SetupPacket>(buffer, Packet.CalculateOffset<URBRequest>(nameof(URBRequest.Setup)));
-                        var additionalData = (additionalDataCount > 0)
+                    case URBCommand.URBRequest:
+                        state = State.WaitForURBRequest;
+                        break;
+                    case URBCommand.Unlink:
+                        state = State.HandleUnlinkCommand;
+                        break;
+                    default:
+                        this.Log(LogLevel.Error, "Unexpected URB command: 0x{0:X}", urbHeader.Command);
+                        Shutdown();
+                        break;
+                    }
+                }
+                break;
+            }
+
+            case State.WaitForURBRequest:
+            {
+                if(buffer.Count < Packet.CalculateLength<URBRequest>() + additionalDataCount)
+                {
+                    break;
+                }
+
+                var packet = Packet.Decode<URBRequest>(buffer);
+                if(additionalDataCount == 0)
+                {
+                    this.Log(LogLevel.Debug, "Received URB request: {0}", packet.ToString());
+
+                    if(urbHeader.Direction == URBDirection.Out && packet.TransferBufferLength > 0)
+                    {
+                        additionalDataCount = (int)packet.TransferBufferLength;
+                        this.Log(LogLevel.Debug, "Packet comes with {0} bytes of additional data. Waiting for it", additionalDataCount);
+                        break;
+                    }
+                }
+                else
+                {
+                    if(urbHeader.Direction == URBDirection.Out && packet.TransferBufferLength > 0)
+                    {
+                        this.Log(LogLevel.Debug, "Collected {0} bytes of additional data - moving forward", additionalDataCount);
+                    }
+                }
+
+                if(urbHeader.BusId != ExportedBusId)
+                {
+                    this.Log(LogLevel.Warning, "URB command directed to a non-existing bus 0x{0:X}", urbHeader.BusId);
+                }
+                else if(!TryGetByAddress((int)urbHeader.DeviceId, out var device))
+                {
+                    this.Log(LogLevel.Warning, "URB command directed to a non-existing device 0x{0:X}", urbHeader.DeviceId);
+                }
+                else if(urbHeader.EndpointNumber == 0)
+                {
+                    // setup packet is passed in URB Request in a single `ulong` field
+                    var setupPacket = Packet.Decode<SetupPacket>(buffer, Packet.CalculateOffset<URBRequest>(nameof(URBRequest.Setup)));
+                    var additionalData = (additionalDataCount > 0)
                             ? buffer.Skip(buffer.Count - additionalDataCount).Take(additionalDataCount).ToArray()
                             : null;
-                        var replyHeader = urbHeader;
-                        device.USBCore.HandleSetupPacket(setupPacket, additionalData: additionalData, resultCallback: response =>
-                        {
-                            SendResponse(GenerateURBReply(replyHeader, packet, response));
-                        });
-                    }
-                    else
+                    var replyHeader = urbHeader;
+                    device.USBCore.HandleSetupPacket(setupPacket, additionalData: additionalData, resultCallback: response =>
                     {
-                        var ep = device.USBCore.GetEndpoint((int)urbHeader.EndpointNumber, urbHeader.Direction == URBDirection.Out ? Direction.HostToDevice : Direction.DeviceToHost);
-                        if(ep == null)
-                        {
-                            this.Log(LogLevel.Warning, "URB command directed to a non-existing endpoint 0x{0:X}", urbHeader.EndpointNumber);
-                        }
-                        else if(ep.Direction == Direction.DeviceToHost)
-                        {
-                            this.Log(LogLevel.Noisy, "Reading from endpoint #{0}", ep.Identifier);
-                            var response = ep.Read(packet.TransferBufferLength, cancellationToken.Token);
+                        SendResponse(GenerateURBReply(replyHeader, packet, response));
+                    });
+                }
+                else
+                {
+                    var ep = device.USBCore.GetEndpoint((int)urbHeader.EndpointNumber, urbHeader.Direction == URBDirection.Out ? Direction.HostToDevice : Direction.DeviceToHost);
+                    if(ep == null)
+                    {
+                        this.Log(LogLevel.Warning, "URB command directed to a non-existing endpoint 0x{0:X}", urbHeader.EndpointNumber);
+                    }
+                    else if(ep.Direction == Direction.DeviceToHost)
+                    {
+                        this.Log(LogLevel.Noisy, "Reading from endpoint #{0}", ep.Identifier);
+                        var response = ep.Read(packet.TransferBufferLength, cancellationToken.Token);
 #if DEBUG_PACKETS
                             this.Log(LogLevel.Noisy, "Count {0}: {1}", response.Length, Misc.PrettyPrintCollectionHex(response));
 #endif
-                            SendResponse(GenerateURBReply(urbHeader, packet, response));
-                        }
-                        else
-                        {
-                            var additionalData = buffer.Skip(buffer.Count - additionalDataCount).Take(additionalDataCount).ToArray();
-
-                            ep.WriteData(additionalData);
-                            SendResponse(GenerateURBReply(urbHeader, packet));
-                        }
+                        SendResponse(GenerateURBReply(urbHeader, packet, response));
                     }
-
-                    additionalDataCount = 0;
-                    state = State.WaitForURBHeader;
-                    buffer.Clear();
-
-                    break;
-                }
-
-                case State.HandleUnlinkCommand:
-                {
-                    DebugHelper.Assert(buffer.Count <= Packet.CalculateLength<URBRequest>());
-                    if(buffer.Count == Packet.CalculateLength<URBRequest>())
+                    else
                     {
-                        // this command is practically ignored
-                        buffer.Clear();
-                        state = State.WaitForURBHeader;
+                        var additionalData = buffer.Skip(buffer.Count - additionalDataCount).Take(additionalDataCount).ToArray();
+
+                        ep.WriteData(additionalData);
+                        SendResponse(GenerateURBReply(urbHeader, packet));
                     }
-                    break;
                 }
 
-                default:
-                    throw new ArgumentException(string.Format("Unexpected state: {0}", state));
+                additionalDataCount = 0;
+                state = State.WaitForURBHeader;
+                buffer.Clear();
+
+                break;
+            }
+
+            case State.HandleUnlinkCommand:
+            {
+                DebugHelper.Assert(buffer.Count <= Packet.CalculateLength<URBRequest>());
+                if(buffer.Count == Packet.CalculateLength<URBRequest>())
+                {
+                    // this command is practically ignored
+                    buffer.Clear();
+                    state = State.WaitForURBHeader;
+                }
+                break;
+            }
+
+            default:
+                throw new ArgumentException(string.Format("Unexpected state: {0}", state));
             }
         }
 

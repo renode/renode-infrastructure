@@ -1,11 +1,11 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
 
@@ -34,11 +34,11 @@ namespace Antmicro.Renode.Core.USB.CDC
         {
             switch(packet.Type)
             {
-                case PacketType.Class:
-                    return HandleClassRequest((CdcClassRequest)packet.Request);
-                default:
-                    device.Log(LogLevel.Warning, "Unsupported type: 0x{0:x}", packet.Type);
-                    return BitStream.Empty;
+            case PacketType.Class:
+                return HandleClassRequest((CdcClassRequest)packet.Request);
+            default:
+                device.Log(LogLevel.Warning, "Unsupported type: 0x{0:x}", packet.Type);
+                return BitStream.Empty;
             }
         }
 

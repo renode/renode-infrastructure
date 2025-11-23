@@ -1,21 +1,24 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Collections;
+
+using Antmicro.Migrant;
+using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.CPU;
-using Antmicro.Migrant;
-using Antmicro.Migrant.Hooks;
+using Antmicro.Renode.Time;
+using Antmicro.Renode.Utilities.GDB.Commands;
 
 namespace Antmicro.Renode.Utilities.GDB
 {
@@ -71,7 +74,7 @@ namespace Antmicro.Renode.Utilities.GDB
 
         public void Register(Type t)
         {
-            if(t == typeof(Command) || !typeof(Command).IsAssignableFrom(t))
+            if(!typeof(Command).IsAssignableFrom(t) || t.IsAbstract)
             {
                 return;
             }
@@ -92,7 +95,7 @@ namespace Antmicro.Renode.Utilities.GDB
             if(!commandsCache.TryGetValue(mnemonic, out command))
             {
                 var commandDescriptor = availableCommands.FirstOrDefault(x => mnemonic == x.Mnemonic);
-                command = commandDescriptor == null ? null: GetOrCreateCommand(commandDescriptor.Method.DeclaringType);
+                command = commandDescriptor == null ? null : GetOrCreateCommand(commandDescriptor.Method.DeclaringType);
                 commandsCache[mnemonic] = command;
             }
             return command != null;
@@ -155,10 +158,58 @@ namespace Antmicro.Renode.Utilities.GDB
             return registers;
         }
 
+        public void AddBreakpoint(ulong address, BreakpointType type)
+        {
+            GetOrCreateCommand<BreakpointCommand>().InsertBreakpoint(type, address);
+        }
+
+        public void AddWatchpoint(WatchpointDescriptor descriptor, int counter = 1)
+        {
+            GetOrCreateCommand<BreakpointCommand>().InsertBreakpoint(BreakpointType.AccessWatchpoint, descriptor.Address, descriptor, counter);
+        }
+
+        public void RemoveAllBreakpoints()
+        {
+            var breakpointCommand = GetOrCreateCommand<BreakpointCommand>();
+            breakpointCommand.RemoveAllBreakpoints();
+            breakpointCommand.RemoveAllWatchpoints();
+        }
+
+        public void LoadLatestSnapshot(Action<CommandsManager> onLoadAction = null)
+        {
+            var currentTimeStamp = EmulationManager.Instance.CurrentEmulation.MasterTimeSource.ElapsedVirtualTime;
+            LoadLatestSnapshot(currentTimeStamp - TimeInterval.FromTicks(1), onLoadAction);
+        }
+
+        public void LoadLatestSnapshot(TimeInterval beforeOrAtTimeStamp, Action<CommandsManager> onLoadAction = null)
+        {
+            if(Machine.GdbStubs.Count > 1)
+            {
+                throw new RecoverableException("More than one GDB connection opened. This is currently not supported.");
+            }
+            var port = Machine.GdbStubs.Values.First().Terminal.Port.Value;
+            var machineName = Machine.ToString();
+
+            EmulationManager.Instance.LoadLatestSnapshot(beforeOrAtTimeStamp);
+            if(!EmulationManager.Instance.CurrentEmulation.TryGetMachineByName(machineName, out var newMachine))
+            {
+                throw new RecoverableException("Machine was not found in the snapshot.");
+            }
+            var newCommandsManager = newMachine.GdbStubs[port].CommandsManager;
+            onLoadAction?.Invoke(newCommandsManager);
+        }
+
         public IMachine Machine { get; }
+
         public ManagedCpusDictionary ManagedCpus { get; }
+
         public bool CanAttachCPU { get; set; }
+
         public ICpuSupportingGdb Cpu => selectedCpu;
+
+        public ISet<Tuple<ulong, BreakpointType>> Breakpoints => GetOrCreateCommand<BreakpointCommand>().Breakpoints;
+
+        public IDictionary<WatchpointDescriptor, int> Watchpoints => GetOrCreateCommand<BreakpointCommand>().Watchpoints;
 
         private static GDBFeatureDescriptor UnifyFeature(List<GDBFeatureDescriptor> featureVariations)
         {
@@ -243,6 +294,11 @@ namespace Antmicro.Renode.Utilities.GDB
             return true;
         }
 
+        private T GetOrCreateCommand<T>() where T : Command
+        {
+            return GetOrCreateCommand(typeof(T)) as T;
+        }
+
         private Command GetOrCreateCommand(Type t)
         {
             var result = activeCommands.SingleOrDefault(x => x.GetType() == t);
@@ -281,6 +337,8 @@ namespace Antmicro.Renode.Utilities.GDB
             }
         }
 
+        private ICpuSupportingGdb selectedCpu;
+
         [Constructor]
         private readonly HashSet<CommandDescriptor> availableCommands;
         private readonly HashSet<string> typesWithCommands;
@@ -289,7 +347,6 @@ namespace Antmicro.Renode.Utilities.GDB
         private readonly Dictionary<int, GDBRegisterDescriptor[]> unifiedRegisters = new Dictionary<int, GDBRegisterDescriptor[]>();
 
         private readonly Dictionary<string,Command> commandsCache;
-        private ICpuSupportingGdb selectedCpu;
         [Constructor]
         private readonly List<string> mnemonicList;
 
@@ -324,17 +381,18 @@ namespace Antmicro.Renode.Utilities.GDB
                     // 0 means an arbitrary process or thread - so take the first one available
                     switch(idx)
                     {
-                        case PacketThreadId.All:
-                            throw new NotSupportedException("Selecting \"all\" CPUs is not supported");
-                        case PacketThreadId.Any:
-                            return idsToCpus.OrderBy(kv => kv.Key).First().Value;
-                        default:
-                            return idsToCpus[(uint)idx];
+                    case PacketThreadId.All:
+                        throw new NotSupportedException("Selecting \"all\" CPUs is not supported");
+                    case PacketThreadId.Any:
+                        return idsToCpus.OrderBy(kv => kv.Key).First().Value;
+                    default:
+                        return idsToCpus[(uint)idx];
                     }
                 }
             }
 
             public ICpuSupportingGdb this[uint idx] => this[(int)idx];
+
             public uint this[ICpuSupportingGdb cpu] => cpusToIds[cpu];
 
             public IEnumerable<uint> GdbCpuIds => idsToCpus.Keys;
@@ -352,8 +410,8 @@ namespace Antmicro.Renode.Utilities.GDB
             }
 
             public string Mnemonic { get; private set; }
+
             public MethodInfo Method { get; private set; }
         }
     }
 }
-

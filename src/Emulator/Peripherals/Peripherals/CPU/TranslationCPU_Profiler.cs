@@ -7,14 +7,10 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using Antmicro.Renode.Debugging;
+
 using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Utilities.Binding;
 using Antmicro.Renode.Peripherals.CPU.GuestProfiling;
+using Antmicro.Renode.Utilities.Binding;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -40,28 +36,28 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             switch(type)
             {
-                case ProfilerType.Perfetto:
-                    profiler = new PerfettoProfiler(this, filename, flushInstantly, enableMultipleTracks, fileSizeLimit, maximumNestedContexts);
-                    break;
-                case ProfilerType.CollapsedStack:
-                    if(enableFrameTracking)
+            case ProfilerType.Perfetto:
+                profiler = new PerfettoProfiler(this, filename, flushInstantly, enableMultipleTracks, fileSizeLimit, maximumNestedContexts);
+                break;
+            case ProfilerType.CollapsedStack:
+                if(enableFrameTracking)
+                {
+                    if(SupportsFrameTracking(type))
                     {
-                        if(SupportsFrameTracking(type))
-                        {
-                            profiler = new FrameTrackingCollapsedStackProfiler(this, filename, flushInstantly, fileSizeLimit, maximumNestedContexts);
-                        }
-                        else
-                        {
-                            throw new RecoverableException("Frame tracking method is not supported for this set of options.");
-                        }
+                        profiler = new FrameTrackingCollapsedStackProfiler(this, filename, flushInstantly, fileSizeLimit, maximumNestedContexts);
                     }
                     else
                     {
-                        profiler = new ControlTrackingCollapsedStackProfiler(this, filename, flushInstantly, fileSizeLimit, maximumNestedContexts);
+                        throw new RecoverableException("Frame tracking method is not supported for this set of options.");
                     }
-                    break;
-                default:
-                    throw new RecoverableException($"{type} is not a valid profiler output type");
+                }
+                else
+                {
+                    profiler = new ControlTrackingCollapsedStackProfiler(this, filename, flushInstantly, fileSizeLimit, maximumNestedContexts);
+                }
+                break;
+            default:
+                throw new RecoverableException($"{type} is not a valid profiler output type");
             }
 
             FrameProfilerIgnoredSymbols = new HashSet<string>();
@@ -115,13 +111,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             return profiler.GetCurrentStack();
         }
 
-        public enum ProfilerType
-        {
-            CollapsedStack,
-            Perfetto
-        }
-
         public BaseProfiler Profiler => profiler;
+
+        public HashSet<string> FrameProfilerIgnoredSymbols;
 
         protected virtual void InitFrameProfilerIgnoredSymbols()
         {
@@ -188,13 +180,17 @@ namespace Antmicro.Renode.Peripherals.CPU
             return outputFormat == ProfilerType.CollapsedStack && (isArm || isSparc || isRiscV);
         }
 
-        public HashSet<string> FrameProfilerIgnoredSymbols;
-
         private BaseProfiler profiler;
 
 #pragma warning disable 649
         [Import]
-        private Action<int> TlibEnableGuestProfiler;
+        private readonly Action<int> TlibEnableGuestProfiler;
 #pragma warning restore 649
+
+        public enum ProfilerType
+        {
+            CollapsedStack,
+            Perfetto
+        }
     }
 }

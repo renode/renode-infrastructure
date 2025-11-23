@@ -1,28 +1,26 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.Collections.Generic;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Exceptions;
+
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.CPU;
-using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
-    public class ExternalMmuBase: IPeripheral
+    public class ExternalMmuBase : IPeripheral
     {
-        public ExternalMmuBase(ICPUWithExternalMmu cpu, uint windowsCount)
+        public ExternalMmuBase(ICPUWithExternalMmu cpu, uint windowsCount, ExternalMmuPosition position = ExternalMmuPosition.Replace)
         {
             this.cpu = cpu;
             this.windowsCount = windowsCount;
-            windowMapping = new Dictionary<uint, uint>();
+            windowMapping = new Dictionary<uint, ulong>();
 
-            cpu.EnableExternalWindowMmu(true);
+            cpu.EnableExternalWindowMmu(position);
             for(uint index = 0; index < windowsCount; index++)
             {
                 AddWindow(index);
@@ -80,11 +78,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
         }
 
-        public void SetWindowPrivileges(uint index, uint privileges)
+        public void SetWindowPrivileges(uint index, Privilege privileges)
         {
             if(TryGetRealWindowIndex(index, out var realIndex))
             {
-                cpu.SetMmuWindowPrivileges(realIndex, (uint)privileges);
+                cpu.SetMmuWindowPrivileges(realIndex, privileges);
             }
         }
 
@@ -106,39 +104,35 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             return 0;
         }
 
-        public bool ContainsWindowWithIndex(uint index)
+        public bool ContainsWindowWithId(ulong id)
         {
-            return windowMapping.ContainsValue(index);
+            return windowMapping.ContainsValue(id);
         }
 
-        protected void AddWindow(uint index, ulong? rangeStart = null, ulong? rangeEnd = null, ulong? addend = null, Privilege? privilege = null, Privilege? type = Privilege.All)
+        protected void AddWindow(uint index, ulong? rangeStart = null, ulong? rangeEnd = null, ulong? addend = null, Privilege? privilege = null, Privilege type = Privilege.All)
         {
-            var realIndex = cpu.AcquireExternalMmuWindow((uint)type.Value);
-            if(realIndex == -1)
-            {
-                throw new ConstructionException("Failed to acquire the MMU window. Possibly ran out of windows");
-            }
-            windowMapping.Add(index, (uint)realIndex);
+            var realIndex = cpu.AcquireExternalMmuWindow(type);
+            windowMapping.Add(index, realIndex);
 
             if(rangeStart.HasValue)
             {
-                cpu.SetMmuWindowStart((uint)realIndex, rangeStart.Value);
+                cpu.SetMmuWindowStart(realIndex, rangeStart.Value);
             }
             if(rangeEnd.HasValue)
             {
-                cpu.SetMmuWindowEnd((uint)realIndex, rangeEnd.Value);
+                cpu.SetMmuWindowEnd(realIndex, rangeEnd.Value);
             }
             if(addend.HasValue)
             {
-                cpu.SetMmuWindowAddend((uint)realIndex, addend.Value);
+                cpu.SetMmuWindowAddend(realIndex, addend.Value);
             }
             if(privilege.HasValue)
             {
-                cpu.SetMmuWindowPrivileges((uint)realIndex, (uint)privilege.Value);
+                cpu.SetMmuWindowPrivileges(realIndex, privilege.Value);
             }
         }
 
-        private bool TryGetRealWindowIndex(uint index, out uint realIndex)
+        private bool TryGetRealWindowIndex(uint index, out ulong realIndex)
         {
             realIndex = 0;
             if(index >= windowsCount)
@@ -151,17 +145,19 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         // There might be more than one ExternalMmu for a single CPU, hence the MMU window index is not the CPU MMU window index
-        private readonly Dictionary<uint, uint> windowMapping;
+        private readonly Dictionary<uint, ulong> windowMapping;
         private readonly ICPUWithExternalMmu cpu;
         private readonly uint windowsCount;
 
+        [Flags]
         public enum Privilege : uint
         {
+            None = 0b000,
             Read = 0b001,
             Write = 0b010,
-            ReadAndWrite = 0b011,
+            ReadAndWrite = Read | Write,
             Execute = 0b100,
-            All = 0b111,
+            All = ReadAndWrite | Execute,
         }
     }
 }

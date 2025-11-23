@@ -6,14 +6,24 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.UserInterface.Tokenizer;
+
 using AntShell.Commands;
 
 namespace Antmicro.Renode.UserInterface.Commands
 {
     public class StartCommand : Command
     {
+        public StartCommand(Monitor monitor, IncludeFileCommand includeCommand) : base(monitor, "start", "starts the emulation.", "s")
+        {
+            if(includeCommand == null)
+            {
+                throw new ArgumentException("includeCommand cannot be null.", "includeCommand");
+            }
+            IncludeCommand = includeCommand;
+        }
 
         public override void PrintHelp(ICommandInteraction writer)
         {
@@ -41,15 +51,5 @@ namespace Antmicro.Renode.UserInterface.Commands
         }
 
         private readonly IncludeFileCommand IncludeCommand;
-
-        public StartCommand(Monitor monitor, IncludeFileCommand includeCommand) :  base(monitor, "start", "starts the emulation.", "s")
-        {
-            if(includeCommand == null)
-            {
-                throw new ArgumentException("includeCommand cannot be null.", "includeCommand");
-            }
-            IncludeCommand = includeCommand;
-        }
     }
 }
-

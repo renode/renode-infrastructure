@@ -6,9 +6,9 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
-using System.Diagnostics;
 
 namespace Antmicro.Renode.Backends.Display.XInput
 {
@@ -121,64 +121,64 @@ namespace Antmicro.Renode.Backends.Display.XInput
         public static Action X11Error;
 
         [DllImport("libX11", EntryPoint = "XChangeActivePointerGrab")]
-        internal extern static int XChangeActivePointerGrab(IntPtr display, uint eventMask, IntPtr cursor, /*Time*/int time);
+        internal static extern int XChangeActivePointerGrab(IntPtr display, uint eventMask, IntPtr cursor, /*Time*/int time);
 
         [DllImport("libX11", EntryPoint = "XGrabPointer")]
-        internal extern static int XGrabPointer(IntPtr display, int grabWindow, bool ownerEvents, uint eventMask, int pointerMode, int keyboardMode, int confineTo, IntPtr cursor, /*Time*/int time);
+        internal static extern int XGrabPointer(IntPtr display, int grabWindow, bool ownerEvents, uint eventMask, int pointerMode, int keyboardMode, int confineTo, IntPtr cursor, /*Time*/int time);
 
         [DllImport("libX11", EntryPoint = "XUngrabPointer")]
-        internal extern static int XUngrabPointer(IntPtr display, int time);
+        internal static extern int XUngrabPointer(IntPtr display, int time);
 
         [DllImport("libX11", EntryPoint = "XGrabKeyboard")]
-        internal extern static int XGrabKeyboard(IntPtr display, int grabWindow, bool ownerEvents, int pointerMode, int keyboardMode, int time);
+        internal static extern int XGrabKeyboard(IntPtr display, int grabWindow, bool ownerEvents, int pointerMode, int keyboardMode, int time);
 
         [DllImport("libX11", EntryPoint = "XUngrabKeyboard")]
-        internal extern static int XUngrabKeyboard(IntPtr display, int time);
+        internal static extern int XUngrabKeyboard(IntPtr display, int time);
 
         [DllImport("libX11", EntryPoint = "XCreatePixmapFromBitmapData")]
-        internal extern static IntPtr XCreatePixmapFromBitmapData(IntPtr display, int drawable, byte[] data, int width, int height, IntPtr fg, IntPtr bg, int depth);
+        internal static extern IntPtr XCreatePixmapFromBitmapData(IntPtr display, int drawable, byte[] data, int width, int height, IntPtr fg, IntPtr bg, int depth);
 
         [DllImport("libX11", EntryPoint = "XFreePixmap")]
-        internal extern static IntPtr XFreePixmap(IntPtr display, IntPtr pixmap);
+        internal static extern IntPtr XFreePixmap(IntPtr display, IntPtr pixmap);
 
         [DllImport("libX11", EntryPoint = "XCreatePixmapCursor")]
-        internal extern static IntPtr XCreatePixmapCursor(IntPtr display, IntPtr source, IntPtr mask, ref IntPtr foreground_color, ref IntPtr background_color, int x_hot, int y_hot);
+        internal static extern IntPtr XCreatePixmapCursor(IntPtr display, IntPtr source, IntPtr mask, ref IntPtr foreground_color, ref IntPtr background_color, int x_hot, int y_hot);
 
         [DllImport("libX11", EntryPoint = "XWhitePixel")]
-        internal extern static IntPtr XWhitePixel(IntPtr display, int screen_no);
+        internal static extern IntPtr XWhitePixel(IntPtr display, int screen_no);
 
         [DllImport("libX11", EntryPoint = "XBlackPixel")]
-        internal extern static IntPtr XBlackPixel(IntPtr display, int screen_no);
+        internal static extern IntPtr XBlackPixel(IntPtr display, int screen_no);
 
         [DllImport("libX11", EntryPoint = "XRootWindow")]
-        internal extern static int XRootWindow(IntPtr display, int screen_number);
+        internal static extern int XRootWindow(IntPtr display, int screen_number);
 
         [DllImport("libX11", EntryPoint = "XDefaultScreen")]
-        internal extern static int XDefaultScreen(IntPtr display);
+        internal static extern int XDefaultScreen(IntPtr display);
 
         [DllImport("libX11", EntryPoint = "XOpenDisplay")]
-        internal extern static IntPtr XOpenDisplay(IntPtr display);
+        internal static extern IntPtr XOpenDisplay(IntPtr display);
 
         [DllImport("libX11", EntryPoint = "XCloseDisplay")]
-        internal extern static int XCloseDisplay(IntPtr display);
+        internal static extern int XCloseDisplay(IntPtr display);
 
         [DllImport("libX11", EntryPoint = "XWarpPointer")]
-        internal extern static void XWarpPointer(IntPtr display, int srcWindowId, int dstWindowId, int srcX, int srcY, int srcWidth, int srcHeight, int dstX, int dstY);
+        internal static extern void XWarpPointer(IntPtr display, int srcWindowId, int dstWindowId, int srcX, int srcY, int srcWidth, int srcHeight, int dstX, int dstY);
 
         [DllImport("libX11", EntryPoint = "XQueryPointer")]
-        internal extern static void XQueryPointer(IntPtr display, int window, ref IntPtr root, ref IntPtr child, ref int rootX, ref int rootY, ref int winX, ref int winY, ref uint mask);
+        internal static extern void XQueryPointer(IntPtr display, int window, ref IntPtr root, ref IntPtr child, ref int rootX, ref int rootY, ref int winX, ref int winY, ref uint mask);
 
         [DllImport("libX11", EntryPoint = "XNextEvent")]
-        internal extern static void XNextEvent(IntPtr display, IntPtr e);
+        internal static extern void XNextEvent(IntPtr display, IntPtr e);
 
         [DllImport("libX11", EntryPoint = "XLockDisplay")]
-        internal extern static void XLockDisplay(IntPtr display);
+        internal static extern void XLockDisplay(IntPtr display);
 
         [DllImport("libX11", EntryPoint = "XUnlockDisplay")]
-        internal extern static void XUnlockDisplay(IntPtr display);
+        internal static extern void XUnlockDisplay(IntPtr display);
 
         [DllImport("libX11", EntryPoint = "XSetErrorHandler")]
-        internal extern static int XSetErrorHandler(IntPtr handler);
+        internal static extern int XSetErrorHandler(IntPtr handler);
 
         [Conditional("DEBUG")]
         private static void DebugPrint(string str, params object[] p)
@@ -284,8 +284,8 @@ namespace Antmicro.Renode.Backends.Display.XInput
 
         private static Thread EventListenerThread = new Thread(EventListenerLoop);
         private static IntPtr DisplayHandle = XOpenDisplay(IntPtr.Zero);
-        private static Func<IntPtr, IntPtr, int> errorHandler;
-        private static object locker = new object();
+        private static readonly Func<IntPtr, IntPtr, int> errorHandler;
+        private static readonly object locker = new object();
 
         // inspired by OpenTK solution
         private class XLibLocker : IDisposable
@@ -360,4 +360,3 @@ namespace Antmicro.Renode.Backends.Display.XInput
         }
     }
 }
-

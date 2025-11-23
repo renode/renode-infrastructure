@@ -5,14 +5,12 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System;
-
 namespace Antmicro.Renode.Peripherals.CPU
 {
     public interface IControllableCPU : ICPU
     {
         ExecutionResult ExecuteInstructions(ulong toExecute, out ulong executed);
+
         void RequestReturn();
     }
 }
-

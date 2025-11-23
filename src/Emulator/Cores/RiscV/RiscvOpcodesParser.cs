@@ -1,15 +1,15 @@
 ﻿//
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Text;
-using System.Linq;
-using System.IO;
-using System.Collections.Generic;
 
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Utilities;
@@ -32,10 +32,10 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             foreach(var set in cpu.ArchitectureSets)
             {
-                cpu.EnableRiscvOpcodesCounting(set);
+                cpu.EnableRiscvOpcodesCountingByExtension(set);
             }
         }
-        
+
         public static void EnableRiscvOpcodesCountingFromEmbeddedResource(this BaseRiscV cpu, string name)
         {
             var assembly = Assembly.GetExecutingAssembly();
@@ -46,14 +46,14 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             cpu.EnableRiscvOpcodesCounting(file);
         }
-        
-        public static IEnumerable<string> GetRiscvOpcodesEmbeddedResourceNames(this BaseRiscV cpu)
+
+        public static IEnumerable<string> GetRiscvOpcodesEmbeddedResourceNames(this BaseRiscV _)
         {
             var assembly = Assembly.GetExecutingAssembly();
             return assembly.GetManifestResourceNames().Where(x => x.StartsWith(ResourceNamePrefix)).Select(x => x.Substring(ResourceNamePrefix.Length + 1));
         }
-        
-        public static void EnableRiscvOpcodesCounting(this BaseRiscV cpu, BaseRiscV.InstructionSet instructionSet)
+
+        public static void EnableRiscvOpcodesCountingByExtension(this BaseRiscV cpu, BaseRiscV.InstructionSet instructionSet)
         {
             Dictionary<BaseRiscV.InstructionSet, IEnumerable<string>> map = null;
             if(cpu.Architecture == "riscv")
@@ -68,12 +68,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 throw new RecoverableException($"Unsupported CPU type: {cpu.GetType()}");
             }
-            
+
             if(!map.TryGetValue(instructionSet, out var resourceNames))
             {
                 throw new RecoverableException($"Opcodes counting for the {instructionSet} extension not supported");
             }
-            
+
             foreach(var resourceName in resourceNames)
             {
                 var assembly = Assembly.GetExecutingAssembly();
@@ -85,7 +85,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 cpu.EnableRiscvOpcodesCounting(file);
             }
         }
-        
+
         private const string ResourceNamePrefix = "Antmicro.Renode.Cores.RiscV.Opcodes";
 
         private static readonly Dictionary<BaseRiscV.InstructionSet, IEnumerable<string>> opcodesFilesMap32 = new Dictionary<BaseRiscV.InstructionSet, IEnumerable<string>>
@@ -94,19 +94,21 @@ namespace Antmicro.Renode.Peripherals.CPU
             { BaseRiscV.InstructionSet.M, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rv32m" } },
             { BaseRiscV.InstructionSet.A, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rv32a" } },
             { BaseRiscV.InstructionSet.F, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rv32f" } },
+            { BaseRiscV.InstructionSet.B, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rv32b" } },
             { BaseRiscV.InstructionSet.D, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rv32d", "Antmicro.Renode.Cores.RiscV.Opcodes.Rv32d-zfh" } },
             { BaseRiscV.InstructionSet.C, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rvc", "Antmicro.Renode.Cores.RiscV.Opcodes.Rv32c" } },
             { BaseRiscV.InstructionSet.V, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rvv", "Antmicro.Renode.Cores.RiscV.Opcodes.Rvv-pseudo" } },
             { BaseRiscV.InstructionSet.S, Array.Empty<string>() },
             { BaseRiscV.InstructionSet.U, Array.Empty<string>() },
         };
-        
+
         private static readonly Dictionary<BaseRiscV.InstructionSet, IEnumerable<string>> opcodesFilesMap64 = new Dictionary<BaseRiscV.InstructionSet, IEnumerable<string>>
         {
             { BaseRiscV.InstructionSet.I, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.System", "Antmicro.Renode.Cores.RiscV.Opcodes.Rv32i", "Antmicro.Renode.Cores.RiscV.Opcodes.Rv64i" } },
             { BaseRiscV.InstructionSet.M, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rv32m", "Antmicro.Renode.Cores.RiscV.Opcodes.Rv64m" } },
             { BaseRiscV.InstructionSet.A, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rv32a", "Antmicro.Renode.Cores.RiscV.Opcodes.Rv64a" } },
             { BaseRiscV.InstructionSet.F, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rv32f", "Antmicro.Renode.Cores.RiscV.Opcodes.Rv64f" } },
+            { BaseRiscV.InstructionSet.B, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rv32b", "Antmicro.Renode.Cores.RiscV.Opcodes.Rv64b" } },
             { BaseRiscV.InstructionSet.D, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rv32d", "Antmicro.Renode.Cores.RiscV.Opcodes.Rv64d" } },
             { BaseRiscV.InstructionSet.C, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rvc", "Antmicro.Renode.Cores.RiscV.Opcodes.Rv64c" } },
             { BaseRiscV.InstructionSet.V, new [] { "Antmicro.Renode.Cores.RiscV.Opcodes.Rvv", "Antmicro.Renode.Cores.RiscV.Opcodes.Rvv-pseudo" } },
@@ -114,13 +116,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             { BaseRiscV.InstructionSet.U, Array.Empty<string>() },
         };
     }
-    
+
     public static class RiscVOpcodesParser
     {
         public static IEnumerable<Tuple<string, string>> Parse(string file)
         {
             var result = new List<Tuple<string, string>>();
-            
+
             try
             {
                 foreach(var line in File.ReadLines(file).Select(x => RemoveComments(x)))
@@ -129,7 +131,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     {
                         continue;
                     }
-                    
+
                     result.Add(ParseLine(line));
                 }
             }
@@ -137,7 +139,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 throw new RecoverableException($"There was na error when parsing RISC-V opcodes from {file}:\n{e.Message}");
             }
-            
+
             return result;
         }
 
@@ -154,7 +156,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private static Tuple<string, string> ParseLine(string lineContent, int opcodeLength = 32)
         {
             var pattern = new StringBuilder(new String('_', opcodeLength));
-            
+
             var elems = lineContent.Split(LineSplitPatterns, StringSplitOptions.RemoveEmptyEntries);
             if(elems.Length < 2)
             {
@@ -189,7 +191,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             return Tuple.Create(instructionName, pattern.ToString());
         }
-        
+
         private static readonly char[] PartSplitPatterns = new [] { '=' };
         private static readonly char[] LineSplitPatterns = new [] { ' ', '\t' };
         private static readonly string[] BitRangeSplitPatterns = new [] { ".." };
@@ -203,13 +205,13 @@ namespace Antmicro.Renode.Peripherals.CPU
                     bv = new BitsValue(-1, ignored: true);
                     return true;
                 }
-                
+
                 if(SmartParser.Instance.TryParse(s, typeof(int), out var result))
                 {
                     bv = new BitsValue((int)result);
                     return true;
                 }
-                
+
                 bv = new BitsValue(-1);
                 return false;
             }
@@ -221,7 +223,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     result = new String('x', length);
                     return true;
                 }
-                
+
                 result = Convert.ToString(Value, 2);
                 if(result.Length > length)
                 {
@@ -239,6 +241,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
 
             public int Value { get; }
+
             public bool Ignored { get; }
 
             public override string ToString()
@@ -291,7 +294,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                 var pIdx = pattern.Length - 1;
                 var sIdx = s.Length - Lower - 1;
-                
+
                 for(var i = Lower; i <= Higher; i++, pIdx--, sIdx--)
                 {
                     if(s[sIdx] == '1' || s[sIdx] == '0')
@@ -301,10 +304,10 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                     s[sIdx] = pattern[pIdx];
                 }
-                
+
                 return true;
             }
-            
+
             public override string ToString()
             {
                 return $"[BitsRange: {Lower} - {Higher}]";
@@ -317,6 +320,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
 
             public int Lower { get; }
+
             public int Higher { get; }
 
             public int Width => Higher - Lower + 1;

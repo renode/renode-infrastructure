@@ -10,8 +10,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public interface ICPUWithPostOpcodeExecutionHooks : ICPU
     {
-        void AddPostOpcodeExecutionHook(UInt64 mask, UInt64 value, Action<ulong> hook);
+        void AddPostOpcodeExecutionHook(UInt64 mask, UInt64 value, Action<ulong, ulong> hook);
+
         void EnablePostOpcodeExecutionHooks(UInt32 value);
     }
 }
-

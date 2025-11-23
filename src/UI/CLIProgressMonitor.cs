@@ -6,14 +6,18 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Utilities;
+
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.UI
 {
     public class CLIProgressMonitor : IProgressMonitorHandler
     {
-        #region IProgressMonitorHandler implementation
+        public CLIProgressMonitor()
+        {
+            updateTime = TimeSpan.FromSeconds(3);
+        }
 
         public void Finish(int id)
         {
@@ -29,15 +33,8 @@ namespace Antmicro.Renode.UI
             }
         }
 
-        #endregion
-
-        public CLIProgressMonitor()
-        {
-            updateTime = TimeSpan.FromSeconds(3);
-        }
-
-        private TimeSpan updateTime;
         private DateTime lastUpdate;
+
+        private readonly TimeSpan updateTime;
     }
 }
-

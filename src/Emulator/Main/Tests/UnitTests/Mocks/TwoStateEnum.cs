@@ -5,13 +5,8 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using Antmicro.Migrant;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals.CPU;
-
 namespace Antmicro.Renode.UnitTests.Mocks
 {
-
     public enum TwoStateEnum
     {
         One,

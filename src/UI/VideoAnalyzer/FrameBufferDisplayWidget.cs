@@ -6,17 +6,20 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Migrant;
-using Xwt;
 using Antmicro.Renode.Backends.Display;
-using Xwt.Drawing;
-using Antmicro.Renode.Peripherals.Input;
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals;
-using ELFSharp.ELF;
 using Antmicro.Renode.Extensions.Analyzers.Video.Handlers;
+using Antmicro.Renode.Peripherals;
+using Antmicro.Renode.Peripherals.Input;
 using Antmicro.Renode.UI;
 using Antmicro.Renode.Utilities;
+
+using ELFSharp.ELF;
+
+using Xwt;
+using Xwt.Drawing;
 
 namespace Antmicro.Renode.Extensions.Analyzers.Video
 {
@@ -37,7 +40,7 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video
 
         public void SaveCurrentFrameToFile(string filename)
         {
-            lock(imgLock) 
+            lock(imgLock)
             {
                 img.Save(filename, ImageFileType.Png);
             }
@@ -65,7 +68,7 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video
                         cursorDrawn = false;
                     }
 
-                    if(!anythingDrawnAfterLastReconfiguration && frame != null) 
+                    if(!anythingDrawnAfterLastReconfiguration && frame != null)
                     {
                         anythingDrawnAfterLastReconfiguration = true;
                         handler.Init();
@@ -145,14 +148,12 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video
             handler.Detach(keyboard: true);
         }
 
-        public event Action<int, int> PointerMoved;
-        public Action<IPeripheral> InputAttached;
-        public Action<int, int, PixelFormat> DisplayParametersChanged;
-        public Action FrameDrawn;
-
         public int DesiredDisplayWidth { get; private set; }
+
         public int DesiredDisplayHeight { get; private set; }
+
         public Rectangle ActualImageArea { get; private set; }
+
         public Image Image
         {
             get
@@ -163,10 +164,11 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video
                 }
             }
         }
-        
+
         public DisplayMode Mode
-        { 
+        {
             get { return mode; }
+
             set
             {
                 mode = value;
@@ -175,6 +177,12 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video
                 DrawFrame();
             }
         }
+
+        public event Action<int, int> PointerMoved;
+
+        public Action<IPeripheral> InputAttached;
+        public Action<int, int, PixelFormat> DisplayParametersChanged;
+        public Action FrameDrawn;
 
         protected override void OnDraw(Context ctx, Rectangle dirtyRect)
         {
@@ -277,7 +285,7 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video
                 {
                     lock(imgLock)
                     {
-                        ctx.DrawImage(img, point); 
+                        ctx.DrawImage(img, point);
 
                         // draw frame
                         ctx.Rectangle(new Rectangle(point.X - 1, point.Y - 1, img.Width + 2, img.Height + 2));
@@ -359,7 +367,7 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video
             if(image == null)
             {
                 return imgRect;
-            } 
+            }
 
             switch(Mode)
             {
@@ -395,19 +403,19 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video
             return imgRect;
         }
 
+        private BitmapImage img;
+        private DisplayMode mode;
+        private byte[] outBuffer;
+        private bool cursorDrawn;
+
         private IPixelConverter converter;
         [Transient]
         private bool dontShowGrabConfirmationDialog;
         private bool anythingDrawnAfterLastReconfiguration;
         private Action<Context> drawMethod;
         private bool drawQueued;
-        private IOHandler handler;
-        private BitmapImage img;
-        private DisplayMode mode;
-        private byte[] outBuffer;
-        private bool cursorDrawn;
+        private readonly IOHandler handler;
 
         private readonly object imgLock = new object();
     }
 }
-

@@ -1,8 +1,8 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using Antmicro.Renode.Utilities;
 
@@ -22,9 +22,13 @@ namespace Antmicro.Renode.Core.USB.HID
         }
 
         public short HID_ClassSpecification { get; }
+
         public byte CountryCode { get; }
+
         public byte NumberOfClassDescriptors { get; }
+
         public byte DescriptorType { get; }
+
         public short HidDescriptorLength { get; }
 
         protected override void FillDescriptor(BitStream buffer)

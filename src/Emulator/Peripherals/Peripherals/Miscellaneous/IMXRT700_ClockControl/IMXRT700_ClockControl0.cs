@@ -741,6 +741,5 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             CLKOUT_VDD2ClockDivider = 0xB24,
             VDD2_COMPAudioClockSourceSelect = 0xB30,
         }
-
     }
 }

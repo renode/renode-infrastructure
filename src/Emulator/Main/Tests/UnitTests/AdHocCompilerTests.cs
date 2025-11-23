@@ -1,13 +1,14 @@
 ﻿//
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Linq;
-using System;
-using NUnit.Framework;
+
 using Antmicro.Renode.Core;
+
+using NUnit.Framework;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -25,7 +26,7 @@ namespace Antmicro.Renode.Utilities
         public void ShouldNotThrowOnEmptyFile()
         {
             var extension = TemporaryFilesManager.Instance.GetTemporaryFile();
-            Assert.DoesNotThrow(() => { file = adhoc.Compile(extension); });
+            Assert.DoesNotThrow(() => { file = adhoc.Compile(new[] { extension }); });
             Assert.IsTrue(manager.ScanFile(file));
         }
 
@@ -35,7 +36,7 @@ namespace Antmicro.Renode.Utilities
             var extension = GetType().Assembly.FromResourceToTemporaryFile("MockExtension.cs");
             var methodsBefore = manager.GetExtensionMethods(typeof(Emulation));
             Assert.IsFalse(methodsBefore.Any(x => x.Name == "GetMockString"));
-            Assert.DoesNotThrow(() => { file = adhoc.Compile(extension); });
+            Assert.DoesNotThrow(() => { file = adhoc.Compile(new[] { extension }); });
             Assert.IsTrue(manager.ScanFile(file));
             var methodsAfter = manager.GetExtensionMethods(typeof(Emulation));
             Assert.IsNotEmpty(methodsAfter);
@@ -46,6 +47,6 @@ namespace Antmicro.Renode.Utilities
 
         private AdHocCompiler adhoc;
         private TypeManager manager;
-        private string file; 
+        private string file;
     }
 }

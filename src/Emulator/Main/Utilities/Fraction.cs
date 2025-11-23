@@ -20,6 +20,7 @@ namespace Antmicro.Renode.Utilities
         public readonly bool Minus;
 
         public ulong Integer => Numerator / Denominator;
+
         public Fraction Fractional => new Fraction(Numerator % Denominator, Denominator, skipReduce: true);
 
         public Fraction(ulong numerator, ulong denominator, bool minus = false) : this(numerator, denominator, minus, skipReduce: false)
@@ -252,7 +253,9 @@ namespace Antmicro.Renode.Utilities
         }
 
         public static explicit operator ulong(Fraction f) => f.Integer;
+
         public static explicit operator Fraction(ulong u) => new Fraction(u, 1, false, skipReduce: true);
+
         public static readonly Fraction Zero = new Fraction(0, 1, skipReduce: true);
 
         private Fraction(ulong numerator, ulong denominator, bool minus = false, bool skipReduce = false)

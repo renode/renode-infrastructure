@@ -1,15 +1,16 @@
 ﻿//
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
 {
@@ -102,13 +103,13 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             };
         }
 
-        private const int NumberOfPorts = 25;
-        private const int NumberOfPinsPerPort = 8;
+        private ByteRegisterCollection byteRegisters;
+        private WordRegisterCollection wordRegisters;
 
         private readonly IEnumRegisterField<Mode>[][] portMode;
 
-        private ByteRegisterCollection byteRegisters;
-        private WordRegisterCollection wordRegisters;
+        private const int NumberOfPorts = 25;
+        private const int NumberOfPinsPerPort = 8;
 
         private enum Mode
         {

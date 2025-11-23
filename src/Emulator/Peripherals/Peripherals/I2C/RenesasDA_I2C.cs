@@ -7,6 +7,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -90,13 +91,13 @@ namespace Antmicro.Renode.Peripherals.I2C
         {
             switch(offset)
             {
-                case (long)Registers.DataCommand:
-                    return ReadData();
-                case (long)Registers.DataCommand + 1:
-                    return dataCommandOffset1Shadow.Read();
-                default:
-                    this.Log(LogLevel.Warning, "Unsupported read byte access to offset {0:X}", offset);
-                    return 0;
+            case (long)Registers.DataCommand:
+                return ReadData();
+            case (long)Registers.DataCommand + 1:
+                return dataCommandOffset1Shadow.Read();
+            default:
+                this.Log(LogLevel.Warning, "Unsupported read byte access to offset {0:X}", offset);
+                return 0;
             }
         }
 
@@ -104,16 +105,16 @@ namespace Antmicro.Renode.Peripherals.I2C
         {
             switch(offset)
             {
-                case (long)Registers.DataCommand:
-                    data.Value = value;
-                    WriteCommand();
-                    break;
-                case (long)Registers.DataCommand + 1:
-                    dataCommandOffset1Shadow.Write(0, value);
-                    break;
-                default:
-                    this.Log(LogLevel.Warning, "Unsupported write byte access to offset {0:X}", offset);
-                    break;
+            case (long)Registers.DataCommand:
+                data.Value = value;
+                WriteCommand();
+                break;
+            case (long)Registers.DataCommand + 1:
+                dataCommandOffset1Shadow.Write(0, value);
+                break;
+            default:
+                this.Log(LogLevel.Warning, "Unsupported write byte access to offset {0:X}", offset);
+                break;
             }
         }
 
@@ -138,14 +139,14 @@ namespace Antmicro.Renode.Peripherals.I2C
                     {
                         switch(value)
                         {
-                            case SpeedMode.Standard:
-                            case SpeedMode.Fast:
-                            case SpeedMode.HighSpeed:
-                                break;
-                            default:
-                                this.Log(LogLevel.Warning, "Attempted write with reserved value to I2C_SPEED (0x{0:X}), ignoring", value);
-                                speedMode.Value = previousValue;
-                                break;
+                        case SpeedMode.Standard:
+                        case SpeedMode.Fast:
+                        case SpeedMode.HighSpeed:
+                            break;
+                        default:
+                            this.Log(LogLevel.Warning, "Attempted write with reserved value to I2C_SPEED (0x{0:X}), ignoring", value);
+                            speedMode.Value = previousValue;
+                            break;
                         }
                     }
                 )
@@ -384,7 +385,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                 .WithTaggedFlag("M_MASTER_ON_HOLD", 13)
                 .WithFlag(14, name: "M_SCL_STUCK_AT_LOW")
                 .WithReservedBits(15, 17)
-                .WithChangeCallback((_ ,__) => UpdateInterrupts())
+                .WithChangeCallback((_, __) => UpdateInterrupts())
             ;
 
             Registers.RawInterruptStatus.Define(this)
@@ -415,7 +416,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             Registers.ReceiveFIFOThreshold.Define(this)
                 .WithValueField(0, 5, out rxFifoThreshold, name: "RX_TL")
                 .WithReservedBits(5, 27)
-                .WithChangeCallback((_ ,__) => UpdateInterrupts())
+                .WithChangeCallback((_, __) => UpdateInterrupts())
                 .WithWriteCallback((_, value) =>
                     {
                         if(value >= FifoSize)
@@ -430,7 +431,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             Registers.TransmitFIFOThreshold.Define(this)
                 .WithValueField(0, 5, out txFifoThreshold, name: "TX_TL")
                 .WithReservedBits(5, 27)
-                .WithChangeCallback((_ ,__) => UpdateInterrupts())
+                .WithChangeCallback((_, __) => UpdateInterrupts())
                 .WithWriteCallback((_, value) =>
                     {
                         if(value >= FifoSize)
@@ -798,58 +799,58 @@ namespace Antmicro.Renode.Peripherals.I2C
 
             switch(command.Value)
             {
-                case Command.Write:
-                    if(restart.Value)
-                    {
-                        PerformTransmission();
-                        if(!restartEnabled.Value)
-                        {
-                            // Restart capability is not enabled.
-                            // Finish current transmission before starting the new one.
-                            SendFinishTransmission();
-                        }
-                    }
-                    // On hardware, the data byte would be transmitted on bus immediately when bus bandwidth allows it.
-                    // As a kind of emulation's optimization, we handle it at a higher transaction level.
-                    // We buffer bytes for transmission until STOP or RESTART condtion,
-                    // then we perform a batch transmission to I2C peripheral.
-                    HandleWriteToTransmitFIFO((byte)data.Value);
-                    if(stop.Value)
-                    {
-                        PerformTransmission();
-                        SendFinishTransmission();
-                        stopDetected.Value = true;
-                    }
-                    break;
-                case Command.Read:
-                    // Flush an ongoing transfer in the opposite direction (TX).
-                    // If there was no ongoing TX transfer, this is no-op.
-                    // If there was an ongoing TX transfer, I2C peripheral should see all queued data until now.
+            case Command.Write:
+                if(restart.Value)
+                {
                     PerformTransmission();
-                    if(restart.Value)
+                    if(!restartEnabled.Value)
                     {
-                        PerformReception();
-                        if(!restartEnabled.Value)
-                        {
-                            // Restart capability is not enabled.
-                            // Finish current transmission before starting the new one.
-                            SendFinishTransmission();
-                        }
-                    }
-                    // We just increment an internal counter, but do not perform the actual reception.
-                    // It is a kind of emulation's optimization to not transfer byte by byte.
-                    // Instead track the number of bytes belonging to a transaction
-                    // and perform a batch reception on STOP or RESTART condition.
-                    bytesToReceive = checked(bytesToReceive + 1);
-                    if(stop.Value)
-                    {
-                        PerformReception();
+                        // Restart capability is not enabled.
+                        // Finish current transmission before starting the new one.
                         SendFinishTransmission();
-                        stopDetected.Value = true;
                     }
-                    break;
-                default:
-                    throw new Exception("Unreachable");
+                }
+                // On hardware, the data byte would be transmitted on bus immediately when bus bandwidth allows it.
+                // As a kind of emulation's optimization, we handle it at a higher transaction level.
+                // We buffer bytes for transmission until STOP or RESTART condtion,
+                // then we perform a batch transmission to I2C peripheral.
+                HandleWriteToTransmitFIFO((byte)data.Value);
+                if(stop.Value)
+                {
+                    PerformTransmission();
+                    SendFinishTransmission();
+                    stopDetected.Value = true;
+                }
+                break;
+            case Command.Read:
+                // Flush an ongoing transfer in the opposite direction (TX).
+                // If there was no ongoing TX transfer, this is no-op.
+                // If there was an ongoing TX transfer, I2C peripheral should see all queued data until now.
+                PerformTransmission();
+                if(restart.Value)
+                {
+                    PerformReception();
+                    if(!restartEnabled.Value)
+                    {
+                        // Restart capability is not enabled.
+                        // Finish current transmission before starting the new one.
+                        SendFinishTransmission();
+                    }
+                }
+                // We just increment an internal counter, but do not perform the actual reception.
+                // It is a kind of emulation's optimization to not transfer byte by byte.
+                // Instead track the number of bytes belonging to a transaction
+                // and perform a batch reception on STOP or RESTART condition.
+                bytesToReceive = checked(bytesToReceive + 1);
+                if(stop.Value)
+                {
+                    PerformReception();
+                    SendFinishTransmission();
+                    stopDetected.Value = true;
+                }
+                break;
+            default:
+                throw new Exception("Unreachable");
             }
             UpdateInterrupts();
             CheckDMATriggers();
@@ -892,7 +893,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                 var bytesMissing = bytesToReceive - data.Length;
                 if(bytesMissing > 0)
                 {
-                     // read 0x0 bytes when slave doesn't return enough data
+                    // read 0x0 bytes when slave doesn't return enough data
                     this.Log(LogLevel.Warning, "Padding data received from a slave with {0} zeros to match expected number of bytes", bytesMissing);
                     rxFifo.EnqueueRange(Enumerable.Repeat<byte>(0x0, bytesMissing));
                 }
@@ -980,6 +981,7 @@ namespace Antmicro.Renode.Peripherals.I2C
         private int TargetAddress => TrimAddress(targetAddress.Value, use10BitTargetAddressing.Value);
 
         private bool RxFull => (int)rxFifoThreshold.Value < rxFifo.Count;
+
         private bool TxEmpty => txFifo.Count < (int)txFifoThreshold.Value;
 
         private IFlagRegisterField masterEnabled;

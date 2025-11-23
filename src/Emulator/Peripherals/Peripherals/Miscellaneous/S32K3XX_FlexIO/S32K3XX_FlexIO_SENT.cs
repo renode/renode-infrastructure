@@ -4,18 +4,14 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using System.Collections.Generic;
-using Antmicro.Migrant;
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.UART;
-using Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel;
-using Antmicro.Renode.Core.Structure;
-using Antmicro.Renode.Peripherals.SENT;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel;
+using Antmicro.Renode.Peripherals.SENT;
+using Antmicro.Renode.Peripherals.Timers;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {

@@ -7,8 +7,8 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.IO;
 using System.Runtime.InteropServices;
+
 using Mono.Unix.Native;
 
 namespace Antmicro.Renode.Utilities
@@ -34,9 +34,12 @@ namespace Antmicro.Renode.Utilities
             Syscall.close(fd);
         }
 
+        [DllImport("libc", EntryPoint = "flock")]
+        private static extern int Flock(int fd, FlockOperation operation);
+
         private static bool TryDoFileLocking(int fd, bool lockFile, FlockOperation? specificFlag = null)
         {
-            if (fd >= 0) 
+            if(fd >= 0)
             {
                 int res;
                 Errno lastError;
@@ -48,15 +51,12 @@ namespace Antmicro.Renode.Utilities
                 while(res != 0 && lastError == Errno.EINTR);
                 // if can't get lock ...
                 return res == 0;
-            } 
+            }
             return false;
         }
 
         private readonly int fd;
         private readonly string file;
-
-        [DllImport("libc", EntryPoint = "flock")]
-        private extern static int Flock(int fd, FlockOperation operation);
 
         [Flags]
         private enum FlockOperation

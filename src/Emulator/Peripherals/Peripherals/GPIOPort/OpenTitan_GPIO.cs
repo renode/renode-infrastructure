@@ -5,31 +5,32 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
 {
     public class OpenTitan_GPIO : BaseGPIOPort, IDoubleWordPeripheral, IKnownSize
     {
-        public OpenTitan_GPIO(IMachine machine) : base(machine, numberOfPins)
+        public OpenTitan_GPIO(IMachine machine) : base(machine, NumberOfPins)
         {
             locker = new object();
             IRQ = new GPIO();
             FatalAlert = new GPIO();
             registers = new DoubleWordRegisterCollection(this, BuildRegisterMap());
-            interruptRequest = new bool[numberOfPins];
-            interruptEnabled = new bool[numberOfPins];
-            directOutputValue = new bool[numberOfPins];
-            maskedOutputValue = new bool[numberOfPins];
-            directOutputEnabled = new bool[numberOfPins];
-            maskedOutputEnabled = new bool[numberOfPins];
-            interruptEnableRising = new bool[numberOfPins];
-            interruptEnableFalling = new bool[numberOfPins];
-            interruptEnableHigh = new bool[numberOfPins];
-            interruptEnableLow = new bool[numberOfPins];
+            interruptRequest = new bool[NumberOfPins];
+            interruptEnabled = new bool[NumberOfPins];
+            directOutputValue = new bool[NumberOfPins];
+            maskedOutputValue = new bool[NumberOfPins];
+            directOutputEnabled = new bool[NumberOfPins];
+            maskedOutputEnabled = new bool[NumberOfPins];
+            interruptEnableRising = new bool[NumberOfPins];
+            interruptEnableFalling = new bool[NumberOfPins];
+            interruptEnableHigh = new bool[NumberOfPins];
+            interruptEnableLow = new bool[NumberOfPins];
         }
 
         public override void Reset()
@@ -41,7 +42,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 FatalAlert.Unset();
 
                 registers.Reset();
-                for(var i = 0; i < numberOfPins; ++i)
+                for(var i = 0; i < NumberOfPins; ++i)
                 {
                     interruptRequest[i] = false;
                     interruptEnabled[i] = false;
@@ -90,11 +91,11 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     var currentState = GetStateOnInput(number);
                     if(interruptEnableRising[number])
                     {
-                        interruptRequest[number] |= !previousState && currentState; 
+                        interruptRequest[number] |= !previousState && currentState;
                     }
                     if(interruptEnableFalling[number])
                     {
-                        interruptRequest[number] |= previousState && !currentState; 
+                        interruptRequest[number] |= previousState && !currentState;
                     }
                 }
 
@@ -105,6 +106,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         public long Size => 0x3C;
 
         public GPIO IRQ { get; }
+
         public GPIO FatalAlert { get; }
 
         private Dictionary<long, DoubleWordRegister> BuildRegisterMap()
@@ -200,8 +202,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         private void UpdateIRQ()
         {
             var flag = false;
-            for(var i = 0; i < numberOfPins; ++i)
-            {   
+            for(var i = 0; i < NumberOfPins; ++i)
+            {
                 if(!interruptEnabled[i])
                 {
                     continue;
@@ -215,7 +217,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         private void UpdateConnections()
         {
-            for(var i = 0; i < numberOfPins; ++i)
+            for(var i = 0; i < NumberOfPins; ++i)
             {
                 if(directOutputEnabled[i])
                 {
@@ -254,7 +256,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             var data = BitHelper.GetBits(value & 0xFFFF);
             var mask = BitHelper.GetBits(value >> 16);
             for(var i = 0; i < 16; ++i)
-            {   
+            {
                 if(mask[i])
                 {
                     directOutputEnabled[i + offset] = data[i];
@@ -265,24 +267,25 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         private bool GetStateOnInput(int i)
         {
-            // Output and Input are physically connected 
+            // Output and Input are physically connected
             return State[i] || Connections[i].IsSet;
         }
 
+        private readonly bool[] interruptRequest;
+        private readonly bool[] interruptEnabled;
+        private readonly bool[] directOutputValue;
+        private readonly bool[] maskedOutputValue;
+        private readonly bool[] directOutputEnabled;
+        private readonly bool[] maskedOutputEnabled;
+        private readonly bool[] interruptEnableRising;
+        private readonly bool[] interruptEnableFalling;
+        private readonly bool[] interruptEnableHigh;
+        private readonly bool[] interruptEnableLow;
+
         private readonly DoubleWordRegisterCollection registers;
         private readonly object locker;
-        private bool[] interruptRequest;
-        private bool[] interruptEnabled;
-        private bool[] directOutputValue;
-        private bool[] maskedOutputValue;
-        private bool[] directOutputEnabled;
-        private bool[] maskedOutputEnabled;
-        private bool[] interruptEnableRising;
-        private bool[] interruptEnableFalling;
-        private bool[] interruptEnableHigh;
-        private bool[] interruptEnableLow;
 
-        private const int numberOfPins = 32;
+        private const int NumberOfPins = 32;
 
         private enum Registers : long
         {

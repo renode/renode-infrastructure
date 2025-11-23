@@ -15,8 +15,6 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
             Value = float.Parse(value, CultureInfo.InvariantCulture);
         }
 
-        public float Value { get; private set; }
-
         public override object GetObjectValue()
         {
             return Value;
@@ -26,6 +24,7 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
         {
             return string.Format("[FloatToken: Value={0}]", Value);
         }
+
+        public float Value { get; private set; }
     }
 }
-

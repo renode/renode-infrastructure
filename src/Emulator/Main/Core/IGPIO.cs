@@ -12,13 +12,18 @@ namespace Antmicro.Renode.Core
     public interface IGPIO
     {
         bool IsSet { get; }
+
         void Set(bool value);
+
         // TODO: this method could be simulated by calling <<Set(!IsSet)>>, but this requires locking ...
         void Toggle();
 
         bool IsConnected { get; }
+
         void Connect(IGPIOReceiver destination, int destinationNumber);
+
         void Disconnect();
+
         void Disconnect(GPIOEndpoint endpoint);
 
         IList<GPIOEndpoint> Endpoints { get; }
@@ -43,4 +48,3 @@ namespace Antmicro.Renode.Core
         }
     }
 }
-

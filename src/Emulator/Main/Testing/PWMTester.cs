@@ -5,10 +5,8 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Collections.Generic;
-using System.Threading;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Logging;
 using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals
@@ -80,11 +78,15 @@ namespace Antmicro.Renode.Peripherals
         }
 
         public ulong LowTicks { get; private set; }
+
         public ulong HighTicks { get; private set; }
+
         public double HighPercentage => (double)HighTicks / (HighTicks + LowTicks) * 100;
+
         public double LowPercentage => (double)LowTicks / (HighTicks + LowTicks) * 100;
 
-        private readonly object innerLock;
         private TimeStamp? previousEvent;
+
+        private readonly object innerLock;
     }
 }

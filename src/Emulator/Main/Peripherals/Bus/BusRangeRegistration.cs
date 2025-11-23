@@ -6,6 +6,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Peripherals.CPU;
@@ -32,14 +33,6 @@ namespace Antmicro.Renode.Peripherals.Bus
         {
         }
 
-        public override string PrettyString
-        {
-            get
-            {
-                return ToString();
-            }
-        }
-
         public override string ToString()
         {
             var result = Range.ToString();
@@ -58,12 +51,10 @@ namespace Antmicro.Renode.Peripherals.Bus
             return result;
         }
 
-        public static implicit operator BusRangeRegistration(Range range)
+        public void RegisterForEachContext(Action<BusRangeRegistration> register)
         {
-            return new BusRangeRegistration(range);
+            RegisterForEachContextInner(register, cpu => new BusRangeRegistration(Range, StateMask, Offset, cpu, condition: Condition));
         }
-
-        public Range Range { get; set; }
 
         public override bool Equals(object obj)
         {
@@ -83,10 +74,20 @@ namespace Antmicro.Renode.Peripherals.Bus
             return new BusRangeRegistration(Range, mask, Offset, initiator, condition: Condition);
         }
 
-        public void RegisterForEachContext(Action<BusRangeRegistration> register)
+        public override string PrettyString
         {
-            RegisterForEachContextInner(register, cpu => new BusRangeRegistration(Range, StateMask, Offset, cpu));
+            get
+            {
+                return ToString();
+            }
         }
+
+        public static implicit operator BusRangeRegistration(Range range)
+        {
+            return new BusRangeRegistration(range);
+        }
+
+        public Range Range { get; set; }
 
         protected BusRangeRegistration(Range range, StateMask? stateMask, ulong offset = 0, IPeripheral cpu = null, ICluster<ICPU> cluster = null, string condition = null) : base(range.StartAddress, offset, cpu, cluster, stateMask, condition)
         {
@@ -94,4 +95,3 @@ namespace Antmicro.Renode.Peripherals.Bus
         }
     }
 }
-

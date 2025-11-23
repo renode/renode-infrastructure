@@ -1,10 +1,11 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -77,28 +78,28 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 return;
             }
-            
+
             var old = systick.Frequency;
             switch(systemClockSwitch.Value)
             {
-                case SystemClockSourceSelection.Msi:
-                    systick.Frequency = MsiFrequency;
-                    break;
-                case SystemClockSourceSelection.Hsi16:
-                    systick.Frequency = Hsi16Frequency;
-                    break;
-                case SystemClockSourceSelection.Hse:
-                    systick.Frequency = hseFrequency;
-                    break;
-                case SystemClockSourceSelection.Pll:
-                    if(!pllOn.Value)
-                    {
-                        this.Log(LogLevel.Error, "Systick source set to PLL when PLL is disabled.");
-                    }
-                    systick.Frequency = PllFrequency;
-                    break;
-                default:
-                    throw new Exception("unreachable code");
+            case SystemClockSourceSelection.Msi:
+                systick.Frequency = MsiFrequency;
+                break;
+            case SystemClockSourceSelection.Hsi16:
+                systick.Frequency = Hsi16Frequency;
+                break;
+            case SystemClockSourceSelection.Hse:
+                systick.Frequency = hseFrequency;
+                break;
+            case SystemClockSourceSelection.Pll:
+                if(!pllOn.Value)
+                {
+                    this.Log(LogLevel.Error, "Systick source set to PLL when PLL is disabled.");
+                }
+                systick.Frequency = PllFrequency;
+                break;
+            default:
+                throw new Exception("unreachable code");
             }
             if(old != systick.Frequency)
             {
@@ -113,7 +114,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private void UpdateLpTimerClock()
         {
-            if(lptimer == null) 
+            if(lptimer == null)
             {
                 return;
             }
@@ -121,20 +122,20 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             var old = lptimer.Frequency;
             switch(lpTimer1Selection.Value)
             {
-                case LpTimerClockSourceSelection.Apb:
-                    lptimer.Frequency = apbFrequency;
-                    break;
-                case LpTimerClockSourceSelection.Lsi:
-                    lptimer.Frequency = lsiFrequency;
-                    break;
-                case LpTimerClockSourceSelection.Hsi16:
-                    lptimer.Frequency = Hsi16Frequency;
-                    break;
-                case LpTimerClockSourceSelection.Lse:
-                    lptimer.Frequency = lseFrequency;
-                    break;
-                default:
-                    throw new Exception("unreachable code");
+            case LpTimerClockSourceSelection.Apb:
+                lptimer.Frequency = apbFrequency;
+                break;
+            case LpTimerClockSourceSelection.Lsi:
+                lptimer.Frequency = lsiFrequency;
+                break;
+            case LpTimerClockSourceSelection.Hsi16:
+                lptimer.Frequency = Hsi16Frequency;
+                break;
+            case LpTimerClockSourceSelection.Lse:
+                lptimer.Frequency = lseFrequency;
+                break;
+            default:
+                throw new Exception("unreachable code");
             }
             if(old != lptimer.Frequency)
             {
@@ -257,39 +258,39 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
                         switch(value)
                         {
-                            case 0b0000:
-                                pllMultiplier = 3;
-                                break;
-                            case 0b0001:
-                                pllMultiplier = 4;
-                                break;
-                            case 0b0010:
-                                pllMultiplier = 6;
-                                break;
-                            case 0b0011:
-                                pllMultiplier = 8;
-                                break;
-                            case 0b0100:
-                                pllMultiplier = 12;
-                                break;
-                            case 0b0101:
-                                pllMultiplier = 16;
-                                break;
-                            case 0b0110:
-                                pllMultiplier = 24;
-                                break;
-                            case 0b0111:
-                                pllMultiplier = 32;
-                                break;
-                            case 0b1000:
-                                pllMultiplier = 48;
-                                break;
-                            default:
-                                // We don't need a special check here, compared to PLLDIV,
-                                // as here the reset value is valid and the only invalid values
-                                // are ones that'd be deliberately set by the software
-                                this.Log(LogLevel.Error, "Invalid PLLMUL: {0}", value);
-                                break;
+                        case 0b0000:
+                            pllMultiplier = 3;
+                            break;
+                        case 0b0001:
+                            pllMultiplier = 4;
+                            break;
+                        case 0b0010:
+                            pllMultiplier = 6;
+                            break;
+                        case 0b0011:
+                            pllMultiplier = 8;
+                            break;
+                        case 0b0100:
+                            pllMultiplier = 12;
+                            break;
+                        case 0b0101:
+                            pllMultiplier = 16;
+                            break;
+                        case 0b0110:
+                            pllMultiplier = 24;
+                            break;
+                        case 0b0111:
+                            pllMultiplier = 32;
+                            break;
+                        case 0b1000:
+                            pllMultiplier = 48;
+                            break;
+                        default:
+                            // We don't need a special check here, compared to PLLDIV,
+                            // as here the reset value is valid and the only invalid values
+                            // are ones that'd be deliberately set by the software
+                            this.Log(LogLevel.Error, "Invalid PLLMUL: {0}", value);
+                            break;
                         }
                     })
                 .WithValueField(22, 2, name: "PLLDIV",
@@ -302,27 +303,27 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
                         switch(value)
                         {
-                            case 0b00:
-                                // Only emit the error if the PLL divisor has been set to a valid value previously.
-                                // If it hasn't, we'll still emit an error whenever PLL is enabled,
-                                // and if it has, we'll inform that the software changed it to an invalid value
-                                // (but only when the value actually changes)
-                                if(pllDivisor != 1 && previous != value)
-                                {
-                                    this.Log(LogLevel.Error, "Invalid PLLDIV: 0");
-                                }
-                                break;
-                            case 0b01:
-                                pllDivisor = 2;
-                                break;
-                            case 0b10:
-                                pllDivisor = 3;
-                                break;
-                            case 0b11:
-                                pllDivisor = 4;
-                                break;
-                            default:
-                                throw new Exception("unreachable code");
+                        case 0b00:
+                            // Only emit the error if the PLL divisor has been set to a valid value previously.
+                            // If it hasn't, we'll still emit an error whenever PLL is enabled,
+                            // and if it has, we'll inform that the software changed it to an invalid value
+                            // (but only when the value actually changes)
+                            if(pllDivisor != 1 && previous != value)
+                            {
+                                this.Log(LogLevel.Error, "Invalid PLLDIV: 0");
+                            }
+                            break;
+                        case 0b01:
+                            pllDivisor = 2;
+                            break;
+                        case 0b10:
+                            pllDivisor = 3;
+                            break;
+                        case 0b11:
+                            pllDivisor = 4;
+                            break;
+                        default:
+                            throw new Exception("unreachable code");
                         }
                     })
                 .WithValueField(24, 4, name: "MCOSEL")
@@ -358,8 +359,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Registers.ClockInterruptClear.Define(this)
                 .WithFlag(0, FieldMode.Write, writeCallback: (_, value) => { if(value) { lsirdyie.Value = false; } }, name: "LSIRDYC")
                 .WithFlag(1, FieldMode.Write, writeCallback: (_, value) => { if(value) { lserdyie.Value = false; } }, name: "LSERDYC")
-                .WithFlag(2, FieldMode.Write, writeCallback: (_, value) => { if(value) { hsi16rdyie.Value = false;  } }, name: "HSI16RDYC")
-                .WithFlag(3, FieldMode.Write, writeCallback: (_, value) => { if(value) { hserdyie.Value = false;  } }, name: "HSERDYC")
+                .WithFlag(2, FieldMode.Write, writeCallback: (_, value) => { if(value) { hsi16rdyie.Value = false; } }, name: "HSI16RDYC")
+                .WithFlag(3, FieldMode.Write, writeCallback: (_, value) => { if(value) { hserdyie.Value = false; } }, name: "HSERDYC")
                 .WithFlag(4, FieldMode.Write, writeCallback: (_, value) => { if(value) { pllrdyie.Value = false; } }, name: "PLLRDYC")
                 .WithFlag(5, FieldMode.Write, writeCallback: (_, value) => { if(value) { msirdyie.Value = false; } }, name: "MSIRDYC")
                 .WithFlag(6, FieldMode.Write, writeCallback: (_, value) => { if(value) { hsi48rdyie.Value = false; } }, name: "HSI48RDYC")
@@ -650,6 +651,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         private long Hsi16Frequency { get => 16000000 / (hsi16diven.Value ? 4 : 1); }
+
         private long PllFrequency
         {
             get =>
@@ -657,6 +659,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 * pllMultiplier
                 / pllDivisor;
         }
+
         private long MsiFrequency { get => BaseMsiFrequency * msiMultiplier; }
 
         private IFlagRegisterField hsi16diven;

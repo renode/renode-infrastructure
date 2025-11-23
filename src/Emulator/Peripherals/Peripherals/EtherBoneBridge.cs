@@ -8,6 +8,7 @@ using System;
 using System.IO;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
+
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
@@ -177,7 +178,9 @@ namespace Antmicro.Renode.Peripherals
         private readonly NetworkStream dataStream;
         private readonly TcpClient connection;
 
-        [StructLayout(LayoutKind.Explicit, Size=RecordSize)]
+        private const int RecordSize = 20;
+
+        [StructLayout(LayoutKind.Explicit, Size = RecordSize)]
         private struct EtherBoneRecord
         {
             // here we have a problem with byte order - see FixFieldEndianess
@@ -194,7 +197,5 @@ namespace Antmicro.Renode.Peripherals
             [FieldOffset(12)] public uint ReadValueWriteAddress;
             [FieldOffset(16)] public uint WriteValueReadAddress;
         }
-
-        private const int RecordSize = 20;
     }
 }

@@ -5,9 +5,11 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using NUnit.Framework;
-using Antmicro.Renode.Core;
 using System.Collections.Generic;
+
+using Antmicro.Renode.Core;
+
+using NUnit.Framework;
 
 namespace Antmicro.Renode.UnitTests.SymbolLookupTests
 {
@@ -109,4 +111,3 @@ namespace Antmicro.Renode.UnitTests.SymbolLookupTests
         }
     }
 }
-

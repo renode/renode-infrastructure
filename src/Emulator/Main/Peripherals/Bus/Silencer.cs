@@ -18,14 +18,10 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public void WriteDoubleWord(long offset, uint value)
         {
-
         }
 
         public void Reset()
         {
-
         }
-
     }
 }
-

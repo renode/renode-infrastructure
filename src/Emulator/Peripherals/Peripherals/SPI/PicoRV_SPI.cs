@@ -6,6 +6,7 @@
 //
 
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -72,7 +73,6 @@ namespace Antmicro.Renode.Peripherals.SPI
                         }
                     })
                 },
-
                 {(long)Registers.Config2, new DoubleWordRegister(this)
                     // those are not handled, but implemented to avoid warnings in logs
                     .WithFlag(0, name: "data0_output_en")
@@ -83,7 +83,6 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithFlag(5, name: "cs_output_en")
                     .WithReservedBits(6, 2)
                 },
-
                 {(long)Registers.Config3, new DoubleWordRegister(this)
                     .WithTag("read latency (dummy) cycles", 0, 4)
                     .WithTag("CRM enable", 4, 1)
@@ -91,12 +90,10 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithTag("DDR enable", 6, 1)
                     .WithReservedBits(7, 1)
                 },
-
                 {(long)Registers.Config4, new DoubleWordRegister(this)
                     .WithReservedBits(0, 7)
                     .WithFlag(7, out memioEnable, name: "memio_en")
                 },
-
                 {(long)Registers.Stat1, new DoubleWordRegister(this)
                     .WithReservedBits(0, 1)
                     .WithFlag(1, FieldMode.Read, name: "MISO", valueProviderCallback: _ => bbHelper.EncodedInput)

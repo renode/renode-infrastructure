@@ -12,6 +12,7 @@ namespace Antmicro.Renode.Core.Structure
     public interface IHasChildren<out T>
     {
         IEnumerable<string> GetNames();
+
         T TryGetByName(string name, out bool success);
     }
 
@@ -25,4 +26,3 @@ namespace Antmicro.Renode.Core.Structure
         }
     }
 }
-

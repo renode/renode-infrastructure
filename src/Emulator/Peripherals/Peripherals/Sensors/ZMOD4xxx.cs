@@ -6,10 +6,11 @@
 //
 using System;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Logging;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.I2C;
 using Antmicro.Renode.Peripherals.Sensor;
 using Antmicro.Renode.Utilities;
@@ -23,31 +24,31 @@ namespace Antmicro.Renode.Peripherals.Sensors
             this.model = model;
             /* Below configurations are not a property of the sensor, but a fields that can vary between units.
                Those are just one of the possible configurations that are proved to work */
-            this.configuration = new byte[]{0x80,0x80,0x80,0x80,0x80,0x80};
+            this.configuration = new byte[] { 0x80, 0x80, 0x80, 0x80, 0x80, 0x80 };
             switch(model)
             {
-                case Model.ZMOD4410:
-                    productId = zmod4410_productId;
-                    this.productionData = new byte[]{0x2D, 0xCF, 0x46, 0x29, 0x04, 0xB4};
-                    this.initConfigurationRField = new byte[] { 0x21, 0x48, 0x3B, 0xAE, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            case Model.ZMOD4410:
+                productId = zmod4410_productId;
+                this.productionData = new byte[] { 0x2D, 0xCF, 0x46, 0x29, 0x04, 0xB4 };
+                this.initConfigurationRField = new byte[] { 0x21, 0x48, 0x3B, 0xAE, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                                                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                                                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-                    this.rField = new byte[] { 0x15, 0x48, 0xBF, 0x92, 0x8D, 0x59, 0xF2, 0x73, 0x42, 0xB5, 0x98, 0x1E, 0x8C, 0x09,
+                this.rField = new byte[] { 0x15, 0x48, 0xBF, 0x92, 0x8D, 0x59, 0xF2, 0x73, 0x42, 0xB5, 0x98, 0x1E, 0x8C, 0x09,
                                                0x71, 0xDB, 0x51, 0x40, 0x64, 0x58, 0x4E, 0xBE, 0x14, 0xDF, 0xB7, 0xA2, 0x86, 0x9D,
                                                0x4B, 0xB4, 0x02, 0x8D };
-                    break;
-                case Model.ZMOD4510:
-                    productId = zmod4510_productId;
-                    this.productionData = new byte[ProductionDataLengthInBytes];
-                    this.initConfigurationRField = new byte[] { 0x2A, 0xFC, 0xF3, 0xDF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                break;
+            case Model.ZMOD4510:
+                productId = zmod4510_productId;
+                this.productionData = new byte[ProductionDataLengthInBytes];
+                this.initConfigurationRField = new byte[] { 0x2A, 0xFC, 0xF3, 0xDF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                                                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                                                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-                    this.rField = new byte[] { 0x15, 0x6A, 0xBF, 0xC0, 0x1B, 0x48, 0x63, 0xA0, 0x84, 0xE8, 0xBF, 0x5C, 0x88, 0x18,
+                this.rField = new byte[] { 0x15, 0x6A, 0xBF, 0xC0, 0x1B, 0x48, 0x63, 0xA0, 0x84, 0xE8, 0xBF, 0x5C, 0x88, 0x18,
                                                0x7E, 0xF4, 0x3F, 0x64, 0xCC, 0x47, 0xBC, 0x8A, 0x3C, 0x59, 0x33, 0xB8, 0x75, 0x88,
                                                0x2C, 0x67, 0xC7, 0x5E };
-                    break;
-                default:
-                    throw new ConstructionException($"This model ({model}) is not supported");
+                break;
+            default:
+                throw new ConstructionException($"This model ({model}) is not supported");
             }
 
             RegistersCollection = new ByteRegisterCollection(this);
@@ -107,6 +108,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             {
                 return Misc.Stringify(rField);
             }
+
             set
             {
                 if(!TryParseHexStringWithAssertedLength(value, ResultLengthInBytes, out rField, out var err))
@@ -122,6 +124,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             {
                 return Misc.Stringify(initConfigurationRField);
             }
+
             set
             {
                 if(!TryParseHexStringWithAssertedLength(value, ResultLengthInBytes, out initConfigurationRField, out var err))
@@ -137,6 +140,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             {
                 return Misc.Stringify(configuration);
             }
+
             set
             {
                 if(!TryParseHexStringWithAssertedLength(value, ConfigurationLengthInBytes, out configuration, out var err))
@@ -152,6 +156,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             {
                 return Misc.Stringify(productionData);
             }
+
             set
             {
                 if(!TryParseHexStringWithAssertedLength(value, ProductionDataLengthInBytes, out productionData, out var err))
@@ -251,7 +256,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             Registers.Command.Define(this)
                 .WithReservedBits(0, 7)
-                .WithFlag(7, changeCallback: (_, val) => {
+                .WithFlag(7, changeCallback: (_, val) =>
+                {
                     if(val)
                     {
                         this.DebugLog("Measurement trigerred");
@@ -281,6 +287,18 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithTaggedFlag("POR Event", 7);
         }
 
+        private byte[] configuration;
+        private byte[] productionData;
+        private byte[] initConfigurationRField;
+        private byte[] rField;
+
+        private byte currentRegister;
+        private bool sensorInMeasureMode;
+
+        private readonly byte[] zmod4510_productId = new byte[] { 0x63, 0x20 };
+        private readonly byte[] zmod4410_productId = new byte[] { 0x23, 0x10 };
+        private readonly byte[] productId;
+
         private readonly Model model;
 
         private const int ResultLengthInBytes = 32;
@@ -294,17 +312,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         // There's no documentation for that, but this is what gets written in the init phase
         private const int M0InitValue = 0xC3;
-
-        private readonly byte[] zmod4510_productId = new byte[] { 0x63, 0x20 };
-        private readonly byte[] zmod4410_productId = new byte[] { 0x23, 0x10 };
-        private readonly byte[] productId;
-        private byte[] configuration;
-        private byte[] productionData;
-        private byte[] initConfigurationRField;
-        private byte[] rField;
-
-        private byte currentRegister;
-        private bool sensorInMeasureMode;
 
         public enum Model
         {

@@ -7,6 +7,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
@@ -42,7 +43,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                             }
                         }
                     })},
-
                 {(long)Registers.InputRegister, new DoubleWordRegister(this).WithValueField(0, 32, FieldMode.Read,
                     valueProviderCallback: _ =>
                     {
@@ -51,7 +51,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                             return GetConnectedInputPinsState();
                         }
                     })},
-
                 {(long)Registers.OutputRegister, new DoubleWordRegister(this).WithValueField(0, 32,
                     writeCallback: (_, value) =>
                     {
@@ -213,18 +212,18 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         {
             switch(direction)
             {
-                case PinDirection.Input:
-                    irqManager.PinDirection[number] = GPIOInterruptManager.Direction.Input;
-                    break;
-                case PinDirection.Output:
-                    irqManager.PinDirection[number] = GPIOInterruptManager.Direction.Output;
-                    break;
-                case PinDirection.Bidirectional:
-                    irqManager.PinDirection[number] =
-                        GPIOInterruptManager.Direction.Input | GPIOInterruptManager.Direction.Output;
-                    break;
-                default:
-                    throw new RecoverableException("Invalid option of GPIO direction: {direction}");
+            case PinDirection.Input:
+                irqManager.PinDirection[number] = GPIOInterruptManager.Direction.Input;
+                break;
+            case PinDirection.Output:
+                irqManager.PinDirection[number] = GPIOInterruptManager.Direction.Output;
+                break;
+            case PinDirection.Bidirectional:
+                irqManager.PinDirection[number] =
+                    GPIOInterruptManager.Direction.Input | GPIOInterruptManager.Direction.Output;
+                break;
+            default:
+                throw new RecoverableException("Invalid option of GPIO direction: {direction}");
             }
             fixedDirection[number] = true;
         }
@@ -232,13 +231,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         public GPIO IRQ { get; }
 
         public long Size => 0xA4;
-
-        public enum PinDirection : int
-        {
-            Input = 0,
-            Output = 1,
-            Bidirectional = 2
-        }
 
         private uint GetConnectedInputPinsState()
         {
@@ -262,6 +254,14 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         private readonly object innerLock;
 
         private const int NumberOfInterrupts = 32;
+
+        public enum PinDirection : int
+        {
+            Input = 0,
+            Output = 1,
+            Bidirectional = 2
+        }
+
         private enum Registers : long
         {
             ConfigurationRegisterBase = 0x0,

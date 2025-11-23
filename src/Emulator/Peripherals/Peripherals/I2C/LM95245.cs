@@ -7,37 +7,74 @@
 //
 using System;
 using System.Linq;
+
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.I2C
 {
     public class LM95245 : II2CPeripheral
     {
-        public LM95245 ()
+        public LM95245()
         {
-            Reset ();
+            Reset();
         }
 
-        public void Reset ()
+        public void WriteByte(byte offset, byte _)
+        {
+            switch((Registers)offset)
+            {
+            case Registers.ConfigurationRegister2:
+                break;
+            case Registers.RemoteOffsetHigh:
+                break;
+            case Registers.RemoteOffsetLow:
+                break;
+            case Registers.Configurationregister1A:
+            case Registers.Configurationregister1B:
+                break;
+            case Registers.ConversionRateA:
+            case Registers.ConversionRateB:
+                break;
+            case Registers.OneShot:
+                break;
+            case Registers.RemoteOSLimitA:
+            case Registers.RemoteOSLimitB:
+                break;
+            case Registers.LocalTCritLimit:
+                break;
+            case Registers.RemoteTCritLimit:
+                break;
+            case Registers.CommonHysteresis:
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
+            }
+        }
+
+        public void FinishTransmission()
+        {
+        }
+
+        public void Reset()
         {
             //conversionRate = 2;
         }
 
-        public void Write (byte[] data)
+        public void Write(byte[] data)
         {
-            this.Log (LogLevel.Noisy, "Write! {0}", data.Select (x=>"0x"+x.ToString("X2")).Aggregate((x,y)=>x+" "+y));
+            this.Log(LogLevel.Noisy, "Write! {0}", data.Select(x => "0x" + x.ToString("X2")).Aggregate((x, y) => x + " " + y));
         }
 
-        public byte[] Read (int count)
+        public byte[] Read(int count)
         {
-            this.Log (LogLevel.Noisy, "Read!");
-            return new byte[]{0};
+            this.Log(LogLevel.Noisy, "Read!");
+            return new byte[] { 0 };
         }
 
-        private byte ReadByte (byte offset)
+        private byte ReadByte(byte offset)
         {
-           switch ((Registers)offset) {
+            switch((Registers)offset)
+            {
             case Registers.LocalTempMSB:
                 break;
             case Registers.LocalTempLSB:
@@ -85,47 +122,12 @@ namespace Antmicro.Renode.Peripherals.I2C
             return 0;
         }
 
-        public void WriteByte (byte offset, byte value)
-        {
-            switch ((Registers)offset) {
-            case Registers.ConfigurationRegister2:
-                break;
-            case Registers.RemoteOffsetHigh:
-                break;
-            case Registers.RemoteOffsetLow:
-                break;
-            case Registers.Configurationregister1A:
-            case Registers.Configurationregister1B:
-                break;
-            case Registers.ConversionRateA:
-            case Registers.ConversionRateB:
-                break;
-            case Registers.OneShot:
-                break;
-            case Registers.RemoteOSLimitA:
-            case Registers.RemoteOSLimitB:
-                break;
-            case Registers.LocalTCritLimit:
-                break;
-            case Registers.RemoteTCritLimit:
-                break;
-            case Registers.CommonHysteresis:
-                break;
-            default:
-                throw new ArgumentOutOfRangeException ();
-            }
-        }
-
-        public void FinishTransmission()
-        {
-        }
-
-     /*   private double localTemperature;
-        private double remoteTemperature;
-        private double remoteOffset;
-        private byte configurationRegister1;
-        private byte configurationRegister2;
-        private byte conversionRate;*/
+        /*   private double localTemperature;
+           private double remoteTemperature;
+           private double remoteOffset;
+           private byte configurationRegister1;
+           private byte configurationRegister2;
+           private byte conversionRate;*/
 
         private enum Registers
         {
@@ -155,4 +157,3 @@ namespace Antmicro.Renode.Peripherals.I2C
         }
     }
 }
-

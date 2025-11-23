@@ -1,20 +1,20 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.SPI;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Peripherals.Bus;
+#pragma warning disable IDE0005
 using Antmicro.Renode.Utilities;
+#pragma warning restore IDE0005
 
 namespace Antmicro.Renode.Peripherals.I2C
 {
@@ -66,32 +66,31 @@ namespace Antmicro.Renode.Peripherals.I2C
 
             switch(state)
             {
-                case States.Ready:
-                    // We are being called as a result of START condition
-                    while(state == States.Ready || state == States.WaitForAddress)
+            case States.Ready:
+                // We are being called as a result of START condition
+                while(state == States.Ready || state == States.WaitForAddress)
+                {
+                    if(txQueue.TryDequeue(out var data))
                     {
-                        if(txQueue.TryDequeue(out var data))
-                        {
-                            HandleWriteByte(data);
-                        }
-                        else
-                        {
-                            state = States.Idle;
-                            break;
-                        }
+                        HandleWriteByte(data);
                     }
-                    break;
+                    else
+                    {
+                        break;
+                    }
+                }
+                break;
 
-                case States.Writing:
-                    // We are being called as a result of RESTART/STOP condition
-                    CurrentSlave.Write(txQueue.ToArray());
-                    txQueue.Clear();
-                    interruptDonePending.Value = true;
-                    break;
+            case States.Writing:
+                // We are being called as a result of RESTART/STOP condition
+                CurrentSlave.Write(txQueue.ToArray());
+                txQueue.Clear();
+                interruptDonePending.Value = true;
+                break;
 
-                default:
-                    // We don't have any writes to do; ignore
-                    break;
+            default:
+                // We don't have any writes to do; ignore
+                break;
             }
 
             UpdateInterrupts();
@@ -107,56 +106,58 @@ namespace Antmicro.Renode.Peripherals.I2C
 
             switch(state)
             {
-                case States.Idle:
-                case States.Writing:
-                    txQueue.Enqueue(data);
-                    break;
+            case States.Idle:
+            case States.Writing:
+                txQueue.Enqueue(data);
+                break;
 
-                case States.Ready:
-                    if(slaveExtendedAddress.Value)
-                    {
-                        destinationAddress = (uint)data & 0x3;
-                        state = States.WaitForAddress;
-                    }
-                    else
-                    {
-                        state = ((data & 0x1) != 0) ? States.Reading : States.Writing;
-                        destinationAddress = (uint)(data >> 1) & 0x7F;
-
-                        if(CurrentSlave == null)
-                        {
-                            this.Log(LogLevel.Warning, "Trying to access a peripheral at an address 0x{0:X02}, but no such peripheral is connected", destinationAddress);
-                            interruptTimeoutPending.Value = true;
-                            state = States.Idle;
-                            txQueue.Clear();
-                        }
-                    }
-
-                    TryReadingToBuffer();
-                    break;
-
-                case States.WaitForAddress:
-                    state = ((destinationAddress & 0x1) != 0) ? States.Reading : States.Writing;
-                    destinationAddress = (destinationAddress & 0x6) << 7;
-                    destinationAddress |= data;
+            case States.Ready:
+                if(slaveExtendedAddress.Value)
+                {
+                    destinationAddress = (uint)data & 0x3;
+                    state = States.WaitForAddress;
+                }
+                else
+                {
+                    state = ((data & 0x1) != 0) ? States.Reading : States.Writing;
+                    destinationAddress = (uint)(data >> 1) & 0x7F;
+                    interruptAddressAckPending.Value = true;
 
                     if(CurrentSlave == null)
                     {
-                        this.Log(LogLevel.Warning, "Trying to access a peripheral at an address 0x{0:X03}, but no such peripheral is connected", destinationAddress);
+                        this.Log(LogLevel.Warning, "Trying to access a peripheral at an address 0x{0:X02}, but no such peripheral is connected", destinationAddress);
                         interruptTimeoutPending.Value = true;
                         state = States.Idle;
                         txQueue.Clear();
                     }
+                }
 
-                    TryReadingToBuffer();
-                    break;
+                TryReadingToBuffer();
+                break;
 
-                case States.ReadingFromBuffer:
-                    this.Log(LogLevel.Warning, "Writing data to FIFO while in reading state, ignoring incoming data.");
-                    break;
+            case States.WaitForAddress:
+                state = ((destinationAddress & 0x1) != 0) ? States.Reading : States.Writing;
+                destinationAddress = (destinationAddress & 0x6) << 7;
+                destinationAddress |= data;
+                interruptAddressAckPending.Value = true;
 
-                default:
-                    throw new Exception($"Unhandled state in HandleWriteByte: {state}");
+                if(CurrentSlave == null)
+                {
+                    this.Log(LogLevel.Warning, "Trying to access a peripheral at an address 0x{0:X03}, but no such peripheral is connected", destinationAddress);
+                    interruptTimeoutPending.Value = true;
+                    state = States.Idle;
+                    txQueue.Clear();
+                }
+
+                TryReadingToBuffer();
+                break;
+
+            case States.ReadingFromBuffer:
+                this.Log(LogLevel.Warning, "Writing data to FIFO while in reading state, ignoring incoming data.");
+                break;
+
+            default:
+                throw new Exception($"Unhandled state in HandleWriteByte: {state}");
             }
 
             UpdateInterrupts();
@@ -221,6 +222,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             pending |= interruptTxThresholdEnabled.Value && interruptTxThresholdPending.Value;
             pending |= interruptStopEnabled.Value && interruptStopPending.Value;
             pending |= interruptDoneEnabled.Value && interruptDonePending.Value;
+            pending |= interruptAddressAckEnabled.Value && interruptAddressAckPending.Value;
             IRQ.Set(pending);
         }
 
@@ -285,7 +287,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                     .WithFlag(4, out interruptRxThresholdPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "INT_FL0.rxthi")
                     .WithFlag(5, out interruptTxThresholdPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "INT_FL0.txthi")
                     .WithFlag(6, out interruptStopPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "INT_FL0.stopi")
-                    .WithTaggedFlag("INT_FL0.adracki", 7)
+                    .WithFlag(7, out interruptAddressAckPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "INT_FL0.adracki")
                     .WithTaggedFlag("INT_FL0.arberi", 8)
                     .WithFlag(9, out interruptTimeoutPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "INT_FL0.toeri")
                     .WithTaggedFlag("INT_FL0.adreri", 10)
@@ -306,7 +308,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                     .WithFlag(4, out interruptRxThresholdEnabled, name: "INT_EN0.rxthi")
                     .WithFlag(5, out interruptTxThresholdEnabled, name: "INT_EN0.txthi")
                     .WithFlag(6, out interruptStopEnabled, name: "INT_EN0.stopi")
-                    .WithTaggedFlag("INT_EN0.adracki", 7)
+                    .WithFlag(7, out interruptAddressAckEnabled, name: "INT_EN0.adracki")
                     .WithTaggedFlag("INT_EN0.arberi", 8)
                     .WithFlag(9, out interruptTimeoutEnabled, name: "INT_EN0.toeri")
                     .WithTaggedFlag("INT_EN0.adreri", 10)
@@ -318,7 +320,12 @@ namespace Antmicro.Renode.Peripherals.I2C
                     .WithReservedBits(16, 16)
                     .WithChangeCallback((_, __) => UpdateInterrupts())
                 },
-                {(long)Registers.ReceiveControl0, new DoubleWordRegister(this)
+                { (long)Registers.FIFOLength, new DoubleWordRegister(this, 0x8080)
+                    .WithValueField(0, 8, FieldMode.Read, name: "rx_depth")
+                    .WithValueField(8, 8, FieldMode.Read, name: "tx_depth")
+                    .WithReservedBits(16, 16)
+                },
+                { (long)Registers.ReceiveControl0, new DoubleWordRegister(this)
                     .WithTaggedFlag("RX_CTRL0.dnr", 0)
                     .WithReservedBits(1, 6)
                     .WithFlag(7, FieldMode.Read | FieldMode.WriteOneToClear, name: "RX_CTRL0.rxfsh",
@@ -405,12 +412,14 @@ namespace Antmicro.Renode.Peripherals.I2C
         private IValueRegisterField rxThreshold;
         private IValueRegisterField txThreshold;
 
+        private IFlagRegisterField interruptAddressAckPending;
         private IFlagRegisterField interruptTimeoutPending;
         private IFlagRegisterField interruptRxThresholdPending;
         private IFlagRegisterField interruptTxThresholdPending;
         private IFlagRegisterField interruptStopPending;
         private IFlagRegisterField interruptDonePending;
 
+        private IFlagRegisterField interruptAddressAckEnabled;
         private IFlagRegisterField interruptTimeoutEnabled;
         private IFlagRegisterField interruptRxThresholdEnabled;
         private IFlagRegisterField interruptTxThresholdEnabled;

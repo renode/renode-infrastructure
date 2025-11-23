@@ -6,13 +6,12 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Generic;
 using System.IO;
+
 using Antmicro.Migrant;
 using Antmicro.Migrant.Customization;
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals.UART;
-using System.Collections.Generic;
-using Antmicro.Renode.Logging;
 using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.EventRecording
@@ -84,6 +83,7 @@ namespace Antmicro.Renode.EventRecording
             }
 
             public string Name { get; private set; }
+
             public Delegate Handler { get; private set; }
 
             public override bool Equals(object obj)
@@ -108,12 +108,12 @@ namespace Antmicro.Renode.EventRecording
                 }
             }
 
-            public static bool operator==(NameAndHandler first, NameAndHandler second)
+            public static bool operator ==(NameAndHandler first, NameAndHandler second)
             {
                 return first.Name == second.Name && first.Handler == second.Handler;
             }
 
-            public static bool operator!=(NameAndHandler first, NameAndHandler second)
+            public static bool operator !=(NameAndHandler first, NameAndHandler second)
             {
                 return !(first == second);
             }

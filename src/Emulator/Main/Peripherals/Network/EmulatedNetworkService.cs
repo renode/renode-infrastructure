@@ -6,6 +6,7 @@
 //
 
 using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Utilities;

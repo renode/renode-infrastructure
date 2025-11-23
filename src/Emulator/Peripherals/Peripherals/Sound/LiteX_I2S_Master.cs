@@ -8,8 +8,8 @@
 using System;
 
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Sound;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Sound;
 
 namespace Antmicro.Renode.Peripherals.Sound
 {

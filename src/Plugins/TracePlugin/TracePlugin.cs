@@ -6,6 +6,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.UserInterface;
 
 namespace Antmicro.Renode.Plugins.TracePlugin
@@ -15,7 +16,7 @@ namespace Antmicro.Renode.Plugins.TracePlugin
     {
         public TracePlugin(Monitor monitor)
         {
-            this.monitor = monitor;           
+            this.monitor = monitor;
             traceCommand = new TraceCommand(monitor);
             monitor.RegisterCommand(traceCommand);
         }
@@ -29,4 +30,3 @@ namespace Antmicro.Renode.Plugins.TracePlugin
         private readonly Monitor monitor;
     }
 }
-

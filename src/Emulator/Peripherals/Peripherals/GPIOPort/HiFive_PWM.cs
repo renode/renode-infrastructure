@@ -1,12 +1,13 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 
 using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -78,7 +79,6 @@ namespace Antmicro.Renode.Peripherals
                     // this is a global update
                     .WithWriteCallback((_, __) => UpdateInterrupt())
                 },
-
                 {(long)Registers.Count, new DoubleWordRegister(this)
                     .WithValueField(0, 31, name: "pwmcount", valueProviderCallback: _ => (uint)rawTimer.Value, writeCallback: (_, value) =>
                     {
@@ -87,27 +87,22 @@ namespace Antmicro.Renode.Peripherals
                     })
                     .WithReservedBits(31, 1)
                 },
-
                 {(long)Registers.ScaledCount, new DoubleWordRegister(this)
                     .WithValueField(0, 16, FieldMode.Read, name: "pwms", valueProviderCallback: _ => (uint)timers[0].Value)
                     .WithReservedBits(16, 16)
                 },
-
                 {(long)Registers.Compare0, new DoubleWordRegister(this, 0xFFFF)
                     .WithValueField(0, 16, out compare[0], name: "pwmcmp0", writeCallback: (_, value) => UpdateCompare(0))
                     .WithReservedBits(16, 16)
                 },
-
                 {(long)Registers.Compare1, new DoubleWordRegister(this, 0xFFFF)
                     .WithValueField(0, 16, out compare[1], name: "pwmcmp1", writeCallback: (_, value) => UpdateCompare(1))
                     .WithReservedBits(16, 16)
                 },
-
                 {(long)Registers.Compare2, new DoubleWordRegister(this, 0xFFFF)
                     .WithValueField(0, 16, out compare[2], name: "pwmcmp2", writeCallback: (_, value) => UpdateCompare(2))
                     .WithReservedBits(16, 16)
                 },
-
                 {(long)Registers.Compare3, new DoubleWordRegister(this, 0xFFFF)
                     .WithValueField(0, 16, out compare[3], name: "pwmcmp3", writeCallback: (_, value) => UpdateCompare(3))
                     .WithReservedBits(16, 16)
@@ -115,6 +110,16 @@ namespace Antmicro.Renode.Peripherals
             };
 
             registers = new DoubleWordRegisterCollection(this, registersMap);
+        }
+
+        public void Register(IGPIOReceiver peripheral, NumberRegistrationPoint<int> registrationPoint)
+        {
+            machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
+        }
+
+        public void Unregister(IGPIOReceiver peripheral)
+        {
+            machine.UnregisterAsAChildOf(this, peripheral);
         }
 
         public void Reset()
@@ -189,29 +194,23 @@ namespace Antmicro.Renode.Peripherals
             Array.ForEach(timers, t => t.Value = (value >> (int)scale.Value) & CompareMask);
         }
 
-        public void Register(IGPIOReceiver peripheral, NumberRegistrationPoint<int> registrationPoint)
-        {
-            machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
-        }
-
-        public void Unregister(IGPIOReceiver peripheral)
-        {
-            machine.UnregisterAsAChildOf(this, peripheral);
-        }
-
-        private IFlagRegisterField[] interruptPending;
-        private IFlagRegisterField sticky;
-        private IFlagRegisterField resetAfterMatch;
-        private IFlagRegisterField enableAlways;
-        private IFlagRegisterField enableOneShot;
-        private IValueRegisterField scale;
-        private IValueRegisterField[] compare;
+        private readonly IFlagRegisterField[] interruptPending;
+        private readonly IFlagRegisterField sticky;
+        private readonly IFlagRegisterField resetAfterMatch;
+        private readonly IFlagRegisterField enableAlways;
+        private readonly IFlagRegisterField enableOneShot;
+        private readonly IValueRegisterField scale;
+        private readonly IValueRegisterField[] compare;
 
         private readonly LimitTimer rawTimer;
         private readonly ComparingTimer[] timers;
         private readonly DoubleWordRegisterCollection registers;
         private readonly Dictionary<int, IGPIO> connections;
         private readonly IMachine machine;
+
+        private const uint TimerLimit = (1u << 31) - 1;
+        private const uint CompareMask = (1u << 16) - 1;
+        private const int NumberOfComparers = 4;
 
         private enum Registers
         {
@@ -226,9 +225,5 @@ namespace Antmicro.Renode.Peripherals
             Compare2 = 0x28,
             Compare3 = 0x2C
         }
-
-        private const uint TimerLimit = (1u << 31) - 1;
-        private const uint CompareMask = (1u << 16) - 1;
-        private const int NumberOfComparers = 4;
     }
 }

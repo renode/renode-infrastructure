@@ -1,12 +1,13 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -286,6 +287,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 {
                     return HalfTransfer || TransferComplete;
                 }
+
                 set
                 {
                     if(value)
@@ -375,33 +377,33 @@ namespace Antmicro.Renode.Peripherals.DMA
             {
                 switch(size)
                 {
-                    case TransferSize.Bits32:
-                        return TransferType.DoubleWord;
-                    case TransferSize.Bits16:
-                        return TransferType.Word;
-                    case TransferSize.Bits8:
-                    default:
-                        return TransferType.Byte;
+                case TransferSize.Bits32:
+                    return TransferType.DoubleWord;
+                case TransferSize.Bits16:
+                    return TransferType.Word;
+                case TransferSize.Bits8:
+                default:
+                    return TransferType.Byte;
                 }
             }
 
-
-            private IEnumRegisterField<TransferDirection> transferDirection;
-            private IFlagRegisterField circularMode;
-            private IFlagRegisterField peripheralIncrementMode;
-            private IFlagRegisterField memoryIncrementMode;
-            private IFlagRegisterField memoryToMemory;
-            private IValueRegisterField dataCount;
-            private IValueRegisterField memoryAddress;
-            private IValueRegisterField peripheralAddress;
-            private IFlagRegisterField channelEnable;
-            private IFlagRegisterField transferCompleteInterruptEnable;
-            private IFlagRegisterField halfTransferInterruptEnable;
-            private IEnumRegisterField<TransferSize> memoryTransferType;
-            private IEnumRegisterField<TransferSize> peripheralTransferType;
             private ulong currentPeripheralAddress;
             private ulong currentMemoryAddress;
             private ulong originalDataCount;
+
+            private readonly IEnumRegisterField<TransferDirection> transferDirection;
+            private readonly IFlagRegisterField circularMode;
+            private readonly IFlagRegisterField peripheralIncrementMode;
+            private readonly IFlagRegisterField memoryIncrementMode;
+            private readonly IFlagRegisterField memoryToMemory;
+            private readonly IValueRegisterField dataCount;
+            private readonly IValueRegisterField memoryAddress;
+            private readonly IValueRegisterField peripheralAddress;
+            private readonly IFlagRegisterField channelEnable;
+            private readonly IFlagRegisterField transferCompleteInterruptEnable;
+            private readonly IFlagRegisterField halfTransferInterruptEnable;
+            private readonly IEnumRegisterField<TransferSize> memoryTransferType;
+            private readonly IEnumRegisterField<TransferSize> peripheralTransferType;
 
             private readonly DoubleWordRegisterCollection registers;
             private readonly STM32G0DMA parent;

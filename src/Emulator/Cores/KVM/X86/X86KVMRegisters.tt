@@ -9,14 +9,14 @@
 <#@ template language="C#" #>
 <#@ include file="../../Common/RegisterTemplateDefinitions.tt" #>
 <#
-    CLASS_NAME = "X86_64KVM";
+    CLASS_NAME = "X86KVM";
     HEADER_FILE = "Emulator/Cores/virt/include/cpu_registers.h";
     ACCESSOR_PREFIX = "kvm_";
 
-    DEFINES.Add("TARGET_X86_64KVM");
+    DEFINES.Add("TARGET_X86KVM");
 
-    PC_REGISTER = "RIP";
+    PC_REGISTER = "EIP";
 
-    GENERAL_REGISTERS.AddRange(new[] { "RAX", "RCX", "RDX", "RBX", "RSP", "RBP", "RSI", "RDI", "RIP", "EFLAGS", "CS", "SS", "DS", "ES", "FS", "GS", "CR0", "CR1", "CR2", "CR3", "CR4", "CR8", "EFER" });
+    GENERAL_REGISTERS.AddRange(new[] { "EAX", "ECX", "EDX", "EBX", "ESP", "EBP", "ESI", "EDI", "EIP", "EFLAGS", "CS", "SS", "DS", "ES", "FS", "GS", "ST0", "ST1", "ST2", "ST3", "ST4", "ST5", "ST6", "ST7", "CR0", "CR1", "CR2", "CR3", "CR4" });
 #>
 <#@ include file="../../Common/RegisterTemplate.tt" #>

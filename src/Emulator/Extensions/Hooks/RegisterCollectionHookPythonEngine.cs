@@ -5,21 +5,22 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Core;
-using Antmicro.Migrant.Hooks;
-using Microsoft.Scripting.Hosting;
+
 using Antmicro.Migrant;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals;
+using Antmicro.Migrant.Hooks;
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
+
+using Microsoft.Scripting.Hosting;
 
 namespace Antmicro.Renode.Hooks
 {
-    public class RegisterCollectionHookPythonEngine<T, R> : PythonEngine 
-        where T: struct
-        where R: IRegisterCollection
+    public class RegisterCollectionHookPythonEngine<T, R> : PythonEngine
+        where T : struct
+        where R : IRegisterCollection
     {
-        public RegisterCollectionHookPythonEngine(IProvidesRegisterCollection<R> registerCollectionProvider, string script) 
+        public RegisterCollectionHookPythonEngine(IProvidesRegisterCollection<R> registerCollectionProvider, string script)
         {
             this.registerCollectionProvider = registerCollectionProvider;
             this.script = script;
@@ -56,4 +57,3 @@ namespace Antmicro.Renode.Hooks
         private readonly IProvidesRegisterCollection<R> registerCollectionProvider;
     }
 }
-

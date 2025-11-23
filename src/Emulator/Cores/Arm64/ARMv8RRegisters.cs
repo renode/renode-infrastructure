@@ -6,12 +6,15 @@
 * appropriate *.tt file.
 *
 */
+#pragma warning disable IDE0005
 using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
+
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.CPU.Registers;
 using Antmicro.Renode.Utilities.Binding;
-using Antmicro.Renode.Exceptions;
+#pragma warning restore IDE0005
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -21,6 +24,10 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             if(!mapping.TryGetValue((ARMv8RRegisters)register, out var r))
             {
+                if(TrySetNonMappedRegister(register, value))
+                {
+                    return;
+                }
                 throw new RecoverableException($"Wrong register index: {register}");
             }
 
@@ -41,6 +48,10 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             if(!mapping.TryGetValue((ARMv8RRegisters)register, out var r))
             {
+                if(TryGetNonMappedRegister(register, out var value))
+                {
+                    return value;
+                }
                 throw new RecoverableException($"Wrong register index: {register}");
             }
             switch(r.Width)
@@ -56,7 +67,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override IEnumerable<CPURegister> GetRegisters()
         {
-            return mapping.Values.OrderBy(x => x.Index);
+            return mapping.Values.Concat(GetNonMappedRegisters()).OrderBy(x => x.Index);
         }
 
         [Register]
@@ -66,11 +77,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue64((int)ARMv8RRegisters.SP);
             }
+
             set
             {
                 SetRegisterValue64((int)ARMv8RRegisters.SP, value);
             }
         }
+
         [Register]
         public override RegisterValue PC
         {
@@ -78,11 +91,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue64((int)ARMv8RRegisters.PC);
             }
+
             set
             {
                 SetRegisterValue64((int)ARMv8RRegisters.PC, value);
             }
         }
+
         [Register]
         public RegisterValue PSTATE
         {
@@ -90,11 +105,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)ARMv8RRegisters.PSTATE);
             }
+
             set
             {
                 SetRegisterValue32((int)ARMv8RRegisters.PSTATE, value);
             }
         }
+
         [Register]
         public RegisterValue FPSR
         {
@@ -102,11 +119,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)ARMv8RRegisters.FPSR);
             }
+
             set
             {
                 SetRegisterValue32((int)ARMv8RRegisters.FPSR, value);
             }
         }
+
         [Register]
         public RegisterValue FPCR
         {
@@ -114,11 +133,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)ARMv8RRegisters.FPCR);
             }
+
             set
             {
                 SetRegisterValue32((int)ARMv8RRegisters.FPCR, value);
             }
         }
+
         [Register]
         public RegisterValue CPSR
         {
@@ -126,14 +147,18 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)ARMv8RRegisters.CPSR);
             }
+
             set
             {
                 SetRegisterValue32((int)ARMv8RRegisters.CPSR, value);
             }
         }
+
         public RegistersGroup X { get; private set; }
+
         public RegistersGroup R { get; private set; }
 
+#pragma warning disable SA1508
         protected override void InitializeRegisters()
         {
             var indexValueMapX = new Dictionary<int, ARMv8RRegisters>
@@ -200,26 +225,25 @@ namespace Antmicro.Renode.Peripherals.CPU
                 (i, v) => SetRegister((int)indexValueMapR[i], v));
 
         }
+#pragma warning restore SA1508
 
+#pragma warning disable 649
         // 649:  Field '...' is never assigned to, and will always have its default value null
-        #pragma warning disable 649
-
         [Import(Name = "tlib_set_register_value_64")]
         protected Action<int, ulong> SetRegisterValue64;
+
         [Import(Name = "tlib_get_register_value_64")]
         protected Func<int, ulong> GetRegisterValue64;
+#pragma warning restore 649
 
-        #pragma warning restore 649
-
+#pragma warning disable 649
         // 649:  Field '...' is never assigned to, and will always have its default value null
-        #pragma warning disable 649
-
         [Import(Name = "tlib_set_register_value_32")]
         protected Action<int, uint> SetRegisterValue32;
+
         [Import(Name = "tlib_get_register_value_32")]
         protected Func<int, uint> GetRegisterValue32;
-
-        #pragma warning restore 649
+#pragma warning restore 649
 
         private static readonly Dictionary<ARMv8RRegisters, CPURegister> mapping = new Dictionary<ARMv8RRegisters, CPURegister>
         {

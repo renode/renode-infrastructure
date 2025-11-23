@@ -1,22 +1,20 @@
 ﻿//
 // Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.CAN;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.Memory;
-using Antmicro.Renode.Hooks;
+using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Packets;
-using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.CAN
 {
@@ -116,57 +114,39 @@ namespace Antmicro.Renode.Peripherals.CAN
                     // Handle fields that have meaningful side effects from the point of emulation. Other fields are treated as flags.
                     switch((Control)idx)
                     {
-                        case Control.Initialization:
+                    case Control.Initialization:
+                    {
+                        if(!newVal)
                         {
-                            if(!newVal)
-                            {
-                                rv.CCControlRegister.ControlFields[(int)Control.ConfigurationChangeEnable].Value = false;
-                                this.Log(LogLevel.Debug, "Software initialization is finished");
-                            }
-                            break;
+                            rv.CCControlRegister.ControlFields[(int)Control.ConfigurationChangeEnable].Value = false;
+                            this.Log(LogLevel.Debug, "Software initialization is finished");
                         }
-                        case Control.ConfigurationChangeEnable:
+                        break;
+                    }
+                    case Control.ConfigurationChangeEnable:
+                    {
+                        if(!rv.CCControlRegister.ControlFields[(int)Control.Initialization].Value && rv.CCControlRegister.ControlFields[(int)Control.ConfigurationChangeEnable].Value) // oldVal was reset through resetting INIT
                         {
-                            if(!rv.CCControlRegister.ControlFields[(int)Control.Initialization].Value && rv.CCControlRegister.ControlFields[(int)Control.ConfigurationChangeEnable].Value) // oldVal was reset through resetting INIT
-                            {
-                                rv.CCControlRegister.ControlFields[idx].Value = oldVal;
-                                return;
-                            }
-                            if(newVal)
-                            {
-                                registerMap[(long)Register.HighPriorityMessageStatus].Reset();
-                                registerMap[(long)Register.RxFIFO0Status].Reset();
-                                registerMap[(long)Register.RxFIFO1Status].Reset();
-                                registerMap[(long)Register.TxFIFOQueueStatus].Reset();
-                                registerMap[(long)Register.TxBufferRequestPending].Reset();
-                                registerMap[(long)Register.TxBufferTransmissionOccurred].Reset();
-                                registerMap[(long)Register.TxBufferCancellationFinished].Reset();
-                                registerMap[(long)Register.TxEventFIFOStatus].Reset();
-                            }
-                            break;
+                            rv.CCControlRegister.ControlFields[idx].Value = oldVal;
+                            return;
                         }
-                        case Control.BusMonitoringMode:
-                        case Control.TestModeEnable:
+                        if(newVal)
                         {
-                            if(newVal)
-                            {
-                                if(!IsProtectedWrite && newVal != oldVal)
-                                {
-                                    this.Log(LogLevel.Warning, "Trying to write to protected field. Ignoring.");
-                                    rv.CCControlRegister.ControlFields[idx].Value = oldVal;
-                                    return;
-                                }
-                            }
-                            else
-                            {
-                                if((Control)idx == Control.TestModeEnable)
-                                {
-                                    registerMap[(long)Register.TestRegister].Reset();
-                                }
-                            }
-                            break;
+                            registerMap[(long)Register.HighPriorityMessageStatus].Reset();
+                            registerMap[(long)Register.RxFIFO0Status].Reset();
+                            registerMap[(long)Register.RxFIFO1Status].Reset();
+                            registerMap[(long)Register.TxFIFOQueueStatus].Reset();
+                            registerMap[(long)Register.TxBufferRequestPending].Reset();
+                            registerMap[(long)Register.TxBufferTransmissionOccurred].Reset();
+                            registerMap[(long)Register.TxBufferCancellationFinished].Reset();
+                            registerMap[(long)Register.TxEventFIFOStatus].Reset();
                         }
-                        case Control.DisableAutomaticRetransmission:
+                        break;
+                    }
+                    case Control.BusMonitoringMode:
+                    case Control.TestModeEnable:
+                    {
+                        if(newVal)
                         {
                             if(!IsProtectedWrite && newVal != oldVal)
                             {
@@ -174,8 +154,26 @@ namespace Antmicro.Renode.Peripherals.CAN
                                 rv.CCControlRegister.ControlFields[idx].Value = oldVal;
                                 return;
                             }
-                            break;
                         }
+                        else
+                        {
+                            if((Control)idx == Control.TestModeEnable)
+                            {
+                                registerMap[(long)Register.TestRegister].Reset();
+                            }
+                        }
+                        break;
+                    }
+                    case Control.DisableAutomaticRetransmission:
+                    {
+                        if(!IsProtectedWrite && newVal != oldVal)
+                        {
+                            this.Log(LogLevel.Warning, "Trying to write to protected field. Ignoring.");
+                            rv.CCControlRegister.ControlFields[idx].Value = oldVal;
+                            return;
+                        }
+                        break;
+                    }
                     }
                 })
                 .WithReservedBits(16, 16);
@@ -251,21 +249,21 @@ namespace Antmicro.Renode.Peripherals.CAN
 
                     switch((Interrupt)idx)
                     {
-                        case Interrupt.RxFIFO0MessageLost:
-                        {
-                            rxFIFO0.MessageLost.Value = false;
-                            break;
-                        }
-                        case Interrupt.RxFIFO1MessageLost:
-                        {
-                            rxFIFO1.MessageLost.Value = false;
-                            break;
-                        }
-                        case Interrupt.TxEventFIFOElementLost:
-                        {
-                            txEventFIFO.ElementLost.Value = false;
-                            break;
-                        }
+                    case Interrupt.RxFIFO0MessageLost:
+                    {
+                        rxFIFO0.MessageLost.Value = false;
+                        break;
+                    }
+                    case Interrupt.RxFIFO1MessageLost:
+                    {
+                        rxFIFO1.MessageLost.Value = false;
+                        break;
+                    }
+                    case Interrupt.TxEventFIFOElementLost:
+                    {
+                        txEventFIFO.ElementLost.Value = false;
+                        break;
+                    }
                     }
                 })
                 .WithWriteCallback((_, __) => UpdateInterrupts());
@@ -563,37 +561,37 @@ namespace Antmicro.Renode.Peripherals.CAN
 
             switch(txScanMode)
             {
-                case TxScanModeInternal.Dedicated:
-                {
-                    bufferNumber = ScanDedicatedTxBuffers(out messageID);
-                    break;
-                }
-                case TxScanModeInternal.FIFO:
-                {
-                    bufferNumber = ScanTxFIFO(out messageID);
-                    break;
-                }
-                case TxScanModeInternal.Queue:
-                {
-                    bufferNumber = ScanTxQueue(out messageID);
-                    break;
-                }
-                case TxScanModeInternal.MixedDedicatedFIFO:
-                {
-                    var bufferNumber0 = ScanDedicatedTxBuffers(out var messageID0);
-                    var bufferNumber1 = ScanTxFIFO(out var messageID1);
-                    messageID = messageID0 <= messageID1 ? messageID0 : messageID1;
-                    bufferNumber = messageID0 <= messageID1 ? bufferNumber0 : bufferNumber1;
-                    break;
-                }
-                case TxScanModeInternal.MixedDedicatedQueue:
-                {
-                    var bufferNumber0 = ScanDedicatedTxBuffers(out var messageID0);
-                    var bufferNumber1 = ScanTxQueue(out var messageID1);
-                    messageID = messageID0 <= messageID1 ? messageID0 : messageID1;
-                    bufferNumber = messageID0 <= messageID1 ? bufferNumber0 : bufferNumber1;
-                    break;
-                }
+            case TxScanModeInternal.Dedicated:
+            {
+                bufferNumber = ScanDedicatedTxBuffers(out messageID);
+                break;
+            }
+            case TxScanModeInternal.FIFO:
+            {
+                bufferNumber = ScanTxFIFO(out messageID);
+                break;
+            }
+            case TxScanModeInternal.Queue:
+            {
+                bufferNumber = ScanTxQueue(out messageID);
+                break;
+            }
+            case TxScanModeInternal.MixedDedicatedFIFO:
+            {
+                var bufferNumber0 = ScanDedicatedTxBuffers(out var messageID0);
+                var bufferNumber1 = ScanTxFIFO(out var messageID1);
+                messageID = messageID0 <= messageID1 ? messageID0 : messageID1;
+                bufferNumber = messageID0 <= messageID1 ? bufferNumber0 : bufferNumber1;
+                break;
+            }
+            case TxScanModeInternal.MixedDedicatedQueue:
+            {
+                var bufferNumber0 = ScanDedicatedTxBuffers(out var messageID0);
+                var bufferNumber1 = ScanTxQueue(out var messageID1);
+                messageID = messageID0 <= messageID1 ? messageID0 : messageID1;
+                bufferNumber = messageID0 <= messageID1 ? bufferNumber0 : bufferNumber1;
+                break;
+            }
             }
 
             return bufferNumber;
@@ -950,58 +948,58 @@ namespace Antmicro.Renode.Peripherals.CAN
         {
             switch(filter.FilterType)
             {
-                case FilterType.Range:
+            case FilterType.Range:
+            {
+                if(!isExtended)
                 {
-                    if(!isExtended)
-                    {
-                        if(id >= filter.ID1 && id <= filter.ID2)
-                        {
-                            return true;
-                        }
-                    }
-                    else
-                    {
-                        var idMasked = id & (uint)rv.ExtendedIdANDMask.ExtendedIDANDMask.Value;
-                        if(idMasked >= filter.ID1 && idMasked <= filter.ID2)
-                        {
-                            return true;
-                        }
-                    }
-                    break;
-                }
-                case FilterType.DualID:
-                {
-                    if((id == filter.ID1) || (id == filter.ID2))
-                    {
-                        return true;
-                    }
-                    break;
-                }
-                case FilterType.Classic:
-                {
-                    if((id & filter.ID2) == (filter.ID1 & filter.ID2))
-                    {
-                        return true;
-                    }
-                    break;
-                }
-                case FilterType.RangeWithoutMask:
-                {
-                    if(!isExtended)
-                    {
-                        break;
-                    }
                     if(id >= filter.ID1 && id <= filter.ID2)
                     {
                         return true;
                     }
-                    break;
                 }
-                default:
+                else
                 {
-                    this.Log(LogLevel.Warning, "Invalid filter type.");
+                    var idMasked = id & (uint)rv.ExtendedIdANDMask.ExtendedIDANDMask.Value;
+                    if(idMasked >= filter.ID1 && idMasked <= filter.ID2)
+                    {
+                        return true;
+                    }
+                }
+                break;
+            }
+            case FilterType.DualID:
+            {
+                if((id == filter.ID1) || (id == filter.ID2))
+                {
+                    return true;
+                }
+                break;
+            }
+            case FilterType.Classic:
+            {
+                if((id & filter.ID2) == (filter.ID1 & filter.ID2))
+                {
+                    return true;
+                }
+                break;
+            }
+            case FilterType.RangeWithoutMask:
+            {
+                if(!isExtended)
+                {
                     break;
                 }
+                if(id >= filter.ID1 && id <= filter.ID2)
+                {
+                    return true;
+                }
+                break;
+            }
+            default:
+            {
+                this.Log(LogLevel.Warning, "Invalid filter type.");
+                break;
+            }
             }
             return false;
         }
@@ -1024,87 +1022,87 @@ namespace Antmicro.Renode.Peripherals.CAN
 
             switch(filter.FilterElementConfiguration)
             {
-                case FilterElementConfiguration.RxFIFO0OnMatch:
+            case FilterElementConfiguration.RxFIFO0OnMatch:
+            {
+                var wasStored = StoreInRxFIFO(0, rxBufferElementHeader, rxMessage.Data);
+                break;
+            }
+            case FilterElementConfiguration.RxFIFO1OnMatch:
+            {
+                var wasStored = StoreInRxFIFO(1, rxBufferElementHeader, rxMessage.Data);
+                break;
+            }
+            case FilterElementConfiguration.RejectIDOnMatch:
+            {
+                if(filter.SyncMessage)
                 {
-                    var wasStored = StoreInRxFIFO(0, rxBufferElementHeader, rxMessage.Data);
-                    break;
+                    this.Log(LogLevel.Warning, "Reject ID if filter matches is not intended to be used with Sync messages");
                 }
-                case FilterElementConfiguration.RxFIFO1OnMatch:
+                break;
+            }
+            case FilterElementConfiguration.SetPriorityOnMatch:
+            {
+                if(filter.SyncMessage)
                 {
-                    var wasStored = StoreInRxFIFO(1, rxBufferElementHeader, rxMessage.Data);
-                    break;
+                    this.Log(LogLevel.Warning, "Setting priority on filter match is not intended to be used with Sync messages");
+                    return;
                 }
-                case FilterElementConfiguration.RejectIDOnMatch:
-                {
-                    if(filter.SyncMessage)
-                    {
-                        this.Log(LogLevel.Warning, "Reject ID if filter matches is not intended to be used with Sync messages");
-                    }
-                    break;
-                }
-                case FilterElementConfiguration.SetPriorityOnMatch:
-                {
-                    if(filter.SyncMessage)
-                    {
-                        this.Log(LogLevel.Warning, "Setting priority on filter match is not intended to be used with Sync messages");
-                        return;
-                    }
 
-                    rv.HighPriorityMessageStatus.MessageStorageIndicator.Value = MessageStorageIndicator.NoFIFOselected;
-                    rv.HighPriorityMessageStatus.FilterIndex.Value = (ulong)idx;
-                    rv.HighPriorityMessageStatus.FilterList.Value = filter.IsExtended;
+                rv.HighPriorityMessageStatus.MessageStorageIndicator.Value = MessageStorageIndicator.NoFIFOselected;
+                rv.HighPriorityMessageStatus.FilterIndex.Value = (ulong)idx;
+                rv.HighPriorityMessageStatus.FilterList.Value = filter.IsExtended;
 
-                    rv.InterruptRegister.InterruptFlags[(int)Interrupt.HighPriorityMessage].Value = true;
-                    break;
-                }
-                case FilterElementConfiguration.SetPriorityAndRxFIFO0OnMatch:
+                rv.InterruptRegister.InterruptFlags[(int)Interrupt.HighPriorityMessage].Value = true;
+                break;
+            }
+            case FilterElementConfiguration.SetPriorityAndRxFIFO0OnMatch:
+            {
+                var wasStored = StoreInRxFIFO(0, rxBufferElementHeader, rxMessage.Data);
+
+                if(wasStored)
                 {
-                    var wasStored = StoreInRxFIFO(0, rxBufferElementHeader, rxMessage.Data);
-
-                    if(wasStored)
-                    {
-                        rv.HighPriorityMessageStatus.BufferIndex.Value = rv.RxFIFO0Status.RxFIFO0PutIndex.Value - 1; // Put Index was already incremented for new message so subtract one
-                        rv.HighPriorityMessageStatus.MessageStorageIndicator.Value = MessageStorageIndicator.MessageInFIFO0;
-                    }
-                    else
-                    {
-                        rv.HighPriorityMessageStatus.MessageStorageIndicator.Value = MessageStorageIndicator.FIFOMessageLost;
-                    }
-                    rv.HighPriorityMessageStatus.FilterIndex.Value = (ulong)idx;
-                    rv.HighPriorityMessageStatus.FilterList.Value = filter.IsExtended;
-
-                    rv.InterruptRegister.InterruptFlags[(int)Interrupt.HighPriorityMessage].Value = true;
-                    break;
+                    rv.HighPriorityMessageStatus.BufferIndex.Value = rv.RxFIFO0Status.RxFIFO0PutIndex.Value - 1; // Put Index was already incremented for new message so subtract one
+                    rv.HighPriorityMessageStatus.MessageStorageIndicator.Value = MessageStorageIndicator.MessageInFIFO0;
                 }
-                case FilterElementConfiguration.SetPriorityAndRxFIFO1OnMatch:
+                else
                 {
-                    var wasStored = StoreInRxFIFO(1, rxBufferElementHeader, rxMessage.Data);
+                    rv.HighPriorityMessageStatus.MessageStorageIndicator.Value = MessageStorageIndicator.FIFOMessageLost;
+                }
+                rv.HighPriorityMessageStatus.FilterIndex.Value = (ulong)idx;
+                rv.HighPriorityMessageStatus.FilterList.Value = filter.IsExtended;
 
-                    if(wasStored)
-                    {
-                        rv.HighPriorityMessageStatus.BufferIndex.Value = rv.RxFIFO1Status.RxFIFO1PutIndex.Value - 1; // Put Index was already incremented for new message so subtract one
-                        rv.HighPriorityMessageStatus.MessageStorageIndicator.Value = MessageStorageIndicator.MessageInFIFO1;
-                    }
-                    else
-                    {
-                        rv.HighPriorityMessageStatus.MessageStorageIndicator.Value = MessageStorageIndicator.FIFOMessageLost;
-                    }
-                    rv.HighPriorityMessageStatus.FilterIndex.Value = (ulong)idx;
-                    rv.HighPriorityMessageStatus.FilterList.Value = filter.IsExtended;
+                rv.InterruptRegister.InterruptFlags[(int)Interrupt.HighPriorityMessage].Value = true;
+                break;
+            }
+            case FilterElementConfiguration.SetPriorityAndRxFIFO1OnMatch:
+            {
+                var wasStored = StoreInRxFIFO(1, rxBufferElementHeader, rxMessage.Data);
 
-                    rv.InterruptRegister.InterruptFlags[(int)Interrupt.HighPriorityMessage].Value = true;
-                    break;
-                }
-                case FilterElementConfiguration.RxBufferOrDebugMessageOnMatch:
+                if(wasStored)
                 {
-                    StoreInRxBuffer(rxBufferElementHeader, rxMessage.Data, filter);
-                    break;
+                    rv.HighPriorityMessageStatus.BufferIndex.Value = rv.RxFIFO1Status.RxFIFO1PutIndex.Value - 1; // Put Index was already incremented for new message so subtract one
+                    rv.HighPriorityMessageStatus.MessageStorageIndicator.Value = MessageStorageIndicator.MessageInFIFO1;
                 }
-                default:
+                else
                 {
-                    this.Log(LogLevel.Warning, "Invalid Filter Element Configuration");
-                    break;
+                    rv.HighPriorityMessageStatus.MessageStorageIndicator.Value = MessageStorageIndicator.FIFOMessageLost;
                 }
+                rv.HighPriorityMessageStatus.FilterIndex.Value = (ulong)idx;
+                rv.HighPriorityMessageStatus.FilterList.Value = filter.IsExtended;
+
+                rv.InterruptRegister.InterruptFlags[(int)Interrupt.HighPriorityMessage].Value = true;
+                break;
+            }
+            case FilterElementConfiguration.RxBufferOrDebugMessageOnMatch:
+            {
+                StoreInRxBuffer(rxBufferElementHeader, rxMessage.Data, filter);
+                break;
+            }
+            default:
+            {
+                this.Log(LogLevel.Warning, "Invalid Filter Element Configuration");
+                break;
+            }
             }
         }
 
@@ -1126,21 +1124,21 @@ namespace Antmicro.Renode.Peripherals.CAN
 
             switch(frameTarget)
             {
-                case NonMatchingFrameTarget.AcceptInRxFIFO0:
-                {
-                    StoreInRxFIFO(0, rxBufferElementHeader, rxMessage.Data);
-                    break;
-                }
-                case NonMatchingFrameTarget.AcceptInRxFIFO1:
-                {
-                    StoreInRxFIFO(1, rxBufferElementHeader, rxMessage.Data);
-                    break;
-                }
-                default:
-                {
-                    this.Log(LogLevel.Warning, "Non-matching frame was rejected");
-                    break;
-                }
+            case NonMatchingFrameTarget.AcceptInRxFIFO0:
+            {
+                StoreInRxFIFO(0, rxBufferElementHeader, rxMessage.Data);
+                break;
+            }
+            case NonMatchingFrameTarget.AcceptInRxFIFO1:
+            {
+                StoreInRxFIFO(1, rxBufferElementHeader, rxMessage.Data);
+                break;
+            }
+            default:
+            {
+                this.Log(LogLevel.Warning, "Non-matching frame was rejected");
+                break;
+            }
             }
         }
 
@@ -1168,25 +1166,25 @@ namespace Antmicro.Renode.Peripherals.CAN
 
             switch(rxFIFO.OperationMode.Value)
             {
-                case FIFOOperationMode.Overwrite:
+            case FIFOOperationMode.Overwrite:
+            {
+                if(rxFIFO.Full.Value)
                 {
-                    if(rxFIFO.Full.Value)
-                    {
-                        rxFIFO.RxFIFOGetIndex += 1;
-                    }
-                    break;
+                    rxFIFO.RxFIFOGetIndex += 1;
                 }
-                case FIFOOperationMode.Blocking:
-                default:
+                break;
+            }
+            case FIFOOperationMode.Blocking:
+            default:
+            {
+                if(rxFIFO.Full.Value)
                 {
-                    if(rxFIFO.Full.Value)
-                    {
-                        rxFIFO.InterruptMessageLost.Value = true;
-                        rxFIFO.MessageLost.Value = true;
-                        return false; // Message is discarded
-                    }
-                    break;
+                    rxFIFO.InterruptMessageLost.Value = true;
+                    rxFIFO.MessageLost.Value = true;
+                    return false; // Message is discarded
                 }
+                break;
+            }
             }
 
             messageRAM.WriteBytes((long)addr, rxHeaderBytes, 0, rxHeaderBytes.Length);
@@ -1233,22 +1231,22 @@ namespace Antmicro.Renode.Peripherals.CAN
 
             switch(target)
             {
-                case RxBufferOrDebugDestination.StoreInRxBuffer:
-                {
-                    var newDataFlags = rxBufferIdx < 32 ? rv.NewData1.NewData1Flags : rv.NewData2.NewData2Flags;
-                    newDataFlags[rxBufferIdx % 32].Value = true;
+            case RxBufferOrDebugDestination.StoreInRxBuffer:
+            {
+                var newDataFlags = rxBufferIdx < 32 ? rv.NewData1.NewData1Flags : rv.NewData2.NewData2Flags;
+                newDataFlags[rxBufferIdx % 32].Value = true;
 
-                    rv.InterruptRegister.InterruptFlags[(int)Interrupt.MessageStoredToDedicatedRxBuffer].Value = true;
-                    break;
-                }
-                case RxBufferOrDebugDestination.DebugMessageA:
-                case RxBufferOrDebugDestination.DebugMessageB:
-                case RxBufferOrDebugDestination.DebugMessageC:
-                default:
-                {
-                    this.Log(LogLevel.Warning, "DMU add-on is required to activate DMA request output after debug message is stored");
-                    break;
-                }
+                rv.InterruptRegister.InterruptFlags[(int)Interrupt.MessageStoredToDedicatedRxBuffer].Value = true;
+                break;
+            }
+            case RxBufferOrDebugDestination.DebugMessageA:
+            case RxBufferOrDebugDestination.DebugMessageB:
+            case RxBufferOrDebugDestination.DebugMessageC:
+            default:
+            {
+                this.Log(LogLevel.Warning, "DMU add-on is required to activate DMA request output after debug message is stored");
+                break;
+            }
             }
         }
 

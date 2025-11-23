@@ -1,4 +1,4 @@
-﻿﻿//
+﻿//
 // Copyright (c) 2010-2018 Antmicro
 // Copyright (c) 2017 Bas Stottelaar <basstottelaar@gmail.com>
 //
@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         }
 
         public EZR32DeviceInformation(int deviceFamily, ushort deviceNumber, MappedMemory flashDevice, MappedMemory sramDevice, byte productRevision = 0)
-            :this((DeviceFamily)deviceFamily, deviceNumber, flashDevice, sramDevice, productRevision)
+            : this((DeviceFamily)deviceFamily, deviceNumber, flashDevice, sramDevice, productRevision)
         {
         }
 

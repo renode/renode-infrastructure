@@ -1,31 +1,46 @@
 #pragma once
 
-
 typedef enum {
 #ifdef TARGET_X86_64KVM
     RAX_64    = 0,
-    RCX_64    = 1,
-    RDX_64    = 2,
-    RBX_64    = 3,
+    RCX_64    = 2,
+    RDX_64    = 3,
+    RBX_64    = 1,
     RSP_64    = 4,
     RBP_64    = 5,
     RSI_64    = 6,
     RDI_64    = 7,
-    RIP_64    = 8,
-    EFLAGS_64 = 9,
-    CS_64     = 10,
-    SS_64     = 11,
-    DS_64     = 12,
-    ES_64     = 13,
-    FS_64     = 14,
-    GS_64     = 15,
-    CR0_64    = 16,
-    CR1_64    = 17,
-    CR2_64    = 18,
-    CR3_64    = 19,
-    CR4_64    = 20,
-    CR8_64    = 24,
-    EFER_64   = 25,
+    R8_64     = 8,
+    R9_64     = 9,
+    R10_64    = 10,
+    R11_64    = 11,
+    R12_64    = 12,
+    R13_64    = 13,
+    R14_64    = 14,
+    R15_64    = 15,
+    RIP_64    = 16,
+    EFLAGS_64 = 17,
+    CS_64     = 18,
+    SS_64     = 19,
+    DS_64     = 20,
+    ES_64     = 21,
+    FS_64     = 22,
+    GS_64     = 23,
+    ST0_64    = 24,
+    ST1_64    = 25,
+    ST2_64    = 26,
+    ST3_64    = 27,
+    ST4_64    = 28,
+    ST5_64    = 29,
+    ST6_64    = 30,
+    ST7_64    = 31,
+    CR0_64    = 32,
+    CR1_64    = 33,
+    CR2_64    = 34,
+    CR3_64    = 35,
+    CR4_64    = 36,
+    CR8_64    = 40,
+    EFER_64   = 41,
 #else
     EAX_32    = 0,
     ECX_32    = 1,
@@ -43,17 +58,24 @@ typedef enum {
     ES_32     = 13,
     FS_32     = 14,
     GS_32     = 15,
-    CR0_32    = 16,
-    CR1_32    = 17,
-    CR2_32    = 18,
-    CR3_32    = 19,
-    CR4_32    = 20,
+    ST0_32    = 16,
+    ST1_32    = 17,
+    ST2_32    = 18,
+    ST3_32    = 19,
+    ST4_32    = 20,
+    ST5_32    = 21,
+    ST6_32    = 22,
+    ST7_32    = 23,
+    CR0_32    = 24,
+    CR1_32    = 25,
+    CR2_32    = 26,
+    CR3_32    = 27,
+    CR4_32    = 28,
 #endif
 } Registers;
 
 
 #ifdef TARGET_X86_64KVM
-typedef uint64_t reg_t;
 #define RAX RAX_64
 #define RCX RCX_64
 #define RDX RDX_64
@@ -62,6 +84,14 @@ typedef uint64_t reg_t;
 #define RBP RBP_64
 #define RSI RSI_64
 #define RDI RDI_64
+#define R8 R8_64
+#define R9 R9_64
+#define R10 R10_64
+#define R11 R11_64
+#define R12 R12_64
+#define R13 R13_64
+#define R14 R14_64
+#define R15 R15_64
 #define RIP RIP_64
 #define EFLAGS EFLAGS_64
 #define CS CS_64
@@ -70,6 +100,14 @@ typedef uint64_t reg_t;
 #define ES ES_64
 #define FS FS_64
 #define GS GS_64
+#define ST0 ST0_64
+#define ST1 ST1_64
+#define ST2 ST2_64
+#define ST3 ST3_64
+#define ST4 ST4_64
+#define ST5 ST5_64
+#define ST6 ST6_64
+#define ST7 ST7_64
 #define CR0 CR0_64
 #define CR1 CR1_64
 #define CR2 CR2_64
@@ -78,7 +116,6 @@ typedef uint64_t reg_t;
 #define CR8 CR8_64
 #define EFER EFER_64
 #else
-typedef uint32_t reg_t;
 #define RAX EAX_32
 #define RCX ECX_32
 #define RDX EDX_32
@@ -95,6 +132,14 @@ typedef uint32_t reg_t;
 #define ES ES_32
 #define FS FS_32
 #define GS GS_32
+#define ST0 ST0_32
+#define ST1 ST1_32
+#define ST2 ST2_32
+#define ST3 ST3_32
+#define ST4 ST4_32
+#define ST5 ST5_32
+#define ST6 ST6_32
+#define ST7 ST7_32
 #define CR0 CR0_32
 #define CR1 CR1_32
 #define CR2 CR2_32

@@ -6,18 +6,20 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using NUnit.Framework;
 using System.Collections.Generic;
-using Antmicro.Renode.Utilities.Collections;
 using System.Linq;
+
+using Antmicro.Renode.Utilities.Collections;
+
+using NUnit.Framework;
 
 namespace Antmicro.Renode.UnitTests.Collections
 {
     [TestFixture]
     public class MultiValueDictionaryTests
     {
-        readonly static string[] values1 = { "test1", "test2", "test3", "test4" };
-        readonly static string[] values2 = { "dojpa1", "dojpa2", "dojpa3", "dojpa4" };
+        static readonly string[] values1 = { "test1", "test2", "test3", "test4" };
+        static readonly string[] values2 = { "dojpa1", "dojpa2", "dojpa3", "dojpa4" };
 
         [Test]
         public static void ShouldAddRangeAndRetrieveViaIterator()
@@ -123,4 +125,3 @@ namespace Antmicro.Renode.UnitTests.Collections
         }
     }
 }
-

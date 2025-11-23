@@ -83,6 +83,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             registerField.Value = reg;
         }
 
+        public ulong LineConfigurableMask { get; }
+
         // Those fields have to be public, as they should be used as out parameters
         // You could use ref properties instead, but mono may generate bad IL for them
 
@@ -93,8 +95,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         // Below fields are used only when the 'separateConfigs' is set
         public IValueRegisterField PendingRaisingInterrupts;
         public IValueRegisterField PendingFallingInterrupts;
-
-        public ulong LineConfigurableMask { get; }
 
         private readonly IPeripheral parent;
 

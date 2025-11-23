@@ -1,11 +1,12 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 
 using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -104,10 +105,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
         }
 
-        private readonly PseudorandomNumberGenerator rng;
         private IFlagRegisterField started;
         private IFlagRegisterField readyToStopShortEnabled;
         private IFlagRegisterField interruptEnabled;
+
+        private readonly PseudorandomNumberGenerator rng;
 
         private enum Registers
         {
