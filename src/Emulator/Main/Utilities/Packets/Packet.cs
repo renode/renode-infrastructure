@@ -87,6 +87,10 @@ namespace Antmicro.Renode.Utilities.Packets
                 {
                     offset = dataOffset + field.ByteOffset.Value;
                 }
+                if(field.BytePaddingBefore.HasValue)
+                {
+                    offset += field.BytePaddingBefore.Value;
+                }
 
                 if(field.ElementType == typeof(uint))
                 {
@@ -148,6 +152,10 @@ namespace Antmicro.Renode.Utilities.Packets
                 if(field.ByteOffset.HasValue)
                 {
                     offset = dataOffset + field.ByteOffset.Value;
+                }
+                if(field.BytePaddingBefore.HasValue)
+                {
+                    offset += field.BytePaddingBefore.Value;
                 }
                 var bitOffset = field.BitOffset ?? 0;
 
@@ -329,6 +337,10 @@ namespace Antmicro.Renode.Utilities.Packets
                 {
                     offset = startingOffset + field.ByteOffset.Value;
                 }
+                if(field.BytePaddingBefore.HasValue)
+                {
+                    offset += field.BytePaddingBefore.Value;
+                }
                 var bitOffset = field.BitOffset ?? 0;
 
                 if(type.IsArray)
@@ -491,6 +503,10 @@ namespace Antmicro.Renode.Utilities.Packets
             {
                 var bytesRequired = element.BytesRequired;
                 offset = element.ByteOffset ?? offset;
+                if(element.BytePaddingBefore is int padding)
+                {
+                    offset += padding;
+                }
 
                 var co = offset + bytesRequired;
                 maxOffset = Math.Max(co, maxOffset);
@@ -551,6 +567,10 @@ namespace Antmicro.Renode.Utilities.Packets
                 if(element.ByteOffset.HasValue)
                 {
                     offset = element.ByteOffset.Value;
+                }
+                if(element.BytePaddingBefore.HasValue)
+                {
+                    offset += element.BytePaddingBefore.Value;
                 }
 
                 var bytesRequired = element.BytesRequired;
@@ -613,6 +633,8 @@ namespace Antmicro.Renode.Utilities.Packets
             public int? ByteOffset => (int?)GetAttribute<OffsetAttribute>()?.OffsetInBytes;
 
             public int? BitOffset => (int?)GetAttribute<OffsetAttribute>()?.OffsetInBits;
+
+            public int? BytePaddingBefore => (int?)GetAttribute<PaddingBeforeAttribute>()?.PaddingInBytes;
 
             public int BytesRequired => ((BitOffset ?? 0) + BitWidth + 7) / 8 ?? (Width + (BitOffset > 0 ? 1 : 0));
 

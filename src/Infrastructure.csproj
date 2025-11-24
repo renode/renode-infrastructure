@@ -1395,6 +1395,7 @@
   <ItemGroup>
     <Compile Include="Emulator/Main/Utilities/Packets/Packet.cs" />
     <Compile Include="Emulator/Main/Utilities/Packets/OffsetAttribute.cs" />
+    <Compile Include="Emulator/Main/Utilities/Packets/PaddingBeforeAttribute.cs" />
     <Compile Include="Emulator/Main/Utilities/Packets/WidthAttribute.cs" />
     <Compile Include="Emulator/Main/Utilities/Packets/PacketFieldAttribute.cs" />
     <Compile Include="Emulator/Main/Utilities/Packets/LeastSignificantByteFirst.cs" />
