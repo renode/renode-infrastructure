@@ -78,6 +78,11 @@ namespace Antmicro.Renode.Peripherals.DMA
                 {
                     if(val) { IRQ.Unset(); transferCompleteFlag.Value = false; }
                 })
+                // We currently only support the transfer complete interrupt, as such the other interrupt bits will always be 0,
+                // and clearing them is a noop.
+                .WithIgnoredBits(0, 1)
+                .WithIgnoredBits(2, 4)
+                .WithReservedBits(6, 26)
             ;
 
             var numberOfLineRegister = new DoubleWordRegister(this)
