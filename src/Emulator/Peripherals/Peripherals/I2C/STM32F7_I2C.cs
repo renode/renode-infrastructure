@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -121,7 +121,8 @@ namespace Antmicro.Renode.Peripherals.I2C
                         .WithFlag(4, out nackReceivedInterruptEnabled, name: "NACKIE")
                         .WithFlag(5, out stopDetectionInterruptEnabled, name: "STOPIE")
                         .WithFlag(6, out transferCompleteInterruptEnabled, name: "TCIE")
-                        .WithTag("ERRIE", 7, 1)
+                        // Hush unsuppoted ERRIE (Error Interrupt Enable) for quiter logs
+                        .WithIgnoredBits(7, 1)
                         .WithTag("DNF", 8, 4)
                         .WithTag("ANFOFF", 12, 1)
                         .WithReservedBits(13, 1)
