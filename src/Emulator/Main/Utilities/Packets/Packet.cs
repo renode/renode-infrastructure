@@ -553,6 +553,30 @@ namespace Antmicro.Renode.Utilities.Packets
             return CalculateBitLengthInner(t, obj) / 8;
         }
 
+        private static int? GetCustomWidth(Type t, WidthAttribute attribute)
+        {
+            if(attribute == null)
+            {
+                return null;
+            }
+
+            if(attribute.Elements > 0)
+            {
+                if(!t.IsArray)
+                {
+                    throw new ArgumentException($"Specifying width in elements is only allowed for arrays, not {t}");
+                }
+                var widthFromElements = (int)attribute.Elements * CalculateBitLengthInner(t.GetElementType());
+                if(attribute.Value > 0 && attribute.Value != widthFromElements)
+                {
+                    throw new ArgumentException($"Width from element count ({attribute.Elements} elements = {widthFromElements} bits) conflicts with explicit width ({attribute.Value} bits)");
+                }
+                return widthFromElements;
+            }
+
+            return (int)attribute.Value;
+        }
+
         // Separate function to prevent unintentional context capture when using a lambda, which completely destroys caching.
         private static int CalculateBitLengthCacheGenerator(Type t, ulong optionalFieldPresence)
         {
@@ -777,7 +801,7 @@ namespace Antmicro.Renode.Utilities.Packets
                     if(type.IsArray)
                     {
                         // attribute value is in bits
-                        return (int)(GetAttribute<WidthAttribute>()?.Value ?? throw new ArgumentException("Array type must have specified Width")) / 8;
+                        return (GetCustomWidth(type, GetAttribute<WidthAttribute>()) ?? throw new ArgumentException("Array type must have specified Width")) / 8;
                     }
                     if(Misc.IsStructType(type) || type.IsClass)
                     {
@@ -826,7 +850,7 @@ namespace Antmicro.Renode.Utilities.Packets
                     }
 
                     var width = inBytes << 3;
-                    var setWidth = (int?)GetAttribute<WidthAttribute>()?.Value;
+                    var setWidth = GetCustomWidth(type, GetAttribute<WidthAttribute>());
                     if(setWidth < 0)
                     {
                         throw new ArgumentException($"Width is less than zero.");

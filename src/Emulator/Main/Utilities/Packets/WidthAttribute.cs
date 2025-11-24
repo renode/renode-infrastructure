@@ -12,7 +12,7 @@ namespace Antmicro.Renode.Utilities.Packets
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property | AttributeTargets.Struct | AttributeTargets.Class, Inherited = true, AllowMultiple = false)]
     public sealed class WidthAttribute : Attribute
     {
-        public WidthAttribute(uint bits = 0, uint bytes = 0, uint words = 0, uint doubleWords = 0, uint quadWords = 0)
+        public WidthAttribute(uint bits = 0, uint bytes = 0, uint words = 0, uint doubleWords = 0, uint quadWords = 0, uint elements = 0)
         {
             Value = new[]
             {
@@ -22,8 +22,11 @@ namespace Antmicro.Renode.Utilities.Packets
                 (bytes << 3),
                 bits,
             }.Aggregate((a, b) => a + b);
+            Elements = elements;
         }
 
         public uint Value { get; }
+
+        public uint Elements { get; }
     }
 }
