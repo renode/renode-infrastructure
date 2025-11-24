@@ -1,6 +1,6 @@
 ﻿<#
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -86,25 +86,13 @@ namespace Antmicro.Renode.Peripherals.Bus
                     this.Log(LogLevel.Warning, "Tried to read a locked peripheral: {0}. Address 0x{1:X}.", accessMethods.Peripheral.GetName(), address);
                     return 0;
                 }
-                var lockTaken = false;
-                try
+                lock(accessMethods.Lock)
                 {
-                    if(!accessMethods.Lock.IsHeldByCurrentThread)
-                    {
-                        accessMethods.Lock.Enter(ref lockTaken);
-                    }
                     if(accessMethods.SetAbsoluteAddress != null)
                     {
                         accessMethods.SetAbsoluteAddress(address);
                     }
                     return accessMethods.Read<#=name#>(checked((long)((address - startAddress) + offset)));
-                }
-                finally
-                {
-                    if(lockTaken)
-                    {
-                        accessMethods.Lock.Exit();
-                    }
                 }
             }
         }
@@ -164,13 +152,8 @@ namespace Antmicro.Renode.Peripherals.Bus
                     return;
                 }
 
-                var lockTaken = false;
-                try
+                lock(accessMethods.Lock)
                 {
-                    if(!accessMethods.Lock.IsHeldByCurrentThread)
-                    {
-                        accessMethods.Lock.Enter(ref lockTaken);
-                    }
                     if(accessMethods.SetAbsoluteAddress != null)
                     {
                         accessMethods.SetAbsoluteAddress(address);
@@ -179,13 +162,6 @@ namespace Antmicro.Renode.Peripherals.Bus
                     using(var ctx = invalidationCtx?.EnterDelayedInvalidationContext())
                     {
                         accessMethods.Write<#=name#>(checked((long)((address - startAddress) + offset)), value);
-                    }
-                }
-                finally
-                {
-                    if(lockTaken)
-                    {
-                        accessMethods.Lock.Exit();
                     }
                 }
             }

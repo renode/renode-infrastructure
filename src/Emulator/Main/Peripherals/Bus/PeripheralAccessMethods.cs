@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -9,9 +9,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using System.Threading;
 
-using Antmicro.Migrant;
 using Antmicro.Renode.Core.Extensions;
 using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Exceptions;
@@ -23,11 +21,11 @@ namespace Antmicro.Renode.Peripherals.Bus
 {
     public class PeripheralAccessMethods
     {
-        public static PeripheralAccessMethods CreateWithLock()
+        public static PeripheralAccessMethods CreateWithLock(object lockObject)
         {
             // Thread ownership tracking should be enabled. We use the IsHeldByCurrentThread
             // property to simulate recursive locking on spinlocks
-            return new PeripheralAccessMethods { Lock = new SpinLock(true) };
+            return new PeripheralAccessMethods { Lock = lockObject };
         }
 
         public PeripheralAccessMethods()
@@ -204,8 +202,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         public Action<ulong> SetAbsoluteAddress;
         public IBusPeripheral Peripheral;
         public string Tag;
-        [Constructor(true)]
-        public SpinLock Lock;
+        public object Lock;
 
         private static void SetReadOrWriteMethod<TR, TW>(MethodInfo i, object obj, BusAccess.Operation operation, ref TR readMethod, ref TW writeMethod)
         {

@@ -52,6 +52,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             idByCpu = new Dictionary<ICPU, int>();
             hooksOnRead = new Dictionary<ulong, List<BusHookHandler>>();
             hooksOnWrite = new Dictionary<ulong, List<BusHookHandler>>();
+            peripheralAccessLocks = new Dictionary<int, object>();
             pcCache.OnChanged += HandleChangedSymbols;
             InitStructures();
             this.Log(LogLevel.Info, "System bus created.");
@@ -1160,14 +1161,19 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public void Register(IBusPeripheral peripheral, BusRangeRegistration registrationPoint)
         {
-            var methods = PeripheralAccessMethods.CreateWithLock();
+            if(!peripheralAccessLocks.TryGetValue(peripheral.GetHashCode(), out var lockObject))
+            {
+                lockObject = new object();
+                peripheralAccessLocks.Add(peripheral.GetHashCode(), lockObject);
+            }
+            var methods = PeripheralAccessMethods.CreateWithLock(lockObject);
             if(registrationPoint is BusParametrizedRegistration parametrizedRegistrationPoint)
             {
                 parametrizedRegistrationPoint.RegisterForEachContext((context) =>
                 {
                     // Prepare accessor methods in the context of registration,
                     // as it may want to fill them according to the CPU context.
-                    methods = PeripheralAccessMethods.CreateWithLock();
+                    methods = PeripheralAccessMethods.CreateWithLock(lockObject);
                     parametrizedRegistrationPoint.FillAccessMethods(peripheral, ref methods);
 
                     FillAccessMethodsWithDefaultMethods(peripheral, ref methods);
@@ -2492,6 +2498,8 @@ namespace Antmicro.Renode.Peripherals.Bus
         private readonly Dictionary<int, ICPU> cpuById;
         private readonly Dictionary<ICPU, int> idByCpu;
         private readonly Dictionary<ulong, List<BusHookHandler>> hooksOnWrite;
+        private readonly Dictionary<int, object> peripheralAccessLocks;
+
         private const string NonExistingRead = "Read{1} from non existing peripheral at 0x{0:X}.";
         private const string TagOverriddenRead = "Read{1} from overriding tag at 0x{0:X}.";
         private const string NonExistingWrite = "Write{2} to non existing peripheral at 0x{0:X}, value 0x{1:X}.";

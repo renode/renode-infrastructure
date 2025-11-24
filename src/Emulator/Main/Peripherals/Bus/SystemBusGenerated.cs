@@ -62,25 +62,13 @@ namespace Antmicro.Renode.Peripherals.Bus
                     this.Log(LogLevel.Warning, "Tried to read a locked peripheral: {0}. Address 0x{1:X}.", accessMethods.Peripheral.GetName(), address);
                     return 0;
                 }
-                var lockTaken = false;
-                try
+                lock(accessMethods.Lock)
                 {
-                    if(!accessMethods.Lock.IsHeldByCurrentThread)
-                    {
-                        accessMethods.Lock.Enter(ref lockTaken);
-                    }
                     if(accessMethods.SetAbsoluteAddress != null)
                     {
                         accessMethods.SetAbsoluteAddress(address);
                     }
                     return accessMethods.ReadByte(checked((long)((address - startAddress) + offset)));
-                }
-                finally
-                {
-                    if(lockTaken)
-                    {
-                        accessMethods.Lock.Exit();
-                    }
                 }
             }
         }
@@ -140,13 +128,8 @@ namespace Antmicro.Renode.Peripherals.Bus
                     return;
                 }
 
-                var lockTaken = false;
-                try
+                lock(accessMethods.Lock)
                 {
-                    if(!accessMethods.Lock.IsHeldByCurrentThread)
-                    {
-                        accessMethods.Lock.Enter(ref lockTaken);
-                    }
                     if(accessMethods.SetAbsoluteAddress != null)
                     {
                         accessMethods.SetAbsoluteAddress(address);
@@ -155,13 +138,6 @@ namespace Antmicro.Renode.Peripherals.Bus
                     using(var ctx = invalidationCtx?.EnterDelayedInvalidationContext())
                     {
                         accessMethods.WriteByte(checked((long)((address - startAddress) + offset)), value);
-                    }
-                }
-                finally
-                {
-                    if(lockTaken)
-                    {
-                        accessMethods.Lock.Exit();
                     }
                 }
             }
@@ -220,25 +196,13 @@ namespace Antmicro.Renode.Peripherals.Bus
                     this.Log(LogLevel.Warning, "Tried to read a locked peripheral: {0}. Address 0x{1:X}.", accessMethods.Peripheral.GetName(), address);
                     return 0;
                 }
-                var lockTaken = false;
-                try
+                lock(accessMethods.Lock)
                 {
-                    if(!accessMethods.Lock.IsHeldByCurrentThread)
-                    {
-                        accessMethods.Lock.Enter(ref lockTaken);
-                    }
                     if(accessMethods.SetAbsoluteAddress != null)
                     {
                         accessMethods.SetAbsoluteAddress(address);
                     }
                     return accessMethods.ReadWord(checked((long)((address - startAddress) + offset)));
-                }
-                finally
-                {
-                    if(lockTaken)
-                    {
-                        accessMethods.Lock.Exit();
-                    }
                 }
             }
         }
@@ -298,13 +262,8 @@ namespace Antmicro.Renode.Peripherals.Bus
                     return;
                 }
 
-                var lockTaken = false;
-                try
+                lock(accessMethods.Lock)
                 {
-                    if(!accessMethods.Lock.IsHeldByCurrentThread)
-                    {
-                        accessMethods.Lock.Enter(ref lockTaken);
-                    }
                     if(accessMethods.SetAbsoluteAddress != null)
                     {
                         accessMethods.SetAbsoluteAddress(address);
@@ -313,13 +272,6 @@ namespace Antmicro.Renode.Peripherals.Bus
                     using(var ctx = invalidationCtx?.EnterDelayedInvalidationContext())
                     {
                         accessMethods.WriteWord(checked((long)((address - startAddress) + offset)), value);
-                    }
-                }
-                finally
-                {
-                    if(lockTaken)
-                    {
-                        accessMethods.Lock.Exit();
                     }
                 }
             }
@@ -378,25 +330,13 @@ namespace Antmicro.Renode.Peripherals.Bus
                     this.Log(LogLevel.Warning, "Tried to read a locked peripheral: {0}. Address 0x{1:X}.", accessMethods.Peripheral.GetName(), address);
                     return 0;
                 }
-                var lockTaken = false;
-                try
+                lock(accessMethods.Lock)
                 {
-                    if(!accessMethods.Lock.IsHeldByCurrentThread)
-                    {
-                        accessMethods.Lock.Enter(ref lockTaken);
-                    }
                     if(accessMethods.SetAbsoluteAddress != null)
                     {
                         accessMethods.SetAbsoluteAddress(address);
                     }
                     return accessMethods.ReadDoubleWord(checked((long)((address - startAddress) + offset)));
-                }
-                finally
-                {
-                    if(lockTaken)
-                    {
-                        accessMethods.Lock.Exit();
-                    }
                 }
             }
         }
@@ -456,13 +396,8 @@ namespace Antmicro.Renode.Peripherals.Bus
                     return;
                 }
 
-                var lockTaken = false;
-                try
+                lock(accessMethods.Lock)
                 {
-                    if(!accessMethods.Lock.IsHeldByCurrentThread)
-                    {
-                        accessMethods.Lock.Enter(ref lockTaken);
-                    }
                     if(accessMethods.SetAbsoluteAddress != null)
                     {
                         accessMethods.SetAbsoluteAddress(address);
@@ -471,13 +406,6 @@ namespace Antmicro.Renode.Peripherals.Bus
                     using(var ctx = invalidationCtx?.EnterDelayedInvalidationContext())
                     {
                         accessMethods.WriteDoubleWord(checked((long)((address - startAddress) + offset)), value);
-                    }
-                }
-                finally
-                {
-                    if(lockTaken)
-                    {
-                        accessMethods.Lock.Exit();
                     }
                 }
             }
@@ -536,25 +464,13 @@ namespace Antmicro.Renode.Peripherals.Bus
                     this.Log(LogLevel.Warning, "Tried to read a locked peripheral: {0}. Address 0x{1:X}.", accessMethods.Peripheral.GetName(), address);
                     return 0;
                 }
-                var lockTaken = false;
-                try
+                lock(accessMethods.Lock)
                 {
-                    if(!accessMethods.Lock.IsHeldByCurrentThread)
-                    {
-                        accessMethods.Lock.Enter(ref lockTaken);
-                    }
                     if(accessMethods.SetAbsoluteAddress != null)
                     {
                         accessMethods.SetAbsoluteAddress(address);
                     }
                     return accessMethods.ReadQuadWord(checked((long)((address - startAddress) + offset)));
-                }
-                finally
-                {
-                    if(lockTaken)
-                    {
-                        accessMethods.Lock.Exit();
-                    }
                 }
             }
         }
@@ -614,13 +530,8 @@ namespace Antmicro.Renode.Peripherals.Bus
                     return;
                 }
 
-                var lockTaken = false;
-                try
+                lock(accessMethods.Lock)
                 {
-                    if(!accessMethods.Lock.IsHeldByCurrentThread)
-                    {
-                        accessMethods.Lock.Enter(ref lockTaken);
-                    }
                     if(accessMethods.SetAbsoluteAddress != null)
                     {
                         accessMethods.SetAbsoluteAddress(address);
@@ -629,13 +540,6 @@ namespace Antmicro.Renode.Peripherals.Bus
                     using(var ctx = invalidationCtx?.EnterDelayedInvalidationContext())
                     {
                         accessMethods.WriteQuadWord(checked((long)((address - startAddress) + offset)), value);
-                    }
-                }
-                finally
-                {
-                    if(lockTaken)
-                    {
-                        accessMethods.Lock.Exit();
                     }
                 }
             }
