@@ -1398,6 +1398,7 @@
     <Compile Include="Emulator/Main/Utilities/Packets/OffsetAttribute.cs" />
     <Compile Include="Emulator/Main/Utilities/Packets/PaddingBeforeAttribute.cs" />
     <Compile Include="Emulator/Main/Utilities/Packets/WidthAttribute.cs" />
+    <Compile Include="Emulator/Main/Utilities/Packets/PresentIfAttribute.cs" />
     <Compile Include="Emulator/Main/Utilities/Packets/PacketFieldAttribute.cs" />
     <Compile Include="Emulator/Main/Utilities/Packets/LeastSignificantByteFirst.cs" />
     <Compile Include="Emulator/Main/Utilities/Packets/DynamicPropertiesObject.cs" />
