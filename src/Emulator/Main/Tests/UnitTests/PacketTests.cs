@@ -40,6 +40,7 @@ namespace Antmicro.Renode.UnitTests
             Assert.AreEqual(0, Packet.CalculateLength<TestStructNoPacket>());
             Assert.AreEqual(0, Packet.CalculateLength<TestStructExplicitZeroWidth>());
             Assert.AreEqual(3, Packet.CalculateLength<TestStructExplicitZeroWidthWithOffset>());
+            Assert.AreEqual(1, Packet.CalculateLength<TestStructLessThanByte>());
         }
 
         [Test]
@@ -85,6 +86,12 @@ namespace Antmicro.Renode.UnitTests
 
             var structureExplicitZeroWidthWithOffset = Packet.Decode<TestStructExplicitZeroWidthWithOffset>(data);
             Assert.AreEqual(0x00, structureExplicitZeroWidthWithOffset.Field);
+
+            var structureLessThanByte = Packet.Decode<TestStructLessThanByte>(data);
+            Assert.AreEqual(true, structureLessThanByte.Field0);
+            Assert.AreEqual(true, structureLessThanByte.Field1);
+            Assert.AreEqual(true, structureLessThanByte.Field2);
+            Assert.AreEqual(true, structureLessThanByte.Field3);
         }
 
         [Test]
@@ -235,6 +242,9 @@ namespace Antmicro.Renode.UnitTests
 
             var structureExplicitZeroWidthWithOffset = new TestStructExplicitZeroWidthWithOffset() { Field = 0xee };
             Assert.Throws<IndexOutOfRangeException>(() => Packet.Encode(structureExplicitZeroWidthWithOffset));
+
+            var structureLessThanByte = new TestStructLessThanByte() { Field0 = true, Field1 = false, Field2 = true, Field3 = false };
+            Assert.AreEqual(new byte[] { 0x05 }, Packet.Encode(structureLessThanByte));
         }
 
         [Test]
@@ -418,6 +428,21 @@ namespace Antmicro.Renode.UnitTests
             public int Field2;
             [PacketField]
             public long Field3;
+#pragma warning restore 649
+        }
+
+        [LeastSignificantByteFirst]
+        private struct TestStructLessThanByte
+        {
+#pragma warning disable 649
+            [PacketField, Width(bits: 1), Offset(bits: 0)]
+            public bool Field0;
+            [PacketField, Width(bits: 1), Offset(bits: 1)]
+            public bool Field1;
+            [PacketField, Width(bits: 1), Offset(bits: 2)]
+            public bool Field2;
+            [PacketField, Width(bits: 1), Offset(bits: 3)]
+            public bool Field3;
 #pragma warning restore 649
         }
 
