@@ -318,6 +318,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             UserState.Clear();
             SetPCFromResetVector();
+            TlibSetPmpaddrBits(PMPNumberOfAddrBits);
+            TlibSetNapotGrain(MinimalPMPNapotInBytes);
         }
 
         public void Register(ExternalPMPBase externalPMP, NullRegistrationPoint registrationPoint)
