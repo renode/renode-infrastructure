@@ -903,7 +903,16 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         {
             foreach(var controller in streamControllers.Values)
             {
-                controller.InvalidateTlb(virtualAddress);
+                try
+                {
+                    controller.InvalidateTlb(virtualAddress);
+                }
+                catch(RecoverableException)
+                {
+                    // External MMU methods will throw when the external MMU is not enabled on the CPU yet.
+                    // In this case ignore the exception as there is nothing to invalidate, because
+                    // no MMU window has been installed yet.
+                }
             }
         }
 
