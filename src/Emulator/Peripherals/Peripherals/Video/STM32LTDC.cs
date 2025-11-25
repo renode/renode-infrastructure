@@ -106,6 +106,8 @@ namespace Antmicro.Renode.Peripherals.Video
                 registerMappings.Add(0x9C + offset, layer[i].DefaultColorConfigurationRegister);
                 registerMappings.Add(0xA0 + offset, layer[i].BlendingFactorConfigurationRegister);
                 registerMappings.Add(0xAC + offset, layer[i].ColorFrameBufferAddressRegister);
+                registerMappings.Add(0xB0 + offset, layer[i].ColorFrameBufferLengthRegister);
+                registerMappings.Add(0xB4 + offset, layer[i].ColorFrameBufferLineNumberRegister);
             }
 
             registers = new DoubleWordRegisterCollection(this, registerMappings);
@@ -151,7 +153,18 @@ namespace Antmicro.Renode.Peripherals.Video
                 {
                     if(layer[i].LayerEnableFlag.Value && layer[i].ColorFrameBufferAddressRegister.Value != 0)
                     {
-                        sysbus.ReadBytes(layer[i].ColorFrameBufferAddressRegister.Value, layer[i].LayerBuffer.Length, layer[i].LayerBuffer, 0);
+                        var providedBufferLength = (int)(layer[i].BufferLineLength.Value * layer[i].BufferLineNumber.Value);
+                        var bufferLength = layer[i].LayerBuffer.Length;
+
+                        if(providedBufferLength < bufferLength)
+                        {
+                            interruptManager.SetInterrupt(Events.FIFOUnderrun);
+                            // Reference manual doesn't say what's supposed to happen after an underrun interrupt, so let's copy the partial buffer
+                            bufferLength = providedBufferLength;
+                        }
+                        // Excess buffer data is discarded, no need to check
+
+                        sysbus.ReadBytes(layer[i].ColorFrameBufferAddressRegister.Value, bufferLength, layer[i].LayerBuffer, 0);
                         localLayerBuffer[i] = layer[i].LayerBuffer;
                     }
                     else
@@ -263,6 +276,13 @@ namespace Antmicro.Renode.Peripherals.Video
                 DefaultColorRedField = DefaultColorConfigurationRegister.DefineValueField(16, 8, name: "DCRED");
                 DefaultColorAlphaField = DefaultColorConfigurationRegister.DefineValueField(24, 8, name: "DCALPHA", writeCallback: (_, __) => HandleLayerBackgroundColorChange());
 
+                ColorFrameBufferLengthRegister = new DoubleWordRegister(video);
+                BufferLineLength = ColorFrameBufferLengthRegister.DefineValueField(0, 13, name: "CFBLL");
+                BufferPitch = ColorFrameBufferLengthRegister.DefineValueField(16, 13, name: "CFBP");
+
+                ColorFrameBufferLineNumberRegister = new DoubleWordRegister(video);
+                BufferLineNumber = ColorFrameBufferLineNumberRegister.DefineValueField(0, 11, name: "CFBLNBR");
+
                 this.layerId = layerId;
                 this.video = video;
             }
@@ -306,6 +326,13 @@ namespace Antmicro.Renode.Peripherals.Video
 
             public DoubleWordRegister PixelFormatConfigurationRegister;
             public IFlagRegisterField LayerEnableFlag;
+
+            public DoubleWordRegister ColorFrameBufferLengthRegister;
+            public IValueRegisterField BufferPitch;
+            public IValueRegisterField BufferLineLength;
+
+            public DoubleWordRegister ColorFrameBufferLineNumberRegister;
+            public IValueRegisterField BufferLineNumber;
 
             public byte[] LayerBuffer;
             public byte[] LayerBackgroundBuffer;
