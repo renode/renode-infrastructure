@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -37,6 +37,7 @@ namespace Antmicro.Renode.UnitTests
             Assert.AreEqual(8, Packet.CalculateLength<TestStructALSB>());
             Assert.AreEqual(8, Packet.CalculateLength<TestStructWithOneUsableBit>());
             Assert.AreEqual(20, Packet.CalculateLength<TestNestedStruct>());
+            Assert.AreEqual(0, Packet.CalculateLength<TestStructNoPacket>());
         }
 
         [Test]
@@ -72,6 +73,10 @@ namespace Antmicro.Renode.UnitTests
             Assert.AreEqual(0xde, structureC.C3);
 
             Assert.Throws<ArgumentException>(() => Packet.Decode<TestStructInvalidWidth>(data));
+
+            var structureNoPacket = Packet.Decode<TestStructNoPacket>(data);
+            Assert.AreEqual(0x00, structureNoPacket.Field0);
+            Assert.AreEqual(0x00, structureNoPacket.Field1);
         }
 
         [Test]
@@ -213,6 +218,9 @@ namespace Antmicro.Renode.UnitTests
             // test if uninitialized byte[] field will be filled with zeros
             var testStructWithBytes = new TestStructWithBytes {};
             Assert.AreEqual(new byte[] { 0, 0 }, Packet.Encode(testStructWithBytes));
+
+            var structureNoPacket = new TestStructNoPacket() { Field0 = 0xee, Field1 = 0xff };
+            Assert.IsEmpty(Packet.Encode(structureNoPacket));
         }
 
         [Test]
@@ -466,6 +474,14 @@ namespace Antmicro.Renode.UnitTests
             public NestedStructA NestedStructA1;
             [PacketField]
             public NestedStructA NestedStructA2;
+#pragma warning restore 649
+        }
+
+        private struct TestStructNoPacket
+        {
+#pragma warning disable 649
+            public byte Field0;
+            public byte Field1;
 #pragma warning restore 649
         }
 
