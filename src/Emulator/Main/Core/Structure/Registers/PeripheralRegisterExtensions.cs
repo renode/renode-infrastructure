@@ -73,9 +73,9 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// <param name="readCallback">Method to be called whenever the containing register is read. The first parameter is the index of the flag field, the second is the value of this field before read,
         /// the third parameter is the value after read. Note that it will also be called for unreadable fields.</param>
         /// <param name="writeCallback">Method to be called whenever the containing register is written to. The first parameter is the index of the flag, the second is the value of this field before write,
-        /// the third parameter is the value written (without any modification). Note that it will also be called for unwrittable fields.</param>
+        /// the third parameter is the value written (without any modification). Note that it will also be called for unwritable fields.</param>
         /// <param name="changeCallback">Method to be called whenever this field's value is changed, either due to read or write. The first parameter is the index of the flag, the second is the value of this field before change,
-        /// the third parameter is the value after change. Note that it will also be called for unwrittable fields.</param>
+        /// the third parameter is the value after change. Note that it will also be called for unwritable fields.</param>
         /// <param name="valueProviderCallback">Method to be called whenever this field is read. The value passed is the current field's value, that will be overwritten by
         /// the value returned from it. This returned value is eventually passed as the second parameter of <paramref name="readCallback"/>.</param>
         /// <param name="softResettable">Indicates whether the field should be cleared by soft reset.</param>
@@ -110,9 +110,9 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// <param name="readCallback">Method to be called whenever the containing register is read. The first parameter is the index of the value field, the second is the value of this field before read,
         /// the third parameter is the value after read. Note that it will also be called for unreadable fields.</param>
         /// <param name="writeCallback">Method to be called whenever the containing register is written to. The first parameter is the index of the field, the second is the value of this field before write,
-        /// the third parameter is the value written (without any modification). Note that it will also be called for unwrittable fields.</param>
+        /// the third parameter is the value written (without any modification). Note that it will also be called for unwritable fields.</param>
         /// <param name="changeCallback">Method to be called whenever this field's value is changed, either due to read or write. The first parameter is the index of the field, the second is the value of this field before change,
-        /// the third parameter is the value after change. Note that it will also be called for unwrittable fields.</param>
+        /// the third parameter is the value after change. Note that it will also be called for unwritable fields.</param>
         /// <param name="valueProviderCallback">Method to be called whenever this field is read. The value passed is the current field's value, that will be overwritten by
         /// the value returned from it. This returned value is eventually passed as the second parameter of <paramref name="readCallback"/>.</param>
         /// <param name="softResettable">Indicates whether the field should be cleared by soft reset.</param>
