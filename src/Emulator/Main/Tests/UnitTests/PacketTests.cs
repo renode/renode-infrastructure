@@ -38,6 +38,7 @@ namespace Antmicro.Renode.UnitTests
             Assert.AreEqual(8, Packet.CalculateLength<TestStructWithOneUsableBit>());
             Assert.AreEqual(20, Packet.CalculateLength<TestNestedStruct>());
             Assert.AreEqual(0, Packet.CalculateLength<TestStructNoPacket>());
+            Assert.AreEqual(0, Packet.CalculateLength<TestStructExplicitZeroWidth>());
         }
 
         [Test]
@@ -77,6 +78,9 @@ namespace Antmicro.Renode.UnitTests
             var structureNoPacket = Packet.Decode<TestStructNoPacket>(data);
             Assert.AreEqual(0x00, structureNoPacket.Field0);
             Assert.AreEqual(0x00, structureNoPacket.Field1);
+
+            var structureExplicitZeroWidth = Packet.Decode<TestStructExplicitZeroWidth>(data);
+            Assert.AreEqual(0x00, structureExplicitZeroWidth.Field);
         }
 
         [Test]
@@ -221,6 +225,9 @@ namespace Antmicro.Renode.UnitTests
 
             var structureNoPacket = new TestStructNoPacket() { Field0 = 0xee, Field1 = 0xff };
             Assert.IsEmpty(Packet.Encode(structureNoPacket));
+
+            var structureExplicitZeroWidth = new TestStructExplicitZeroWidth() { Field = 0xee };
+            Assert.IsEmpty(Packet.Encode(structureExplicitZeroWidth));
         }
 
         [Test]
@@ -309,6 +316,15 @@ namespace Antmicro.Renode.UnitTests
         [LeastSignificantByteFirst]
         private struct TestStructZeroWidth
         {
+        }
+
+        [LeastSignificantByteFirst]
+        private struct TestStructExplicitZeroWidth
+        {
+#pragma warning disable 649
+            [PacketField, Width(0)]
+            public byte Field;
+#pragma warning restore 649
         }
 
         [LeastSignificantByteFirst]
