@@ -236,8 +236,8 @@ namespace Antmicro.Renode.Utilities
                     var fi = f as FieldInfo;
                     var pi = f as PropertyInfo;
                     var type = fi?.FieldType ?? pi.PropertyType;
-                    var value = fi?.GetValue(obj) ?? pi.GetValue(obj);
-                    var valueStr = (!type.IsPrimitive || value is bool || value as int? <= 9 || value as ulong? <= 9) ? value.ToString() : $"0x{value:x}";
+                    var value = (fi != null) ? fi.GetValue(obj) : pi.GetValue(obj);
+                    var valueStr = (!type.IsPrimitive || value is bool || value as int? <= 9 || value as ulong? <= 9) ? (value?.ToString() ?? "(null)") : $"0x{value:x}";
                     return $"{f.Name} = {valueStr}";
                 }));
         }
