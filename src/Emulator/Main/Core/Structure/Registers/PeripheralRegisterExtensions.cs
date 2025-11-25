@@ -236,7 +236,6 @@ namespace Antmicro.Renode.Core.Structure.Registers
 
         /// <summary>
         /// Fluent API for creation of set of enum fields. For parameters see the other overload of <see cref="PeripheralRegisterExtensions.WithEnumFields"/>.
-        /// This overload allows you to retrieve the created array of fields via <c>enumFields</c> parameter.
         /// </summary>
         /// <returns>This register with defined enum fields.</returns>
         public static R WithEnumFields<R, T>(this R register, int position, int width, int count, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<int, T, T> readCallback = null,
