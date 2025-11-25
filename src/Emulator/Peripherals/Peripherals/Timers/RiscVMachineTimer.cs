@@ -14,7 +14,7 @@ using Antmicro.Renode.Peripherals.Bus;
 namespace Antmicro.Renode.Peripherals.Timers
 {
     [AllowedTranslations(AllowedTranslation.DoubleWordToQuadWord)]
-    public class RiscVMachineTimer : IQuadWordPeripheral, IKnownSize
+    public class RiscVMachineTimer : IQuadWordPeripheral, IKnownSize, IHasFrequency
     {
         public RiscVMachineTimer(IMachine machine, long frequency)
         {
@@ -64,6 +64,12 @@ namespace Antmicro.Renode.Peripherals.Timers
         public GPIO IRQ { get; } = new GPIO();
 
         public long Size => 0x10;
+
+        public long Frequency
+        {
+            get => mTimer.Frequency;
+            set => mTimer.Frequency = value;
+        }
 
         private void UpdateInterrupts()
         {

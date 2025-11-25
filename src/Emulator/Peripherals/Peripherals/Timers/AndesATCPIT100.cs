@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.Timers
     /// <remark>
     /// Only supports the single 32-bit timer mode for each channel currently, as this is all that the zephyr driver supports 
     /// </remark>
-    public class AndesATCPIT100 : BasicDoubleWordPeripheral, IKnownSize, IProvidesRegisterCollection<DoubleWordRegisterCollection>
+    public class AndesATCPIT100 : BasicDoubleWordPeripheral, IKnownSize, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IHasFrequency
     {
         public AndesATCPIT100(IMachine machine, ulong clockFrequency, ushort numberOfChannels = 4) : base(machine)
         {
@@ -33,7 +33,6 @@ namespace Antmicro.Renode.Peripherals.Timers
             timers = new LimitTimer[numberOfChannels, 4];
             reloadValues = new IValueRegisterField[numberOfChannels];
             channelModes = new ChannelMode[numberOfChannels];
-            this.clockFrequency = clockFrequency;
             this.numberOfChannels = numberOfChannels;
 
             for(var i = 0; i < numberOfChannels; i++)
@@ -73,6 +72,19 @@ namespace Antmicro.Renode.Peripherals.Timers
         public long Size => 0x1000;
 
         public GPIO IRQ { get; }
+
+        public long Frequency
+        {
+            // All timers should always have the same frequency
+            get => timers[0, 0].Frequency;
+            set
+            {
+                foreach(var timer in timers)
+                {
+                    timer.Frequency = value;
+                }
+            }
+        }
 
         private void UpdateInterrupts()
         {
@@ -204,7 +216,6 @@ namespace Antmicro.Renode.Peripherals.Timers
         private readonly ChannelMode[] channelModes;
         private readonly LimitTimer[,] timers;
 
-        private readonly ulong clockFrequency;
         private readonly ushort numberOfChannels;
 
         private const ushort StepInBytesBetweenChannelRegisters = 0x10;
