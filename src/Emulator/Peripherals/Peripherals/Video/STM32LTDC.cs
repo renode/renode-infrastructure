@@ -47,6 +47,22 @@ namespace Antmicro.Renode.Peripherals.Video
                 .WithValueField(0, 10, name: "TOTALH")
                 .WithValueField(16, 11, name: "TOTALW");
 
+            var globalControlRegister = new DoubleWordRegister(this, resetValue: 0x2220)
+                .WithTag("DBW", 4, 3)
+                .WithReservedBits(7, 1)
+                .WithTag("DGW", 8, 3)
+                .WithReservedBits(11, 1)
+                .WithTag("DGW", 12, 3)
+                .WithReservedBits(15, 1)
+                .WithTaggedFlag("DEN", 16)
+                .WithReservedBits(17, 11)
+                .WithTaggedFlag("PCPOL", 28)
+                .WithTaggedFlag("DEPOL", 29)
+                .WithTaggedFlag("VSPOL", 30)
+                .WithTaggedFlag("HSPOL", 31);
+
+            ltdcEnabledField = globalControlRegister.DefineFlagField(0, name: "LTDCEN");
+
             var backgroundColorConfigurationRegister = new DoubleWordRegister(this);
             backgroundColorBlueChannelField = backgroundColorConfigurationRegister.DefineValueField(0, 8, name: "BCBLUE");
             backgroundColorGreenChannelField = backgroundColorConfigurationRegister.DefineValueField(8, 8, name: "BCGREEN");
@@ -74,6 +90,7 @@ namespace Antmicro.Renode.Peripherals.Video
                 { (long)Register.TotalWidthConfigurationRegister, totalWidthConfigurationRegister },
                 { (long)Register.BackPorchConfigurationRegister, backPorchConfigurationRegister },
                 { (long)Register.ActiveWidthConfigurationRegister, activeWidthConfigurationRegister },
+                { (long)Register.GlobalControlRegister, globalControlRegister },
                 { (long)Register.BackgroundColorConfigurationRegister, backgroundColorConfigurationRegister },
                 { (long)Register.InterruptEnableRegister, interruptEnableRegister },
                 { (long)Register.InterruptStatusRegister, interruptStatusRegister },
@@ -126,7 +143,7 @@ namespace Antmicro.Renode.Peripherals.Video
         {
             lock(internalLock)
             {
-                if(Width == 0 || Height == 0)
+                if(Width == 0 || Height == 0 || !ltdcEnabledField.Value)
                 {
                     return;
                 }
@@ -208,6 +225,7 @@ namespace Antmicro.Renode.Peripherals.Video
         private readonly IValueRegisterField accumulatedHorizontalBackPorchField;
         private readonly IValueRegisterField accumulatedActiveHeightField;
         private readonly IValueRegisterField accumulatedActiveWidthField;
+        private readonly IFlagRegisterField ltdcEnabledField;
         private readonly IValueRegisterField backgroundColorBlueChannelField;
         private readonly IValueRegisterField backgroundColorGreenChannelField;
         private readonly IValueRegisterField backgroundColorRedChannelField;
@@ -370,6 +388,7 @@ namespace Antmicro.Renode.Peripherals.Video
             BackPorchConfigurationRegister = 0x0C,
             ActiveWidthConfigurationRegister = 0x10,
             TotalWidthConfigurationRegister = 0x14,
+            GlobalControlRegister = 0x18,
             BackgroundColorConfigurationRegister = 0x2C,
             InterruptEnableRegister = 0x34,
             InterruptStatusRegister = 0x38,
