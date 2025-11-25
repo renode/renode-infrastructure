@@ -39,6 +39,7 @@ namespace Antmicro.Renode.UnitTests
             Assert.AreEqual(20, Packet.CalculateLength<TestNestedStruct>());
             Assert.AreEqual(0, Packet.CalculateLength<TestStructNoPacket>());
             Assert.AreEqual(0, Packet.CalculateLength<TestStructExplicitZeroWidth>());
+            Assert.AreEqual(3, Packet.CalculateLength<TestStructExplicitZeroWidthWithOffset>());
         }
 
         [Test]
@@ -81,6 +82,9 @@ namespace Antmicro.Renode.UnitTests
 
             var structureExplicitZeroWidth = Packet.Decode<TestStructExplicitZeroWidth>(data);
             Assert.AreEqual(0x00, structureExplicitZeroWidth.Field);
+
+            var structureExplicitZeroWidthWithOffset = Packet.Decode<TestStructExplicitZeroWidthWithOffset>(data);
+            Assert.AreEqual(0x00, structureExplicitZeroWidthWithOffset.Field);
         }
 
         [Test]
@@ -228,6 +232,9 @@ namespace Antmicro.Renode.UnitTests
 
             var structureExplicitZeroWidth = new TestStructExplicitZeroWidth() { Field = 0xee };
             Assert.IsEmpty(Packet.Encode(structureExplicitZeroWidth));
+
+            var structureExplicitZeroWidthWithOffset = new TestStructExplicitZeroWidthWithOffset() { Field = 0xee };
+            Assert.Throws<IndexOutOfRangeException>(() => Packet.Encode(structureExplicitZeroWidthWithOffset));
         }
 
         [Test]
@@ -323,6 +330,15 @@ namespace Antmicro.Renode.UnitTests
         {
 #pragma warning disable 649
             [PacketField, Width(0)]
+            public byte Field;
+#pragma warning restore 649
+        }
+
+        [LeastSignificantByteFirst]
+        private struct TestStructExplicitZeroWidthWithOffset
+        {
+#pragma warning disable 649
+            [PacketField, Width(0), Offset(bytes: 3)]
             public byte Field;
 #pragma warning restore 649
         }
