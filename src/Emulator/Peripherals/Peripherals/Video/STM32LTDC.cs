@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2020-2021 Microsoft
 //
 // This file is licensed under the MIT License.
@@ -30,13 +30,13 @@ namespace Antmicro.Renode.Peripherals.Video
             sysbus = machine.GetSystemBus(this);
             internalLock = new object();
 
-            var activeWidthConfigurationRegister = new DoubleWordRegister(this);
-            accumulatedActiveHeightField = activeWidthConfigurationRegister.DefineValueField(0, 11, name: "AAH");
-            accumulatedActiveWidthField = activeWidthConfigurationRegister.DefineValueField(16, 12, name: "AAW", writeCallback: (_, __) => HandleActiveDisplayChange());
-
             var backPorchConfigurationRegister = new DoubleWordRegister(this);
             accumulatedVerticalBackPorchField = backPorchConfigurationRegister.DefineValueField(0, 11, name: "AVBP");
             accumulatedHorizontalBackPorchField = backPorchConfigurationRegister.DefineValueField(16, 12, name: "AHBP", writeCallback: (_, __) => HandleActiveDisplayChange());
+
+            var activeWidthConfigurationRegister = new DoubleWordRegister(this);
+            accumulatedActiveHeightField = activeWidthConfigurationRegister.DefineValueField(0, 11, name: "AAH");
+            accumulatedActiveWidthField = activeWidthConfigurationRegister.DefineValueField(16, 12, name: "AAW", writeCallback: (_, __) => HandleActiveDisplayChange());
 
             var backgroundColorConfigurationRegister = new DoubleWordRegister(this);
             backgroundColorBlueChannelField = backgroundColorConfigurationRegister.DefineValueField(0, 8, name: "BCBLUE");
