@@ -30,6 +30,11 @@ namespace Antmicro.Renode.Peripherals.Video
             sysbus = machine.GetSystemBus(this);
             internalLock = new object();
 
+            // We don't care about the sync, back porch, or front porch pixels, but since the registers specify sums of pixel areas, we need the back porch sum and active sum registers to find the width and height. We're providing the other registers to silence warnings.
+            var syncronizationSizeConfigurationRegister = new DoubleWordRegister(this)
+                .WithValueField(0, 10, name: "VSH")
+                .WithValueField(16, 11, name: "HSW");
+
             var backPorchConfigurationRegister = new DoubleWordRegister(this);
             accumulatedVerticalBackPorchField = backPorchConfigurationRegister.DefineValueField(0, 11, name: "AVBP");
             accumulatedHorizontalBackPorchField = backPorchConfigurationRegister.DefineValueField(16, 12, name: "AHBP", writeCallback: (_, __) => HandleActiveDisplayChange());
@@ -37,6 +42,10 @@ namespace Antmicro.Renode.Peripherals.Video
             var activeWidthConfigurationRegister = new DoubleWordRegister(this);
             accumulatedActiveHeightField = activeWidthConfigurationRegister.DefineValueField(0, 11, name: "AAH");
             accumulatedActiveWidthField = activeWidthConfigurationRegister.DefineValueField(16, 12, name: "AAW", writeCallback: (_, __) => HandleActiveDisplayChange());
+
+            var totalWidthConfigurationRegister = new DoubleWordRegister(this)
+                .WithValueField(0, 10, name: "TOTALH")
+                .WithValueField(16, 11, name: "TOTALW");
 
             var backgroundColorConfigurationRegister = new DoubleWordRegister(this);
             backgroundColorBlueChannelField = backgroundColorConfigurationRegister.DefineValueField(0, 8, name: "BCBLUE");
@@ -61,6 +70,8 @@ namespace Antmicro.Renode.Peripherals.Video
 
             var registerMappings = new Dictionary<long, DoubleWordRegister>
             {
+                { (long)Register.SyncronizationSizeConfigurationRegister, syncronizationSizeConfigurationRegister },
+                { (long)Register.TotalWidthConfigurationRegister, totalWidthConfigurationRegister },
                 { (long)Register.BackPorchConfigurationRegister, backPorchConfigurationRegister },
                 { (long)Register.ActiveWidthConfigurationRegister, activeWidthConfigurationRegister },
                 { (long)Register.BackgroundColorConfigurationRegister, backgroundColorConfigurationRegister },
@@ -355,8 +366,10 @@ namespace Antmicro.Renode.Peripherals.Video
 
         private enum Register : long
         {
+            SyncronizationSizeConfigurationRegister = 0x8,
             BackPorchConfigurationRegister = 0x0C,
             ActiveWidthConfigurationRegister = 0x10,
+            TotalWidthConfigurationRegister = 0x14,
             BackgroundColorConfigurationRegister = 0x2C,
             InterruptEnableRegister = 0x34,
             InterruptStatusRegister = 0x38,
