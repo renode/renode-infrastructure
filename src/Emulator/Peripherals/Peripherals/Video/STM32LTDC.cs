@@ -16,6 +16,7 @@ using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.DMA;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Video
 {
@@ -26,6 +27,8 @@ namespace Antmicro.Renode.Peripherals.Video
             Reconfigure(format: PixelFormat.RGBX8888);
 
             IRQ = new GPIO();
+            ErrorIRQ = new GPIO();
+            interruptManager = new InterruptManager<Events>(this);
 
             sysbus = machine.GetSystemBus(this);
             internalLock = new object();
@@ -68,19 +71,9 @@ namespace Antmicro.Renode.Peripherals.Video
             backgroundColorGreenChannelField = backgroundColorConfigurationRegister.DefineValueField(8, 8, name: "BCGREEN");
             backgroundColorRedChannelField = backgroundColorConfigurationRegister.DefineValueField(16, 8, name: "BCRED", writeCallback: (_, __) => HandleBackgroundColorChange());
 
-            var interruptEnableRegister = new DoubleWordRegister(this);
-            lineInterruptEnableFlag = interruptEnableRegister.DefineFlagField(0, name: "LIE");
-
-            var interruptClearRegister = new DoubleWordRegister(this);
-            interruptClearRegister.DefineFlagField(0, FieldMode.Write, name: "CLIF", writeCallback: (_, @new) =>
-            {
-                if(!@new) return;
-                lineInterruptFlag.Value = false;
-                UpdateInterrupts();
-            });
-
-            var interruptStatusRegister = new DoubleWordRegister(this);
-            lineInterruptFlag = interruptStatusRegister.DefineFlagField(0, FieldMode.Read, name: "LIF");
+            var interruptEnableRegister = interruptManager.GetInterruptEnableRegister<DoubleWordRegister>();
+            var interruptStatusRegister = interruptManager.GetMaskedInterruptFlagRegister<DoubleWordRegister>();
+            var interruptClearRegister = interruptManager.GetInterruptClearRegister<DoubleWordRegister>();
 
             lineInterruptPositionConfigurationRegister = new DoubleWordRegister(this).WithValueField(0, 11, name: "LIPOS");
 
@@ -123,6 +116,7 @@ namespace Antmicro.Renode.Peripherals.Video
         public override void Reset()
         {
             registers.Reset();
+            interruptManager.Reset();
         }
 
         public void WriteDoubleWord(long address, uint value)
@@ -135,7 +129,12 @@ namespace Antmicro.Renode.Peripherals.Video
             return registers.Read(offset);
         }
 
+        [IrqProvider]
+        [DefaultInterrupt]
         public GPIO IRQ { get; private set; }
+
+        [IrqProvider("error", 1)]
+        public GPIO ErrorIRQ { get; private set; }
 
         public long Size { get { return 0xC00; } }
 
@@ -169,8 +168,7 @@ namespace Antmicro.Renode.Peripherals.Video
                     (byte)layer[1].ConstantAlphaConfigurationRegister.Value,
                     layer[1].BlendingFactor1.Value == BlendingFactor1.Multiply ? PixelBlendingMode.Multiply : PixelBlendingMode.NoModification);
 
-                lineInterruptFlag.Value = true;
-                UpdateInterrupts();
+                interruptManager.SetInterrupt(Events.Line);
             }
         }
 
@@ -210,14 +208,11 @@ namespace Antmicro.Renode.Peripherals.Video
             }
         }
 
-        private void UpdateInterrupts()
-        {
-            IRQ.Set(lineInterruptEnableFlag.Value && lineInterruptFlag.Value);
-        }
-
         [Transient]
         private IPixelBlender blender;
         private Pixel backgroundColor;
+
+        private readonly InterruptManager<Events> interruptManager;
 
         private readonly byte[][] localLayerBuffer;
 
@@ -229,8 +224,6 @@ namespace Antmicro.Renode.Peripherals.Video
         private readonly IValueRegisterField backgroundColorBlueChannelField;
         private readonly IValueRegisterField backgroundColorGreenChannelField;
         private readonly IValueRegisterField backgroundColorRedChannelField;
-        private readonly IFlagRegisterField lineInterruptEnableFlag;
-        private readonly IFlagRegisterField lineInterruptFlag;
         private readonly DoubleWordRegister lineInterruptPositionConfigurationRegister;
         private readonly Layer[] layer;
         private readonly DoubleWordRegisterCollection registers;
@@ -380,6 +373,16 @@ namespace Antmicro.Renode.Peripherals.Video
         {
             Constant = 0x101,
             Multiply = 0x111
+        }
+
+        private enum Events
+        {
+            Line = 0,
+            [Subvector(1)]
+            FIFOUnderrun = 1,
+            [Subvector(1)]
+            TransferError = 2,
+            RegisterReload = 3
         }
 
         private enum Register : long
