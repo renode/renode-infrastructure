@@ -21,6 +21,11 @@ namespace Antmicro.Renode.Utilities.Packets
             return CalculateLength(typeof(T));
         }
 
+        public static int CalculateBitLength<T>()
+        {
+            return CalculateBitLength(typeof(T));
+        }
+
         public static int CalculateOffset<T>(string fieldName)
         {
             return CalculateOffset(typeof(T), fieldName);
@@ -456,21 +461,26 @@ namespace Antmicro.Renode.Utilities.Packets
             return offset - startingOffset;
         }
 
-        private static int CalculateLength(Type t)
+        private static int CalculateBitLength(Type t)
         {
             lock(cache)
             {
-                return cache.Get(t, CalculateLengthCacheGenerator);
+                return cache.Get(t, CalculateBitLengthCacheGenerator);
             }
         }
 
+        private static int CalculateLength(Type t)
+        {
+            return CalculateBitLength(t) / 8;
+        }
+
         // Separate function to prevent unintentional context capture when using a lambda, which completely destroys caching.
-        private static int CalculateLengthCacheGenerator(Type t)
+        private static int CalculateBitLengthCacheGenerator(Type t)
         {
             t = t.IsEnum ? t.GetEnumUnderlyingType() : t;
             if(t.IsPrimitive)
             {
-                return Marshal.SizeOf(t);
+                return Marshal.SizeOf(t) * 8;
             }
 
             var fieldsAndProperties = GetFieldsAndProperties(t);
@@ -487,10 +497,11 @@ namespace Antmicro.Renode.Utilities.Packets
                 offset += bytesRequired;
             }
 
-            var attrWidth = (int?)t.GetCustomAttribute<WidthAttribute>()?.Value / 8; // attribute value is in bits
+            maxOffset *= 8; // attribute value is in bits, convert offset to match
+            var attrWidth = (int?)t.GetCustomAttribute<WidthAttribute>()?.Value;
             if(attrWidth < maxOffset)
             {
-                throw new ArgumentException($"Explicitly-specified width ({attrWidth}) is less than actual width ({maxOffset})");
+                throw new ArgumentException($"Explicitly-specified width ({attrWidth} bits) is less than actual width ({maxOffset} bits)");
             }
             return attrWidth ?? maxOffset;
         }
