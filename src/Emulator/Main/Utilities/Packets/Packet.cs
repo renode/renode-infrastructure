@@ -91,6 +91,11 @@ namespace Antmicro.Renode.Utilities.Packets
                 {
                     offset += field.BytePaddingBefore.Value;
                 }
+                if(field.ByteAlign.HasValue)
+                {
+                    var align = field.ByteAlign.Value;
+                    offset = offset.AlignUpToMultipleOf(align);
+                }
 
                 if(field.ElementType == typeof(uint))
                 {
@@ -156,6 +161,11 @@ namespace Antmicro.Renode.Utilities.Packets
                 if(field.BytePaddingBefore.HasValue)
                 {
                     offset += field.BytePaddingBefore.Value;
+                }
+                if(field.ByteAlign.HasValue)
+                {
+                    var align = field.ByteAlign.Value;
+                    offset = offset.AlignUpToMultipleOf(align);
                 }
                 var bitOffset = field.BitOffset ?? 0;
 
@@ -341,6 +351,11 @@ namespace Antmicro.Renode.Utilities.Packets
                 {
                     offset += field.BytePaddingBefore.Value;
                 }
+                if(field.ByteAlign.HasValue)
+                {
+                    var align = field.ByteAlign.Value;
+                    offset = offset.AlignUpToMultipleOf(align);
+                }
                 var bitOffset = field.BitOffset ?? 0;
 
                 if(type.IsArray)
@@ -507,6 +522,10 @@ namespace Antmicro.Renode.Utilities.Packets
                 {
                     offset += padding;
                 }
+                if(element.ByteAlign is int align)
+                {
+                    offset = offset.AlignUpToMultipleOf(align);
+                }
 
                 var co = offset + bytesRequired;
                 maxOffset = Math.Max(co, maxOffset);
@@ -559,6 +578,11 @@ namespace Antmicro.Renode.Utilities.Packets
             var offset = 0;
             foreach(var element in fieldsAndProperties)
             {
+                if(element.ByteAlign.HasValue)
+                {
+                    var align = element.ByteAlign.Value;
+                    maxOffset = maxOffset.AlignUpToMultipleOf(align);
+                }
                 if(element.ElementName == fieldName)
                 {
                     return maxOffset;
@@ -633,6 +657,8 @@ namespace Antmicro.Renode.Utilities.Packets
             public int? ByteOffset => (int?)GetAttribute<OffsetAttribute>()?.OffsetInBytes;
 
             public int? BitOffset => (int?)GetAttribute<OffsetAttribute>()?.OffsetInBits;
+
+            public int? ByteAlign => (int?)GetAttribute<AlignAttribute>()?.AlignmentInBytes;
 
             public int? BytePaddingBefore => (int?)GetAttribute<PaddingBeforeAttribute>()?.PaddingInBytes;
 
