@@ -285,14 +285,14 @@ namespace Antmicro.Renode.Peripherals.Video
                 WindowVerticalStopPositionField = new ShadowedRegisterField<ulong>(WindowVerticalPositionConfigurationRegister.DefineValueField(16, 12, name: "WVSPPOS", writeCallback: (_, __) => HandleLayerWindowConfigurationChange()));
 
                 PixelFormatConfigurationRegister = new DoubleWordRegister(video);
-                PixelFormatField = new ShadowedRegisterField<Dma2DColorMode>(PixelFormatConfigurationRegister.DefineEnumField<Dma2DColorMode>(0, 3, name: "PF"), writeCallback: (_, __) => { RestoreBuffers(); video.HandlePixelFormatChange(); });
+                PixelFormatField = new ShadowedRegisterField<Dma2DColorMode>(PixelFormatConfigurationRegister.DefineEnumField<Dma2DColorMode>(0, 3, name: "PF"), writeCallback: (old, @new) => { if(old == @new) return; RestoreBuffers(); video.HandlePixelFormatChange(); });
 
                 ConstantAlphaConfigurationRegister = new DoubleWordRegister(video, 0xFF);
                 ConstantAlphaConfigurationField = new ShadowedRegisterField<ulong>(ConstantAlphaConfigurationRegister.DefineValueField(0, 8, name: "CONSTA"));
 
                 BlendingFactorConfigurationRegister = new DoubleWordRegister(video, 0x0607);
                 BlendingFactor1 = new ShadowedRegisterField<BlendingFactor1>(BlendingFactorConfigurationRegister.DefineEnumField<BlendingFactor1>(8, 3, name: "BF1"));
-                BlendingFactor2 = new ShadowedRegisterField<BlendingFactor2>(BlendingFactorConfigurationRegister.DefineEnumField<BlendingFactor2>(0, 3, name: "BF2"), writeCallback: (_, __) => RestoreBuffers());
+                BlendingFactor2 = new ShadowedRegisterField<BlendingFactor2>(BlendingFactorConfigurationRegister.DefineEnumField<BlendingFactor2>(0, 3, name: "BF2"));
 
                 ColorFrameBufferAddressRegister = new DoubleWordRegister(video);
                 ColorFrameBufferAddressField = new ShadowedRegisterField<ulong>(ColorFrameBufferAddressRegister.DefineValueField(0, 32, name: "CFBADD"), writeCallback: (_, __) => WarnAboutWrongBufferConfiguration());
@@ -418,7 +418,7 @@ namespace Antmicro.Renode.Peripherals.Video
                     var width = (int)(WindowHorizontalStopPositionField.Value - WindowHorizontalStartPositionField.Value) + 1;
                     var height = (int)(WindowVerticalStopPositionField.Value - WindowVerticalStartPositionField.Value) + 1;
 
-                    if(width != video.Width || height != video.Height)
+                    if(LayerEnableFlag.Value && (width != video.Width || height != video.Height))
                     {
                         video.Log(LogLevel.Warning, "Windowing is not supported yet for layer {0}.", layerId);
                     }
