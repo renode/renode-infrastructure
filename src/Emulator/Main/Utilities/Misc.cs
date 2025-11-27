@@ -1476,6 +1476,13 @@ namespace Antmicro.Renode.Utilities
             return value;
         }
 
+        public static int RotateLeft(int value, int positions)
+        {
+            positions &= 0x1F;
+            var number = (uint)value;
+            return (int)((number << positions) | (number >> (32 - positions)));
+        }
+
         public static void Times(this int times, Action<int> action)
         {
             for(var i = 0; i < times; i++)
