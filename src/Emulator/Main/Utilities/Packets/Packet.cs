@@ -18,17 +18,17 @@ namespace Antmicro.Renode.Utilities.Packets
     {
         public static int CalculateLength<T>()
         {
-            return CalculateLength(typeof(T));
+            return CalculateLengthInner(typeof(T));
         }
 
         public static int CalculateBitLength<T>()
         {
-            return CalculateBitLength(typeof(T));
+            return CalculateBitLengthInner(typeof(T));
         }
 
         public static int CalculateOffset<T>(string fieldName)
         {
-            return CalculateOffset(typeof(T), fieldName);
+            return CalculateOffsetInner(typeof(T), fieldName);
         }
 
         public static T Decode<T>(IList<byte> data, int dataOffset = 0)
@@ -45,7 +45,7 @@ namespace Antmicro.Renode.Utilities.Packets
             if(!TryDecodeSubclass<T>(data, typeSelector, out var result, dataOffset))
             {
                 var t = result.GetType();
-                throw new ArgumentException($"Could not decode the packet of type {t} due to insufficient data. Required {Packet.CalculateLength(t)} bytes, but received {(data.Count - dataOffset)}");
+                throw new ArgumentException($"Could not decode the packet of type {t} due to insufficient data. Required {Packet.CalculateLengthInner(t)} bytes, but received {(data.Count - dataOffset)}");
             }
             return result;
         }
@@ -174,7 +174,7 @@ namespace Antmicro.Renode.Utilities.Packets
                         throw new ArgumentException("Positive width must be provided to decode array");
                     }
 
-                    var elementSize = CalculateLength(elementType);
+                    var elementSize = CalculateLengthInner(elementType);
                     if(width % elementSize != 0)
                     {
                         throw new ArgumentException("Width in bytes must be a multiple of the element size to decode array");
@@ -349,7 +349,7 @@ namespace Antmicro.Renode.Utilities.Packets
                         throw new ArgumentException("Positive width must be provided to encode array");
                     }
 
-                    var elementSize = CalculateLength(elementType);
+                    var elementSize = CalculateLengthInner(elementType);
                     if(width % elementSize != 0)
                     {
                         throw new ArgumentException("Width must be a multiple of the element size to encode array");
@@ -461,7 +461,7 @@ namespace Antmicro.Renode.Utilities.Packets
             return offset - startingOffset;
         }
 
-        private static int CalculateBitLength(Type t)
+        private static int CalculateBitLengthInner(Type t)
         {
             lock(cache)
             {
@@ -469,9 +469,9 @@ namespace Antmicro.Renode.Utilities.Packets
             }
         }
 
-        private static int CalculateLength(Type t)
+        private static int CalculateLengthInner(Type t, object obj = null)
         {
-            return CalculateBitLength(t) / 8;
+            return CalculateBitLengthInner(t, obj) / 8;
         }
 
         // Separate function to prevent unintentional context capture when using a lambda, which completely destroys caching.
@@ -526,7 +526,7 @@ namespace Antmicro.Renode.Utilities.Packets
                 ).OrderBy(x => x.Order).ToArray();
         }
 
-        private static int CalculateOffset(Type t, string fieldName)
+        private static int CalculateOffsetInner(Type t, string fieldName)
         {
             lock(cache)
             {
@@ -651,7 +651,7 @@ namespace Antmicro.Renode.Utilities.Packets
                     }
                     if(Misc.IsStructType(type) || type.IsClass)
                     {
-                        return CalculateLength(type);
+                        return CalculateLengthInner(type);
                     }
 
                     throw new ArgumentException($"Unknown width of type: {type}");
