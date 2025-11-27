@@ -14,9 +14,9 @@ using Antmicro.Renode.Peripherals.Bus;
 namespace Antmicro.Renode.Peripherals.Timers
 {
     [AllowedTranslations(AllowedTranslation.DoubleWordToQuadWord)]
-    public class NEORV32_MachineSystemTimer : IQuadWordPeripheral, IKnownSize
+    public class RiscVMachineTimer : IQuadWordPeripheral, IKnownSize
     {
-        public NEORV32_MachineSystemTimer(IMachine machine, long frequency)
+        public RiscVMachineTimer(IMachine machine, long frequency)
         {
             mTimer = new ComparingTimer(machine.ClockSource, frequency, this, nameof(mTimer), direction: Time.Direction.Ascending, workMode: Time.WorkMode.Periodic, eventEnabled: true, enabled: true);
             mTimer.CompareReached += () =>
