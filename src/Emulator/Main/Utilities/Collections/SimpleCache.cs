@@ -116,32 +116,20 @@ namespace Antmicro.Renode.Utilities.Collections
 
                 if(!isDefaultT1)
                 {
-                    hash ^= ShiftAndWrap(parameterT1.GetHashCode(), 2);
+                    hash ^= Misc.RotateLeft(parameterT1.GetHashCode(), 2);
                 }
 
                 if(!isDefaultT2)
                 {
-                    hash ^= ShiftAndWrap(parameterT2.GetHashCode(), 4);
+                    hash ^= Misc.RotateLeft(parameterT2.GetHashCode(), 4);
                 }
 
                 if(!isDefaultT3)
                 {
-                    hash ^= ShiftAndWrap(parameterT3.GetHashCode(), 6);
+                    hash ^= Misc.RotateLeft(parameterT3.GetHashCode(), 6);
                 }
 
                 return hash;
-            }
-
-            private int ShiftAndWrap(int value, int positions)
-            {
-                positions = positions & 0x1F;
-
-                // Save the existing bit pattern, but interpret it as an unsigned integer.
-                uint number = BitConverter.ToUInt32(BitConverter.GetBytes(value), 0);
-                // Preserve the bits to be discarded.
-                uint wrapped = number >> (32 - positions);
-                // Shift and wrap the discarded bits.
-                return BitConverter.ToInt32(BitConverter.GetBytes((number << positions) | wrapped), 0);
             }
 
             private readonly T1 parameterT1;
