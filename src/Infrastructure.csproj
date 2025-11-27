@@ -1392,6 +1392,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/SPI/ISSI_IS25WP.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Timers/AndesATCPIT100.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Timers/AndesATCWDT200_Watchdog.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/SPI/AndesATCSPI200.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Emulator/Main/Utilities/Packets/Packet.cs" />
