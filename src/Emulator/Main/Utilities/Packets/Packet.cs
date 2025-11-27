@@ -141,15 +141,15 @@ namespace Antmicro.Renode.Utilities.Packets
 
         public static byte[] Encode<T>(T packet)
         {
-            var maxSize = CalculateLength<T>();
-            var result = new byte[maxSize];
-            if(maxSize == 0)
+            var size = CalculateLength<T>(packet);
+            var result = new byte[size];
+            if(size == 0)
             {
                 return result;
             }
 
-            var actualSize = EncodeInner(packet.GetType(), packet, result, 0);
-            return result.Take(actualSize).ToArray();
+            EncodeInner(packet.GetType(), packet, result, 0);
+            return result;
         }
 
         private static bool TryDecode(Type t, IList<byte> data, out object result, int dataOffset = 0)
