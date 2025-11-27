@@ -1208,7 +1208,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/Timers/Marvell_Armada_Timer.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/UART/CMSDK_APB_UART.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/UART/NEORV32_UART.cs" />
-    <Compile Include="Emulator/Peripherals/Peripherals/Timers/NEORV32_MachineSystemTimer.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Timers/RiscVMachineTimer.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/UART/KB1200_UART.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Network/SynopsysDWCEthernetQualityOfService/SynopsysDWCEthernetQualityOfService.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Network/SynopsysDWCEthernetQualityOfService/SynopsysDWCEthernetQualityOfService_Descriptors.cs" />
