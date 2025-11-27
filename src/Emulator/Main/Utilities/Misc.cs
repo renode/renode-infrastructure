@@ -1149,6 +1149,11 @@ namespace Antmicro.Renode.Utilities
             return (dividend + divisor - 1) / divisor;
         }
 
+        public static uint DivCeil(this uint dividend, uint divisor)
+        {
+            return (dividend + divisor - 1) / divisor;
+        }
+
         public static string PrettyPrintFlagsEnum(Enum enumeration)
         {
             var values = new List<string>();
