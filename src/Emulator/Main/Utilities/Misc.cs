@@ -1154,6 +1154,16 @@ namespace Antmicro.Renode.Utilities
             return (dividend + divisor - 1) / divisor;
         }
 
+        public static int AlignUpToMultipleOf(this int value, int unit)
+        {
+            return value.DivCeil(unit) * unit;
+        }
+
+        public static uint AlignUpToMultipleOf(this uint value, uint unit)
+        {
+            return value.DivCeil(unit) * unit;
+        }
+
         public static string PrettyPrintFlagsEnum(Enum enumeration)
         {
             var values = new List<string>();
