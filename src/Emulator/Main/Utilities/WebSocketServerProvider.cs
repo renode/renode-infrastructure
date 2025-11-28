@@ -334,7 +334,7 @@ namespace Antmicro.Renode.Utilities
 
                     while(queue.TryDequeue(out var dequeued))
                     {
-                        await webSocket.SendAsync(new ArraySegment<byte>(dequeued, 0, dequeued.Length), WebSocketMessageType.Text, true, cancellationToken.Token);
+                        await webSocket.SendAsync(new ArraySegment<byte>(dequeued, 0, dequeued.Length), WebSocketMessageType.Binary, true, cancellationToken.Token);
                     }
                 }
                 catch(Exception)
