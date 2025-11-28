@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class OMAP_GPTimer : LimitTimer, IDoubleWordPeripheral
     {
-        public OMAP_GPTimer(IMachine machine) : base(machine.ClockSource, (38400000), direction: Direction.Ascending, limit: (0xFFFFFFFF), enabled: true, autoUpdate: true)
+        public OMAP_GPTimer(IMachine machine) : base(machine.ClockSource, (38400000), direction: Direction.Ascending, limit: (0xFFFFFFFF), enabled: true, eventEnabled: true, autoUpdate: true)
         { // TODO: hack - 10 times slower, because of Stopwatch limitation
             IRQ = new GPIO();
         }
