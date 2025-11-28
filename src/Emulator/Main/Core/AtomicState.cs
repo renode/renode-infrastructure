@@ -22,7 +22,6 @@ namespace Antmicro.Renode.Core
             this.parent = parent;
             StoreTableBits = storeTableBits ?? ConfigurationManager.Instance.Get("general", "store-table-bits", AtomicState.DefaultStoreTableBits);
             InitAtomicMemoryState();
-            InitHstState();
         }
 
         [PostDeserialization]
@@ -51,10 +50,14 @@ namespace Antmicro.Renode.Core
             }
         }
 
-        [PostDeserialization]
-        public void InitHstState()
+        public void AllocateStoreTable()
         {
-            parent.DebugLog("Initializing store table with size {0}...", StoreTableSize);
+            if(storeTablePointer != IntPtr.Zero)
+            {
+                return;
+            }
+
+            parent.DebugLog("Allocating store table with size {0}...", StoreTableSize);
             // Table must be naturally aligned in order to efficiently calculate the address of its elements.
 #if NET
             unsafe
@@ -71,14 +74,6 @@ namespace Antmicro.Renode.Core
                                          & ~(StoreTableSize - 1));
 #endif
             parent.DebugLog("Store table allocated at 0x{0:X}", storeTablePointer);
-
-            if(storeTable != null)
-            {
-                // Restore the serialized state
-                Marshal.Copy(storeTable, 0, StoreTablePointer, StoreTableSize);
-                storeTable = null;
-                parent.DebugLog("Store table deserialized");
-            }
         }
 
         public void Dispose()
@@ -137,6 +132,20 @@ namespace Antmicro.Renode.Core
 
         public const int DefaultStoreTableBits = 41; // 64 - 41 = 23, 2^23 = 8388608 bytes = 8 MiB
 
+        [PostDeserialization]
+        private void RestoreHstState()
+        {
+            if(storeTable != null)
+            {
+                AllocateStoreTable();
+
+                // Restore the serialized state
+                Marshal.Copy(storeTable, 0, StoreTablePointer, StoreTableSize);
+                storeTable = null;
+                parent.DebugLog("Store table deserialized");
+            }
+        }
+
         [PreSerialization]
         private void SerializeAtomicMemoryState()
         {
@@ -151,6 +160,12 @@ namespace Antmicro.Renode.Core
         [PreSerialization]
         private void SerializeHstState()
         {
+            if(storeTablePointer == IntPtr.Zero)
+            {
+                storeTable = null;
+                return;
+            }
+
             parent.DebugLog("Serializing store table of size {0}...", StoreTableSize);
             storeTable = new byte[StoreTableSize];
             Marshal.Copy(StoreTablePointer, storeTable, 0, StoreTableSize);

@@ -1010,6 +1010,19 @@ namespace Antmicro.Renode.Core
                 }
             }
 
+            // Create HST Store Table and assign it to CPUs
+            var atomicCPUs = SystemBus.GetCPUs()
+                .OfType<TranslationCPU>()
+                .Where(cpu => cpu.UseMachineAtomicState).ToArray();
+            if(atomicCPUs.Count() > 1)
+            {
+                atomicState.AllocateStoreTable();
+                foreach(var cpu in atomicCPUs)
+                {
+                    cpu.InitStoreTable();
+                }
+            }
+
             // Register io_executable flags for all ArrayMemory peripherals
             foreach(var context in SystemBus.GetAllContextKeys())
             {

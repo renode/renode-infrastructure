@@ -763,6 +763,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public void InitStoreTable(bool afterDeserialization = false)
+        {
+            TlibStoreTableInit(StoreTablePointer, (byte)StoreTableBits, afterDeserialization ? 1 : 0);
+        }
+
         public void RemoveHooksAt(ulong addr) => hooks.RemoveHooksAt(addr);
 
         public void RemoveHooks(CpuAddressHook hook) => hooks.RemoveHooks(hook);
@@ -1012,6 +1017,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public abstract string GDBArchitecture { get; }
 
+        public readonly bool UseMachineAtomicState;
+
         protected TranslationCPU(string cpuType, IMachine machine, Endianess endianness, CpuBitness bitness = CpuBitness.Bits32)
         : this(0, cpuType, machine, endianness, bitness)
         {
@@ -1031,9 +1038,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             decodedIrqs = new Dictionary<Interrupt, HashSet<int>>();
             hooks = new HookDescriptor(this);
             currentMappings = new List<SegmentMapping>();
-            this.useMachineAtomicState = useMachineAtomicState;
+            this.UseMachineAtomicState = useMachineAtomicState;
             InitializeRegisters();
-            Init(afterDeserialization: false);
+            Init();
             InitDisas();
             Clustered = new TranslationCPU[] { this };
         }
@@ -1581,7 +1588,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             RebuildMemoryMappings();
         }
 
-        private void Init(bool afterDeserialization = false)
+        private void Init()
         {
             memoryManager = new SimpleMemoryManager(this);
             isPaused = true;
@@ -1638,11 +1645,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 throw new ConstructionException("Failed to initialize atomic state, see the log for details");
             }
-
-            var deserializationSuffix = afterDeserialization ? " after deserialization" : "";
-            this.DebugLog("Initializing store table of size {0} bits{1}...", StoreTableBits, deserializationSuffix);
-            TlibStoreTableInit(StoreTablePointer, (byte)StoreTableBits, afterDeserialization ? 1 : 0);
-            this.DebugLog("Initialized store table of size {0} bits{1}!", StoreTableBits, deserializationSuffix);
 
             HandleRamSetup();
             ActivateNewHooks();
@@ -1882,7 +1884,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         [LatePostDeserialization]
         private void RestoreState()
         {
-            Init(afterDeserialization: true);
+            Init();
+            if(StoreTablePointer != IntPtr.Zero)
+            {
+                InitStoreTable(afterDeserialization: true);
+            }
             // TODO: state of the reset events
             FreeState();
             if(memoryAccessHook != null)
@@ -1991,17 +1997,17 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         private IntPtr AtomicMemoryStatePointer =>
-            useMachineAtomicState
+            UseMachineAtomicState
                 ? machine.AtomicMemoryStatePointer
                 : localAtomicState.AtomicMemoryStatePointer;
 
         private IntPtr StoreTablePointer =>
-            useMachineAtomicState
+            UseMachineAtomicState
                 ? machine.StoreTablePointer
                 : localAtomicState.StoreTablePointer;
 
         private int StoreTableBits =>
-            useMachineAtomicState
+            UseMachineAtomicState
                 ? machine.StoreTableBits
                 : localAtomicState.StoreTableBits;
 
@@ -2065,7 +2071,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         private readonly HookDescriptorBase hooks;
 
         private readonly AtomicState localAtomicState;
-        private readonly bool useMachineAtomicState;
 
         private readonly Dictionary<Interrupt, HashSet<int>> decodedIrqs;
 
