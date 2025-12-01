@@ -34,7 +34,7 @@ namespace Antmicro.Renode.PeripheralsTests
         [Test]
         public void RotatedInvertedTest()
         {
-            DoTest(60, 100, isRotated: true, isInvertedY: true);
+            DoTest(90, 50, isRotated: true, isInvertedY: true);
         }
 
         private void AssertTouch(FT5336 touch, ushort oX, ushort oY)

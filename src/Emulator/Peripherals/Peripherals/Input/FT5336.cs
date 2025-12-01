@@ -84,10 +84,6 @@ namespace Antmicro.Renode.Peripherals.Input
 
         public void MoveTo(int x, int y)
         {
-            if(isRotated)
-            {
-                Misc.Swap(ref x, ref y);
-            }
             if(isInvertedX)
             {
                 x = MaxX - x;
@@ -95,6 +91,10 @@ namespace Antmicro.Renode.Peripherals.Input
             if(isInvertedY)
             {
                 y = MaxY - y;
+            }
+            if(isRotated)
+            {
+                Misc.Swap(ref x, ref y);
             }
 
             touchedPoints[0].X = (ushort)x;
