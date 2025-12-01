@@ -68,6 +68,8 @@
   <ItemGroup Condition=" $(CurrentPlatform) != Windows And $(GUI_DISABLED) != 'true' ">
     <PackageReference Include="GdkSharp" Version="3.24.24.95" />
     <PackageReference Include="GLibSharp" Version="3.24.24.95" />
+    <PackageReference Include="GirCore.Gst-1.0" Version="0.7.0" />
+    <PackageReference Include="GirCore.GstApp-1.0" Version="0.7.0" />
   </ItemGroup>
   <Import Project="$(MSBuildProjectDirectory)/BuildAdditionalProjects-UI.csproj.targets" Condition="Exists('$(MSBuildProjectDirectory)/BuildAdditionalProjects-UI.csproj.targets')" />
   <ItemGroup>
