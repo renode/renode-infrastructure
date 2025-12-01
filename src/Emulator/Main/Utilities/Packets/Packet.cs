@@ -171,6 +171,7 @@ namespace Antmicro.Renode.Utilities.Packets
                     continue;
                 }
                 var type = field.ElementType;
+                type = Nullable.GetUnderlyingType(type) ?? type;
                 if(type.IsEnum)
                 {
                     type = type.GetEnumUnderlyingType();
@@ -364,6 +365,7 @@ namespace Antmicro.Renode.Utilities.Packets
                     continue;
                 }
                 var type = field.ElementType;
+                type = Nullable.GetUnderlyingType(type) ?? type;
                 if(type.IsEnum)
                 {
                     type = type.GetEnumUnderlyingType();
@@ -580,6 +582,7 @@ namespace Antmicro.Renode.Utilities.Packets
         // Separate function to prevent unintentional context capture when using a lambda, which completely destroys caching.
         private static int CalculateBitLengthCacheGenerator(Type t, ulong optionalFieldPresence)
         {
+            t = Nullable.GetUnderlyingType(t) ?? t;
             t = t.IsEnum ? t.GetEnumUnderlyingType() : t;
             if(t.IsPrimitive)
             {
@@ -777,6 +780,7 @@ namespace Antmicro.Renode.Utilities.Packets
                 get
                 {
                     var type = ElementType;
+                    type = Nullable.GetUnderlyingType(type) ?? type;
                     if(type.IsEnum)
                     {
                         type = type.GetEnumUnderlyingType();
@@ -817,6 +821,7 @@ namespace Antmicro.Renode.Utilities.Packets
                 get
                 {
                     var type = ElementType;
+                    type = Nullable.GetUnderlyingType(type) ?? type;
                     if(type.IsEnum)
                     {
                         type = type.GetEnumUnderlyingType();
