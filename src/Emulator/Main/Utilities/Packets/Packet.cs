@@ -67,7 +67,7 @@ namespace Antmicro.Renode.Utilities.Packets
 
         public static bool TryDecode<T>(IList<byte> data, out T result, int dataOffset = 0)
         {
-            var success = TryDecode(typeof(T), data, out var tryResult, dataOffset);
+            var success = TryDecode(typeof(T), data, out var tryResult, ref dataOffset);
             result = (T)tryResult;
             return success;
         }
@@ -79,7 +79,7 @@ namespace Antmicro.Renode.Utilities.Packets
             {
                 throw new ArgumentException($"Could not decode packet: subtype selector did not return a subtype of {typeof(T)}");
             }
-            var success = TryDecode(type, data, out var resultObject, dataOffset);
+            var success = TryDecode(type, data, out var resultObject, ref dataOffset);
             result = (T)resultObject;
             return success;
         }
@@ -152,12 +152,12 @@ namespace Antmicro.Renode.Utilities.Packets
             return result;
         }
 
-        private static bool TryDecode(Type t, IList<byte> data, out object result, int dataOffset = 0)
+        private static bool TryDecode(Type t, IList<byte> data, out object result, ref int offset)
         {
-            var offset = dataOffset;
+            var startOffset = offset;
             if(offset < 0)
             {
-                throw new ArgumentException("Data offset cannot be less than zero", "dataOffset");
+                throw new ArgumentException("Offset cannot be less than zero", nameof(offset));
             }
 
             result = Activator.CreateInstance(t);
@@ -179,7 +179,7 @@ namespace Antmicro.Renode.Utilities.Packets
 
                 if(field.ByteOffset.HasValue)
                 {
-                    offset = dataOffset + field.ByteOffset.Value;
+                    offset = startOffset + field.ByteOffset.Value;
                 }
                 if(field.BytePaddingBefore.HasValue)
                 {
@@ -239,22 +239,23 @@ namespace Antmicro.Renode.Utilities.Packets
                     continue;
                 }
 
-                var bytesRequired = field.BytesRequired;
-                if(offset + bytesRequired > data.Count)
-                {
-                    return false;
-                }
-
+                // Classes and structs can have optional fields, so we do this before the bytesRequired check in order
+                // to use the actual length of the type (which we identify as it is decoded) to fail the decoding if needed.
                 if(Misc.IsStructType(type) || type.IsClass)
                 {
-                    if(!TryDecode(type, data, out var nestedPacket, offset))
+                    if(!TryDecode(type, data, out var nestedPacket, ref offset))
                     {
                         return false;
                     }
 
                     field.SetValue(result, nestedPacket);
-                    offset += bytesRequired;
                     continue;
+                }
+
+                var bytesRequired = field.BytesRequired;
+                if(offset + bytesRequired > data.Count)
+                {
+                    return false;
                 }
 
                 var intermediate = 0UL;
