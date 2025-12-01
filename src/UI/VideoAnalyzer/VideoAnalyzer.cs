@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -15,7 +15,6 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.Input;
-using Antmicro.Renode.Peripherals.Video;
 using Antmicro.Renode.UI;
 using Antmicro.Renode.Utilities;
 
@@ -50,13 +49,14 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video
 
         protected override void OnAttach(VideoBackend backend)
         {
-            var videoPeripheral = (AutoRepaintingVideo)backend.Video;
+            var video = backend.Video;
+            var videoPeripheral = (IPeripheral)video;
             element = videoPeripheral;
             lastRewrite = CustomDateTime.Now;
             EnsureAnalyserWidget();
 
-            videoPeripheral.ConfigurationChanged += (w, h, f, e) => ApplicationExtensions.InvokeInUIThread(() => displayWidget.SetDisplayParameters(w, h, f, e));
-            videoPeripheral.FrameRendered += (f) =>
+            video.ConfigurationChanged += (w, h, f, e) => ApplicationExtensions.InvokeInUIThread(() => displayWidget.SetDisplayParameters(w, h, f, e));
+            video.FrameRendered += (f) =>
             {
                 ApplicationExtensions.InvokeInUIThread(() =>
                 {
