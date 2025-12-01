@@ -105,7 +105,7 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video
 #if PLATFORM_WINDOWS
                 pixelFormat = PixelFormat.BGRA8888;
 #endif
-                converter = PixelManipulationTools.GetConverter(colorFormat, endianess, pixelFormat, Endianess.BigEndian);
+                converter = PixelManipulationTools.GetConverter(colorFormat, endianess, pixelFormat, Endianess.BigEndian, desiredWidth, desiredHeight);
                 outBuffer = new byte[desiredWidth * desiredHeight * pixelFormat.GetColorDepth()];
 
                 img = new ImageBuilder(DesiredDisplayWidth, DesiredDisplayHeight).ToBitmap();

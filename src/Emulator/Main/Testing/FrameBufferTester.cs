@@ -204,7 +204,7 @@ namespace Antmicro.Renode.Testing
         {
             if(format != null && endianess != null)
             {
-                converter = PixelManipulationTools.GetConverter((Backends.Display.PixelFormat)format, (ELFSharp.ELF.Endianess)endianess, Backends.Display.PixelFormat.ARGB8888, ELFSharp.ELF.Endianess.LittleEndian);
+                converter = PixelManipulationTools.GetConverter((Backends.Display.PixelFormat)format, (ELFSharp.ELF.Endianess)endianess, Backends.Display.PixelFormat.ARGB8888, ELFSharp.ELF.Endianess.LittleEndian, frameWidth, frameHeight);
             }
         }
 
