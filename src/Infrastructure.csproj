@@ -376,6 +376,7 @@
     <Compile Include="Emulator/Cores/RiscV/MiV_CoreLevelInterruptor.cs" />
     <Compile Include="Emulator/Cores/RiscV/BaseRiscV.cs" />
     <Compile Include="Emulator/Cores/RiscV/PlatformLevelInterruptController.cs" />
+    <Compile Include="Emulator/Cores/RiscV/AndesNCEPLIC100.cs" />
     <Compile Include="Emulator/Cores/RiscV/PrivilegeLevel.cs" />
     <Compile Include="Emulator/Cores/RiscV/IbexRiscV32.cs" />
     <Compile Include="Emulator/Cores/RiscV/Minerva.cs" />
