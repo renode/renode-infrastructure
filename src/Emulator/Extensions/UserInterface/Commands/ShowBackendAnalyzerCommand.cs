@@ -18,6 +18,14 @@ using AntShell.Commands;
 
 namespace Antmicro.Renode.UserInterface.Commands
 {
+    public static class AnalyzableExtensions
+    {
+        public static void ShowAnalyzer(this IAnalyzable analyzable, string analyzerTypeName = null, string externalName = null)
+        {
+            ShowBackendAnalyzerCommand.ShowAnalyzer(analyzable, analyzerTypeName, externalName);
+        }
+    }
+
     public class ShowBackendAnalyzerCommand : AutoLoadCommand
     {
         public static IAnalyzableBackendAnalyzer GetAnalyzer(IAnalyzable analyzable, string analyzerTypeName)
