@@ -60,6 +60,10 @@ namespace Antmicro.Renode.Peripherals
 
         public bool TryCreateBackend<T>(T analyzable) where T : IAnalyzable
         {
+            if(map.ContainsKey(analyzable))
+            {
+                return false; // Not created
+            }
             Type backendType = null;
             foreach(var b in backends)
             {
