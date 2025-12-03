@@ -136,7 +136,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         public override void ConfigCSRWrite(uint registerIndex, ulong value)
         {
             var baseEntry = (int)registerIndex * entriesPerCSR;
-            if(baseEntry + entriesPerCSR >= numberOfPMPEntries)
+            if(baseEntry + entriesPerCSR > numberOfPMPEntries)
             {
                 throw new RecoverableException($"Attempted to access invalid PMP config register {registerIndex} (number of config registers: {numberOfPMPEntries / entriesPerCSR})");
             }
