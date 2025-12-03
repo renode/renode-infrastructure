@@ -98,6 +98,10 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public bool IsPaused => !started;
 
+        public event Action<I, byte> DataTransmitted;
+
+        public event Action<I, I, byte> DataRouted;
+
         protected bool started;
         protected readonly bool shouldLoopback;
         protected readonly Dictionary<I, Action<byte>> uarts;
@@ -110,11 +114,16 @@ namespace Antmicro.Renode.Peripherals.UART
                 return;
             }
 
+            DataTransmitted?.Invoke(sender, obj);
+
             lock(locker)
             {
                 foreach(var recipient in uarts.Where(x => shouldLoopback || x.Key != sender).Select(x => x.Key))
                 {
-                    recipient.GetMachine().HandleTimeDomainEvent(recipient.WriteChar, obj, when);
+                    recipient.GetMachine().HandleTimeDomainEvent(recipient.WriteChar, obj, when, () =>
+                    {
+                        DataRouted?.Invoke(sender, recipient, obj);
+                    });
                 }
             }
         }
