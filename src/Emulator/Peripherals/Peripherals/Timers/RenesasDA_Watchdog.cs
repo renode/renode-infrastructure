@@ -19,9 +19,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             IRQ = new GPIO();
             this.nvic = nvic;
 
-            ticker = new LimitTimer(machine.ClockSource, frequency, this, "watchdog", TickerDefaultValue, Direction.Descending, enabled: true, eventEnabled: true);
-            ticker.Divider = 320;
-
+            ticker = new LimitTimer(machine.ClockSource, frequency, this, "watchdog", TickerDefaultValue, Direction.Descending, enabled: true, eventEnabled: true, divider: 320);
             ticker.LimitReached += LimitReachedAction;
 
             Registers.Value.Define(this, resetValue: 0x1FFF)
