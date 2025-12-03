@@ -1,28 +1,22 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.IRQControllers;
 using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
     public sealed class RenesasDA_Watchdog : BasicDoubleWordPeripheral, IKnownSize
     {
-        public RenesasDA_Watchdog(IMachine machine, long frequency, IDoubleWordPeripheral nvic) : base(machine)
+        public RenesasDA_Watchdog(IMachine machine, long frequency, NVIC nvic) : base(machine)
         {
             IRQ = new GPIO();
-            // Type comparison like this is required due to NVIC model being in another project
-            if(nvic.GetType().FullName != "Antmicro.Renode.Peripherals.IRQControllers.NVIC")
-            {
-                throw new ConstructionException($"{nvic.GetType()} is invalid type for NVIC");
-            }
             this.nvic = nvic;
 
             ticker = new LimitTimer(machine.ClockSource, frequency, this, "watchdog", TickerDefaultValue, Direction.Descending, enabled: true, eventEnabled: true);
@@ -175,7 +169,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 ticker.Limit = 0x0;
                 ticker.Value = TickerShift;
                 // Send NMI to NVIC
-                ((dynamic)nvic).SetPendingIRQ(2);
+                nvic.SetPendingIRQ(2);
             }
             else
             {
@@ -195,7 +189,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         private readonly IFlagRegisterField nonMaskableInterruptReset;
 
         private readonly LimitTimer ticker;
-        private readonly IDoubleWordPeripheral nvic;
+        private readonly NVIC nvic;
 
         // In hardware it counts down from 0x1fff to negative 0x10. Mock the negative range by starting from +0x10.
         private const ulong TickerShift = 0x10;
