@@ -455,6 +455,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                     }
 
                     rv.TxBufferCancellationFinished.CancellationFinishedFlags[idx].Value = true;
+                    rv.InterruptRegister.InterruptFlags[(int)Interrupt.TransmissionCancellationFinished].Value = true;
                 }, name: "CRx")
                 .WithWriteCallback((oldVal, newVal) =>
                 {
@@ -463,32 +464,10 @@ namespace Antmicro.Renode.Peripherals.CAN
                 });
 
             registerMap[(long)Register.TxBufferTransmissionOccurred] = new DoubleWordRegister(this)
-                .WithFlags(0, 32, out rv.TxBufferTransmissionOccurred.TransmissionOccurredFlags, name: "TOx")
-                .WithWriteCallback((oldVal, newVal) => {
-                    // If any buffer's bit has gone from cleared to set, and if the corresponding bit in TXBTIE
-                    // is also set, trigger the TC interrupt in IR.
-                    var setBits = ~oldVal & newVal;
-                    if(rv.TxBufferTransmissionInterruptEnable.TransmissionInterruptEnableFlags
-                        .Select((flag, i) => new { flag, i })
-                        .Any(x => (setBits & (1 << x.i)) != 0 && x.flag.Value))
-                        {
-                            rv.InterruptRegister.InterruptFlags[(int)Interrupt.TransmissionCompleted].Value = true;
-                        }
-                });
+                .WithFlags(0, 32, out rv.TxBufferTransmissionOccurred.TransmissionOccurredFlags, FieldMode.Read, name: "TOx");
 
             registerMap[(long)Register.TxBufferCancellationFinished] = new DoubleWordRegister(this)
-                .WithFlags(0, 32, out rv.TxBufferCancellationFinished.CancellationFinishedFlags, name: "CFx")
-                .WithWriteCallback((oldVal, newVal) => {
-                    // If any buffer's bit has gone from cleared to set, and if the corresponding bit in TXBCIE
-                    // is also set, trigger the TCF interrupt in IR.
-                    var setBits = ~oldVal & newVal;
-                    if(rv.TxBufferCancellationFinishedInterruptEnable.CancellationFinishedInterruptEnableFlags
-                        .Select((flag, i) => new { flag, i })
-                        .Any(x => (setBits & (1 << x.i)) != 0 && x.flag.Value))
-                        {
-                            rv.InterruptRegister.InterruptFlags[(int)Interrupt.TransmissionCancellationFinished].Value = true;
-                        }
-                });
+                .WithFlags(0, 32, out rv.TxBufferCancellationFinished.CancellationFinishedFlags, FieldMode.Read, name: "CFx");
 
             registerMap[(long)Register.TxBufferTransmissionInterruptEnable] = new DoubleWordRegister(this)
                 .WithFlags(0, 32, out rv.TxBufferTransmissionInterruptEnable.TransmissionInterruptEnableFlags, name: "TIEx");
@@ -775,6 +754,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             }
 
             rv.TxBufferTransmissionOccurred.TransmissionOccurredFlags[i].Value = true;
+            rv.InterruptRegister.InterruptFlags[(int)Interrupt.TransmissionCompleted].Value = true;
         }
 
         private void HandleTxEvent(TxBufferElementHeader txHeader)
