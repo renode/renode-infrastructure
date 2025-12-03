@@ -9,7 +9,6 @@ using System.Collections.Generic;
 using System.Linq;
 
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.CPU;
@@ -136,14 +135,27 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         public override void ConfigCSRWrite(uint registerIndex, ulong value)
         {
             var baseEntry = (int)registerIndex * entriesPerCSR;
-            if(baseEntry + entriesPerCSR > numberOfPMPEntries)
+            if(registerIndex >= numberOfPMPEntries / entriesPerCSR)
             {
-                throw new RecoverableException($"Attempted to access invalid PMP config register {registerIndex} (number of config registers: {numberOfPMPEntries / entriesPerCSR})");
+                this.ErrorLog("Attempted to write to invalid PMP config register {0} (number of config registers: {1}), ignoring write", registerIndex, numberOfPMPEntries / entriesPerCSR);
+                return;
             }
-            if(entriesPerCSR == 8)
+            if(cpu is RiscV64)
             {
                 // On RV64 there are only even config CSRs
-                DebugHelper.Assert(registerIndex % 2 == 0);
+                if(registerIndex % 2 != 0)
+                {
+                    if(cpu.OnPossessedThread)
+                    {
+                        this.ErrorLog("Attempted to write to uneven PMP config register pmpcfg{0} which does not exist in 64-bit RiscV, triggering an illegal instruction exception", registerIndex);
+                        cpu.RaiseException((uint)BaseRiscV.ExceptionCodes.IllegalInstruction);
+                        return;
+                    }
+                    else
+                    {
+                        throw new RecoverableException($"Attempted to write to uneven PMP config register {registerIndex}, which does not exsist in 64-bit RiscV");
+                    }
+                }
                 baseEntry = baseEntry / 2;
             }
             for(var i = 0; i < entriesPerCSR; i++)
@@ -161,14 +173,27 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         public override ulong ConfigCSRRead(uint registerIndex)
         {
             var baseEntry = (int)registerIndex * entriesPerCSR;
-            if(baseEntry + entriesPerCSR > numberOfPMPEntries)
+            if(registerIndex >= numberOfPMPEntries / entriesPerCSR)
             {
-                throw new RecoverableException($"Attempted to access invalid PMP config register {registerIndex} (number of config registers: {numberOfPMPEntries / entriesPerCSR})");
+                this.ErrorLog("Attempted to read from invalid PMP config register {0} (number of config registers: {1}), returning 0", registerIndex, numberOfPMPEntries / entriesPerCSR);
+                return 0;
             }
             if(cpu is RiscV64)
             {
                 // On RV64 there are only even config CSRs
-                DebugHelper.Assert(registerIndex % 2 == 0);
+                if(registerIndex % 2 != 0)
+                {
+                    if(cpu.OnPossessedThread)
+                    {
+                        this.ErrorLog("Attempted to read from uneven PMP config register pmpcfg{0} which does not exist in 64-bit RiscV, triggering an illegal instruction exception", registerIndex);
+                        cpu.RaiseException((uint)BaseRiscV.ExceptionCodes.IllegalInstruction);
+                        return 0;
+                    }
+                    else
+                    {
+                        throw new RecoverableException($"Attempted to read from uneven PMP config register {registerIndex}, which does not exsist in 64-bit RiscV");
+                    }
+                }
                 baseEntry = baseEntry / 2;
             }
             ulong res = 0;
@@ -184,7 +209,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             if(registerIndex >= numberOfPMPEntries)
             {
-                throw new RecoverableException($"Attempted to access invalid PMP address register {registerIndex} (numberOfPMPEntries: {numberOfPMPEntries})");
+                this.ErrorLog("Attempted to write to invalid PMP address register {0} (numberOfPMPEntries: {1}), ignoring write", registerIndex, numberOfPMPEntries);
+                return;
             }
             if(IsEntryLocked((int)registerIndex))
             {
@@ -199,7 +225,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             if(registerIndex >= numberOfPMPEntries)
             {
-                throw new RecoverableException($"Attempted to access invalid PMP configuration register {registerIndex} (numberOfPMPEntries: {numberOfPMPEntries})");
+                this.ErrorLog("Attempted to read from invalid PMP address register {0} (numberOfPMPEntries: {1}), returning 0", registerIndex, numberOfPMPEntries);
+                return 0;
             }
             return addressRegisters[(int)registerIndex];
         }
